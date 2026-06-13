@@ -3,18 +3,57 @@ export async function downloadRunImage(nodeId: string, seed: string) {
   if (!node) throw new Error('Share card not found');
 
   const { toPng } = await import('html-to-image');
-  const dataUrl = await toPng(node, {
-    cacheBust: true,
-    pixelRatio: 2,
-    width: 540,
-    height: 675,
-    backgroundColor: '#050708',
-    style: {
-      width: '540px',
-      maxWidth: 'none',
-      height: '675px'
-    }
+  const captureHost = document.createElement('div');
+  const captureNode = node.cloneNode(true) as HTMLElement;
+
+  captureHost.setAttribute('aria-hidden', 'true');
+  Object.assign(captureHost.style, {
+    position: 'fixed',
+    left: '-10000px',
+    top: '0',
+    width: '540px',
+    height: '675px',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    background: '#050708'
   });
+  captureNode.removeAttribute('id');
+  Object.assign(captureNode.style, {
+    boxSizing: 'border-box',
+    width: '540px',
+    minWidth: '540px',
+    maxWidth: '540px',
+    height: '675px',
+    minHeight: '675px',
+    margin: '0',
+    transform: 'none'
+  });
+  captureHost.append(captureNode);
+  document.body.append(captureHost);
+
+  let dataUrl: string;
+  try {
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    dataUrl = await toPng(captureNode, {
+      cacheBust: true,
+      pixelRatio: 2,
+      width: 540,
+      height: 675,
+      backgroundColor: '#050708',
+      style: {
+        width: '540px',
+        minWidth: '540px',
+        maxWidth: '540px',
+        height: '675px',
+        minHeight: '675px',
+        margin: '0',
+        transform: 'none'
+      }
+    });
+  } finally {
+    captureHost.remove();
+  }
 
   const link = document.createElement('a');
   link.download = `cs20a0-run-${seed}.png`;
