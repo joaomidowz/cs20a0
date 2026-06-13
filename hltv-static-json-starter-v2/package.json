@@ -1,0 +1,22 @@
+{
+  "name": "hltv-static-json-starter-v2",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "collect:ranking": "tsx scripts/collect-ranking.ts",
+    "parse:ranking": "tsx scripts/parse-ranking.ts",
+    "generate:players-input": "tsx scripts/generate-players-input.ts",
+    "generate:game": "tsx scripts/generate-game-data.ts",
+    "collect:player-pages": "tsx scripts/collect-player-pages.ts",
+    "validate:data": "tsx scripts/validate-data.ts",
+    "build:data": "npm run parse:ranking && npm run generate:players-input && npm run generate:game && npm run validate:data"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

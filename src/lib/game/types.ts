@@ -1,0 +1,162 @@
+export type GamePhase =
+  | 'home'
+  | 'mode-select'
+  | 'draft'
+  | 'stage3'
+  | 'playoffs'
+  | 'result'
+  | 'stats';
+
+export type GameMode = 'premier' | 'faceit';
+export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
+export type SimSpeed = 'normal' | 'fast' | 'ultra' | 'insta';
+export type SimMode = 'manual' | 'auto';
+export type SeriesType = 'bo3' | 'bo5';
+export type Language = 'pt-BR' | 'es' | 'en';
+export type Theme = 'dark' | 'light';
+export type LineupSlotRole = 'awper' | 'igl' | 'entry' | 'lurker' | 'rifler' | 'support';
+
+export interface Player {
+  id: string;
+  baseId?: string | null;
+  nickname?: string | null;
+  title?: string | null;
+  teamId?: string | null;
+  year?: number | null;
+  game?: string | null;
+  role?: string | null;
+  overall?: number | null;
+  rarity?: string | null;
+  traits?: string[] | null;
+  firepower?: number | null;
+  clutch?: number | null;
+  entry?: number | null;
+  awp?: number | null;
+  support?: number | null;
+  igl?: number | null;
+  experience?: number | null;
+  consistency?: number | null;
+  mental?: number | null;
+  source?: unknown;
+}
+
+export interface SelectedPlayer {
+  playerId: string;
+  selectedSlotRole: LineupSlotRole;
+}
+
+export interface HistoricalTeam {
+  id: string;
+  name?: string | null;
+  year?: number | null;
+  game?: string | null;
+  rank?: number | null;
+  sourceRank?: number | null;
+  players?: string[] | null;
+  power?: number | null;
+  teamPowerPreview?: number | null;
+  rarity?: string | null;
+  teamStats?: Record<string, number> | null;
+  sourceUrl?: string | null;
+  source?: unknown;
+}
+
+export interface CombatTeam {
+  id: string;
+  name: string;
+  power: number;
+  mental: number;
+  clutch: number;
+  experience: number;
+  isUser?: boolean;
+}
+
+export interface RoundScore {
+  a: number;
+  b: number;
+  overtime: boolean;
+}
+
+export interface MapResult {
+  map: number;
+  scoreA: number;
+  scoreB: number;
+  winnerId: string;
+  rounds: RoundScore[];
+  overtime: boolean;
+}
+
+export interface SeriesResult {
+  id: string;
+  phase: 'stage3' | 'quarterfinal' | 'semifinal' | 'final';
+  bestOf: 3 | 5;
+  teamA: CombatTeam;
+  teamB: CombatTeam;
+  scoreA: number;
+  scoreB: number;
+  winnerId: string;
+  maps: MapResult[];
+  userMatch: boolean;
+}
+
+export interface Stage3Result {
+  wins: number;
+  losses: number;
+  qualified: boolean;
+  matches: SeriesResult[];
+}
+
+export interface PlayoffsResult {
+  championId: string;
+  placement: string;
+  userMatches: SeriesResult[];
+  allMatches: SeriesResult[];
+}
+
+export interface MajorRun {
+  stage3: Stage3Result;
+  playoffs?: PlayoffsResult;
+  matches: SeriesResult[];
+  champion: boolean;
+  placement: string;
+}
+
+export interface PlayerRunStats {
+  playerId: string;
+  runRating: number;
+  kills: number;
+  deaths: number;
+  adr: number;
+  impact: number;
+  clutches: number;
+  openingKills: number;
+  mvpCount: number;
+  mapsPlayed: number;
+  mapsWon: number;
+  roundsWon: number;
+}
+
+export interface GameState {
+  phase: GamePhase;
+  language: Language;
+  theme: Theme;
+  seed: string;
+  mode: GameMode | null;
+  style: OrgStyle;
+  styleLocked: boolean;
+  selectedPlayers: SelectedPlayer[];
+  usedTeamIds: string[];
+  rolledTeamId: string | null;
+  simMode: SimMode;
+  simSpeed: SimSpeed;
+  majorRun: MajorRun | null;
+  completedSeries: number;
+  stats: PlayerRunStats[];
+}
+
+export const SPEEDS: Record<SimSpeed, number> = {
+  normal: 1500,
+  fast: 1000,
+  ultra: 500,
+  insta: 200
+};

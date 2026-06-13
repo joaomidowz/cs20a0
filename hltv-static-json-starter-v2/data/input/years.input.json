@@ -1,0 +1,12 @@
+[
+  { "year": 2016, "game": "CSGO", "snapshotDate": "2016-12-26", "rankingUrl": "https://www.hltv.org/ranking/teams/2016/december/26", "top": 3 },
+  { "year": 2017, "game": "CSGO", "snapshotDate": "2017-12-25", "rankingUrl": "https://www.hltv.org/ranking/teams/2017/december/25", "top": 3 },
+  { "year": 2018, "game": "CSGO", "snapshotDate": "2018-12-31", "rankingUrl": "https://www.hltv.org/ranking/teams/2018/december/31", "top": 3 },
+  { "year": 2019, "game": "CSGO", "snapshotDate": "2019-12-30", "rankingUrl": "https://www.hltv.org/ranking/teams/2019/december/30", "top": 3 },
+  { "year": 2020, "game": "CSGO", "snapshotDate": "2020-12-28", "rankingUrl": "https://www.hltv.org/ranking/teams/2020/december/28", "top": 3 },
+  { "year": 2021, "game": "CSGO", "snapshotDate": "2021-12-27", "rankingUrl": "https://www.hltv.org/ranking/teams/2021/december/27", "top": 3 },
+  { "year": 2022, "game": "CSGO", "snapshotDate": "2022-12-26", "rankingUrl": "https://www.hltv.org/ranking/teams/2022/december/26", "top": 3 },
+  { "year": 2023, "game": "MIXED", "snapshotDate": "2023-12-25", "rankingUrl": "https://www.hltv.org/ranking/teams/2023/december/25", "top": 3 },
+  { "year": 2024, "game": "CS2", "snapshotDate": "2024-12-30", "rankingUrl": "https://www.hltv.org/ranking/teams/2024/december/30", "top": 3 },
+  { "year": 2025, "game": "CS2", "snapshotDate": "2025-12-29", "rankingUrl": "https://www.hltv.org/ranking/teams/2025/december/29", "top": 3 }
+]

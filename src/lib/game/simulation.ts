@@ -1,0 +1,346 @@
+import type {
+  CombatTeam,
+  GameMode,
+  HistoricalTeam,
+  MajorRun,
+  MapResult,
+  OrgStyle,
+  Player,
+  PlayerRunStats,
+  SelectedPlayer,
+  PlayoffsResult,
+  RoundScore,
+  SeriesResult,
+  Stage3Result
+} from './types';
+
+export type SeededRng = () => number;
+
+const number = (value: number | null | undefined, fallback = 70) =>
+  Number.isFinite(value) ? Number(value) : fallback;
+
+const hashSeed = (seed: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+export function createSeededRng(seed: string): SeededRng {
+  let state = hashSeed(seed) || 0x9e3779b9;
+  return () => {
+    state += 0x6d2b79f5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function pickRandomTeam(
+  teams: HistoricalTeam[],
+  rng: SeededRng,
+  excludedIds: string[] = []
+): HistoricalTeam | null {
+  const available = teams.filter((team) => !excludedIds.includes(team.id));
+  if (!available.length) return null;
+  return available[Math.floor(rng() * available.length)] ?? available[0];
+}
+
+export function calculatePlayerPower(
+  player: Player,
+  style: OrgStyle,
+  _mode: GameMode = 'premier'
+): number {
+  const stats = {
+    overall: number(player.overall),
+    firepower: number(player.firepower),
+    clutch: number(player.clutch),
+    entry: number(player.entry),
+    awp: number(player.awp, 20),
+    support: number(player.support),
+    igl: number(player.igl, 20),
+    experience: number(player.experience),
+    consistency: number(player.consistency),
+    mental: number(player.mental)
+  };
+  let power =
+    stats.overall * 0.35 +
+    stats.firepower * 0.13 +
+    stats.clutch * 0.1 +
+    stats.entry * 0.07 +
+    stats.awp * 0.05 +
+    stats.support * 0.06 +
+    stats.igl * 0.05 +
+    stats.experience * 0.06 +
+    stats.consistency * 0.07 +
+    stats.mental * 0.06;
+
+  if (style === 'aggressive') power += (stats.firepower + stats.entry) * 0.025 - stats.consistency * 0.012;
+  if (style === 'balanced') power += (stats.consistency + stats.mental) * 0.014;
+  if (style === 'tactical') power += (stats.igl + stats.support + stats.mental) * 0.02 - (stats.entry + stats.firepower) * 0.012;
+  if (player.rarity === 'goat') power += 1.5;
+  if (player.rarity === 'legend') power += 0.8;
+  return power;
+}
+
+const hasRole = (player: Player, role: string) => (player.role ?? '').toLowerCase().includes(role);
+
+export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = []): CombatTeam {
+  if (!players.length) return { id: 'user', name: 'Sua Org', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
+  const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
+  const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
+  const assignedRoles = lineup.map((selected) => selected.selectedSlotRole);
+  const awpers = assignedRoles.length ? assignedRoles.filter((role) => role === 'awper').length : players.filter((player) => hasRole(player, 'awp')).length;
+  const igls = assignedRoles.length ? assignedRoles.filter((role) => role === 'igl').length : players.filter((player) => hasRole(player, 'igl')).length;
+  const supports = assignedRoles.length ? assignedRoles.filter((role) => role === 'support').length : players.filter((player) => hasRole(player, 'support') || number(player.support) >= 88).length;
+  let composition = 0;
+  composition += awpers ? 2.2 : -4.5;
+  composition += igls ? 2.4 : -4;
+  composition += supports ? 1.2 : -1.5;
+  if (players.every((player) => number(player.firepower) >= 90) && (!igls || !supports)) composition -= 2;
+  return {
+    id: 'user',
+    name: 'Sua Org',
+    power: Math.max(45, Math.min(99, average + composition)),
+    mental: avg('mental'),
+    clutch: avg('clutch'),
+    experience: avg('experience'),
+    isUser: true
+  };
+}
+
+export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: Player[]): CombatTeam {
+  const roster = allPlayers.filter((player) => (team.players ?? []).includes(player.id));
+  const playerAverage = roster.length
+    ? roster.reduce((sum, player) => sum + calculatePlayerPower(player, 'balanced'), 0) / roster.length
+    : number(team.teamPowerPreview ?? team.power, 82);
+  const rank = number(team.sourceRank ?? team.rank, 10);
+  const rankBonus = Math.max(0, 4 - rank * 0.55);
+  const chemistry = number(team.teamStats?.chemistry, roster.length === 5 ? 88 : 75);
+  const completeRosterBonus = roster.length >= 5 ? 2.8 : 0.5;
+  const power = playerAverage * 0.72 + number(team.teamPowerPreview ?? team.power, playerAverage) * 0.2 + chemistry * 0.08 + rankBonus + completeRosterBonus;
+  return {
+    id: team.id,
+    name: `${team.name ?? 'Time'} ${team.year ?? ''}`.trim(),
+    power: Math.max(50, Math.min(99, power)),
+    mental: number(team.teamStats?.mental, 82),
+    clutch: number(team.teamStats?.clutch, 82),
+    experience: number(team.teamStats?.experience, 82)
+  };
+}
+
+export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number {
+  const diff = teamA.power - teamB.power;
+  return Math.max(0.18, Math.min(0.82, 1 / (1 + Math.exp(-diff / 9))));
+}
+
+export function simulateRound(
+  context: { teamA: CombatTeam; teamB: CombatTeam; scoreA: number; scoreB: number; overtime?: boolean },
+  rng: SeededRng
+): 'a' | 'b' {
+  let probability = getWinProbability(context.teamA, context.teamB);
+  const scoreDiff = context.scoreA - context.scoreB;
+  probability -= Math.max(-0.035, Math.min(0.035, scoreDiff * 0.004));
+  if (context.overtime) {
+    const mentalA = (context.teamA.mental + context.teamA.clutch) / 2;
+    const mentalB = (context.teamB.mental + context.teamB.clutch) / 2;
+    probability += (mentalA - mentalB) / 550;
+  }
+  const noise = (rng() - 0.5) * 0.09;
+  return rng() < Math.max(0.12, Math.min(0.88, probability + noise)) ? 'a' : 'b';
+}
+
+export function simulateMap(teamA: CombatTeam, teamB: CombatTeam, rng: SeededRng, map = 1): MapResult {
+  const variationA = (rng() - 0.5) * 7;
+  const variationB = (rng() - 0.5) * 7;
+  const mapA = { ...teamA, power: teamA.power + variationA };
+  const mapB = { ...teamB, power: teamB.power + variationB };
+  let scoreA = 0;
+  let scoreB = 0;
+  const rounds: RoundScore[] = [];
+  const playRound = (overtime: boolean) => {
+    const winner = simulateRound({ teamA: mapA, teamB: mapB, scoreA, scoreB, overtime }, rng);
+    if (winner === 'a') scoreA += 1;
+    else scoreB += 1;
+    rounds.push({ a: scoreA, b: scoreB, overtime });
+  };
+
+  while (scoreA < 13 && scoreB < 13 && scoreA + scoreB < 24) playRound(false);
+  let overtime = scoreA === 12 && scoreB === 12;
+  while (overtime) {
+    const startA = scoreA;
+    const startB = scoreB;
+    while (scoreA - startA < 4 && scoreB - startB < 4 && scoreA + scoreB - startA - startB < 6) playRound(true);
+    if (scoreA - startA === 3 && scoreB - startB === 3) continue;
+    break;
+  }
+
+  return {
+    map,
+    scoreA,
+    scoreB,
+    winnerId: scoreA > scoreB ? teamA.id : teamB.id,
+    rounds,
+    overtime
+  };
+}
+
+let seriesCounter = 0;
+
+export function simulateSeries(
+  teamA: CombatTeam,
+  teamB: CombatTeam,
+  bestOf: 3 | 5,
+  rng: SeededRng,
+  phase: SeriesResult['phase'] = 'stage3'
+): SeriesResult {
+  const needed = Math.ceil(bestOf / 2);
+  const maps: MapResult[] = [];
+  let scoreA = 0;
+  let scoreB = 0;
+  const pressureA = phase === 'final' ? (teamA.experience + teamA.mental) / 180 : 1;
+  const pressureB = phase === 'final' ? (teamB.experience + teamB.mental) / 180 : 1;
+  const adjustedA = { ...teamA, power: teamA.power + pressureA };
+  const adjustedB = { ...teamB, power: teamB.power + pressureB };
+  while (scoreA < needed && scoreB < needed) {
+    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1);
+    maps.push(result);
+    if (result.winnerId === teamA.id) scoreA += 1;
+    else scoreB += 1;
+  }
+  seriesCounter += 1;
+  return {
+    id: `series-${seriesCounter}-${teamA.id}-${teamB.id}`,
+    phase,
+    bestOf,
+    teamA,
+    teamB,
+    scoreA,
+    scoreB,
+    winnerId: scoreA > scoreB ? teamA.id : teamB.id,
+    maps,
+    userMatch: Boolean(teamA.isUser || teamB.isUser)
+  };
+}
+
+const weightedOpponent = (teams: CombatTeam[], progress: number, rng: SeededRng) => {
+  const sorted = [...teams].sort((a, b) => a.power - b.power);
+  const exponent = 0.75 + progress * 0.55;
+  const index = Math.min(sorted.length - 1, Math.floor(Math.pow(rng(), exponent) * sorted.length));
+  return sorted[index];
+};
+
+export function simulateStage3(user: CombatTeam, opponents: CombatTeam[], rng: SeededRng): Stage3Result {
+  let wins = 0;
+  let losses = 0;
+  const matches: SeriesResult[] = [];
+  const unused = [...opponents];
+  while (wins < 3 && losses < 3 && unused.length) {
+    const opponent = weightedOpponent(unused, matches.length / 5, rng);
+    unused.splice(unused.findIndex((team) => team.id === opponent.id), 1);
+    const series = simulateSeries(user, opponent, 3, rng, 'stage3');
+    matches.push(series);
+    if (series.winnerId === user.id) wins += 1;
+    else losses += 1;
+  }
+  return { wins, losses, qualified: wins === 3, matches };
+}
+
+export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng: SeededRng): PlayoffsResult {
+  const field = [...opponents]
+    .sort((a, b) => b.power + rng() * 14 - (a.power + rng() * 14))
+    .slice(0, 7);
+  const userSlot = Math.floor(rng() * 8);
+  field.splice(userSlot, 0, user);
+  const allMatches: SeriesResult[] = [];
+  let current = field;
+  const rounds: Array<{ phase: SeriesResult['phase']; bestOf: 3 | 5 }> = [
+    { phase: 'quarterfinal', bestOf: 3 },
+    { phase: 'semifinal', bestOf: 3 },
+    { phase: 'final', bestOf: 5 }
+  ];
+  let placement = 'Campeão';
+  for (const round of rounds) {
+    const winners: CombatTeam[] = [];
+    for (let index = 0; index < current.length; index += 2) {
+      const match = simulateSeries(current[index], current[index + 1], round.bestOf, rng, round.phase);
+      allMatches.push(match);
+      winners.push(match.winnerId === match.teamA.id ? match.teamA : match.teamB);
+      if (match.userMatch && match.winnerId !== user.id) {
+        placement = round.phase === 'quarterfinal' ? '5º–8º' : round.phase === 'semifinal' ? '3º–4º' : 'Vice-campeão';
+      }
+    }
+    current = winners;
+  }
+  return {
+    championId: current[0]?.id ?? '',
+    placement,
+    userMatches: allMatches.filter((match) => match.userMatch),
+    allMatches
+  };
+}
+
+export function buildMajorRun(
+  players: Player[],
+  style: OrgStyle,
+  teams: HistoricalTeam[],
+  allPlayers: Player[],
+  seed: string,
+  lineup: SelectedPlayer[] = []
+): MajorRun {
+  seriesCounter = 0;
+  const rng = createSeededRng(`${seed}:major:${players.map((player) => player.id).join('|')}:${style}`);
+  const user = calculateUserTeamPower(players, style, lineup);
+  const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));
+  const stage3 = simulateStage3(user, opponents, rng);
+  if (!stage3.qualified) {
+    return { stage3, matches: stage3.matches, champion: false, placement: 'Eliminado no Stage 3' };
+  }
+  const used = new Set(stage3.matches.flatMap((match) => [match.teamA.id, match.teamB.id]));
+  const playoffPool = opponents.filter((team) => !used.has(team.id));
+  const playoffs = simulatePlayoffs(user, playoffPool.length >= 7 ? playoffPool : opponents, rng);
+  const champion = playoffs.championId === user.id;
+  return {
+    stage3,
+    playoffs,
+    matches: [...stage3.matches, ...playoffs.userMatches],
+    champion,
+    placement: champion ? 'Campeão' : playoffs.placement
+  };
+}
+
+export function createRunStats(players: Player[], run: MajorRun, seed: string): PlayerRunStats[] {
+  const mapsPlayed = run.matches.reduce((sum, match) => sum + match.maps.length, 0);
+  const mapsWon = run.matches.reduce(
+    (sum, match) => sum + match.maps.filter((map) => map.winnerId === 'user').length,
+    0
+  );
+  const roundsWon = run.matches.reduce((sum, match) => {
+    const userIsA = match.teamA.id === 'user';
+    return sum + match.maps.reduce((mapSum, map) => mapSum + (userIsA ? map.scoreA : map.scoreB), 0);
+  }, 0);
+  return players.map((player) => {
+    const rng = createSeededRng(`${seed}:stats:${player.id}:${run.placement}`);
+    const skill = number(player.overall, 75) / 100;
+    const runRating = 0.82 + skill * 0.4 + (rng() - 0.5) * 0.25 + (run.champion ? 0.06 : 0);
+    const deaths = Math.round(mapsPlayed * (12 + rng() * 5));
+    const kills = Math.round(deaths * runRating * (0.91 + rng() * 0.15));
+    return {
+      playerId: player.id,
+      runRating: Number(runRating.toFixed(2)),
+      kills,
+      deaths,
+      adr: Math.round(62 + skill * 25 + rng() * 12),
+      impact: Number((0.78 + skill * 0.42 + rng() * 0.2).toFixed(2)),
+      clutches: Math.round(mapsPlayed * (number(player.clutch) / 100) * (0.25 + rng() * 0.35)),
+      openingKills: Math.round(mapsPlayed * (number(player.entry) / 100) * (1.2 + rng())),
+      mvpCount: Math.round(mapsWon * skill * (0.4 + rng() * 0.65)),
+      mapsPlayed,
+      mapsWon,
+      roundsWon
+    };
+  });
+}

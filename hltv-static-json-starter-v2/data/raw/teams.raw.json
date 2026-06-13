@@ -1,0 +1,962 @@
+[
+  {
+    "id": "astralis-2016",
+    "year": 2016,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "Astralis",
+    "points": 953,
+    "players": [
+      {
+        "nickname": "Xyp9x",
+        "hltvPlayerId": 4954
+      },
+      {
+        "nickname": "dupreeh",
+        "hltvPlayerId": 7398
+      },
+      {
+        "nickname": "gla1ve",
+        "hltvPlayerId": 7412
+      },
+      {
+        "nickname": "device",
+        "hltvPlayerId": 7592
+      },
+      {
+        "nickname": "Kjaerbye",
+        "hltvPlayerId": 8394
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+    "note": "Ranking snapshot seed."
+  },
+  {
+    "id": "sk-2016",
+    "year": 2016,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "SK",
+    "points": 850,
+    "players": [
+      {
+        "nickname": "FalleN",
+        "hltvPlayerId": 2023
+      },
+      {
+        "nickname": "fer",
+        "hltvPlayerId": 8564
+      },
+      {
+        "nickname": "coldzera",
+        "hltvPlayerId": 9216
+      },
+      {
+        "nickname": "TACO",
+        "hltvPlayerId": 9217
+      },
+      {
+        "nickname": "fnx",
+        "hltvPlayerId": 557
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+    "note": "Curated SK 2016 legendary core for gameplay. If you want exact late-December snapshot, swap fnx for fox."
+  },
+  {
+    "id": "optic-2016",
+    "year": 2016,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "OpTic",
+    "points": 810,
+    "players": [
+      {
+        "nickname": "RUSH",
+        "hltvPlayerId": 7805
+      },
+      {
+        "nickname": "mixwell",
+        "hltvPlayerId": 8371
+      },
+      {
+        "nickname": "stanislaw",
+        "hltvPlayerId": 8507
+      },
+      {
+        "nickname": "NAF",
+        "hltvPlayerId": 8520
+      },
+      {
+        "nickname": "tarik",
+        "hltvPlayerId": 8523
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "sk-2017",
+    "year": 2017,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "SK",
+    "points": 980,
+    "players": [
+      {
+        "nickname": "FalleN",
+        "hltvPlayerId": 2023
+      },
+      {
+        "nickname": "fer",
+        "hltvPlayerId": 8564
+      },
+      {
+        "nickname": "boltz",
+        "hltvPlayerId": 8568
+      },
+      {
+        "nickname": "coldzera",
+        "hltvPlayerId": 9216
+      },
+      {
+        "nickname": "TACO",
+        "hltvPlayerId": 9217
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "faze-2017",
+    "year": 2017,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "FaZe",
+    "points": 943,
+    "players": [
+      {
+        "nickname": "karrigan",
+        "hltvPlayerId": 429
+      },
+      {
+        "nickname": "olofmeister",
+        "hltvPlayerId": 885
+      },
+      {
+        "nickname": "GuardiaN",
+        "hltvPlayerId": 2757
+      },
+      {
+        "nickname": "NiKo",
+        "hltvPlayerId": 3741
+      },
+      {
+        "nickname": "rain",
+        "hltvPlayerId": 8183
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "astralis-2017",
+    "year": 2017,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "Astralis",
+    "points": 582,
+    "players": [
+      {
+        "nickname": "Xyp9x",
+        "hltvPlayerId": 4954
+      },
+      {
+        "nickname": "dupreeh",
+        "hltvPlayerId": 7398
+      },
+      {
+        "nickname": "gla1ve",
+        "hltvPlayerId": 7412
+      },
+      {
+        "nickname": "device",
+        "hltvPlayerId": 7592
+      },
+      {
+        "nickname": "Kjaerbye",
+        "hltvPlayerId": 8394
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "astralis-2018",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "Astralis",
+    "points": 1000,
+    "players": [
+      {
+        "nickname": "Xyp9x",
+        "hltvPlayerId": 4954
+      },
+      {
+        "nickname": "dupreeh",
+        "hltvPlayerId": 7398
+      },
+      {
+        "nickname": "gla1ve",
+        "hltvPlayerId": 7412
+      },
+      {
+        "nickname": "device",
+        "hltvPlayerId": 7592
+      },
+      {
+        "nickname": "Magisk",
+        "hltvPlayerId": 9032
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "natus-vincere-2018",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "Natus Vincere",
+    "points": 438,
+    "players": [
+      {
+        "nickname": "Edward",
+        "hltvPlayerId": 483
+      },
+      {
+        "nickname": "Zeus",
+        "hltvPlayerId": 484
+      },
+      {
+        "nickname": "flamie",
+        "hltvPlayerId": 7594
+      },
+      {
+        "nickname": "s1mple",
+        "hltvPlayerId": 7998
+      },
+      {
+        "nickname": "electroNic",
+        "hltvPlayerId": 8918
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "liquid-2018",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "Liquid",
+    "points": 400,
+    "players": [
+      {
+        "nickname": "nitr0",
+        "hltvPlayerId": 7687
+      },
+      {
+        "nickname": "NAF",
+        "hltvPlayerId": 8520
+      },
+      {
+        "nickname": "EliGE",
+        "hltvPlayerId": 8738
+      },
+      {
+        "nickname": "Stewie2K",
+        "hltvPlayerId": 8797
+      },
+      {
+        "nickname": "Twistzz",
+        "hltvPlayerId": 10394
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "astralis-2019",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "Astralis",
+    "points": 1000,
+    "players": [
+      {
+        "nickname": "Xyp9x",
+        "hltvPlayerId": 4954
+      },
+      {
+        "nickname": "dupreeh",
+        "hltvPlayerId": 7398
+      },
+      {
+        "nickname": "gla1ve",
+        "hltvPlayerId": 7412
+      },
+      {
+        "nickname": "device",
+        "hltvPlayerId": 7592
+      },
+      {
+        "nickname": "Magisk",
+        "hltvPlayerId": 9032
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "mouz-2019",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "MOUZ",
+    "points": 712,
+    "players": [
+      {
+        "nickname": "karrigan",
+        "hltvPlayerId": 429
+      },
+      {
+        "nickname": "chrisJ",
+        "hltvPlayerId": 2730
+      },
+      {
+        "nickname": "woxic",
+        "hltvPlayerId": 8574
+      },
+      {
+        "nickname": "frozen",
+        "hltvPlayerId": 9960
+      },
+      {
+        "nickname": "ropz",
+        "hltvPlayerId": 11816
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "fnatic-2019",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "fnatic",
+    "points": 611,
+    "players": [
+      {
+        "nickname": "flusha",
+        "hltvPlayerId": 3055
+      },
+      {
+        "nickname": "JW",
+        "hltvPlayerId": 3849
+      },
+      {
+        "nickname": "KRIMZ",
+        "hltvPlayerId": 7528
+      },
+      {
+        "nickname": "Golden",
+        "hltvPlayerId": 11110
+      },
+      {
+        "nickname": "Brollan",
+        "hltvPlayerId": 13666
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "astralis-2020",
+    "year": 2020,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "Astralis",
+    "points": 1000,
+    "players": [
+      {
+        "nickname": "Xyp9x",
+        "hltvPlayerId": 4954
+      },
+      {
+        "nickname": "dupreeh",
+        "hltvPlayerId": 7398
+      },
+      {
+        "nickname": "gla1ve",
+        "hltvPlayerId": 7412
+      },
+      {
+        "nickname": "device",
+        "hltvPlayerId": 7592
+      },
+      {
+        "nickname": "Magisk",
+        "hltvPlayerId": 9032
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "vitality-2020",
+    "year": 2020,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "Vitality",
+    "points": 842,
+    "players": [
+      {
+        "nickname": "shox",
+        "hltvPlayerId": 1225
+      },
+      {
+        "nickname": "RpK",
+        "hltvPlayerId": 7167
+      },
+      {
+        "nickname": "apEX",
+        "hltvPlayerId": 7322
+      },
+      {
+        "nickname": "ZywOo",
+        "hltvPlayerId": 11893
+      },
+      {
+        "nickname": "misutaaa",
+        "hltvPlayerId": 14176
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "natus-vincere-2020",
+    "year": 2020,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "Natus Vincere",
+    "points": 627,
+    "players": [
+      {
+        "nickname": "flamie",
+        "hltvPlayerId": 7594
+      },
+      {
+        "nickname": "s1mple",
+        "hltvPlayerId": 7998
+      },
+      {
+        "nickname": "electroNic",
+        "hltvPlayerId": 8918
+      },
+      {
+        "nickname": "Boombl4",
+        "hltvPlayerId": 11840
+      },
+      {
+        "nickname": "Perfecto",
+        "hltvPlayerId": 16947
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "natus-vincere-2021",
+    "year": 2021,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "Natus Vincere",
+    "points": 1000,
+    "players": [
+      {
+        "nickname": "s1mple",
+        "hltvPlayerId": 7998
+      },
+      {
+        "nickname": "electroNic",
+        "hltvPlayerId": 8918
+      },
+      {
+        "nickname": "Boombl4",
+        "hltvPlayerId": 11840
+      },
+      {
+        "nickname": "Perfecto",
+        "hltvPlayerId": 16947
+      },
+      {
+        "nickname": "b1t",
+        "hltvPlayerId": 18987
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "gambit-2021",
+    "year": 2021,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "Gambit",
+    "points": 511,
+    "players": [
+      {
+        "nickname": "HObbit",
+        "hltvPlayerId": 8528
+      },
+      {
+        "nickname": "interz",
+        "hltvPlayerId": 15071
+      },
+      {
+        "nickname": "Ax1Le",
+        "hltvPlayerId": 16555
+      },
+      {
+        "nickname": "sh1ro",
+        "hltvPlayerId": 16920
+      },
+      {
+        "nickname": "nafany",
+        "hltvPlayerId": 16921
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "vitality-2021",
+    "year": 2021,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "Vitality",
+    "points": 469,
+    "players": [
+      {
+        "nickname": "shox",
+        "hltvPlayerId": 1225
+      },
+      {
+        "nickname": "apEX",
+        "hltvPlayerId": 7322
+      },
+      {
+        "nickname": "ZywOo",
+        "hltvPlayerId": 11893
+      },
+      {
+        "nickname": "misutaaa",
+        "hltvPlayerId": 14176
+      },
+      {
+        "nickname": "Kyojin",
+        "hltvPlayerId": 19015
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "heroic-2022",
+    "year": 2022,
+    "game": "CSGO",
+    "rank": 1,
+    "name": "HEROIC",
+    "points": 969,
+    "players": [
+      {
+        "nickname": "cadiaN",
+        "hltvPlayerId": 7964
+      },
+      {
+        "nickname": "stavn",
+        "hltvPlayerId": 10994
+      },
+      {
+        "nickname": "TeSeS",
+        "hltvPlayerId": 12018
+      },
+      {
+        "nickname": "sjuush",
+        "hltvPlayerId": 14148
+      },
+      {
+        "nickname": "jabbi",
+        "hltvPlayerId": 17956
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "outsiders-2022",
+    "year": 2022,
+    "game": "CSGO",
+    "rank": 2,
+    "name": "Outsiders",
+    "points": 869,
+    "players": [
+      {
+        "nickname": "FL1T",
+        "hltvPlayerId": 12732
+      },
+      {
+        "nickname": "Qikert",
+        "hltvPlayerId": 8799
+      },
+      {
+        "nickname": "Jame",
+        "hltvPlayerId": 13776
+      },
+      {
+        "nickname": "n0rb3r7",
+        "hltvPlayerId": 16612
+      },
+      {
+        "nickname": "fame",
+        "hltvPlayerId": 20101
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "g2-2022",
+    "year": 2022,
+    "game": "CSGO",
+    "rank": 3,
+    "name": "G2",
+    "points": 867,
+    "players": [
+      {
+        "nickname": "NiKo",
+        "hltvPlayerId": 3741
+      },
+      {
+        "nickname": "huNter-",
+        "hltvPlayerId": 3972
+      },
+      {
+        "nickname": "jks",
+        "hltvPlayerId": 4679
+      },
+      {
+        "nickname": "HooXi",
+        "hltvPlayerId": 10096
+      },
+      {
+        "nickname": "m0NESY",
+        "hltvPlayerId": 19230
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "vitality-2023",
+    "year": 2023,
+    "game": "MIXED",
+    "rank": 1,
+    "name": "Vitality",
+    "points": 980,
+    "players": [
+      {
+        "nickname": "apEX",
+        "hltvPlayerId": 7322
+      },
+      {
+        "nickname": "ZywOo",
+        "hltvPlayerId": 11893
+      },
+      {
+        "nickname": "flameZ",
+        "hltvPlayerId": 16693
+      },
+      {
+        "nickname": "Spinx",
+        "hltvPlayerId": 18221
+      },
+      {
+        "nickname": "mezii",
+        "hltvPlayerId": 18462
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "faze-2023",
+    "year": 2023,
+    "game": "MIXED",
+    "rank": 2,
+    "name": "FaZe",
+    "points": 939,
+    "players": [
+      {
+        "nickname": "karrigan",
+        "hltvPlayerId": 429
+      },
+      {
+        "nickname": "rain",
+        "hltvPlayerId": 8183
+      },
+      {
+        "nickname": "frozen",
+        "hltvPlayerId": 9960
+      },
+      {
+        "nickname": "ropz",
+        "hltvPlayerId": 11816
+      },
+      {
+        "nickname": "broky",
+        "hltvPlayerId": 18053
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "mouz-2023",
+    "year": 2023,
+    "game": "MIXED",
+    "rank": 3,
+    "name": "MOUZ",
+    "points": 518,
+    "players": [
+      {
+        "nickname": "siuhy",
+        "hltvPlayerId": 16820
+      },
+      {
+        "nickname": "torzsi",
+        "hltvPlayerId": 18072
+      },
+      {
+        "nickname": "Jimpphat",
+        "hltvPlayerId": 20312
+      },
+      {
+        "nickname": "xertioN",
+        "hltvPlayerId": 20304
+      },
+      {
+        "nickname": "Brollan",
+        "hltvPlayerId": 13666
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+    "note": "Brollan added as gameplay-complete fifth because some late-2023 ranking cards show 4-player core after frozen transfer."
+  },
+  {
+    "id": "g2-2024",
+    "year": 2024,
+    "game": "CS2",
+    "rank": 1,
+    "name": "G2",
+    "points": 985,
+    "players": [
+      {
+        "nickname": "Snax",
+        "hltvPlayerId": 2553
+      },
+      {
+        "nickname": "NiKo",
+        "hltvPlayerId": 3741
+      },
+      {
+        "nickname": "huNter-",
+        "hltvPlayerId": 3972
+      },
+      {
+        "nickname": "malbsMd",
+        "hltvPlayerId": 11617
+      },
+      {
+        "nickname": "m0NESY",
+        "hltvPlayerId": 19230
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "spirit-2024",
+    "year": 2024,
+    "game": "CS2",
+    "rank": 2,
+    "name": "Spirit",
+    "points": 962,
+    "players": [
+      {
+        "nickname": "chopper",
+        "hltvPlayerId": 7716
+      },
+      {
+        "nickname": "sh1ro",
+        "hltvPlayerId": 16920
+      },
+      {
+        "nickname": "magixx",
+        "hltvPlayerId": 18317
+      },
+      {
+        "nickname": "zont1x",
+        "hltvPlayerId": 20977
+      },
+      {
+        "nickname": "donk",
+        "hltvPlayerId": 21167
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "natus-vincere-2024",
+    "year": 2024,
+    "game": "CS2",
+    "rank": 3,
+    "name": "Natus Vincere",
+    "points": 779,
+    "players": [
+      {
+        "nickname": "Aleksib",
+        "hltvPlayerId": 9816
+      },
+      {
+        "nickname": "iM",
+        "hltvPlayerId": 14759
+      },
+      {
+        "nickname": "b1t",
+        "hltvPlayerId": 18987
+      },
+      {
+        "nickname": "jL",
+        "hltvPlayerId": 19206
+      },
+      {
+        "nickname": "w0nderful",
+        "hltvPlayerId": 20127
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "vitality-2025",
+    "year": 2025,
+    "game": "CS2",
+    "rank": 1,
+    "name": "Vitality",
+    "points": 954,
+    "players": [
+      {
+        "nickname": "apEX",
+        "hltvPlayerId": 7322
+      },
+      {
+        "nickname": "ropz",
+        "hltvPlayerId": 11816
+      },
+      {
+        "nickname": "ZywOo",
+        "hltvPlayerId": 11893
+      },
+      {
+        "nickname": "flameZ",
+        "hltvPlayerId": 16693
+      },
+      {
+        "nickname": "mezii",
+        "hltvPlayerId": 18462
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "furia-2025",
+    "year": 2025,
+    "game": "CS2",
+    "rank": 2,
+    "name": "FURIA",
+    "points": 811,
+    "players": [
+      {
+        "nickname": "FalleN",
+        "hltvPlayerId": 2023
+      },
+      {
+        "nickname": "yuurih",
+        "hltvPlayerId": 12553
+      },
+      {
+        "nickname": "YEKINDAR",
+        "hltvPlayerId": 13915
+      },
+      {
+        "nickname": "KSCERATO",
+        "hltvPlayerId": 15631
+      },
+      {
+        "nickname": "molodoy",
+        "hltvPlayerId": 24144
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+    "note": "Seed fallback."
+  },
+  {
+    "id": "falcons-2025",
+    "year": 2025,
+    "game": "CS2",
+    "rank": 3,
+    "name": "Falcons",
+    "points": 588,
+    "players": [
+      {
+        "nickname": "NiKo",
+        "hltvPlayerId": 3741
+      },
+      {
+        "nickname": "TeSeS",
+        "hltvPlayerId": 12018
+      },
+      {
+        "nickname": "m0NESY",
+        "hltvPlayerId": 19230
+      },
+      {
+        "nickname": "kyxsan",
+        "hltvPlayerId": 16601
+      },
+      {
+        "nickname": "kyousuke",
+        "hltvPlayerId": 24177
+      }
+    ],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+    "note": "Seed fallback."
+  }
+]

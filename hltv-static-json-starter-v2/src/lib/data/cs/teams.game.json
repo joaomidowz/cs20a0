@@ -1,0 +1,932 @@
+[
+  {
+    "id": "astralis-2016",
+    "name": "Astralis",
+    "year": 2016,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 953,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "xyp9x-2016",
+      "dupreeh-2016",
+      "gla1ve-2016",
+      "device-2016",
+      "kjaerbye-2016"
+    ],
+    "teamPowerPreview": 93,
+    "teamStats": {
+      "chemistry": 93,
+      "tactics": 93,
+      "mapPool": 90,
+      "mental": 92,
+      "experience": 95,
+      "clutch": 91,
+      "consistency": 93
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+      "note": "Ranking snapshot seed."
+    }
+  },
+  {
+    "id": "sk-2016",
+    "name": "SK",
+    "year": 2016,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 850,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "fallen-2016",
+      "fer-2016",
+      "coldzera-2016",
+      "taco-2016",
+      "fnx-2016"
+    ],
+    "teamPowerPreview": 94,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+      "note": "Curated SK 2016 legendary core for gameplay. If you want exact late-December snapshot, swap fnx for fox."
+    }
+  },
+  {
+    "id": "optic-2016",
+    "name": "OpTic",
+    "year": 2016,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 810,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "rush-2016",
+      "mixwell-2016",
+      "stanislaw-2016",
+      "naf-2016",
+      "tarik-2016"
+    ],
+    "teamPowerPreview": 86,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2016/december/26",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "sk-2017",
+    "name": "SK",
+    "year": 2017,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 980,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "fallen-2017",
+      "fer-2017",
+      "boltz-2017",
+      "coldzera-2017",
+      "taco-2017"
+    ],
+    "teamPowerPreview": 95,
+    "teamStats": {
+      "chemistry": 98,
+      "tactics": 97,
+      "mapPool": 96,
+      "mental": 96,
+      "experience": 95,
+      "clutch": 95,
+      "consistency": 97
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "faze-2017",
+    "name": "FaZe",
+    "year": 2017,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 943,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "karrigan-2017",
+      "olofmeister-2017",
+      "guardian-2017",
+      "niko-2017",
+      "rain-2017"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "astralis-2017",
+    "name": "Astralis",
+    "year": 2017,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 582,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "xyp9x-2017",
+      "dupreeh-2017",
+      "gla1ve-2017",
+      "device-2017",
+      "kjaerbye-2017"
+    ],
+    "teamPowerPreview": 87,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2017/december/25",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "astralis-2018",
+    "name": "Astralis",
+    "year": 2018,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 1000,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "xyp9x-2018",
+      "dupreeh-2018",
+      "gla1ve-2018",
+      "device-2018",
+      "magisk-2018"
+    ],
+    "teamPowerPreview": 95,
+    "teamStats": {
+      "chemistry": 98,
+      "tactics": 97,
+      "mapPool": 96,
+      "mental": 96,
+      "experience": 95,
+      "clutch": 95,
+      "consistency": 97
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "natus-vincere-2018",
+    "name": "Natus Vincere",
+    "year": 2018,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 438,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "edward-2018",
+      "zeus-2018",
+      "flamie-2018",
+      "s1mple-2018",
+      "electronic-2018"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "liquid-2018",
+    "name": "Liquid",
+    "year": 2018,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 400,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "nitr0-2018",
+      "naf-2018",
+      "elige-2018",
+      "stewie2k-2018",
+      "twistzz-2018"
+    ],
+    "teamPowerPreview": 87,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2018/december/31",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "astralis-2019",
+    "name": "Astralis",
+    "year": 2019,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 1000,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "xyp9x-2019",
+      "dupreeh-2019",
+      "gla1ve-2019",
+      "device-2019",
+      "magisk-2019"
+    ],
+    "teamPowerPreview": 93,
+    "teamStats": {
+      "chemistry": 98,
+      "tactics": 97,
+      "mapPool": 96,
+      "mental": 96,
+      "experience": 95,
+      "clutch": 95,
+      "consistency": 97
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "mouz-2019",
+    "name": "MOUZ",
+    "year": 2019,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 712,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "karrigan-2019",
+      "chrisj-2019",
+      "woxic-2019",
+      "frozen-2019",
+      "ropz-2019"
+    ],
+    "teamPowerPreview": 90,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "fnatic-2019",
+    "name": "fnatic",
+    "year": 2019,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 611,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "flusha-2019",
+      "jw-2019",
+      "krimz-2019",
+      "golden-2019",
+      "brollan-2019"
+    ],
+    "teamPowerPreview": 85,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2019/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "astralis-2020",
+    "name": "Astralis",
+    "year": 2020,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 1000,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "xyp9x-2020",
+      "dupreeh-2020",
+      "gla1ve-2020",
+      "device-2020",
+      "magisk-2020"
+    ],
+    "teamPowerPreview": 93,
+    "teamStats": {
+      "chemistry": 93,
+      "tactics": 93,
+      "mapPool": 90,
+      "mental": 92,
+      "experience": 95,
+      "clutch": 91,
+      "consistency": 93
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "vitality-2020",
+    "name": "Vitality",
+    "year": 2020,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 842,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "shox-2020",
+      "rpk-2020",
+      "apex-2020",
+      "zywoo-2020",
+      "misutaaa-2020"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "natus-vincere-2020",
+    "name": "Natus Vincere",
+    "year": 2020,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 627,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "flamie-2020",
+      "s1mple-2020",
+      "electronic-2020",
+      "boombl4-2020",
+      "perfecto-2020"
+    ],
+    "teamPowerPreview": 89,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2020/december/28",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "natus-vincere-2021",
+    "name": "Natus Vincere",
+    "year": 2021,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 1000,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "s1mple-2021",
+      "electronic-2021",
+      "boombl4-2021",
+      "perfecto-2021",
+      "b1t-2021"
+    ],
+    "teamPowerPreview": 94,
+    "teamStats": {
+      "chemistry": 98,
+      "tactics": 97,
+      "mapPool": 96,
+      "mental": 96,
+      "experience": 95,
+      "clutch": 95,
+      "consistency": 97
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "gambit-2021",
+    "name": "Gambit",
+    "year": 2021,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 511,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "hobbit-2021",
+      "interz-2021",
+      "ax1le-2021",
+      "sh1ro-2021",
+      "nafany-2021"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "vitality-2021",
+    "name": "Vitality",
+    "year": 2021,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 469,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "shox-2021",
+      "apex-2021",
+      "zywoo-2021",
+      "misutaaa-2021",
+      "kyojin-2021"
+    ],
+    "teamPowerPreview": 88,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2021/december/27",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "heroic-2022",
+    "name": "HEROIC",
+    "year": 2022,
+    "game": "CSGO",
+    "sourceRank": 1,
+    "hltvPoints": 969,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "cadian-2022",
+      "stavn-2022",
+      "teses-2022",
+      "sjuush-2022",
+      "jabbi-2022"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 93,
+      "tactics": 93,
+      "mapPool": 90,
+      "mental": 92,
+      "experience": 95,
+      "clutch": 91,
+      "consistency": 93
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "outsiders-2022",
+    "name": "Outsiders",
+    "year": 2022,
+    "game": "CSGO",
+    "sourceRank": 2,
+    "hltvPoints": 869,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "fl1t-2022",
+      "qikert-2022",
+      "jame-2022",
+      "n0rb3r7-2022",
+      "fame-2022"
+    ],
+    "teamPowerPreview": 89,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 92,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "g2-2022",
+    "name": "G2",
+    "year": 2022,
+    "game": "CSGO",
+    "sourceRank": 3,
+    "hltvPoints": 867,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "niko-2022",
+      "hunter-2022",
+      "jks-2022",
+      "hooxi-2022",
+      "m0nesy-2022"
+    ],
+    "teamPowerPreview": 89,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 89,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2022/december/26",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "vitality-2023",
+    "name": "Vitality",
+    "year": 2023,
+    "game": "MIXED",
+    "sourceRank": 1,
+    "hltvPoints": 980,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "apex-2023",
+      "zywoo-2023",
+      "flamez-2023",
+      "spinx-2023",
+      "mezii-2023"
+    ],
+    "teamPowerPreview": 94,
+    "teamStats": {
+      "chemistry": 93,
+      "tactics": 93,
+      "mapPool": 90,
+      "mental": 92,
+      "experience": 92,
+      "clutch": 91,
+      "consistency": 93
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "faze-2023",
+    "name": "FaZe",
+    "year": 2023,
+    "game": "MIXED",
+    "sourceRank": 2,
+    "hltvPoints": 939,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "karrigan-2023",
+      "rain-2023",
+      "frozen-2023",
+      "ropz-2023",
+      "broky-2023"
+    ],
+    "teamPowerPreview": 89,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 89,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "mouz-2023",
+    "name": "MOUZ",
+    "year": 2023,
+    "game": "MIXED",
+    "sourceRank": 3,
+    "hltvPoints": 518,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "siuhy-2023",
+      "torzsi-2023",
+      "jimpphat-2023",
+      "xertion-2023",
+      "brollan-2023"
+    ],
+    "teamPowerPreview": 85,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 86,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2023/december/25",
+      "note": "Brollan added as gameplay-complete fifth because some late-2023 ranking cards show 4-player core after frozen transfer."
+    }
+  },
+  {
+    "id": "g2-2024",
+    "name": "G2",
+    "year": 2024,
+    "game": "CS2",
+    "sourceRank": 1,
+    "hltvPoints": 985,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "snax-2024",
+      "niko-2024",
+      "hunter-2024",
+      "malbsmd-2024",
+      "m0nesy-2024"
+    ],
+    "teamPowerPreview": 94,
+    "teamStats": {
+      "chemistry": 93,
+      "tactics": 93,
+      "mapPool": 90,
+      "mental": 92,
+      "experience": 92,
+      "clutch": 91,
+      "consistency": 93
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "spirit-2024",
+    "name": "Spirit",
+    "year": 2024,
+    "game": "CS2",
+    "sourceRank": 2,
+    "hltvPoints": 962,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "chopper-2024",
+      "sh1ro-2024",
+      "magixx-2024",
+      "zont1x-2024",
+      "donk-2024"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 89,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "natus-vincere-2024",
+    "name": "Natus Vincere",
+    "year": 2024,
+    "game": "CS2",
+    "sourceRank": 3,
+    "hltvPoints": 779,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "aleksib-2024",
+      "im-2024",
+      "b1t-2024",
+      "jl-2024",
+      "w0nderful-2024"
+    ],
+    "teamPowerPreview": 85,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 86,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2024/december/30",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "vitality-2025",
+    "name": "Vitality",
+    "year": 2025,
+    "game": "CS2",
+    "sourceRank": 1,
+    "hltvPoints": 954,
+    "tier": "S+",
+    "rarity": "legendary",
+    "players": [
+      "apex-2025",
+      "ropz-2025",
+      "zywoo-2025",
+      "flamez-2025",
+      "mezii-2025"
+    ],
+    "teamPowerPreview": 94,
+    "teamStats": {
+      "chemistry": 98,
+      "tactics": 97,
+      "mapPool": 96,
+      "mental": 96,
+      "experience": 92,
+      "clutch": 95,
+      "consistency": 97
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "furia-2025",
+    "name": "FURIA",
+    "year": 2025,
+    "game": "CS2",
+    "sourceRank": 2,
+    "hltvPoints": 811,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "fallen-2025",
+      "yuurih-2025",
+      "yekindar-2025",
+      "kscerato-2025",
+      "molodoy-2025"
+    ],
+    "teamPowerPreview": 91,
+    "teamStats": {
+      "chemistry": 90,
+      "tactics": 87,
+      "mapPool": 87,
+      "mental": 89,
+      "experience": 89,
+      "clutch": 88,
+      "consistency": 87
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+      "note": "Seed fallback."
+    }
+  },
+  {
+    "id": "falcons-2025",
+    "name": "Falcons",
+    "year": 2025,
+    "game": "CS2",
+    "sourceRank": 3,
+    "hltvPoints": 588,
+    "tier": "S",
+    "rarity": "elite",
+    "players": [
+      "niko-2025",
+      "teses-2025",
+      "m0nesy-2025",
+      "kyxsan-2025",
+      "kyousuke-2025"
+    ],
+    "teamPowerPreview": 90,
+    "teamStats": {
+      "chemistry": 87,
+      "tactics": 84,
+      "mapPool": 84,
+      "mental": 86,
+      "experience": 86,
+      "clutch": 85,
+      "consistency": 84
+    },
+    "source": {
+      "rankingUrl": "https://www.hltv.org/ranking/teams/2025/december/29",
+      "note": "Seed fallback."
+    }
+  }
+]
