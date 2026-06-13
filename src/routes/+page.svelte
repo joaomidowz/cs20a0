@@ -6,6 +6,7 @@
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+  import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, type TranslationKey } from '$lib/game/i18n';
   import {
@@ -21,6 +22,7 @@
     pickRandomTeam
   } from '$lib/game/simulation';
   import { aggregateRunStats, createRunStats, getRunMvpScore, getRunSummary } from '$lib/game/runStats';
+  import { downloadRunImage as saveRunImage } from '$lib/game/shareImage';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
     SPEEDS,
@@ -36,6 +38,7 @@
   let detailsPlayer: Player | null = null;
   let toast = '';
   let awaitingAdvance = false;
+  let downloadingImage = false;
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -185,10 +188,17 @@
     showToast(t('copied'));
   }
 
-  async function shareRun() {
-    const text = `cs20a0 · ${$game.majorRun?.placement ?? ''} · seed ${$game.seed}`;
-    if (navigator.share) await navigator.share({ title: 'cs20a0', text, url: window.location.href });
-    else await copyLink();
+  async function downloadRunImage() {
+    if (downloadingImage) return;
+    downloadingImage = true;
+    try {
+      await saveRunImage('share-card', $game.seed);
+      showToast(t('imageDownloaded'));
+    } catch {
+      showToast(t('imageDownloadFailed'));
+    } finally {
+      downloadingImage = false;
+    }
   }
 
   function showToast(message: string) {
@@ -400,7 +410,8 @@
           <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{run.placement}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
         <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{match.teamA.name}</span><b>{match.scoreA} : {match.scoreB}</b><span>{match.teamB.name}</span></summary><div class="map-details">{#each match.maps as map}<span>Mapa {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
-        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(false)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copySeed')}</button><button class="secondary" type="button" on:click={shareRun}>{t('shareRun')}</button><button class="ghost" type="button" on:click={() => resetRun(true)}>{t('newSeed')}</button></div>
+        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
+        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(false)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(true)}>{t('newSeed')}</button></div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}
