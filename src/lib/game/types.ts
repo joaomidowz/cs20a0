@@ -1,3 +1,5 @@
+import type { SimulationMode, SimulationSpeed } from './preferences';
+
 export type GamePhase =
   | 'home'
   | 'mode-select'
@@ -9,8 +11,8 @@ export type GamePhase =
 
 export type GameMode = 'premier' | 'faceit';
 export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
-export type SimSpeed = 'normal' | 'fast' | 'ultra' | 'insta';
-export type SimMode = 'manual' | 'auto';
+export type SimSpeed = SimulationSpeed;
+export type SimMode = SimulationMode;
 export type SeriesType = 'bo3' | 'bo5';
 export type Language = 'pt-BR' | 'es' | 'en';
 export type Theme = 'dark' | 'light';
@@ -155,8 +157,7 @@ export interface GameState {
 }
 
 export const SPEEDS: Record<SimSpeed, number> = {
-  normal: 1500,
-  fast: 1000,
-  ultra: 500,
-  insta: 200
+  normal: 3000,
+  fast: 1500,
+  ultra: 1000
 };

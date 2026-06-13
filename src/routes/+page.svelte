@@ -5,6 +5,7 @@
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
+  import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, type TranslationKey } from '$lib/game/i18n';
   import {
@@ -169,7 +170,7 @@
   }
 
   function resetRun(newSeed = false) {
-    const preserved = { language: $game.language, theme: $game.theme };
+    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(newSeed ? makeSeed() : $game.seed || makeSeed()), ...preserved, phase: 'mode-select' });
     closePlayer();
     awaitingAdvance = false;
@@ -191,6 +192,16 @@
   function showToast(message: string) {
     toast = message;
     window.setTimeout(() => (toast = ''), 1800);
+  }
+
+  function changeSimulationMode(value: string) {
+    update({ simMode: value as SimMode });
+    showToast(t('configurationSaved'));
+  }
+
+  function changeSimulationSpeed(value: string) {
+    update({ simSpeed: value as SimSpeed });
+    showToast(t('configurationSaved'));
   }
 
   function phaseLabel() {
@@ -343,28 +354,24 @@
     <section class="screen shell match-screen">
       <header class="match-topbar"><div><span class="eyebrow">MAJOR LIVE</span><h1>{phaseLabel()}</h1></div>{#if $game.phase === 'stage3'}<div class="record"><span>{stageWins}</span><small>W</small><b>:</b><span>{stageLosses}</span><small>L</small></div>{/if}</header>
       <div class="match-controls panel">
-        <label class="mode-switch-control">
+        <div class="control-group">
           <span>{t('simulationMode')}</span>
-          <span class="mode-switch-labels"><b class:active={$game.simMode === 'manual'}>{t('manual')}</b><b class:active={$game.simMode === 'auto'}>{t('automatic')}</b></span>
-          <button
-            class:active={$game.simMode === 'auto'}
-            class="mode-switch"
-            type="button"
-            role="switch"
-            aria-checked={$game.simMode === 'auto'}
-            aria-label={t('simulationMode')}
-            on:click={() => update({ simMode: $game.simMode === 'auto' ? 'manual' : 'auto' })}
-          ><span></span></button>
-        </label>
-        <label>
+          <SegmentedControl
+            value={$game.simMode}
+            label={t('simulationMode')}
+            options={[{ value: 'manual', label: t('manual') }, { value: 'auto', label: t('automatic') }]}
+            onChange={changeSimulationMode}
+          />
+        </div>
+        <div class="control-group">
           <span>{t('speed')}</span>
-          <select value={$game.simSpeed} on:change={(event) => update({ simSpeed: (event.currentTarget as HTMLSelectElement).value as SimSpeed })}>
-            <option value="normal">{t('normal')}</option>
-            <option value="fast">{t('fast')}</option>
-            <option value="ultra">{t('ultra')}</option>
-            <option value="insta">{t('insta')}</option>
-          </select>
-        </label>
+          <SegmentedControl
+            value={$game.simSpeed}
+            label={t('speed')}
+            options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
+            onChange={changeSimulationSpeed}
+          />
+        </div>
       </div>
       {#if currentSeries}
         {#key currentSeries.id}
@@ -372,7 +379,7 @@
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
             auto={$game.simMode === 'auto'}
-            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), map: t('map'), final: t('final'), waiting: t('waiting') }}
+            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
             onComplete={seriesCompleted}
           />
         {/key}

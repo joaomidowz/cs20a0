@@ -11,6 +11,9 @@
     map?: string;
     final?: string;
     waiting?: string;
+    pending?: string;
+    inProgress?: string;
+    mapInProgress?: string;
   };
   export let onComplete: () => void = () => {};
 
@@ -57,7 +60,11 @@
       <span class="eyebrow">{series.phase.toUpperCase()} · MD{series.bestOf}</span>
       <h2>{series.teamA.name} <span>vs</span> {series.teamB.name}</h2>
     </div>
-    <div class="series-score">{activeMap >= series.maps.length - 1 && finished ? series.scoreA : series.maps.slice(0, activeMap).filter((map) => map.winnerId === series.teamA.id).length} : {activeMap >= series.maps.length - 1 && finished ? series.scoreB : series.maps.slice(0, activeMap).filter((map) => map.winnerId === series.teamB.id).length}</div>
+    {#if finished}
+      <div class="series-score">{series.scoreA} : {series.scoreB}</div>
+    {:else}
+      <div class="series-status">{started ? labels.inProgress ?? 'Em andamento' : labels.pending ?? 'A disputar'}</div>
+    {/if}
   </div>
 
   <div class="map-list">
@@ -68,13 +75,17 @@
       <article class:live={index === activeMap && started} class="map-row">
         <div>
           <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
-          <small>{isPast || currentMapFinished ? labels.final ?? 'FINAL' : index === activeMap && started ? `${labels.round} ${visibleRounds}` : labels.waiting ?? 'WAITING'}</small>
+          <small>{isPast || currentMapFinished ? labels.final ?? 'FINAL' : index === activeMap && started ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${visibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
         </div>
-        <div class="map-score">
-          <b>{isPast ? map.scoreA : liveRound?.a ?? 0}</b>
-          <span>:</span>
-          <b>{isPast ? map.scoreB : liveRound?.b ?? 0}</b>
-        </div>
+        {#if isPast || currentMapFinished || liveRound}
+          <div class="map-score">
+            <b>{isPast || currentMapFinished ? map.scoreA : liveRound?.a}</b>
+            <span>:</span>
+            <b>{isPast || currentMapFinished ? map.scoreB : liveRound?.b}</b>
+          </div>
+        {:else}
+          <span class="map-pending">{labels.pending ?? 'A disputar'}</span>
+        {/if}
         {#if (isPast && map.overtime) || liveRound?.overtime}<span class="ot">OT</span>{/if}
       </article>
     {/each}

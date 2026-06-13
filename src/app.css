@@ -143,3 +143,13 @@ h2 { line-height: 1; text-transform: uppercase; }
 @media (min-width:680px){.slots{grid-template-columns:repeat(5,minmax(0,1fr))}.player-card:not(.blocked):hover .overall{color:var(--accent)}}
 @media (max-width:679px){.player-sheet{padding:12px}.attribute-grid{gap:4px;margin:8px 0}.trait-list{margin-bottom:6px}.role-picker{margin-top:6px;padding-top:6px}.role-picker button{min-height:44px}}
 @media (max-width:359px){.slots{grid-template-columns:1fr}}
+
+.control-group{display:grid;gap:7px;min-width:0}
+.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.segmented-control{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;padding:3px;border:1px solid var(--line);background:var(--surface-2)}
+.segmented-control button{min-width:0;min-height:38px;padding:6px 9px;border:0;color:var(--muted);background:transparent;font-size:.68rem;font-weight:800;text-transform:uppercase;cursor:pointer;transition:.18s ease}
+.segmented-control button.active{color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,var(--line))}
+.series-status{max-width:180px;padding:9px 11px;border:1px solid var(--line);color:var(--muted);font-size:.65rem;font-weight:800;letter-spacing:.08em;text-align:center;text-transform:uppercase}
+.map-pending{color:var(--muted);font-size:.62rem;font-weight:800;text-transform:uppercase}
+
+@media (max-width:679px){.match-controls{grid-template-columns:1fr}.series-status{max-width:none}.segmented-control button{font-size:.62rem}}

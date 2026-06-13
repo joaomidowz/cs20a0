@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
 import { buildMajorRun, createSeededRng, simulateMap, simulateSeries } from '../src/lib/game/simulation';
-import type { CombatTeam, HistoricalTeam, Player } from '../src/lib/game/types';
+import { SPEEDS, type CombatTeam, type HistoricalTeam, type Player } from '../src/lib/game/types';
 
 const team = (id: string, power: number): CombatTeam => ({
   id,
@@ -14,6 +14,10 @@ const team = (id: string, power: number): CombatTeam => ({
 });
 
 describe('simulation', () => {
+  it('uses the configured round ticker intervals', () => {
+    expect(SPEEDS).toEqual({ normal: 3000, fast: 1500, ultra: 1000 });
+  });
+
   it('is deterministic for the same seed', () => {
     const first = simulateSeries(team('a', 88), team('b', 86), 3, createSeededRng('same'));
     const second = simulateSeries(team('a', 88), team('b', 86), 3, createSeededRng('same'));

@@ -30,6 +30,7 @@ const pt = {
   majorSetup: 'Configuração do Major',
   manual: 'Manual',
   automatic: 'Automático',
+  configurationSaved: 'Configuração salva',
   simulationMode: 'Modo de simulação',
   speed: 'Velocidade',
   normal: 'Normal',
@@ -82,6 +83,9 @@ const pt = {
   ,map: 'Mapa'
   ,final: 'FINAL'
   ,waiting: 'AGUARDANDO'
+  ,pending: 'A disputar'
+  ,inProgress: 'Em andamento'
+  ,mapInProgress: 'Mapa em progresso'
   ,veryAggressive: 'muito agressivo'
   ,greatClutch: 'ótimo clutch'
   ,mainAwper: 'AWPer principal'

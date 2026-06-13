@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import { playerById } from './data';
+import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import type { GameState } from './types';
 
@@ -20,7 +21,7 @@ export const defaultState = (seed = ''): GameState => ({
   usedTeamIds: [],
   rolledTeamId: null,
   simMode: 'manual',
-  simSpeed: 'fast',
+  simSpeed: 'normal',
   majorRun: null,
   completedSeries: 0,
   stats: []
@@ -29,6 +30,11 @@ export const defaultState = (seed = ''): GameState => ({
 const loadState = (): GameState => {
   if (!browser) return defaultState();
   const querySeed = new URLSearchParams(window.location.search).get('seed');
+  const preferences = loadSimulationPreferences();
+  const preferredSimulation = {
+    simMode: preferences.simulationMode,
+    simSpeed: preferences.simulationSpeed
+  };
   try {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? (JSON.parse(saved) as Partial<GameState> & { selectedPlayerIds?: string[] }) : {};
@@ -48,19 +54,26 @@ const loadState = (): GameState => {
       return {
         ...defaultState(),
         language: parsed.language ?? 'pt-BR',
-        theme: parsed.theme ?? 'dark'
+        theme: parsed.theme ?? 'dark',
+        ...preferredSimulation
       };
     }
     if (querySeed && querySeed !== parsed.seed) {
       return {
         ...defaultState(querySeed),
         language: parsed.language ?? 'pt-BR',
-        theme: parsed.theme ?? 'dark'
+        theme: parsed.theme ?? 'dark',
+        ...preferredSimulation
       };
     }
-    return { ...defaultState(querySeed ?? parsed.seed ?? ''), ...parsed, seed: querySeed ?? parsed.seed ?? '' };
+    return {
+      ...defaultState(querySeed ?? parsed.seed ?? ''),
+      ...parsed,
+      ...preferredSimulation,
+      seed: querySeed ?? parsed.seed ?? ''
+    };
   } catch {
-    return defaultState(querySeed ?? '');
+    return { ...defaultState(querySeed ?? ''), ...preferredSimulation };
   }
 };
 
@@ -69,6 +82,7 @@ export const game = writable<GameState>(loadState());
 if (browser) {
   game.subscribe((state) => {
     localStorage.setItem(storageKey, JSON.stringify(state));
+    saveSimulationPreferences(state.simMode, state.simSpeed);
     document.documentElement.dataset.theme = state.theme;
     document.documentElement.lang = state.language;
   });
