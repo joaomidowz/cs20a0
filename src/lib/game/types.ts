@@ -125,17 +125,22 @@ export interface MajorRun {
 
 export interface PlayerRunStats {
   playerId: string;
+  assignedRole: LineupSlotRole;
   runRating: number;
   kills: number;
   deaths: number;
+  kdRatio: number;
   adr: number;
   impact: number;
   clutches: number;
   openingKills: number;
   mvpCount: number;
+  consistency: number;
   mapsPlayed: number;
   mapsWon: number;
+  mapsLost: number;
   roundsWon: number;
+  roundsLost: number;
 }
 
 export interface GameState {

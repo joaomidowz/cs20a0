@@ -6,7 +6,6 @@ import type {
   MapResult,
   OrgStyle,
   Player,
-  PlayerRunStats,
   SelectedPlayer,
   PlayoffsResult,
   RoundScore,
@@ -310,37 +309,4 @@ export function buildMajorRun(
     champion,
     placement: champion ? 'Campeão' : playoffs.placement
   };
-}
-
-export function createRunStats(players: Player[], run: MajorRun, seed: string): PlayerRunStats[] {
-  const mapsPlayed = run.matches.reduce((sum, match) => sum + match.maps.length, 0);
-  const mapsWon = run.matches.reduce(
-    (sum, match) => sum + match.maps.filter((map) => map.winnerId === 'user').length,
-    0
-  );
-  const roundsWon = run.matches.reduce((sum, match) => {
-    const userIsA = match.teamA.id === 'user';
-    return sum + match.maps.reduce((mapSum, map) => mapSum + (userIsA ? map.scoreA : map.scoreB), 0);
-  }, 0);
-  return players.map((player) => {
-    const rng = createSeededRng(`${seed}:stats:${player.id}:${run.placement}`);
-    const skill = number(player.overall, 75) / 100;
-    const runRating = 0.82 + skill * 0.4 + (rng() - 0.5) * 0.25 + (run.champion ? 0.06 : 0);
-    const deaths = Math.round(mapsPlayed * (12 + rng() * 5));
-    const kills = Math.round(deaths * runRating * (0.91 + rng() * 0.15));
-    return {
-      playerId: player.id,
-      runRating: Number(runRating.toFixed(2)),
-      kills,
-      deaths,
-      adr: Math.round(62 + skill * 25 + rng() * 12),
-      impact: Number((0.78 + skill * 0.42 + rng() * 0.2).toFixed(2)),
-      clutches: Math.round(mapsPlayed * (number(player.clutch) / 100) * (0.25 + rng() * 0.35)),
-      openingKills: Math.round(mapsPlayed * (number(player.entry) / 100) * (1.2 + rng())),
-      mvpCount: Math.round(mapsWon * skill * (0.4 + rng() * 0.65)),
-      mapsPlayed,
-      mapsWon,
-      roundsWon
-    };
-  });
 }

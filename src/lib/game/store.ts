@@ -3,6 +3,7 @@ import { writable } from 'svelte/store';
 import { playerById } from './data';
 import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
+import { createRunStats } from './runStats';
 import type { GameState } from './types';
 
 const storageKey = 'cs20a0-run-v1';
@@ -48,6 +49,12 @@ const loadState = (): GameState => {
       }, []);
     }
     delete parsed.selectedPlayerIds;
+    if (parsed.majorRun && parsed.selectedPlayers?.length && (!parsed.stats?.length || parsed.stats.some((stat) => !stat.assignedRole))) {
+      const selectedPlayers = parsed.selectedPlayers
+        .map((selected) => playerById.get(selected.playerId))
+        .filter((player): player is NonNullable<typeof player> => Boolean(player));
+      parsed.stats = createRunStats(selectedPlayers, parsed.majorRun, parsed.seed ?? querySeed ?? '', parsed.selectedPlayers);
+    }
     if (parsed.styleLocked === undefined) parsed.styleLocked = Boolean(parsed.selectedPlayers?.length);
     if ((parsed.phase as string) === 'major-setup') parsed.phase = 'draft';
     if (!querySeed && (!parsed.phase || parsed.phase === 'home')) {

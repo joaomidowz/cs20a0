@@ -151,5 +151,8 @@ h2 { line-height: 1; text-transform: uppercase; }
 .segmented-control button.active{color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,var(--line))}
 .series-status{max-width:180px;padding:9px 11px;border:1px solid var(--line);color:var(--muted);font-size:.65rem;font-weight:800;letter-spacing:.08em;text-align:center;text-transform:uppercase}
 .map-pending{color:var(--muted);font-size:.62rem;font-weight:800;text-transform:uppercase}
+.stats-overview{margin-bottom:22px}
+.underperformer-badge{position:absolute;z-index:2;left:0;top:0;padding:7px 10px;background:var(--danger);color:#fff;font-size:.55rem;font-weight:900;text-transform:uppercase}
+.below-expected{color:#ff9b90!important;font-weight:800;text-transform:uppercase}
 
 @media (max-width:679px){.match-controls{grid-template-columns:1fr}.series-status{max-width:none}.segmented-control button{font-size:.62rem}}

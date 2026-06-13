@@ -17,10 +17,10 @@
   import {
     buildMajorRun,
     calculateUserTeamPower,
-    createRunStats,
     createSeededRng,
     pickRandomTeam
   } from '$lib/game/simulation';
+  import { aggregateRunStats, createRunStats, getRunMvpScore, getRunSummary } from '$lib/game/runStats';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
     SPEEDS,
@@ -57,7 +57,9 @@
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
   $: stageLosses = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId !== 'user').length;
-  $: runMvp = [...$game.stats].sort((a, b) => (b.runRating + b.impact * 0.2 + b.clutches * 0.02 + b.mvpCount * 0.02) - (a.runRating + a.impact * 0.2 + a.clutches * 0.02 + a.mvpCount * 0.02))[0];
+  $: runMvp = [...$game.stats].sort((a, b) => getRunMvpScore(b) - getRunMvpScore(a))[0];
+  $: runWorst = [...$game.stats].sort((a, b) => a.runRating - b.runRating)[0];
+  $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
@@ -123,7 +125,7 @@
   function launchMajor() {
     if (!draftComplete) return;
     const majorRun = buildMajorRun(selectedPlayers, $game.style, teams, players, $game.seed, selectedLineup);
-    const stats = createRunStats(selectedPlayers, majorRun, $game.seed);
+    const stats = createRunStats(selectedPlayers, majorRun, $game.seed, selectedLineup);
     awaitingAdvance = false;
     update({ majorRun, stats, completedSeries: 0, phase: 'stage3' });
   }
@@ -391,12 +393,11 @@
     {@const run = $game.majorRun}
     {#if run}
       {@const wonSeries = run.matches.filter((match) => match.winnerId === 'user').length}
-      {@const wonMaps = run.matches.reduce((sum, match) => sum + match.maps.filter((map) => map.winnerId === 'user').length, 0)}
-      {@const totalMaps = run.matches.reduce((sum, match) => sum + match.maps.length, 0)}
+      {@const summary = getRunSummary(run)}
       <section class="screen shell result-screen">
         <header class:success={run.champion} class="result-hero"><span class="eyebrow">FINAL REPORT / {$game.seed}</span><h1>{run.champion ? t('champion') : t('eliminated')}</h1><p>{run.placement}</p></header>
         <div class="campaign-grid">
-          <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{run.placement}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{wonMaps}</strong></article><article><small>{t('mapsLost')}</small><strong>{totalMaps - wonMaps}</strong></article>
+          <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{run.placement}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
         <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{match.teamA.name}</span><b>{match.scoreA} : {match.scoreB}</b><span>{match.teamB.name}</span></summary><div class="map-details">{#each match.maps as map}<span>Mapa {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
         <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(false)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copySeed')}</button><button class="secondary" type="button" on:click={shareRun}>{t('shareRun')}</button><button class="ghost" type="button" on:click={() => resetRun(true)}>{t('newSeed')}</button></div>
@@ -405,16 +406,22 @@
   {:else if $game.phase === 'stats'}
     <section class="screen shell stats-screen">
       <header class="screen-header"><span class="eyebrow">POST-MAJOR ANALYTICS</span><h1>{t('stats')}</h1><p>{t('statsSeed')} {$game.seed}.</p></header>
+      {#if runAggregate}
+        <div class="campaign-grid stats-overview">
+          <article><small>{t('mapsPlayed')}</small><strong>{runAggregate.mapsPlayed}</strong></article><article><small>{t('mapsWon')}</small><strong>{runAggregate.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{runAggregate.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{runAggregate.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{runAggregate.roundsLost}</strong></article><article><small>KILLS</small><strong>{runAggregate.kills}</strong></article><article><small>DEATHS</small><strong>{runAggregate.deaths}</strong></article><article><small>K/D</small><strong>{runAggregate.kdRatio.toFixed(2)}</strong></article><article><small>ADR</small><strong>{runAggregate.adr}</strong></article><article><small>IMPACT</small><strong>{runAggregate.impact.toFixed(2)}</strong></article><article><small>CLUTCHES</small><strong>{runAggregate.clutches}</strong></article><article><small>OPENINGS</small><strong>{runAggregate.openingKills}</strong></article><article><small>RATING</small><strong>{runAggregate.rating.toFixed(2)}</strong></article>
+        </div>
+      {/if}
       <div class="stats-grid">
         {#each $game.stats as stat}
           {@const player = playerById.get(stat.playerId)}
           {#if player}
             <article class="stat-card {rarityClass(player)}">
               {#if runMvp?.playerId === player.id}<span class="mvp-badge">{t('runMvp')}</span>{/if}
-              <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{player.role ?? 'rifler'} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{playerTitle(player)}</p></div><strong>{player.overall ?? 70}</strong></div>
+              {#if runWorst?.playerId === player.id}<span class="underperformer-badge">{t('worstRating')}</span>{/if}
+              <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{getRoleLabel(stat.assignedRole)} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{playerTitle(player)}</p></div><strong>{player.overall ?? 70}</strong></div>
               <div class="rating"><small>RUN RATING</small><b>{stat.runRating.toFixed(2)}</b></div>
-              <div class="stat-numbers"><span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span><span><small>ADR</small><b>{stat.adr}</b></span><span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span><span><small>CLUTCHES</small><b>{stat.clutches}</b></span><span><small>OPENINGS</small><b>{stat.openingKills}</b></span><span><small>MVP</small><b>{stat.mvpCount}</b></span></div>
-              <footer>{stat.mapsWon}/{stat.mapsPlayed} mapas · {stat.roundsWon} rounds vencidos</footer>
+              <div class="stat-numbers"><span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span><span><small>K/D</small><b>{stat.kdRatio.toFixed(2)}</b></span><span><small>ADR</small><b>{stat.adr}</b></span><span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span><span><small>CLUTCHES</small><b>{stat.clutches}</b></span><span><small>OPENINGS</small><b>{stat.openingKills}</b></span><span><small>{t('mapsWon')} / {t('mapsLost')}</small><b>{stat.mapsWon} / {stat.mapsLost}</b></span><span><small>{t('roundsWon')} / {t('roundsLost')}</small><b>{stat.roundsWon} / {stat.roundsLost}</b></span><span><small>CONSISTENCY</small><b>{stat.consistency}</b></span></div>
+              {#if stat.runRating < 0.85}<footer class="below-expected">{t('belowExpected')}</footer>{/if}
             </article>
           {/if}
         {/each}
