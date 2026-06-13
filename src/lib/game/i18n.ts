@@ -21,6 +21,7 @@ const pt = {
   opportunity: 'Oportunidade',
   pickOne: 'Escolha apenas um jogador deste elenco.',
   choosePlayer: 'Escolher jogador',
+  addAs: 'Adicionar como',
   close: 'Fechar',
   orgHud: 'HUD da organização',
   complete: 'Line confirmada',
@@ -90,16 +91,16 @@ const pt = {
   ,chooseStyleBeforeRoll: 'Escolha o estilo da sua organização antes de abrir a primeira oportunidade.'
   ,useAs: 'Usar como'
   ,howUsePlayer: 'Como deseja usar este jogador?'
-  ,roleOccupied: 'Função ocupada'
+  ,roleOccupied: 'Support já ocupado'
   ,samePlayerPicked: 'Mesmo jogador já escolhido'
-  ,rifleLimitReached: 'Limite de rifles atingido'
-  ,lineHasAwper: 'Sua line já tem um AWPer'
-  ,lineHasIgl: 'Sua line já tem um IGL'
-  ,lineHasEntry: 'Sua line já tem um entry/opener'
-  ,lineHasLurker: 'Sua line já tem um lurker/closer'
+  ,rifleLimitReached: 'Limite de rifles'
+  ,lineHasAwper: 'AWPer já ocupado'
+  ,lineHasIgl: 'IGL já ocupado'
+  ,lineHasEntry: 'Entry já ocupado'
+  ,lineHasLurker: 'Lurker já ocupado'
   ,orgComposition: 'Composição da organização'
   ,assignedRole: 'Função atribuída'
-  ,invalidRole: 'Escolha uma função válida para este jogador.'
+  ,invalidRole: 'Função indisponível'
   ,optional: 'opcional'
   ,noSupport: 'Sem support principal'
 } as const;

@@ -12,6 +12,10 @@
   const initials = (player.nickname ?? '?').slice(0, 2).toUpperCase();
   $: showNumbers = mode === 'premier' || revealed;
   $: rarity = (player.rarity ?? 'common').toLowerCase();
+
+  function openCard() {
+    if (!blockedReason || window.matchMedia('(max-width: 679px)').matches) onOpen(player);
+  }
 </script>
 
 <button
@@ -19,7 +23,8 @@
   class:compact
   class:blocked={Boolean(blockedReason)}
   class="player-card rarity-{rarity}"
-  on:click={() => onOpen(player)}
+  on:click={openCard}
+  aria-disabled={Boolean(blockedReason)}
   aria-label={`Abrir detalhes de ${player.nickname ?? 'jogador'}`}
 >
   <span class="player-topline">

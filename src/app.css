@@ -120,3 +120,26 @@ h2 { line-height: 1; text-transform: uppercase; }
 }
 
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important} }
+
+/* Final draft refinements */
+.primary:disabled:hover,.secondary:disabled:hover,.ghost:disabled:hover{transform:none}
+.slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:visible;padding-bottom:0}
+.slot{min-width:0;min-height:118px;padding:12px}
+.slot-index{top:3px;font-size:2.1rem}
+.slot strong{margin-top:28px;font-size:1.18rem}
+.slot strong.question{margin-top:18px;font-size:2.5rem}
+.slot small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot-title{margin-top:8px;font-weight:800;text-transform:uppercase}
+.slot b{right:9px;bottom:6px;font-size:1.25rem}
+.player-card.blocked{opacity:.45;filter:saturate(.35);cursor:not-allowed;animation:none;box-shadow:none}
+.player-card.blocked:hover{opacity:.45;transform:none;border-color:var(--line)}
+.role-picker{margin-top:9px;padding-top:9px}
+.role-picker h3{margin:4px 0 8px;font-size:1.05rem}
+.role-picker button{min-height:48px;padding:7px 10px}
+.role-option span,.role-option small{display:block}
+.role-option small{margin-top:3px;color:#ffb0a7;font-size:.5rem;line-height:1.2}
+.pick-blocked-reason{margin:7px 0;padding:8px}
+
+@media (min-width:680px){.slots{grid-template-columns:repeat(5,minmax(0,1fr))}.player-card:not(.blocked):hover .overall{color:var(--accent)}}
+@media (max-width:679px){.player-sheet{padding:12px}.attribute-grid{gap:4px;margin:8px 0}.trait-list{margin-bottom:6px}.role-picker{margin-top:6px;padding-top:6px}.role-picker button{min-height:44px}}
+@media (max-width:359px){.slots{grid-template-columns:1fr}}

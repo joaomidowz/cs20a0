@@ -12,6 +12,7 @@ describe('lineup role rules', () => {
   it('normalizes player identity across eras', () => {
     expect(getPlayerBaseId(byBaseId('fallen', 2016))).toBe('fallen');
     expect(getPlayerBaseId(byBaseId('fallen', 2025))).toBe('fallen');
+    expect(getPlayerBaseId({ ...byBaseId('fallen', 2025), baseId: 'FalleN-2025' })).toBe('fallen');
   });
 
   it('blocks the same player in another era', () => {

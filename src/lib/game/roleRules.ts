@@ -65,7 +65,8 @@ const normalize = (value: string | null | undefined) =>
     .toLowerCase();
 
 export function getPlayerBaseId(player: Player): string {
-  return (player.baseId ?? player.id.replace(/-\d{4}$/, '')).toLowerCase();
+  const identity = player.baseId?.trim() || player.id;
+  return normalize(identity.replace(/[-_\s]?(?:19|20)\d{2}$/i, ''));
 }
 
 export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {

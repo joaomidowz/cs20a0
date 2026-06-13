@@ -33,7 +33,6 @@
   import '../app.css';
 
   let detailsPlayer: Player | null = null;
-  let selectingRole = false;
   let toast = '';
   let awaitingAdvance = false;
 
@@ -81,13 +80,11 @@
 
   function openPlayer(player: Player) {
     detailsPlayer = player;
-    selectingRole = false;
     document.body.classList.add('modal-open');
   }
 
   function closePlayer() {
     detailsPlayer = null;
-    selectingRole = false;
     document.body.classList.remove('modal-open');
   }
 
@@ -104,20 +101,6 @@
     if (reason === PICK_REASONS.rifler) return t('rifleLimitReached');
     if (reason === PICK_REASONS.support) return t('roleOccupied');
     return reason ?? t('invalidRole');
-  }
-
-  function requestPlayerPick(player: Player) {
-    const validation = cardValidation(player);
-    if (!validation.ok) {
-      showToast(reasonText(validation.reason));
-      return;
-    }
-    const eligibleRoles = getEligibleSlotRoles(player);
-    if (eligibleRoles.length === 1 && validation.validRoles.length === 1) {
-      confirmPlayerPick(player, validation.validRoles[0]);
-      return;
-    }
-    selectingRole = true;
   }
 
   function confirmPlayerPick(player: Player, selectedSlotRole: LineupSlotRole) {
@@ -344,8 +327,6 @@
         mode={$game.mode ?? 'premier'}
         revealed={draftComplete}
         label={t('orgHud')}
-        compositionLabel={t('orgComposition')}
-        optionalLabel={t('optional')}
         onOpen={openPlayer}
       />
 
@@ -450,23 +431,20 @@
         <div class="blind-intel"><span class="eyebrow">{t('hiddenStats')}</span>{#each vagueTraits(detailsPlayer) as trait}<strong>{trait}</strong>{/each}</div>
       {/if}
       {#if !draftComplete}
-        {#if selectingRole}
-          <div class="role-picker">
-            <span class="eyebrow">{t('howUsePlayer')}</span>
-            <h3>{detailsPlayer.nickname} · {t('assignedRole')}</h3>
-            <div>
-              {#each eligibleRoles as role}
-                {@const roleValidation = validatePlayerPick(detailsPlayer, selectedLineup, role, lookupPlayer)}
-                <button class="secondary" type="button" disabled={!roleValidation.ok} on:click={() => confirmPlayerPick(detailsPlayer!, role)}>
-                  {t('useAs')} {getRoleLabel(role)}
-                </button>
-              {/each}
-            </div>
-          </div>
-        {:else}
+        <div class="role-picker">
+          <span class="eyebrow">{t('howUsePlayer')}</span>
+          <h3>{detailsPlayer.nickname} · {t('assignedRole')}</h3>
           {#if !detailsValidation.ok}<p class="pick-blocked-reason">{reasonText(detailsValidation.reason)}</p>{/if}
-          <button class="primary wide choose-player-button" type="button" disabled={!detailsValidation.ok} on:click={() => requestPlayerPick(detailsPlayer!)}>{t('choosePlayer')} →</button>
-        {/if}
+          <div>
+            {#each eligibleRoles as role}
+              {@const roleValidation = validatePlayerPick(detailsPlayer, selectedLineup, role, lookupPlayer)}
+              <button class="secondary role-option" type="button" disabled={!roleValidation.ok} on:click={() => confirmPlayerPick(detailsPlayer!, role)}>
+                <span>{eligibleRoles.length === 1 ? t('addAs') : t('useAs')} {getRoleLabel(role)}</span>
+                {#if !roleValidation.ok}<small>{reasonText(roleValidation.reason)}</small>{/if}
+              </button>
+            {/each}
+          </div>
+        </div>
       {/if}
     </div>
   </div>
