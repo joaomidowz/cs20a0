@@ -60,6 +60,7 @@
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
   $: stageLosses = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId !== 'user').length;
+  $: hasStageRecord = stageWins + stageLosses > 0;
   $: runMvp = [...$game.stats].sort((a, b) => getRunMvpScore(b) - getRunMvpScore(a))[0];
   $: runWorst = [...$game.stats].sort((a, b) => a.runRating - b.runRating)[0];
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
@@ -217,7 +218,7 @@
   }
 
   function phaseLabel() {
-    if ($game.phase === 'stage3') return `${t('stage3')} · ${stageWins}-${stageLosses}`;
+    if ($game.phase === 'stage3') return hasStageRecord ? `${t('stage3')} · ${stageWins}-${stageLosses}` : t('stage3');
     return t('playoffs');
   }
 
@@ -364,7 +365,7 @@
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
     <section class="screen shell match-screen">
-      <header class="match-topbar"><div><span class="eyebrow">MAJOR LIVE</span><h1>{phaseLabel()}</h1></div>{#if $game.phase === 'stage3'}<div class="record"><span>{stageWins}</span><small>W</small><b>:</b><span>{stageLosses}</span><small>L</small></div>{/if}</header>
+      <header class="match-topbar"><div><span class="eyebrow">MAJOR LIVE</span><h1>{phaseLabel()}</h1></div>{#if $game.phase === 'stage3' && hasStageRecord}<div class="record"><span>{stageWins}</span><small>W</small><b>:</b><span>{stageLosses}</span><small>L</small></div>{/if}</header>
       <div class="match-controls panel">
         <div class="control-group">
           <span>{t('simulationMode')}</span>
