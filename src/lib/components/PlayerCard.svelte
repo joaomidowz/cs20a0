@@ -12,6 +12,7 @@
   const initials = (player.nickname ?? '?').slice(0, 2).toUpperCase();
   $: showNumbers = mode === 'premier' || revealed;
   $: rarity = (player.rarity ?? 'common').toLowerCase();
+  $: showRarity = mode === 'premier' || revealed;
 
   function openCard() {
     if (!blockedReason || window.matchMedia('(max-width: 679px)').matches) onOpen(player);
@@ -22,14 +23,14 @@
   type="button"
   class:compact
   class:blocked={Boolean(blockedReason)}
-  class="player-card rarity-{rarity}"
+  class="player-card {showRarity ? `rarity-${rarity}` : 'rarity-hidden'}"
   on:click={openCard}
   aria-disabled={Boolean(blockedReason)}
   aria-label={`Abrir detalhes de ${player.nickname ?? 'jogador'}`}
 >
   <span class="player-topline">
     <span class="avatar">{initials}</span>
-    <span class="rarity-label">{rarity}</span>
+    {#if showRarity}<span class="rarity-label">{rarity}</span>{/if}
   </span>
   <span class="player-name">{player.nickname ?? 'Unknown'}</span>
   <span class="player-title">{playerTitle(player)}</span>

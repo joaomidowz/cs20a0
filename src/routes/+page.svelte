@@ -55,7 +55,7 @@
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = selectedPlayers.length === 5;
-  $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup);
+  $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
@@ -447,9 +447,9 @@
   {@const detailsValidation = cardValidation(detailsPlayer)}
   {@const eligibleRoles = getEligibleSlotRoles(detailsPlayer)}
   <div class="sheet-backdrop" role="presentation" on:click={closePlayer} on:keydown={(event) => event.key === 'Escape' && closePlayer()}>
-    <div class="player-sheet {rarityClass(detailsPlayer)}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${detailsPlayer.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+    <div class="player-sheet {$game.mode === 'faceit' && !draftComplete ? 'rarity-hidden' : rarityClass(detailsPlayer)}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${detailsPlayer.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <button class="sheet-close" type="button" on:click={closePlayer}>×</button>
-      <div class="sheet-player"><div class="avatar huge">{(detailsPlayer.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{detailsPlayer.rarity ?? 'common'} · {detailsPlayer.teamId ?? ''}</span><h2>{detailsPlayer.nickname ?? 'Unknown'}</h2><p>{playerTitle(detailsPlayer)} · {detailsPlayer.role ?? 'rifler'}</p></div>{#if $game.mode === 'premier' || draftComplete}<strong>{detailsPlayer.overall ?? 70}</strong>{:else}<strong>??</strong>{/if}</div>
+      <div class="sheet-player"><div class="avatar huge">{(detailsPlayer.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{#if $game.mode === 'premier' || draftComplete}{detailsPlayer.rarity ?? 'common'} · {/if}{detailsPlayer.teamId ?? ''}</span><h2>{detailsPlayer.nickname ?? 'Unknown'}</h2><p>{playerTitle(detailsPlayer)} · {detailsPlayer.role ?? 'rifler'}</p></div>{#if $game.mode === 'premier' || draftComplete}<strong>{detailsPlayer.overall ?? 70}</strong>{:else}<strong>??</strong>{/if}</div>
       {#if $game.mode === 'premier' || draftComplete}
         <div class="attribute-grid">{#each ['firepower', 'clutch', 'entry', 'awp', 'support', 'igl', 'experience', 'consistency', 'mental'] as attribute}<div><span>{attribute}</span><b>{detailsPlayer[attribute as keyof Player] ?? 70}</b><i><em style={`width:${Number(detailsPlayer[attribute as keyof Player] ?? 70)}%`}></em></i></div>{/each}</div>
         {#if detailsPlayer.traits?.length}<div class="trait-list">{#each detailsPlayer.traits.slice(0, 4) as trait}<span>{trait}</span>{/each}{#if detailsPlayer.traits.length > 4}<span>+{detailsPlayer.traits.length - 4}</span>{/if}</div>{/if}

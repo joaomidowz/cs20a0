@@ -70,6 +70,9 @@ export interface CombatTeam {
   mental: number;
   clutch: number;
   experience: number;
+  style?: OrgStyle;
+  studyPercentage?: number;
+  aggressionPercentage?: number;
   isUser?: boolean;
 }
 

@@ -87,7 +87,7 @@ export function calculatePlayerPower(
 
 const hasRole = (player: Player, role: string) => (player.role ?? '').toLowerCase().includes(role);
 
-export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = []): CombatTeam {
+export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
   if (!players.length) return { id: 'user', name: 'Sua Org', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
   const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
   const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
@@ -100,13 +100,20 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   composition += igls ? 2.4 : -4;
   composition += supports ? 1.2 : -1.5;
   if (players.every((player) => number(player.firepower) >= 90) && (!igls || !supports)) composition -= 2;
+  const studyRng = createSeededRng(`${seed}:tactical-study:${players.map((player) => player.id).join('|')}`);
+  const studyPercentage = 60 + Math.floor(studyRng() * 41);
+  const aggressionPercentage = Math.round((avg('firepower') + avg('entry')) / 2);
+  const styleMultiplier = style === 'tactical' ? 1.1 : style === 'aggressive' ? 0.95 : 1;
   return {
     id: 'user',
     name: 'Sua Org',
-    power: Math.max(45, Math.min(99, average + composition)),
+    power: Math.max(45, Math.min(99, (average + composition) * styleMultiplier)),
     mental: avg('mental'),
     clutch: avg('clutch'),
     experience: avg('experience'),
+    style,
+    studyPercentage,
+    aggressionPercentage,
     isUser: true
   };
 }
@@ -133,7 +140,14 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
 
 export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number {
   const diff = teamA.power - teamB.power;
-  return Math.max(0.18, Math.min(0.82, 1 / (1 + Math.exp(-diff / 9))));
+  let probability = 1 / (1 + Math.exp(-diff / 9));
+  const tacticalStudyBonus = (team: CombatTeam) => {
+    if (team.style !== 'tactical') return 0;
+    const studyAdvantage = (team.studyPercentage ?? 0) - (team.aggressionPercentage ?? 0);
+    return studyAdvantage > 0 ? Math.min(0.08, studyAdvantage / 500) : 0;
+  };
+  probability += tacticalStudyBonus(teamA) - tacticalStudyBonus(teamB);
+  return Math.max(0.18, Math.min(0.82, probability));
 }
 
 export function simulateRound(
@@ -292,7 +306,7 @@ export function buildMajorRun(
 ): MajorRun {
   seriesCounter = 0;
   const rng = createSeededRng(`${seed}:major:${players.map((player) => player.id).join('|')}:${style}`);
-  const user = calculateUserTeamPower(players, style, lineup);
+  const user = calculateUserTeamPower(players, style, lineup, seed);
   const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));
   const stage3 = simulateStage3(user, opponents, rng);
   if (!stage3.qualified) {

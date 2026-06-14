@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
-import { buildMajorRun, createSeededRng, simulateMap, simulateSeries } from '../src/lib/game/simulation';
+import { buildMajorRun, calculateUserTeamPower, createSeededRng, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
 import { createRunStats } from '../src/lib/game/runStats';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
@@ -30,6 +30,35 @@ describe('simulation', () => {
     expect(Math.max(map.scoreA, map.scoreB)).toBeGreaterThanOrEqual(13);
     expect(map.scoreA).not.toBe(map.scoreB);
     expect(map.rounds.at(-1)).toMatchObject({ a: map.scoreA, b: map.scoreB });
+  });
+
+  it('buffs tactical by 10% and debuffs aggressive by 5%', () => {
+    const players = (playersJson as Player[]).filter((player) => player.teamId === 'astralis-2018').slice(0, 5);
+    const lineup: SelectedPlayer[] = players.map((player, index) => ({
+      playerId: player.id,
+      selectedSlotRole: (['igl', 'support', 'awper', 'entry', 'rifler'] as const)[index]
+    }));
+    const balanced = calculateUserTeamPower(players, 'balanced', lineup, 'style-hotfix');
+    const tactical = calculateUserTeamPower(players, 'tactical', lineup, 'style-hotfix');
+    const aggressive = calculateUserTeamPower(players, 'aggressive', lineup, 'style-hotfix');
+
+    expect(tactical.power).toBeGreaterThan(balanced.power);
+    expect(aggressive.power).toBeLessThan(balanced.power);
+    expect(tactical.studyPercentage).toBeGreaterThanOrEqual(60);
+    expect(tactical.studyPercentage).toBeLessThanOrEqual(100);
+    expect(calculateUserTeamPower(players, 'tactical', lineup, 'style-hotfix').studyPercentage).toBe(tactical.studyPercentage);
+  });
+
+  it('turns superior tactical study into extra win probability', () => {
+    const baseline = team('baseline', 86);
+    const tactical: CombatTeam = {
+      ...team('tactical', 86),
+      style: 'tactical',
+      studyPercentage: 92,
+      aggressionPercentage: 77
+    };
+    expect(getWinProbability(tactical, baseline)).toBeGreaterThan(0.5);
+    expect(getWinProbability(baseline, tactical)).toBeLessThan(0.5);
   });
 
   it('builds the same complete Major run from the same choices and seed', () => {
