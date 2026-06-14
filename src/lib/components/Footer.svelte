@@ -20,7 +20,7 @@
       <a class="support-link" href="https://ko-fi.com/cs13a0" target="_blank" rel="noopener noreferrer">
         {labels.support}
       </a>
-      <!-- TODO: trocar para contato@cs13a0.com quando o novo dominio/e-mail estiver configurado. -->
+      <!-- TODO: trocar para contato@cs13a0.com quando a nova caixa postal estiver ativa. -->
       <a href="mailto:contato@cs20a0.com"><span>{labels.contact}</span> contato@cs20a0.com</a>
     </div>
 
