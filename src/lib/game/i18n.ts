@@ -119,6 +119,16 @@ const pt = {
   ,invalidRole: 'Função indisponível'
   ,optional: 'opcional'
   ,noSupport: 'Sem support principal'
+  ,supportNudgeTitle: 'Curtiu o cs20a0?'
+  ,supportNudgeMessage: 'Esse projeto é independente e mantido com tempo livre. Se quiser ajudar a manter domínio, melhorias e novas eras, apoie no Ko-fi.'
+  ,supportOnKofi: 'Apoiar no Ko-fi'
+  ,notNow: 'Agora não'
+  ,footerDescription: 'Projeto independente de simulação e entretenimento competitivo.'
+  ,sendFeedback: 'Enviar feedback'
+  ,contact: 'Contato'
+  ,independentProject: 'Projeto independente'
+  ,curatedGameplayStats: 'Ratings e estatísticas são curados/adaptados para gameplay.'
+  ,footerDisclaimer: 'cs20a0 é um projeto independente. Não é afiliado à Valve, HLTV, times, organizações ou jogadores. Ratings e estatísticas são curados/adaptados para gameplay.'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -165,7 +175,17 @@ Object.assign(dictionaries.es, {
   maps: 'Mapas',
   record: 'Récord',
   imageDownloaded: 'Imagen de la partida descargada',
-  imageDownloadFailed: 'No se pudo generar la imagen. El enlace sigue disponible.'
+  imageDownloadFailed: 'No se pudo generar la imagen. El enlace sigue disponible.',
+  supportNudgeTitle: '¿Te gustó cs20a0?',
+  supportNudgeMessage: 'Este proyecto es independiente y se mantiene en tiempo libre. Si quieres ayudar a mantener el dominio, mejoras y nuevas eras, apóyalo en Ko-fi.',
+  supportOnKofi: 'Apoyar en Ko-fi',
+  notNow: 'Ahora no',
+  footerDescription: 'Proyecto independiente de simulación y entretenimiento competitivo.',
+  sendFeedback: 'Enviar feedback',
+  contact: 'Contacto',
+  independentProject: 'Proyecto independiente',
+  curatedGameplayStats: 'Ratings y estadísticas son curados/adaptados para gameplay.',
+  footerDisclaimer: 'cs20a0 es un proyecto independiente. No está afiliado a Valve, HLTV, equipos, organizaciones ni jugadores. Los ratings y las estadísticas son curados/adaptados para gameplay.'
 });
 
 Object.assign(dictionaries.en, {
@@ -198,7 +218,17 @@ Object.assign(dictionaries.en, {
   maps: 'Maps',
   record: 'Record',
   imageDownloaded: 'Run image downloaded',
-  imageDownloadFailed: 'The image could not be generated. The link is still available.'
+  imageDownloadFailed: 'The image could not be generated. The link is still available.',
+  supportNudgeTitle: 'Enjoying cs20a0?',
+  supportNudgeMessage: 'This is an independent project built in spare time. If you want to help cover the domain, improvements, and new eras, support it on Ko-fi.',
+  supportOnKofi: 'Support on Ko-fi',
+  notNow: 'Not now',
+  footerDescription: 'Independent competitive simulation and entertainment project.',
+  sendFeedback: 'Send feedback',
+  contact: 'Contact',
+  independentProject: 'Independent project',
+  curatedGameplayStats: 'Ratings and stats are curated/adapted for gameplay.',
+  footerDisclaimer: 'cs20a0 is an independent project. It is not affiliated with Valve, HLTV, teams, organizations, or players. Ratings and stats are curated/adapted for gameplay.'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

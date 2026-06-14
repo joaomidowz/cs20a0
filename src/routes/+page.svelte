@@ -7,6 +7,8 @@
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
+  import Footer from '$lib/components/Footer.svelte';
+  import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, type TranslationKey } from '$lib/game/i18n';
   import {
@@ -39,6 +41,10 @@
   let toast = '';
   let awaitingAdvance = false;
   let downloadingImage = false;
+  let showSupportNudge = false;
+  let supportNudgeShownThisRun = false;
+  let supportNudgeDismissedThisRun = false;
+  let supportNudgeTimer: number | null = null;
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -64,11 +70,15 @@
   $: runMvp = [...$game.stats].sort((a, b) => getRunMvpScore(b) - getRunMvpScore(a))[0];
   $: runWorst = [...$game.stats].sort((a, b) => a.runRating - b.runRating)[0];
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
+  $: maybeShowSupportNudge($game.phase, $game.completedSeries);
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
 
-  onDestroy(() => document.body.classList.remove('modal-open'));
+  onDestroy(() => {
+    document.body.classList.remove('modal-open');
+    clearSupportNudgeTimer();
+  });
 
   function beginGame() {
     update({ seed: $game.seed || makeSeed(), phase: 'mode-select' });
@@ -128,10 +138,50 @@
 
   function launchMajor() {
     if (!draftComplete) return;
+    resetSupportNudge();
     const majorRun = buildMajorRun(selectedPlayers, $game.style, teams, players, $game.seed, selectedLineup);
     const stats = createRunStats(selectedPlayers, majorRun, $game.seed, selectedLineup);
     awaitingAdvance = false;
     update({ majorRun, stats, completedSeries: 0, phase: 'stage3' });
+    scheduleSupportNudge();
+  }
+
+  function maybeShowSupportNudge(phase: string, completedSeries: number) {
+    if (supportNudgeShownThisRun || supportNudgeDismissedThisRun) return;
+    if (phase !== 'stage3' && phase !== 'playoffs') return;
+    if (completedSeries >= 3 || phase === 'playoffs') {
+      showSupportNudge = true;
+      supportNudgeShownThisRun = true;
+      clearSupportNudgeTimer();
+    }
+  }
+
+  function scheduleSupportNudge() {
+    clearSupportNudgeTimer();
+    supportNudgeTimer = window.setTimeout(() => {
+      if (supportNudgeShownThisRun || supportNudgeDismissedThisRun) return;
+      if ($game.phase !== 'stage3' && $game.phase !== 'playoffs') return;
+      showSupportNudge = true;
+      supportNudgeShownThisRun = true;
+    }, 120000);
+  }
+
+  function clearSupportNudgeTimer() {
+    if (supportNudgeTimer !== null) window.clearTimeout(supportNudgeTimer);
+    supportNudgeTimer = null;
+  }
+
+  function dismissSupportNudge() {
+    showSupportNudge = false;
+    supportNudgeDismissedThisRun = true;
+    clearSupportNudgeTimer();
+  }
+
+  function resetSupportNudge() {
+    showSupportNudge = false;
+    supportNudgeShownThisRun = false;
+    supportNudgeDismissedThisRun = false;
+    clearSupportNudgeTimer();
   }
 
   function seriesCompleted() {
@@ -176,6 +226,7 @@
   }
 
   function resetRun(newSeed = false) {
+    resetSupportNudge();
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(newSeed ? makeSeed() : $game.seed || makeSeed()), ...preserved, phase: 'mode-select' });
     closePlayer();
@@ -442,6 +493,28 @@
     </section>
   {/if}
 </main>
+
+{#if $game.phase === 'home'}
+  <Footer
+    labels={{
+      description: t('footerDescription'),
+      support: t('supportOnKofi'),
+      contact: t('contact'),
+      disclaimer: t('footerDisclaimer')
+    }}
+  />
+{/if}
+
+<SupportNudge
+  show={showSupportNudge}
+  title={t('supportNudgeTitle')}
+  message={t('supportNudgeMessage')}
+  supportLabel={t('supportOnKofi')}
+  dismissLabel={t('notNow')}
+  closeLabel={t('close')}
+  onClose={dismissSupportNudge}
+  onSupportClick={dismissSupportNudge}
+/>
 
 {#if detailsPlayer}
   {@const detailsValidation = cardValidation(detailsPlayer)}
