@@ -82,7 +82,7 @@
   });
 
   function beginGame() {
-    update({ seed: $game.seed || makeSeed(), phase: 'mode-select' });
+    update({ phase: 'mode-select' });
   }
 
   function goHome() {
@@ -96,7 +96,7 @@
   }
 
   function chooseMode(mode: GameMode) {
-    update({ mode, phase: 'draft' });
+    update({ seed: $game.seed || makeSeed(), mode, phase: 'draft' });
   }
 
   function rollTeam() {
@@ -239,7 +239,7 @@
   function resetRun(newSeed = false) {
     resetSupportNudge();
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
-    game.set({ ...defaultState(newSeed ? makeSeed() : $game.seed || makeSeed()), ...preserved, phase: 'mode-select' });
+    game.set({ ...defaultState(newSeed ? '' : $game.seed), ...preserved, phase: 'mode-select' });
     closePlayer();
     awaitingAdvance = false;
   }
