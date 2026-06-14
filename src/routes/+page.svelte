@@ -279,7 +279,7 @@
 </script>
 
 <svelte:head>
-  <title>cs20a0 · Monte sua line e sobreviva ao Major</title>
+  <title>cs13a0 · Monte sua line e sobreviva ao Major</title>
   <meta name="description" content="Draft de Counter-Strike com 30 times históricos, 150 jogadores e Major simulado por seed." />
 </svelte:head>
 

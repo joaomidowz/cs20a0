@@ -9,7 +9,7 @@
 
 <nav class="nav shell" aria-label="Navegação principal">
   <a class="brand" href="/">
-    <span class="brand-mark">CS</span><span>20a0</span>
+    <span class="brand-mark">CS</span><span>13a0</span>
   </a>
   <div class="nav-actions">
     <label class="sr-only" for="language">Idioma</label>

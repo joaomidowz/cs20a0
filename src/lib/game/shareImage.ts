@@ -56,7 +56,7 @@ export async function downloadRunImage(nodeId: string, seed: string) {
   }
 
   const link = document.createElement('a');
-  link.download = `cs20a0-run-${seed}.png`;
+  link.download = `cs13a0-run-${seed}.png`;
   link.href = dataUrl;
   link.click();
 }

@@ -16,7 +16,7 @@
     <strong>{title}</strong>
     <p>{message}</p>
     <div class="nudge-actions">
-      <a href="https://ko-fi.com/cs20a0" target="_blank" rel="noopener noreferrer" on:click={onSupportClick}>{supportLabel}</a>
+      <a href="https://ko-fi.com/cs13a0" target="_blank" rel="noopener noreferrer" on:click={onSupportClick}>{supportLabel}</a>
       <button type="button" on:click={onClose}>{dismissLabel}</button>
     </div>
   </aside>

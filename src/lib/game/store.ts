@@ -6,7 +6,7 @@ import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
 import type { GameState } from './types';
 
-const storageKey = 'cs20a0-run-v1';
+const storageKey = 'cs13a0-run-v1';
 
 export const makeSeed = () => Math.random().toString(36).slice(2, 8);
 

@@ -26,9 +26,9 @@
   }));
 </script>
 
-<section id="share-card" class:champion={run.champion} class="share-card" aria-label="cs20a0 run card">
+<section id="share-card" class:champion={run.champion} class="share-card" aria-label="cs13a0 run card">
   <header>
-    <div class="share-brand"><span>CS</span><strong>cs20a0</strong></div>
+    <div class="share-brand"><span>CS</span><strong>cs13a0</strong></div>
     <div class="share-seed"><small>SEED</small><b>{seed}</b></div>
   </header>
 

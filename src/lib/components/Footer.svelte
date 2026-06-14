@@ -12,19 +12,20 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <strong>cs20a0</strong>
+      <strong>cs13a0</strong>
       <p>{labels.description}</p>
     </div>
 
     <div class="footer-actions">
-      <a class="support-link" href="https://ko-fi.com/cs20a0" target="_blank" rel="noopener noreferrer">
+      <a class="support-link" href="https://ko-fi.com/cs13a0" target="_blank" rel="noopener noreferrer">
         {labels.support}
       </a>
+      <!-- TODO: trocar para contato@cs13a0.com quando o novo dominio/e-mail estiver configurado. -->
       <a href="mailto:contato@cs20a0.com"><span>{labels.contact}</span> contato@cs20a0.com</a>
     </div>
 
     <p class="footer-disclaimer">{labels.disclaimer}</p>
-    <small>© {currentYear} cs20a0</small>
+    <small>© {currentYear} cs13a0</small>
   </div>
 </footer>
 

@@ -17,8 +17,8 @@ const isSimulationSpeed = (value: string | null): value is SimulationSpeed =>
 export function loadSimulationPreferences() {
   if (!browser) return DEFAULT_SIMULATION_PREFERENCES;
 
-  const storedMode = localStorage.getItem('cs20a0:simulationMode');
-  const storedSpeed = localStorage.getItem('cs20a0:simulationSpeed');
+  const storedMode = localStorage.getItem('cs13a0:simulationMode');
+  const storedSpeed = localStorage.getItem('cs13a0:simulationSpeed');
   return {
     simulationMode: isSimulationMode(storedMode)
       ? storedMode
@@ -31,6 +31,6 @@ export function loadSimulationPreferences() {
 
 export function saveSimulationPreferences(mode: SimulationMode, speed: SimulationSpeed) {
   if (!browser) return;
-  localStorage.setItem('cs20a0:simulationMode', mode);
-  localStorage.setItem('cs20a0:simulationSpeed', speed);
+  localStorage.setItem('cs13a0:simulationMode', mode);
+  localStorage.setItem('cs13a0:simulationSpeed', speed);
 }
