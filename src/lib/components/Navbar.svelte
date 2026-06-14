@@ -5,10 +5,11 @@
   export let theme: Theme;
   export let onLanguage: (language: Language) => void;
   export let onTheme: () => void;
+  export let onHome: () => void;
 </script>
 
 <nav class="nav shell" aria-label="Navegação principal">
-  <a class="brand" href="/">
+  <a class="brand" href="/" on:click|preventDefault={onHome}>
     <span class="brand-mark">CS</span><span>13a0</span>
   </a>
   <div class="nav-actions">

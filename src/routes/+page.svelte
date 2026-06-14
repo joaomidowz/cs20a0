@@ -85,6 +85,16 @@
     update({ seed: $game.seed || makeSeed(), phase: 'mode-select' });
   }
 
+  function goHome() {
+    resetSupportNudge();
+    closePlayer();
+    awaitingAdvance = false;
+    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
+    game.set({ ...defaultState(), ...preserved });
+    replaceState(new URL('/', window.location.origin), {});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function chooseMode(mode: GameMode) {
     update({ mode, phase: 'draft' });
   }
@@ -289,6 +299,7 @@
   theme={$game.theme}
   onLanguage={(language) => update({ language })}
   onTheme={() => update({ theme: $game.theme === 'dark' ? 'light' : 'dark' })}
+  onHome={goHome}
 />
 
 <main>
@@ -464,7 +475,7 @@
         </div>
         <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{match.teamA.name}</span><b>{match.scoreA} : {match.scoreB}</b><span>{match.teamB.name}</span></summary><div class="map-details">{#each match.maps as map}<span>Mapa {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
-        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(false)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(true)}>{t('newSeed')}</button></div>
+        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}

@@ -69,6 +69,7 @@ const pt = {
   imageDownloadFailed: 'Não foi possível gerar a imagem. O link continua disponível.',
   shareRun: 'Compartilhar run',
   newSeed: 'Nova seed',
+  playSameSeed: 'Jogar mesma seed',
   copied: 'Link copiado',
   stats: 'Estatísticas da run',
   runMvp: 'MVP da Run',
@@ -146,6 +147,7 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
+  playSameSeed: 'Jugar con la misma seed',
   premier: 'Normal',
   faceit: 'Ranked',
   faceitDesc: 'En Ranked eliges por intuición. Los números aparecen después.',
@@ -193,6 +195,7 @@ Object.assign(dictionaries.es, {
 });
 
 Object.assign(dictionaries.en, {
+  playSameSeed: 'Play the same seed',
   premier: 'Normal',
   faceit: 'Ranked',
   faceitDesc: 'In Ranked you pick by feel. The numbers appear later.',

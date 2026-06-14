@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { SeriesResult } from '$lib/game/types';
 
   export let series: SeriesResult;
@@ -22,8 +23,17 @@
   let started = false;
   let finished = false;
   let runId = 0;
+  let pendingTimeout: number | null = null;
+  let resolvePendingWait: ((skipped: boolean) => void) | null = null;
 
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = (ms: number) => new Promise<boolean>((resolve) => {
+    resolvePendingWait = resolve;
+    pendingTimeout = window.setTimeout(() => {
+      pendingTimeout = null;
+      resolvePendingWait = null;
+      resolve(false);
+    }, ms);
+  });
   $: currentMap = series.maps[activeMap];
   $: currentRound = visibleRounds > 0 ? currentMap?.rounds[visibleRounds - 1] : null;
   $: if (auto && !started && !finished) void play();
@@ -37,10 +47,11 @@
       visibleRounds = 0;
       const rounds = series.maps[mapIndex].rounds;
       while (visibleRounds < rounds.length && thisRun === runId) {
-        await sleep(delay);
+        const skipped = await wait(delay);
+        if (skipped) continue;
         visibleRounds += 1;
       }
-      await sleep(Math.min(900, delay));
+      await wait(Math.min(900, delay));
     }
     if (thisRun !== runId) return;
     finished = true;
@@ -51,7 +62,18 @@
   function skipMap() {
     if (!currentMap) return;
     visibleRounds = currentMap.rounds.length;
+    if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
+    pendingTimeout = null;
+    const resolve = resolvePendingWait;
+    resolvePendingWait = null;
+    resolve?.(true);
   }
+
+  onDestroy(() => {
+    runId += 1;
+    if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
+    resolvePendingWait?.(true);
+  });
 </script>
 
 <section class="series panel">
@@ -71,7 +93,7 @@
     {#each series.maps.slice(0, finished ? series.maps.length : activeMap + 1) as map, index}
       {@const isPast = index < activeMap || finished}
       {@const liveRound = index === activeMap ? currentRound : null}
-      {@const currentMapFinished = index === activeMap && visibleRounds === map.rounds.length}
+      {@const currentMapFinished = index === activeMap && visibleRounds >= map.rounds.length}
       <article class:live={index === activeMap && started} class="map-row">
         <div>
           <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
@@ -94,6 +116,6 @@
   {#if !started && !finished}
     <button class="primary wide" type="button" on:click={play}>{labels.start}</button>
   {:else if started}
-    <button class="secondary wide" type="button" on:click={skipMap}>{labels.skip}</button>
+    <button class="secondary wide" type="button" disabled={visibleRounds >= (currentMap?.rounds.length ?? 0)} on:click={skipMap}>{labels.skip}</button>
   {/if}
 </section>
