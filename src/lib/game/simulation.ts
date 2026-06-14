@@ -103,11 +103,13 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   const studyRng = createSeededRng(`${seed}:tactical-study:${players.map((player) => player.id).join('|')}`);
   const studyPercentage = 60 + Math.floor(studyRng() * 41);
   const aggressionPercentage = Math.round((avg('firepower') + avg('entry')) / 2);
-  const styleMultiplier = style === 'tactical' ? 1.1 : style === 'aggressive' ? 0.95 : 1;
+  const elitePlayers = players.filter((player) => number(player.overall) >= 98).length;
+  const eliteCoreBonus = Math.min(4.5, elitePlayers * 0.9 + Math.max(0, avg('overall') - 92) * 0.35);
+  const styleMultiplier = style === 'tactical' ? 1.1 : 1;
   return {
     id: 'user',
     name: 'Sua Org',
-    power: Math.max(45, Math.min(99, (average + composition) * styleMultiplier)),
+    power: Math.max(45, Math.min(99, (average + composition) * styleMultiplier + eliteCoreBonus)),
     mental: avg('mental'),
     clutch: avg('clutch'),
     experience: avg('experience'),
@@ -116,6 +118,25 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
     aggressionPercentage,
     isUser: true
   };
+}
+
+export function getMatchDayPower(team: CombatTeam, rng: SeededRng): number {
+  const roll = rng();
+  const intensity = rng();
+  let multiplier = 0.985 + intensity * 0.03;
+
+  if (team.style === 'aggressive') {
+    const goodDayChance = 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
+    if (roll < Math.min(0.38, goodDayChance)) multiplier = 1.04 + intensity * 0.045;
+  } else if (team.style === 'tactical') {
+    const preparation = team.studyPercentage ?? 60;
+    const goodDayChance = 0.16 + Math.max(0, preparation - 60) / 250;
+    if (roll < Math.min(0.32, goodDayChance)) multiplier = 1.025 + intensity * 0.035;
+  } else if (roll < 0.18) {
+    multiplier = 1.02 + intensity * 0.025;
+  }
+
+  return Math.max(45, Math.min(103, team.power * multiplier));
 }
 
 export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: Player[]): CombatTeam {
@@ -216,8 +237,8 @@ export function simulateSeries(
   let scoreB = 0;
   const pressureA = phase === 'final' ? (teamA.experience + teamA.mental) / 180 : 1;
   const pressureB = phase === 'final' ? (teamB.experience + teamB.mental) / 180 : 1;
-  const adjustedA = { ...teamA, power: teamA.power + pressureA };
-  const adjustedB = { ...teamB, power: teamB.power + pressureB };
+  const adjustedA = { ...teamA, power: getMatchDayPower(teamA, rng) + pressureA };
+  const adjustedB = { ...teamB, power: getMatchDayPower(teamB, rng) + pressureB };
   while (scoreA < needed && scoreB < needed) {
     const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1);
     maps.push(result);

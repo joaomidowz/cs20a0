@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
-import { buildMajorRun, calculateUserTeamPower, createSeededRng, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
+import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
 import { createRunStats } from '../src/lib/game/runStats';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
@@ -32,7 +32,7 @@ describe('simulation', () => {
     expect(map.rounds.at(-1)).toMatchObject({ a: map.scoreA, b: map.scoreB });
   });
 
-  it('buffs tactical by 10% and debuffs aggressive by 5%', () => {
+  it('buffs tactical by 10% without a fixed aggressive penalty', () => {
     const players = (playersJson as Player[]).filter((player) => player.teamId === 'astralis-2018').slice(0, 5);
     const lineup: SelectedPlayer[] = players.map((player, index) => ({
       playerId: player.id,
@@ -43,10 +43,42 @@ describe('simulation', () => {
     const aggressive = calculateUserTeamPower(players, 'aggressive', lineup, 'style-hotfix');
 
     expect(tactical.power).toBeGreaterThan(balanced.power);
-    expect(aggressive.power).toBeLessThan(balanced.power);
+    expect(aggressive.power).toBeGreaterThanOrEqual(balanced.power - 2);
     expect(tactical.studyPercentage).toBeGreaterThanOrEqual(60);
     expect(tactical.studyPercentage).toBeLessThanOrEqual(100);
     expect(calculateUserTeamPower(players, 'tactical', lineup, 'style-hotfix').studyPercentage).toBe(tactical.studyPercentage);
+  });
+
+  it('gives aggressive teams a deterministic high-upside match day', () => {
+    const aggressive: CombatTeam = {
+      ...team('aggressive', 94),
+      style: 'aggressive',
+      aggressionPercentage: 99
+    };
+    const goodDayRng = createSeededRng('aggressive-good-day');
+    let peak = 0;
+    for (let match = 0; match < 40; match += 1) peak = Math.max(peak, getMatchDayPower(aggressive, goodDayRng));
+
+    expect(peak).toBeGreaterThan(98);
+    const first = getMatchDayPower(aggressive, createSeededRng('same-match'));
+    const second = getMatchDayPower(aggressive, createSeededRng('same-match'));
+    expect(first).toBe(second);
+  });
+
+  it('raises the ceiling of a lineup with three 99-overall players', () => {
+    const basePlayers = (playersJson as Player[]).slice(0, 5).map((player) => ({ ...player }));
+    basePlayers.slice(0, 3).forEach((player) => {
+      player.overall = 99;
+      player.firepower = 99;
+      player.entry = 99;
+    });
+    const lineup: SelectedPlayer[] = basePlayers.map((player, index) => ({
+      playerId: player.id,
+      selectedSlotRole: (['igl', 'support', 'awper', 'entry', 'rifler'] as const)[index]
+    }));
+
+    const power = calculateUserTeamPower(basePlayers, 'aggressive', lineup, 'elite-core').power;
+    expect(power).toBeGreaterThanOrEqual(94);
   });
 
   it('turns superior tactical study into extra win probability', () => {
