@@ -6,10 +6,10 @@ const pt = {
   subheadline: 'Sorteie times lendários, escolha apenas um jogador por elenco e tente vencer dinastias como SK 2016, Astralis 2018, NaVi 2021, Vitality 2025 e outras.',
   curated: 'Base inicial curada com 30 times históricos/atuais e 150 versões de jogadores. Novas eras e elencos podem entrar depois.',
   chooseMode: 'Escolha sua fila',
-  premier: 'Premier',
+  premier: 'Normal',
   premierDesc: 'Veja overall, atributos, título e raridade durante todo o draft. Ideal para a primeira run.',
-  faceit: 'Faceit',
-  faceitDesc: 'No Faceit você escolhe no feeling. Os números aparecem depois.',
+  faceit: 'Ranked',
+  faceitDesc: 'No Ranked você escolhe no feeling. Os números aparecem depois.',
   chooseStyle: 'Estilo da organização',
   aggressive: 'Agressivo',
   balanced: 'Equilibrado',
@@ -82,7 +82,7 @@ const pt = {
   aggressiveLine: 'Line agressiva',
   tacticalLine: 'Line tática',
   revealed: 'Atributos revelados',
-  hiddenStats: 'Atributos ocultos no Faceit',
+  hiddenStats: 'Atributos ocultos no Ranked',
   allMatches: 'Partidas da run',
   emptyTitle: 'Sua próxima era começa aqui.'
   ,modeIntro: 'Escolha quanto de informação você quer levar para a mesa.'
@@ -146,6 +146,10 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
+  premier: 'Normal',
+  faceit: 'Ranked',
+  faceitDesc: 'En Ranked eliges por intuición. Los números aparecen después.',
+  hiddenStats: 'Atributos ocultos en Ranked',
   addAs: 'Añadir como',
   pending: 'Por disputar',
   inProgress: 'En curso',
@@ -189,6 +193,10 @@ Object.assign(dictionaries.es, {
 });
 
 Object.assign(dictionaries.en, {
+  premier: 'Normal',
+  faceit: 'Ranked',
+  faceitDesc: 'In Ranked you pick by feel. The numbers appear later.',
+  hiddenStats: 'Attributes hidden in Ranked',
   addAs: 'Add as',
   pending: 'To play',
   inProgress: 'In progress',

@@ -325,17 +325,17 @@
       </header>
       <div class="mode-grid">
         <button class="mode-card premier" type="button" on:click={() => chooseMode('premier')}>
-          <span class="mode-number">01</span><span class="mode-icon">P</span><h2>{t('premier')}</h2><p>{t('premierDesc')}</p><b>FULL INTEL →</b>
+          <span class="mode-number">01</span><span class="mode-icon">N</span><h2>{t('premier')}</h2><p>{t('premierDesc')}</p><b>FULL INTEL →</b>
         </button>
         <button class="mode-card faceit" type="button" on:click={() => chooseMode('faceit')}>
-          <span class="mode-number">02</span><span class="mode-icon">F</span><h2>{t('faceit')}</h2><p>{t('faceitDesc')}</p><b>BLIND DRAFT →</b>
+          <span class="mode-number">02</span><span class="mode-icon">R</span><h2>{t('faceit')}</h2><p>{t('faceitDesc')}</p><b>BLIND DRAFT →</b>
         </button>
       </div>
     </section>
   {:else if $game.phase === 'draft'}
     <section class="screen shell">
       <header class="draft-header">
-        <div><span class="eyebrow">DRAFT ROOM · {$game.mode?.toUpperCase()}</span><h1>{draftComplete ? t('complete') : `${t('opportunity')} ${selectedPlayers.length + 1}/5`}</h1></div>
+        <div><span class="eyebrow">DRAFT ROOM · {$game.mode ? t($game.mode) : ''}</span><h1>{draftComplete ? t('complete') : `${t('opportunity')} ${selectedPlayers.length + 1}/5`}</h1></div>
         <button class="seed-button" type="button" on:click={copyLink}>SEED / {$game.seed}</button>
       </header>
 
