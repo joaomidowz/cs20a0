@@ -7,6 +7,7 @@ import { clamp, canonicalNick, readJson, readJsonIfExists, round, writeJson } fr
 
 type Game = 'CSGO' | 'CS2' | 'MIXED';
 type Role = 'rifler' | 'entry' | 'awper' | 'igl' | 'support' | 'lurker' | 'awper-igl';
+type Playstyle = 'aggressive' | 'balanced' | 'tactical';
 
 type Team = {
   id: string;
@@ -35,6 +36,7 @@ type PlayerOverride = Partial<Record<string, unknown>> & {
   rarity?: string;
   traits?: string[];
   role?: Role;
+  playstyle?: Playstyle;
   overall?: number;
   firepower?: number;
   clutch?: number;

@@ -82,6 +82,18 @@ Edite `data/input/player-overrides.json`. Exemplo:
 }
 ```
 
+O perfil visual também pode ser ajustado por carta sem alterar a fórmula:
+
+```json
+{
+  "ropz-2023": {
+    "playstyle": "tactical"
+  }
+}
+```
+
+Valores aceitos: `aggressive`, `balanced` e `tactical`. Sem override, o app mantém o cálculo automático pelos atributos.
+
 Depois rode:
 
 ```bash

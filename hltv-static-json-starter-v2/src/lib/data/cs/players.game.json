@@ -639,7 +639,7 @@
     "year": 2017,
     "game": "CSGO",
     "role": "rifler",
-    "overall": 97,
+    "overall": 92,
     "rarity": "goat",
     "traits": [
       "rifleGod",
@@ -654,7 +654,7 @@
     "igl": 18,
     "experience": 94,
     "consistency": 96,
-    "mental": 94,
+    "mental": 84,
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/3741/NiKo?csVersion=CSGO&startDate=2017-01-01&endDate=2017-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
@@ -1492,7 +1492,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11816/ropz?csVersion=CSGO&startDate=2019-01-01&endDate=2019-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "flusha-2019",
@@ -1503,13 +1504,13 @@
     "year": 2019,
     "game": "CSGO",
     "role": "rifler",
-    "overall": 84,
+    "overall": 93,
     "rarity": "rare",
     "traits": [],
     "firepower": 85,
     "clutch": 84,
     "entry": 81,
-    "awp": 18,
+    "awp": 50,
     "support": 83,
     "igl": 18,
     "experience": 89,
@@ -1528,14 +1529,14 @@
     "teamId": "fnatic-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "rifler",
-    "overall": 84,
+    "role": "awper",
+    "overall": 94,
     "rarity": "rare",
     "traits": [],
     "firepower": 85,
     "clutch": 84,
     "entry": 81,
-    "awp": 18,
+    "awp": 93,
     "support": 83,
     "igl": 18,
     "experience": 89,
@@ -1860,7 +1861,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11893/ZywOo?csVersion=CSGO&startDate=2020-01-01&endDate=2020-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "misutaaa-2020",
@@ -2374,7 +2376,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11893/ZywOo?csVersion=CSGO&startDate=2021-01-01&endDate=2021-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "misutaaa-2021",
@@ -2889,7 +2892,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11893/ZywOo?startDate=2023-01-01&endDate=2023-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "flamez-2023",
@@ -3071,7 +3075,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11816/ropz?startDate=2023-01-01&endDate=2023-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "broky-2023",
@@ -3590,10 +3595,10 @@
     "year": 2024,
     "game": "CS2",
     "role": "rifler",
-    "overall": 84,
+    "overall": 90,
     "rarity": "rare",
     "traits": [],
-    "firepower": 84,
+    "firepower": 93,
     "clutch": 83,
     "entry": 81,
     "awp": 18,
@@ -3601,7 +3606,7 @@
     "igl": 18,
     "experience": 85,
     "consistency": 84,
-    "mental": 85,
+    "mental": 89,
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/19206/jL?csVersion=CS2&startDate=2024-01-01&endDate=2024-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
@@ -3687,7 +3692,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11816/ropz?csVersion=CS2&startDate=2025-01-01&endDate=2025-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "zywoo-2025",
@@ -3718,7 +3724,8 @@
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/11893/ZywOo?csVersion=CS2&startDate=2025-01-01&endDate=2025-12-31",
       "note": "Stats URL generated from hltvPlayerId. Use collect:player-pages only for local dataset preparation."
-    }
+    },
+    "playstyle": "tactical"
   },
   {
     "id": "flamez-2025",
@@ -3780,7 +3787,7 @@
     "teamId": "furia-2025",
     "year": 2025,
     "game": "CS2",
-    "role": "awper-igl",
+    "role": "igl",
     "overall": 93,
     "rarity": "legend",
     "traits": [
@@ -3793,7 +3800,7 @@
     "entry": 87,
     "awp": 92,
     "support": 89,
-    "igl": 96,
+    "igl": 98,
     "experience": 100,
     "consistency": 88,
     "mental": 98,
@@ -3890,23 +3897,23 @@
   {
     "id": "molodoy-2025",
     "nickname": "molodoy",
-    "title": null,
+    "title": "Rookie of the Year",
     "hltvPlayerId": 24144,
     "teamId": "furia-2025",
     "year": 2025,
     "game": "CS2",
-    "role": "rifler",
-    "overall": 87,
+    "role": "awper",
+    "overall": 90,
     "rarity": "rare",
     "traits": [],
     "firepower": 87,
     "clutch": 86,
     "entry": 84,
-    "awp": 18,
+    "awp": 98,
     "support": 86,
     "igl": 18,
     "experience": 88,
-    "consistency": 87,
+    "consistency": 95,
     "mental": 88,
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/24144/molodoy?csVersion=CS2&startDate=2025-01-01&endDate=2025-12-31",
@@ -4034,17 +4041,17 @@
     "year": 2025,
     "game": "CS2",
     "role": "rifler",
-    "overall": 84,
+    "overall": 86,
     "rarity": "rare",
     "traits": [],
-    "firepower": 84,
+    "firepower": 88,
     "clutch": 83,
     "entry": 81,
     "awp": 18,
     "support": 83,
     "igl": 18,
     "experience": 85,
-    "consistency": 84,
+    "consistency": 86,
     "mental": 85,
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/24177/kyousuke?csVersion=CS2&startDate=2025-01-01&endDate=2025-12-31",

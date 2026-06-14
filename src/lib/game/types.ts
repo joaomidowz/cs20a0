@@ -29,6 +29,7 @@ export interface Player {
   role?: string | null;
   overall?: number | null;
   rarity?: string | null;
+  playstyle?: OrgStyle | null;
   traits?: string[] | null;
   firepower?: number | null;
   clutch?: number | null;

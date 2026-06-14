@@ -3,6 +3,7 @@ import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
 import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
 import { createRunStats } from '../src/lib/game/runStats';
+import { getPlayerPlaystyle } from '../src/lib/game/playstyle';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
 const team = (id: string, power: number): CombatTeam => ({
@@ -15,6 +16,13 @@ const team = (id: string, power: number): CombatTeam => ({
 });
 
 describe('simulation', () => {
+  it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
+    const players = playersJson as Player[];
+    const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));
+    expect(overridden.length).toBeGreaterThan(2);
+    expect(overridden.every((player) => getPlayerPlaystyle(player) === 'tactical')).toBe(true);
+  });
+
   it('uses the configured round ticker intervals', () => {
     expect(SPEEDS).toEqual({ normal: 3000, fast: 1500, ultra: 1000 });
   });

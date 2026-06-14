@@ -61,11 +61,11 @@
     "title": "The Last Dance Professor",
     "rarity": "legend",
     "traits": ["professor", "veteranLeader", "brazilianAura"],
-    "role": "awper-igl",
+    "role": "igl",
     "overall": 93,
     "firepower": 86,
     "awp": 92,
-    "igl": 96,
+    "igl": 98,
     "clutch": 91,
     "support": 89,
     "consistency": 88,
@@ -162,6 +162,7 @@
   },
 
   "zywoo-2020": {
+    "playstyle": "tactical",
     "title": "GOAT do CS",
     "rarity": "goat",
     "traits": ["goatCs", "hybridAwper", "ultraConsistent"],
@@ -177,6 +178,7 @@
     "experience": 93
   },
   "zywoo-2021": {
+    "playstyle": "tactical",
     "title": "GOAT do CS",
     "rarity": "goat",
     "traits": ["goatCs", "hybridAwper", "ultraConsistent"],
@@ -192,6 +194,7 @@
     "experience": 94
   },
   "zywoo-2023": {
+    "playstyle": "tactical",
     "title": "GOAT do CS",
     "rarity": "goat",
     "traits": ["goatCs", "majorMvp", "hybridAwper", "ultraConsistent"],
@@ -207,6 +210,7 @@
     "experience": 98
   },
   "zywoo-2025": {
+    "playstyle": "tactical",
     "title": "GOAT do CS",
     "rarity": "goat",
     "traits": ["goatCs", "playerOfTheYear", "hybridAwper", "ultraConsistent"],
@@ -284,13 +288,13 @@
     "rarity": "goat",
     "traits": ["rifleGod", "oneTapMachine", "hardCarry"],
     "role": "rifler",
-    "overall": 97,
+    "overall": 92,
     "firepower": 99,
     "entry": 94,
     "clutch": 94,
     "support": 80,
     "consistency": 96,
-    "mental": 94,
+    "mental": 84,
     "experience": 94
   },
   "niko-2022": {
@@ -411,6 +415,7 @@
   },
 
   "ropz-2019": {
+    "playstyle": "tactical",
     "title": "Lurk Professor",
     "rarity": "legend",
     "traits": ["lurkGod", "silentCarry"],
@@ -425,6 +430,7 @@
     "experience": 91
   },
   "ropz-2025": {
+    "playstyle": "tactical",
     "title": "Lurk Professor",
     "rarity": "goat",
     "traits": ["lurkGod", "playerOfTheYearContender", "vitalityBuff"],
@@ -437,6 +443,9 @@
     "consistency": 99,
     "mental": 98,
     "experience": 99
+  },
+  "ropz-2023": {
+    "playstyle": "tactical"
   },
   "sh1ro-2021": {
     "title": "Ice AWP",
@@ -524,5 +533,35 @@
     "consistency": 94,
     "mental": 94,
     "experience": 95
+  },
+  "flusha-2019": {
+    "rarity": "rare",
+    "overall": 93,
+    "awp": 50
+  },
+  "jw-2019": {
+    "rarity": "rare",
+    "role": "awper",
+    "overall": 94,
+    "awp": 93
+  },
+  "jl-2024": {
+    "rarity": "rare",
+    "overall": 90,
+    "firepower": 93,
+    "mental": 89
+  },
+  "molodoy-2025": {
+    "title": "Rookie of the Year",
+    "rarity": "rare",
+    "role": "awper",
+    "overall": 90,
+    "awp": 98,
+    "consistency": 95
+  },
+  "kyousuke-2025": {
+    "overall": 86,
+    "firepower": 88,
+    "consistency": 86
   }
 }

@@ -25,6 +25,7 @@
   } from '$lib/game/simulation';
   import { aggregateRunStats, createRunStats, getRunMvpScore, getRunSummary } from '$lib/game/runStats';
   import { downloadRunImage as saveRunImage } from '$lib/game/shareImage';
+  import { getPlayerPlaystyle } from '$lib/game/playstyle';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
     SPEEDS,
@@ -217,12 +218,12 @@
   }
 
   function vagueTraits(player: Player) {
-    const traits: string[] = [];
-    if ((player.firepower ?? 0) >= 92 || (player.entry ?? 0) >= 92) traits.push(t('veryAggressive'));
+    const playstyle = getPlayerPlaystyle(player);
+    const traits: string[] = [playstyle === 'aggressive' ? t('veryAggressive') : playstyle === 'tactical' ? t('tacticalProfile') : t('consistentPlayer')];
     if ((player.clutch ?? 0) >= 92) traits.push(t('greatClutch'));
     if ((player.role ?? '').includes('awp')) traits.push(t('mainAwper'));
-    if ((player.igl ?? 0) >= 80 || (player.support ?? 0) >= 90) traits.push(t('tacticalProfile'));
-    return traits.length ? traits : [t('consistentPlayer'), t('versatileProfile')];
+    if (traits.length === 1) traits.push(t('versatileProfile'));
+    return traits;
   }
 
   function resetRun(newSeed = false) {
