@@ -24,7 +24,7 @@ describe('simulation', () => {
   });
 
   it('uses the configured round ticker intervals', () => {
-    expect(SPEEDS).toEqual({ normal: 3000, fast: 1500, ultra: 1000 });
+    expect(SPEEDS).toEqual({ normal: 2400, fast: 1200, ultra: 200 });
   });
 
   it('is deterministic for the same seed', () => {

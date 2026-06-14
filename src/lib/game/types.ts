@@ -166,7 +166,7 @@ export interface GameState {
 }
 
 export const SPEEDS: Record<SimSpeed, number> = {
-  normal: 3000,
-  fast: 1500,
-  ultra: 1000
+  normal: 2400,
+  fast: 1200,
+  ultra: 200
 };
