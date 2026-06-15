@@ -281,6 +281,9 @@
 
   function phaseLabel() {
     if ($game.phase === 'stage3') return hasStageRecord ? `${t('stage3')} · ${stageWins}-${stageLosses}` : t('stage3');
+    if (currentSeries?.phase === 'quarterfinal') return t('quarterfinal');
+    if (currentSeries?.phase === 'semifinal') return t('semifinal');
+    if (currentSeries?.phase === 'final') return t('final');
     return t('playoffs');
   }
 

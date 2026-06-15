@@ -45,6 +45,8 @@ const pt = {
   seriesChance: 'Chance aproximada',
   stage3: 'Stage 3',
   playoffs: 'Playoffs',
+  quarterfinal: 'Quartas de final',
+  semifinal: 'Semifinal',
   result: 'Resultado da run',
   champion: 'CAMPEÃO DO MAJOR',
   eliminated: 'RUN ENCERRADA',
@@ -147,6 +149,8 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
+  quarterfinal: 'Cuartos de final',
+  semifinal: 'Semifinal',
   playSameSeed: 'Jugar con la misma seed',
   premier: 'Normal',
   faceit: 'Ranked',
@@ -195,6 +199,8 @@ Object.assign(dictionaries.es, {
 });
 
 Object.assign(dictionaries.en, {
+  quarterfinal: 'Quarterfinals',
+  semifinal: 'Semifinal',
   playSameSeed: 'Play the same seed',
   premier: 'Normal',
   faceit: 'Ranked',
