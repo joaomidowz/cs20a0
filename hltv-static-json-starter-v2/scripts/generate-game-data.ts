@@ -343,7 +343,7 @@ function applyOverride<T extends Record<string, any>>(player: T, override?: Play
     ...override,
     traits: override.traits ?? player.traits ?? []
   };
-  if (player.role === 'rifle-support' || player.role === 'lurker-support') merged.role = player.role;
+  if (player.role === 'awper-igl' || player.role === 'rifle-support' || player.role === 'lurker-support') merged.role = player.role;
   const roleStats = {
     role: merged.role,
     firepower: merged.firepower,
