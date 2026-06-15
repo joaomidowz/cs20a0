@@ -73,20 +73,21 @@ export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {
   const baseId = normalize(getPlayerBaseId(player));
   const nickname = normalize(player.nickname);
   const known = KNOWN_ROLE_FALLBACKS[baseId] ?? KNOWN_ROLE_FALLBACKS[nickname];
-  if (known) return [...known];
-
-  const source = [player.role, player.title, ...(player.traits ?? [])].map(normalize).join(' ');
   const roles: LineupSlotRole[] = [];
   const add = (role: LineupSlotRole) => {
     if (!roles.includes(role)) roles.push(role);
   };
+
+  known?.forEach(add);
+
+  const source = [player.role, player.title, ...(player.traits ?? [])].map(normalize).join(' ');
 
   if (/awp|sniper/.test(source)) add('awper');
   if (/igl|captain|capitao|leader/.test(source) || (player.igl ?? 0) >= 80) add('igl');
   if (/entry|opener|spacecreator|aggression/.test(source)) add('entry');
   if (/lurk|closer|clutchminister/.test(source)) add('lurker');
   if (/support|anchor/.test(source) || (player.support ?? 0) >= 93) add('support');
-  if (/rifler|riflegod|hybrid/.test(source)) add('rifler');
+  if (/rifler|rifle|riflegod|hybrid/.test(source)) add('rifler');
 
   if (!roles.length) add('rifler');
   return roles;

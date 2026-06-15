@@ -1,16 +1,17 @@
 # HLTV Static JSON Starter v2
 
-Base estática para um simulador/draft estilo roguelike de CS: 10 anos, top 3 por ano, 30 times e 150 player-year rows.
+Base estática para um simulador/draft estilo roguelike de CS: 11 anos, top 5 por ano, 55 times e 275 player-year rows.
 
 ## O que melhorou na v2
 
-- `years.input.json` já vem com 2016–2025.
-- `teams.seed.json` já vem com 30 times e 5 jogadores por time.
+- `years.input.json` já vem com 2016–2026; 2026 usa o snapshot parcial de 8 de junho.
+- `teams.seed.json` já vem com 55 times e 5 jogadores por time.
+- `player-overrides.json` aceita tanto IDs por era (`ropz-2025`) quanto IDs-base (`ropz`) aplicados a todas as eras.
 - `player-ids.manual.json` tenta preencher `hltvPlayerId` para gerar `statsUrl` por jogador/ano.
 - `player-overrides.json` sobrescreve cartas lendárias: coldzera, FalleN, fer, fnx, s1mple, ZywOo, donk, m0NESY, NiKo, device, gla1ve etc.
 - O cálculo de `overall` agora é por função. Rifler não é mais penalizado por ter `awp` e `igl` baixos.
 - `collect:ranking` não quebra mais o processo quando recebe HTTP 403; ele só avisa e deixa o fallback do seed funcionar.
-- `validate:data` confere se gerou 30 times e 150 jogadores.
+- `validate:data` deriva as contagens esperadas da configuração anual.
 
 ## Instalação
 
@@ -23,9 +24,9 @@ Saída esperada:
 
 ```txt
 [ok] data/raw/teams.raw.json (30 teams)
-[ok] data/raw/players.input.json (150 player-year rows)
-[ok] generated 30 teams and 150 player-year rows
-[ok] validation passed: 30 teams, 150 player-year rows
+[ok] data/raw/players.input.json (275 player-year rows)
+[ok] generated 55 teams and 275 player-year rows
+[ok] validation passed: 55 teams, 275 player-year rows
 ```
 
 Os arquivos finais ficam em:
@@ -45,8 +46,8 @@ import teams from '$lib/data/cs/teams.game.json';
 ## Arquivos principais
 
 ```txt
-data/input/years.input.json          anos 2016–2025
-data/input/teams.seed.json           top 3 por ano com rosters curados
+data/input/years.input.json          anos 2016–2026
+data/input/teams.seed.json           top 5 por ano com rosters curados
 data/input/player-ids.manual.json    ids HLTV para gerar statsUrl
 data/input/player-overrides.json     buffs/nerfs manuais e títulos
 scripts/generate-game-data.ts        fórmula de overall por função

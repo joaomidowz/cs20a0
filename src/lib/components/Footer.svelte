@@ -4,6 +4,11 @@
     support: string;
     contact: string;
     disclaimer: string;
+    about: string;
+    privacy: string;
+    terms: string;
+    contactPage: string;
+    footerNav: string;
   };
 
   const currentYear = new Date().getFullYear();
@@ -15,6 +20,13 @@
       <strong>cs13a0</strong>
       <p>{labels.description}</p>
     </div>
+
+    <nav class="footer-nav" aria-label={labels.footerNav}>
+      <a href="/about">{labels.about}</a>
+      <a href="/privacy">{labels.privacy}</a>
+      <a href="/terms">{labels.terms}</a>
+      <a href="/contact">{labels.contactPage}</a>
+    </nav>
 
     <div class="footer-actions">
       <a class="support-link" href="https://ko-fi.com/cs13a0" target="_blank" rel="noopener noreferrer">
@@ -33,6 +45,9 @@
   .footer-inner{display:grid;gap:22px;width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0}
   .footer-brand strong{color:var(--accent);font:900 1.8rem 'Barlow Condensed',sans-serif;text-transform:uppercase}
   .footer-brand p,.footer-disclaimer{margin:7px 0 0;color:var(--muted);font-size:.72rem;line-height:1.65}
+  .footer-nav{display:flex;flex-wrap:wrap;gap:16px}
+  .footer-nav a{color:var(--text);font-size:.7rem;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:.06em}
+  .footer-nav a:hover{color:var(--accent)}
   .footer-actions{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
   .footer-actions a{color:var(--text);font-size:.7rem;font-weight:700;text-decoration:none}
   .footer-actions a span{color:var(--muted);font-weight:500}

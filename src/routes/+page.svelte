@@ -281,6 +281,9 @@
 
   function phaseLabel() {
     if ($game.phase === 'stage3') return hasStageRecord ? `${t('stage3')} · ${stageWins}-${stageLosses}` : t('stage3');
+    if (currentSeries?.phase === 'quarterfinal') return t('quarterfinal');
+    if (currentSeries?.phase === 'semifinal') return t('semifinal');
+    if (currentSeries?.phase === 'final') return t('final');
     return t('playoffs');
   }
 
@@ -291,7 +294,7 @@
 
 <svelte:head>
   <title>cs13a0 · Monte sua line e sobreviva ao Major</title>
-  <meta name="description" content="Draft de Counter-Strike com 30 times históricos, 150 jogadores e Major simulado por seed." />
+  <meta name="description" content="Draft de Counter-Strike com 55 times históricos, 275 versões de jogadores e Major simulado por seed." />
 </svelte:head>
 
 <Navbar
@@ -310,7 +313,7 @@
         <h1>{t('headline')}</h1>
         <p class="hero-lead">{t('subheadline')}</p>
         <div class="badges">
-          <span>30 TIMES</span><span>150 JOGADORES</span><span>2016–2025</span><span>SEED COMPARTILHÁVEL</span>
+          <span>55 TIMES</span><span>275 JOGADORES</span><span>2016–2026</span><span>SEED COMPARTILHÁVEL</span>
         </div>
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">
@@ -512,7 +515,12 @@
       description: t('footerDescription'),
       support: t('supportOnKofi'),
       contact: t('contact'),
-      disclaimer: t('footerDisclaimer')
+      disclaimer: t('footerDisclaimer'),
+      about: t('about'),
+      privacy: t('privacy'),
+      terms: t('terms'),
+      contactPage: t('contact'),
+      footerNav: t('footerNav')
     }}
   />
 {/if}

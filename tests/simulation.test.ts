@@ -16,6 +16,66 @@ const team = (id: string, power: number): CombatTeam => ({
 });
 
 describe('simulation', () => {
+  it('loads the annual top five pool through the June 2026 snapshot', () => {
+    const teams = teamsJson as HistoricalTeam[];
+    const players = playersJson as Player[];
+    const teams2026 = teams.filter((team) => team.year === 2026);
+
+    expect(teams).toHaveLength(55);
+    expect(players).toHaveLength(275);
+    expect(teams2026.map((team) => team.name)).toEqual([
+      'Vitality',
+      'Natus Vincere',
+      'Spirit',
+      'Falcons',
+      'FURIA'
+    ]);
+  });
+
+  it('keeps rank four and five players competitive without flattening stars', () => {
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    expect(byId.get('tarik-2019')?.overall).toBeGreaterThanOrEqual(81);
+    expect(byId.get('brehze-2019')?.overall).toBeGreaterThanOrEqual(87);
+    expect(byId.get('donk-2026')?.overall).toBeGreaterThanOrEqual(90);
+    expect(byId.get('niko-2026')?.overall).toBeGreaterThanOrEqual(89);
+  });
+
+  it('assigns the core NRG 2018 roles', () => {
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    expect(byId.get('daps-2018')?.role).toBe('igl');
+    expect(byId.get('cerq-2018')?.role).toBe('awper');
+    expect(byId.get('fugly-2018')?.role).toBe('rifle-support');
+  });
+
+  it('assigns oSee as Liquid 2022 AWPer', () => {
+    const players = playersJson as Player[];
+    expect(players.find((player) => player.id === 'osee-2022')?.role).toBe('awper');
+  });
+
+  it('assigns one general support hybrid per team without replacing AWPers', () => {
+    const teams = teamsJson as HistoricalTeam[];
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    for (const team of teams) {
+      const roster = (team.players ?? []).map((id) => byId.get(id)).filter((player): player is Player => Boolean(player));
+      const supportHybrids = roster.filter((player) => player.role === 'rifle-support' || player.role === 'lurker-support');
+      expect(supportHybrids).toHaveLength(1);
+      expect(supportHybrids[0].role).not.toContain('awper');
+    }
+  });
+
+  it('keeps known AWPer-IGLs hybrid across eras', () => {
+    const players = playersJson as Player[];
+    const hybrids = players.filter((player) => ['FalleN', 'cadiaN', 'Jame'].includes(player.nickname ?? ''));
+    expect(hybrids.length).toBeGreaterThan(3);
+    expect(hybrids.every((player) => player.role === 'awper-igl')).toBe(true);
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));

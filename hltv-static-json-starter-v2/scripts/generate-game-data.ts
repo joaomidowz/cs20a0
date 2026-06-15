@@ -6,7 +6,7 @@
 import { clamp, canonicalNick, readJson, readJsonIfExists, round, writeJson } from './utils.ts';
 
 type Game = 'CSGO' | 'CS2' | 'MIXED';
-type Role = 'rifler' | 'entry' | 'awper' | 'igl' | 'support' | 'lurker' | 'awper-igl';
+type Role = 'rifler' | 'entry' | 'awper' | 'igl' | 'support' | 'lurker' | 'awper-igl' | 'rifle-support' | 'lurker-support';
 type Playstyle = 'aggressive' | 'balanced' | 'tactical';
 
 type Team = {
@@ -53,11 +53,18 @@ const teams = await readJson<Team[]>('data/raw/teams.raw.json');
 const playersInput = await readJson<PlayerInput[]>('data/raw/players.input.json');
 const overrides = await readJsonIfExists<Record<string, PlayerOverride>>('data/input/player-overrides.json', {});
 
-const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian']);
-const igls = new Set(['karrigan', 'gla1ve', 'apex', 'boombl4', 'hooxi', 'cadian', 'aleksib', 'snax', 'chopper', 'kyxsan', 'nafany', 'siuhy', 'jame', 'fallen', 'stanislaw', 'golden', 'nitr0', 'zeus']);
+function getPlayerOverride(player: PlayerInput): PlayerOverride | undefined {
+  const baseOverride = overrides[canonicalNick(player.nickname)];
+  const eraOverride = overrides[player.id];
+  if (!baseOverride && !eraOverride) return undefined;
+  return { ...baseOverride, ...eraOverride };
+}
+
+const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian', 'cerq', 'osee']);
+const igls = new Set(['karrigan', 'gla1ve', 'apex', 'boombl4', 'hooxi', 'cadian', 'aleksib', 'snax', 'chopper', 'kyxsan', 'nafany', 'siuhy', 'jame', 'fallen', 'stanislaw', 'golden', 'nitr0', 'zeus', 'daps']);
 const entries = new Set(['donk', 'fer', 'yekindar', 'rain', 'dupreeh', 'stewie2k', 'flamez', 'malbsmd', 'xertion', 'rush']);
 const lurkers = new Set(['ropz', 'coldzera', 'kscerato', 'naf', 'xyp9x', 'spinx', 'jks']);
-const supports = new Set(['taco', 'perfecto', 'interz', 'sjuush', 'mezii', 'rpk', 'qikert']);
+const supports = new Set(['taco', 'perfecto', 'interz', 'sjuush', 'mezii', 'rpk', 'qikert', 'fugly']);
 
 const starBonusByNick: Record<string, number> = {
   s1mple: 9,
@@ -81,30 +88,80 @@ const starBonusByNick: Record<string, number> = {
   cadian: 4,
   fallen: 5,
   fer: 5,
-  fnx: 4
+  fnx: 4,
+  brehze: 5,
+  cerq: 4,
+  ethan: 3,
+  tarik: 3,
+  xantares: 5,
+  stavn: 5,
+  hunter: 4,
+  krimz: 5
 };
 
 function rankBase(rank: number) {
   if (rank === 1) return 88;
   if (rank === 2) return 85;
   if (rank === 3) return 82;
-  return 78;
+  if (rank === 4) return 80;
+  return 79;
 }
 
-function inferRole(nickname: string): Role {
-  const nick = canonicalNick(nickname);
+function starOverallFloor(nickname: string) {
+  const bonus = starBonusByNick[canonicalNick(nickname)] ?? 0;
+  if (bonus >= 8) return 90;
+  if (bonus >= 6) return 89;
+  if (bonus >= 5) return 87;
+  if (bonus >= 4) return 86;
+  if (bonus >= 3) return 84;
+  return 0;
+}
+
+function inferPrimaryRole(player: PlayerInput): Role {
+  const nick = canonicalNick(player.nickname);
+  const explicitRole = getPlayerOverride(player)?.role;
   if (awpers.has(nick) && igls.has(nick)) return 'awper-igl';
+  if (explicitRole === 'awper' || explicitRole === 'awper-igl' || explicitRole === 'igl' || explicitRole === 'entry') return explicitRole;
   if (awpers.has(nick)) return 'awper';
   if (igls.has(nick)) return 'igl';
   if (entries.has(nick)) return 'entry';
-  if (supports.has(nick)) return 'support';
-  if (lurkers.has(nick)) return 'lurker';
+  if (explicitRole === 'lurker' || lurkers.has(nick)) return 'lurker';
+  if (explicitRole === 'support' || supports.has(nick)) return 'support';
   return 'rifler';
+}
+
+function supportProfileScore(nickname: string, role: Role) {
+  const nick = canonicalNick(nickname);
+  const knownSupportBonus = supports.has(nick) ? 20 : 0;
+  const lurkerBonus = role === 'lurker' ? 8 : 0;
+  return knownSupportBonus + lurkerBonus;
+}
+
+const supportRoleByPlayerId = new Map<string, Role>();
+
+for (const team of teams) {
+  const candidates = playersInput
+    .filter(player => player.teamId === team.id)
+    .map(player => ({ player, role: inferPrimaryRole(player) }))
+    .filter(({ role }) => !['awper', 'awper-igl', 'igl', 'entry'].includes(role))
+    .sort((a, b) => supportProfileScore(b.player.nickname, b.role) - supportProfileScore(a.player.nickname, a.role));
+
+  const supportPlayer = candidates[0];
+  if (supportPlayer) {
+    supportRoleByPlayerId.set(
+      supportPlayer.player.id,
+      supportPlayer.role === 'lurker' ? 'lurker-support' : 'rifle-support'
+    );
+  }
+}
+
+function inferRole(player: PlayerInput): Role {
+  return supportRoleByPlayerId.get(player.id) ?? inferPrimaryRole(player);
 }
 
 function defaultStats(input: PlayerInput, team: Team) {
   const nick = canonicalNick(input.nickname);
-  const role = inferRole(input.nickname);
+  const role = inferRole(input);
   const base = rankBase(team.rank);
   const starBonus = starBonusByNick[nick] ?? 0;
   const eraBonus = team.year <= 2021 ? 1 : 0;
@@ -145,14 +202,14 @@ function defaultStats(input: PlayerInput, team: Team) {
     support -= 4;
   }
 
-  if (role === 'support') {
+  if (role === 'support' || role === 'rifle-support' || role === 'lurker-support') {
     support += 9;
     clutch += 3;
     firepower -= 3;
     entry -= 4;
   }
 
-  if (role === 'lurker') {
+  if (role === 'lurker' || role === 'lurker-support') {
     clutch += 6;
     consistency += 5;
     support += 3;
@@ -236,7 +293,7 @@ function calculateOverall(stats: {
     );
   }
 
-  if (stats.role === 'support') {
+  if (stats.role === 'support' || stats.role === 'rifle-support') {
     return round(
       stats.support * 0.24 +
       stats.clutch * 0.18 +
@@ -248,7 +305,7 @@ function calculateOverall(stats: {
     );
   }
 
-  if (stats.role === 'lurker') {
+  if (stats.role === 'lurker' || stats.role === 'lurker-support') {
     return round(
       stats.firepower * 0.24 +
       stats.clutch * 0.22 +
@@ -286,6 +343,7 @@ function applyOverride<T extends Record<string, any>>(player: T, override?: Play
     ...override,
     traits: override.traits ?? player.traits ?? []
   };
+  if (player.role === 'awper-igl' || player.role === 'rifle-support' || player.role === 'lurker-support') merged.role = player.role;
   const roleStats = {
     role: merged.role,
     firepower: merged.firepower,
@@ -298,7 +356,7 @@ function applyOverride<T extends Record<string, any>>(player: T, override?: Play
     consistency: merged.consistency,
     mental: merged.mental
   };
-  merged.overall = override.overall ?? calculateOverall(roleStats);
+  merged.overall = override.overall ?? Math.max(calculateOverall(roleStats), starOverallFloor(merged.nickname));
   merged.rarity = override.rarity ?? defaultRarity(merged.overall);
   return merged;
 }
@@ -317,7 +375,7 @@ const playerGame = playersInput.map(player => {
     year: player.year,
     game: player.game,
     role: stats.role,
-    overall: calculateOverall(stats),
+    overall: Math.max(calculateOverall(stats), starOverallFloor(player.nickname)),
     rarity: 'rare',
     traits: [] as string[],
     ...stats,
@@ -330,7 +388,7 @@ const playerGame = playersInput.map(player => {
   };
 
   basePlayer.rarity = defaultRarity(basePlayer.overall);
-  return applyOverride(basePlayer, overrides[player.id]);
+  return applyOverride(basePlayer, getPlayerOverride(player));
 });
 
 const teamsGame = teams.map(team => {

@@ -38,7 +38,12 @@ describe('lineup role rules', () => {
 
   it('applies known hybrid role fallbacks', () => {
     expect(getEligibleSlotRoles(byBaseId('s1mple'))).toEqual(['awper', 'rifler']);
-    expect(getEligibleSlotRoles(byBaseId('naf'))).toEqual(['lurker', 'rifler']);
+    expect(getEligibleSlotRoles(byBaseId('naf'))).toEqual(['lurker', 'rifler', 'support']);
+  });
+
+  it('exposes generated rifle-support and lurker-support options', () => {
+    expect(getEligibleSlotRoles(byBaseId('fugly', 2018))).toEqual(['support', 'rifler']);
+    expect(getEligibleSlotRoles(byBaseId('xyp9x', 2018))).toEqual(['lurker', 'support']);
   });
 
   it('blocks a second entry and a second lurker', () => {

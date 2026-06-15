@@ -32,6 +32,26 @@
     "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26"
   },
   {
+    "id": "dignitas-2016",
+    "year": 2016,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "dignitas",
+    "points": 611,
+    "players": ["MSL", "k0nfig", "RUBINO", "cajunb", "Magiskb0Y"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26"
+  },
+  {
+    "id": "faze-2016",
+    "year": 2016,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "FaZe",
+    "points": 540,
+    "players": ["rain", "aizy", "karrigan", "allu", "jkaem"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2016/december/26"
+  },
+  {
     "id": "sk-2017",
     "year": 2017,
     "game": "CSGO",
@@ -59,6 +79,26 @@
     "name": "Astralis",
     "points": 582,
     "players": ["Xyp9x", "dupreeh", "gla1ve", "device", "Kjaerbye"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25"
+  },
+  {
+    "id": "g2-2017",
+    "year": 2017,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "G2",
+    "points": 530,
+    "players": ["bodyy", "NBK-", "shox", "kennyS", "apEX"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25"
+  },
+  {
+    "id": "north-2017",
+    "year": 2017,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "North",
+    "points": 434,
+    "players": ["MSL", "k0nfig", "cajunb", "aizy", "valde"],
     "sourceUrl": "https://www.hltv.org/ranking/teams/2017/december/25"
   },
   {
@@ -92,6 +132,26 @@
     "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31"
   },
   {
+    "id": "mibr-2018",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "MIBR",
+    "points": 355,
+    "players": ["FalleN", "fer", "coldzera", "Stewie2K", "tarik"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31"
+  },
+  {
+    "id": "nrg-2018",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "NRG",
+    "points": 319,
+    "players": ["daps", "FugLy", "Brehze", "CeRq", "Ethan"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2018/december/31"
+  },
+  {
     "id": "astralis-2019",
     "year": 2019,
     "game": "CSGO",
@@ -119,6 +179,26 @@
     "name": "fnatic",
     "points": 611,
     "players": ["flusha", "JW", "KRIMZ", "Golden", "Brollan"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30"
+  },
+  {
+    "id": "liquid-2019",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "Liquid",
+    "points": 594,
+    "players": ["nitr0", "NAF", "EliGE", "Stewie2K", "Twistzz"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30"
+  },
+  {
+    "id": "evil-geniuses-2019",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "Evil Geniuses",
+    "points": 507,
+    "players": ["stanislaw", "tarik", "Brehze", "Ethan", "CeRq"],
     "sourceUrl": "https://www.hltv.org/ranking/teams/2019/december/30"
   },
   {
@@ -152,6 +232,26 @@
     "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28"
   },
   {
+    "id": "big-2020",
+    "year": 2020,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "BIG",
+    "points": 400,
+    "players": ["tabseN", "tiziaN", "syrsoN", "XANTARES", "k1to"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28"
+  },
+  {
+    "id": "g2-2020",
+    "year": 2020,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "G2",
+    "points": 368,
+    "players": ["NiKo", "huNter-", "kennyS", "JACKZ", "nexa"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2020/december/28"
+  },
+  {
     "id": "natus-vincere-2021",
     "year": 2021,
     "game": "CSGO",
@@ -182,6 +282,26 @@
     "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27"
   },
   {
+    "id": "g2-2021",
+    "year": 2021,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "G2",
+    "points": 413,
+    "players": ["JACKZ", "huNter-", "nexa", "NiKo", "AmaNEk"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27"
+  },
+  {
+    "id": "heroic-2021",
+    "year": 2021,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "HEROIC",
+    "points": 393,
+    "players": ["cadiaN", "refrezh", "stavn", "TeSeS", "sjuush"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2021/december/27"
+  },
+  {
     "id": "heroic-2022",
     "year": 2022,
     "game": "CSGO",
@@ -209,6 +329,26 @@
     "name": "G2",
     "points": 867,
     "players": ["NiKo", "huNter-", "jks", "HooXi", "m0NESY"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26"
+  },
+  {
+    "id": "liquid-2022",
+    "year": 2022,
+    "game": "CSGO",
+    "rank": 4,
+    "name": "Liquid",
+    "points": 820,
+    "players": ["nitr0", "EliGE", "oSee", "NAF", "YEKINDAR"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26"
+  },
+  {
+    "id": "faze-2022",
+    "year": 2022,
+    "game": "CSGO",
+    "rank": 5,
+    "name": "FaZe",
+    "points": 767,
+    "players": ["karrigan", "rain", "Twistzz", "ropz", "broky"],
     "sourceUrl": "https://www.hltv.org/ranking/teams/2022/december/26"
   },
   {
@@ -243,6 +383,26 @@
     "note": "Brollan added as gameplay-complete fifth because some late-2023 ranking cards show 4-player core after frozen transfer."
   },
   {
+    "id": "natus-vincere-2023",
+    "year": 2023,
+    "game": "MIXED",
+    "rank": 4,
+    "name": "Natus Vincere",
+    "points": 403,
+    "players": ["Aleksib", "iM", "b1t", "jL", "w0nderful"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2023/december/25"
+  },
+  {
+    "id": "virtus-pro-2023",
+    "year": 2023,
+    "game": "MIXED",
+    "rank": 5,
+    "name": "Virtus.pro",
+    "points": 364,
+    "players": ["mir", "FL1T", "Jame", "n0rb3r7", "fame"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2023/december/25"
+  },
+  {
     "id": "g2-2024",
     "year": 2024,
     "game": "CS2",
@@ -270,6 +430,26 @@
     "name": "Natus Vincere",
     "points": 779,
     "players": ["Aleksib", "iM", "b1t", "jL", "w0nderful"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30"
+  },
+  {
+    "id": "faze-2024",
+    "year": 2024,
+    "game": "CS2",
+    "rank": 4,
+    "name": "FaZe",
+    "points": 666,
+    "players": ["karrigan", "rain", "frozen", "ropz", "broky"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30"
+  },
+  {
+    "id": "vitality-2024",
+    "year": 2024,
+    "game": "CS2",
+    "rank": 5,
+    "name": "Vitality",
+    "points": 666,
+    "players": ["apEX", "ZywOo", "flameZ", "Spinx", "mezii"],
     "sourceUrl": "https://www.hltv.org/ranking/teams/2024/december/30"
   },
   {
@@ -301,5 +481,80 @@
     "points": 588,
     "players": ["NiKo", "TeSeS", "m0NESY", "kyxsan", "kyousuke"],
     "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29"
+  },
+  {
+    "id": "spirit-2025",
+    "year": 2025,
+    "game": "CS2",
+    "rank": 4,
+    "name": "Spirit",
+    "points": 561,
+    "players": ["sh1ro", "donk", "zweih", "magixx", "chopper"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29"
+  },
+  {
+    "id": "natus-vincere-2025",
+    "year": 2025,
+    "game": "CS2",
+    "rank": 5,
+    "name": "Natus Vincere",
+    "points": 539,
+    "players": ["Aleksib", "iM", "b1t", "makazze", "w0nderful"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2025/december/29"
+  },
+  {
+    "id": "vitality-2026",
+    "year": 2026,
+    "game": "CS2",
+    "rank": 1,
+    "name": "Vitality",
+    "points": 991,
+    "players": ["apEX", "ropz", "ZywOo", "flameZ", "mezii"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2026/june/8",
+    "note": "Partial 2026 snapshot from June 8."
+  },
+  {
+    "id": "natus-vincere-2026",
+    "year": 2026,
+    "game": "CS2",
+    "rank": 2,
+    "name": "Natus Vincere",
+    "points": 712,
+    "players": ["Aleksib", "iM", "b1t", "w0nderful", "makazze"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2026/june/8",
+    "note": "Partial 2026 snapshot from June 8."
+  },
+  {
+    "id": "spirit-2026",
+    "year": 2026,
+    "game": "CS2",
+    "rank": 3,
+    "name": "Spirit",
+    "points": 544,
+    "players": ["sh1ro", "magixx", "tN1R", "zont1x", "donk"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2026/june/8",
+    "note": "Partial 2026 snapshot from June 8."
+  },
+  {
+    "id": "falcons-2026",
+    "year": 2026,
+    "game": "CS2",
+    "rank": 4,
+    "name": "Falcons",
+    "points": 509,
+    "players": ["karrigan", "NiKo", "TeSeS", "m0NESY", "kyousuke"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2026/june/8",
+    "note": "Partial 2026 snapshot from June 8."
+  },
+  {
+    "id": "furia-2026",
+    "year": 2026,
+    "game": "CS2",
+    "rank": 5,
+    "name": "FURIA",
+    "points": 393,
+    "players": ["FalleN", "yuurih", "YEKINDAR", "KSCERATO", "molodoy"],
+    "sourceUrl": "https://www.hltv.org/ranking/teams/2026/june/8",
+    "note": "Partial 2026 snapshot from June 8."
   }
 ]
