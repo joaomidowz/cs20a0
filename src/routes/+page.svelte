@@ -515,7 +515,12 @@
       description: t('footerDescription'),
       support: t('supportOnKofi'),
       contact: t('contact'),
-      disclaimer: t('footerDisclaimer')
+      disclaimer: t('footerDisclaimer'),
+      about: t('about'),
+      privacy: t('privacy'),
+      terms: t('terms'),
+      contactPage: t('contact'),
+      footerNav: t('footerNav')
     }}
   />
 {/if}

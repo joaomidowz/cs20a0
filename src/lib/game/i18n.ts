@@ -132,6 +132,41 @@ const pt = {
   ,independentProject: 'Projeto independente'
   ,curatedGameplayStats: 'Ratings e estatísticas são curados/adaptados para gameplay.'
   ,footerDisclaimer: 'cs13a0 é um projeto independente. Não é afiliado à Valve, HLTV, times, organizações ou jogadores. Ratings e estatísticas são curados/adaptados para gameplay.'
+  ,about: 'Sobre'
+  ,privacy: 'Privacidade'
+  ,terms: 'Termos'
+  ,aboutTitle: 'Sobre o cs13a0'
+  ,aboutIntro: 'O cs13a0 é um simulador independente de draft e Major inspirado nas eras competitivas de Counter-Strike. A ideia é simples: você monta uma organização escolhendo jogadores de diferentes times e anos, define a identidade da sua line e tenta vencer uma simulação de Major contra equipes históricas e atuais.'
+  ,aboutBorn: 'O projeto nasceu como uma experiência feita por fã, por amor ao CS e à história competitiva do jogo. A proposta não é criar um ranking oficial, mas uma experiência divertida, rejogável e com identidade própria.'
+  ,aboutData: 'Os overalls, posições, títulos e estatísticas são curados e adaptados para gameplay. Alguns jogadores podem receber ajustes manuais para representar melhor impacto histórico, função, importância para a cena ou equilíbrio do jogo.'
+  ,aboutBase: 'A base inicial é limitada e curada para manter o jogo leve, rápido e balanceável. Novos times, jogadores e eras podem ser adicionados com o tempo.'
+  ,aboutFeedback: 'Feedbacks são bem-vindos. Se você encontrou um erro, quer sugerir um time ou jogador, ou tem uma ideia de melhoria, entre em contato.'
+  ,aboutSupport: 'Se curtiu o projeto e quer ajudar a manter domínio, melhorias e novas eras, considere apoiar no Ko-fi.'
+  ,playNow: 'Jogar agora'
+  ,privacyTitle: 'Política de Privacidade'
+  ,privacyNoAccount: 'O cs13a0 não exige cadastro. Você pode jogar diretamente no navegador, sem criar conta.'
+  ,privacyLocalStorage: 'O jogo usa localStorage para salvar preferências locais, como idioma, tema claro/escuro, velocidade da simulação, modo manual/automático e dados da última run. O localStorage fica no seu navegador e não é enviado a servidores.'
+  ,privacyFeedback: 'Se você enviar feedback pelo formulário ou e-mail, podem ser coletados: nome ou nickname (se informado), e-mail (se informado), jogador, time ou ano citado, sugestão, mensagem e seed da run (se enviada). O e-mail será usado apenas para responder ou entender melhor o feedback.'
+  ,privacyKoFi: 'O projeto usa Ko-fi para apoio voluntário. Ao clicar no link do Ko-fi, você sai do cs13a0 e acessa uma plataforma externa, regida pela própria política de privacidade do Ko-fi.'
+  ,privacyOnline: 'Futuramente, se houver modo online, poderão ser salvos temporariamente: código da sala, nickname, nome da organização, picks, resultados, seed da sala e posição final. Esses dados serão temporários e usados apenas para manter a sala funcionando.'
+  ,privacyNoSell: 'Não vendemos dados pessoais. Não coletamos senhas. Não pedimos dados sensíveis.'
+  ,privacyUpdates: 'Esta política pode ser atualizada conforme novas funcionalidades forem adicionadas.'
+  ,privacyContact: 'Dúvidas sobre privacidade? Entre em contato:'
+  ,termsTitle: 'Termos de Uso'
+  ,termsIndependent: 'O cs13a0 é um projeto independente, criado por fãs, para entretenimento e simulação. Não é afiliado, patrocinado ou aprovado por Valve, HLTV, times, organizações ou jogadores.'
+  ,termsTrademarks: 'Counter-Strike e marcas relacionadas pertencem aos seus respectivos proprietários.'
+  ,termsGameplay: 'Ratings, overalls, posições e estatísticas são adaptados para gameplay. O usuário não deve interpretar os dados como ranking oficial.'
+  ,termsConduct: 'O usuário não deve usar o site para assédio, spam ou abuso de formulário.'
+  ,termsChanges: 'O projeto pode alterar jogadores, ratings, regras e modos a qualquer momento.'
+  ,termsKoFi: 'O apoio via Ko-fi é voluntário e não compra vantagem dentro do jogo.'
+  ,termsAvailability: 'O site pode ficar indisponível temporariamente por manutenção. Se houver modo online no futuro, salas podem expirar e dados temporários podem ser apagados.'
+  ,termsContact: 'Dúvidas sobre os termos? Entre em contato:'
+  ,contactTitle: 'Contato'
+  ,contactIntro: 'Quer entrar em contato? Use o e-mail abaixo para sugerir correções, reportar bugs, propor melhorias ou falar sobre parcerias.'
+  ,contactEmail: 'E-mail principal'
+  ,contactSendEmail: 'Enviar e-mail'
+  ,contactSuggestions: 'Você pode entrar em contato para: sugerir correção de jogador, sugerir novo time, reportar bug, sugerir melhoria visual, sugerir balanceamento ou falar sobre parcerias e divulgação.'
+  ,footerNav: 'Navegação'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -245,7 +280,80 @@ Object.assign(dictionaries.en, {
   contact: 'Contact',
   independentProject: 'Independent project',
   curatedGameplayStats: 'Ratings and stats are curated/adapted for gameplay.',
-  footerDisclaimer: 'cs13a0 is an independent project. It is not affiliated with Valve, HLTV, teams, organizations, or players. Ratings and stats are curated/adapted for gameplay.'
+  footerDisclaimer: 'cs13a0 is an independent project. It is not affiliated with Valve, HLTV, teams, organizations, or players. Ratings and stats are curated/adapted for gameplay.',
+  about: 'About',
+  privacy: 'Privacy',
+  terms: 'Terms',
+  aboutTitle: 'About cs13a0',
+  aboutIntro: 'cs13a0 is an independent draft and Major simulator inspired by Counter-Strike competitive eras. The idea is simple: you build an organization by picking players from different teams and years, define your lineup identity, and try to win a Major simulation against historic and current squads.',
+  aboutBorn: 'The project was born as a fan-made experience, out of love for CS and the competitive history of the game. The goal is not to create an official ranking, but a fun, replayable experience with its own identity.',
+  aboutData: 'Overalls, positions, titles, and stats are curated and adapted for gameplay. Some players may receive manual adjustments to better represent historical impact, role, importance to the scene, or game balance.',
+  aboutBase: 'The initial pool is limited and curated to keep the game light, fast, and balanced. New teams, players, and eras can be added over time.',
+  aboutFeedback: 'Feedback is welcome. If you found an error, want to suggest a team or player, or have an improvement idea, get in touch.',
+  aboutSupport: 'If you enjoyed the project and want to help cover the domain, improvements, and new eras, consider supporting on Ko-fi.',
+  playNow: 'Play now',
+  privacyTitle: 'Privacy Policy',
+  privacyNoAccount: 'cs13a0 does not require an account. You can play directly in the browser without signing up.',
+  privacyLocalStorage: 'The game uses localStorage to save local preferences such as language, light/dark theme, simulation speed, manual/auto mode, and data from the last run. localStorage stays in your browser and is not sent to any servers.',
+  privacyFeedback: 'If you send feedback via the form or email, the following may be collected: name or nickname (if provided), email (if provided), player, team, or year mentioned, suggestion, message, and run seed (if submitted). Your email will only be used to respond or better understand the feedback.',
+  privacyKoFi: 'The project uses Ko-fi for voluntary support. When you click the Ko-fi link, you leave cs13a0 and access an external platform governed by Ko-fi\'s own privacy policy.',
+  privacyOnline: 'In the future, if an online mode is introduced, the following may be temporarily saved: room code, nickname, organization name, picks, results, room seed, and final placement. This data will be temporary and used only to keep the room running.',
+  privacyNoSell: 'We do not sell personal data. We do not collect passwords. We do not ask for sensitive information.',
+  privacyUpdates: 'This policy may be updated as new features are added.',
+  privacyContact: 'Questions about privacy? Get in touch:',
+  termsTitle: 'Terms of Use',
+  termsIndependent: 'cs13a0 is an independent project, created by fans, for entertainment and simulation. It is not affiliated with, sponsored by, or approved by Valve, HLTV, teams, organizations, or players.',
+  termsTrademarks: 'Counter-Strike and related trademarks belong to their respective owners.',
+  termsGameplay: 'Ratings, overalls, positions, and stats are adapted for gameplay. Users should not interpret the data as an official ranking.',
+  termsConduct: 'Users must not use the site for harassment, spam, or form abuse.',
+  termsChanges: 'The project may change players, ratings, rules, and modes at any time.',
+  termsKoFi: 'Support via Ko-fi is voluntary and does not buy any in-game advantage.',
+  termsAvailability: 'The site may be temporarily unavailable for maintenance. If an online mode is introduced in the future, rooms may expire and temporary data may be deleted.',
+  termsContact: 'Questions about the terms? Get in touch:',
+  contactTitle: 'Contact',
+  contactIntro: 'Want to get in touch? Use the email below to suggest corrections, report bugs, propose improvements, or discuss partnerships.',
+  contactEmail: 'Main email',
+  contactSendEmail: 'Send email',
+  contactSuggestions: 'You can contact us to: suggest a player correction, suggest a new team, report a bug, suggest a visual improvement, suggest balance changes, or discuss partnerships and promotion.',
+  footerNav: 'Navigation'
+});
+
+Object.assign(dictionaries.es, {
+  about: 'Sobre',
+  privacy: 'Privacidad',
+  terms: 'Términos',
+  aboutTitle: 'Sobre cs13a0',
+  aboutIntro: 'cs13a0 es un simulador independiente de draft e Major inspirado en las eras competitivas de Counter-Strike. La idea es simple: armas una organización eligiendo jugadores de diferentes equipos y años, defines la identidad de tu alineación e intentas vencer una simulación de Major contra equipos históricos y actuales.',
+  aboutBorn: 'El proyecto nació como una experiencia hecha por fans, por amor al CS y a la historia competitiva del juego. La propuesta no es crear un ranking oficial, sino una experiencia divertida, rejugable y con identidad propia.',
+  aboutData: 'Los overalls, posiciones, títulos y estadísticas son curados y adaptados para gameplay. Algunos jugadores pueden recibir ajustes manuales para representar mejor el impacto histórico, la función, la importancia para la escena o el equilibrio del juego.',
+  aboutBase: 'La base inicial es limitada y curada para mantener el juego ligero, rápido y balanceable. Nuevos equipos, jugadores y eras pueden ser añadidos con el tiempo.',
+  aboutFeedback: 'Los feedbacks son bienvenidos. Si encontraste un error, quieres sugerir un equipo o jugador, o tienes una idea de mejoria, contáctanos.',
+  aboutSupport: 'Si te gustó el proyecto y quieres ayudar a mantener el dominio, mejorias y nuevas eras, considera apoyar en Ko-fi.',
+  playNow: 'Jugar ahora',
+  privacyTitle: 'Política de Privacidad',
+  privacyNoAccount: 'cs13a0 no requiere cuenta. Puedes jugar directamente en el navegador sin registrarte.',
+  privacyLocalStorage: 'El juego usa localStorage para guardar preferencias locales como idioma, tema claro/oscuro, velocidad de simulación, modo manual/automático y datos de la última partida. El localStorage se queda en tu navegador y no se envía a servidores.',
+  privacyFeedback: 'Si envías feedback por formulario o correo, pueden ser recopilados: nombre o nickname (si se proporciona), correo electrónico (si se proporciona), jugador, equipo o año mencionado, sugerencia, mensaje y seed de la partida (si se envía). El correo se usará solo para responder o entender mejor el feedback.',
+  privacyKoFi: 'El proyecto usa Ko-fi para apoyo voluntario. Al hacer clic en el enlace de Ko-fi, sales de cs13a0 y accedes a una plataforma externa, regida por la propia política de privacidad de Ko-fi.',
+  privacyOnline: 'En el futuro, si se introduce un modo online, podrían guardarse temporalmente: código de sala, nickname, nombre de la organización, picks, resultados, seed de sala y posición final. Estos datos serán temporales y se usarán solo para mantener la sala funcionando.',
+  privacyNoSell: 'No vendemos datos personales. No recopilamos contraseñas. No pedimos datos sensibles.',
+  privacyUpdates: 'Esta política puede ser actualizada conforme se añadan nuevas funcionalidades.',
+  privacyContact: '¿Dudas sobre privacidad? Contáctanos:',
+  termsTitle: 'Términos de Uso',
+  termsIndependent: 'cs13a0 es un proyecto independiente, creado por fans, para entretenimiento y simulación. No está afiliado, patrocinado ni aprobado por Valve, HLTV, equipos, organizaciones ni jugadores.',
+  termsTrademarks: 'Counter-Strike y marcas relacionadas pertenecen a sus respectivos propietarios.',
+  termsGameplay: 'Los ratings, overalls, posiciones y estadísticas son adaptados para gameplay. El usuario no debe interpretar los datos como ranking oficial.',
+  termsConduct: 'El usuario no debe usar el sitio para acoso, spam o abuso de formulario.',
+  termsChanges: 'El proyecto puede alterar jugadores, ratings, reglas y modos en cualquier momento.',
+  termsKoFi: 'El apoyo vía Ko-fi es voluntario y no compra ventaja dentro del juego.',
+  termsAvailability: 'El sitio puede estar temporalmente no disponible por mantenimiento. Si se introduce un modo online en el futuro, las salas pueden expirar y los datos temporales pueden ser eliminados.',
+  termsContact: '¿Dudas sobre los términos? Contáctanos:',
+  contactTitle: 'Contacto',
+  contactIntro: '¿Quieres ponerte en contacto? Usa el correo de abajo para sugerir correcciones, reportar bugs, proponer mejoras o hablar sobre colaboraciones.',
+  contactEmail: 'Correo principal',
+  contactSendEmail: 'Enviar correo',
+  contactSuggestions: 'Puedes contactarnos para: sugerir corrección de jugador, sugerir nuevo equipo, reportar un bug, sugerir mejora visual, sugerir cambios de balance o hablar sobre colaboraciones y difusión.',
+  footerNav: 'Navegación'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];
