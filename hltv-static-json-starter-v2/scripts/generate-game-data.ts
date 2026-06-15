@@ -53,6 +53,13 @@ const teams = await readJson<Team[]>('data/raw/teams.raw.json');
 const playersInput = await readJson<PlayerInput[]>('data/raw/players.input.json');
 const overrides = await readJsonIfExists<Record<string, PlayerOverride>>('data/input/player-overrides.json', {});
 
+function getPlayerOverride(player: PlayerInput): PlayerOverride | undefined {
+  const baseOverride = overrides[canonicalNick(player.nickname)];
+  const eraOverride = overrides[player.id];
+  if (!baseOverride && !eraOverride) return undefined;
+  return { ...baseOverride, ...eraOverride };
+}
+
 const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian']);
 const igls = new Set(['karrigan', 'gla1ve', 'apex', 'boombl4', 'hooxi', 'cadian', 'aleksib', 'snax', 'chopper', 'kyxsan', 'nafany', 'siuhy', 'jame', 'fallen', 'stanislaw', 'golden', 'nitr0', 'zeus']);
 const entries = new Set(['donk', 'fer', 'yekindar', 'rain', 'dupreeh', 'stewie2k', 'flamez', 'malbsmd', 'xertion', 'rush']);
@@ -330,7 +337,7 @@ const playerGame = playersInput.map(player => {
   };
 
   basePlayer.rarity = defaultRarity(basePlayer.overall);
-  return applyOverride(basePlayer, overrides[player.id]);
+  return applyOverride(basePlayer, getPlayerOverride(player));
 });
 
 const teamsGame = teams.map(team => {

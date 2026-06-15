@@ -16,6 +16,22 @@ const team = (id: string, power: number): CombatTeam => ({
 });
 
 describe('simulation', () => {
+  it('loads the annual top five pool through the June 2026 snapshot', () => {
+    const teams = teamsJson as HistoricalTeam[];
+    const players = playersJson as Player[];
+    const teams2026 = teams.filter((team) => team.year === 2026);
+
+    expect(teams).toHaveLength(55);
+    expect(players).toHaveLength(275);
+    expect(teams2026.map((team) => team.name)).toEqual([
+      'Vitality',
+      'Natus Vincere',
+      'Spirit',
+      'Falcons',
+      'FURIA'
+    ]);
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));
