@@ -48,12 +48,25 @@ describe('simulation', () => {
 
     expect(byId.get('daps-2018')?.role).toBe('igl');
     expect(byId.get('cerq-2018')?.role).toBe('awper');
-    expect(byId.get('fugly-2018')?.role).toBe('support');
+    expect(byId.get('fugly-2018')?.role).toBe('rifle-support');
   });
 
   it('assigns oSee as Liquid 2022 AWPer', () => {
     const players = playersJson as Player[];
     expect(players.find((player) => player.id === 'osee-2022')?.role).toBe('awper');
+  });
+
+  it('assigns one general support hybrid per team without replacing AWPers', () => {
+    const teams = teamsJson as HistoricalTeam[];
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    for (const team of teams) {
+      const roster = (team.players ?? []).map((id) => byId.get(id)).filter((player): player is Player => Boolean(player));
+      const supportHybrids = roster.filter((player) => player.role === 'rifle-support' || player.role === 'lurker-support');
+      expect(supportHybrids).toHaveLength(1);
+      expect(supportHybrids[0].role).not.toContain('awper');
+    }
   });
 
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
