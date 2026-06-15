@@ -42,6 +42,15 @@ describe('simulation', () => {
     expect(byId.get('niko-2026')?.overall).toBeGreaterThanOrEqual(89);
   });
 
+  it('assigns the core NRG 2018 roles', () => {
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    expect(byId.get('daps-2018')?.role).toBe('igl');
+    expect(byId.get('cerq-2018')?.role).toBe('awper');
+    expect(byId.get('fugly-2018')?.role).toBe('support');
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));
