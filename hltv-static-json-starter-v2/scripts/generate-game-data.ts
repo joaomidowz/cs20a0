@@ -120,8 +120,8 @@ function starOverallFloor(nickname: string) {
 function inferPrimaryRole(player: PlayerInput): Role {
   const nick = canonicalNick(player.nickname);
   const explicitRole = getPlayerOverride(player)?.role;
-  if (explicitRole === 'awper' || explicitRole === 'awper-igl' || explicitRole === 'igl' || explicitRole === 'entry') return explicitRole;
   if (awpers.has(nick) && igls.has(nick)) return 'awper-igl';
+  if (explicitRole === 'awper' || explicitRole === 'awper-igl' || explicitRole === 'igl' || explicitRole === 'entry') return explicitRole;
   if (awpers.has(nick)) return 'awper';
   if (igls.has(nick)) return 'igl';
   if (entries.has(nick)) return 'entry';

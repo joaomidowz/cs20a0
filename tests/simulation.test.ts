@@ -69,6 +69,13 @@ describe('simulation', () => {
     }
   });
 
+  it('keeps known AWPer-IGLs hybrid across eras', () => {
+    const players = playersJson as Player[];
+    const hybrids = players.filter((player) => ['FalleN', 'cadiaN', 'Jame'].includes(player.nickname ?? ''));
+    expect(hybrids.length).toBeGreaterThan(3);
+    expect(hybrids.every((player) => player.role === 'awper-igl')).toBe(true);
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));
