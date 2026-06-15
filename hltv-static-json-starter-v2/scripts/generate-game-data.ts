@@ -88,14 +88,33 @@ const starBonusByNick: Record<string, number> = {
   cadian: 4,
   fallen: 5,
   fer: 5,
-  fnx: 4
+  fnx: 4,
+  brehze: 5,
+  cerq: 4,
+  ethan: 3,
+  tarik: 3,
+  xantares: 5,
+  stavn: 5,
+  hunter: 4,
+  krimz: 5
 };
 
 function rankBase(rank: number) {
   if (rank === 1) return 88;
   if (rank === 2) return 85;
   if (rank === 3) return 82;
-  return 78;
+  if (rank === 4) return 80;
+  return 79;
+}
+
+function starOverallFloor(nickname: string) {
+  const bonus = starBonusByNick[canonicalNick(nickname)] ?? 0;
+  if (bonus >= 8) return 90;
+  if (bonus >= 6) return 89;
+  if (bonus >= 5) return 87;
+  if (bonus >= 4) return 86;
+  if (bonus >= 3) return 84;
+  return 0;
 }
 
 function inferRole(nickname: string): Role {
@@ -305,7 +324,7 @@ function applyOverride<T extends Record<string, any>>(player: T, override?: Play
     consistency: merged.consistency,
     mental: merged.mental
   };
-  merged.overall = override.overall ?? calculateOverall(roleStats);
+  merged.overall = override.overall ?? Math.max(calculateOverall(roleStats), starOverallFloor(merged.nickname));
   merged.rarity = override.rarity ?? defaultRarity(merged.overall);
   return merged;
 }
@@ -324,7 +343,7 @@ const playerGame = playersInput.map(player => {
     year: player.year,
     game: player.game,
     role: stats.role,
-    overall: calculateOverall(stats),
+    overall: Math.max(calculateOverall(stats), starOverallFloor(player.nickname)),
     rarity: 'rare',
     traits: [] as string[],
     ...stats,

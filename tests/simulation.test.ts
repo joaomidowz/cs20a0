@@ -32,6 +32,16 @@ describe('simulation', () => {
     ]);
   });
 
+  it('keeps rank four and five players competitive without flattening stars', () => {
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+
+    expect(byId.get('tarik-2019')?.overall).toBeGreaterThanOrEqual(81);
+    expect(byId.get('brehze-2019')?.overall).toBeGreaterThanOrEqual(87);
+    expect(byId.get('donk-2026')?.overall).toBeGreaterThanOrEqual(90);
+    expect(byId.get('niko-2026')?.overall).toBeGreaterThanOrEqual(89);
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));
