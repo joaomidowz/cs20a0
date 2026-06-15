@@ -51,6 +51,11 @@ describe('simulation', () => {
     expect(byId.get('fugly-2018')?.role).toBe('support');
   });
 
+  it('assigns oSee as Liquid 2022 AWPer', () => {
+    const players = playersJson as Player[];
+    expect(players.find((player) => player.id === 'osee-2022')?.role).toBe('awper');
+  });
+
   it('uses tactical playstyle overrides for ropz and ZywOo across eras', () => {
     const players = playersJson as Player[];
     const overridden = players.filter((player) => ['ropz', 'ZywOo'].includes(player.nickname ?? ''));

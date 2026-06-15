@@ -60,7 +60,7 @@ function getPlayerOverride(player: PlayerInput): PlayerOverride | undefined {
   return { ...baseOverride, ...eraOverride };
 }
 
-const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian', 'cerq']);
+const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian', 'cerq', 'osee']);
 const igls = new Set(['karrigan', 'gla1ve', 'apex', 'boombl4', 'hooxi', 'cadian', 'aleksib', 'snax', 'chopper', 'kyxsan', 'nafany', 'siuhy', 'jame', 'fallen', 'stanislaw', 'golden', 'nitr0', 'zeus', 'daps']);
 const entries = new Set(['donk', 'fer', 'yekindar', 'rain', 'dupreeh', 'stewie2k', 'flamez', 'malbsmd', 'xertion', 'rush']);
 const lurkers = new Set(['ropz', 'coldzera', 'kscerato', 'naf', 'xyp9x', 'spinx', 'jks']);
