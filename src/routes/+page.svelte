@@ -313,7 +313,7 @@
         <h1>{t('headline')}</h1>
         <p class="hero-lead">{t('subheadline')}</p>
         <div class="badges">
-          <span>55 TIMES</span><span>275 JOGADORES</span><span>2016–2026</span><span>SEED COMPARTILHÁVEL</span>
+          <span>{t('badge55Teams')}</span><span>{t('badge275Players')}</span><span>{t('badgeYears')}</span><span>{t('badgeSharedSeed')}</span>
         </div>
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">

@@ -179,6 +179,10 @@ const pt = {
   ,titleGoatCs: 'GOAT do CS'
   ,titleGoatCsgo: 'GOAT do CS:GO'
   ,titleGoatCsgoPeak: 'GOAT do CS:GO Peak'
+  ,badge55Teams: '55 TIMES'
+  ,badge275Players: '275 JOGADORES'
+  ,badgeYears: '2016–2026'
+  ,badgeSharedSeed: 'SEED COMPARTILHÁVEL'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -339,7 +343,11 @@ Object.assign(dictionaries.en, {
   yourOrg: 'Your Org',
   titleGoatCs: 'GOAT of CS',
   titleGoatCsgo: 'GOAT of CS:GO',
-  titleGoatCsgoPeak: 'GOAT of CS:GO Peak'
+  titleGoatCsgoPeak: 'GOAT of CS:GO Peak',
+  badge55Teams: '55 TEAMS',
+  badge275Players: '275 PLAYERS',
+  badgeYears: '2016–2026',
+  badgeSharedSeed: 'SHAREABLE SEED'
 });
 
 Object.assign(dictionaries.es, {
@@ -389,7 +397,11 @@ Object.assign(dictionaries.es, {
   yourOrg: 'Tu Org',
   titleGoatCs: 'GOAT del CS',
   titleGoatCsgo: 'GOAT del CS:GO',
-  titleGoatCsgoPeak: 'GOAT del CS:GO Peak'
+  titleGoatCsgoPeak: 'GOAT del CS:GO Peak',
+  badge55Teams: '55 EQUIPOS',
+  badge275Players: '275 JUGADORES',
+  badgeYears: '2016–2026',
+  badgeSharedSeed: 'SEED COMPARTIBLE'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];
