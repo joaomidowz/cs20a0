@@ -49,9 +49,9 @@ describe('lineup role rules', () => {
   it('blocks a second entry and a second lurker', () => {
     const entrySelected: SelectedPlayer[] = [{ playerId: byBaseId('donk').id, selectedSlotRole: 'entry' }];
     const lurkerSelected: SelectedPlayer[] = [{ playerId: byBaseId('ropz').id, selectedSlotRole: 'lurker' }];
-    expect(validatePlayerPick(byBaseId('fer'), entrySelected, undefined, lookup).ok).toBe(false);
-    expect(validatePlayerPick(byBaseId('coldzera'), lurkerSelected, 'lurker', lookup).ok).toBe(false);
-    expect(validatePlayerPick(byBaseId('coldzera'), lurkerSelected, 'rifler', lookup).ok).toBe(true);
+    expect(validatePlayerPick(byBaseId('yekindar'), entrySelected, 'entry', lookup).ok).toBe(false);
+    expect(validatePlayerPick(byBaseId('fer'), lurkerSelected, 'lurker', lookup).ok).toBe(false);
+    expect(validatePlayerPick(byBaseId('fer'), lurkerSelected, 'rifler', lookup).ok).toBe(true);
   });
 
   it('blocks a fourth generic rifler', () => {
