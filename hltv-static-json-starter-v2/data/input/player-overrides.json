@@ -5,6 +5,12 @@
   "zywoo": {
     "playstyle": "tactical"
   },
+  "coldzera": {
+    "role": "rifler",
+    "title": "Brazilian GOAT",
+    "traits": ["brazilianGoat", "clutchGod", "eraDefiningRifler"],
+    "awp": 90
+  },
   "coldzera-2016": {
     "title": "Brazilian GOAT",
     "rarity": "goat",
@@ -14,6 +20,7 @@
     "firepower": 97,
     "clutch": 99,
     "entry": 84,
+    "awp": 90,
     "support": 86,
     "consistency": 98,
     "mental": 99,
@@ -28,6 +35,7 @@
     "firepower": 98,
     "clutch": 99,
     "entry": 86,
+    "awp": 90,
     "support": 87,
     "consistency": 99,
     "mental": 99,
@@ -64,19 +72,39 @@
     "experience": 98
   },
   "fallen-2025": {
-    "title": "The Last Dance Professor",
+    "title": "Professor",
     "rarity": "legend",
-    "traits": ["professor", "veteranLeader", "brazilianAura"],
+    "traits": ["professor", "brazilianLegend", "eliteCaller"],
     "role": "igl",
     "overall": 93,
     "firepower": 86,
-    "awp": 92,
+    "awp": 82,
     "igl": 98,
     "clutch": 91,
     "support": 89,
     "consistency": 88,
     "mental": 98,
     "experience": 100
+  },
+  "fallen-2026": {
+    "title": "Last Dance",
+    "rarity": "legend",
+    "traits": ["lastDance", "professor", "brazilianLegend", "eliteCaller"],
+    "role": "igl",
+    "overall": 88,
+    "firepower": 86,
+    "awp": 78,
+    "igl": 98,
+    "clutch": 83,
+    "support": 84,
+    "consistency": 84,
+    "mental": 90,
+    "experience": 82
+  },
+  "fer": {
+    "role": "lurker",
+    "title": "Brazilian Lurker",
+    "traits": ["aggressiveLurker", "brazilianLegend", "rifler"]
   },
   "fer-2016": {
     "title": "Brazilian Entry Beast",
@@ -105,6 +133,120 @@
     "consistency": 95,
     "mental": 97,
     "experience": 97
+  },
+  "fer-2018": {
+    "title": "Aggressive Lurker",
+    "rarity": "elite",
+    "traits": ["aggressiveLurker", "brazilianLegend", "rifler"],
+    "role": "lurker",
+    "overall": 88,
+    "firepower": 91,
+    "clutch": 88,
+    "entry": 82,
+    "support": 77,
+    "consistency": 85,
+    "mental": 86,
+    "experience": 87
+  },
+  "nitr0": {
+    "role": "igl",
+    "title": "IGL AWPer",
+    "traits": ["caller", "hybridAwper"]
+  },
+  "nitr0-2019": {
+    "title": "IGL AWPer",
+    "rarity": "elite",
+    "traits": ["caller", "hybridAwper", "tacticalMind"],
+    "role": "awper-igl",
+    "overall": 88,
+    "firepower": 82,
+    "awp": 88,
+    "igl": 92,
+    "clutch": 84,
+    "support": 86,
+    "consistency": 84,
+    "mental": 90,
+    "experience": 89
+  },
+  "elige-2019": {
+    "title": "Star Rifler",
+    "rarity": "elite",
+    "traits": ["starRifler", "entryFragger", "highImpactRifler"],
+    "role": "rifler",
+    "overall": 89,
+    "firepower": 92,
+    "clutch": 86,
+    "entry": 88,
+    "support": 80,
+    "consistency": 87,
+    "mental": 88,
+    "experience": 87
+  },
+  "twistzz-2019": {
+    "title": "Precision Rifler",
+    "rarity": "elite",
+    "traits": ["precisionRifler", "supportRifler", "headshotMachine"],
+    "role": "rifler",
+    "overall": 88,
+    "firepower": 90,
+    "clutch": 86,
+    "entry": 82,
+    "support": 85,
+    "consistency": 86,
+    "mental": 86,
+    "experience": 87
+  },
+  "stewie2k": {
+    "role": "entry",
+    "title": "Aggressive Entry",
+    "traits": ["entry", "spaceCreator"]
+  },
+  "stewie2k-2018": {
+    "title": "Aggressive Entry",
+    "rarity": "elite",
+    "traits": ["entry", "spaceCreator", "aggressiveRifler"],
+    "role": "entry",
+    "overall": 87,
+    "firepower": 88,
+    "clutch": 84,
+    "entry": 89,
+    "support": 79,
+    "consistency": 84,
+    "mental": 85,
+    "experience": 89
+  },
+  "stewie2k-2019": {
+    "title": "Support Entry",
+    "rarity": "rare",
+    "traits": ["entry", "support", "spaceCreator"],
+    "role": "entry",
+    "overall": 85,
+    "firepower": 86,
+    "clutch": 82,
+    "entry": 87,
+    "support": 80,
+    "consistency": 82,
+    "mental": 83,
+    "experience": 87
+  },
+  "tarik": {
+    "role": "rifler",
+    "title": "Rifler Entry",
+    "traits": ["rifler", "entry"]
+  },
+  "tarik-2018": {
+    "title": "Rifler Entry",
+    "rarity": "rare",
+    "traits": ["rifler", "entry", "aggressiveRifler"],
+    "role": "rifler",
+    "overall": 84,
+    "firepower": 86,
+    "clutch": 84,
+    "entry": 84,
+    "support": 81,
+    "consistency": 83,
+    "mental": 84,
+    "experience": 87
   },
   "fnx-2016": {
     "title": "Lenda Nunca Perde Final",
@@ -232,6 +374,11 @@
     "experience": 99
   },
 
+  "donk": {
+    "role": "entry",
+    "traits": ["entryDemon", "rifleGod"],
+    "overallMin": 92
+  },
   "donk-2024": {
     "title": "Rookie God",
     "rarity": "goat",
@@ -302,6 +449,20 @@
     "consistency": 96,
     "mental": 84,
     "experience": 94
+  },
+  "niko-2021": {
+    "title": "Rifle God",
+    "rarity": "superstar",
+    "traits": ["rifleGod", "superstarRifler", "carryPotential"],
+    "role": "rifler",
+    "overall": 96,
+    "firepower": 98,
+    "entry": 93,
+    "clutch": 93,
+    "support": 81,
+    "consistency": 96,
+    "mental": 94,
+    "experience": 96
   },
   "niko-2022": {
     "title": "Rifle God",
@@ -526,6 +687,20 @@
     "mental": 96,
     "experience": 96
   },
+  "kscerato-2026": {
+    "title": "Lurker Support",
+    "rarity": "elite",
+    "traits": ["lurker", "supportRifler", "consistentRifler"],
+    "role": "lurker",
+    "overall": 88,
+    "firepower": 83,
+    "clutch": 92,
+    "entry": 72,
+    "support": 92,
+    "consistency": 89,
+    "mental": 85,
+    "experience": 82
+  },
   "yuurih-2025": {
     "title": "Brazilian Rifle Core",
     "rarity": "superstar",
@@ -540,6 +715,20 @@
     "mental": 94,
     "experience": 95
   },
+  "yuurih-2026": {
+    "title": "Support Rifler",
+    "rarity": "elite",
+    "traits": ["supportRifler", "teamPlayer"],
+    "role": "support",
+    "overall": 87,
+    "firepower": 84,
+    "clutch": 86,
+    "entry": 78,
+    "support": 90,
+    "consistency": 87,
+    "mental": 85,
+    "experience": 82
+  },
   "flusha-2019": {
     "rarity": "rare",
     "overall": 93,
@@ -551,19 +740,184 @@
     "overall": 94,
     "awp": 93
   },
+  "jl-2023": {
+    "title": "Rising Major Piece",
+    "rarity": "elite",
+    "traits": ["highImpactRifler", "bigMatchPotential"],
+    "role": "rifler",
+    "overall": 88,
+    "firepower": 88,
+    "clutch": 86,
+    "entry": 84,
+    "support": 85,
+    "consistency": 87,
+    "mental": 88,
+    "experience": 85
+  },
   "jl-2024": {
     "rarity": "rare",
     "overall": 90,
     "firepower": 93,
     "mental": 89
   },
+  "im-2023": {
+    "title": "Aggressive Rifler",
+    "rarity": "elite",
+    "traits": ["aggressiveRifler", "impactPotential"],
+    "role": "rifler",
+    "overall": 87,
+    "firepower": 88,
+    "clutch": 84,
+    "entry": 86,
+    "support": 82,
+    "consistency": 85,
+    "mental": 87,
+    "experience": 83
+  },
+  "kennys": {
+    "role": "awper",
+    "title": "Legendary AWPer",
+    "rarity": "legend",
+    "traits": ["awpLegend", "flickMaster", "historicName"],
+    "overall": 88,
+    "awp": 92
+  },
+  "amanek-2021": {
+    "title": "Hybrid AWPer",
+    "rarity": "rare",
+    "traits": ["hybridAwper", "teamPlayer"],
+    "role": "awper",
+    "overall": 85,
+    "awp": 90,
+    "firepower": 85,
+    "clutch": 84,
+    "support": 86,
+    "consistency": 84,
+    "mental": 85,
+    "experience": 85
+  },
+  "hunter-2021": {
+    "title": "Reliable Rifler",
+    "rarity": "elite",
+    "traits": ["consistentRifler", "secondaryStar"],
+    "role": "rifler",
+    "overall": 89,
+    "firepower": 90,
+    "clutch": 88,
+    "entry": 84,
+    "support": 84,
+    "consistency": 88,
+    "mental": 88,
+    "experience": 85
+  },
+  "nexa-2021": {
+    "title": "IGL",
+    "rarity": "rare",
+    "traits": ["caller", "tacticalMind"],
+    "role": "igl",
+    "overall": 86,
+    "igl": 90,
+    "firepower": 83,
+    "clutch": 84,
+    "support": 86,
+    "consistency": 85,
+    "mental": 88,
+    "experience": 85
+  },
+  "jackz-2021": {
+    "title": "Support Entry",
+    "rarity": "rare",
+    "traits": ["supportEntry", "spaceCreator"],
+    "role": "support",
+    "overall": 84,
+    "firepower": 82,
+    "clutch": 85,
+    "entry": 82,
+    "support": 88,
+    "consistency": 82,
+    "mental": 83,
+    "experience": 85
+  },
+  "magixx-2026": {
+    "title": "New IGL",
+    "rarity": "elite",
+    "traits": ["caller", "systemPlayer", "experiencedCore"],
+    "role": "igl",
+    "overall": 86,
+    "igl": 90,
+    "firepower": 81,
+    "clutch": 86,
+    "support": 88,
+    "consistency": 84,
+    "mental": 88,
+    "experience": 85
+  },
+  "tn1r-2026": {
+    "title": "Support Rifle",
+    "rarity": "rare",
+    "traits": ["supportRifler", "utilityPlayer"],
+    "role": "support",
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 83,
+    "support": 88,
+    "consistency": 84,
+    "mental": 85,
+    "experience": 85
+  },
+  "zont1x-2026": {
+    "title": "Anchor Lurker",
+    "rarity": "elite",
+    "traits": ["anchor", "lurker", "roundCloser"],
+    "role": "lurker",
+    "overall": 86,
+    "firepower": 85,
+    "clutch": 88,
+    "entry": 78,
+    "support": 84,
+    "consistency": 86,
+    "mental": 86,
+    "experience": 85
+  },
+  "yekindar-2025": {
+    "title": "Entry Fragger",
+    "rarity": "elite",
+    "traits": ["entryFragger", "aggressiveRifler"],
+    "role": "entry"
+  },
+  "taco": {
+    "role": "entry",
+    "title": "Selfless Entry",
+    "traits": ["entry", "spaceCreator", "selflessPlayer"]
+  },
+  "boltz-2017": {
+    "role": "support",
+    "title": "Support Rifler",
+    "traits": ["supportRifler", "teamPlayer"]
+  },
   "molodoy-2025": {
     "title": "Rookie of the Year",
-    "rarity": "rare",
+    "rarity": "superstar",
     "role": "awper",
-    "overall": 90,
-    "awp": 98,
-    "consistency": 95
+    "overall": 94,
+    "awp": 96,
+    "firepower": 90,
+    "clutch": 88,
+    "consistency": 92,
+    "mental": 90,
+    "experience": 88
+  },
+  "molodoy-2026": {
+    "title": "AWPer",
+    "rarity": "elite",
+    "role": "awper",
+    "overall": 89,
+    "awp": 92,
+    "firepower": 87,
+    "clutch": 85,
+    "consistency": 86,
+    "mental": 86,
+    "experience": 84
   },
   "kyousuke-2025": {
     "overall": 86,

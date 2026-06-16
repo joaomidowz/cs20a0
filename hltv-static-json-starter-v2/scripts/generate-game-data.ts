@@ -38,6 +38,7 @@ type PlayerOverride = Partial<Record<string, unknown>> & {
   role?: Role;
   playstyle?: Playstyle;
   overall?: number;
+  overallMin?: number;
   firepower?: number;
   clutch?: number;
   entry?: number;
@@ -60,11 +61,11 @@ function getPlayerOverride(player: PlayerInput): PlayerOverride | undefined {
   return { ...baseOverride, ...eraOverride };
 }
 
-const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian', 'cerq', 'osee']);
+const awpers = new Set(['s1mple', 'zywoo', 'm0nesy', 'sh1ro', 'broky', 'w0nderful', 'torzsi', 'jame', 'fallen', 'device', 'guardian', 'woxic', 'cadian', 'cerq', 'osee', 'coldzera', 'nitr0']);
 const igls = new Set(['karrigan', 'gla1ve', 'apex', 'boombl4', 'hooxi', 'cadian', 'aleksib', 'snax', 'chopper', 'kyxsan', 'nafany', 'siuhy', 'jame', 'fallen', 'stanislaw', 'golden', 'nitr0', 'zeus', 'daps']);
-const entries = new Set(['donk', 'fer', 'yekindar', 'rain', 'dupreeh', 'stewie2k', 'flamez', 'malbsmd', 'xertion', 'rush']);
-const lurkers = new Set(['ropz', 'coldzera', 'kscerato', 'naf', 'xyp9x', 'spinx', 'jks']);
-const supports = new Set(['taco', 'perfecto', 'interz', 'sjuush', 'mezii', 'rpk', 'qikert', 'fugly']);
+const entries = new Set(['donk', 'yekindar', 'rain', 'dupreeh', 'stewie2k', 'flamez', 'malbsmd', 'xertion', 'rush']);
+const lurkers = new Set(['ropz', 'kscerato', 'naf', 'xyp9x', 'spinx', 'jks', 'fer']);
+const supports = new Set(['perfecto', 'interz', 'sjuush', 'mezii', 'rpk', 'qikert', 'fugly']);
 
 const starBonusByNick: Record<string, number> = {
   s1mple: 9,
@@ -357,6 +358,7 @@ function applyOverride<T extends Record<string, any>>(player: T, override?: Play
     mental: merged.mental
   };
   merged.overall = override.overall ?? Math.max(calculateOverall(roleStats), starOverallFloor(merged.nickname));
+  if (override.overallMin) merged.overall = Math.max(merged.overall, override.overallMin);
   merged.rarity = override.rarity ?? defaultRarity(merged.overall);
   return merged;
 }
