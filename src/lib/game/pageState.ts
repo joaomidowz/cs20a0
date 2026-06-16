@@ -5,11 +5,19 @@ import type { Language, Theme } from '$lib/game/types';
 const langKey = 'cs13a0:language';
 const themeKey = 'cs13a0:theme';
 
+function detectBrowserLanguage(): Language {
+  if (!browser) return 'en';
+  const lang = navigator.language || (navigator as any).userLanguage || '';
+  if (lang.startsWith('pt')) return 'pt-BR';
+  if (lang.startsWith('es')) return 'es';
+  return 'en';
+}
+
 function loadLanguage(): Language {
-  if (!browser) return 'pt-BR';
+  if (!browser) return 'en';
   const stored = localStorage.getItem(langKey);
   if (stored === 'pt-BR' || stored === 'es' || stored === 'en') return stored;
-  return 'pt-BR';
+  return detectBrowserLanguage();
 }
 
 function loadTheme(): Theme {

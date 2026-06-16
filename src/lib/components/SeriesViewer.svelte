@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { SeriesResult } from '$lib/game/types';
+  import { translateTeamName } from '$lib/game/i18n';
+  import type { Language, SeriesResult } from '$lib/game/types';
 
   export let series: SeriesResult;
   export let delay = 1500;
   export let auto = false;
+  export let language: Language = 'en';
   export let labels: {
     start: string;
     skip: string;
@@ -80,7 +82,7 @@
   <div class="series-header">
     <div>
       <span class="eyebrow">{series.phase.toUpperCase()} · MD{series.bestOf}</span>
-      <h2>{series.teamA.name} <span>vs</span> {series.teamB.name}</h2>
+      <h2>{translateTeamName(language, series.teamA.name)} <span>vs</span> {translateTeamName(language, series.teamB.name)}</h2>
     </div>
     {#if finished}
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>

@@ -10,7 +10,7 @@
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
-  import { translate, type TranslationKey } from '$lib/game/i18n';
+  import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
   import {
     getEligibleSlotRoles,
     getRoleLabel,
@@ -401,6 +401,7 @@
                   mode={$game.mode ?? 'premier'}
                   revealed={false}
                   blockedReason={validation.ok ? '' : reasonText(validation.reason)}
+                  language={$game.language}
                   onOpen={openPlayer}
                 />
               {/each}
@@ -458,13 +459,14 @@
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
             auto={$game.simMode === 'auto'}
+            language={$game.language}
             labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
             onComplete={seriesCompleted}
           />
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
-      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match}<div><span>{match.teamA.name}</span><b>{match.scoreA} : {match.scoreB}</b><span>{match.teamB.name}</span></div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
+      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match}<div><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
     </section>
   {:else if $game.phase === 'result'}
     {@const run = $game.majorRun}
@@ -472,12 +474,12 @@
       {@const wonSeries = run.matches.filter((match) => match.winnerId === 'user').length}
       {@const summary = getRunSummary(run)}
       <section class="screen shell result-screen">
-        <header class:success={run.champion} class="result-hero"><span class="eyebrow">FINAL REPORT / {$game.seed}</span><h1>{run.champion ? t('champion') : t('eliminated')}</h1><p>{run.placement}</p></header>
+        <header class:success={run.champion} class="result-hero"><span class="eyebrow">FINAL REPORT / {$game.seed}</span><h1>{run.champion ? t('champion') : t('eliminated')}</h1><p>{translatePlacement($game.language, run.placement)}</p></header>
         <div class="campaign-grid">
-          <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{run.placement}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
+          <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
-        <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{match.teamA.name}</span><b>{match.scoreA} : {match.scoreB}</b><span>{match.teamB.name}</span></summary><div class="map-details">{#each match.maps as map}<span>Mapa {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
-        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
+        <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></summary><div class="map-details">{#each match.maps as map}<span>{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
+        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
         <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
     {/if}
@@ -496,7 +498,7 @@
             <article class="stat-card {rarityClass(player)}">
               {#if runMvp?.playerId === player.id}<span class="mvp-badge">{t('runMvp')}</span>{/if}
               {#if runWorst?.playerId === player.id}<span class="underperformer-badge">{t('worstRating')}</span>{/if}
-              <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{getRoleLabel(stat.assignedRole)} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{playerTitle(player)}</p></div><strong>{player.overall ?? 70}</strong></div>
+              <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{getRoleLabel(stat.assignedRole)} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{translateTitle($game.language, playerTitle(player))}</p></div><strong>{player.overall ?? 70}</strong></div>
               <div class="rating"><small>RUN RATING</small><b>{stat.runRating.toFixed(2)}</b></div>
               <div class="stat-numbers"><span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span><span><small>K/D</small><b>{stat.kdRatio.toFixed(2)}</b></span><span><small>ADR</small><b>{stat.adr}</b></span><span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span><span><small>CLUTCHES</small><b>{stat.clutches}</b></span><span><small>OPENINGS</small><b>{stat.openingKills}</b></span><span><small>{t('mapsWon')} / {t('mapsLost')}</small><b>{stat.mapsWon} / {stat.mapsLost}</b></span><span><small>{t('roundsWon')} / {t('roundsLost')}</small><b>{stat.roundsWon} / {stat.roundsLost}</b></span><span><small>CONSISTENCY</small><b>{stat.consistency}</b></span></div>
               {#if stat.runRating < 0.85}<footer class="below-expected">{t('belowExpected')}</footer>{/if}
@@ -542,7 +544,7 @@
   <div class="sheet-backdrop" role="presentation" on:click={closePlayer} on:keydown={(event) => event.key === 'Escape' && closePlayer()}>
     <div class="player-sheet {$game.mode === 'faceit' && !draftComplete ? 'rarity-hidden' : rarityClass(detailsPlayer)}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${detailsPlayer.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <button class="sheet-close" type="button" on:click={closePlayer}>×</button>
-      <div class="sheet-player"><div class="avatar huge">{(detailsPlayer.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{#if $game.mode === 'premier' || draftComplete}{detailsPlayer.rarity ?? 'common'} · {/if}{detailsPlayer.teamId ?? ''}</span><h2>{detailsPlayer.nickname ?? 'Unknown'}</h2><p>{playerTitle(detailsPlayer)} · {detailsPlayer.role ?? 'rifler'}</p></div>{#if $game.mode === 'premier' || draftComplete}<strong>{detailsPlayer.overall ?? 70}</strong>{:else}<strong>??</strong>{/if}</div>
+      <div class="sheet-player"><div class="avatar huge">{(detailsPlayer.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{#if $game.mode === 'premier' || draftComplete}{detailsPlayer.rarity ?? 'common'} · {/if}{detailsPlayer.teamId ?? ''}</span><h2>{detailsPlayer.nickname ?? 'Unknown'}</h2><p>{translateTitle($game.language, playerTitle(detailsPlayer))} · {detailsPlayer.role ?? 'rifler'}</p></div>{#if $game.mode === 'premier' || draftComplete}<strong>{detailsPlayer.overall ?? 70}</strong>{:else}<strong>??</strong>{/if}</div>
       {#if $game.mode === 'premier' || draftComplete}
         <div class="attribute-grid">{#each ['firepower', 'clutch', 'entry', 'awp', 'support', 'igl', 'experience', 'consistency', 'mental'] as attribute}<div><span>{attribute}</span><b>{detailsPlayer[attribute as keyof Player] ?? 70}</b><i><em style={`width:${Number(detailsPlayer[attribute as keyof Player] ?? 70)}%`}></em></i></div>{/each}</div>
         {#if detailsPlayer.traits?.length}<div class="trait-list">{#each detailsPlayer.traits.slice(0, 4) as trait}<span>{trait}</span>{/each}{#if detailsPlayer.traits.length > 4}<span>+{detailsPlayer.traits.length - 4}</span>{/if}</div>{/if}

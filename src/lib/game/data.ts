@@ -13,8 +13,8 @@ export const getTeamPlayers = (team: HistoricalTeam | null) =>
 export const playerTitle = (player: Player) => {
   if (player.title) return player.title;
   const role = (player.role ?? '').toLowerCase();
-  if (role.includes('awp')) return 'AWPer';
-  if (role.includes('igl')) return 'Capitão';
-  if (role.includes('support')) return 'Suporte';
-  return 'Rifler';
+  if (role.includes('awp')) return 'roleAwper';
+  if (role.includes('igl')) return 'roleIgl';
+  if (role.includes('support')) return 'roleSupport';
+  return 'roleRifler';
 };

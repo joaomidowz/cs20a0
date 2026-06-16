@@ -88,7 +88,7 @@ export function calculatePlayerPower(
 const hasRole = (player: Player, role: string) => (player.role ?? '').toLowerCase().includes(role);
 
 export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
-  if (!players.length) return { id: 'user', name: 'Sua Org', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
+  if (!players.length) return { id: 'user', name: 'yourOrg', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
   const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
   const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
   const assignedRoles = lineup.map((selected) => selected.selectedSlotRole);
@@ -108,7 +108,7 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   const styleMultiplier = style === 'tactical' ? 1.1 : 1;
   return {
     id: 'user',
-    name: 'Sua Org',
+    name: 'yourOrg',
     power: Math.max(45, Math.min(99, (average + composition) * styleMultiplier + eliteCoreBonus)),
     mental: avg('mental'),
     clutch: avg('clutch'),
@@ -296,7 +296,7 @@ export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng:
     { phase: 'semifinal', bestOf: 3 },
     { phase: 'final', bestOf: 5 }
   ];
-  let placement = 'Campeão';
+  let placement = 'placementChampion';
   for (const round of rounds) {
     const winners: CombatTeam[] = [];
     for (let index = 0; index < current.length; index += 2) {
@@ -304,7 +304,7 @@ export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng:
       allMatches.push(match);
       winners.push(match.winnerId === match.teamA.id ? match.teamA : match.teamB);
       if (match.userMatch && match.winnerId !== user.id) {
-        placement = round.phase === 'quarterfinal' ? '5º–8º' : round.phase === 'semifinal' ? '3º–4º' : 'Vice-campeão';
+        placement = round.phase === 'quarterfinal' ? 'placement5to8' : round.phase === 'semifinal' ? 'placement3to4' : 'placementRunnerUp';
       }
     }
     current = winners;
