@@ -1,13 +1,15 @@
 <script lang="ts">
   import { getRoleLabel } from '$lib/game/roleRules';
+  import { translatePlacement } from '$lib/game/i18n';
   import { getRunMvpScore, getRunSummary } from '$lib/game/runStats';
-  import type { MajorRun, Player, PlayerRunStats, SelectedPlayer } from '$lib/game/types';
+  import type { Language, MajorRun, Player, PlayerRunStats, SelectedPlayer } from '$lib/game/types';
 
   export let seed: string;
   export let run: MajorRun;
   export let players: Player[] = [];
   export let lineup: SelectedPlayer[] = [];
   export let stats: PlayerRunStats[] = [];
+  export let language: Language = 'en';
   export let labels: {
     champion: string;
     eliminated: string;
@@ -24,6 +26,7 @@
     selected,
     player: players.find((player) => player.id === selected.playerId)
   }));
+  $: translatedPlacement = translatePlacement(language, run.placement);
 </script>
 
 <section id="share-card" class:champion={run.champion} class="share-card" aria-label="cs13a0 run card">
@@ -36,11 +39,11 @@
     {#if run.champion}<span class="champion-badge">MAJOR CHAMPION</span>{/if}
     <small>FINAL REPORT</small>
     <h2>{run.champion ? labels.champion : labels.eliminated}</h2>
-    <p>{run.placement}</p>
+    <p>{translatedPlacement}</p>
     <div>
       <span><small>{labels.record}</small><b>{summary.seriesWon}-{summary.seriesLost}</b></span>
       <span><small>{labels.maps}</small><b>{summary.mapsWon}-{summary.mapsLost}</b></span>
-      <span><small>{labels.placement}</small><b>{run.placement}</b></span>
+      <span><small>{labels.placement}</small><b>{translatedPlacement}</b></span>
     </div>
   </div>
 
@@ -60,7 +63,6 @@
   <footer>
     <div><small>{labels.mvp}</small><strong>{mvpPlayer?.nickname ?? '—'}</strong></div>
     <div><small>RUN RATING</small><strong>{mvpStat?.runRating.toFixed(2) ?? '—'}</strong></div>
-    <span>NO BACKEND · DETERMINISTIC SEED</span>
   </footer>
 </section>
 
@@ -73,5 +75,5 @@
   .share-seed{text-align:right}.share-seed small,.share-seed b{display:block}.share-seed small{color:#89939a;font-size:.48rem;letter-spacing:.18em}.share-seed b{margin-top:3px;color:#c8ff32;font-size:.8rem;letter-spacing:.12em}
   .share-result{padding:17px 0 15px}.share-result>small{color:#c8ff32;font-size:.5rem;font-weight:800;letter-spacing:.18em}.share-result h2{max-width:430px;margin:7px 0 3px;font-size:2.5rem;line-height:.88;text-transform:uppercase}.share-result>p{margin:0;color:#ff7134;font-size:.83rem;font-weight:800;text-transform:uppercase}.share-result>div{display:grid;grid-template-columns:92px 92px 1fr;gap:7px;margin-top:13px}.share-result>div span{min-width:0;padding:8px;border:1px solid #283139;background:#11171a}.share-result>div small,.share-result>div b{display:block}.share-result>div small{color:#89939a;font-size:.45rem;text-transform:uppercase}.share-result>div b{overflow:hidden;margin-top:4px;font-size:.82rem;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}.champion-badge{position:absolute;right:0;top:14px;padding:5px 7px;color:#091006;background:#c8ff32;font-size:.48rem;font-weight:900}
   .share-lineup{display:grid;gap:5px}.share-lineup article{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;min-height:55px;padding:7px 10px 7px 46px;border:1px solid #283139;background:linear-gradient(90deg,#151c20,#0c1114)}.share-avatar{display:grid;place-items:center;width:36px;height:36px;border:1px solid #39464c;color:#c8ff32;background:#0b0f11;font-size:.74rem;font-weight:900}.share-lineup article strong,.share-lineup article small{display:block}.share-lineup article strong{font-size:1rem}.share-lineup article small{margin-top:2px;color:#89939a;font-size:.5rem;font-weight:700;text-transform:uppercase}.share-lineup article>b{font-size:1.4rem}.share-index{position:absolute;left:9px;color:#334046;font-size:1.25rem;font-weight:900}
-  footer{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid #283139}footer>div{padding-left:9px;border-left:2px solid #c8ff32}footer small,footer strong{display:block}footer small{color:#89939a;font-size:.46rem;letter-spacing:.1em}footer strong{margin-top:3px;font-size:1rem}footer>span{grid-column:1/-1;color:#536168;font-size:.43rem;letter-spacing:.15em;text-align:center}
+  footer{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid #283139}footer>div{padding-left:9px;border-left:2px solid #c8ff32}footer small,footer strong{display:block}footer small{color:#89939a;font-size:.46rem;letter-spacing:.1em}footer strong{margin-top:3px;font-size:1rem}
 </style>

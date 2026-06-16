@@ -10,9 +10,17 @@ const storageKey = 'cs13a0-run-v1';
 
 export const makeSeed = () => Math.random().toString(36).slice(2, 8);
 
+function detectBrowserLanguage(): 'pt-BR' | 'es' | 'en' {
+  if (!browser) return 'en';
+  const lang = navigator.language || (navigator as any).userLanguage || '';
+  if (lang.startsWith('pt')) return 'pt-BR';
+  if (lang.startsWith('es')) return 'es';
+  return 'en';
+}
+
 export const defaultState = (seed = ''): GameState => ({
   phase: 'home',
-  language: 'pt-BR',
+  language: detectBrowserLanguage(),
   theme: 'dark',
   seed,
   mode: null,
@@ -60,7 +68,7 @@ const loadState = (): GameState => {
     if (!querySeed && (!parsed.phase || parsed.phase === 'home')) {
       return {
         ...defaultState(),
-        language: parsed.language ?? 'pt-BR',
+        language: parsed.language ?? detectBrowserLanguage(),
         theme: parsed.theme ?? 'dark',
         ...preferredSimulation
       };
@@ -68,7 +76,7 @@ const loadState = (): GameState => {
     if (querySeed && querySeed !== parsed.seed) {
       return {
         ...defaultState(querySeed),
-        language: parsed.language ?? 'pt-BR',
+        language: parsed.language ?? detectBrowserLanguage(),
         theme: parsed.theme ?? 'dark',
         ...preferredSimulation
       };

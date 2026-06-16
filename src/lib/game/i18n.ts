@@ -167,6 +167,18 @@ const pt = {
   ,contactSendEmail: 'Enviar e-mail'
   ,contactSuggestions: 'Você pode entrar em contato para: sugerir correção de jogador, sugerir novo time, reportar bug, sugerir melhoria visual, sugerir balanceamento ou falar sobre parcerias e divulgação.'
   ,footerNav: 'Navegação'
+  ,placementChampion: 'Campeão'
+  ,placementRunnerUp: 'Vice-campeão'
+  ,placement3to4: '3º–4º'
+  ,placement5to8: '5º–8º'
+  ,roleAwper: 'AWPer'
+  ,roleIgl: 'Capitão'
+  ,roleSupport: 'Suporte'
+  ,roleRifler: 'Rifler'
+  ,yourOrg: 'Sua Org'
+  ,titleGoatCs: 'GOAT do CS'
+  ,titleGoatCsgo: 'GOAT do CS:GO'
+  ,titleGoatCsgoPeak: 'GOAT do CS:GO Peak'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -315,7 +327,19 @@ Object.assign(dictionaries.en, {
   contactEmail: 'Main email',
   contactSendEmail: 'Send email',
   contactSuggestions: 'You can contact us to: suggest a player correction, suggest a new team, report a bug, suggest a visual improvement, suggest balance changes, or discuss partnerships and promotion.',
-  footerNav: 'Navigation'
+  footerNav: 'Navigation',
+  placementChampion: 'Champion',
+  placementRunnerUp: 'Runner-up',
+  placement3to4: '3rd–4th',
+  placement5to8: '5th–8th',
+  roleAwper: 'AWPer',
+  roleIgl: 'Captain',
+  roleSupport: 'Support',
+  roleRifler: 'Rifler',
+  yourOrg: 'Your Org',
+  titleGoatCs: 'GOAT of CS',
+  titleGoatCsgo: 'GOAT of CS:GO',
+  titleGoatCsgoPeak: 'GOAT of CS:GO Peak'
 });
 
 Object.assign(dictionaries.es, {
@@ -353,8 +377,46 @@ Object.assign(dictionaries.es, {
   contactEmail: 'Correo principal',
   contactSendEmail: 'Enviar correo',
   contactSuggestions: 'Puedes contactarnos para: sugerir corrección de jugador, sugerir nuevo equipo, reportar un bug, sugerir mejora visual, sugerir cambios de balance o hablar sobre colaboraciones y difusión.',
-  footerNav: 'Navegación'
+  footerNav: 'Navegación',
+  placementChampion: 'Campeón',
+  placementRunnerUp: 'Subcampeón',
+  placement3to4: '3º–4º',
+  placement5to8: '5º–8º',
+  roleAwper: 'AWPer',
+  roleIgl: 'Capitán',
+  roleSupport: 'Soporte',
+  roleRifler: 'Rifler',
+  yourOrg: 'Tu Org',
+  titleGoatCs: 'GOAT del CS',
+  titleGoatCsgo: 'GOAT del CS:GO',
+  titleGoatCsgoPeak: 'GOAT del CS:GO Peak'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];
 export type { TranslationKey };
+
+const titleTranslationMap: Record<string, TranslationKey> = {
+  'GOAT do CS': 'titleGoatCs',
+  'GOAT do CS:GO': 'titleGoatCsgo',
+  'GOAT do CS:GO Peak': 'titleGoatCsgoPeak'
+};
+
+export function translatePlacement(language: Language, placement: string): string {
+  const key = placement as TranslationKey;
+  if (key in dictionaries['pt-BR']) return translate(language, key);
+  return placement;
+}
+
+export function translateTitle(language: Language, title: string): string {
+  const mapped = titleTranslationMap[title];
+  if (mapped) return translate(language, mapped);
+  const key = title as TranslationKey;
+  if (key in dictionaries['pt-BR']) return translate(language, key);
+  return title;
+}
+
+export function translateTeamName(language: Language, name: string): string {
+  const key = name as TranslationKey;
+  if (key in dictionaries['pt-BR']) return translate(language, key);
+  return name;
+}
