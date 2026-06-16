@@ -148,6 +148,20 @@
     "mental": 86,
     "experience": 87
   },
+  "xantares": {
+    "title": "XANTARES PEEK",
+    "rarity": "superstar",
+    "traits": ["xantaresPeek", "aggressiveRifler", "entryFragger"],
+    "role": "entry",
+    "overall": 92,
+    "firepower": 94,
+    "entry": 93,
+    "clutch": 86,
+    "support": 78,
+    "consistency": 88,
+    "mental": 88,
+    "experience": 85
+  },
   "nitr0": {
     "role": "igl",
     "title": "IGL AWPer",
