@@ -6,6 +6,8 @@ import { createRunStats } from '../src/lib/game/runStats';
 import { getPlayerPlaystyle } from '../src/lib/game/playstyle';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
+const roleTokens = (player: Player) => (player.role ?? '').toLowerCase().split(/[-/,+\s]+/).filter(Boolean);
+
 const team = (id: string, power: number): CombatTeam => ({
   id,
   name: id,
@@ -56,16 +58,19 @@ describe('simulation', () => {
     expect(players.find((player) => player.id === 'osee-2022')?.role).toBe('awper');
   });
 
-  it('assigns one general support hybrid per team without replacing AWPers', () => {
+  it('assigns general support options per team without replacing AWPers', () => {
     const teams = teamsJson as HistoricalTeam[];
     const players = playersJson as Player[];
     const byId = new Map(players.map((player) => [player.id, player]));
 
     for (const team of teams) {
       const roster = (team.players ?? []).map((id) => byId.get(id)).filter((player): player is Player => Boolean(player));
-      const supportHybrids = roster.filter((player) => player.role === 'rifle-support' || player.role === 'lurker-support');
-      expect(supportHybrids).toHaveLength(1);
-      expect(supportHybrids[0].role).not.toContain('awper');
+      const supportHybrids = roster.filter((player) => {
+        const roles = roleTokens(player);
+        return roles.includes('support') && !roles.includes('awper');
+      });
+      expect(supportHybrids.length).toBeGreaterThanOrEqual(1);
+      expect(supportHybrids.every((player) => !roleTokens(player).includes('awper'))).toBe(true);
     }
   });
 

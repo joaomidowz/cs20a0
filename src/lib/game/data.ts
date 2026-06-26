@@ -1,14 +1,15 @@
-import playersJson from '$lib/data/cs/players.game.json';
-import teamsJson from '$lib/data/cs/teams.game.json';
+import { getAllPlayers, getAllTeams, getPlayerById, getPlayersByTeam, getTeamById } from '$lib/data/csData';
 import type { HistoricalTeam, Player } from './types';
 
-export const players = playersJson as Player[];
-export const teams = teamsJson as HistoricalTeam[];
+export const players = getAllPlayers();
+export const teams = getAllTeams();
 export const playerById = new Map(players.map((player) => [player.id, player]));
 export const teamById = new Map(teams.map((team) => [team.id, team]));
 
 export const getTeamPlayers = (team: HistoricalTeam | null) =>
-  (team?.players ?? []).map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
+  team ? getPlayersByTeam(team.id).filter((player): player is Player => Boolean(player)) : [];
+
+export { getAllPlayers, getAllTeams, getPlayerById, getPlayersByTeam, getTeamById };
 
 export const playerTitle = (player: Player) => {
   if (player.title) return player.title;
