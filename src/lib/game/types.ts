@@ -27,10 +27,15 @@ export interface Player {
   year?: number | null;
   game?: string | null;
   role?: string | null;
+  eligibleSlotRoles?: string[] | null;
   overall?: number | null;
   rarity?: string | null;
   playstyle?: OrgStyle | null;
   traits?: string[] | null;
+  badges?: string[] | null;
+  awardBadges?: string[] | null;
+  needsReview?: boolean | null;
+  roleConfidence?: string | null;
   firepower?: number | null;
   clutch?: number | null;
   entry?: number | null;
