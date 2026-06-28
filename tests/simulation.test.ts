@@ -4,6 +4,7 @@ import teamsJson from '../src/lib/data/cs/teams.game.json';
 import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
 import { createRunStats } from '../src/lib/game/runStats';
 import { getPlayerPlaystyle } from '../src/lib/game/playstyle';
+import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
 const roleTokens = (player: Player) => (player.role ?? '').toLowerCase().split(/[-/,+\s]+/).filter(Boolean);
@@ -11,6 +12,9 @@ const eligibleRoleTokens = (player: Player) => {
   const explicit = (player as Player & { eligibleSlotRoles?: string[] }).eligibleSlotRoles;
   return explicit?.length ? explicit : roleTokens(player);
 };
+const statKeys = ['firepower', 'clutch', 'entry', 'awp', 'support', 'igl', 'experience', 'consistency', 'mental'] as const;
+const statValue = (player: Player, key: (typeof statKeys)[number]) => Number((player as Player & Record<string, unknown>)[key] ?? 0);
+const hasIglEligibility = (player: Player) => roleTokens(player).includes('igl') || eligibleRoleTokens(player).includes('igl');
 
 const team = (id: string, power: number): CombatTeam => ({
   id,
@@ -45,6 +49,59 @@ describe('simulation', () => {
     expect(byId.get('brehze-2019')?.overall).toBeGreaterThanOrEqual(87);
     expect(byId.get('donk-2026')?.overall).toBeGreaterThanOrEqual(90);
     expect(byId.get('niko-2026')?.overall).toBeGreaterThanOrEqual(89);
+  });
+
+  it('keeps exactly one primary IGL option per historical team', () => {
+    const teams = teamsJson as HistoricalTeam[];
+    const players = playersJson as Player[];
+    const playersByTeam = new Map<string, Player[]>();
+    for (const player of players) {
+      if (!player.teamId) continue;
+      const roster = playersByTeam.get(player.teamId) ?? [];
+      roster.push(player);
+      playersByTeam.set(player.teamId, roster);
+    }
+
+    for (const team of teams) {
+      const roster = playersByTeam.get(team.id) ?? [];
+      const iglOptions = roster.filter(hasIglEligibility);
+      expect(iglOptions.length, `${team.id} should not have duplicate IGLs`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('keeps boost corrections role-aware instead of creating all-99 players', () => {
+    const players = playersJson as Player[];
+    const byId = new Map(players.map((player) => [player.id, player]));
+    const monesy2024 = byId.get('m0nesy-2024')!;
+    const monesy2025 = byId.get('m0nesy-2025')!;
+    const monesy2026 = byId.get('m0nesy-2026')!;
+    const zywoo2025 = byId.get('zywoo-2025')!;
+    const donk2024 = byId.get('donk-2024')!;
+
+    for (const player of players) {
+      const high99 = statKeys.filter((key) => statValue(player, key) >= 99);
+      expect(high99.length, `${player.id} has too many 99 stats`).toBeLessThan(3);
+    }
+
+    expect(eligibleRoleTokens(monesy2024)).toEqual(['awper']);
+    expect(getEligibleSlotRoles(monesy2025)).toEqual(['awper']);
+    expect(statValue(monesy2024, 'awp')).toBeGreaterThanOrEqual(97);
+    expect(statValue(monesy2024, 'igl')).toBeLessThanOrEqual(30);
+    expect(statValue(monesy2024, 'support')).toBeLessThanOrEqual(82);
+
+    expect(eligibleRoleTokens(monesy2026)).toEqual(['awper']);
+    expect(statValue(monesy2026, 'awp')).toBeGreaterThanOrEqual(97);
+    expect(statValue(monesy2026, 'igl')).toBeLessThanOrEqual(30);
+    expect(statValue(monesy2026, 'support')).toBeLessThanOrEqual(82);
+
+    expect(eligibleRoleTokens(zywoo2025)).toEqual(['awper', 'rifler']);
+    expect(statValue(zywoo2025, 'awp')).toBeGreaterThanOrEqual(97);
+    expect(statValue(zywoo2025, 'igl')).toBeLessThanOrEqual(30);
+
+    expect(eligibleRoleTokens(donk2024)).toEqual(['entry', 'rifler']);
+    expect(statValue(donk2024, 'entry')).toBeGreaterThanOrEqual(97);
+    expect(statValue(donk2024, 'awp')).toBeLessThanOrEqual(82);
+    expect(statValue(donk2024, 'igl')).toBeLessThanOrEqual(30);
   });
 
   it('assigns the core NRG 2018 roles', () => {

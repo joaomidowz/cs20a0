@@ -62,6 +62,8 @@
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = selectedPlayers.length === 5;
+  $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : 0;
+  $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
@@ -104,6 +106,20 @@
     const rng = createSeededRng(`${$game.seed}:draft:${selectedPlayers.length}:${$game.usedTeamIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
     if (team) update({ rolledTeamId: team.id });
+  }
+
+  function rerollTeam() {
+    if (!$game.styleLocked || !rolledTeam || draftComplete || !rerollsLeft) return;
+    const rerollsUsed = ($game.rerollsUsed ?? 0) + 1;
+    const excludedIds = [...$game.usedTeamIds, rolledTeam.id];
+    const rng = createSeededRng(`${$game.seed}:draft-reroll:${selectedPlayers.length}:${rerollsUsed}:${excludedIds.join('|')}`);
+    const team = pickRandomTeam(teams, rng, excludedIds);
+    if (!team) {
+      showToast(t('noRerollTeams'));
+      return;
+    }
+    update({ rolledTeamId: team.id, rerollsUsed });
+    showToast(`${t('teamRerolled')} · ${team.name ?? 'Time'} ${team.year ?? ''}`);
   }
 
   function openPlayer(player: Player) {
@@ -294,7 +310,7 @@
 
 <svelte:head>
   <title>cs13a0 · Monte sua line e sobreviva ao Major</title>
-  <meta name="description" content="Draft de Counter-Strike com 55 times históricos, 275 versões de jogadores e Major simulado por seed." />
+  <meta name="description" content={t('metaDescription')} />
 </svelte:head>
 
 <Navbar
@@ -327,9 +343,9 @@
       </div>
     </section>
     <section class="feature-strip shell">
-      <article><span>01</span><div><strong>DRAFT CURADO</strong><small>Uma escolha por time. Cinco chances.</small></div></article>
-      <article><span>02</span><div><strong>SEED REAL</strong><small>Mesmo caminho, mesmas consequências.</small></div></article>
-      <article><span>03</span><div><strong>MR12 + OT</strong><small>Stage 3, playoffs e final MD5.</small></div></article>
+      <article><span>01</span><div><strong>{t('featureDraftTitle')}</strong><small>{t('featureDraftDesc')}</small></div></article>
+      <article><span>02</span><div><strong>{t('featureSeedTitle')}</strong><small>{t('featureSeedDesc')}</small></div></article>
+      <article><span>03</span><div><strong>{t('featureRulesTitle')}</strong><small>{t('featureRulesDesc')}</small></div></article>
     </section>
   {:else if $game.phase === 'mode-select'}
     <section class="screen shell narrow">
@@ -392,6 +408,10 @@
               <div><span class="eyebrow">ROLLED TEAM</span><h2>{rolledTeam.name ?? 'Time'} <b>{rolledTeam.year ?? ''}</b></h2><p>{rolledTeam.game ?? 'CS'} · RANK #{rolledTeam.sourceRank ?? rolledTeam.rank ?? '—'} · {rolledTeam.rarity ?? 'standard'}</p></div>
               <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ?? '—'}</span>
             </div>
+            <div class="reroll-bar">
+              <div><span class="eyebrow">{t('teamReroll')}</span><strong>{rerollsLeft}/{rerollsMax}</strong></div>
+              <button class="secondary" type="button" disabled={!rerollsLeft} on:click={rerollTeam}>{t('rerollTeam')} <span>↻</span></button>
+            </div>
             <p class="pick-instruction">{t('pickOne')}</p>
             <div class="player-grid">
               {#each rolledPlayers as player (player.id)}
@@ -424,7 +444,7 @@
       {#if draftComplete}
         <section class="summary-grid">
           <article class="power-panel panel"><span class="eyebrow">ORG POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
-          <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>Composição pronta para o servidor</span>{/if}</div></article>
+          <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
         </section>
         {#if $game.mode === 'faceit'}<div class="reveal-note">INTEL UNLOCKED · {t('revealed')}</div>{/if}
         <button class="primary wide major-button" type="button" on:click={launchMajor}>{t('startMajor')} →</button>

@@ -4,7 +4,7 @@ const pt = {
   play: 'Jogar',
   headline: 'Monte uma line impossível e sobreviva ao Major.',
   subheadline: 'Sorteie times lendários, escolha apenas um jogador por elenco e tente vencer dinastias como SK 2016, Astralis 2018, NaVi 2021, Vitality 2025 e outras.',
-  curated: 'Base curada com o top 5 de cada ano, 55 times históricos/atuais e 275 versões de jogadores entre 2016 e 2026.',
+  curated: 'Base curada com 286 elencos time-ano, 1.430 versões de jogadores e 11 anos de Majors entre 2016 e 2026. Desafio atual: uma escolha por time sorteado, cinco picks, Stage 3, playoffs e final MD5.',
   chooseMode: 'Escolha sua fila',
   premier: 'Normal',
   premierDesc: 'Veja overall, atributos, título e raridade durante todo o draft. Ideal para a primeira run.',
@@ -18,6 +18,10 @@ const pt = {
   balancedDesc: 'Consistência e mental sem grandes riscos.',
   tacticalDesc: 'IGL, suporte e mental em primeiro plano.',
   rollTeam: 'Rolar time',
+  teamReroll: 'Reroll de time',
+  rerollTeam: 'Trocar time',
+  teamRerolled: 'Time trocado',
+  noRerollTeams: 'Sem outro time disponível',
   opportunity: 'Oportunidade',
   pickOne: 'Escolha apenas um jogador deste elenco.',
   choosePlayer: 'Escolher jogador',
@@ -122,6 +126,14 @@ const pt = {
   ,invalidRole: 'Função indisponível'
   ,optional: 'opcional'
   ,noSupport: 'Sem support principal'
+  ,compositionReady: 'Composição pronta para o servidor'
+  ,featureDraftTitle: 'DRAFT CURADO'
+  ,featureDraftDesc: 'Uma escolha por time. Cinco chances.'
+  ,featureSeedTitle: 'SEED REAL'
+  ,featureSeedDesc: 'Mesmo caminho, mesmas consequências.'
+  ,featureRulesTitle: 'MR12 + OT'
+  ,featureRulesDesc: 'Stage 3, playoffs e final MD5.'
+  ,metaDescription: 'Draft de Counter-Strike com 286 elencos time-ano, 1.430 versões de jogadores e Major simulado por seed.'
   ,supportNudgeTitle: 'Curtiu o cs13a0?'
   ,supportNudgeMessage: 'Esse projeto é independente e mantido com tempo livre. Se quiser ajudar a manter domínio, melhorias e novas eras, apoie no Ko-fi.'
   ,supportOnKofi: 'Apoiar no Ko-fi'
@@ -179,8 +191,8 @@ const pt = {
   ,titleGoatCs: 'GOAT do CS'
   ,titleGoatCsgo: 'GOAT do CS:GO'
   ,titleGoatCsgoPeak: 'GOAT do CS:GO Peak'
-  ,badge55Teams: '55 TIMES'
-  ,badge275Players: '275 JOGADORES'
+  ,badge55Teams: '286 TIMES'
+  ,badge275Players: '1.430 JOGADORES'
   ,badgeYears: '2016–2026'
   ,badgeSharedSeed: 'SEED COMPARTILHÁVEL'
 } as const;
@@ -191,11 +203,11 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
   'pt-BR': pt,
   es: {
     ...pt,
-    play: 'Jugar', headline: 'Monta una alineación imposible y sobrevive al Major.', subheadline: 'Sortea equipos legendarios, elige solo un jugador por plantilla e intenta vencer dinastías históricas.', curated: 'Base curada con el top 5 de cada año, 55 equipos históricos/actuales y 275 versiones de jugadores entre 2016 y 2026.', chooseMode: 'Elige tu cola', premierDesc: 'Mira el overall y los atributos durante el draft. Ideal para la primera partida.', faceitDesc: 'En Faceit eliges por intuición. Los números aparecen después.', chooseStyle: 'Estilo de la organización', aggressive: 'Agresivo', balanced: 'Equilibrado', tactical: 'Táctico', aggressiveDesc: 'Más potencia y entry, menos consistencia.', balancedDesc: 'Consistencia y mental sin grandes riesgos.', tacticalDesc: 'IGL, apoyo y mental en primer plano.', rollTeam: 'Sortear equipo', opportunity: 'Oportunidad', pickOne: 'Elige solo un jugador de esta plantilla.', choosePlayer: 'Elegir jugador', close: 'Cerrar', orgHud: 'HUD de la organización', complete: 'Alineación confirmada', estimatedPower: 'Poder estimado', startMajor: 'Comenzar Major', majorSetup: 'Configuración del Major', manual: 'Manual', automatic: 'Automático', simulationMode: 'Modo de simulación', speed: 'Velocidad', normal: 'Normal', fast: 'Rápido', ultra: 'Ultra', insta: 'Insta', enterMajor: 'Entrar al Stage 3', startSeries: 'Iniciar serie', nextMatch: 'Siguiente partida', skipMap: 'Saltar mapa actual', round: 'Ronda', seriesChance: 'Probabilidad aproximada', result: 'Resultado de la partida', champion: 'CAMPEÓN DEL MAJOR', eliminated: 'PARTIDA FINALIZADA', campaign: 'Campaña', placement: 'Posición', seriesWon: 'Series ganadas', seriesLost: 'Series perdidas', mapsWon: 'Mapas ganados', mapsLost: 'Mapas perdidos', tryAgain: 'Intentar de nuevo', seeStats: 'Ver estadísticas', copySeed: 'Copiar seed', shareRun: 'Compartir partida', newSeed: 'Nueva seed', copied: 'Enlace copiado', stats: 'Estadísticas de la partida', runMvp: 'MVP de la partida', backResult: 'Volver al resultado', composition: 'Lectura de composición', noAwper: 'Sin AWPer principal', noIgl: 'Sin IGL', manyRiflers: 'Demasiados riflers', aggressiveLine: 'Alineación agresiva', tacticalLine: 'Alineación táctica', revealed: 'Atributos revelados', hiddenStats: 'Atributos ocultos en Faceit', allMatches: 'Partidas de la run', emptyTitle: 'Tu próxima era empieza aquí.', modeIntro: 'Elige cuánta información quieres llevar a la mesa.', noRepeat: 'Un equipo no puede aparecer dos veces en la misma partida.', majorRules: 'Stage 3: 3 victorias clasifican y 3 derrotas eliminan. Todas las series son MD3; la final es MD5.', autoDesc: 'El Major avanza solo.', manualDesc: 'Controla cada serie.', waitingResult: 'Esperando el primer resultado...', statsSeed: 'Datos ficticios, coherentes y reproducibles por la seed.', map: 'Mapa', final: 'FINAL', waiting: 'ESPERANDO', veryAggressive: 'muy agresivo', greatClutch: 'gran clutch', mainAwper: 'AWPer principal', tacticalProfile: 'perfil táctico', consistentPlayer: 'jugador consistente', versatileProfile: 'perfil versátil', chooseStyleBeforeRoll: 'Elige el estilo de tu organización antes de abrir la primera oportunidad.', useAs: 'Usar como', howUsePlayer: '¿Cómo quieres usar este jugador?', roleOccupied: 'Función ocupada', samePlayerPicked: 'El mismo jugador ya fue elegido', rifleLimitReached: 'Límite de rifles alcanzado', lineHasAwper: 'Tu equipo ya tiene un AWPer', lineHasIgl: 'Tu equipo ya tiene un IGL', lineHasEntry: 'Tu equipo ya tiene un entry/opener', lineHasLurker: 'Tu equipo ya tiene un lurker/closer', orgComposition: 'Composición de la organización', assignedRole: 'Función asignada', invalidRole: 'Elige una función válida para este jugador.', optional: 'opcional', noSupport: 'Sin support principal'
+    play: 'Jugar', headline: 'Monta una alineación imposible y sobrevive al Major.', subheadline: 'Sortea equipos legendarios, elige solo un jugador por plantilla e intenta vencer dinastías históricas.', curated: 'Base curada con 286 plantillas equipo-año, 1.430 versiones de jugadores y 11 años de Majors entre 2016 y 2026. Desafío actual: una elección por equipo sorteado, cinco picks, Stage 3, playoffs y final MD5.', chooseMode: 'Elige tu cola', premierDesc: 'Mira el overall y los atributos durante el draft. Ideal para la primera partida.', faceitDesc: 'En Faceit eliges por intuición. Los números aparecen después.', chooseStyle: 'Estilo de la organización', aggressive: 'Agresivo', balanced: 'Equilibrado', tactical: 'Táctico', aggressiveDesc: 'Más potencia y entry, menos consistencia.', balancedDesc: 'Consistencia y mental sin grandes riesgos.', tacticalDesc: 'IGL, apoyo y mental en primer plano.', rollTeam: 'Sortear equipo', teamReroll: 'Reroll de equipo', rerollTeam: 'Cambiar equipo', teamRerolled: 'Equipo cambiado', noRerollTeams: 'No hay otro equipo disponible', opportunity: 'Oportunidad', pickOne: 'Elige solo un jugador de esta plantilla.', choosePlayer: 'Elegir jugador', close: 'Cerrar', orgHud: 'HUD de la organización', complete: 'Alineación confirmada', estimatedPower: 'Poder estimado', startMajor: 'Comenzar Major', majorSetup: 'Configuración del Major', manual: 'Manual', automatic: 'Automático', simulationMode: 'Modo de simulación', speed: 'Velocidad', normal: 'Normal', fast: 'Rápido', ultra: 'Ultra', insta: 'Insta', enterMajor: 'Entrar al Stage 3', startSeries: 'Iniciar serie', nextMatch: 'Siguiente partida', skipMap: 'Saltar mapa actual', round: 'Ronda', seriesChance: 'Probabilidad aproximada', result: 'Resultado de la partida', champion: 'CAMPEÓN DEL MAJOR', eliminated: 'PARTIDA FINALIZADA', campaign: 'Campaña', placement: 'Posición', seriesWon: 'Series ganadas', seriesLost: 'Series perdidas', mapsWon: 'Mapas ganados', mapsLost: 'Mapas perdidos', tryAgain: 'Intentar de nuevo', seeStats: 'Ver estadísticas', copySeed: 'Copiar seed', shareRun: 'Compartir partida', newSeed: 'Nueva seed', copied: 'Enlace copiado', stats: 'Estadísticas de la partida', runMvp: 'MVP de la partida', backResult: 'Volver al resultado', composition: 'Lectura de composición', noAwper: 'Sin AWPer principal', noIgl: 'Sin IGL', manyRiflers: 'Demasiados riflers', aggressiveLine: 'Alineación agresiva', tacticalLine: 'Alineación táctica', revealed: 'Atributos revelados', hiddenStats: 'Atributos ocultos en Faceit', allMatches: 'Partidas de la run', emptyTitle: 'Tu próxima era empieza aquí.', modeIntro: 'Elige cuánta información quieres llevar a la mesa.', noRepeat: 'Un equipo no puede aparecer dos veces en la misma partida.', majorRules: 'Stage 3: 3 victorias clasifican y 3 derrotas eliminan. Todas las series son MD3; la final es MD5.', autoDesc: 'El Major avanza solo.', manualDesc: 'Controla cada serie.', waitingResult: 'Esperando el primer resultado...', statsSeed: 'Datos ficticios, coherentes y reproducibles por la seed.', map: 'Mapa', final: 'FINAL', waiting: 'ESPERANDO', veryAggressive: 'muy agresivo', greatClutch: 'gran clutch', mainAwper: 'AWPer principal', tacticalProfile: 'perfil táctico', consistentPlayer: 'jugador consistente', versatileProfile: 'perfil versátil', chooseStyleBeforeRoll: 'Elige el estilo de tu organización antes de abrir la primera oportunidad.', useAs: 'Usar como', howUsePlayer: '¿Cómo quieres usar este jugador?', roleOccupied: 'Función ocupada', samePlayerPicked: 'El mismo jugador ya fue elegido', rifleLimitReached: 'Límite de rifles alcanzado', lineHasAwper: 'Tu equipo ya tiene un AWPer', lineHasIgl: 'Tu equipo ya tiene un IGL', lineHasEntry: 'Tu equipo ya tiene un entry/opener', lineHasLurker: 'Tu equipo ya tiene un lurker/closer', orgComposition: 'Composición de la organización', assignedRole: 'Función asignada', invalidRole: 'Elige una función válida para este jugador.', optional: 'opcional', noSupport: 'Sin support principal'
   },
   en: {
     ...pt,
-    play: 'Play', headline: 'Build an impossible lineup and survive the Major.', subheadline: 'Roll legendary teams, choose one player from each roster, and try to beat historic dynasties.', curated: 'Curated pool with each year’s top 5, 55 historic/current teams, and 275 player versions from 2016 through 2026.', chooseMode: 'Choose your queue', premierDesc: 'See overall, attributes, title, and rarity throughout the draft. Best for a first run.', faceitDesc: 'In Faceit you pick by feel. The numbers appear later.', chooseStyle: 'Organization style', aggressive: 'Aggressive', balanced: 'Balanced', tactical: 'Tactical', aggressiveDesc: 'More firepower and entry, less consistency.', balancedDesc: 'Consistency and mental with no major risks.', tacticalDesc: 'IGL, support, and mental come first.', rollTeam: 'Roll team', opportunity: 'Opportunity', pickOne: 'Choose only one player from this roster.', choosePlayer: 'Choose player', close: 'Close', orgHud: 'Organization HUD', complete: 'Lineup confirmed', estimatedPower: 'Estimated power', startMajor: 'Start Major', majorSetup: 'Major setup', manual: 'Manual', automatic: 'Automatic', simulationMode: 'Simulation mode', speed: 'Speed', normal: 'Normal', fast: 'Fast', ultra: 'Ultra', insta: 'Insta', enterMajor: 'Enter Stage 3', startSeries: 'Start series', nextMatch: 'Next match', skipMap: 'Skip current map', round: 'Round', seriesChance: 'Approximate chance', result: 'Run result', champion: 'MAJOR CHAMPION', eliminated: 'RUN OVER', campaign: 'Campaign', placement: 'Placement', seriesWon: 'Series won', seriesLost: 'Series lost', mapsWon: 'Maps won', mapsLost: 'Maps lost', tryAgain: 'Try again', seeStats: 'View statistics', copySeed: 'Copy seed', shareRun: 'Share run', newSeed: 'New seed', copied: 'Link copied', stats: 'Run statistics', runMvp: 'Run MVP', backResult: 'Back to result', composition: 'Composition readout', noAwper: 'No primary AWPer', noIgl: 'No IGL', manyRiflers: 'Too many riflers', aggressiveLine: 'Aggressive lineup', tacticalLine: 'Tactical lineup', revealed: 'Attributes revealed', hiddenStats: 'Attributes hidden in Faceit', allMatches: 'Run matches', emptyTitle: 'Your next era starts here.', modeIntro: 'Choose how much information you want at the table.', noRepeat: 'A team cannot appear twice in the same run.', majorRules: 'Stage 3: 3 wins qualify and 3 losses eliminate. Every series is BO3; the final is BO5.', autoDesc: 'The Major advances on its own.', manualDesc: 'Control each series.', waitingResult: 'Waiting for the first result...', statsSeed: 'Fictional, coherent data reproducible by seed.', map: 'Map', final: 'FINAL', waiting: 'WAITING', veryAggressive: 'very aggressive', greatClutch: 'great clutch player', mainAwper: 'primary AWPer', tacticalProfile: 'tactical profile', consistentPlayer: 'consistent player', versatileProfile: 'versatile profile', chooseStyleBeforeRoll: 'Choose your organization style before opening the first opportunity.', useAs: 'Use as', howUsePlayer: 'How do you want to use this player?', roleOccupied: 'Role occupied', samePlayerPicked: 'Same player already selected', rifleLimitReached: 'Rifle limit reached', lineHasAwper: 'Your lineup already has an AWPer', lineHasIgl: 'Your lineup already has an IGL', lineHasEntry: 'Your lineup already has an entry/opener', lineHasLurker: 'Your lineup already has a lurker/closer', orgComposition: 'Organization composition', assignedRole: 'Assigned role', invalidRole: 'Choose a valid role for this player.', optional: 'optional', noSupport: 'No primary support'
+    play: 'Play', headline: 'Build an impossible lineup and survive the Major.', subheadline: 'Roll legendary teams, choose one player from each roster, and try to beat historic dynasties.', curated: 'Curated pool with 286 team-year rosters, 1,430 player versions, and 11 Major years from 2016 through 2026. Current challenge: one pick per rolled team, five picks, Stage 3, playoffs, and a BO5 final.', chooseMode: 'Choose your queue', premierDesc: 'See overall, attributes, title, and rarity throughout the draft. Best for a first run.', faceitDesc: 'In Faceit you pick by feel. The numbers appear later.', chooseStyle: 'Organization style', aggressive: 'Aggressive', balanced: 'Balanced', tactical: 'Tactical', aggressiveDesc: 'More firepower and entry, less consistency.', balancedDesc: 'Consistency and mental with no major risks.', tacticalDesc: 'IGL, support, and mental come first.', rollTeam: 'Roll team', teamReroll: 'Team reroll', rerollTeam: 'Reroll team', teamRerolled: 'Team rerolled', noRerollTeams: 'No other team available', opportunity: 'Opportunity', pickOne: 'Choose only one player from this roster.', choosePlayer: 'Choose player', close: 'Close', orgHud: 'Organization HUD', complete: 'Lineup confirmed', estimatedPower: 'Estimated power', startMajor: 'Start Major', majorSetup: 'Major setup', manual: 'Manual', automatic: 'Automatic', simulationMode: 'Simulation mode', speed: 'Speed', normal: 'Normal', fast: 'Fast', ultra: 'Ultra', insta: 'Insta', enterMajor: 'Enter Stage 3', startSeries: 'Start series', nextMatch: 'Next match', skipMap: 'Skip current map', round: 'Round', seriesChance: 'Approximate chance', result: 'Run result', champion: 'MAJOR CHAMPION', eliminated: 'RUN OVER', campaign: 'Campaign', placement: 'Placement', seriesWon: 'Series won', seriesLost: 'Series lost', mapsWon: 'Maps won', mapsLost: 'Maps lost', tryAgain: 'Try again', seeStats: 'View statistics', copySeed: 'Copy seed', shareRun: 'Share run', newSeed: 'New seed', copied: 'Link copied', stats: 'Run statistics', runMvp: 'Run MVP', backResult: 'Back to result', composition: 'Composition readout', noAwper: 'No primary AWPer', noIgl: 'No IGL', manyRiflers: 'Too many riflers', aggressiveLine: 'Aggressive lineup', tacticalLine: 'Tactical lineup', revealed: 'Attributes revealed', hiddenStats: 'Attributes hidden in Faceit', allMatches: 'Run matches', emptyTitle: 'Your next era starts here.', modeIntro: 'Choose how much information you want at the table.', noRepeat: 'A team cannot appear twice in the same run.', majorRules: 'Stage 3: 3 wins qualify and 3 losses eliminate. Every series is BO3; the final is BO5.', autoDesc: 'The Major advances on its own.', manualDesc: 'Control each series.', waitingResult: 'Waiting for the first result...', statsSeed: 'Fictional, coherent data reproducible by seed.', map: 'Map', final: 'FINAL', waiting: 'WAITING', veryAggressive: 'very aggressive', greatClutch: 'great clutch player', mainAwper: 'primary AWPer', tacticalProfile: 'tactical profile', consistentPlayer: 'consistent player', versatileProfile: 'versatile profile', chooseStyleBeforeRoll: 'Choose your organization style before opening the first opportunity.', useAs: 'Use as', howUsePlayer: 'How do you want to use this player?', roleOccupied: 'Role occupied', samePlayerPicked: 'Same player already selected', rifleLimitReached: 'Rifle limit reached', lineHasAwper: 'Your lineup already has an AWPer', lineHasIgl: 'Your lineup already has an IGL', lineHasEntry: 'Your lineup already has an entry/opener', lineHasLurker: 'Your lineup already has a lurker/closer', orgComposition: 'Organization composition', assignedRole: 'Assigned role', invalidRole: 'Choose a valid role for this player.', optional: 'optional', noSupport: 'No primary support'
   }
 };
 
@@ -246,7 +258,15 @@ Object.assign(dictionaries.es, {
   contact: 'Contacto',
   independentProject: 'Proyecto independiente',
   curatedGameplayStats: 'Ratings y estadísticas son curados/adaptados para gameplay.',
-  footerDisclaimer: 'cs13a0 es un proyecto independiente. No está afiliado a Valve, HLTV, equipos, organizaciones ni jugadores. Los ratings y las estadísticas son curados/adaptados para gameplay.'
+  footerDisclaimer: 'cs13a0 es un proyecto independiente. No está afiliado a Valve, HLTV, equipos, organizaciones ni jugadores. Los ratings y las estadísticas son curados/adaptados para gameplay.',
+  compositionReady: 'Composición lista para el servidor',
+  featureDraftTitle: 'DRAFT CURADO',
+  featureDraftDesc: 'Una elección por equipo. Cinco oportunidades.',
+  featureSeedTitle: 'SEED REAL',
+  featureSeedDesc: 'Mismo camino, mismas consecuencias.',
+  featureRulesTitle: 'MR12 + OT',
+  featureRulesDesc: 'Stage 3, playoffs y final MD5.',
+  metaDescription: 'Draft de Counter-Strike con 286 plantillas equipo-año, 1.430 versiones de jugadores y Major simulado por seed.'
 });
 
 Object.assign(dictionaries.en, {
@@ -297,6 +317,14 @@ Object.assign(dictionaries.en, {
   independentProject: 'Independent project',
   curatedGameplayStats: 'Ratings and stats are curated/adapted for gameplay.',
   footerDisclaimer: 'cs13a0 is an independent project. It is not affiliated with Valve, HLTV, teams, organizations, or players. Ratings and stats are curated/adapted for gameplay.',
+  compositionReady: 'Composition ready for the server',
+  featureDraftTitle: 'CURATED DRAFT',
+  featureDraftDesc: 'One pick per team. Five chances.',
+  featureSeedTitle: 'REAL SEED',
+  featureSeedDesc: 'Same path, same consequences.',
+  featureRulesTitle: 'MR12 + OT',
+  featureRulesDesc: 'Stage 3, playoffs, and a BO5 final.',
+  metaDescription: 'Counter-Strike draft with 286 team-year rosters, 1,430 player versions, and a seeded Major simulation.',
   about: 'About',
   privacy: 'Privacy',
   terms: 'Terms',
@@ -344,8 +372,8 @@ Object.assign(dictionaries.en, {
   titleGoatCs: 'GOAT of CS',
   titleGoatCsgo: 'GOAT of CS:GO',
   titleGoatCsgoPeak: 'GOAT of CS:GO Peak',
-  badge55Teams: '55 TEAMS',
-  badge275Players: '275 PLAYERS',
+  badge55Teams: '286 TEAMS',
+  badge275Players: '1,430 PLAYERS',
   badgeYears: '2016–2026',
   badgeSharedSeed: 'SHAREABLE SEED'
 });
@@ -398,8 +426,16 @@ Object.assign(dictionaries.es, {
   titleGoatCs: 'GOAT del CS',
   titleGoatCsgo: 'GOAT del CS:GO',
   titleGoatCsgoPeak: 'GOAT del CS:GO Peak',
-  badge55Teams: '55 EQUIPOS',
-  badge275Players: '275 JUGADORES',
+  compositionReady: 'Composición lista para el servidor',
+  featureDraftTitle: 'DRAFT CURADO',
+  featureDraftDesc: 'Una elección por equipo. Cinco oportunidades.',
+  featureSeedTitle: 'SEED REAL',
+  featureSeedDesc: 'Mismo camino, mismas consecuencias.',
+  featureRulesTitle: 'MR12 + OT',
+  featureRulesDesc: 'Stage 3, playoffs y final MD5.',
+  metaDescription: 'Draft de Counter-Strike con 286 plantillas equipo-año, 1.430 versiones de jugadores y Major simulado por seed.',
+  badge55Teams: '286 EQUIPOS',
+  badge275Players: '1.430 JUGADORES',
   badgeYears: '2016–2026',
   badgeSharedSeed: 'SEED COMPARTIBLE'
 });

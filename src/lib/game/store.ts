@@ -29,6 +29,7 @@ export const defaultState = (seed = ''): GameState => ({
   selectedPlayers: [],
   usedTeamIds: [],
   rolledTeamId: null,
+  rerollsUsed: 0,
   simMode: 'manual',
   simSpeed: 'normal',
   majorRun: null,

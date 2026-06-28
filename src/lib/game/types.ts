@@ -163,6 +163,7 @@ export interface GameState {
   selectedPlayers: SelectedPlayer[];
   usedTeamIds: string[];
   rolledTeamId: string | null;
+  rerollsUsed: number;
   simMode: SimMode;
   simSpeed: SimSpeed;
   majorRun: MajorRun | null;
