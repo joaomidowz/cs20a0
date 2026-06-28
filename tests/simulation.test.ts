@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
-import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulateSeries } from '../src/lib/game/simulation';
+import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulatePlayoffs, simulateSeries } from '../src/lib/game/simulation';
 import { createRunStats } from '../src/lib/game/runStats';
 import { getPlayerPlaystyle } from '../src/lib/game/playstyle';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
@@ -252,6 +252,18 @@ describe('simulation', () => {
     expect(second).toEqual(first);
     expect(first.stage3.matches.length).toBeLessThanOrEqual(5);
     expect(first.matches.every((match) => match.maps.length <= match.bestOf)).toBe(true);
+  });
+
+  it('keeps the user organization on the left side during playoff series', () => {
+    const user = { ...team('user', 86), isUser: true };
+    const opponents = Array.from({ length: 12 }, (_, index) => team(`opponent-${index}`, 80 + index));
+
+    for (let seedIndex = 0; seedIndex < 30; seedIndex += 1) {
+      const playoffs = simulatePlayoffs(user, opponents, createSeededRng(`playoff-side-${seedIndex}`));
+      expect(playoffs.userMatches.length).toBeGreaterThan(0);
+      expect(playoffs.userMatches.every((match) => match.teamA.id === 'user')).toBe(true);
+      expect(playoffs.userMatches.every((match) => match.teamA.name === 'user')).toBe(true);
+    }
   });
 
   it('keeps heavy-loss ratings and K/D distributions realistic', () => {

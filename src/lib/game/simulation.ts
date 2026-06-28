@@ -300,7 +300,13 @@ export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng:
   for (const round of rounds) {
     const winners: CombatTeam[] = [];
     for (let index = 0; index < current.length; index += 2) {
-      const match = simulateSeries(current[index], current[index + 1], round.bestOf, rng, round.phase);
+      const left = current[index];
+      const right = current[index + 1];
+      const match = left.id === user.id
+        ? simulateSeries(user, right, round.bestOf, rng, round.phase)
+        : right.id === user.id
+          ? simulateSeries(user, left, round.bestOf, rng, round.phase)
+          : simulateSeries(left, right, round.bestOf, rng, round.phase);
       allMatches.push(match);
       winners.push(match.winnerId === match.teamA.id ? match.teamA : match.teamB);
       if (match.userMatch && match.winnerId !== user.id) {
