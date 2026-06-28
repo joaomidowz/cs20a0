@@ -38,6 +38,9 @@
   });
   $: currentMap = series.maps[activeMap];
   $: currentRound = visibleRounds > 0 ? currentMap?.rounds[visibleRounds - 1] : null;
+  $: visibleMaps = series.maps.slice(0, activeMap + (currentMap && visibleRounds >= currentMap.rounds.length ? 1 : 0));
+  $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
+  $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
   $: if (auto && !started && !finished) void play();
 
   async function play() {
@@ -86,6 +89,12 @@
     </div>
     {#if finished}
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>
+    {:else if started}
+      <div class="series-status live">
+        <span><i></i>Live</span>
+        <strong>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1}</strong>
+        <b>{visibleScoreA} - {visibleScoreB}</b>
+      </div>
     {:else}
       <div class="series-status">{started ? labels.inProgress ?? 'Em andamento' : labels.pending ?? 'A disputar'}</div>
     {/if}
