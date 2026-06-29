@@ -263,6 +263,17 @@
   async function copyLink() {
     const url = new URL(window.location.href);
     url.searchParams.set('seed', $game.seed);
+    if (($game.phase === 'result' || $game.phase === 'stats') && $game.majorRun && selectedLineup.length === 5) {
+      url.searchParams.set('result', '1');
+      url.searchParams.set('mode', $game.mode ?? 'premier');
+      url.searchParams.set('style', $game.style);
+      url.searchParams.set('picks', selectedLineup.map((selected) => `${selected.playerId}:${selected.selectedSlotRole}`).join(','));
+    } else {
+      url.searchParams.delete('result');
+      url.searchParams.delete('mode');
+      url.searchParams.delete('style');
+      url.searchParams.delete('picks');
+    }
     await navigator.clipboard.writeText(url.toString());
     showToast(t('copied'));
   }

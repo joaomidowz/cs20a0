@@ -1,10 +1,11 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-import { playerById } from './data';
+import { playerById, players, teams } from './data';
 import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
-import type { GameState } from './types';
+import { buildMajorRun } from './simulation';
+import type { GameMode, GameState, LineupSlotRole, OrgStyle } from './types';
 
 const storageKey = 'cs13a0-run-v1';
 
@@ -37,14 +38,64 @@ export const defaultState = (seed = ''): GameState => ({
   stats: []
 });
 
+const slotRoles = new Set<LineupSlotRole>(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
+const gameModes = new Set<GameMode>(['premier', 'faceit']);
+const orgStyles = new Set<OrgStyle>(['aggressive', 'balanced', 'tactical']);
+
+const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameState, 'simMode' | 'simSpeed'>): GameState | null => {
+  if (params.get('result') !== '1') return null;
+  const seed = params.get('seed') ?? '';
+  const picks = params.get('picks') ?? '';
+  if (!seed || !picks) return null;
+
+  const selectedPlayers = picks.split(',').reduce<GameState['selectedPlayers']>((selected, item) => {
+    const [playerId, rawRole] = item.split(':');
+    if (!playerId || !slotRoles.has(rawRole as LineupSlotRole)) return selected;
+    const player = playerById.get(playerId);
+    if (!player) return selected;
+    return [...selected, { playerId, selectedSlotRole: rawRole as LineupSlotRole }];
+  }, []);
+  if (selectedPlayers.length !== 5) return null;
+
+  const pickedPlayers = selectedPlayers
+    .map((selected) => playerById.get(selected.playerId))
+    .filter((player): player is NonNullable<typeof player> => Boolean(player));
+  if (pickedPlayers.length !== 5) return null;
+
+  const styleParam = params.get('style') as OrgStyle | null;
+  const modeParam = params.get('mode') as GameMode | null;
+  const style = styleParam && orgStyles.has(styleParam) ? styleParam : 'balanced';
+  const mode = modeParam && gameModes.has(modeParam) ? modeParam : 'premier';
+  const majorRun = buildMajorRun(pickedPlayers, style, teams, players, seed, selectedPlayers);
+  const stats = createRunStats(pickedPlayers, majorRun, seed, selectedPlayers);
+
+  return {
+    ...defaultState(seed),
+    ...preferredSimulation,
+    seed,
+    mode,
+    style,
+    styleLocked: true,
+    selectedPlayers,
+    usedTeamIds: pickedPlayers.map((player) => player.teamId).filter((teamId): teamId is string => Boolean(teamId)),
+    majorRun,
+    completedSeries: majorRun.matches.length,
+    stats,
+    phase: 'result'
+  };
+};
+
 const loadState = (): GameState => {
   if (!browser) return defaultState();
-  const querySeed = new URLSearchParams(window.location.search).get('seed');
+  const queryParams = new URLSearchParams(window.location.search);
+  const querySeed = queryParams.get('seed');
   const preferences = loadSimulationPreferences();
   const preferredSimulation = {
     simMode: preferences.simulationMode,
     simSpeed: preferences.simulationSpeed
   };
+  const sharedRun = parseSharedRun(queryParams, preferredSimulation);
+  if (sharedRun) return sharedRun;
   try {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? (JSON.parse(saved) as Partial<GameState> & { selectedPlayerIds?: string[] }) : {};
