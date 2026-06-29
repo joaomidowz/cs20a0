@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
 import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPower, getWinProbability, simulateMap, simulatePlayoffs, simulateSeries } from '../src/lib/game/simulation';
@@ -8,6 +9,8 @@ import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
 const roleTokens = (player: Player) => (player.role ?? '').toLowerCase().split(/[-/,+\s]+/).filter(Boolean);
+const seriesViewerSource = readFileSync(new URL('../src/lib/components/SeriesViewer.svelte', import.meta.url), 'utf8');
+const appCssSource = readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
 const eligibleRoleTokens = (player: Player) => {
   const explicit = (player as Player & { eligibleSlotRoles?: string[] }).eligibleSlotRoles;
   return explicit?.length ? explicit : roleTokens(player);
@@ -264,6 +267,14 @@ describe('simulation', () => {
       expect(playoffs.userMatches.every((match) => match.teamA.id === 'user')).toBe(true);
       expect(playoffs.userMatches.every((match) => match.teamA.name === 'user')).toBe(true);
     }
+  });
+
+  it('uses a compact mobile live status instead of the large desktop live card', () => {
+    expect(seriesViewerSource).toContain('mobile-series-live');
+    expect(seriesViewerSource).toContain('{mapsLabel} {visibleScoreA}-{visibleScoreB}');
+    expect(seriesViewerSource).toContain("{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1} · R{visibleRounds}");
+    expect(appCssSource).toContain('.series-status.live{display:none}');
+    expect(appCssSource).toContain('.mobile-series-live{display:flex');
   });
 
   it('keeps heavy-loss ratings and K/D distributions realistic', () => {

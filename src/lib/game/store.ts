@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import { playerById, players, teams } from './data';
 import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
+import { buildProLineup, buildProRoleEvaluations } from './proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
 import { buildMajorRun } from './simulation';
@@ -28,6 +29,9 @@ export const defaultState = (seed = ''): GameState => ({
   style: 'balanced',
   styleLocked: false,
   selectedPlayers: [],
+  proPickedPlayerIds: [],
+  proRoleAssignments: {},
+  proRevealed: false,
   usedTeamIds: [],
   rolledTeamId: null,
   rerollsUsed: 0,
@@ -39,7 +43,7 @@ export const defaultState = (seed = ''): GameState => ({
 });
 
 const slotRoles = new Set<LineupSlotRole>(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
-const gameModes = new Set<GameMode>(['premier', 'faceit']);
+const gameModes = new Set<GameMode>(['premier', 'faceit', 'pro']);
 const orgStyles = new Set<OrgStyle>(['aggressive', 'balanced', 'tactical']);
 
 const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameState, 'simMode' | 'simSpeed'>): GameState | null => {
@@ -66,8 +70,15 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const modeParam = params.get('mode') as GameMode | null;
   const style = styleParam && orgStyles.has(styleParam) ? styleParam : 'balanced';
   const mode = modeParam && gameModes.has(modeParam) ? modeParam : 'premier';
-  const majorRun = buildMajorRun(pickedPlayers, style, teams, players, seed, selectedPlayers);
-  const stats = createRunStats(pickedPlayers, majorRun, seed, selectedPlayers);
+  const proRoleAssignments = selectedPlayers.reduce<Record<string, LineupSlotRole>>((assignments, selected) => ({
+    ...assignments,
+    [selected.playerId]: selected.selectedSlotRole
+  }), {});
+  const proEvaluations = mode === 'pro' ? buildProRoleEvaluations(pickedPlayers, proRoleAssignments, style) : [];
+  const runPlayers = mode === 'pro' ? proEvaluations.map((evaluation) => evaluation.adjustedPlayer) : pickedPlayers;
+  const runLineup = mode === 'pro' ? buildProLineup(proEvaluations) : selectedPlayers;
+  const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup);
+  const stats = createRunStats(runPlayers, majorRun, seed, runLineup);
 
   return {
     ...defaultState(seed),
@@ -76,7 +87,10 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
     mode,
     style,
     styleLocked: true,
-    selectedPlayers,
+    selectedPlayers: runLineup,
+    proPickedPlayerIds: mode === 'pro' ? pickedPlayers.map((player) => player.id) : [],
+    proRoleAssignments: mode === 'pro' ? proRoleAssignments : {},
+    proRevealed: mode === 'pro',
     usedTeamIds: pickedPlayers.map((player) => player.teamId).filter((teamId): teamId is string => Boolean(teamId)),
     majorRun,
     completedSeries: majorRun.matches.length,

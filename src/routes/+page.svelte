@@ -28,6 +28,14 @@
   import { downloadRunImage as saveRunImage } from '$lib/game/shareImage';
   import { getPlayerPlaystyle } from '$lib/game/playstyle';
   import { shouldShowPlayerAwards } from '$lib/game/teamViews';
+  import {
+    buildProLineup,
+    buildProRoleEvaluations,
+    PRO_REQUIRED_ROLES,
+    PRO_REROLLS_MAX,
+    validateProAssignments,
+    type ProRoleEvaluation
+  } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
     SPEEDS,
@@ -63,14 +71,21 @@
   });
 
   $: t = (key: TranslationKey) => translate($game.language, key);
-  $: selectedLineup = $game.selectedPlayers;
-  $: selectedPlayers = selectedLineup.map((selected) => playerById.get(selected.playerId)).filter((player): player is Player => Boolean(player));
+  $: isProMode = $game.mode === 'pro';
+  $: proPickedPlayers = $game.proPickedPlayerIds.map((playerId) => playerById.get(playerId)).filter((player): player is Player => Boolean(player));
+  $: proEvaluations = isProMode ? buildProRoleEvaluations(proPickedPlayers, $game.proRoleAssignments, $game.style) : [];
+  $: proLineup = buildProLineup(proEvaluations);
+  $: proAdjustedPlayers = proEvaluations.map((evaluation) => evaluation.adjustedPlayer);
+  $: proAdjustedPlayerById = new Map(proAdjustedPlayers.map((player) => [player.id, player]));
+  $: selectedLineup = isProMode && $game.proRevealed ? proLineup : $game.selectedPlayers;
+  $: selectedPlayers = isProMode ? ($game.proRevealed ? proAdjustedPlayers : proPickedPlayers) : selectedLineup.map((selected) => playerById.get(selected.playerId)).filter((player): player is Player => Boolean(player));
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
-  $: draftComplete = selectedPlayers.length === 5;
-  $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : 0;
+  $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
+  $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
+  $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
@@ -106,31 +121,50 @@
   }
 
   function chooseMode(mode: GameMode) {
-    update({ seed: $game.seed || makeSeed(), mode, phase: 'draft' });
+    update({
+      seed: $game.seed || makeSeed(),
+      mode,
+      phase: 'draft',
+      style: 'balanced',
+      styleLocked: false,
+      selectedPlayers: [],
+      proPickedPlayerIds: [],
+      proRoleAssignments: {},
+      proRevealed: false,
+      usedTeamIds: [],
+      rolledTeamId: null,
+      rerollsUsed: 0,
+      majorRun: null,
+      completedSeries: 0,
+      stats: []
+    });
   }
 
   function rollTeam() {
-    if (!$game.styleLocked) return;
-    const rng = createSeededRng(`${$game.seed}:draft:${selectedPlayers.length}:${$game.usedTeamIds.join('|')}`);
+    if (!$game.styleLocked && !isProMode) return;
+    const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
+    const rng = createSeededRng(`${$game.seed}:draft:${pickCount}:${$game.usedTeamIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
     if (team) update({ rolledTeamId: team.id });
   }
 
   function rerollTeam() {
-    if (!$game.styleLocked || !rolledTeam || draftComplete || !rerollsLeft) return;
+    if ((!$game.styleLocked && !isProMode) || !rolledTeam || draftComplete || !rerollsLeft) return;
     const rerollsUsed = ($game.rerollsUsed ?? 0) + 1;
     const excludedIds = [...$game.usedTeamIds, rolledTeam.id];
-    const rng = createSeededRng(`${$game.seed}:draft-reroll:${selectedPlayers.length}:${rerollsUsed}:${excludedIds.join('|')}`);
+    const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
+    const rng = createSeededRng(`${$game.seed}:draft-reroll:${pickCount}:${rerollsUsed}:${excludedIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, excludedIds);
     if (!team) {
       showToast(t('noRerollTeams'));
       return;
     }
     update({ rolledTeamId: team.id, rerollsUsed });
-    showToast(`${t('teamRerolled')} · ${team.name ?? 'Time'} ${team.year ?? ''}`);
+    showToast(isProMode ? t('proRerollUsed') : `${t('teamRerolled')} · ${team.name ?? 'Time'} ${team.year ?? ''}`);
   }
 
   function openPlayer(player: Player) {
+    if (isProMode && !$game.proRevealed) return;
     detailsPlayer = player;
     document.body.classList.add('modal-open');
   }
@@ -205,13 +239,47 @@
     showToast(`${player.nickname ?? 'Player'} · ${getRoleLabel(selectedSlotRole)}`);
   }
 
+  function confirmProBlindPick(player: Player) {
+    if (!isProMode || !rolledTeam || draftComplete) return;
+    const nextPickedIds = [...$game.proPickedPlayerIds, player.id];
+    const nextAssignments = { ...$game.proRoleAssignments, [player.id]: null };
+    update({
+      proPickedPlayerIds: nextPickedIds,
+      proRoleAssignments: nextAssignments,
+      usedTeamIds: [...$game.usedTeamIds, rolledTeam.id],
+      rolledTeamId: null,
+      phase: nextPickedIds.length === 5 ? 'pro-style' : 'draft'
+    });
+    showToast(`${t('proHiddenPlayer')} ${nextPickedIds.length}/5`);
+  }
+
+  function chooseProStyle(style: OrgStyle) {
+    if (!isProMode || !draftComplete) return;
+    update({ style, styleLocked: true, phase: 'pro-roles' });
+  }
+
+  function assignProRole(playerId: string, role: LineupSlotRole | '') {
+    update({ proRoleAssignments: { ...$game.proRoleAssignments, [playerId]: role || null } });
+  }
+
+  function confirmProRoles() {
+    if (!isProMode || !proAssignmentStatus.complete) return;
+    update({
+      selectedPlayers: proLineup,
+      proRevealed: true,
+      phase: 'pro-reveal'
+    });
+  }
+
   function launchMajor() {
-    if (!draftComplete) return;
+    if (!draftComplete || (isProMode && !$game.proRevealed)) return;
     resetSupportNudge();
-    const majorRun = buildMajorRun(selectedPlayers, $game.style, teams, players, $game.seed, selectedLineup);
-    const stats = createRunStats(selectedPlayers, majorRun, $game.seed, selectedLineup);
+    const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
+    const runLineup = isProMode ? proLineup : selectedLineup;
+    const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup);
+    const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
     awaitingAdvance = false;
-    update({ majorRun, stats, completedSeries: 0, phase: 'stage3' });
+    update({ majorRun, stats, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
     scheduleSupportNudge();
   }
 
@@ -360,6 +428,13 @@
   function rarityClass(player: Player) {
     return `rarity-${(player.rarity ?? 'common').toLowerCase()}`;
   }
+
+  function proFitLabel(fit: ProRoleEvaluation['fit']) {
+    if (fit === 'primary') return t('proFitPrimary');
+    if (fit === 'secondary') return t('proFitSecondary');
+    if (fit === 'severe') return t('proFitSevere');
+    return t('proFitIncompatible');
+  }
 </script>
 
 <svelte:head>
@@ -418,6 +493,9 @@
         <button class="mode-card faceit" type="button" on:click={() => chooseMode('faceit')}>
           <span class="mode-number">02</span><span class="mode-icon">R</span><h2>{t('faceit')}</h2><p>{t('faceitDesc')}</p><b>BLIND DRAFT →</b>
         </button>
+        <button class="mode-card pro" type="button" on:click={() => chooseMode('pro')}>
+          <span class="mode-number">03</span><span class="mode-icon">P</span><h2>{t('pro')}</h2><p>{t('proDesc')}</p><b>PROTOCOL LOCKED →</b>
+        </button>
       </div>
     </section>
   {:else if $game.phase === 'draft'}
@@ -427,7 +505,7 @@
         <button class="seed-button" type="button" on:click={copyLink}>SEED / {$game.seed}</button>
       </header>
 
-      {#if !$game.styleLocked}
+      {#if !$game.styleLocked && !isProMode}
         <section class="style-block panel">
           <div class="section-heading"><div><span class="eyebrow">TACTICAL IDENTITY</span><h2>{t('chooseStyle')}</h2></div></div>
           <p class="style-required">{t('chooseStyleBeforeRoll')}</p>
@@ -444,7 +522,7 @@
 
       {#if !draftComplete}
         <section class="roll-zone panel">
-          {#if !$game.styleLocked}
+          {#if !$game.styleLocked && !isProMode}
             <div class="roll-empty locked-roll">
               <div class="scanner"><span></span></div>
               <span class="eyebrow">TEAM LOTTERY / {selectedPlayers.length + 1} OF 5</span>
@@ -455,50 +533,75 @@
             <div class="roll-empty">
               <div class="scanner"><span></span></div>
               <span class="eyebrow">TEAM LOTTERY / {selectedPlayers.length + 1} OF 5</span>
-              <h2>{t('emptyTitle')}</h2>
-              <p>{t('noRepeat')}</p>
+              <h2>{isProMode ? t('proBlindDraft') : t('emptyTitle')}</h2>
+              <p>{isProMode ? t('proBlindOfferDesc') : t('noRepeat')}</p>
               <button class="primary" type="button" on:click={rollTeam}>{t('rollTeam')} <span>↻</span></button>
             </div>
           {:else}
-            <div class="team-banner">
-              <div class="team-avatar">{(rolledTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div>
-              <div><span class="eyebrow">ROLLED TEAM</span><h2>{rolledTeam.name ?? 'Time'} <b>{rolledTeam.year ?? ''}</b></h2><p>{rolledTeam.game ?? 'CS'} · RANK #{rolledTeam.sourceRank ?? rolledTeam.rank ?? '—'} · {rolledTeam.rarity ?? 'standard'}</p></div>
-              <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ?? '—'}</span>
-            </div>
+            {#if isProMode}
+              <div class="team-banner blind-banner">
+                <div class="team-avatar">?</div>
+                <div><span class="eyebrow">PRO BLIND OFFER</span><h2>{t('proBlindOffer')}</h2><p>{t('proBlindOfferDesc')}</p></div>
+                <span class="team-power">?</span>
+              </div>
+            {:else}
+              <div class="team-banner">
+                <div class="team-avatar">{(rolledTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div>
+                <div><span class="eyebrow">ROLLED TEAM</span><h2>{rolledTeam.name ?? 'Time'} <b>{rolledTeam.year ?? ''}</b></h2><p>{rolledTeam.game ?? 'CS'} · RANK #{rolledTeam.sourceRank ?? rolledTeam.rank ?? '—'} · {rolledTeam.rarity ?? 'standard'}</p></div>
+                <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ?? '—'}</span>
+              </div>
+            {/if}
             <div class="reroll-bar">
               <div><span class="eyebrow">{t('teamReroll')}</span><strong>{rerollsLeft}/{rerollsMax}</strong></div>
               <button class="secondary" type="button" disabled={!rerollsLeft} on:click={rerollTeam}>{t('rerollTeam')} <span>↻</span></button>
             </div>
-            <p class="pick-instruction">{t('pickOne')}</p>
-            <div class="player-grid">
+            <p class="pick-instruction">{isProMode ? t('proBlindOfferDesc') : t('pickOne')}</p>
+            <div class:pro-offer-grid={isProMode} class="player-grid">
               {#each rolledPlayers as player (player.id)}
-                {@const validation = cardValidation(player)}
-                <PlayerCard
-                  player={player}
-                  mode={$game.mode ?? 'premier'}
-                  revealed={false}
-                  blockedReason={validation.ok ? '' : reasonText(validation.reason)}
-                  language={$game.language}
-                  onOpen={openPlayer}
-                />
+                {#if isProMode}
+                  <button class="player-card pro-blind-card" type="button" on:click={() => confirmProBlindPick(player)}>
+                    <div class="pro-name-only">{player.nickname ?? t('proHiddenPlayer')}</div>
+                  </button>
+                {:else}
+                  {@const validation = cardValidation(player)}
+                  <PlayerCard
+                    player={player}
+                    mode={$game.mode ?? 'premier'}
+                    revealed={false}
+                    blockedReason={validation.ok ? '' : reasonText(validation.reason)}
+                    language={$game.language}
+                    onOpen={openPlayer}
+                  />
+                {/if}
               {/each}
             </div>
           {/if}
         </section>
       {/if}
 
-      <DraftHud
-        selectedPlayers={selectedLineup}
-        style={$game.style}
-        styleLocked={$game.styleLocked}
-        styleLabel={t($game.style)}
-        mode={$game.mode ?? 'premier'}
-        revealed={draftComplete}
-        label={t('orgHud')}
-        onOpen={openPlayer}
-      />
+      {#if isProMode && !$game.proRevealed}
+        <section class="hud panel pro-hud">
+          <div><span class="eyebrow">PRO LINEUP / {proPickedPlayers.length}/5</span><h2>{t('proBlindDraft')}</h2></div>
+          <div class="pro-hidden-slots">
+            {#each Array(5) as _, index}
+              <span class:filled={index < proPickedPlayers.length}>{proPickedPlayers[index]?.nickname ?? '?'}</span>
+            {/each}
+          </div>
+        </section>
+      {:else}
+        <DraftHud
+          selectedPlayers={selectedLineup}
+          style={$game.style}
+          styleLocked={$game.styleLocked}
+          styleLabel={t($game.style)}
+          mode={$game.mode ?? 'premier'}
+          revealed={draftComplete}
+          label={t('orgHud')}
+          onOpen={openPlayer}
+        />
+      {/if}
 
-      {#if draftComplete}
+      {#if draftComplete && !isProMode}
         <section class="summary-grid">
           <article class="power-panel panel"><span class="eyebrow">ORG POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
           <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
@@ -506,6 +609,100 @@
         {#if $game.mode === 'faceit'}<div class="reveal-note">INTEL UNLOCKED · {t('revealed')}</div>{/if}
         <button class="primary wide major-button" type="button" on:click={launchMajor}>{t('startMajor')} →</button>
       {/if}
+    </section>
+  {:else if $game.phase === 'pro-style'}
+    <section class="screen shell narrow">
+      <header class="screen-header centered">
+        <span class="eyebrow">PRO MODE · STEP 2</span>
+        <h1>{t('proChooseStyleTitle')}</h1>
+        <p>{t('proChooseStyleDesc')}</p>
+      </header>
+      <section class="style-block panel">
+        <div class="segmented pro-style-choice">
+          {#each ['aggressive', 'balanced', 'tactical'] as style}
+            <button type="button" on:click={() => chooseProStyle(style as OrgStyle)}>
+              <strong>{t(style as 'aggressive' | 'balanced' | 'tactical')}</strong>
+              <small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small>
+            </button>
+          {/each}
+        </div>
+      </section>
+      <section class="hud panel pro-hud">
+        <div><span class="eyebrow">PRO LINEUP / 5/5</span><h2>{t('proBlindDraft')}</h2></div>
+        <div class="pro-hidden-slots">
+          {#each Array(5) as _}<span class="filled">?</span>{/each}
+        </div>
+      </section>
+    </section>
+  {:else if $game.phase === 'pro-roles'}
+    <section class="screen shell">
+      <header class="screen-header centered">
+        <span class="eyebrow">PRO MODE · STEP 3</span>
+        <h1>{t('proAssignRolesTitle')}</h1>
+        <p>{t('proAssignRolesDesc')}</p>
+      </header>
+      <section class="panel pro-role-panel">
+        <div class="pro-role-grid">
+          {#each proPickedPlayers as player, index (player.id)}
+            <article class="pro-role-card">
+              <div>
+                <h2>{player.nickname ?? `${t('proHiddenPlayer')} ${index + 1}`}</h2>
+              </div>
+              <select aria-label={`${t('proHiddenPlayer')} ${index + 1}`} value={$game.proRoleAssignments[player.id] ?? ''} on:change={(event) => assignProRole(player.id, event.currentTarget.value as LineupSlotRole | '')}>
+                <option value="">{t('role')}</option>
+                {#each PRO_REQUIRED_ROLES as role}
+                  {@const takenByOther = Object.entries($game.proRoleAssignments).some(([playerId, assignedRole]) => playerId !== player.id && assignedRole === role)}
+                  <option value={role} disabled={takenByOther}>{getRoleLabel(role)}</option>
+                {/each}
+              </select>
+            </article>
+          {/each}
+        </div>
+        <div class="pro-role-status">
+          {#if proAssignmentStatus.hasDuplicate}<span>{t('proRoleDuplicate')}</span>{/if}
+          {#if proAssignmentStatus.unassignedCount}<span>{t('proRoleMissing')}: {proAssignmentStatus.unassignedCount}</span>{/if}
+        </div>
+        <button class="primary wide major-button" type="button" disabled={!proAssignmentStatus.complete} on:click={confirmProRoles}>{t('proConfirmRoles')} →</button>
+      </section>
+    </section>
+  {:else if $game.phase === 'pro-reveal'}
+    <section class="screen shell">
+      <header class="screen-header centered">
+        <span class="eyebrow">PRO MODE · REVEAL</span>
+        <h1>{t('proRevealTitle')}</h1>
+        <p>{t('proRevealDesc')}</p>
+      </header>
+      <section class="panel pro-reveal-panel">
+        <div class="pro-reveal-grid">
+          {#each proEvaluations as evaluation (evaluation.player.id)}
+            <article class="pro-reveal-card fit-{evaluation.fit}">
+              <div class="player-topline">
+                <div class="avatar">{(evaluation.player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
+                <span class="rarity-label">{evaluation.player.rarity ?? 'common'}</span>
+              </div>
+              <h2>{evaluation.player.nickname ?? 'Unknown'}</h2>
+              <p>{evaluation.player.teamId ?? ''} · {evaluation.player.year ?? ''}</p>
+              <div class="pro-fit-pill">{proFitLabel(evaluation.fit)}</div>
+              <dl>
+                <div><dt>{t('proChosenRole')}</dt><dd>{getRoleLabel(evaluation.selectedRole)}</dd></div>
+                <div><dt>{t('proRealRole')}</dt><dd>{getRoleLabel(evaluation.primaryRole)}</dd></div>
+                <div><dt>{t('proBaseOvr')}</dt><dd>{evaluation.baseOverall}</dd></div>
+                <div><dt>{t('proEffectiveOvr')}</dt><dd>{evaluation.effectiveOverall}</dd></div>
+              </dl>
+              <div class="trait-list">
+                {#each evaluation.affectedAttributes.slice(0, 4) as attribute}
+                  <span>{String(attribute)} {evaluation.adjustedPlayer[attribute] ?? '—'}</span>
+                {/each}
+              </div>
+            </article>
+          {/each}
+        </div>
+      </section>
+      <section class="summary-grid">
+        <article class="power-panel panel"><span class="eyebrow">PRO POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
+        <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
+      </section>
+      <button class="primary wide major-button" type="button" on:click={launchMajor}>{t('startMajor')} →</button>
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
     <section class="screen shell match-screen">
@@ -560,7 +757,7 @@
           <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
         <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></summary><div class="map-details">{#each match.maps as map}<span>{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
-        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
+        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
         <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
     {/if}
@@ -574,7 +771,7 @@
       {/if}
       <div class="stats-grid">
         {#each $game.stats as stat}
-          {@const player = playerById.get(stat.playerId)}
+          {@const player = proAdjustedPlayerById.get(stat.playerId) ?? playerById.get(stat.playerId)}
           {#if player}
             <article class="stat-card {rarityClass(player)}">
               {#if runMvp?.playerId === player.id}<span class="mvp-badge">{t('runMvp')}</span>{/if}

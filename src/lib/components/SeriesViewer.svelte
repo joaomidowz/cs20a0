@@ -45,6 +45,7 @@
   $: visibleMaps = series.maps.slice(0, activeMap + (currentMap && visibleRounds >= currentMap.rounds.length ? 1 : 0));
   $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
+  $: mapsLabel = language === 'en' ? 'MAPS' : 'MAPAS';
   $: if (auto && !started && !finished) void play();
 
   async function play() {
@@ -128,6 +129,14 @@
           {translateTeamName(language, series.teamB.name)}
         </button>
       </h2>
+      {#if started && !finished}
+        <div class="mobile-series-live">
+          <span><i></i>Live</span>
+          <b>MD{series.bestOf}</b>
+          <strong>{mapsLabel} {visibleScoreA}-{visibleScoreB}</strong>
+          <small>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1} · R{visibleRounds}</small>
+        </div>
+      {/if}
     </div>
     {#if finished}
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>

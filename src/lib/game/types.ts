@@ -4,12 +4,15 @@ export type GamePhase =
   | 'home'
   | 'mode-select'
   | 'draft'
+  | 'pro-style'
+  | 'pro-roles'
+  | 'pro-reveal'
   | 'stage3'
   | 'playoffs'
   | 'result'
   | 'stats';
 
-export type GameMode = 'premier' | 'faceit';
+export type GameMode = 'premier' | 'faceit' | 'pro';
 export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
 export type SimSpeed = SimulationSpeed;
 export type SimMode = SimulationMode;
@@ -172,6 +175,9 @@ export interface GameState {
   style: OrgStyle;
   styleLocked: boolean;
   selectedPlayers: SelectedPlayer[];
+  proPickedPlayerIds: string[];
+  proRoleAssignments: Record<string, LineupSlotRole | null>;
+  proRevealed: boolean;
   usedTeamIds: string[];
   rolledTeamId: string | null;
   rerollsUsed: number;
