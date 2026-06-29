@@ -195,6 +195,27 @@ const pt = {
   ,badge275Players: '1.430 JOGADORES'
   ,badgeYears: '2016–2026'
   ,badgeSharedSeed: 'SEED COMPARTILHÁVEL'
+  ,teams: 'times'
+  ,teamsPageEyebrow: 'Arquivo de times'
+  ,teamsPageTitle: 'Todos os times'
+  ,teamsPageIntro: 'Elencos agrupados por ano e ordenados pela melhor campanha no Major. Abra qualquer time para ver os cinco jogadores, roles, overall e prêmios do player-year correto.'
+  ,players: 'jogadores'
+  ,playersPageEyebrow: 'Ranking de jogadores'
+  ,playersPageTitle: 'Jogadores'
+  ,playersPageIntro: 'Ranking visual por overall e por função, usando apenas os dados atuais de cada player-year.'
+  ,playersFilters: 'Filtros de jogadores'
+  ,year: 'Ano'
+  ,all: 'Todos'
+  ,role: 'Role'
+  ,overallMin: 'Overall mínimo'
+  ,overallMax: 'Overall máximo'
+  ,onlyTop20: 'Apenas Top 20 HLTV'
+  ,onlyMajorAwards: 'Apenas MVP/EVP'
+  ,onlyMajorChampions: 'Apenas campeões de Major'
+  ,overallRanking: 'Ranking geral por overall'
+  ,byRole: 'Por função'
+  ,roleRankings: 'Ranking por posição'
+  ,top: 'Top'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -375,7 +396,28 @@ Object.assign(dictionaries.en, {
   badge55Teams: '286 TEAMS',
   badge275Players: '1,430 PLAYERS',
   badgeYears: '2016–2026',
-  badgeSharedSeed: 'SHAREABLE SEED'
+  badgeSharedSeed: 'SHAREABLE SEED',
+  teams: 'teams',
+  teamsPageEyebrow: 'Team archive',
+  teamsPageTitle: 'All teams',
+  teamsPageIntro: 'Rosters grouped by year and sorted by their best Major campaign. Open any team to inspect the five players, roles, overall, and awards from the correct player-year.',
+  players: 'players',
+  playersPageEyebrow: 'Player rankings',
+  playersPageTitle: 'Players',
+  playersPageIntro: 'Visual rankings by overall and role, using only the current data for each player-year.',
+  playersFilters: 'Player filters',
+  year: 'Year',
+  all: 'All',
+  role: 'Role',
+  overallMin: 'Minimum overall',
+  overallMax: 'Maximum overall',
+  onlyTop20: 'HLTV Top 20 only',
+  onlyMajorAwards: 'MVP/EVP only',
+  onlyMajorChampions: 'Major champions only',
+  overallRanking: 'Overall ranking',
+  byRole: 'By role',
+  roleRankings: 'Role rankings',
+  top: 'Top'
 });
 
 Object.assign(dictionaries.es, {
@@ -437,7 +479,28 @@ Object.assign(dictionaries.es, {
   badge55Teams: '286 EQUIPOS',
   badge275Players: '1.430 JUGADORES',
   badgeYears: '2016–2026',
-  badgeSharedSeed: 'SEED COMPARTIBLE'
+  badgeSharedSeed: 'SEED COMPARTIBLE',
+  teams: 'equipos',
+  teamsPageEyebrow: 'Archivo de equipos',
+  teamsPageTitle: 'Todos los equipos',
+  teamsPageIntro: 'Plantillas agrupadas por año y ordenadas por su mejor campaña en Major. Abre cualquier equipo para ver los cinco jugadores, roles, overall y premios del player-year correcto.',
+  players: 'jugadores',
+  playersPageEyebrow: 'Ranking de jugadores',
+  playersPageTitle: 'Jugadores',
+  playersPageIntro: 'Ranking visual por overall y función, usando solo los datos actuales de cada player-year.',
+  playersFilters: 'Filtros de jugadores',
+  year: 'Año',
+  all: 'Todos',
+  role: 'Role',
+  overallMin: 'Overall mínimo',
+  overallMax: 'Overall máximo',
+  onlyTop20: 'Solo Top 20 HLTV',
+  onlyMajorAwards: 'Solo MVP/EVP',
+  onlyMajorChampions: 'Solo campeones de Major',
+  overallRanking: 'Ranking general por overall',
+  byRole: 'Por función',
+  roleRankings: 'Ranking por posición',
+  top: 'Top'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

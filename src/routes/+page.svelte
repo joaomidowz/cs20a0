@@ -7,6 +7,7 @@
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
+  import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
@@ -26,10 +27,12 @@
   import { aggregateRunStats, createRunStats, getRunMvpScore, getRunSummary } from '$lib/game/runStats';
   import { downloadRunImage as saveRunImage } from '$lib/game/shareImage';
   import { getPlayerPlaystyle } from '$lib/game/playstyle';
+  import { shouldShowPlayerAwards } from '$lib/game/teamViews';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
     SPEEDS,
     type GameMode,
+    type HistoricalTeam,
     type LineupSlotRole,
     type OrgStyle,
     type Player,
@@ -46,6 +49,9 @@
   let supportNudgeShownThisRun = false;
   let supportNudgeDismissedThisRun = false;
   let supportNudgeTimer: number | null = null;
+  let enemyModalTeam: HistoricalTeam | null = null;
+  let enemyModalPinned = false;
+  let enemyHoverTimer: number | null = null;
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -66,6 +72,7 @@
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
+  $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
   $: stageLosses = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId !== 'user').length;
@@ -81,6 +88,7 @@
   onDestroy(() => {
     document.body.classList.remove('modal-open');
     clearSupportNudgeTimer();
+    clearEnemyHoverTimer();
   });
 
   function beginGame() {
@@ -130,6 +138,40 @@
   function closePlayer() {
     detailsPlayer = null;
     document.body.classList.remove('modal-open');
+  }
+
+  function clearEnemyHoverTimer() {
+    if (enemyHoverTimer !== null) window.clearTimeout(enemyHoverTimer);
+    enemyHoverTimer = null;
+  }
+
+  function openEnemyTeam(teamId: string, pinned = false) {
+    const team = teamById.get(teamId);
+    if (!team) return;
+    enemyModalPinned = pinned;
+    enemyModalTeam = team;
+  }
+
+  function hoverEnemyTeam(teamId: string) {
+    if (enemyModalPinned) return;
+    clearEnemyHoverTimer();
+    enemyHoverTimer = window.setTimeout(() => openEnemyTeam(teamId, false), 220);
+  }
+
+  function leaveEnemyTeam() {
+    clearEnemyHoverTimer();
+    if (!enemyModalPinned) enemyModalTeam = null;
+  }
+
+  function pinEnemyTeam(teamId: string) {
+    clearEnemyHoverTimer();
+    openEnemyTeam(teamId, true);
+  }
+
+  function closeEnemyTeam() {
+    clearEnemyHoverTimer();
+    enemyModalPinned = false;
+    enemyModalTeam = null;
   }
 
   function cardValidation(player: Player) {
@@ -341,7 +383,10 @@
         <h1>{t('headline')}</h1>
         <p class="hero-lead">{t('subheadline')}</p>
         <div class="badges">
-          <span>{t('badge55Teams')}</span><span>{t('badge275Players')}</span><span>{t('badgeYears')}</span><span>{t('badgeSharedSeed')}</span>
+          <a href="/teams" aria-label="Open all teams">{t('badge55Teams')}</a>
+          <a href="/players" aria-label="Open player rankings">{t('badge275Players')}</a>
+          <a href="/teams#year-2016" aria-label="Open teams by year">{t('badgeYears')}</a>
+          <span>{t('badgeSharedSeed')}</span>
         </div>
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">
@@ -492,8 +537,12 @@
             delay={SPEEDS[$game.simSpeed]}
             auto={$game.simMode === 'auto'}
             language={$game.language}
+            interactiveTeamId={enemyTeamId}
             labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
             onComplete={seriesCompleted}
+            onTeamHover={hoverEnemyTeam}
+            onTeamHoverEnd={leaveEnemyTeam}
+            onTeamClick={pinEnemyTeam}
           />
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
@@ -602,5 +651,13 @@
     </div>
   </div>
 {/if}
+
+<TeamRosterModal
+  team={enemyModalTeam}
+  isOpen={Boolean(enemyModalTeam)}
+  language={$game.language}
+  showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')}
+  onClose={closeEnemyTeam}
+/>
 
 {#if toast}<div class="toast">{toast}</div>{/if}

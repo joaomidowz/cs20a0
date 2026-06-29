@@ -7,6 +7,7 @@
   export let delay = 1500;
   export let auto = false;
   export let language: Language = 'en';
+  export let interactiveTeamId: string | null = null;
   export let labels: {
     start: string;
     skip: string;
@@ -19,6 +20,9 @@
     mapInProgress?: string;
   };
   export let onComplete: () => void = () => {};
+  export let onTeamHover: (teamId: string) => void = () => {};
+  export let onTeamHoverEnd: () => void = () => {};
+  export let onTeamClick: (teamId: string) => void = () => {};
 
   let activeMap = 0;
   let visibleRounds = 0;
@@ -74,6 +78,18 @@
     resolve?.(true);
   }
 
+  function isInteractiveTeam(teamId: string) {
+    return interactiveTeamId === teamId;
+  }
+
+  function handleTeamHover(teamId: string) {
+    if (isInteractiveTeam(teamId)) onTeamHover(teamId);
+  }
+
+  function handleTeamClick(teamId: string) {
+    if (isInteractiveTeam(teamId)) onTeamClick(teamId);
+  }
+
   onDestroy(() => {
     runId += 1;
     if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
@@ -85,7 +101,33 @@
   <div class="series-header">
     <div>
       <span class="eyebrow">{series.phase.toUpperCase()} · MD{series.bestOf}</span>
-      <h2>{translateTeamName(language, series.teamA.name)} <span>vs</span> {translateTeamName(language, series.teamB.name)}</h2>
+      <h2 class="series-teams">
+        <button
+          type="button"
+          class:team-link={isInteractiveTeam(series.teamA.id)}
+          disabled={!isInteractiveTeam(series.teamA.id)}
+          on:mouseenter={() => handleTeamHover(series.teamA.id)}
+          on:mouseleave={onTeamHoverEnd}
+          on:focus={() => handleTeamHover(series.teamA.id)}
+          on:blur={onTeamHoverEnd}
+          on:click={() => handleTeamClick(series.teamA.id)}
+        >
+          {translateTeamName(language, series.teamA.name)}
+        </button>
+        <span>vs</span>
+        <button
+          type="button"
+          class:team-link={isInteractiveTeam(series.teamB.id)}
+          disabled={!isInteractiveTeam(series.teamB.id)}
+          on:mouseenter={() => handleTeamHover(series.teamB.id)}
+          on:mouseleave={onTeamHoverEnd}
+          on:focus={() => handleTeamHover(series.teamB.id)}
+          on:blur={onTeamHoverEnd}
+          on:click={() => handleTeamClick(series.teamB.id)}
+        >
+          {translateTeamName(language, series.teamB.name)}
+        </button>
+      </h2>
     </div>
     {#if finished}
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>

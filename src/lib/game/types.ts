@@ -65,6 +65,17 @@ export interface HistoricalTeam {
   teamPowerPreview?: number | null;
   rarity?: string | null;
   teamStats?: Record<string, number> | null;
+  style?: OrgStyle | string | null;
+  badges?: string[] | null;
+  needsReview?: boolean | null;
+  majorSummary?: {
+    bestPlacement?: string | null;
+    titles?: number | null;
+    finals?: number | null;
+    semifinals?: number | null;
+    top8?: number | null;
+    stage3Runs?: number | null;
+  } | null;
   sourceUrl?: string | null;
   source?: unknown;
 }
