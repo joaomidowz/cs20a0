@@ -44,7 +44,6 @@
     type LineupSlotRole,
     type OrgStyle,
     type Player,
-    type SeriesResult,
     type SimMode,
     type SimSpeed
   } from '$lib/game/types';
@@ -61,8 +60,6 @@
   let enemyModalTeam: HistoricalTeam | null = null;
   let enemyModalPinned = false;
   let enemyHoverTimer: number | null = null;
-  let expandedFeedMatch: string | null = null;
-  let showOrgPanel = false;
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -102,41 +99,6 @@
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
-
-  function groupMatchesByPhase(matches: SeriesResult[]) {
-    const phases: Array<{ phase: SeriesResult['phase']; label: string; matches: SeriesResult[] }> = [];
-    const phaseOrder: SeriesResult['phase'][] = ['stage3', 'quarterfinal', 'semifinal', 'final'];
-    const phaseLabels: Record<string, string> = {
-      stage3: t('stage3'),
-      quarterfinal: t('quarterfinal'),
-      semifinal: t('semifinal'),
-      final: t('final')
-    };
-    for (const phase of phaseOrder) {
-      const phaseMatches = matches.filter((match) => match.phase === phase);
-      if (phaseMatches.length > 0) {
-        phases.push({ phase, label: phaseLabels[phase] || phase, matches: phaseMatches });
-      }
-    }
-    return phases;
-  }
-
-  function getOrgStrengths() {
-    if (!selectedPlayers.length) return [];
-    const stats = {
-      firepower: selectedPlayers.reduce((sum, p) => sum + (p.firepower ?? 70), 0) / selectedPlayers.length,
-      support: selectedPlayers.reduce((sum, p) => sum + (p.support ?? 70), 0) / selectedPlayers.length,
-      consistency: selectedPlayers.reduce((sum, p) => sum + (p.consistency ?? 70), 0) / selectedPlayers.length,
-      mental: selectedPlayers.reduce((sum, p) => sum + (p.mental ?? 70), 0) / selectedPlayers.length,
-      clutch: selectedPlayers.reduce((sum, p) => sum + (p.clutch ?? 70), 0) / selectedPlayers.length,
-      entry: selectedPlayers.reduce((sum, p) => sum + (p.entry ?? 70), 0) / selectedPlayers.length,
-      awp: selectedPlayers.reduce((sum, p) => sum + (p.awp ?? 20), 0) / selectedPlayers.length,
-      igl: selectedPlayers.reduce((sum, p) => sum + (p.igl ?? 20), 0) / selectedPlayers.length
-    };
-    return Object.entries(stats)
-      .map(([key, value]) => ({ key, value: Math.round(value) }))
-      .sort((a, b) => b.value - a.value);
-  }
 
   onDestroy(() => {
     document.body.classList.remove('modal-open');
@@ -782,64 +744,7 @@
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
-      <aside class="run-feed panel">
-        <div class="run-feed-header">
-          <span class="eyebrow">RUN FEED</span>
-          <button class="org-button" type="button" on:click={() => showOrgPanel = !showOrgPanel}>
-            <span class="org-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</span>
-            <span class="org-label">{t('orgHud')}</span>
-          </button>
-        </div>
-        {#if showOrgPanel}
-          <div class="org-panel">
-            <div class="org-players">
-              {#each selectedPlayers as player}
-                <div class="org-player">
-                  <span class="org-player-avatar">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</span>
-                  <div class="org-player-info">
-                    <strong>{player.nickname ?? 'Unknown'}</strong>
-                    <small>{getRoleLabel(selectedLineup.find((s) => s.playerId === player.id)?.selectedSlotRole ?? 'rifler')} · OVR {player.overall ?? 70}</small>
-                  </div>
-                </div>
-              {/each}
-            </div>
-            <div class="org-strengths">
-              <span class="eyebrow">{t('estimatedPower')} · {userTeam.power.toFixed(1)}</span>
-              <div class="strength-grid">
-                {#each getOrgStrengths().slice(0, 4) as stat}
-                  <div class="strength-item">
-                    <small>{stat.key.toUpperCase()}</small>
-                    <b>{stat.value}</b>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          </div>
-        {/if}
-        {#if completedMatches.length}
-          {#each groupMatchesByPhase(completedMatches) as phaseGroup}
-            <div class="feed-phase">
-              <span class="feed-phase-label">{phaseGroup.label}</span>
-              {#each phaseGroup.matches as match}
-                <button class="feed-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedFeedMatch = expandedFeedMatch === match.id ? null : match.id}>
-                  <span class="feed-team-a">{translateTeamName($game.language, match.teamA.name)}</span>
-                  <b class="feed-score">{match.scoreA} : {match.scoreB}</b>
-                  <span class="feed-team-b">{translateTeamName($game.language, match.teamB.name)}</span>
-                </button>
-                {#if expandedFeedMatch === match.id}
-                  <div class="feed-maps">
-                    {#each match.maps as map}
-                      <span class="feed-map">{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
-                    {/each}
-                  </div>
-                {/if}
-              {/each}
-            </div>
-          {/each}
-        {:else}
-          <p class="feed-empty">{t('waitingResult')}</p>
-        {/if}
-      </aside>
+      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match}<div><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
     </section>
   {:else if $game.phase === 'result'}
     {@const run = $game.majorRun}
