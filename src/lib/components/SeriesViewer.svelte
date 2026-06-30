@@ -23,6 +23,7 @@
   export let onTeamHover: (teamId: string) => void = () => {};
   export let onTeamHoverEnd: () => void = () => {};
   export let onTeamClick: (teamId: string) => void = () => {};
+  export let onOrgClick: () => void = () => {};
 
   let activeMap = 0;
   let visibleRounds = 0;
@@ -105,26 +106,26 @@
       <h2 class="series-teams">
         <button
           type="button"
-          class:team-link={isInteractiveTeam(series.teamA.id)}
-          disabled={!isInteractiveTeam(series.teamA.id)}
+          class:team-link={isInteractiveTeam(series.teamA.id) || series.teamA.isUser}
+          disabled={!isInteractiveTeam(series.teamA.id) && !series.teamA.isUser}
           on:mouseenter={() => handleTeamHover(series.teamA.id)}
           on:mouseleave={onTeamHoverEnd}
           on:focus={() => handleTeamHover(series.teamA.id)}
           on:blur={onTeamHoverEnd}
-          on:click={() => handleTeamClick(series.teamA.id)}
+          on:click={() => series.teamA.isUser ? onOrgClick() : handleTeamClick(series.teamA.id)}
         >
           {translateTeamName(language, series.teamA.name)}
         </button>
         <span>vs</span>
         <button
           type="button"
-          class:team-link={isInteractiveTeam(series.teamB.id)}
-          disabled={!isInteractiveTeam(series.teamB.id)}
+          class:team-link={isInteractiveTeam(series.teamB.id) || series.teamB.isUser}
+          disabled={!isInteractiveTeam(series.teamB.id) && !series.teamB.isUser}
           on:mouseenter={() => handleTeamHover(series.teamB.id)}
           on:mouseleave={onTeamHoverEnd}
           on:focus={() => handleTeamHover(series.teamB.id)}
           on:blur={onTeamHoverEnd}
-          on:click={() => handleTeamClick(series.teamB.id)}
+          on:click={() => series.teamB.isUser ? onOrgClick() : handleTeamClick(series.teamB.id)}
         >
           {translateTeamName(language, series.teamB.name)}
         </button>

@@ -8,6 +8,7 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
+  import PlayerMiniCard from '$lib/components/PlayerMiniCard.svelte';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
@@ -780,6 +781,7 @@
             onTeamHover={hoverEnemyTeam}
             onTeamHoverEnd={leaveEnemyTeam}
             onTeamClick={pinEnemyTeam}
+            onOrgClick={() => showOrgModal = true}
           />
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
@@ -797,9 +799,9 @@
                 {#each phaseGroup.matches as match}
                   <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
                     <span class="timeline-match-result">{match.winnerId === 'user' ? '✓' : '✗'}</span>
-                    <span class="timeline-team-a">{#if match.teamA.isUser}<button class="timeline-org-link" type="button" on:click|stopPropagation={() => showOrgModal = true}>{translateTeamName($game.language, match.teamA.name)}</button>{:else}<button class="timeline-team-link" type="button" on:click|stopPropagation={() => { enemyModalTeam = teamById.get(match.teamA.id.replace(/-\d{4}$/, '')) ?? null; }}>{translateTeamName($game.language, match.teamA.name)}</button>{/if}</span>
+                    <span class="timeline-team-a">{translateTeamName($game.language, match.teamA.name)}</span>
                     <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
-                    <span class="timeline-team-b">{#if match.teamB.isUser}<button class="timeline-org-link" type="button" on:click|stopPropagation={() => showOrgModal = true}>{translateTeamName($game.language, match.teamB.name)}</button>{:else}<button class="timeline-team-link" type="button" on:click|stopPropagation={() => { enemyModalTeam = teamById.get(match.teamB.id.replace(/-\d{4}$/, '')) ?? null; }}>{translateTeamName($game.language, match.teamB.name)}</button>{/if}</span>
+                    <span class="timeline-team-b">{translateTeamName($game.language, match.teamB.name)}</span>
                   </button>
                   {#if expandedTimelineMatch === match.id}
                     <div class="timeline-maps">
@@ -979,38 +981,40 @@
 />
 
 {#if showOrgModal}
-  <div class="sheet-backdrop org-modal-backdrop" role="presentation" on:mousedown={() => showOrgModal = false}>
-    <div class="org-modal" role="dialog" aria-modal="true" aria-label={t('orgHud')} tabindex="-1" on:mousedown|stopPropagation>
+  <div class="sheet-backdrop team-modal-backdrop" role="presentation" on:mousedown={() => showOrgModal = false}>
+    <div class="team-roster-modal" role="dialog" aria-modal="true" aria-label={t('orgHud')} tabindex="-1" on:mousedown|stopPropagation>
       <button class="sheet-close" type="button" aria-label={t('close')} on:click={() => showOrgModal = false}>×</button>
-      <header class="org-modal-header">
-        <div class="org-modal-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</div>
+      <header class="team-modal-header">
+        <div class="team-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</div>
         <div>
           <span class="eyebrow">{$game.style.toUpperCase()} · POWER {userTeam.power.toFixed(1)}</span>
           <h2>{t('orgHud')}</h2>
+          <p>{$game.style} · OVR {Math.round(selectedPlayers.reduce((sum, p) => sum + (p.overall ?? 70), 0) / selectedPlayers.length)}</p>
         </div>
       </header>
-      <div class="org-modal-roster">
-        {#each selectedPlayers as player}
-          {@const selected = selectedLineup.find((s) => s.playerId === player.id)}
-          <div class="org-modal-player">
-            <div class="org-modal-player-avatar">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
-            <div class="org-modal-player-info">
-              <span class="eyebrow">{getRoleLabel(selected?.selectedSlotRole ?? 'rifler')} · {player.year ?? ''}</span>
-              <strong>{player.nickname ?? 'Unknown'}</strong>
-            </div>
-            <span class="org-modal-player-ovr">{player.overall ?? 70}</span>
-          </div>
-        {/each}
+
+      <div class="team-modal-tags">
+        {#each getOrgStrengths().slice(0, 3) as stat}<span>{stat.key.toUpperCase()} {stat.value}</span>{/each}
       </div>
+
+      {#if selectedPlayers.length}
+        <div class="team-modal-roster">
+          {#each selectedPlayers as player (player.id)}
+            <PlayerMiniCard {player} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} />
+          {/each}
+        </div>
+      {/if}
+
       <div class="org-modal-stats">
         <span class="eyebrow">{t('estimatedPower')}</span>
         <div class="org-stats-grid">
-          {#each getOrgStrengths().slice(0, 6) as stat}
+          {#each getOrgStrengths() as stat}
             <div><small>{stat.key.toUpperCase()}</small><b>{stat.value}</b></div>
           {/each}
         </div>
       </div>
-      <footer class="org-modal-footer">
+
+      <footer class="team-modal-footer">
         <button class="secondary" type="button" on:click={() => showOrgModal = false}>{t('close')}</button>
       </footer>
     </div>
