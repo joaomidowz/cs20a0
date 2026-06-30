@@ -794,7 +794,6 @@
             {@const showLiveInThisPhase = currentSeries && isLastPhase && currentSeries.phase === phaseGroup.phase}
             <div class="timeline-phase" class:completed={true} class:active={showLiveInThisPhase}>
               <div class="timeline-phase-header">
-                <span class="timeline-dot" class:completed={true} class:active={showLiveInThisPhase}></span>
                 <span class="timeline-phase-label">{phaseGroup.label}</span>
               </div>
               <div class="timeline-phase-content">
@@ -833,7 +832,6 @@
             {@const liveEnemyTeam = currentSeries.teamA.isUser ? currentSeries.teamB : currentSeries.teamA}
             <div class="timeline-phase active">
               <div class="timeline-phase-header">
-                <span class="timeline-dot active"></span>
                 <span class="timeline-phase-label">{getPhaseLabel(currentSeries.phase)}</span>
               </div>
               <div class="timeline-phase-content">
@@ -869,7 +867,6 @@
             {#each groupMatchesByPhase(run.matches) as phaseGroup}
               <div class="timeline-phase completed">
                 <div class="timeline-phase-header">
-                  <span class="timeline-dot completed"></span>
                   <span class="timeline-phase-label">{phaseGroup.label}</span>
                 </div>
                 <div class="timeline-phase-content">

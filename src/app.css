@@ -394,29 +394,6 @@ h2 { line-height: 1; text-transform: uppercase; }
   margin-left: -24px;
 }
 
-.timeline-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--line);
-  flex-shrink: 0;
-}
-
-.timeline-dot.completed {
-  background: var(--accent);
-}
-
-.timeline-dot.active {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  animation: pulse 2s infinite;
-}
-
-.timeline-dot.pending {
-  background: var(--surface-2);
-  border: 2px solid var(--line);
-}
-
 .timeline-phase-label {
   font-size: .7rem;
   font-weight: 800;
