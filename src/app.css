@@ -457,17 +457,16 @@ h2 { line-height: 1; text-transform: uppercase; }
 
 .timeline-match {
   display: grid;
-  grid-template-columns: 20px 1fr auto 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
   align-items: center;
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: none;
   background: transparent;
   color: var(--text);
   cursor: pointer;
   font-size: .68rem;
-  text-align: left;
   transition: background .15s;
 }
 
@@ -483,67 +482,60 @@ h2 { line-height: 1; text-transform: uppercase; }
   color: var(--danger);
 }
 
-.timeline-match-result {
-  font-size: .7rem;
-  font-weight: 900;
-}
-
-.timeline-team-a,
-.timeline-team-b {
+.timeline-team-left {
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.timeline-team-a {
-  text-align: left;
-}
-
-.timeline-team-b {
+.timeline-team-right {
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .timeline-score {
-  font-size: .85rem;
+  font-size: .9rem;
   white-space: nowrap;
+  text-align: center;
 }
 
 .timeline-maps {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
-  padding: 4px 0 8px 28px;
+  padding: 6px 0 10px;
 }
 
 .timeline-map {
-  padding: 4px 6px;
+  padding: 4px 8px;
   background: var(--surface-2);
   color: var(--muted);
   font-size: .55rem;
 }
 
 .timeline-live {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left: 2px solid var(--accent);
+}
+
+.timeline-live-center {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
-  border: 1px solid var(--accent);
+  justify-content: center;
 }
 
 .timeline-live-badge {
-  padding: 2px 6px;
+  padding: 3px 8px;
   background: var(--accent);
   color: #0b0e09;
   font-size: .5rem;
   font-weight: 900;
   text-transform: uppercase;
   animation: pulse 2s infinite;
-}
-
-.timeline-vs {
-  color: var(--muted);
-  font-size: .6rem;
 }
 
 .org-modal-stats {

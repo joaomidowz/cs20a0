@@ -797,11 +797,12 @@
               </div>
               <div class="timeline-phase-content">
                 {#each phaseGroup.matches as match}
+                  {@const userTeam = match.teamA.isUser ? match.teamA : match.teamB}
+                  {@const enemyTeam = match.teamA.isUser ? match.teamB : match.teamA}
                   <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
-                    <span class="timeline-match-result">{match.winnerId === 'user' ? '✓' : '✗'}</span>
-                    <span class="timeline-team-a">{translateTeamName($game.language, match.teamA.name)}</span>
+                    <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name)}</span>
                     <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
-                    <span class="timeline-team-b">{translateTeamName($game.language, match.teamB.name)}</span>
+                    <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name)}</span>
                   </button>
                   {#if expandedTimelineMatch === match.id}
                     <div class="timeline-maps">
@@ -814,52 +815,22 @@
               </div>
             </div>
           {/each}
-          {#if currentSeries && !completedMatches.some((m) => m.phase === currentSeries.phase)}
+          {#if currentSeries}
+            {@const liveUserTeam = currentSeries.teamA.isUser ? currentSeries.teamA : currentSeries.teamB}
+            {@const liveEnemyTeam = currentSeries.teamA.isUser ? currentSeries.teamB : currentSeries.teamA}
             <div class="timeline-phase active">
               <div class="timeline-phase-header">
                 <span class="timeline-dot active"></span>
                 <span class="timeline-phase-label">{getPhaseLabel(currentSeries.phase)}</span>
               </div>
               <div class="timeline-phase-content">
-                <div class="timeline-live">
-                  <span class="timeline-live-badge">AO VIVO</span>
-                  <span class="timeline-team-a">{translateTeamName($game.language, currentSeries.teamA.name)}</span>
-                  <span class="timeline-vs">vs</span>
-                  <span class="timeline-team-b">{translateTeamName($game.language, currentSeries.teamB.name)}</span>
+                <div class="timeline-match timeline-live">
+                  <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name)}</span>
+                  <div class="timeline-live-center">
+                    <span class="timeline-live-badge">AO VIVO</span>
+                  </div>
+                  <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name)}</span>
                 </div>
-              </div>
-            </div>
-          {/if}
-          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'quarterfinal')}
-            <div class="timeline-phase pending">
-              <div class="timeline-phase-header">
-                <span class="timeline-dot pending"></span>
-                <span class="timeline-phase-label">{t('quarterfinal')}</span>
-              </div>
-              <div class="timeline-phase-content">
-                <span class="timeline-pending">{t('pending')}</span>
-              </div>
-            </div>
-          {/if}
-          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'semifinal')}
-            <div class="timeline-phase pending">
-              <div class="timeline-phase-header">
-                <span class="timeline-dot pending"></span>
-                <span class="timeline-phase-label">{t('semifinal')}</span>
-              </div>
-              <div class="timeline-phase-content">
-                <span class="timeline-pending">{t('pending')}</span>
-              </div>
-            </div>
-          {/if}
-          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'final')}
-            <div class="timeline-phase pending">
-              <div class="timeline-phase-header">
-                <span class="timeline-dot pending"></span>
-                <span class="timeline-phase-label">{t('final')}</span>
-              </div>
-              <div class="timeline-phase-content">
-                <span class="timeline-pending">{t('pending')}</span>
               </div>
             </div>
           {/if}
@@ -879,7 +850,37 @@
         <div class="campaign-grid">
           <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
-        <section class="panel match-history"><div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>{#each run.matches as match}<details><summary><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></summary><div class="map-details">{#each match.maps as map}<span>{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>{/each}</div></details>{/each}</section>
+        <section class="panel match-history">
+          <div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>
+          <div class="timeline-phases">
+            {#each groupMatchesByPhase(run.matches) as phaseGroup}
+              <div class="timeline-phase completed">
+                <div class="timeline-phase-header">
+                  <span class="timeline-dot completed"></span>
+                  <span class="timeline-phase-label">{phaseGroup.label}</span>
+                </div>
+                <div class="timeline-phase-content">
+                  {#each phaseGroup.matches as match}
+                    {@const userTeam = match.teamA.isUser ? match.teamA : match.teamB}
+                    {@const enemyTeam = match.teamA.isUser ? match.teamB : match.teamA}
+                    <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
+                      <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name)}</span>
+                      <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
+                      <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name)}</span>
+                    </button>
+                    {#if expandedTimelineMatch === match.id}
+                      <div class="timeline-maps">
+                        {#each match.maps as map}
+                          <span class="timeline-map">{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
+                        {/each}
+                      </div>
+                    {/if}
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </section>
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
         <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
