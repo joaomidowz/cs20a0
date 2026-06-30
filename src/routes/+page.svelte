@@ -44,7 +44,6 @@
     type LineupSlotRole,
     type OrgStyle,
     type Player,
-    type SeriesResult,
     type SimMode,
     type SimSpeed
   } from '$lib/game/types';
@@ -61,17 +60,6 @@
   let enemyModalTeam: HistoricalTeam | null = null;
   let enemyModalPinned = false;
   let enemyHoverTimer: number | null = null;
-  let showOrgModal = false;
-
-  function getPhaseLabel(phase: SeriesResult['phase']): string {
-    const labels: Record<string, string> = {
-      stage3: t('stage3'),
-      quarterfinal: t('quarterfinal'),
-      semifinal: t('semifinal'),
-      final: t('final')
-    };
-    return labels[phase] || phase;
-  }
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -756,7 +744,7 @@
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
-      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match, i}{#if i === 0 || match.phase !== completedMatches[i - 1].phase}<div class="feed-phase-separator">{getPhaseLabel(match.phase)}</div>{/if}<div>{#if match.teamA.isUser}<button class="feed-org-link" type="button" on:click={() => showOrgModal = true}>{translateTeamName($game.language, match.teamA.name)}</button>{:else}<span>{translateTeamName($game.language, match.teamA.name)}</span>{/if}<b>{match.scoreA} : {match.scoreB}</b>{#if match.teamB.isUser}<button class="feed-org-link" type="button" on:click={() => showOrgModal = true}>{translateTeamName($game.language, match.teamB.name)}</button>{:else}<span>{translateTeamName($game.language, match.teamB.name)}</span>{/if}</div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
+      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match}<div><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
     </section>
   {:else if $game.phase === 'result'}
     {@const run = $game.majorRun}
@@ -868,45 +856,5 @@
   showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')}
   onClose={closeEnemyTeam}
 />
-
-{#if showOrgModal}
-  <div class="sheet-backdrop org-modal-backdrop" role="presentation" on:mousedown={() => showOrgModal = false}>
-    <div class="org-modal" role="dialog" aria-modal="true" aria-label={t('orgHud')} tabindex="-1" on:mousedown|stopPropagation>
-      <button class="sheet-close" type="button" aria-label={t('close')} on:click={() => showOrgModal = false}>×</button>
-      <header class="org-modal-header">
-        <div class="org-modal-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</div>
-        <div>
-          <span class="eyebrow">{$game.style.toUpperCase()} · POWER {userTeam.power.toFixed(1)}</span>
-          <h2>{t('orgHud')}</h2>
-        </div>
-      </header>
-      <div class="org-modal-roster">
-        {#each selectedPlayers as player}
-          {@const selected = selectedLineup.find((s) => s.playerId === player.id)}
-          <div class="org-modal-player">
-            <div class="org-modal-player-avatar">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
-            <div class="org-modal-player-info">
-              <span class="eyebrow">{getRoleLabel(selected?.selectedSlotRole ?? 'rifler')} · {player.year ?? ''}</span>
-              <strong>{player.nickname ?? 'Unknown'}</strong>
-            </div>
-            <span class="org-modal-player-ovr">{player.overall ?? 70}</span>
-          </div>
-        {/each}
-      </div>
-      <div class="org-modal-stats">
-        <span class="eyebrow">{t('estimatedPower')}</span>
-        <div class="org-stats-grid">
-          <div><small>FIREPOWER</small><b>{Math.round(selectedPlayers.reduce((sum, p) => sum + (p.firepower ?? 70), 0) / selectedPlayers.length)}</b></div>
-          <div><small>SUPPORT</small><b>{Math.round(selectedPlayers.reduce((sum, p) => sum + (p.support ?? 70), 0) / selectedPlayers.length)}</b></div>
-          <div><small>CONSISTENCY</small><b>{Math.round(selectedPlayers.reduce((sum, p) => sum + (p.consistency ?? 70), 0) / selectedPlayers.length)}</b></div>
-          <div><small>MENTAL</small><b>{Math.round(selectedPlayers.reduce((sum, p) => sum + (p.mental ?? 70), 0) / selectedPlayers.length)}</b></div>
-        </div>
-      </div>
-      <footer class="org-modal-footer">
-        <button class="secondary" type="button" on:click={() => showOrgModal = false}>{t('close')}</button>
-      </footer>
-    </div>
-  </div>
-{/if}
 
 {#if toast}<div class="toast">{toast}</div>{/if}
