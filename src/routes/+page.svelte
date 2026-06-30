@@ -787,24 +787,6 @@
       <aside class="timeline panel">
         <span class="eyebrow">RUN TIMELINE</span>
         <div class="timeline-phases">
-          <div class="timeline-phase completed">
-            <div class="timeline-phase-header">
-              <span class="timeline-dot completed"></span>
-              <span class="timeline-phase-label">{t('stage1')}</span>
-            </div>
-            <div class="timeline-phase-content">
-              <span class="timeline-qualified">✓ Qualified</span>
-            </div>
-          </div>
-          <div class="timeline-phase completed">
-            <div class="timeline-phase-header">
-              <span class="timeline-dot completed"></span>
-              <span class="timeline-phase-label">{t('stage2')}</span>
-            </div>
-            <div class="timeline-phase-content">
-              <span class="timeline-qualified">✓ Qualified</span>
-            </div>
-          </div>
           {#each groupMatchesByPhase(completedMatches) as phaseGroup}
             <div class="timeline-phase" class:completed={true} class:active={currentSeries && currentSeries.phase === phaseGroup.phase}>
               <div class="timeline-phase-header">

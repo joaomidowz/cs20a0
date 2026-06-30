@@ -71,8 +71,6 @@ const pt = {
   skipMap: 'Pular mapa atual',
   round: 'Round',
   seriesChance: 'Chance aproximada',
-  stage1: 'Stage 1',
-  stage2: 'Stage 2',
   stage3: 'Stage 3',
   playoffs: 'Playoffs',
   quarterfinal: 'Quartas de final',
