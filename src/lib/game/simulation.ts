@@ -77,9 +77,9 @@ export function calculatePlayerPower(
     stats.consistency * 0.07 +
     stats.mental * 0.06;
 
-  if (style === 'aggressive') power += (stats.firepower + stats.entry) * 0.025 - stats.consistency * 0.012;
+  if (style === 'aggressive') power += stats.entry * 0.04 + stats.firepower * 0.02 - stats.consistency * 0.012;
   if (style === 'balanced') power += (stats.consistency + stats.firepower) * 0.015;
-  if (style === 'tactical') power += (stats.igl + stats.support + stats.mental) * 0.012 - stats.entry * 0.015;
+  if (style === 'tactical') power += stats.support * 0.03 + (stats.igl + stats.mental) * 0.01 - stats.entry * 0.015;
   if (player.rarity === 'goat') power += 1.5;
   if (player.rarity === 'legend') power += 0.8;
   return power;
@@ -99,6 +99,10 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   composition += awpers ? 2.2 : -4.5;
   composition += igls ? 2.4 : -4;
   composition += supports ? 1.2 : -1.5;
+  if (!awpers) {
+    const bestAwp = Math.max(...players.map((player) => number(player.awp, 20)));
+    if (bestAwp >= 85) composition += 1.5;
+  }
   if (players.every((player) => number(player.firepower) >= 90) && (!igls || !supports)) composition -= 2;
   const studyRng = createSeededRng(`${seed}:tactical-study:${players.map((player) => player.id).join('|')}`);
   const studyPercentage = 60 + Math.floor(studyRng() * 41);
