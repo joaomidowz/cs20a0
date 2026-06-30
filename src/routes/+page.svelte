@@ -44,6 +44,7 @@
     type LineupSlotRole,
     type OrgStyle,
     type Player,
+    type SeriesResult,
     type SimMode,
     type SimSpeed
   } from '$lib/game/types';
@@ -60,6 +61,45 @@
   let enemyModalTeam: HistoricalTeam | null = null;
   let enemyModalPinned = false;
   let enemyHoverTimer: number | null = null;
+  let showOrgModal = false;
+  let expandedTimelineMatch: string | null = null;
+
+  function getPhaseLabel(phase: SeriesResult['phase']): string {
+    const labels: Record<string, string> = {
+      stage3: t('stage3'),
+      quarterfinal: t('quarterfinal'),
+      semifinal: t('semifinal'),
+      final: t('final')
+    };
+    return labels[phase] || phase;
+  }
+
+  function groupMatchesByPhase(matches: SeriesResult[]) {
+    const phases: Array<{ phase: string; label: string; matches: SeriesResult[] }> = [];
+    const phaseOrder: SeriesResult['phase'][] = ['stage3', 'quarterfinal', 'semifinal', 'final'];
+    for (const phase of phaseOrder) {
+      const phaseMatches = matches.filter((match) => match.phase === phase);
+      if (phaseMatches.length > 0) {
+        phases.push({ phase, label: getPhaseLabel(phase), matches: phaseMatches });
+      }
+    }
+    return phases;
+  }
+
+  function getOrgStrengths() {
+    if (!selectedPlayers.length) return [];
+    const stats = {
+      firepower: selectedPlayers.reduce((sum, p) => sum + (p.firepower ?? 70), 0) / selectedPlayers.length,
+      support: selectedPlayers.reduce((sum, p) => sum + (p.support ?? 70), 0) / selectedPlayers.length,
+      consistency: selectedPlayers.reduce((sum, p) => sum + (p.consistency ?? 70), 0) / selectedPlayers.length,
+      mental: selectedPlayers.reduce((sum, p) => sum + (p.mental ?? 70), 0) / selectedPlayers.length,
+      clutch: selectedPlayers.reduce((sum, p) => sum + (p.clutch ?? 70), 0) / selectedPlayers.length,
+      entry: selectedPlayers.reduce((sum, p) => sum + (p.entry ?? 70), 0) / selectedPlayers.length
+    };
+    return Object.entries(stats)
+      .map(([key, value]) => ({ key, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value);
+  }
 
   onMount(() => {
     return game.subscribe((state) => {
@@ -744,7 +784,106 @@
         {/key}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
-      <aside class="run-feed panel"><span class="eyebrow">RUN FEED</span>{#each completedMatches as match}<div><span>{translateTeamName($game.language, match.teamA.name)}</span><b>{match.scoreA} : {match.scoreB}</b><span>{translateTeamName($game.language, match.teamB.name)}</span></div>{/each}{#if !completedMatches.length}<p>{t('waitingResult')}</p>{/if}</aside>
+      <aside class="timeline panel">
+        <span class="eyebrow">RUN TIMELINE</span>
+        <div class="timeline-phases">
+          <div class="timeline-phase completed">
+            <div class="timeline-phase-header">
+              <span class="timeline-dot completed"></span>
+              <span class="timeline-phase-label">{t('stage1')}</span>
+            </div>
+            <div class="timeline-phase-content">
+              <span class="timeline-qualified">✓ Qualified</span>
+            </div>
+          </div>
+          <div class="timeline-phase completed">
+            <div class="timeline-phase-header">
+              <span class="timeline-dot completed"></span>
+              <span class="timeline-phase-label">{t('stage2')}</span>
+            </div>
+            <div class="timeline-phase-content">
+              <span class="timeline-qualified">✓ Qualified</span>
+            </div>
+          </div>
+          {#each groupMatchesByPhase(completedMatches) as phaseGroup}
+            <div class="timeline-phase" class:completed={true} class:active={currentSeries && currentSeries.phase === phaseGroup.phase}>
+              <div class="timeline-phase-header">
+                <span class="timeline-dot" class:completed={true} class:active={currentSeries && currentSeries.phase === phaseGroup.phase}></span>
+                <span class="timeline-phase-label">{phaseGroup.label}</span>
+              </div>
+              <div class="timeline-phase-content">
+                {#each phaseGroup.matches as match}
+                  <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
+                    <span class="timeline-match-result">{match.winnerId === 'user' ? '✓' : '✗'}</span>
+                    <span class="timeline-team-a">{#if match.teamA.isUser}<button class="timeline-org-link" type="button" on:click|stopPropagation={() => showOrgModal = true}>{translateTeamName($game.language, match.teamA.name)}</button>{:else}<button class="timeline-team-link" type="button" on:click|stopPropagation={() => { enemyModalTeam = teamById.get(match.teamA.id.replace(/-\d{4}$/, '')) ?? null; }}>{translateTeamName($game.language, match.teamA.name)}</button>{/if}</span>
+                    <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
+                    <span class="timeline-team-b">{#if match.teamB.isUser}<button class="timeline-org-link" type="button" on:click|stopPropagation={() => showOrgModal = true}>{translateTeamName($game.language, match.teamB.name)}</button>{:else}<button class="timeline-team-link" type="button" on:click|stopPropagation={() => { enemyModalTeam = teamById.get(match.teamB.id.replace(/-\d{4}$/, '')) ?? null; }}>{translateTeamName($game.language, match.teamB.name)}</button>{/if}</span>
+                  </button>
+                  {#if expandedTimelineMatch === match.id}
+                    <div class="timeline-maps">
+                      {#each match.maps as map}
+                        <span class="timeline-map">{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                {/each}
+              </div>
+            </div>
+          {/each}
+          {#if currentSeries && !completedMatches.some((m) => m.phase === currentSeries.phase)}
+            <div class="timeline-phase active">
+              <div class="timeline-phase-header">
+                <span class="timeline-dot active"></span>
+                <span class="timeline-phase-label">{getPhaseLabel(currentSeries.phase)}</span>
+              </div>
+              <div class="timeline-phase-content">
+                <div class="timeline-live">
+                  <span class="timeline-live-badge">AO VIVO</span>
+                  <span class="timeline-team-a">{translateTeamName($game.language, currentSeries.teamA.name)}</span>
+                  <span class="timeline-vs">vs</span>
+                  <span class="timeline-team-b">{translateTeamName($game.language, currentSeries.teamB.name)}</span>
+                </div>
+              </div>
+            </div>
+          {/if}
+          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'quarterfinal')}
+            <div class="timeline-phase pending">
+              <div class="timeline-phase-header">
+                <span class="timeline-dot pending"></span>
+                <span class="timeline-phase-label">{t('quarterfinal')}</span>
+              </div>
+              <div class="timeline-phase-content">
+                <span class="timeline-pending">{t('pending')}</span>
+              </div>
+            </div>
+          {/if}
+          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'semifinal')}
+            <div class="timeline-phase pending">
+              <div class="timeline-phase-header">
+                <span class="timeline-dot pending"></span>
+                <span class="timeline-phase-label">{t('semifinal')}</span>
+              </div>
+              <div class="timeline-phase-content">
+                <span class="timeline-pending">{t('pending')}</span>
+              </div>
+            </div>
+          {/if}
+          {#if $game.phase === 'playoffs' && !completedMatches.some((m) => m.phase === 'final')}
+            <div class="timeline-phase pending">
+              <div class="timeline-phase-header">
+                <span class="timeline-dot pending"></span>
+                <span class="timeline-phase-label">{t('final')}</span>
+              </div>
+              <div class="timeline-phase-content">
+                <span class="timeline-pending">{t('pending')}</span>
+              </div>
+            </div>
+          {/if}
+        </div>
+        {#if !completedMatches.length && !currentSeries}
+          <p class="timeline-empty">{t('waitingResult')}</p>
+        {/if}
+      </aside>
     </section>
   {:else if $game.phase === 'result'}
     {@const run = $game.majorRun}
@@ -856,5 +995,44 @@
   showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')}
   onClose={closeEnemyTeam}
 />
+
+{#if showOrgModal}
+  <div class="sheet-backdrop org-modal-backdrop" role="presentation" on:mousedown={() => showOrgModal = false}>
+    <div class="org-modal" role="dialog" aria-modal="true" aria-label={t('orgHud')} tabindex="-1" on:mousedown|stopPropagation>
+      <button class="sheet-close" type="button" aria-label={t('close')} on:click={() => showOrgModal = false}>×</button>
+      <header class="org-modal-header">
+        <div class="org-modal-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</div>
+        <div>
+          <span class="eyebrow">{$game.style.toUpperCase()} · POWER {userTeam.power.toFixed(1)}</span>
+          <h2>{t('orgHud')}</h2>
+        </div>
+      </header>
+      <div class="org-modal-roster">
+        {#each selectedPlayers as player}
+          {@const selected = selectedLineup.find((s) => s.playerId === player.id)}
+          <div class="org-modal-player">
+            <div class="org-modal-player-avatar">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
+            <div class="org-modal-player-info">
+              <span class="eyebrow">{getRoleLabel(selected?.selectedSlotRole ?? 'rifler')} · {player.year ?? ''}</span>
+              <strong>{player.nickname ?? 'Unknown'}</strong>
+            </div>
+            <span class="org-modal-player-ovr">{player.overall ?? 70}</span>
+          </div>
+        {/each}
+      </div>
+      <div class="org-modal-stats">
+        <span class="eyebrow">{t('estimatedPower')}</span>
+        <div class="org-stats-grid">
+          {#each getOrgStrengths().slice(0, 6) as stat}
+            <div><small>{stat.key.toUpperCase()}</small><b>{stat.value}</b></div>
+          {/each}
+        </div>
+      </div>
+      <footer class="org-modal-footer">
+        <button class="secondary" type="button" on:click={() => showOrgModal = false}>{t('close')}</button>
+      </footer>
+    </div>
+  </div>
+{/if}
 
 {#if toast}<div class="toast">{toast}</div>{/if}
