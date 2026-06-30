@@ -78,8 +78,8 @@ export function calculatePlayerPower(
     stats.mental * 0.06;
 
   if (style === 'aggressive') power += (stats.firepower + stats.entry) * 0.025 - stats.consistency * 0.012;
-  if (style === 'balanced') power += (stats.consistency + stats.mental) * 0.014;
-  if (style === 'tactical') power += (stats.igl + stats.support + stats.mental) * 0.02 - (stats.entry + stats.firepower) * 0.012;
+  if (style === 'balanced') power += (stats.consistency + stats.support + stats.firepower) * 0.012;
+  if (style === 'tactical') power += (stats.igl + stats.support + stats.mental + stats.consistency) * 0.014 - (stats.entry + stats.firepower) * 0.012;
   if (player.rarity === 'goat') power += 1.5;
   if (player.rarity === 'legend') power += 0.8;
   return power;
