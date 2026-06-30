@@ -789,10 +789,12 @@
       <aside class="timeline panel">
         <span class="eyebrow">RUN TIMELINE</span>
         <div class="timeline-phases">
-          {#each groupMatchesByPhase(completedMatches) as phaseGroup}
-            <div class="timeline-phase" class:completed={true} class:active={currentSeries && currentSeries.phase === phaseGroup.phase}>
+          {#each groupMatchesByPhase(completedMatches) as phaseGroup, i}
+            {@const isLastPhase = i === groupMatchesByPhase(completedMatches).length - 1}
+            {@const showLiveInThisPhase = currentSeries && isLastPhase && currentSeries.phase === phaseGroup.phase}
+            <div class="timeline-phase" class:completed={true} class:active={showLiveInThisPhase}>
               <div class="timeline-phase-header">
-                <span class="timeline-dot" class:completed={true} class:active={currentSeries && currentSeries.phase === phaseGroup.phase}></span>
+                <span class="timeline-dot" class:completed={true} class:active={showLiveInThisPhase}></span>
                 <span class="timeline-phase-label">{phaseGroup.label}</span>
               </div>
               <div class="timeline-phase-content">
@@ -812,10 +814,21 @@
                     </div>
                   {/if}
                 {/each}
+                {#if showLiveInThisPhase}
+                  {@const liveUserTeam = currentSeries.teamA.isUser ? currentSeries.teamA : currentSeries.teamB}
+                  {@const liveEnemyTeam = currentSeries.teamA.isUser ? currentSeries.teamB : currentSeries.teamA}
+                  <div class="timeline-match timeline-live">
+                    <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name)}</span>
+                    <div class="timeline-live-center">
+                      <span class="timeline-live-badge">AO VIVO</span>
+                    </div>
+                    <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name)}</span>
+                  </div>
+                {/if}
               </div>
             </div>
           {/each}
-          {#if currentSeries}
+          {#if currentSeries && !groupMatchesByPhase(completedMatches).some((pg) => pg.phase === currentSeries.phase)}
             {@const liveUserTeam = currentSeries.teamA.isUser ? currentSeries.teamA : currentSeries.teamB}
             {@const liveEnemyTeam = currentSeries.teamA.isUser ? currentSeries.teamB : currentSeries.teamA}
             <div class="timeline-phase active">
