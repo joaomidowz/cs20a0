@@ -364,7 +364,7 @@ h2 { line-height: 1; text-transform: uppercase; }
 
 .timeline-phase {
   position: relative;
-  padding-left: 24px;
+  padding-left: 20px;
   padding-bottom: 16px;
   border-left: 2px solid var(--line);
 }
@@ -382,17 +382,8 @@ h2 { line-height: 1; text-transform: uppercase; }
   border-left-color: var(--accent);
 }
 
-.timeline-phase.pending {
-  border-left-color: var(--line);
-}
-
 .timeline-phase-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   margin-bottom: 8px;
-  margin-left: -24px;
-  padding-left: 24px;
 }
 
 .timeline-phase-label {
