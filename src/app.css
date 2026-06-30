@@ -433,7 +433,7 @@ h2 { line-height: 1; text-transform: uppercase; }
 .timeline-phase-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .timeline-qualified {
@@ -462,16 +462,17 @@ h2 { line-height: 1; text-transform: uppercase; }
   align-items: center;
   width: 100%;
   padding: 8px 10px;
-  border: none;
+  border: 1px solid var(--line);
   background: transparent;
   color: var(--text);
   cursor: pointer;
   font-size: .68rem;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
 
 .timeline-match:hover {
   background: var(--surface-2);
+  border-color: var(--accent);
 }
 
 .timeline-match.user-win {
