@@ -109,7 +109,7 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   const aggressionPercentage = Math.round((avg('firepower') + avg('entry')) / 2);
   const elitePlayers = players.filter((player) => number(player.overall) >= 98).length;
   const eliteCoreBonus = Math.min(4.5, elitePlayers * 0.9 + Math.max(0, avg('overall') - 92) * 0.35);
-  const styleMultiplier = style === 'tactical' ? 1.1 : 1;
+  const styleMultiplier = style === 'tactical' ? 1.1 : style === 'balanced' ? 1.05 : 1;
   return {
     id: 'user',
     name: 'yourOrg',
