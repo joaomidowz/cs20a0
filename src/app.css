@@ -545,14 +545,71 @@ h2 { line-height: 1; text-transform: uppercase; }
 }
 
 @media (max-width: 679px) {
+  .timeline {
+    padding: 12px;
+  }
+
+  .timeline-phases {
+    margin-top: 8px;
+  }
+
+  .timeline-phase {
+    padding-left: 0;
+    padding-bottom: 12px;
+    border-left: none;
+  }
+
+  .timeline-phase-header {
+    margin-bottom: 6px;
+  }
+
+  .timeline-phase-label {
+    font-size: .65rem;
+    padding: 4px 8px;
+    background: var(--surface-2);
+    display: inline-block;
+  }
+
   .timeline-match {
-    grid-template-columns: 16px 1fr auto 1fr;
-    gap: 4px;
-    font-size: .6rem;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: .65rem;
+  }
+
+  .timeline-team-left,
+  .timeline-team-right {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
   }
 
   .timeline-score {
-    font-size: .75rem;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  .timeline-match.user-win {
+    border-color: var(--accent);
+  }
+
+  .timeline-match.user-loss {
+    border-color: var(--danger);
+  }
+
+  .timeline-maps {
+    padding: 4px 0 8px;
+    gap: 3px;
+  }
+
+  .timeline-map {
+    font-size: .5rem;
+    padding: 3px 6px;
+  }
+
+  .timeline-live-badge {
+    font-size: .45rem;
+    padding: 2px 6px;
   }
 
   .org-stats-grid {
