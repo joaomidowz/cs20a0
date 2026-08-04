@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createOnlineServer } from '../server/app';
-import { ONLINE_DATA_HASH } from '../server/data';
+import { ONLINE_DATA_HASH, players, teams } from '../server/data';
 import { RoomError, RoomManager } from '../server/room-manager';
 import { DEFAULT_ROOM_CONFIG, PROTOCOL_VERSION, type RoomSnapshot, type ServerMessage } from '../src/lib/game/online/contracts';
+import { getHistoricalTeamOverall } from '../src/lib/game/online/draft-pool';
+import type { OnlineGameMode } from '../src/lib/game/online/contracts';
 
 interface RunningServer {
   baseUrl: string;
@@ -80,14 +82,14 @@ class TestClient {
   }
 }
 
-async function createRoom(server: RunningServer, capacity: number) {
+async function createRoom(server: RunningServer, capacity: number, mode: OnlineGameMode = 'premier') {
   const response = await fetch(`${server.baseUrl}/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       dataHash: ONLINE_DATA_HASH,
-      config: { mode: 'premier', entryStage: 'stage3', capacity, draftDeadlineSeconds: 60, simulationMode: 'automatic', simulationSpeed: 'ultra' }
+      config: { mode, entryStage: 'stage3', capacity, draftDeadlineSeconds: 60, simulationMode: 'automatic', simulationSpeed: 'ultra' }
     })
   });
   expect(response.status).toBe(201);
@@ -201,9 +203,9 @@ describe('authoritative online server', () => {
     expect(manager.getSnapshot(code, guest.participantId, startedAt + 62_210).tournament?.liveCursor).toMatchObject({ status: 'live', step: 1 });
   });
 
-  it.each([2, 16])('keeps %i clients on the same snapshot and starts on the draft deadline', async (capacity) => {
+  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 3 with synchronized valid $mode pools', async ({ capacity, mode }) => {
     const server = await startServer();
-    const roomCode = await createRoom(server, capacity);
+    const roomCode = await createRoom(server, capacity, mode);
     const clients = await Promise.all(Array.from({ length: capacity }, () => TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`)));
 
     for (let index = 0; index < clients.length; index += 1) {
@@ -228,9 +230,29 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 3 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament?.rounds.length === 0)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
+    for (const snapshot of snapshots) {
+      expect(snapshot.self?.lineup).toHaveLength(5);
+      for (const pick of snapshot.self?.lineup ?? []) {
+        const player = players.find((candidate) => candidate.id === pick.playerId);
+        const team = teams.find((candidate) => candidate.id === player?.teamId);
+        const average = team ? getHistoricalTeamOverall(team, players) : null;
+        expect(average).not.toBeNull();
+        expect(mode === 'fun' ? average! >= 82 : average! >= 90 || average! <= 80).toBe(true);
+      }
+    }
   }, 20_000);
+
+  it('rejects protocol 2 after the protocol 3 upgrade', async () => {
+    const server = await startServer();
+    const roomCode = await createRoom(server, 2);
+    const client = await TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`);
+    client.send({ type: 'join', requestId: 'join-old-protocol', protocolVersion: 2, dataHash: ONLINE_DATA_HASH, playerName: 'Old client', organizationName: 'Old org' });
+    const error = await client.waitFor((message) => message.type === 'error');
+    expect(error).toMatchObject({ type: 'error', code: 'PROTOCOL_MISMATCH' });
+  });
 
   it('resumes within the TTL and migrates the host to the oldest connected participant', async () => {
     const server = await startServer();

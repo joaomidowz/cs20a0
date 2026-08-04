@@ -1,11 +1,16 @@
 import { z } from 'zod';
-import type { LineupSlotRole, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 export const ROOM_CODE_LENGTH = 8;
 
+export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
+
+export const toPresentationGameMode = (mode: OnlineGameMode): GameMode =>
+  mode === 'fun' || mode === 'max_fun' ? 'premier' : mode;
+
 export const roomConfigSchema = z.object({
-  mode: z.enum(['premier', 'faceit', 'pro']),
+  mode: z.enum(['premier', 'faceit', 'pro', 'fun', 'max_fun']),
   entryStage: z.enum(['stage3', 'playoffs']),
   capacity: z.number().int().min(2).max(16),
   draftDeadlineSeconds: z.union([z.literal(60), z.literal(120), z.literal(180), z.literal(300), z.null()]),
@@ -35,14 +40,14 @@ const baseCommandSchema = z.object({ requestId: requestIdSchema });
 export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({
     type: z.literal('join'),
-    protocolVersion: z.literal(PROTOCOL_VERSION),
+    protocolVersion: z.number().int(),
     dataHash: z.string().min(8).max(128),
     playerName: participantNameSchema,
     organizationName: participantNameSchema
   }).strict(),
   baseCommandSchema.extend({
     type: z.literal('resume'),
-    protocolVersion: z.literal(PROTOCOL_VERSION),
+    protocolVersion: z.number().int(),
     dataHash: z.string().min(8).max(128),
     resumeToken: z.string().min(32).max(256)
   }).strict(),
@@ -204,6 +209,7 @@ export type ErrorCode =
   | 'NOT_HOST'
   | 'INVALID_PHASE'
   | 'INVALID_ACTION'
+  | 'DRAFT_POOL_EXHAUSTED'
   | 'RATE_LIMITED'
   | 'RESUME_EXPIRED';
 

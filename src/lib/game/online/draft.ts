@@ -1,7 +1,9 @@
 import { buildProRoleEvaluations, getProRoleFit, PRO_REQUIRED_ROLES, validateProAssignments } from '../proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from '../roleRules';
-import { createSeededRng, pickRandomTeam } from '../simulation';
-import type { GameMode, HistoricalTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
+import { createSeededRng } from '../simulation';
+import type { HistoricalTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
+import type { OnlineGameMode } from './contracts';
+import { pickDraftTeam } from './draft-pool';
 
 export const MAX_LINEUP_SIZE = 5;
 
@@ -25,32 +27,33 @@ export const emptyDraftState = (): DraftState => ({
   rerollsUsed: 0
 });
 
-export const getRerollLimit = (mode: GameMode): number => mode === 'premier' ? 3 : 1;
+export const getRerollLimit = (mode: OnlineGameMode): number => mode === 'premier' ? 3 : 1;
 
-const pickIndex = (state: DraftState, mode: GameMode) => mode === 'pro' ? state.proPickedPlayerIds.length : state.lineup.length;
+const pickIndex = (state: DraftState, mode: OnlineGameMode) => mode === 'pro' ? state.proPickedPlayerIds.length : state.lineup.length;
 
 export function drawDraftTeam(
   roomSeed: string,
   participantId: string,
-  mode: GameMode,
+  mode: OnlineGameMode,
   state: DraftState,
   teams: HistoricalTeam[],
+  players: Player[],
   reroll = false
 ): DraftState {
   if (pickIndex(state, mode) >= MAX_LINEUP_SIZE) throw new Error('Lineup is already complete');
+  if (!reroll && state.rolledTeamId) throw new Error('A draft offer is already active');
   if (reroll && (!state.rolledTeamId || state.rerollsUsed >= getRerollLimit(mode))) throw new Error('Reroll is not available');
   const rerollsUsed = state.rerollsUsed + (reroll ? 1 : 0);
   const excluded = reroll && state.rolledTeamId
     ? [...state.usedTeamIds, state.rolledTeamId]
     : state.usedTeamIds;
   const namespace = `${roomSeed}:${participantId}:${pickIndex(state, mode)}:${rerollsUsed}`;
-  const team = pickRandomTeam(teams, createSeededRng(namespace), excluded);
-  if (!team) throw new Error('No draft team is available');
+  const team = pickDraftTeam(mode, teams, players, createSeededRng(namespace), excluded);
   return { ...state, rolledTeamId: team.id, rerollsUsed };
 }
 
 export function chooseDraftPlayer(
-  mode: GameMode,
+  mode: OnlineGameMode,
   state: DraftState,
   player: Player,
   role: LineupSlotRole | undefined,
@@ -124,7 +127,7 @@ const firstValidPick = (teamPlayers: Player[], lineup: SelectedPlayer[], playerL
 export function autocompleteDraft(
   roomSeed: string,
   participantId: string,
-  mode: GameMode,
+  mode: OnlineGameMode,
   initial: DraftState,
   teams: HistoricalTeam[],
   players: Player[]
@@ -134,7 +137,7 @@ export function autocompleteDraft(
   let guard = 0;
   while (pickIndex(state, mode) < MAX_LINEUP_SIZE && guard < teams.length * 3) {
     guard += 1;
-    if (!state.rolledTeamId) state = drawDraftTeam(roomSeed, participantId, mode, state, teams);
+    if (!state.rolledTeamId) state = drawDraftTeam(roomSeed, participantId, mode, state, teams, players);
     const offeredTeamId = state.rolledTeamId;
     if (!offeredTeamId) throw new Error('Draft offer was not generated');
     const roster = players.filter((player) => player.teamId === offeredTeamId);
@@ -158,5 +161,5 @@ export function autocompleteDraft(
   return state;
 }
 
-export const isDraftComplete = (mode: GameMode, state: DraftState): boolean =>
+export const isDraftComplete = (mode: OnlineGameMode, state: DraftState): boolean =>
   state.lineup.length === MAX_LINEUP_SIZE && (mode !== 'pro' || state.proPickedPlayerIds.length === MAX_LINEUP_SIZE);

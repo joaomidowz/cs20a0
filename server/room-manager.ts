@@ -26,6 +26,7 @@ import {
   isDraftComplete,
   type DraftState
 } from '../src/lib/game/online/draft';
+import { DraftPoolExhaustedError } from '../src/lib/game/online/draft-pool';
 import { revealTournament, runOnlineTournament, type OnlineTournamentResult, type TournamentOrganization } from '../src/lib/game/online/tournament';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 
@@ -281,11 +282,21 @@ export class RoomManager {
         break;
       case 'draw-team':
         this.requireDraft(room);
-        participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams);
+        try {
+          participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
+        } catch (error) {
+          if (error instanceof DraftPoolExhaustedError) throw new RoomError('DRAFT_POOL_EXHAUSTED', error.message);
+          throw error;
+        }
         break;
       case 'reroll-team':
         this.requireDraft(room);
-        participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams, true);
+        try {
+          participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams, players, true);
+        } catch (error) {
+          if (error instanceof DraftPoolExhaustedError) throw new RoomError('DRAFT_POOL_EXHAUSTED', error.message);
+          throw error;
+        }
         break;
       case 'set-style':
         this.requireDraft(room);
