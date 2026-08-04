@@ -2,7 +2,7 @@ node_modules
 .svelte-kit
 build
 dist-server
-data/
+/data/
 .env
 .env.*
 !.env.example
