@@ -64,7 +64,7 @@ function rarityBonus(player: Player) {
   return rarity === 'goat' ? 2.5 : rarity === 'legend' ? 1.7 : rarity === 'superstar' ? 1.1 : 0;
 }
 
-export function getRunSummary(run: MajorRun): RunSummary {
+export function getRunSummary(run: MajorRun, userTeamId = 'user'): RunSummary {
   let mapsWon = 0;
   let mapsLost = 0;
   let roundsWon = 0;
@@ -72,7 +72,7 @@ export function getRunSummary(run: MajorRun): RunSummary {
   let opponentPower = 0;
 
   for (const match of run.matches) {
-    const userIsA = match.teamA.id === 'user';
+    const userIsA = match.teamA.id === userTeamId;
     const opponent = userIsA ? match.teamB : match.teamA;
     opponentPower += opponent.power;
     for (const map of match.maps) {
@@ -80,15 +80,15 @@ export function getRunSummary(run: MajorRun): RunSummary {
       const opponentRounds = userIsA ? map.scoreB : map.scoreA;
       roundsWon += userRounds;
       roundsLost += opponentRounds;
-      if (map.winnerId === 'user') mapsWon += 1;
+      if (map.winnerId === userTeamId) mapsWon += 1;
       else mapsLost += 1;
     }
   }
 
   const finalMatch = run.matches.at(-1);
-  const finalUserIsA = finalMatch?.teamA.id === 'user';
+  const finalUserIsA = finalMatch?.teamA.id === userTeamId;
   const finalMapsWon = finalMatch
-    ? finalMatch.maps.filter((map) => map.winnerId === 'user').length
+    ? finalMatch.maps.filter((map) => map.winnerId === userTeamId).length
     : 0;
   const finalMapsLost = finalMatch ? finalMatch.maps.length - finalMapsWon : 0;
   const finalRoundDiff = finalMatch
@@ -105,7 +105,7 @@ export function getRunSummary(run: MajorRun): RunSummary {
     ? dominantFinalWin ? 'dominant-win' : 'close-win'
     : heavyFinalLoss ? 'heavy-loss' : 'close-loss';
 
-  const seriesWon = run.matches.filter((match) => match.winnerId === 'user').length;
+  const seriesWon = run.matches.filter((match) => match.winnerId === userTeamId).length;
   return {
     seriesPlayed: run.matches.length,
     seriesWon,
@@ -124,9 +124,10 @@ export function createRunStats(
   players: Player[],
   run: MajorRun,
   seed: string,
-  lineup: SelectedPlayer[] = []
+  lineup: SelectedPlayer[] = [],
+  userTeamId = 'user'
 ): PlayerRunStats[] {
-  const summary = getRunSummary(run);
+  const summary = getRunSummary(run, userTeamId);
   const roleByPlayer = new Map(lineup.map((selected) => [selected.playerId, selected.selectedSlotRole]));
   const ranked = players
     .map((player) => {

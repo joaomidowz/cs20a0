@@ -8,6 +8,7 @@
   export let theme: Theme;
   export let onLanguage: (language: Language) => void;
   export let onTheme: () => void;
+  export let wide = false;
 
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 </script>
@@ -20,7 +21,7 @@
   onHome={() => window.location.href = '/'}
 />
 
-<main class="page-content shell narrow">
+<main class:wide class="page-content shell narrow">
   <slot />
 </main>
 
@@ -43,5 +44,10 @@
     min-height: calc(100vh - 68px);
     padding-top: 48px;
     padding-bottom: 80px;
+  }
+
+  .page-content.wide {
+    width: min(1180px, calc(100% - 28px));
+    max-width: 1180px;
   }
 </style>

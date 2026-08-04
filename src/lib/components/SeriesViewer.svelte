@@ -6,8 +6,14 @@
   export let series: SeriesResult;
   export let delay = 1500;
   export let auto = false;
+  export let controlled = false;
+  export let controlledActiveMap = 0;
+  export let controlledVisibleRounds = 0;
+  export let controlledStarted = false;
+  export let controlledFinished = false;
   export let language: Language = 'en';
   export let interactiveTeamId: string | null = null;
+  export let interactiveTeamIds: string[] = [];
   export let labels: {
     start: string;
     skip: string;
@@ -41,16 +47,20 @@
       resolve(false);
     }, ms);
   });
-  $: currentMap = series.maps[activeMap];
-  $: currentRound = visibleRounds > 0 ? currentMap?.rounds[visibleRounds - 1] : null;
-  $: visibleMaps = series.maps.slice(0, activeMap + (currentMap && visibleRounds >= currentMap.rounds.length ? 1 : 0));
+  $: displayActiveMap = controlled ? controlledActiveMap : activeMap;
+  $: displayVisibleRounds = controlled ? controlledVisibleRounds : visibleRounds;
+  $: displayStarted = controlled ? controlledStarted : started;
+  $: displayFinished = controlled ? controlledFinished : finished;
+  $: currentMap = series.maps[displayActiveMap];
+  $: currentRound = displayVisibleRounds > 0 ? currentMap?.rounds[displayVisibleRounds - 1] : null;
+  $: visibleMaps = series.maps.slice(0, displayActiveMap + (currentMap && displayVisibleRounds >= currentMap.rounds.length ? 1 : 0));
   $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
   $: mapsLabel = language === 'en' ? 'MAPS' : 'MAPAS';
-  $: if (auto && !started && !finished) void play();
+  $: if (!controlled && auto && !started && !finished) void play();
 
   async function play() {
-    if (started || finished) return;
+    if (controlled || started || finished) return;
     started = true;
     const thisRun = ++runId;
     for (let mapIndex = activeMap; mapIndex < series.maps.length; mapIndex += 1) {
@@ -71,7 +81,7 @@
   }
 
   function skipMap() {
-    if (!currentMap) return;
+    if (controlled || !currentMap) return;
     visibleRounds = currentMap.rounds.length;
     if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
     pendingTimeout = null;
@@ -81,7 +91,7 @@
   }
 
   function isInteractiveTeam(teamId: string) {
-    return interactiveTeamId === teamId;
+    return interactiveTeamId === teamId || interactiveTeamIds.includes(teamId);
   }
 
   function handleTeamHover(teamId: string) {
@@ -90,6 +100,11 @@
 
   function handleTeamClick(teamId: string) {
     if (isInteractiveTeam(teamId)) onTeamClick(teamId);
+  }
+
+  function activateTeam(teamId: string, isUser = false) {
+    if (isInteractiveTeam(teamId)) handleTeamClick(teamId);
+    else if (isUser) onOrgClick();
   }
 
   onDestroy(() => {
@@ -112,7 +127,7 @@
           on:mouseleave={onTeamHoverEnd}
           on:focus={() => handleTeamHover(series.teamA.id)}
           on:blur={onTeamHoverEnd}
-          on:click={() => series.teamA.isUser ? onOrgClick() : handleTeamClick(series.teamA.id)}
+          on:click={() => activateTeam(series.teamA.id, series.teamA.isUser)}
         >
           {translateTeamName(language, series.teamA.name)}
         </button>
@@ -125,42 +140,42 @@
           on:mouseleave={onTeamHoverEnd}
           on:focus={() => handleTeamHover(series.teamB.id)}
           on:blur={onTeamHoverEnd}
-          on:click={() => series.teamB.isUser ? onOrgClick() : handleTeamClick(series.teamB.id)}
+          on:click={() => activateTeam(series.teamB.id, series.teamB.isUser)}
         >
           {translateTeamName(language, series.teamB.name)}
         </button>
       </h2>
-      {#if started && !finished}
+      {#if displayStarted && !displayFinished}
         <div class="mobile-series-live">
           <span><i></i>Live</span>
           <b>MD{series.bestOf}</b>
           <strong>{mapsLabel} {visibleScoreA}-{visibleScoreB}</strong>
-          <small>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1} · R{visibleRounds}</small>
+          <small>{labels.map ?? 'Mapa'} {currentMap?.map ?? displayActiveMap + 1} · R{displayVisibleRounds}</small>
         </div>
       {/if}
     </div>
-    {#if finished}
+    {#if displayFinished}
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>
-    {:else if started}
+    {:else if displayStarted}
       <div class="series-status live">
         <span><i></i>Live</span>
         <strong>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1}</strong>
         <b>{visibleScoreA} - {visibleScoreB}</b>
       </div>
     {:else}
-      <div class="series-status">{started ? labels.inProgress ?? 'Em andamento' : labels.pending ?? 'A disputar'}</div>
+      <div class="series-status">{displayStarted ? labels.inProgress ?? 'Em andamento' : labels.pending ?? 'A disputar'}</div>
     {/if}
   </div>
 
   <div class="map-list">
-    {#each series.maps.slice(0, finished ? series.maps.length : activeMap + 1) as map, index}
-      {@const isPast = index < activeMap || finished}
-      {@const liveRound = index === activeMap ? currentRound : null}
-      {@const currentMapFinished = index === activeMap && visibleRounds >= map.rounds.length}
-      <article class:live={index === activeMap && started} class="map-row">
+    {#each series.maps.slice(0, displayFinished ? series.maps.length : displayActiveMap + 1) as map, index}
+      {@const isPast = index < displayActiveMap || displayFinished}
+      {@const liveRound = index === displayActiveMap ? currentRound : null}
+      {@const currentMapFinished = index === displayActiveMap && displayVisibleRounds >= map.rounds.length && map.rounds.length > 0 && Boolean(map.winnerId)}
+      <article class:live={index === displayActiveMap && displayStarted} class="map-row">
         <div>
           <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
-          <small>{isPast || currentMapFinished ? labels.final ?? 'FINAL' : index === activeMap && started ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${visibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
+          <small>{isPast || currentMapFinished ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
         </div>
         {#if isPast || currentMapFinished || liveRound}
           <div class="map-score">
@@ -176,9 +191,9 @@
     {/each}
   </div>
 
-  {#if !started && !finished}
+  {#if !controlled && !started && !finished}
     <button class="primary wide" type="button" on:click={play}>{labels.start}</button>
-  {:else if started}
+  {:else if !controlled && started}
     <button class="secondary wide" type="button" disabled={visibleRounds >= (currentMap?.rounds.length ?? 0)} on:click={skipMap}>{labels.skip}</button>
   {/if}
 </section>

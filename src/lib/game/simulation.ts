@@ -228,14 +228,13 @@ export function simulateMap(teamA: CombatTeam, teamB: CombatTeam, rng: SeededRng
   };
 }
 
-let seriesCounter = 0;
-
 export function simulateSeries(
   teamA: CombatTeam,
   teamB: CombatTeam,
-  bestOf: 3 | 5,
+  bestOf: 1 | 3 | 5,
   rng: SeededRng,
-  phase: SeriesResult['phase'] = 'stage3'
+  phase: SeriesResult['phase'] = 'stage3',
+  seriesId = `${phase}-${teamA.id}-${teamB.id}`
 ): SeriesResult {
   const needed = Math.ceil(bestOf / 2);
   const maps: MapResult[] = [];
@@ -251,9 +250,8 @@ export function simulateSeries(
     if (result.winnerId === teamA.id) scoreA += 1;
     else scoreB += 1;
   }
-  seriesCounter += 1;
   return {
-    id: `series-${seriesCounter}-${teamA.id}-${teamB.id}`,
+    id: seriesId,
     phase,
     bestOf,
     teamA,
@@ -337,7 +335,6 @@ export function buildMajorRun(
   seed: string,
   lineup: SelectedPlayer[] = []
 ): MajorRun {
-  seriesCounter = 0;
   const rng = createSeededRng(`${seed}:major:${players.map((player) => player.id).join('|')}:${style}`);
   const user = calculateUserTeamPower(players, style, lineup, seed);
   const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));

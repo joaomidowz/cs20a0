@@ -2,6 +2,7 @@ import type { Language } from './types';
 
 const pt = {
   play: 'Jogar',
+  playOnline: 'Jogar online',
   headline: 'Monte uma line impossível e sobreviva ao Major.',
   subheadline: 'Sorteie times lendários, escolha apenas um jogador por elenco e tente vencer dinastias como SK 2016, Astralis 2018, NaVi 2021, Vitality 2025 e outras.',
   curated: 'Base curada com 286 elencos time-ano, 1.430 versões de jogadores e 11 anos de Majors entre 2016 e 2026. Desafio atual: uma escolha por time sorteado, cinco picks, Stage 3, playoffs e final MD5.',
@@ -184,7 +185,7 @@ const pt = {
   ,privacyLocalStorage: 'O jogo usa localStorage para salvar preferências locais, como idioma, tema claro/escuro, velocidade da simulação, modo manual/automático e dados da última run. O localStorage fica no seu navegador e não é enviado a servidores.'
   ,privacyFeedback: 'Se você enviar feedback pelo formulário ou e-mail, podem ser coletados: nome ou nickname (se informado), e-mail (se informado), jogador, time ou ano citado, sugestão, mensagem e seed da run (se enviada). O e-mail será usado apenas para responder ou entender melhor o feedback.'
   ,privacyKoFi: 'O projeto usa Ko-fi para apoio voluntário. Ao clicar no link do Ko-fi, você sai do cs13a0 e acessa uma plataforma externa, regida pela própria política de privacidade do Ko-fi.'
-  ,privacyOnline: 'Futuramente, se houver modo online, poderão ser salvos temporariamente: código da sala, nickname, nome da organização, picks, resultados, seed da sala e posição final. Esses dados serão temporários e usados apenas para manter a sala funcionando.'
+  ,privacyOnline: 'No modo online, nome do jogador, nome da organização, picks, resultados e seed da sala ficam somente na memória do servidor enquanto a sala existe. Nada disso é persistido em banco. Um token anônimo de retomada fica salvo apenas no localStorage deste navegador por até 120 segundos após a desconexão; reiniciar o servidor encerra as salas ativas.'
   ,privacyNoSell: 'Não vendemos dados pessoais. Não coletamos senhas. Não pedimos dados sensíveis.'
   ,privacyUpdates: 'Esta política pode ser atualizada conforme novas funcionalidades forem adicionadas.'
   ,privacyContact: 'Dúvidas sobre privacidade? Entre em contato:'
@@ -339,6 +340,7 @@ Object.assign(dictionaries.es, {
 });
 
 Object.assign(dictionaries.en, {
+  playOnline: 'Play online',
   quarterfinal: 'Quarterfinals',
   semifinal: 'Semifinal',
   playSameSeed: 'Play the same seed',
@@ -434,7 +436,7 @@ Object.assign(dictionaries.en, {
   privacyLocalStorage: 'The game uses localStorage to save local preferences such as language, light/dark theme, simulation speed, manual/auto mode, and data from the last run. localStorage stays in your browser and is not sent to any servers.',
   privacyFeedback: 'If you send feedback via the form or email, the following may be collected: name or nickname (if provided), email (if provided), player, team, or year mentioned, suggestion, message, and run seed (if submitted). Your email will only be used to respond or better understand the feedback.',
   privacyKoFi: 'The project uses Ko-fi for voluntary support. When you click the Ko-fi link, you leave cs13a0 and access an external platform governed by Ko-fi\'s own privacy policy.',
-  privacyOnline: 'In the future, if an online mode is introduced, the following may be temporarily saved: room code, nickname, organization name, picks, results, room seed, and final placement. This data will be temporary and used only to keep the room running.',
+  privacyOnline: 'In online mode, player name, organization name, picks, results, and the room seed exist only in server memory while the room is active. None of this is persisted in a database. An anonymous resume token stays only in this browser localStorage for up to 120 seconds after disconnecting; restarting the server ends active rooms.',
   privacyNoSell: 'We do not sell personal data. We do not collect passwords. We do not ask for sensitive information.',
   privacyUpdates: 'This policy may be updated as new features are added.',
   privacyContact: 'Questions about privacy? Get in touch:',
@@ -493,6 +495,7 @@ Object.assign(dictionaries.en, {
 });
 
 Object.assign(dictionaries.es, {
+  playOnline: 'Jugar online',
   about: 'Sobre',
   privacy: 'Privacidad',
   terms: 'Términos',
@@ -509,7 +512,7 @@ Object.assign(dictionaries.es, {
   privacyLocalStorage: 'El juego usa localStorage para guardar preferencias locales como idioma, tema claro/oscuro, velocidad de simulación, modo manual/automático y datos de la última partida. El localStorage se queda en tu navegador y no se envía a servidores.',
   privacyFeedback: 'Si envías feedback por formulario o correo, pueden ser recopilados: nombre o nickname (si se proporciona), correo electrónico (si se proporciona), jugador, equipo o año mencionado, sugerencia, mensaje y seed de la partida (si se envía). El correo se usará solo para responder o entender mejor el feedback.',
   privacyKoFi: 'El proyecto usa Ko-fi para apoyo voluntario. Al hacer clic en el enlace de Ko-fi, sales de cs13a0 y accedes a una plataforma externa, regida por la propia política de privacidad de Ko-fi.',
-  privacyOnline: 'En el futuro, si se introduce un modo online, podrían guardarse temporalmente: código de sala, nickname, nombre de la organización, picks, resultados, seed de sala y posición final. Estos datos serán temporales y se usarán solo para mantener la sala funcionando.',
+  privacyOnline: 'En el modo online, el nombre del jugador, la organización, los picks, resultados y la seed de la sala existen solo en la memoria del servidor mientras la sala está activa. Nada se persiste en una base de datos. Un token anónimo de reanudación queda solo en el localStorage de este navegador hasta 120 segundos después de desconectarse; reiniciar el servidor termina las salas activas.',
   privacyNoSell: 'No vendemos datos personales. No recopilamos contraseñas. No pedimos datos sensibles.',
   privacyUpdates: 'Esta política puede ser actualizada conforme se añadan nuevas funcionalidades.',
   privacyContact: '¿Dudas sobre privacidad? Contáctanos:',

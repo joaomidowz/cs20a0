@@ -1,24 +1,21 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { isOnlineEnabled } from '$lib/game/online/config';
   import { replaceState } from '$app/navigation';
   import Navbar from '$lib/components/Navbar.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
+  import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
+  import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
-  import PlayerMiniCard from '$lib/components/PlayerMiniCard.svelte';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
-  import {
-    getEligibleSlotRoles,
-    getRoleLabel,
-    PICK_REASONS,
-    validatePlayerPick
-  } from '$lib/game/roleRules';
+  import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import {
     buildMajorRun,
     calculateUserTeamPower,
@@ -27,7 +24,8 @@
   } from '$lib/game/simulation';
   import { aggregateRunStats, createRunStats, getRunMvpScore, getRunSummary } from '$lib/game/runStats';
   import { downloadRunImage as saveRunImage } from '$lib/game/shareImage';
-  import { getPlayerPlaystyle } from '$lib/game/playstyle';
+  import { getPickReasonText } from '$lib/game/pickPresentation';
+  import { averageOverall, getLineupStrengths } from '$lib/game/organizationPresentation';
   import { shouldShowPlayerAwards } from '$lib/game/teamViews';
   import {
     buildProLineup,
@@ -88,18 +86,7 @@
   }
 
   function getOrgStrengths() {
-    if (!selectedPlayers.length) return [];
-    const stats = {
-      firepower: selectedPlayers.reduce((sum, p) => sum + (p.firepower ?? 70), 0) / selectedPlayers.length,
-      support: selectedPlayers.reduce((sum, p) => sum + (p.support ?? 70), 0) / selectedPlayers.length,
-      consistency: selectedPlayers.reduce((sum, p) => sum + (p.consistency ?? 70), 0) / selectedPlayers.length,
-      mental: selectedPlayers.reduce((sum, p) => sum + (p.mental ?? 70), 0) / selectedPlayers.length,
-      clutch: selectedPlayers.reduce((sum, p) => sum + (p.clutch ?? 70), 0) / selectedPlayers.length,
-      entry: selectedPlayers.reduce((sum, p) => sum + (p.entry ?? 70), 0) / selectedPlayers.length
-    };
-    return Object.entries(stats)
-      .map(([key, value]) => ({ key, value: Math.round(value) }))
-      .sort((a, b) => b.value - a.value);
+    return getLineupStrengths(selectedPlayers);
   }
 
   onMount(() => {
@@ -126,6 +113,16 @@
   $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
+  $: ownOrganizationView = selectedPlayers.length ? {
+    id: 'user',
+    name: t('orgHud'),
+    avatar: (selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase(),
+    eyebrow: `${$game.style.toUpperCase()} · POWER ${userTeam.power.toFixed(1)}`,
+    subtitle: `${$game.style} · OVR ${averageOverall(selectedPlayers)}`,
+    tags: getOrgStrengths().slice(0, 3).map((stat) => `${stat.key.toUpperCase()} ${stat.value}`),
+    roster: selectedPlayers,
+    stats: getOrgStrengths()
+  } : null;
   $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
@@ -254,14 +251,7 @@
   }
 
   function reasonText(reason?: string) {
-    if (reason === PICK_REASONS.duplicate) return t('samePlayerPicked');
-    if (reason === PICK_REASONS.awper) return t('lineHasAwper');
-    if (reason === PICK_REASONS.igl) return t('lineHasIgl');
-    if (reason === PICK_REASONS.entry) return t('lineHasEntry');
-    if (reason === PICK_REASONS.lurker) return t('lineHasLurker');
-    if (reason === PICK_REASONS.rifler) return t('rifleLimitReached');
-    if (reason === PICK_REASONS.support) return t('roleOccupied');
-    return reason ?? t('invalidRole');
+    return getPickReasonText($game.language, reason);
   }
 
   function confirmPlayerPick(player: Player, selectedSlotRole: LineupSlotRole) {
@@ -394,15 +384,6 @@
     return warnings;
   }
 
-  function vagueTraits(player: Player) {
-    const playstyle = getPlayerPlaystyle(player);
-    const traits: string[] = [playstyle === 'aggressive' ? t('veryAggressive') : playstyle === 'tactical' ? t('tacticalProfile') : t('consistentPlayer')];
-    if ((player.clutch ?? 0) >= 92) traits.push(t('greatClutch'));
-    if ((player.role ?? '').includes('awp')) traits.push(t('mainAwper'));
-    if (traits.length === 1) traits.push(t('versatileProfile'));
-    return traits;
-  }
-
   function resetRun(newSeed = false) {
     resetSupportNudge();
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
@@ -507,6 +488,7 @@
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">
           <button class="primary" type="button" on:click={beginGame}>{t('play')} <span>→</span></button>
+          {#if isOnlineEnabled()}<a class="secondary online-home-button" href="/online">{t('playOnline')} <span>↗</span></a>{/if}
         </div>
       </div>
       <div class="hero-visual" aria-hidden="true">
@@ -950,37 +932,8 @@
   onSupportClick={dismissSupportNudge}
 />
 
-{#if detailsPlayer}
-  {@const detailsValidation = cardValidation(detailsPlayer)}
-  {@const eligibleRoles = getEligibleSlotRoles(detailsPlayer)}
-  <div class="sheet-backdrop" role="presentation" on:click={closePlayer} on:keydown={(event) => event.key === 'Escape' && closePlayer()}>
-    <div class="player-sheet {$game.mode === 'faceit' && !draftComplete ? 'rarity-hidden' : rarityClass(detailsPlayer)}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${detailsPlayer.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
-      <button class="sheet-close" type="button" on:click={closePlayer}>×</button>
-      <div class="sheet-player"><div class="avatar huge">{(detailsPlayer.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{#if $game.mode === 'premier' || draftComplete}{detailsPlayer.rarity ?? 'common'} · {/if}{detailsPlayer.teamId ?? ''}</span><h2>{detailsPlayer.nickname ?? 'Unknown'}</h2><p>{translateTitle($game.language, playerTitle(detailsPlayer))} · {detailsPlayer.role ?? 'rifler'}</p></div>{#if $game.mode === 'premier' || draftComplete}<strong>{detailsPlayer.overall ?? 70}</strong>{:else}<strong>??</strong>{/if}</div>
-      {#if $game.mode === 'premier' || draftComplete}
-        <div class="attribute-grid">{#each ['firepower', 'clutch', 'entry', 'awp', 'support', 'igl', 'experience', 'consistency', 'mental'] as attribute}<div><span>{attribute}</span><b>{detailsPlayer[attribute as keyof Player] ?? 70}</b><i><em style={`width:${Number(detailsPlayer[attribute as keyof Player] ?? 70)}%`}></em></i></div>{/each}</div>
-        {#if detailsPlayer.traits?.length}<div class="trait-list">{#each detailsPlayer.traits.slice(0, 4) as trait}<span>{trait}</span>{/each}{#if detailsPlayer.traits.length > 4}<span>+{detailsPlayer.traits.length - 4}</span>{/if}</div>{/if}
-      {:else}
-        <div class="blind-intel"><span class="eyebrow">{t('hiddenStats')}</span>{#each vagueTraits(detailsPlayer) as trait}<strong>{trait}</strong>{/each}</div>
-      {/if}
-      {#if !draftComplete}
-        <div class="role-picker">
-          <span class="eyebrow">{t('howUsePlayer')}</span>
-          <h3>{detailsPlayer.nickname} · {t('assignedRole')}</h3>
-          {#if !detailsValidation.ok}<p class="pick-blocked-reason">{reasonText(detailsValidation.reason)}</p>{/if}
-          <div>
-            {#each eligibleRoles as role}
-              {@const roleValidation = validatePlayerPick(detailsPlayer, selectedLineup, role, lookupPlayer)}
-              <button class="secondary role-option" type="button" disabled={!roleValidation.ok} on:click={() => confirmPlayerPick(detailsPlayer!, role)}>
-                <span>{eligibleRoles.length === 1 ? t('addAs') : t('useAs')} {getRoleLabel(role)}</span>
-                {#if !roleValidation.ok}<small>{reasonText(roleValidation.reason)}</small>{/if}
-              </button>
-            {/each}
-          </div>
-        </div>
-      {/if}
-    </div>
-  </div>
+{#if detailsPlayer && $game.mode}
+  <PlayerDetailSheet player={detailsPlayer} mode={$game.mode} language={$game.language} {draftComplete} lineup={selectedLineup} playerLookup={lookupPlayer} onConfirm={confirmPlayerPick} onClose={closePlayer} />
 {/if}
 
 <TeamRosterModal
@@ -991,45 +944,6 @@
   onClose={closeEnemyTeam}
 />
 
-{#if showOrgModal}
-  <div class="sheet-backdrop team-modal-backdrop" role="presentation" on:mousedown={() => showOrgModal = false}>
-    <div class="team-roster-modal" role="dialog" aria-modal="true" aria-label={t('orgHud')} tabindex="-1" on:mousedown|stopPropagation>
-      <button class="sheet-close" type="button" aria-label={t('close')} on:click={() => showOrgModal = false}>×</button>
-      <header class="team-modal-header">
-        <div class="team-avatar">{(selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase()}</div>
-        <div>
-          <span class="eyebrow">{$game.style.toUpperCase()} · POWER {userTeam.power.toFixed(1)}</span>
-          <h2>{t('orgHud')}</h2>
-          <p>{$game.style} · OVR {Math.round(selectedPlayers.reduce((sum, p) => sum + (p.overall ?? 70), 0) / selectedPlayers.length)}</p>
-        </div>
-      </header>
-
-      <div class="team-modal-tags">
-        {#each getOrgStrengths().slice(0, 3) as stat}<span>{stat.key.toUpperCase()} {stat.value}</span>{/each}
-      </div>
-
-      {#if selectedPlayers.length}
-        <div class="team-modal-roster">
-          {#each selectedPlayers as player (player.id)}
-            <PlayerMiniCard {player} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} />
-          {/each}
-        </div>
-      {/if}
-
-      <div class="org-modal-stats">
-        <span class="eyebrow">{t('estimatedPower')}</span>
-        <div class="org-stats-grid">
-          {#each getOrgStrengths() as stat}
-            <div><small>{stat.key.toUpperCase()}</small><b>{stat.value}</b></div>
-          {/each}
-        </div>
-      </div>
-
-      <footer class="team-modal-footer">
-        <button class="secondary" type="button" on:click={() => showOrgModal = false}>{t('close')}</button>
-      </footer>
-    </div>
-  </div>
-{/if}
+<OrganizationRosterModal organization={ownOrganizationView} isOpen={showOrgModal} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} onClose={() => showOrgModal = false} />
 
 {#if toast}<div class="toast">{toast}</div>{/if}

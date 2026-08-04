@@ -94,6 +94,8 @@ export interface CombatTeam {
   studyPercentage?: number;
   aggressionPercentage?: number;
   isUser?: boolean;
+  organizationId?: string;
+  lineup?: SelectedPlayer[];
 }
 
 export interface RoundScore {
@@ -114,7 +116,7 @@ export interface MapResult {
 export interface SeriesResult {
   id: string;
   phase: 'stage3' | 'quarterfinal' | 'semifinal' | 'final';
-  bestOf: 3 | 5;
+  bestOf: 1 | 3 | 5;
   teamA: CombatTeam;
   teamB: CombatTeam;
   scoreA: number;

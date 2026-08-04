@@ -1,4 +1,10 @@
-export async function downloadRunImage(nodeId: string, seed: string) {
+export function buildRunImageFilename(identifier: string, prefix = 'cs13a0-run') {
+  const safeIdentifier = identifier.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'result';
+  return `${prefix}-${safeIdentifier}.png`;
+}
+
+export async function downloadRunImage(nodeId: string, identifier: string, prefix = 'cs13a0-run') {
   const node = document.getElementById(nodeId);
   if (!node) throw new Error('Share card not found');
 
@@ -56,7 +62,7 @@ export async function downloadRunImage(nodeId: string, seed: string) {
   }
 
   const link = document.createElement('a');
-  link.download = `cs13a0-run-${seed}.png`;
+  link.download = buildRunImageFilename(identifier, prefix);
   link.href = dataUrl;
   link.click();
 }

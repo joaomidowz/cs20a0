@@ -272,7 +272,7 @@ describe('simulation', () => {
   it('uses a compact mobile live status instead of the large desktop live card', () => {
     expect(seriesViewerSource).toContain('mobile-series-live');
     expect(seriesViewerSource).toContain('{mapsLabel} {visibleScoreA}-{visibleScoreB}');
-    expect(seriesViewerSource).toContain("{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1} · R{visibleRounds}");
+    expect(seriesViewerSource).toContain("{labels.map ?? 'Mapa'} {currentMap?.map ?? displayActiveMap + 1} · R{displayVisibleRounds}");
     expect(appCssSource).toContain('.series-status.live{display:none}');
     expect(appCssSource).toContain('.mobile-series-live{display:flex');
   });

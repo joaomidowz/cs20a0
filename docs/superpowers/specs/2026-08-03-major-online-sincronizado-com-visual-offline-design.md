@@ -30,6 +30,15 @@ O lobby continua específico do online. Depois dele:
 - Após eliminação, o participante assiste automaticamente ao confronto de outro humano ativo com melhor seed; se não houver, ao confronto ativo de melhor seed.
 - A Home mantém `Jogar online` abaixo de `Jogar`.
 
+## Paridade final de frontend
+
+- A tag `MULTIPLAYER` identifica entrada, lobby, draft, Major e relatório final sem criar uma linguagem visual paralela.
+- `PlayerDetailSheet` e `OrganizationRosterModal` são compartilhados pelos modos solo e online; regras, atributos, posições disponíveis e motivos de bloqueio vêm do mesmo domínio puro.
+- Depois do draft, nomes de organizações nas partidas, timeline, tabela e bracket abrem a ficha completa da escalação humana ou histórica.
+- O snapshot público expõe escalações somente depois do draft. O relatório e as estatísticas finais de cada participante permanecem privados em `selfResult`.
+- Cada participante pode baixar apenas o próprio card final, com organização, campanha, lineup, MVP e a tag `MULTIPLAYER`.
+- Essas adições são de apresentação e contrato público; seed, RNG, pareamentos, poder, resultados e ritmo de simulação não são alterados.
+
 ## Regras de controle
 
 - O host controla automático/manual e velocidade.
@@ -46,6 +55,9 @@ O lobby continua específico do online. Depois dele:
 - Stage 3 apresenta tabela e confrontos; playoffs apresentam bracket atualizada mapa a mapa.
 - Partidas próprias preservam detalhes de rounds; partidas gerais não.
 - Draft, Major e resultado têm paridade visual com o modo solo em desktop e mobile.
+- Cards bloqueados e seletores de posição reproduzem os mesmos estados e explicações do modo solo.
+- Todos os times exibidos após o draft abrem a mesma ficha de organização e elenco.
+- O card final individual pode ser baixado sem expor estatísticas privadas de outro participante.
 - Validação inclui WebSocket com 2 e 16 clientes, carga com 10 salas de 16, reconexão, migração de host, build Docker e navegador multi-contexto.
 
-O deploy permanece bloqueado até validação manual satisfatória em dois computadores.
+O deploy publica primeiro o servidor Railway e depois o frontend Vercel; a flag `PUBLIC_ONLINE_ENABLED` continua sendo o rollback imediato do frontend.

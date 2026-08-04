@@ -9,20 +9,28 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "validate": "npm run check && npm test && npm run build"
+    "validate": "npm run check && npm test && npm run build && npm run server:build",
+    "server:dev": "tsx watch server/index.ts",
+    "server:build": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist-server/index.cjs",
+    "server:start": "node dist-server/index.cjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.9",
     "@sveltejs/kit": "^2.43.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.0",
     "@types/node": "^24.10.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.1",
     "svelte": "^5.43.0",
     "svelte-check": "^4.3.0",
+    "tsx": "^4.23.5",
     "typescript": "^5.9.3",
     "vite": "^7.2.0",
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "html-to-image": "^1.11.13"
+    "html-to-image": "^1.11.13",
+    "ws": "^8.21.2",
+    "zod": "^4.4.3"
   }
 }
