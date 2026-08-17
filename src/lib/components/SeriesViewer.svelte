@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { translateTeamName } from '$lib/game/i18n';
+  import { getVisibleMapScore } from '$lib/game/seriesPresentation';
   import type { Language, SeriesResult } from '$lib/game/types';
 
   export let series: SeriesResult;
@@ -18,6 +19,7 @@
     start: string;
     skip: string;
     round: string;
+    live: string;
     map?: string;
     final?: string;
     waiting?: string;
@@ -53,6 +55,11 @@
   $: displayFinished = controlled ? controlledFinished : finished;
   $: currentMap = series.maps[displayActiveMap];
   $: currentRound = displayVisibleRounds > 0 ? currentMap?.rounds[displayVisibleRounds - 1] : null;
+  $: currentMapFinished = Boolean(currentMap && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0 && currentMap.winnerId);
+  $: currentMapScore = currentMap ? getVisibleMapScore(currentMap, currentRound, {
+    isComplete: displayFinished || currentMapFinished,
+    isLive: displayStarted
+  }) : null;
   $: visibleMaps = series.maps.slice(0, displayActiveMap + (currentMap && displayVisibleRounds >= currentMap.rounds.length ? 1 : 0));
   $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
@@ -147,7 +154,7 @@
       </h2>
       {#if displayStarted && !displayFinished}
         <div class="mobile-series-live">
-          <span><i></i>Live</span>
+          <span><i></i>{labels.live}</span>
           <b>MD{series.bestOf}</b>
           <strong>{mapsLabel} {visibleScoreA}-{visibleScoreB}</strong>
           <small>{labels.map ?? 'Mapa'} {currentMap?.map ?? displayActiveMap + 1} · R{displayVisibleRounds}</small>
@@ -158,7 +165,7 @@
       <div class="series-score">{series.scoreA} : {series.scoreB}</div>
     {:else if displayStarted}
       <div class="series-status live">
-        <span><i></i>Live</span>
+        <span><i></i>{labels.live}</span>
         <strong>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1}</strong>
         <b>{visibleScoreA} - {visibleScoreB}</b>
       </div>
@@ -167,29 +174,36 @@
     {/if}
   </div>
 
-  <div class="map-list">
-    {#each series.maps.slice(0, displayFinished ? series.maps.length : displayActiveMap + 1) as map, index}
-      {@const isPast = index < displayActiveMap || displayFinished}
-      {@const liveRound = index === displayActiveMap ? currentRound : null}
-      {@const currentMapFinished = index === displayActiveMap && displayVisibleRounds >= map.rounds.length && map.rounds.length > 0 && Boolean(map.winnerId)}
-      <article class:live={index === displayActiveMap && displayStarted} class="map-row">
-        <div>
-          <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
-          <small>{isPast || currentMapFinished ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
-        </div>
-        {#if isPast || currentMapFinished || liveRound}
-          <div class="map-score">
-            <b>{isPast || currentMapFinished ? map.scoreA : liveRound?.a}</b>
-            <span>:</span>
-            <b>{isPast || currentMapFinished ? map.scoreB : liveRound?.b}</b>
+  {#key `${displayActiveMap}:${displayVisibleRounds}:${displayStarted}:${displayFinished}`}
+    <div class="map-list">
+      {#each series.maps.slice(0, displayFinished ? series.maps.length : displayActiveMap + 1) as map, index}
+        {@const isPast = index < displayActiveMap || displayFinished}
+        {@const liveRound = index === displayActiveMap ? currentRound : null}
+        <article class="map-row" class:live={index === displayActiveMap && displayStarted}>
+          <div>
+            <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
+            <small>{isPast || (index === displayActiveMap && currentMapFinished) ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
           </div>
-        {:else}
-          <span class="map-pending">{labels.pending ?? 'A disputar'}</span>
-        {/if}
-        {#if (isPast && map.overtime) || liveRound?.overtime}<span class="ot">OT</span>{/if}
-      </article>
-    {/each}
-  </div>
+          {#if isPast}
+            <div class="map-score">
+              <b>{map.scoreA}</b>
+              <span>:</span>
+              <b>{map.scoreB}</b>
+            </div>
+          {:else if index === displayActiveMap && currentMapScore}
+            <div class="map-score">
+              <b>{currentMapScore.a}</b>
+              <span>:</span>
+              <b>{currentMapScore.b}</b>
+            </div>
+          {:else}
+            <span class="map-pending">{labels.pending ?? 'A disputar'}</span>
+          {/if}
+          {#if (isPast && map.overtime) || liveRound?.overtime}<span class="ot">OT</span>{/if}
+        </article>
+      {/each}
+    </div>
+  {/key}
 
   {#if !controlled && !started && !finished}
     <button class="primary wide" type="button" on:click={play}>{labels.start}</button>

@@ -482,7 +482,7 @@
                   language={$language}
                   interactiveTeamIds={[liveSeries.series.teamA.id, liveSeries.series.teamB.id]}
                   onTeamClick={openOrganization}
-                  labels={{ start: gameT('startSeries'), skip: gameT('skipMap'), round: gameT('round'), map: gameT('map'), final: gameT('final'), waiting: gameT('waiting'), pending: gameT('pending'), inProgress: gameT('inProgress'), mapInProgress: gameT('mapInProgress') }}
+                  labels={{ start: gameT('startSeries'), skip: gameT('skipMap'), round: gameT('round'), live: t('live'), map: gameT('map'), final: gameT('final'), waiting: gameT('waiting'), pending: gameT('pending'), inProgress: gameT('inProgress'), mapInProgress: gameT('mapInProgress') }}
                 />
               {/key}
               {#if liveCursor?.status === 'waiting_host'}

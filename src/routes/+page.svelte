@@ -758,7 +758,7 @@
             auto={$game.simMode === 'auto'}
             language={$game.language}
             interactiveTeamId={enemyTeamId}
-            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
+            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
             onComplete={seriesCompleted}
             onTeamHover={hoverEnemyTeam}
             onTeamHoverEnd={leaveEnemyTeam}
