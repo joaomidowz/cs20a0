@@ -37,10 +37,19 @@
   } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
+    MAP_POOL,
+    getDefaultMapSelection,
+    getLineupMapContributors,
+    getMapAffinity,
+    getMapName,
+    isValidMapSelection
+  } from '$lib/game/maps';
+  import {
     SPEEDS,
     type GameMode,
     type HistoricalTeam,
     type LineupSlotRole,
+    type MapId,
     type OrgStyle,
     type Player,
     type SeriesResult,
@@ -62,6 +71,7 @@
   let enemyHoverTimer: number | null = null;
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
+  let seedUrlTimer: number | null = null;
 
   function getPhaseLabel(phase: SeriesResult['phase']): string {
     const labels: Record<string, string> = {
@@ -94,7 +104,13 @@
       const url = new URL(window.location.href);
       if (state.seed) url.searchParams.set('seed', state.seed);
       else url.searchParams.delete('seed');
-      if (url.href !== window.location.href) replaceState(url, {});
+      if (url.href !== window.location.href) {
+        if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
+        seedUrlTimer = window.setTimeout(() => {
+          seedUrlTimer = null;
+          replaceState(url, {});
+        }, 100);
+      }
     });
   });
 
@@ -113,6 +129,7 @@
   $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
+  $: mapContributors = getLineupMapContributors(selectedPlayers, teams);
   $: ownOrganizationView = selectedPlayers.length ? {
     id: 'user',
     name: t('orgHud'),
@@ -142,6 +159,7 @@
     document.body.classList.remove('modal-open');
     clearSupportNudgeTimer();
     clearEnemyHoverTimer();
+    if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
 
   function beginGame() {
@@ -172,6 +190,7 @@
       usedTeamIds: [],
       rolledTeamId: null,
       rerollsUsed: 0,
+      selectedMaps: [],
       majorRun: null,
       completedSeries: 0,
       stats: []
@@ -302,12 +321,37 @@
     });
   }
 
-  function launchMajor() {
+  function beginMapSelection() {
     if (!draftComplete || (isProMode && !$game.proRevealed)) return;
+    update({ phase: 'map-selection', selectedMaps: [] });
+  }
+
+  function toggleMap(mapId: MapId) {
+    const selected = $game.selectedMaps;
+    if (selected.includes(mapId)) {
+      update({ selectedMaps: selected.filter((item) => item !== mapId) });
+      return;
+    }
+    if (selected.length < 3) update({ selectedMaps: [...selected, mapId] });
+  }
+
+  function autoSelectMaps() {
+    update({ selectedMaps: getDefaultMapSelection(selectedPlayers, teams) });
+  }
+
+  function returnToLineup() {
+    update({ phase: isProMode ? 'pro-reveal' : 'draft', selectedMaps: [] });
+  }
+
+  function launchMajor() {
+    if (!draftComplete || (isProMode && !$game.proRevealed) || !isValidMapSelection($game.selectedMaps)) return;
     resetSupportNudge();
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
-    const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup);
+    const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+      selectedMaps: $game.selectedMaps,
+      mode: $game.mode ?? 'premier'
+    });
     const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
     awaitingAdvance = false;
     update({ majorRun, stats, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
@@ -400,11 +444,13 @@
       url.searchParams.set('mode', $game.mode ?? 'premier');
       url.searchParams.set('style', $game.style);
       url.searchParams.set('picks', selectedLineup.map((selected) => `${selected.playerId}:${selected.selectedSlotRole}`).join(','));
+      url.searchParams.set('maps', $game.selectedMaps.join(','));
     } else {
       url.searchParams.delete('result');
       url.searchParams.delete('mode');
       url.searchParams.delete('style');
       url.searchParams.delete('picks');
+      url.searchParams.delete('maps');
     }
     await navigator.clipboard.writeText(url.toString());
     showToast(t('copied'));
@@ -630,7 +676,7 @@
           <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
         </section>
         {#if $game.mode === 'faceit'}<div class="reveal-note">INTEL UNLOCKED · {t('revealed')}</div>{/if}
-        <button class="primary wide major-button" type="button" on:click={launchMajor}>{t('startMajor')} →</button>
+        <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>
       {/if}
     </section>
   {:else if $game.phase === 'pro-style'}
@@ -725,7 +771,51 @@
         <article class="power-panel panel"><span class="eyebrow">PRO POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
         <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
       </section>
-      <button class="primary wide major-button" type="button" on:click={launchMajor}>{t('startMajor')} →</button>
+      <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>
+    </section>
+  {:else if $game.phase === 'map-selection'}
+    <section class="screen shell map-selection-screen">
+      <header class="screen-header centered">
+        <span class="eyebrow">MAP POOL · 3/7</span>
+        <h1>{t('chooseMapsTitle')}</h1>
+        <p>{t('chooseMapsDesc')}</p>
+      </header>
+      <div class="map-selection-status panel">
+        <span>{t('mapsSelected')}</span>
+        <strong>{$game.selectedMaps.length}/3</strong>
+      </div>
+      <div class="map-selection-grid">
+        {#each MAP_POOL as mapId}
+          {@const contributors = mapContributors[mapId]}
+          {@const affinity = getMapAffinity(contributors.length)}
+          {@const selected = $game.selectedMaps.includes(mapId)}
+          <button
+            class="map-selection-card"
+            class:selected
+            type="button"
+            aria-pressed={selected}
+            disabled={!selected && $game.selectedMaps.length >= 3}
+            on:click={() => toggleMap(mapId)}
+          >
+            <span class="map-selection-index">{String(MAP_POOL.indexOf(mapId) + 1).padStart(2, '0')}</span>
+            <strong>{getMapName(mapId)}</strong>
+            <b class:even={affinity === 'EVEN'}>{affinity}</b>
+            <small>{contributors.length}/5 · {t('playerAffinity')}</small>
+            <div class="map-contributors" aria-label={`${contributors.length}/5 ${t('playerAffinity')}`}>
+              {#each selectedPlayers as player}
+                <span class:contributes={contributors.some((contributor) => contributor.id === player.id)} title={player.nickname ?? player.id}>
+                  {(player.nickname ?? '?').slice(0, 2).toUpperCase()}
+                </span>
+              {/each}
+            </div>
+          </button>
+        {/each}
+      </div>
+      <div class="map-selection-actions">
+        <button class="secondary" type="button" on:click={returnToLineup}>{t('backToLineup')}</button>
+        <button class="secondary" type="button" on:click={autoSelectMaps}>{t('autoSelectMaps')}</button>
+        <button class="primary" type="button" disabled={!isValidMapSelection($game.selectedMaps)} on:click={launchMajor}>{t('confirmMaps')} →</button>
+      </div>
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
     <section class="screen shell match-screen">
@@ -758,7 +848,7 @@
             auto={$game.simMode === 'auto'}
             language={$game.language}
             interactiveTeamId={enemyTeamId}
-            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress') }}
+            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider') }}
             onComplete={seriesCompleted}
             onTeamHover={hoverEnemyTeam}
             onTeamHoverEnd={leaveEnemyTeam}
@@ -790,7 +880,7 @@
                   {#if expandedTimelineMatch === match.id}
                     <div class="timeline-maps">
                       {#each match.maps as map}
-                        <span class="timeline-map">{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
+                        <span class="timeline-map">{getMapName(map.mapId, map.map, t('map'))} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
                       {/each}
                     </div>
                   {/if}
@@ -863,7 +953,7 @@
                     {#if expandedTimelineMatch === match.id}
                       <div class="timeline-maps">
                         {#each match.maps as map}
-                          <span class="timeline-map">{t('map')} {map.map} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
+                          <span class="timeline-map">{getMapName(map.mapId, map.map, t('map'))} · {map.scoreA} x {map.scoreB} {map.overtime ? '· OT' : ''}</span>
                         {/each}
                       </div>
                     {/if}

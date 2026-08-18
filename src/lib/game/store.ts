@@ -6,7 +6,8 @@ import { buildProLineup, buildProRoleEvaluations } from './proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
 import { buildMajorRun } from './simulation';
-import type { GameMode, GameState, LineupSlotRole, OrgStyle } from './types';
+import { isValidMapSelection } from './maps';
+import type { GameMode, GameState, LineupSlotRole, MapId, OrgStyle } from './types';
 
 const storageKey = 'cs13a0-run-v1';
 
@@ -35,6 +36,7 @@ export const defaultState = (seed = ''): GameState => ({
   usedTeamIds: [],
   rolledTeamId: null,
   rerollsUsed: 0,
+  selectedMaps: [],
   simMode: 'manual',
   simSpeed: 'normal',
   majorRun: null,
@@ -70,6 +72,8 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const modeParam = params.get('mode') as GameMode | null;
   const style = styleParam && orgStyles.has(styleParam) ? styleParam : 'balanced';
   const mode = modeParam && gameModes.has(modeParam) ? modeParam : 'premier';
+  const mapParams = (params.get('maps') ?? '').split(',').filter(Boolean);
+  const selectedMaps = isValidMapSelection(mapParams) ? [...mapParams] as MapId[] : [];
   const proRoleAssignments = selectedPlayers.reduce<Record<string, LineupSlotRole>>((assignments, selected) => ({
     ...assignments,
     [selected.playerId]: selected.selectedSlotRole
@@ -77,7 +81,10 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const proEvaluations = mode === 'pro' ? buildProRoleEvaluations(pickedPlayers, proRoleAssignments, style) : [];
   const runPlayers = mode === 'pro' ? proEvaluations.map((evaluation) => evaluation.adjustedPlayer) : pickedPlayers;
   const runLineup = mode === 'pro' ? buildProLineup(proEvaluations) : selectedPlayers;
-  const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup);
+  const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup, {
+    ...(isValidMapSelection(selectedMaps) ? { selectedMaps } : {}),
+    mode
+  });
   const stats = createRunStats(runPlayers, majorRun, seed, runLineup);
 
   return {
@@ -92,6 +99,7 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
     proRoleAssignments: mode === 'pro' ? proRoleAssignments : {},
     proRevealed: mode === 'pro',
     usedTeamIds: pickedPlayers.map((player) => player.teamId).filter((teamId): teamId is string => Boolean(teamId)),
+    selectedMaps,
     majorRun,
     completedSeries: majorRun.matches.length,
     stats,
@@ -123,6 +131,7 @@ const loadState = (): GameState => {
       }, []);
     }
     delete parsed.selectedPlayerIds;
+    if (!isValidMapSelection(parsed.selectedMaps ?? [])) parsed.selectedMaps = [];
     if (parsed.majorRun && parsed.selectedPlayers?.length && (!parsed.stats?.length || parsed.stats.some((stat) => !stat.assignedRole))) {
       const selectedPlayers = parsed.selectedPlayers
         .map((selected) => playerById.get(selected.playerId))

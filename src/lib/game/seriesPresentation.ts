@@ -5,6 +5,19 @@ export interface VisibleMapScore {
   b: number;
 }
 
+export interface SeriesPlaybackState {
+  controlled: boolean;
+  controlledStarted: boolean;
+  started: boolean;
+  auto: boolean;
+  finished: boolean;
+}
+
+export function isSeriesVisuallyStarted(state: SeriesPlaybackState): boolean {
+  if (state.controlled) return state.controlledStarted;
+  return state.started || (state.auto && !state.finished);
+}
+
 export function getVisibleMapScore(
   map: MapResult,
   round: RoundScore | null,

@@ -7,6 +7,7 @@ export type GamePhase =
   | 'pro-style'
   | 'pro-roles'
   | 'pro-reveal'
+  | 'map-selection'
   | 'stage3'
   | 'playoffs'
   | 'result'
@@ -20,6 +21,37 @@ export type SeriesType = 'bo3' | 'bo5';
 export type Language = 'pt-BR' | 'es' | 'en';
 export type Theme = 'dark' | 'light';
 export type LineupSlotRole = 'awper' | 'igl' | 'entry' | 'lurker' | 'rifler' | 'support';
+export type MapId = 'ancient' | 'anubis' | 'cache' | 'dust2' | 'inferno' | 'mirage' | 'nuke';
+export type MapAffinity = 'EVEN' | '+' | '++';
+
+export interface HistoricalMapRecord {
+  mapId: MapId;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winRate: number | null;
+  source: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface MapPreference {
+  mapId: MapId;
+  source: 'observed' | 'fallback';
+}
+
+export interface TeamMapProfile {
+  poolVersion: string;
+  records: HistoricalMapRecord[];
+  preferences: [MapPreference, MapPreference, MapPreference];
+}
+
+export interface MapVetoStep {
+  order: number;
+  action: 'ban' | 'pick' | 'decider';
+  teamId: string | null;
+  mapId: MapId;
+}
 
 export interface Player {
   id: string;
@@ -81,6 +113,7 @@ export interface HistoricalTeam {
   } | null;
   sourceUrl?: string | null;
   source?: unknown;
+  mapProfile?: TeamMapProfile | null;
 }
 
 export interface CombatTeam {
@@ -106,6 +139,7 @@ export interface RoundScore {
 
 export interface MapResult {
   map: number;
+  mapId?: MapId;
   scoreA: number;
   scoreB: number;
   winnerId: string;
@@ -123,6 +157,7 @@ export interface SeriesResult {
   scoreB: number;
   winnerId: string;
   maps: MapResult[];
+  veto?: MapVetoStep[];
   userMatch: boolean;
 }
 
@@ -183,6 +218,7 @@ export interface GameState {
   usedTeamIds: string[];
   rolledTeamId: string | null;
   rerollsUsed: number;
+  selectedMaps: MapId[];
   simMode: SimMode;
   simSpeed: SimSpeed;
   majorRun: MajorRun | null;

@@ -56,6 +56,18 @@ const pt = {
   complete: 'Line confirmada',
   estimatedPower: 'Power estimado',
   startMajor: 'Começar Major',
+  chooseMaps: 'Escolher mapas',
+  chooseMapsTitle: 'Escolha seu map pool',
+  chooseMapsDesc: 'Selecione exatamente três mapas. A afinidade soma os jogadores cuja equipe histórica prefere cada mapa.',
+  mapsSelected: 'Mapas selecionados',
+  playerAffinity: 'jogadores com afinidade',
+  autoSelectMaps: 'Seleção automática',
+  confirmMaps: 'Confirmar mapas',
+  backToLineup: 'Voltar para a line',
+  veto: 'Veto de mapas',
+  ban: 'Ban',
+  pick: 'Pick',
+  decider: 'Decider',
   majorSetup: 'Configuração do Major',
   manual: 'Manual',
   automatic: 'Automático',
@@ -579,6 +591,36 @@ Object.assign(dictionaries.es, {
   byRole: 'Por función',
   roleRankings: 'Ranking por posición',
   top: 'Top'
+});
+
+Object.assign(dictionaries.es, {
+  chooseMaps: 'Elegir mapas',
+  chooseMapsTitle: 'Elige tu map pool',
+  chooseMapsDesc: 'Selecciona exactamente tres mapas. La afinidad suma los jugadores cuyo equipo histórico prefiere cada mapa.',
+  mapsSelected: 'Mapas seleccionados',
+  playerAffinity: 'jugadores con afinidad',
+  autoSelectMaps: 'Selección automática',
+  confirmMaps: 'Confirmar mapas',
+  backToLineup: 'Volver a la alineación',
+  veto: 'Veto de mapas',
+  ban: 'Ban',
+  pick: 'Pick',
+  decider: 'Decisivo'
+});
+
+Object.assign(dictionaries.en, {
+  chooseMaps: 'Choose maps',
+  chooseMapsTitle: 'Choose your map pool',
+  chooseMapsDesc: 'Select exactly three maps. Affinity counts players whose historical team prefers each map.',
+  mapsSelected: 'Maps selected',
+  playerAffinity: 'players with affinity',
+  autoSelectMaps: 'Auto-select',
+  confirmMaps: 'Confirm maps',
+  backToLineup: 'Back to lineup',
+  veto: 'Map veto',
+  ban: 'Ban',
+  pick: 'Pick',
+  decider: 'Decider'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

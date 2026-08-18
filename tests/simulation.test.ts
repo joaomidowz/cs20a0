@@ -257,6 +257,26 @@ describe('simulation', () => {
     expect(first.matches.every((match) => match.maps.length <= match.bestOf)).toBe(true);
   });
 
+  it('adds named maps and a complete veto only to the configured offline Major path', () => {
+    const allPlayers = playersJson as Player[];
+    const historicalTeams = teamsJson as HistoricalTeam[];
+    const picked = historicalTeams.slice(0, 5)
+      .map((item) => allPlayers.find((player) => player.teamId === item.id)!)
+      .filter(Boolean);
+    const mapped = buildMajorRun(picked, 'balanced', historicalTeams, allPlayers, 'mapped-major', [], {
+      selectedMaps: ['ancient', 'mirage', 'nuke'],
+      mode: 'faceit'
+    });
+
+    expect(mapped.matches.length).toBeGreaterThan(0);
+    expect(mapped.matches.every((match) => match.veto?.length === 7)).toBe(true);
+    expect(mapped.matches.flatMap((match) => match.maps).every((map) => map.mapId)).toBe(true);
+
+    const legacy = simulateSeries(team('legacy-a', 88), team('legacy-b', 86), 3, createSeededRng('legacy-online'));
+    expect(legacy.veto).toBeUndefined();
+    expect(legacy.maps.every((map) => map.mapId === undefined)).toBe(true);
+  });
+
   it('keeps the user organization on the left side during playoff series', () => {
     const user = { ...team('user', 86), isUser: true };
     const opponents = Array.from({ length: 12 }, (_, index) => team(`opponent-${index}`, 80 + index));
@@ -272,7 +292,7 @@ describe('simulation', () => {
   it('uses a compact mobile live status instead of the large desktop live card', () => {
     expect(seriesViewerSource).toContain('mobile-series-live');
     expect(seriesViewerSource).toContain('{mapsLabel} {visibleScoreA}-{visibleScoreB}');
-    expect(seriesViewerSource).toContain("{labels.map ?? 'Mapa'} {currentMap?.map ?? displayActiveMap + 1} · R{displayVisibleRounds}");
+    expect(seriesViewerSource).toContain("{getMapName(currentMap?.mapId, currentMap?.map ?? displayActiveMap + 1, labels.map ?? 'Mapa')} · R{displayVisibleRounds}");
     expect(appCssSource).toContain('.series-status.live{display:none}');
     expect(appCssSource).toContain('.mobile-series-live{display:flex');
   });

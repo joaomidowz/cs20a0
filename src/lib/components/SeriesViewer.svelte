@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { translateTeamName } from '$lib/game/i18n';
-  import { getVisibleMapScore } from '$lib/game/seriesPresentation';
+  import { getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
+  import { getMapName } from '$lib/game/maps';
   import type { Language, SeriesResult } from '$lib/game/types';
 
   export let series: SeriesResult;
@@ -26,6 +27,10 @@
     pending?: string;
     inProgress?: string;
     mapInProgress?: string;
+    veto?: string;
+    ban?: string;
+    pick?: string;
+    decider?: string;
   };
   export let onComplete: () => void = () => {};
   export let onTeamHover: (teamId: string) => void = () => {};
@@ -51,8 +56,14 @@
   });
   $: displayActiveMap = controlled ? controlledActiveMap : activeMap;
   $: displayVisibleRounds = controlled ? controlledVisibleRounds : visibleRounds;
-  $: displayStarted = controlled ? controlledStarted : started;
   $: displayFinished = controlled ? controlledFinished : finished;
+  $: displayStarted = isSeriesVisuallyStarted({
+    controlled,
+    controlledStarted,
+    started,
+    auto,
+    finished: displayFinished
+  });
   $: currentMap = series.maps[displayActiveMap];
   $: currentRound = displayVisibleRounds > 0 ? currentMap?.rounds[displayVisibleRounds - 1] : null;
   $: currentMapFinished = Boolean(currentMap && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0 && currentMap.winnerId);
@@ -114,6 +125,12 @@
     else if (isUser) onOrgClick();
   }
 
+  function vetoTeamName(teamId: string | null) {
+    if (teamId === series.teamA.id) return translateTeamName(language, series.teamA.name);
+    if (teamId === series.teamB.id) return translateTeamName(language, series.teamB.name);
+    return labels.decider ?? 'Decider';
+  }
+
   onDestroy(() => {
     runId += 1;
     if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
@@ -157,7 +174,7 @@
           <span><i></i>{labels.live}</span>
           <b>MD{series.bestOf}</b>
           <strong>{mapsLabel} {visibleScoreA}-{visibleScoreB}</strong>
-          <small>{labels.map ?? 'Mapa'} {currentMap?.map ?? displayActiveMap + 1} · R{displayVisibleRounds}</small>
+          <small>{getMapName(currentMap?.mapId, currentMap?.map ?? displayActiveMap + 1, labels.map ?? 'Mapa')} · R{displayVisibleRounds}</small>
         </div>
       {/if}
     </div>
@@ -166,13 +183,32 @@
     {:else if displayStarted}
       <div class="series-status live">
         <span><i></i>{labels.live}</span>
-        <strong>{labels.map ?? 'Mapa'} {currentMap?.map ?? activeMap + 1}</strong>
+        <strong>{getMapName(currentMap?.mapId, currentMap?.map ?? activeMap + 1, labels.map ?? 'Mapa')}</strong>
         <b>{visibleScoreA} - {visibleScoreB}</b>
       </div>
     {:else}
       <div class="series-status">{displayStarted ? labels.inProgress ?? 'Em andamento' : labels.pending ?? 'A disputar'}</div>
     {/if}
   </div>
+
+  {#if series.veto?.length}
+    <div class="veto-summary">
+      <span class="eyebrow">{labels.veto ?? 'Veto'}</span>
+      <ol>
+        {#each series.veto as step}
+          <li
+            class:ban={step.action === 'ban'}
+            class:pick={step.action === 'pick'}
+            class:decider={step.action === 'decider'}
+          >
+            <small>{step.action === 'ban' ? labels.ban ?? 'Ban' : step.action === 'pick' ? labels.pick ?? 'Pick' : labels.decider ?? 'Decider'}</small>
+            <strong>{getMapName(step.mapId)}</strong>
+            <span>{vetoTeamName(step.teamId)}</span>
+          </li>
+        {/each}
+      </ol>
+    </div>
+  {/if}
 
   {#key `${displayActiveMap}:${displayVisibleRounds}:${displayStarted}:${displayFinished}`}
     <div class="map-list">
@@ -181,7 +217,7 @@
         {@const liveRound = index === displayActiveMap ? currentRound : null}
         <article class="map-row" class:live={index === displayActiveMap && displayStarted}>
           <div>
-            <strong>{labels.map ?? 'Mapa'} {map.map}</strong>
+            <strong>{getMapName(map.mapId, map.map, labels.map ?? 'Mapa')}</strong>
             <small>{isPast || (index === displayActiveMap && currentMapFinished) ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
           </div>
           {#if isPast}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { translate } from '../src/lib/game/i18n';
 import { translateOnline } from '../src/lib/game/online/i18n';
-import { getVisibleMapScore } from '../src/lib/game/seriesPresentation';
+import { getVisibleMapScore, isSeriesVisuallyStarted } from '../src/lib/game/seriesPresentation';
 import type { MapResult, RoundScore } from '../src/lib/game/types';
 
 const map: MapResult = {
@@ -14,6 +14,50 @@ const map: MapResult = {
 };
 
 describe('series presentation', () => {
+  it('shows the automatic series as live from its first render', () => {
+    expect(isSeriesVisuallyStarted({
+      controlled: false,
+      controlledStarted: false,
+      started: false,
+      auto: true,
+      finished: false
+    })).toBe(true);
+  });
+
+  it('keeps a manual series pending until it starts and stops automatic live state after finishing', () => {
+    expect(isSeriesVisuallyStarted({
+      controlled: false,
+      controlledStarted: false,
+      started: false,
+      auto: false,
+      finished: false
+    })).toBe(false);
+    expect(isSeriesVisuallyStarted({
+      controlled: false,
+      controlledStarted: false,
+      started: false,
+      auto: true,
+      finished: true
+    })).toBe(false);
+  });
+
+  it('keeps the server-controlled live state authoritative', () => {
+    expect(isSeriesVisuallyStarted({
+      controlled: true,
+      controlledStarted: false,
+      started: true,
+      auto: true,
+      finished: false
+    })).toBe(false);
+    expect(isSeriesVisuallyStarted({
+      controlled: true,
+      controlledStarted: true,
+      started: false,
+      auto: false,
+      finished: false
+    })).toBe(true);
+  });
+
   it('keeps a map pending before the series starts', () => {
     expect(getVisibleMapScore(map, null, { isComplete: false, isLive: false })).toBeNull();
   });

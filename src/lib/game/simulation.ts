@@ -3,6 +3,7 @@ import type {
   GameMode,
   HistoricalTeam,
   MajorRun,
+  MapId,
   MapResult,
   OrgStyle,
   Player,
@@ -12,6 +13,14 @@ import type {
   SeriesResult,
   Stage3Result
 } from './types';
+import {
+  createBotMapStrategy,
+  createUserMapStrategy,
+  getStrategyMapBonus,
+  resolveMapVeto,
+  type MapSimulationContext
+} from './map-veto';
+import { isValidMapSelection } from './maps';
 
 export type SeededRng = () => number;
 
@@ -193,11 +202,17 @@ export function simulateRound(
   return rng() < Math.max(0.12, Math.min(0.88, probability + noise)) ? 'a' : 'b';
 }
 
-export function simulateMap(teamA: CombatTeam, teamB: CombatTeam, rng: SeededRng, map = 1): MapResult {
+export function simulateMap(
+  teamA: CombatTeam,
+  teamB: CombatTeam,
+  rng: SeededRng,
+  map = 1,
+  options: { mapId?: MapId; powerBonusA?: number; powerBonusB?: number } = {}
+): MapResult {
   const variationA = (rng() - 0.5) * 7;
   const variationB = (rng() - 0.5) * 7;
-  const mapA = { ...teamA, power: teamA.power + variationA };
-  const mapB = { ...teamB, power: teamB.power + variationB };
+  const mapA = { ...teamA, power: teamA.power + variationA + (options.powerBonusA ?? 0) };
+  const mapB = { ...teamB, power: teamB.power + variationB + (options.powerBonusB ?? 0) };
   let scoreA = 0;
   let scoreB = 0;
   const rounds: RoundScore[] = [];
@@ -220,6 +235,7 @@ export function simulateMap(teamA: CombatTeam, teamB: CombatTeam, rng: SeededRng
 
   return {
     map,
+    ...(options.mapId ? { mapId: options.mapId } : {}),
     scoreA,
     scoreB,
     winnerId: scoreA > scoreB ? teamA.id : teamB.id,
@@ -264,6 +280,61 @@ export function simulateSeries(
   };
 }
 
+export function simulateMappedSeries(
+  teamA: CombatTeam,
+  teamB: CombatTeam,
+  bestOf: 1 | 3 | 5,
+  rng: SeededRng,
+  phase: SeriesResult['phase'],
+  seriesId: string,
+  mapContext: MapSimulationContext
+): SeriesResult {
+  const strategyA = mapContext.strategies.get(teamA.id);
+  const strategyB = mapContext.strategies.get(teamB.id);
+  if (!strategyA || !strategyB) return simulateSeries(teamA, teamB, bestOf, rng, phase, seriesId);
+
+  const veto = resolveMapVeto({
+    bestOf,
+    teamA: strategyA,
+    teamB: strategyB,
+    seed: `${mapContext.seed}:${seriesId}:veto`
+  });
+  const needed = Math.ceil(bestOf / 2);
+  const maps: MapResult[] = [];
+  let scoreA = 0;
+  let scoreB = 0;
+  const pressureA = phase === 'final' ? (teamA.experience + teamA.mental) / 180 : 1;
+  const pressureB = phase === 'final' ? (teamB.experience + teamB.mental) / 180 : 1;
+  const adjustedA = { ...teamA, power: getMatchDayPower(teamA, rng) + pressureA };
+  const adjustedB = { ...teamB, power: getMatchDayPower(teamB, rng) + pressureB };
+
+  for (const mapId of veto.playedMaps) {
+    if (scoreA >= needed || scoreB >= needed) break;
+    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, {
+      mapId,
+      powerBonusA: getStrategyMapBonus(strategyA, mapId, mapContext.mode),
+      powerBonusB: getStrategyMapBonus(strategyB, mapId, mapContext.mode)
+    });
+    maps.push(result);
+    if (result.winnerId === teamA.id) scoreA += 1;
+    else scoreB += 1;
+  }
+
+  return {
+    id: seriesId,
+    phase,
+    bestOf,
+    teamA,
+    teamB,
+    scoreA,
+    scoreB,
+    winnerId: scoreA > scoreB ? teamA.id : teamB.id,
+    maps,
+    veto: veto.steps,
+    userMatch: Boolean(teamA.isUser || teamB.isUser)
+  };
+}
+
 const weightedOpponent = (teams: CombatTeam[], progress: number, rng: SeededRng) => {
   const sorted = [...teams].sort((a, b) => a.power - b.power);
   const exponent = 0.75 + progress * 0.55;
@@ -271,7 +342,12 @@ const weightedOpponent = (teams: CombatTeam[], progress: number, rng: SeededRng)
   return sorted[index];
 };
 
-export function simulateStage3(user: CombatTeam, opponents: CombatTeam[], rng: SeededRng): Stage3Result {
+export function simulateStage3(
+  user: CombatTeam,
+  opponents: CombatTeam[],
+  rng: SeededRng,
+  mapContext?: MapSimulationContext
+): Stage3Result {
   let wins = 0;
   let losses = 0;
   const matches: SeriesResult[] = [];
@@ -279,7 +355,10 @@ export function simulateStage3(user: CombatTeam, opponents: CombatTeam[], rng: S
   while (wins < 3 && losses < 3 && unused.length) {
     const opponent = weightedOpponent(unused, matches.length / 5, rng);
     unused.splice(unused.findIndex((team) => team.id === opponent.id), 1);
-    const series = simulateSeries(user, opponent, 3, rng, 'stage3');
+    const seriesId = `stage3-${matches.length + 1}-${user.id}-${opponent.id}`;
+    const series = mapContext
+      ? simulateMappedSeries(user, opponent, 3, rng, 'stage3', seriesId, mapContext)
+      : simulateSeries(user, opponent, 3, rng, 'stage3');
     matches.push(series);
     if (series.winnerId === user.id) wins += 1;
     else losses += 1;
@@ -287,7 +366,12 @@ export function simulateStage3(user: CombatTeam, opponents: CombatTeam[], rng: S
   return { wins, losses, qualified: wins === 3, matches };
 }
 
-export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng: SeededRng): PlayoffsResult {
+export function simulatePlayoffs(
+  user: CombatTeam,
+  opponents: CombatTeam[],
+  rng: SeededRng,
+  mapContext?: MapSimulationContext
+): PlayoffsResult {
   const field = [...opponents]
     .sort((a, b) => b.power + rng() * 14 - (a.power + rng() * 14))
     .slice(0, 7);
@@ -306,11 +390,12 @@ export function simulatePlayoffs(user: CombatTeam, opponents: CombatTeam[], rng:
     for (let index = 0; index < current.length; index += 2) {
       const left = current[index];
       const right = current[index + 1];
-      const match = left.id === user.id
-        ? simulateSeries(user, right, round.bestOf, rng, round.phase)
-        : right.id === user.id
-          ? simulateSeries(user, left, round.bestOf, rng, round.phase)
-          : simulateSeries(left, right, round.bestOf, rng, round.phase);
+      const teamA = left.id === user.id ? user : right.id === user.id ? user : left;
+      const teamB = left.id === user.id ? right : right.id === user.id ? left : right;
+      const seriesId = `${round.phase}-${index / 2 + 1}-${teamA.id}-${teamB.id}`;
+      const match = mapContext
+        ? simulateMappedSeries(teamA, teamB, round.bestOf, rng, round.phase, seriesId, mapContext)
+        : simulateSeries(teamA, teamB, round.bestOf, rng, round.phase);
       allMatches.push(match);
       winners.push(match.winnerId === match.teamA.id ? match.teamA : match.teamB);
       if (match.userMatch && match.winnerId !== user.id) {
@@ -333,18 +418,27 @@ export function buildMajorRun(
   teams: HistoricalTeam[],
   allPlayers: Player[],
   seed: string,
-  lineup: SelectedPlayer[] = []
+  lineup: SelectedPlayer[] = [],
+  options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
 ): MajorRun {
   const rng = createSeededRng(`${seed}:major:${players.map((player) => player.id).join('|')}:${style}`);
   const user = calculateUserTeamPower(players, style, lineup, seed);
   const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));
-  const stage3 = simulateStage3(user, opponents, rng);
+  let mapContext: MapSimulationContext | undefined;
+  const selectedMaps = options.selectedMaps ?? [];
+  if (isValidMapSelection(selectedMaps)) {
+    const strategies: MapSimulationContext['strategies'] = new Map();
+    strategies.set(user.id, createUserMapStrategy(user.id, selectedMaps, players, teams));
+    for (const team of teams) strategies.set(team.id, createBotMapStrategy(team));
+    mapContext = { mode: options.mode ?? 'premier', seed: `${seed}:offline-maps`, strategies };
+  }
+  const stage3 = simulateStage3(user, opponents, rng, mapContext);
   if (!stage3.qualified) {
     return { stage3, matches: stage3.matches, champion: false, placement: 'Eliminado no Stage 3' };
   }
   const used = new Set(stage3.matches.flatMap((match) => [match.teamA.id, match.teamB.id]));
   const playoffPool = opponents.filter((team) => !used.has(team.id));
-  const playoffs = simulatePlayoffs(user, playoffPool.length >= 7 ? playoffPool : opponents, rng);
+  const playoffs = simulatePlayoffs(user, playoffPool.length >= 7 ? playoffPool : opponents, rng, mapContext);
   const champion = playoffs.championId === user.id;
   return {
     stage3,
