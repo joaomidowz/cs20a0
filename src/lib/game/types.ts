@@ -231,3 +231,5 @@ export const SPEEDS: Record<SimSpeed, number> = {
   fast: 1200,
   ultra: 200
 };
+
+export type { ReplayPlanV1, ReplayV1 } from './replay/types';

@@ -1,0 +1,18 @@
+mirage:
+  t_spawn     (spawn:T)  @ 12,22 -> ramp, top_mid, apartments
+  ramp        (lane)     @ 7,19  -> t_spawn, palace, a_site
+  palace      (lane)     @ 5,15  -> ramp, a_site
+  a_site      (site:A)   @ 5,11  -> ramp, palace, jungle, stairs
+  stairs      (choke)    @ 6,7   -> a_site, ct_spawn
+  jungle      (lane)     @ 9,9   -> a_site, connector, ct_spawn
+  connector   (choke)    @ 10,11 -> jungle, mid
+  top_mid     (lane)     @ 13,18 -> t_spawn, mid, underpass
+  mid         (lane)     @ 13,14 -> top_mid, connector, window, b_short
+  window      (angle)    @ 12,10 -> mid, ct_spawn
+  underpass   (lane)     @ 15,16 -> top_mid, b_short
+  b_short     (choke)    @ 16,12 -> mid, underpass, b_site
+  apartments  (lane)     @ 18,19 -> t_spawn, balcony
+  balcony     (choke)    @ 19,15 -> apartments, b_site
+  b_site      (site:B)   @ 19,11 -> b_short, balcony, market
+  market      (lane)     @ 16,8  -> b_site, ct_spawn
+  ct_spawn    (spawn:CT) @ 11,5  -> stairs, jungle, window, market

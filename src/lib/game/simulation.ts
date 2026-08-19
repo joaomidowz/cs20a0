@@ -21,6 +21,7 @@ import {
   type MapSimulationContext
 } from './map-veto';
 import { isValidMapSelection } from './maps';
+import { getEligibleSlotRoles } from './roleRules';
 
 export type SeededRng = () => number;
 
@@ -97,7 +98,7 @@ export function calculatePlayerPower(
 const hasRole = (player: Player, role: string) => (player.role ?? '').toLowerCase().includes(role);
 
 export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
-  if (!players.length) return { id: 'user', name: 'yourOrg', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
+  if (!players.length) return { id: 'user', organizationId: 'user', name: 'yourOrg', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true, lineup };
   const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
   const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
   const assignedRoles = lineup.map((selected) => selected.selectedSlotRole);
@@ -131,7 +132,9 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
     style,
     studyPercentage,
     aggressionPercentage,
-    isUser: true
+    isUser: true,
+    organizationId: 'user',
+    lineup
   };
 }
 
@@ -166,11 +169,16 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
   const power = playerAverage * 0.72 + number(team.teamPowerPreview ?? team.power, playerAverage) * 0.2 + chemistry * 0.08 + rankBonus + completeRosterBonus;
   return {
     id: team.id,
+    organizationId: team.id,
     name: `${team.name ?? 'Time'} ${team.year ?? ''}`.trim(),
     power: Math.max(50, Math.min(99, power)),
     mental: number(team.teamStats?.mental, 82),
     clutch: number(team.teamStats?.clutch, 82),
-    experience: number(team.teamStats?.experience, 82)
+    experience: number(team.teamStats?.experience, 82),
+    lineup: roster.slice(0, 5).map((player) => ({
+      playerId: player.id,
+      selectedSlotRole: getEligibleSlotRoles(player)[0] ?? 'rifler'
+    }))
   };
 }
 

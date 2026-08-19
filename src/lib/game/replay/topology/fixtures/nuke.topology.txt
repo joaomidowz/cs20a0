@@ -1,0 +1,16 @@
+nuke:
+  t_spawn      (spawn:T)  @ 21,12 -> outside, secret
+  outside      (lane)     @ 17,12 -> t_spawn, garage, silo, squeaky, secret
+  silo         (angle)    @ 18,8  -> outside
+  garage       (lane)     @ 14,10 -> outside, ramp
+  ramp         (choke)    @ 12,11 -> garage, a_site, ramp_lower
+  a_site       (site:A)   @ 11,13 -> ramp, hut, heaven, squeaky, vents
+  squeaky      (choke)    @ 14,14 -> outside, a_site
+  hut          (choke)    @ 8,12  -> a_site, ct_spawn
+  heaven       (angle)    @ 9,10  -> a_site, ct_spawn
+  vents        (lane)     @ 9,15  -> a_site, b_site
+  secret       (lane)     @ 18,16 -> t_spawn, outside, b_site
+  b_site       (site:B)   @ 12,18 -> secret, vents, ramp_lower, double_doors
+  ramp_lower   (lane)     @ 14,17 -> b_site, ramp
+  double_doors (choke)    @ 8,17  -> b_site, ct_spawn
+  ct_spawn     (spawn:CT) @ 4,13  -> hut, heaven, double_doors

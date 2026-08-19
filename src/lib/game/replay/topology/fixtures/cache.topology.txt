@@ -1,0 +1,15 @@
+cache:
+  t_spawn   (spawn:T)  @ 3,12  -> a_main, mid, garage
+  a_main    (lane)     @ 6,9   -> t_spawn, highway
+  highway   (lane)     @ 8,6   -> a_main, a_site
+  a_site    (site:A)   @ 7,3   -> highway, quad, connector
+  quad      (angle)    @ 11,4  -> a_site, ct_spawn
+  connector (choke)    @ 11,8  -> a_site, mid
+  mid       (lane)     @ 12,11 -> t_spawn, connector, ct_mid
+  ct_mid    (lane)     @ 16,10 -> mid, ct_spawn
+  garage    (lane)     @ 5,16  -> t_spawn, b_main
+  b_main    (lane)     @ 8,19  -> garage, b_site
+  b_site    (site:B)   @ 11,21 -> b_main, checkers, vents
+  checkers  (lane)     @ 14,18 -> b_site, ct_spawn
+  vents     (choke)    @ 15,14 -> b_site, ct_spawn
+  ct_spawn  (spawn:CT) @ 20,12 -> quad, ct_mid, checkers, vents

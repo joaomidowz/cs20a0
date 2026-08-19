@@ -1,0 +1,24 @@
+dust2:
+  t_spawn       (spawn:T)  @ 11,22 -> outside_long, mid_t, upper_tunnels
+  outside_long  (lane)     @ 17,20 -> t_spawn, long_doors
+  long_doors    (choke)    @ 18,17 -> outside_long, long_a
+  long_a        (lane)     @ 19,13 -> long_doors, pit, a_site
+  pit           (angle)    @ 21,10 -> long_a
+  a_site        (site:A)   @ 18,7  -> long_a, a_short, a_ramp, goose
+  goose         (angle)    @ 20,5  -> a_site
+  a_ramp        (lane)     @ 15,6  -> a_site, ct_spawn
+  a_short       (lane)     @ 16,9  -> a_site, short_stairs
+  short_stairs  (choke)    @ 15,11 -> a_short, catwalk
+  catwalk       (lane)     @ 13,13 -> short_stairs, mid
+  mid_t         (lane)     @ 11,18 -> t_spawn, xbox, mid_doors
+  xbox          (angle)    @ 13,16 -> mid_t
+  mid_doors     (choke)    @ 11,15 -> mid_t, mid
+  mid           (lane)     @ 11,12 -> mid_doors, catwalk, ct_mid, lower_tunnels
+  ct_mid        (lane)     @ 11,8  -> mid, ct_spawn
+  upper_tunnels (lane)     @ 7,20  -> t_spawn, lower_tunnels
+  lower_tunnels (choke)    @ 6,16  -> upper_tunnels, tunnel_exit, mid
+  tunnel_exit   (choke)    @ 6,12  -> lower_tunnels, b_site
+  b_site        (site:B)   @ 5,8   -> tunnel_exit, b_doors, b_platform
+  b_platform    (angle)    @ 3,6   -> b_site
+  b_doors       (choke)    @ 8,6   -> b_site, ct_spawn
+  ct_spawn      (spawn:CT) @ 12,4  -> a_ramp, ct_mid, b_doors

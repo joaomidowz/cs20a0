@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import ReplayViewer from '$lib/components/ReplayViewer.svelte';
   import { translateTeamName } from '$lib/game/i18n';
   import { getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
-  import type { Language, SeriesResult } from '$lib/game/types';
+  import type { Language, SeriesResult, Theme } from '$lib/game/types';
 
   export let series: SeriesResult;
   export let delay = 1500;
@@ -14,6 +15,7 @@
   export let controlledStarted = false;
   export let controlledFinished = false;
   export let language: Language = 'en';
+  export let theme: Theme = 'dark';
   export let interactiveTeamId: string | null = null;
   export let interactiveTeamIds: string[] = [];
   export let labels: {
@@ -45,6 +47,8 @@
   let runId = 0;
   let pendingTimeout: number | null = null;
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
+  let replayMapIndex = 0;
+  let lastReplayActiveMap = -1;
 
   const wait = (ms: number) => new Promise<boolean>((resolve) => {
     resolvePendingWait = resolve;
@@ -75,6 +79,15 @@
   $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
   $: mapsLabel = language === 'en' ? 'MAPS' : 'MAPAS';
+  $: if (!controlled && displayActiveMap !== lastReplayActiveMap) {
+    lastReplayActiveMap = displayActiveMap;
+    replayMapIndex = Math.min(displayActiveMap, series.maps.length - 1);
+  }
+  $: replayMap = series.maps[replayMapIndex];
+  $: replayAvailableMaps = series.maps.slice(0, Math.min(series.maps.length, displayActiveMap + 1));
+  $: replayVisibleRounds = replayMapIndex < displayActiveMap || displayFinished
+    ? replayMap?.rounds.length ?? 0
+    : displayVisibleRounds;
   $: if (!controlled && auto && !started && !finished) void play();
 
   async function play() {
@@ -208,6 +221,31 @@
         {/each}
       </ol>
     </div>
+  {/if}
+
+  {#if !controlled && replayMap?.mapId}
+    <div class="replay-map-tabs" aria-label={mapsLabel}>
+      {#each replayAvailableMaps as map, index}
+        <button
+          type="button"
+          class:active={replayMapIndex === index}
+          aria-pressed={replayMapIndex === index}
+          on:click={() => replayMapIndex = index}
+        >
+          <small>{labels.map ?? 'Mapa'} {index + 1}</small>
+          <strong>{getMapName(map.mapId, map.map, labels.map ?? 'Mapa')}</strong>
+        </button>
+      {/each}
+    </div>
+    {#key replayMapIndex}
+      <ReplayViewer
+        {series}
+        mapIndex={replayMapIndex}
+        visibleRounds={replayVisibleRounds}
+        {language}
+        {theme}
+      />
+    {/key}
   {/if}
 
   {#key `${displayActiveMap}:${displayVisibleRounds}:${displayStarted}:${displayFinished}`}

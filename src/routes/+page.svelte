@@ -847,6 +847,7 @@
             delay={SPEEDS[$game.simSpeed]}
             auto={$game.simMode === 'auto'}
             language={$game.language}
+            theme={$game.theme}
             interactiveTeamId={enemyTeamId}
             labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider') }}
             onComplete={seriesCompleted}

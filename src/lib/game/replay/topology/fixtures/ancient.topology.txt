@@ -1,0 +1,12 @@
+ancient:
+  t_spawn  (spawn:T)  @ 12,22 -> a_main, mid, b_main
+  a_main   (lane)     @ 7,17  -> t_spawn, a_site
+  a_site   (site:A)   @ 5,8   -> a_main, a_ramp, donut
+  a_ramp   (lane)     @ 8,5   -> a_site, ct_spawn
+  mid      (lane)     @ 12,16 -> t_spawn, donut, cave
+  donut    (choke)    @ 10,12 -> mid, a_site, ct_spawn
+  cave     (lane)     @ 15,14 -> mid, b_site
+  b_main   (lane)     @ 17,18 -> t_spawn, b_site
+  b_site   (site:B)   @ 19,10 -> b_main, cave, b_ramp
+  b_ramp   (lane)     @ 16,6  -> b_site, ct_spawn
+  ct_spawn (spawn:CT) @ 12,3  -> a_ramp, donut, b_ramp

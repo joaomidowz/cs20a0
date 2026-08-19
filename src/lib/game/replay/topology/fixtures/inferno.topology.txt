@@ -1,0 +1,20 @@
+inferno:
+  t_spawn       (spawn:T)  @ 12,22 -> banana_bottom, top_mid
+  banana_bottom (lane)     @ 8,19  -> t_spawn, banana_car
+  banana_car    (choke)    @ 6,16  -> banana_bottom, banana_top
+  banana_top    (choke)    @ 5,12  -> banana_car, b_site, ct_banana
+  b_site        (site:B)   @ 4,9   -> banana_top, construction, boiler
+  construction  (angle)    @ 2,7   -> b_site
+  boiler        (lane)     @ 6,7   -> b_site, ct_spawn
+  ct_banana     (lane)     @ 7,10  -> banana_top, ct_spawn
+  ct_spawn      (spawn:CT) @ 9,4   -> arch, boiler, ct_banana, library
+  top_mid       (lane)     @ 13,18 -> t_spawn, second_mid, apartments
+  apartments    (lane)     @ 16,17 -> top_mid, balcony
+  balcony       (choke)    @ 18,13 -> apartments, a_site
+  second_mid    (lane)     @ 12,15 -> top_mid, arch, short
+  arch          (choke)    @ 11,11 -> second_mid, ct_spawn, library
+  library       (lane)     @ 13,9  -> arch, a_site, ct_spawn
+  short         (choke)    @ 15,12 -> second_mid, a_site
+  a_site        (site:A)   @ 17,8  -> balcony, short, library, graveyard, pit
+  graveyard     (angle)    @ 19,5  -> a_site
+  pit           (angle)    @ 20,10 -> a_site

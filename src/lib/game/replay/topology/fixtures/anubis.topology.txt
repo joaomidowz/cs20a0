@@ -1,0 +1,16 @@
+anubis:
+  t_spawn   (spawn:T)  @ 12,22 -> a_main, mid_lower, b_main
+  a_main    (lane)     @ 18,18 -> t_spawn, connector, a_site
+  connector (choke)    @ 16,13 -> a_main, bridge
+  a_site    (site:A)   @ 19,6  -> a_main, palace, heaven
+  palace    (angle)    @ 16,7  -> a_site, ct_spawn
+  heaven    (angle)    @ 21,9  -> a_site, ct_spawn
+  mid_lower (lane)     @ 12,18 -> t_spawn, water
+  water     (choke)    @ 12,14 -> mid_lower, bridge, canal
+  bridge    (lane)     @ 13,11 -> water, connector, ct_spawn
+  canal     (lane)     @ 9,13  -> water, b_site
+  b_main    (lane)     @ 6,18  -> t_spawn, b_short
+  b_short   (choke)    @ 5,14  -> b_main, b_site
+  b_site    (site:B)   @ 5,10  -> b_short, canal, street
+  street    (lane)     @ 7,7   -> b_site, ct_spawn
+  ct_spawn  (spawn:CT) @ 11,4  -> street, palace, bridge, heaven

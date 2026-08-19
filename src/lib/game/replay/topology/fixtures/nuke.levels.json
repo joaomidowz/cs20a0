@@ -1,0 +1,26 @@
+{
+  "levels": {
+    "ct_spawn": 0,
+    "hut": 0,
+    "heaven": 0,
+    "a_site": 0,
+    "ramp": 0,
+    "garage": 0,
+    "outside": 0,
+    "silo": 0,
+    "t_spawn": 0,
+    "squeaky": 0,
+    "b_site": -1,
+    "ramp_lower": -1,
+    "double_doors": -1,
+    "vents": -1,
+    "secret": -1
+  },
+  "verticalEdges": [
+    ["ramp", "ramp_lower"],
+    ["a_site", "vents"],
+    ["outside", "secret"],
+    ["t_spawn", "secret"],
+    ["ct_spawn", "double_doors"]
+  ]
+}
