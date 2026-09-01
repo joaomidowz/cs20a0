@@ -11,6 +11,7 @@ import type {
   ReplayTSplit,
   ReplayWeapon
 } from './types';
+import { assignGoldenSquadResponsibilities, selectGoldenStrategy } from './golden/tactics';
 import { getMapGraph } from './topology/maps';
 import { findMapRoute } from './topology/routes';
 
@@ -25,27 +26,18 @@ function replayPlayers(team: CombatTeam): ReplayPlayerV1[] {
         playerId: `${team.id}:player:${index + 1}`,
         selectedSlotRole: index === 0 ? 'awper' as const : index === 1 ? 'igl' as const : index === 2 ? 'entry' as const : index === 3 ? 'support' as const : 'rifler' as const
       }));
-  const directRole = (role: typeof lineup[number]['selectedSlotRole']): ReplayTacticalRole | null =>
+  const directRole = (role: typeof lineup[number]['selectedSlotRole']): ReplayTacticalRole =>
     role === 'awper' ? 'awp'
-      : role === 'lurker' ? 'lurk'
-        : role === 'entry' ? 'entry'
-          : role === 'support' ? 'support'
-            : null;
-  const assigned = lineup.map((selected) => directRole(selected.selectedSlotRole));
-  const unassigned = assigned.map((role, index) => role ? -1 : index).filter((index) => index >= 0);
-  if (!assigned.includes('entry') && unassigned.length) assigned[unassigned.shift()!] = 'entry';
-  if (!assigned.includes('support') && unassigned.length) assigned[unassigned.shift()!] = 'support';
-  if (unassigned.length) assigned[unassigned.shift()!] = 'trade';
-  for (const index of unassigned) assigned[index] = 'rifler';
-  if (!assigned.includes('trade')) {
-    const candidate = assigned.findIndex((role) => role === 'rifler' || role === 'support');
-    if (candidate >= 0) assigned[candidate] = 'trade';
-  }
+      : role === 'igl' ? 'igl'
+        : role === 'lurker' ? 'lurk'
+          : role === 'entry' ? 'entry'
+            : role === 'support' ? 'support'
+              : 'rifler';
   return lineup.map((selected, index) => ({
     id: selected.playerId,
     organizationId: organizationId(team),
     role: selected.selectedSlotRole,
-    tacticalRole: assigned[index] ?? 'rifler'
+    tacticalRole: directRole(selected.selectedSlotRole)
   }));
 }
 
@@ -108,6 +100,10 @@ export function createReplayPlan(series: SeriesResult, mapIndex: number): Replay
     [organizationId(series.teamA), players.filter((player) => player.organizationId === organizationId(series.teamA))],
     [organizationId(series.teamB), players.filter((player) => player.organizationId === organizationId(series.teamB))]
   ]);
+  const styleByOrganization = new Map([
+    [organizationId(series.teamA), series.teamA.style ?? 'balanced'],
+    [organizationId(series.teamB), series.teamB.style ?? 'balanced']
+  ]);
   const adjacency = new Map(graph.nodes.map((node) => [node.id, [] as string[]]));
   for (const edge of graph.edges) {
     adjacency.get(edge.from)?.push(edge.to);
@@ -133,8 +129,9 @@ export function createReplayPlan(series: SeriesResult, mapIndex: number): Replay
       .sort((left, right) => {
         const priority: Record<ReplayTacticalRole, number> = {
           entry: 0,
-          trade: 1,
-          support: 2,
+          support: 1,
+          igl: 2,
+          trade: 2,
           rifler: 3,
           awp: 4,
           lurk: 5
@@ -201,7 +198,13 @@ export function createReplayPlan(series: SeriesResult, mapIndex: number): Replay
     };
     const tRoutes = tPlayers.map((player, playerIndex) => createRoute(player, playerIndex, 'T'));
     const entryRoute = tRoutes.find((route) => route.tacticalRole === 'entry');
-    const tradeRoute = tRoutes.find((route) => route.tacticalRole === 'trade');
+    const tacticalPlan = selectGoldenStrategy(styleByOrganization.get(sides.tOrganizationId) ?? 'balanced', `${roundSeed}:tactics`);
+    const responsibilities = assignGoldenSquadResponsibilities(
+      tPlayers.map((player) => ({ id: player.id, selectedRole: player.role })),
+      tacticalPlan
+    );
+    const tradePlayerId = responsibilities.find((assignment) => assignment.responsibility === 'TRADER')?.playerId;
+    const tradeRoute = tRoutes.find((route) => route.playerId === tradePlayerId);
     if (entryRoute && tradeRoute) {
       const segmentDurationMs = (entryRoute.endAtMs - entryRoute.startAtMs) /
         Math.max(1, entryRoute.nodeIds.length - 1);
@@ -380,8 +383,8 @@ export function createReplayPlan(series: SeriesResult, mapIndex: number): Replay
     mapId: map.mapId,
     tickRate: 4,
     organizations: [
-      { id: organizationId(series.teamA), name: series.teamA.name },
-      { id: organizationId(series.teamB), name: series.teamB.name }
+      { id: organizationId(series.teamA), name: series.teamA.name, style: series.teamA.style ?? 'balanced' },
+      { id: organizationId(series.teamB), name: series.teamB.name, style: series.teamB.style ?? 'balanced' }
     ],
     players,
     result: {

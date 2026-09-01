@@ -35,46 +35,45 @@ const frames: ReplayFrameV1[] = [
 const drawSource = readFileSync(new URL('../src/lib/game/replay/canvas/draw.ts', import.meta.url), 'utf8');
 
 describe('replay canvas core', () => {
-  it('keeps viewer speed local to its clock and supports normal, fast and ultra', () => {
-    const clock = new ReplayClock(5_000);
+  it('plays normal at 4x, fast at 8x and ultra instantly', () => {
+    const clock = new ReplayClock(40_000);
     clock.play();
-    clock.advance(500);
-    expect(clock.currentMs).toBe(500);
-    clock.setSpeed('fast');
-    clock.advance(400);
-    expect(clock.currentMs).toBe(1_500);
-    clock.pause();
     clock.advance(1_000);
-    expect(clock.currentMs).toBe(1_500);
+    expect(clock.currentMs).toBe(4_000);
+    clock.setSpeed('fast');
+    clock.advance(1_000);
+    expect(clock.currentMs).toBe(12_000);
     clock.setSpeed('ultra');
-    expect(clock.currentMs).toBe(5_000);
+    expect(clock.currentMs).toBe(40_000);
     expect(clock.playing).toBe(false);
   });
 
-  it('compresses each logical round to 8 seconds on normal and 3 seconds on fast', () => {
-    const clock = new ReplayClock(195_000, [90_000, 105_000]);
+  it('plays simulate across one visual round in exactly ten seconds', () => {
+    const clock = new ReplayClock(40_000);
+    clock.setSpeed('simulate');
     clock.play();
-    clock.advance(8_000);
-    expect(clock.currentMs).toBe(90_000);
-    clock.advance(8_000);
-    expect(clock.currentMs).toBe(195_000);
 
-    clock.setSpeed('fast');
-    clock.play();
-    clock.advance(3_000);
-    expect(clock.currentMs).toBe(90_000);
-    clock.advance(3_000);
-    expect(clock.currentMs).toBe(195_000);
+    clock.advance(5_000);
+    expect(clock.currentMs).toBe(20_000);
+    expect(clock.playing).toBe(true);
+
+    clock.advance(5_000);
+    expect(clock.currentMs).toBe(40_000);
+    expect(clock.playing).toBe(false);
   });
 
-  it('freezes an adaptive real-time window for the active logical round', () => {
-    const clock = new ReplayClock(90_000, [90_000]);
-    clock.setRoundPlaybackWindow(5_000);
+  it('plays an offset simulation window without compressing earlier rounds', () => {
+    const clock = new ReplayClock(100_000);
+    clock.setPlaybackWindow(40_000, 100_000);
+    clock.setSpeed('simulate');
+    clock.scrub(40_000);
     clock.play();
-    clock.advance(2_500);
-    expect(clock.currentMs).toBe(45_000);
-    clock.advance(2_500);
-    expect(clock.currentMs).toBe(90_000);
+
+    clock.advance(5_000);
+    expect(clock.currentMs).toBe(70_000);
+
+    clock.advance(5_000);
+    expect(clock.currentMs).toBe(100_000);
   });
 
   it('interpolates before, between and after replay frames', () => {

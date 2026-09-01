@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_POOL } from '../src/lib/game/maps';
-import { resolveMapVeto, type MapStrategy } from '../src/lib/game/map-veto';
+import { getStrategyMapBonus, resolveMapVeto, type MapStrategy } from '../src/lib/game/map-veto';
 import type { MapAffinity, MapId } from '../src/lib/game/types';
 
 const strategy = (teamId: string, selectedMaps: [MapId, MapId, MapId], bot = false): MapStrategy => {
@@ -33,5 +33,13 @@ describe('map veto', () => {
     const second = resolveMapVeto({ bestOf: 3, teamA, teamB, seed: 'same-veto' });
     expect(second).toEqual(first);
   });
-});
 
+  it('uses the strongest affinity tier when scoring a selected map', () => {
+    const strongest = strategy('team-strongest', ['ancient', 'mirage', 'nuke']);
+    strongest.affinities.ancient = '+++';
+
+    expect(getStrategyMapBonus(strongest, 'ancient', 'premier')).toBe(1.5);
+    expect(getStrategyMapBonus(strongest, 'ancient', 'pro')).toBe(4.5);
+    expect(getStrategyMapBonus(strongest, 'cache', 'pro')).toBe(0);
+  });
+});

@@ -1,15 +1,16 @@
-import type { LineupSlotRole, MapId } from '../types';
+import type { LineupSlotRole, MapId, OrgStyle } from '../types';
 
-export type ReplayPlaybackSpeed = 'normal' | 'fast' | 'ultra';
+export type ReplayPlaybackSpeed = 'simulate' | 'normal' | 'fast' | 'ultra';
 export type ReplaySide = 'T' | 'CT';
 export type ReplayGrenadeType = 'flash' | 'he' | 'smoke' | 'molotov';
 export type ReplayWeapon = 'ak47' | 'm4a1' | 'awp' | 'glock' | 'usp';
-export type ReplayTacticalRole = 'entry' | 'trade' | 'support' | 'awp' | 'lurk' | 'rifler';
+export type ReplayTacticalRole = 'entry' | 'trade' | 'support' | 'awp' | 'igl' | 'lurk' | 'rifler';
 export type ReplayTSplit = '5-0' | '4-1' | '3-2' | '2-1-2';
 
 export interface ReplayOrganizationV1 {
   id: string;
   name: string;
+  style: OrgStyle;
 }
 
 export interface ReplayPlayerV1 {

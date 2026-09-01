@@ -1,25 +1,23 @@
 import type { ReplayPlaybackSpeed } from '../types';
 
-const SPEED_MULTIPLIER: Record<Exclude<ReplayPlaybackSpeed, 'ultra'>, number> = {
-  normal: 1,
-  fast: 2.5
+const SPEED_MULTIPLIER: Record<Exclude<ReplayPlaybackSpeed, 'simulate' | 'ultra'>, number> = {
+  normal: 4,
+  fast: 8
 };
-const ROUND_PLAYBACK_WINDOW_MS: Record<Exclude<ReplayPlaybackSpeed, 'ultra'>, number> = {
-  normal: 8_000,
-  fast: 3_000
-};
+
+export const SIMULATED_ROUND_VISUAL_DURATION_MS = 10_000;
 
 export class ReplayClock {
   currentMs = 0;
   playing = false;
   speed: ReplayPlaybackSpeed = 'normal';
   durationMs: number;
-  private roundDurations: number[];
-  private roundPlaybackWindowMs: number | null = null;
+  private playbackStartMs = 0;
+  private playbackEndMs: number;
 
-  constructor(durationMs: number, roundDurations: number[] = []) {
+  constructor(durationMs: number) {
     this.durationMs = Math.max(0, durationMs);
-    this.roundDurations = roundDurations.map((duration) => Math.max(1, duration));
+    this.playbackEndMs = this.durationMs;
   }
 
   play() {
@@ -28,7 +26,10 @@ export class ReplayClock {
       this.playing = false;
       return;
     }
-    if (this.currentMs >= this.durationMs) this.currentMs = 0;
+    const playbackEndMs = this.speed === 'simulate' ? this.playbackEndMs : this.durationMs;
+    if (this.currentMs >= playbackEndMs) {
+      this.currentMs = this.speed === 'simulate' ? this.playbackStartMs : 0;
+    }
     this.playing = true;
   }
 
@@ -48,14 +49,16 @@ export class ReplayClock {
   setDuration(durationMs: number) {
     this.durationMs = Math.max(0, durationMs);
     this.currentMs = Math.min(this.currentMs, this.durationMs);
+    this.playbackStartMs = 0;
+    this.playbackEndMs = this.durationMs;
   }
 
-  setRoundDurations(roundDurations: number[]) {
-    this.roundDurations = roundDurations.map((duration) => Math.max(1, duration));
-  }
-
-  setRoundPlaybackWindow(windowMs: number | null) {
-    this.roundPlaybackWindowMs = windowMs === null ? null : Math.max(1, windowMs);
+  setPlaybackWindow(startMs: number, endMs: number) {
+    this.playbackStartMs = Math.max(0, Math.min(this.durationMs, startMs));
+    this.playbackEndMs = Math.max(
+      this.playbackStartMs,
+      Math.min(this.durationMs, endMs)
+    );
   }
 
   setSpeed(speed: ReplayPlaybackSpeed) {
@@ -68,35 +71,15 @@ export class ReplayClock {
 
   advance(deltaMs: number) {
     if (!this.playing || this.speed === 'ultra') return this.currentMs;
-    let remainingRealMs = Math.max(0, deltaMs);
-    if (!this.roundDurations.length) {
-      this.currentMs = Math.min(this.durationMs, this.currentMs + remainingRealMs * SPEED_MULTIPLIER[this.speed]);
-    } else {
-      while (remainingRealMs > 0 && this.currentMs < this.durationMs) {
-        let roundStartMs = 0;
-        let roundDurationMs = this.roundDurations.at(-1) ?? this.durationMs;
-        for (const durationMs of this.roundDurations) {
-          if (this.currentMs < roundStartMs + durationMs) {
-            roundDurationMs = durationMs;
-            break;
-          }
-          roundStartMs += durationMs;
-        }
-        const roundEndMs = Math.min(this.durationMs, roundStartMs + roundDurationMs);
-        const playbackWindowMs = this.roundPlaybackWindowMs ?? ROUND_PLAYBACK_WINDOW_MS[this.speed];
-        const logicalPerRealMs = roundDurationMs / playbackWindowMs;
-        const logicalRemainingMs = Math.max(0, roundEndMs - this.currentMs);
-        const realToRoundEndMs = logicalRemainingMs / logicalPerRealMs;
-        if (remainingRealMs >= realToRoundEndMs) {
-          this.currentMs = roundEndMs;
-          remainingRealMs -= realToRoundEndMs;
-        } else {
-          this.currentMs = Math.min(roundEndMs, this.currentMs + remainingRealMs * logicalPerRealMs);
-          remainingRealMs = 0;
-        }
-      }
-    }
-    if (this.currentMs >= this.durationMs) this.playing = false;
+    const multiplier = this.speed === 'simulate'
+      ? (this.playbackEndMs - this.playbackStartMs) / SIMULATED_ROUND_VISUAL_DURATION_MS
+      : SPEED_MULTIPLIER[this.speed];
+    const playbackEndMs = this.speed === 'simulate' ? this.playbackEndMs : this.durationMs;
+    this.currentMs = Math.min(
+      playbackEndMs,
+      this.currentMs + Math.max(0, deltaMs) * multiplier
+    );
+    if (this.currentMs >= playbackEndMs) this.playing = false;
     return this.currentMs;
   }
 }

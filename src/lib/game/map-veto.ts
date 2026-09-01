@@ -19,7 +19,7 @@ export interface MapVetoResult {
   playedMaps: MapId[];
 }
 
-const affinityScore: Record<MapAffinity, number> = { EVEN: 0, '+': 1, '++': 2 };
+const affinityScore: Record<MapAffinity, number> = { EVEN: 0, '+': 1, '++': 2, '+++': 3 };
 
 const hashUnit = (value: string) => {
   let hash = 2166136261;
@@ -127,4 +127,3 @@ export function getStrategyMapBonus(strategy: MapStrategy, mapId: MapId, mode: G
   if (!strategy.selectedMaps.includes(mapId)) return 0;
   return getSelectedMapPowerBonus(mode, strategy.affinities[mapId]);
 }
-

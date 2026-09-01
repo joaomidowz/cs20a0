@@ -22,7 +22,7 @@ export type Language = 'pt-BR' | 'es' | 'en';
 export type Theme = 'dark' | 'light';
 export type LineupSlotRole = 'awper' | 'igl' | 'entry' | 'lurker' | 'rifler' | 'support';
 export type MapId = 'ancient' | 'anubis' | 'cache' | 'dust2' | 'inferno' | 'mirage' | 'nuke';
-export type MapAffinity = 'EVEN' | '+' | '++';
+export type MapAffinity = 'EVEN' | '+' | '++' | '+++';
 
 export interface HistoricalMapRecord {
   mapId: MapId;

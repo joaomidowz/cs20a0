@@ -74,11 +74,20 @@ describe('map profiles and selection', () => {
     const contributors = getLineupMapContributors(players, teams);
     expect(contributors.ancient.map((player) => player.id)).toEqual(['a-1', 'a-2', 'b-1']);
     expect(getMapAffinity(contributors.ancient.length)).toBe('++');
-    expect(getMapAffinity(contributors.inferno.length)).toBe('+');
+    expect(getMapAffinity(contributors.inferno.length)).toBe('EVEN');
     expect(getMapAffinity(contributors.cache.length)).toBe('EVEN');
-    expect(getMapAffinity(2)).toBe('+');
-    expect(getMapAffinity(5)).toBe('++');
     expect(getDefaultMapSelection(players, teams)).toEqual(['ancient', 'mirage', 'nuke']);
+  });
+
+  it.each([
+    { contributors: 0, affinity: 'EVEN' },
+    { contributors: 1, affinity: 'EVEN' },
+    { contributors: 2, affinity: '+' },
+    { contributors: 3, affinity: '++' },
+    { contributors: 4, affinity: '+++' },
+    { contributors: 5, affinity: '+++' }
+  ] as const)('maps $contributors contributors to $affinity affinity', ({ contributors, affinity }) => {
+    expect(getMapAffinity(contributors)).toBe(affinity);
   });
 
   it('accepts exactly three unique pool maps', () => {
@@ -88,12 +97,16 @@ describe('map profiles and selection', () => {
     expect(isValidMapSelection(['ancient', 'mirage', 'train'])).toBe(false);
   });
 
-  it('applies light bonuses to Normal and strong bonuses to Ranked and PRO', () => {
-    expect(getSelectedMapPowerBonus('premier', 'EVEN')).toBe(0);
-    expect(getSelectedMapPowerBonus('premier', '+')).toBe(0.5);
-    expect(getSelectedMapPowerBonus('premier', '++')).toBe(1);
-    expect(getSelectedMapPowerBonus('faceit', '+')).toBe(1.5);
-    expect(getSelectedMapPowerBonus('faceit', '++')).toBe(3);
-    expect(getSelectedMapPowerBonus('pro', '++')).toBe(3);
+  it.each([
+    { mode: 'premier', expected: [0, 0.5, 1, 1.5] },
+    { mode: 'faceit', expected: [0, 1.5, 3, 4.5] },
+    { mode: 'pro', expected: [0, 1.5, 3, 4.5] }
+  ] as const)('applies the complete affinity bonus table in $mode mode', ({ mode, expected }) => {
+    expect([
+      getSelectedMapPowerBonus(mode, 'EVEN'),
+      getSelectedMapPowerBonus(mode, '+'),
+      getSelectedMapPowerBonus(mode, '++'),
+      getSelectedMapPowerBonus(mode, '+++')
+    ]).toEqual(expected);
   });
 });

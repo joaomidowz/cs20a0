@@ -15,7 +15,7 @@ function team(id: string): CombatTeam {
     experience: 85,
     lineup: Array.from({ length: 5 }, (_, index) => ({
       playerId: `${id}-player-${index + 1}`,
-      selectedSlotRole: index === 0 ? 'awper' : index === 1 ? 'igl' : index === 2 ? 'entry' : index === 3 ? 'support' : 'lurker'
+      selectedSlotRole: index === 0 ? 'awper' : index === 1 ? 'igl' : index === 2 ? 'entry' : index === 3 ? 'lurker' : 'support'
     }))
   };
 }
@@ -70,6 +70,27 @@ describe('replay plan', () => {
     expect(first.rounds.at(-1)?.winnerOrganizationId).toBe('alpha');
     expect(first.organizations.map((organization) => organization.id)).toEqual(['alpha', 'bravo']);
     expect(first.players).toHaveLength(10);
+  });
+
+  it('preserves selected lineup roles and organization styles', () => {
+    const styledSeries: SeriesResult = {
+      ...series,
+      teamA: { ...series.teamA, style: 'aggressive' },
+      teamB: { ...series.teamB, style: 'tactical' }
+    };
+    const plan = createReplayPlan(styledSeries, 0);
+
+    expect(plan.organizations).toEqual([
+      { id: 'alpha', name: 'ALPHA', style: 'aggressive' },
+      { id: 'bravo', name: 'BRAVO', style: 'tactical' }
+    ]);
+    expect(plan.players.slice(0, 5).map((player) => [player.role, player.tacticalRole])).toEqual([
+      ['awper', 'awp'],
+      ['igl', 'igl'],
+      ['entry', 'entry'],
+      ['lurker', 'lurk'],
+      ['support', 'support']
+    ]);
   });
 
   it('assigns regulation and overtime sides in deterministic blocks', () => {
@@ -131,7 +152,7 @@ describe('replay plan', () => {
     expect([...splitKinds].every((split) => ['5-0', '4-1', '3-2', '2-1-2'].includes(split))).toBe(true);
     expect(splitKinds.size).toBeGreaterThan(1);
     expect(executeTimes.size).toBeGreaterThan(1);
-    expect(plan.players.map((player) => player.tacticalRole)).toEqual(expect.arrayContaining(['entry', 'trade', 'support', 'awp', 'lurk']));
+    expect(plan.players.map((player) => player.tacticalRole)).toEqual(expect.arrayContaining(['entry', 'igl', 'support', 'awp', 'lurk']));
 
     for (const round of plan.rounds) {
       expect(round.ctSetup.a + round.ctSetup.b + round.ctSetup.mid).toBe(5);
@@ -146,7 +167,7 @@ describe('replay plan', () => {
       expect(awpStop?.kind).toBe('angle');
       const tEntry = round.routes.find((route) => route.tacticalRole === 'entry' &&
         plan.players.find((player) => player.id === route.playerId)?.organizationId === round.tOrganizationId);
-      const tTrade = round.routes.find((route) => route.tacticalRole === 'trade' &&
+      const tTrade = round.routes.find((route) => route.tacticalRole === 'igl' &&
         plan.players.find((player) => player.id === route.playerId)?.organizationId === round.tOrganizationId);
       expect(tTrade?.nodeIds).toEqual(tEntry?.nodeIds);
       expect(tTrade?.startAtMs).toBeGreaterThan(tEntry?.startAtMs ?? 0);

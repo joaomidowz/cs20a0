@@ -6,15 +6,17 @@ const seriesViewerSource = readFileSync(
   'utf8'
 );
 const replayViewerSource = readFileSync(
-  new URL('../src/lib/components/ReplayViewer.svelte', import.meta.url),
+  new URL('../src/lib/components/SchematicReplayViewer.svelte', import.meta.url),
   'utf8'
 );
 
 describe('offline replay viewer integration', () => {
-  it('mounts replay only for offline series with a compiled map graph', () => {
-    expect(seriesViewerSource).toContain("import ReplayViewer from '$lib/components/ReplayViewer.svelte'");
-    expect(seriesViewerSource).toContain('!controlled && replayMap?.mapId');
-    expect(seriesViewerSource).toContain('<ReplayViewer');
+  it('keeps offline maps and score presentation without mounting the replay', () => {
+    expect(seriesViewerSource).not.toContain("import ReplayViewer from '$lib/components/ReplayViewer.svelte'");
+    expect(seriesViewerSource).not.toContain('<ReplayViewer');
+    expect(seriesViewerSource).toContain('class="map-list"');
+    expect(seriesViewerSource).toContain('class="map-row"');
+    expect(seriesViewerSource).toContain('class="map-score"');
   });
 
   it('keeps playback local and uses two canvas layers', () => {

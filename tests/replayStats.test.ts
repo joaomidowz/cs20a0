@@ -41,7 +41,10 @@ function plan(): ReplayPlanV1 {
     mapIndex: 0,
     mapId: 'ancient',
     tickRate: 4,
-    organizations: [{ id: 'alpha', name: 'Alpha' }, { id: 'bravo', name: 'Bravo' }],
+    organizations: [
+      { id: 'alpha', name: 'Alpha', style: 'balanced' },
+      { id: 'bravo', name: 'Bravo', style: 'balanced' }
+    ],
     players,
     result: { scoreA: 5, scoreB: 1, winnerOrganizationId: 'alpha' },
     rounds: [

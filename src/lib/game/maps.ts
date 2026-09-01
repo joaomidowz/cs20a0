@@ -117,8 +117,9 @@ export function getLineupMapContributors(players: Player[], teams: HistoricalTea
 }
 
 export function getMapAffinity(contributorCount: number): MapAffinity {
-  if (contributorCount >= 3) return '++';
-  if (contributorCount >= 1) return '+';
+  if (contributorCount >= 4) return '+++';
+  if (contributorCount === 3) return '++';
+  if (contributorCount === 2) return '+';
   return 'EVEN';
 }
 
@@ -141,7 +142,8 @@ export function getSelectedMapPowerBonus(mode: GameMode, affinity: MapAffinity):
   if (affinity === 'EVEN') return 0;
   const strong = mode === 'faceit' || mode === 'pro';
   if (affinity === '+') return strong ? 1.5 : 0.5;
-  return strong ? 3 : 1;
+  if (affinity === '++') return strong ? 3 : 1;
+  return strong ? 4.5 : 1.5;
 }
 
 export const getMapName = (mapId: MapId | undefined, fallbackNumber?: number, fallbackLabel = 'Mapa') =>

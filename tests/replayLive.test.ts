@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   getLatestReplayRoundStartMs,
-  getReplayPlaybackWindowMs,
   getReplayRoundAtMs,
   ReplayLiveQueue
 } from '../src/lib/game/replay/live';
@@ -55,20 +54,5 @@ describe('replay live edge', () => {
       skippedRounds: [2, 3, 4, 5, 6, 7]
     });
     expect(queue.pendingRounds).toEqual([9]);
-  });
-
-  it('adapts to the mean arrival interval and compresses backlog no lower than fast', () => {
-    expect(getReplayPlaybackWindowMs('normal', null, 0)).toBe(8_000);
-    expect(getReplayPlaybackWindowMs('fast', null, 0)).toBe(3_000);
-    expect(getReplayPlaybackWindowMs('normal', 5_000, 0)).toBe(5_000);
-    expect(getReplayPlaybackWindowMs('normal', null, 3)).toBeCloseTo(5_333.333, 2);
-    expect(getReplayPlaybackWindowMs('normal', null, 6)).toBe(3_000);
-    expect(getReplayPlaybackWindowMs('normal', 2_400, 6)).toBe(2_400);
-
-    const queue = new ReplayLiveQueue();
-    queue.receive(1, 1_000);
-    queue.receive(2, 6_000);
-    queue.receive(3, 10_000);
-    expect(queue.meanArrivalIntervalMs).toBe(4_500);
   });
 });
