@@ -21,8 +21,19 @@ export type SeriesType = 'bo3' | 'bo5';
 export type Language = 'pt-BR' | 'es' | 'en';
 export type Theme = 'dark' | 'light';
 export type LineupSlotRole = 'awper' | 'igl' | 'entry' | 'lurker' | 'rifler' | 'support';
-export type MapId = 'ancient' | 'anubis' | 'cache' | 'dust2' | 'inferno' | 'mirage' | 'nuke';
-export type MapAffinity = 'EVEN' | '+' | '++';
+export type MapId =
+  | 'ancient'
+  | 'anubis'
+  | 'cache'
+  | 'cobblestone'
+  | 'dust2'
+  | 'inferno'
+  | 'mirage'
+  | 'nuke'
+  | 'overpass'
+  | 'train'
+  | 'vertigo';
+export type MapAffinity = 'EVEN' | '+' | '++' | '+++';
 
 export interface HistoricalMapRecord {
   mapId: MapId;

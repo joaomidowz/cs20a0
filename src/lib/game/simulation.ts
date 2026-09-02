@@ -20,7 +20,7 @@ import {
   resolveMapVeto,
   type MapSimulationContext
 } from './map-veto';
-import { isValidMapSelection } from './maps';
+import { isValidLineupMapSelection } from './maps';
 
 export type SeededRng = () => number;
 
@@ -426,7 +426,7 @@ export function buildMajorRun(
   const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));
   let mapContext: MapSimulationContext | undefined;
   const selectedMaps = options.selectedMaps ?? [];
-  if (isValidMapSelection(selectedMaps)) {
+  if (isValidLineupMapSelection(selectedMaps, players, teams)) {
     const strategies: MapSimulationContext['strategies'] = new Map();
     strategies.set(user.id, createUserMapStrategy(user.id, selectedMaps, players, teams));
     for (const team of teams) strategies.set(team.id, createBotMapStrategy(team));

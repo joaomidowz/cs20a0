@@ -6,6 +6,7 @@ import { buildMajorRun, calculateUserTeamPower, createSeededRng, getMatchDayPowe
 import { createRunStats } from '../src/lib/game/runStats';
 import { getPlayerPlaystyle } from '../src/lib/game/playstyle';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
+import { getDefaultMapSelection } from '../src/lib/game/maps';
 import { SPEEDS, type CombatTeam, type HistoricalTeam, type MajorRun, type Player, type SelectedPlayer } from '../src/lib/game/types';
 
 const roleTokens = (player: Player) => (player.role ?? '').toLowerCase().split(/[-/,+\s]+/).filter(Boolean);
@@ -264,12 +265,13 @@ describe('simulation', () => {
       .map((item) => allPlayers.find((player) => player.teamId === item.id)!)
       .filter(Boolean);
     const mapped = buildMajorRun(picked, 'balanced', historicalTeams, allPlayers, 'mapped-major', [], {
-      selectedMaps: ['ancient', 'mirage', 'nuke'],
+      selectedMaps: getDefaultMapSelection(picked, historicalTeams),
       mode: 'faceit'
     });
 
     expect(mapped.matches.length).toBeGreaterThan(0);
-    expect(mapped.matches.every((match) => match.veto?.length === 7)).toBe(true);
+    expect(mapped.matches.every((match) => (match.veto?.length ?? 0) >= 7)).toBe(true);
+    expect(mapped.matches.every((match) => new Set(match.veto?.map((step) => step.mapId)).size === match.veto?.length)).toBe(true);
     expect(mapped.matches.flatMap((match) => match.maps).every((map) => map.mapId)).toBe(true);
 
     const legacy = simulateSeries(team('legacy-a', 88), team('legacy-b', 86), 3, createSeededRng('legacy-online'));

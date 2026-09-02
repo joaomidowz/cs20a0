@@ -3,7 +3,6 @@ import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
 import { autocompleteDraft, drawDraftTeam, emptyDraftState, findBestProAssignments, getRerollLimit } from '../src/lib/game/online/draft';
 import { DraftPoolExhaustedError, getEligibleDraftTeams, getHistoricalTeamOverall, pickDraftTeam } from '../src/lib/game/online/draft-pool';
-import { validateProAssignments } from '../src/lib/game/proMode';
 import type { HistoricalTeam, Player } from '../src/lib/game/types';
 
 const players = playersJson as Player[];
@@ -98,13 +97,13 @@ describe('online draft domain', () => {
     expect(() => drawDraftTeam('room', 'participant-fun', 'fun', rerolled, teams, players, true)).toThrow('Reroll is not available');
   });
 
-  it('autocompletes PRO with balanced style and five unique fitted roles', () => {
+  it('autocompletes only missing PRO players and preserves manual configuration', () => {
     const state = autocompleteDraft('room-seed', 'participant-pro', 'pro', emptyDraftState(), teams, players);
-    expect(state.style).toBe('balanced');
+    expect(state.style).toBeNull();
     expect(state.proPickedPlayerIds).toHaveLength(5);
-    expect(state.lineup).toHaveLength(5);
-    expect(validateProAssignments(state.proRoleAssignments, state.proPickedPlayerIds).complete).toBe(true);
-    expect(new Set(Object.values(state.proRoleAssignments))).toHaveLength(5);
+    expect(state.lineup).toHaveLength(0);
+    expect(state.proRoleAssignments).toEqual(Object.fromEntries(state.proPickedPlayerIds.map((id) => [id, null])));
+    expect(state.mapPreferences).toEqual([]);
   });
 
   it('finds a deterministic unique PRO assignment', () => {

@@ -1,4 +1,5 @@
-import { createSeededRng, simulateSeries } from '../simulation';
+import { createSeededRng, simulateMappedSeries, simulateSeries } from '../simulation';
+import type { MapSimulationContext } from '../map-veto';
 import type { CombatTeam, SeriesResult } from '../types';
 import type { PublicRound, PublicStanding, PublicTournament } from './contracts';
 
@@ -77,7 +78,8 @@ const updateBuchholz = (standings: MutableStanding[]) => {
 
 function simulateSwiss(
   organizations: TournamentOrganization[],
-  seed: string
+  seed: string,
+  mapContext?: MapSimulationContext
 ): { rounds: PublicRound[]; standings: MutableStanding[]; qualified: TournamentOrganization[] } {
   if (organizations.length !== 16) throw new Error('Stage 3 requires exactly 16 organizations');
   const byId = new Map(organizations.map((organization) => [organization.id, organization]));
@@ -98,14 +100,15 @@ function simulateSwiss(
     const pairings = findPairings(active);
     const series = pairings.map(([left, right], index) => {
       const bestOf: 1 | 3 = left.wins === 2 || right.wins === 2 || left.losses === 2 || right.losses === 2 ? 3 : 1;
-      const match = simulateSeries(
+      const simulationArgs = [
         getTeam(byId, left.organizationId),
         getTeam(byId, right.organizationId),
         bestOf,
         createSeededRng(`${seed}:swiss:${roundNumber}:${left.organizationId}:${right.organizationId}`),
         'stage3',
         `swiss-r${roundNumber}-m${index + 1}-${left.organizationId}-${right.organizationId}`
-      );
+      ] as const;
+      const match = mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs);
       left.opponents.push(right.organizationId);
       right.opponents.push(left.organizationId);
       const winner = match.winnerId === left.organizationId ? left : right;
@@ -130,7 +133,7 @@ function simulateSwiss(
   };
 }
 
-function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: string, startRound: number) {
+function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: string, startRound: number, mapContext?: MapSimulationContext) {
   if (organizations.length !== 8) throw new Error('Playoffs require exactly 8 organizations');
   const seeded = [...organizations].sort((a, b) => a.seed - b.seed);
   const quarterfinals: Array<[TournamentOrganization, TournamentOrganization]> = [
@@ -150,14 +153,15 @@ function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: s
     const definition = roundDefinitions[roundIndex];
     const winners: TournamentOrganization[] = [];
     const series = pairings.map(([left, right], index) => {
-      const match = simulateSeries(
+      const simulationArgs = [
         getTeam(new Map([[left.id, left], [right.id, right]]), left.id),
         getTeam(new Map([[left.id, left], [right.id, right]]), right.id),
         definition.bestOf,
         createSeededRng(`${seed}:playoffs:${definition.phase}:${left.id}:${right.id}`),
         definition.phase,
         `${definition.phase}-m${index + 1}-${left.id}-${right.id}`
-      );
+      ] as const;
+      const match = mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs);
       winners.push(match.winnerId === left.id ? left : right);
       return match;
     });
@@ -196,6 +200,7 @@ export function runOnlineTournament(options: {
   botPool: TournamentOrganization[];
   entryStage: 'stage3' | 'playoffs';
   seed: string;
+  mapContext?: MapSimulationContext;
 }): OnlineTournamentResult {
   const required = options.entryStage === 'stage3' ? 16 : 8;
   if (options.organizations.length < 2 || options.organizations.length > required) throw new Error(`Tournament requires 2-${required} human organizations`);
@@ -207,7 +212,7 @@ export function runOnlineTournament(options: {
   let standings: MutableStanding[];
   let playoffField: TournamentOrganization[];
   if (options.entryStage === 'stage3') {
-    const swiss = simulateSwiss(field, options.seed);
+    const swiss = simulateSwiss(field, options.seed, options.mapContext);
     rounds = swiss.rounds;
     standings = swiss.standings;
     playoffField = swiss.qualified;
@@ -224,7 +229,7 @@ export function runOnlineTournament(options: {
     }));
     playoffField = field;
   }
-  const playoffs = simulatePlayoffBracket(playoffField, options.seed, rounds.length + 1);
+  const playoffs = simulatePlayoffBracket(playoffField, options.seed, rounds.length + 1, options.mapContext);
   rounds.push(...playoffs.rounds);
   const champion = standings.find((standing) => standing.organizationId === playoffs.championId);
   if (champion) champion.status = 'champion';

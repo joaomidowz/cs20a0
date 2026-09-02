@@ -6,7 +6,7 @@ import { buildProLineup, buildProRoleEvaluations } from './proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
 import { buildMajorRun } from './simulation';
-import { isValidMapSelection } from './maps';
+import { isValidLineupMapSelection, isValidMapSelection } from './maps';
 import type { GameMode, GameState, LineupSlotRole, MapId, OrgStyle } from './types';
 
 const storageKey = 'cs13a0-run-v1';
@@ -81,8 +81,9 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const proEvaluations = mode === 'pro' ? buildProRoleEvaluations(pickedPlayers, proRoleAssignments, style) : [];
   const runPlayers = mode === 'pro' ? proEvaluations.map((evaluation) => evaluation.adjustedPlayer) : pickedPlayers;
   const runLineup = mode === 'pro' ? buildProLineup(proEvaluations) : selectedPlayers;
+  const validSelectedMaps = isValidLineupMapSelection(selectedMaps, runPlayers, teams) ? selectedMaps : [];
   const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup, {
-    ...(isValidMapSelection(selectedMaps) ? { selectedMaps } : {}),
+    ...(isValidMapSelection(validSelectedMaps) ? { selectedMaps: validSelectedMaps } : {}),
     mode
   });
   const stats = createRunStats(runPlayers, majorRun, seed, runLineup);
@@ -99,7 +100,7 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
     proRoleAssignments: mode === 'pro' ? proRoleAssignments : {},
     proRevealed: mode === 'pro',
     usedTeamIds: pickedPlayers.map((player) => player.teamId).filter((teamId): teamId is string => Boolean(teamId)),
-    selectedMaps,
+    selectedMaps: validSelectedMaps,
     majorRun,
     completedSeries: majorRun.matches.length,
     stats,

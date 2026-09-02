@@ -1,10 +1,19 @@
-import { MAP_POOL, getLineupMapAffinities, getSelectedMapPowerBonus, getTeamMapPreferences } from './maps';
+import {
+  MAP_POOL,
+  getActiveDutyMapsForYear,
+  getLineupMapAffinities,
+  getLineupMapContributors,
+  getMapFamiliarity,
+  getSelectedMapPowerBonus,
+  getTeamMapPreferences
+} from './maps';
 import type { GameMode, HistoricalTeam, MapAffinity, MapId, MapVetoStep, Player } from './types';
 
 export interface MapStrategy {
   teamId: string;
   selectedMaps: [MapId, MapId, MapId];
   affinities: Record<MapId, MapAffinity>;
+  familiarity: Record<MapId, number>;
   bot: boolean;
 }
 
@@ -19,7 +28,7 @@ export interface MapVetoResult {
   playedMaps: MapId[];
 }
 
-const affinityScore: Record<MapAffinity, number> = { EVEN: 0, '+': 1, '++': 2 };
+const affinityScore: Record<MapAffinity, number> = { EVEN: 0, '+': 1, '++': 2, '+++': 3 };
 
 const hashUnit = (value: string) => {
   let hash = 2166136261;
@@ -90,10 +99,20 @@ export function resolveMapVeto(options: {
         { action: 'pick', actor: options.teamB, opponent: options.teamA }
       ];
 
-  const available = [...MAP_POOL];
+  const available = MAP_POOL.filter((mapId) => options.teamA.familiarity[mapId] > 0 || options.teamB.familiarity[mapId] > 0);
+  if (available.length < 7) throw new Error('A map veto requires at least seven maps known by one of the lineups');
   const steps: MapVetoStep[] = [];
+  let preliminaryStep = 0;
+  while (available.length > 7) {
+    const actor = preliminaryStep % 2 === 0 ? options.teamA : options.teamB;
+    const opponent = actor === options.teamA ? options.teamB : options.teamA;
+    const mapId = chooseMap(options.seed, preliminaryStep, 'ban', actor, opponent, available);
+    available.splice(available.indexOf(mapId), 1);
+    steps.push({ order: steps.length + 1, action: 'ban', teamId: actor.teamId, mapId });
+    preliminaryStep += 1;
+  }
   for (const [index, item] of sequence.entries()) {
-    const mapId = chooseMap(options.seed, index, item.action, item.actor, item.opponent, available);
+    const mapId = chooseMap(options.seed, preliminaryStep + index, item.action, item.actor, item.opponent, available);
     available.splice(available.indexOf(mapId), 1);
     steps.push({ order: index + 1, action: item.action, teamId: item.actor.teamId, mapId });
   }
@@ -111,20 +130,21 @@ export function createUserMapStrategy(
   players: Player[],
   teams: HistoricalTeam[]
 ): MapStrategy {
-  return { teamId, selectedMaps, affinities: getLineupMapAffinities(players, teams), bot: false };
+  const contributors = getLineupMapContributors(players, teams);
+  const familiarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(contributors[mapId].length)])) as Record<MapId, number>;
+  return { teamId, selectedMaps, affinities: getLineupMapAffinities(players, teams), familiarity, bot: false };
 }
 
 export function createBotMapStrategy(team: HistoricalTeam): MapStrategy {
   const selectedMaps = getTeamMapPreferences(team) as [MapId, MapId, MapId];
   const affinities = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, 'EVEN'])) as Record<MapId, MapAffinity>;
-  affinities[selectedMaps[0]] = '++';
-  affinities[selectedMaps[1]] = '+';
-  affinities[selectedMaps[2]] = '+';
-  return { teamId: team.id, selectedMaps, affinities, bot: true };
+  const activeMaps = getActiveDutyMapsForYear(team.year);
+  const familiarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, activeMaps.includes(mapId) ? 100 : 0])) as Record<MapId, number>;
+  for (const mapId of activeMaps) affinities[mapId] = '+++';
+  return { teamId: team.id, selectedMaps, affinities, familiarity, bot: true };
 }
 
 export function getStrategyMapBonus(strategy: MapStrategy, mapId: MapId, mode: GameMode): number {
   if (!strategy.selectedMaps.includes(mapId)) return 0;
   return getSelectedMapPowerBonus(mode, strategy.affinities[mapId]);
 }
-

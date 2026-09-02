@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, MapId, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 4 as const;
 export const ROOM_CODE_LENGTH = 8;
 
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
@@ -36,6 +36,7 @@ export const DEFAULT_ROOM_CONFIG: RoomConfig = {
 const requestIdSchema = z.string().min(8).max(80);
 const participantNameSchema = z.string().trim().min(2).max(24);
 const baseCommandSchema = z.object({ requestId: requestIdSchema });
+const mapIdSchema = z.enum(['ancient', 'anubis', 'cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train', 'vertigo']);
 
 export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({
@@ -63,9 +64,10 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   baseCommandSchema.extend({
     type: z.literal('configure-pro'),
-    style: z.enum(['aggressive', 'balanced', 'tactical']).optional(),
-    assignments: z.record(z.string(), z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support'])).optional()
+    style: z.enum(['aggressive', 'balanced', 'tactical']),
+    assignments: z.record(z.string(), z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']))
   }).strict(),
+  baseCommandSchema.extend({ type: z.literal('submit-map-preferences'), mapPreferences: z.tuple([mapIdSchema, mapIdSchema, mapIdSchema]) }).strict(),
   baseCommandSchema.extend({ type: z.literal('watch-match'), seriesId: z.string().max(160).nullable() }).strict(),
   baseCommandSchema.extend({
     type: z.literal('configure-simulation'),
@@ -151,6 +153,7 @@ export interface PublicParticipant {
   joinedAt: number;
   picksCompleted: number;
   ready: boolean;
+  mapPreferences: MapId[];
 }
 
 export interface PublicOrganization {
@@ -178,10 +181,12 @@ export interface SelfDraftState {
   rerollsUsed: number;
   rerollsMax: number;
   watchedSeriesId: string | null;
+  mapPreferences: MapId[];
 }
 
 export interface RoomSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION;
+  capabilities: { mapPreferences: true; replayV1: false };
   dataHash: string;
   version: number;
   roomCode: string;

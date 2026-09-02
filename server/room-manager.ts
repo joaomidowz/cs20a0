@@ -1,11 +1,14 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { buildProRoleEvaluations } from '../src/lib/game/proMode';
+import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game/proMode';
+import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
+import { isValidLineupMapSelection } from '../src/lib/game/maps';
 import { createRunStats } from '../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng } from '../src/lib/game/simulation';
-import type { CombatTeam, MajorRun, MapResult, OrgStyle, Player, SeriesResult } from '../src/lib/game/types';
+import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, SeriesResult } from '../src/lib/game/types';
 import {
   DEFAULT_ROOM_CONFIG,
   PROTOCOL_VERSION,
+  toPresentationGameMode,
   type ClientCommand,
   type ErrorCode,
   type PublicLiveCursor,
@@ -300,6 +303,7 @@ export class RoomManager {
         break;
       case 'set-style':
         this.requireDraft(room);
+        if (room.config.mode === 'pro') throw new RoomError('INVALID_ACTION', 'PRO style and roles must be confirmed together');
         participant.draft.style = command.style;
         break;
       case 'pick-player': {
@@ -316,16 +320,32 @@ export class RoomManager {
       case 'configure-pro':
         this.requireDraft(room);
         if (room.config.mode !== 'pro') throw new RoomError('INVALID_ACTION', 'PRO configuration is only available in PRO mode');
-        if (command.style) participant.draft.style = command.style;
-        if (command.assignments) participant.draft.proRoleAssignments = { ...participant.draft.proRoleAssignments, ...command.assignments };
-        if (participant.draft.proPickedPlayerIds.length === 5 && command.assignments) {
+        if (participant.draft.proPickedPlayerIds.length !== 5) throw new RoomError('INVALID_ACTION', 'Five PRO players are required');
+        if (!validateProAssignments(command.assignments, participant.draft.proPickedPlayerIds).complete) {
+          throw new RoomError('INVALID_ACTION', 'PRO assignments must contain five unique roles for the selected players');
+        }
+        {
           const selected = participant.draft.proPickedPlayerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
-          const evaluations = buildProRoleEvaluations(selected, participant.draft.proRoleAssignments, participant.draft.style ?? 'balanced');
-          if (evaluations.length === 5 && new Set(evaluations.map((evaluation) => evaluation.selectedRole)).size === 5) {
-            participant.draft.lineup = evaluations.map((evaluation) => ({ playerId: evaluation.player.id, selectedSlotRole: evaluation.selectedRole }));
-          }
+          const evaluations = buildProRoleEvaluations(selected, command.assignments, command.style);
+          participant.draft = {
+            ...participant.draft,
+            style: command.style,
+            proRoleAssignments: { ...command.assignments },
+            lineup: evaluations.map((evaluation) => ({ playerId: evaluation.player.id, selectedSlotRole: evaluation.selectedRole })),
+            mapPreferences: []
+          };
         }
         break;
+      case 'submit-map-preferences': {
+        this.requireDraft(room);
+        if (participant.draft.lineup.length !== 5) throw new RoomError('INVALID_ACTION', 'Complete the lineup configuration first');
+        const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+        if (!isValidLineupMapSelection(command.mapPreferences, selected, teams)) {
+          throw new RoomError('INVALID_ACTION', 'Map preferences must be three unique maps known by the lineup');
+        }
+        participant.draft.mapPreferences = [...command.mapPreferences];
+        break;
+      }
       case 'watch-match':
         participant.watchedSeriesId = command.seriesId;
         break;
@@ -384,7 +404,8 @@ export class RoomManager {
         host: candidate.id === room.hostParticipantId,
         joinedAt: candidate.joinedAt,
         picksCompleted: room.config.mode === 'pro' ? candidate.draft.proPickedPlayerIds.length : candidate.draft.lineup.length,
-        ready: isDraftComplete(room.config.mode, candidate.draft)
+        ready: isDraftComplete(room.config.mode, candidate.draft),
+        mapPreferences: [...candidate.draft.mapPreferences]
       }));
     const organizations = room.organizations?.map((organization): PublicOrganization => ({
       id: organization.id,
@@ -397,6 +418,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
+      capabilities: { mapPreferences: true, replayV1: false },
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
       roomCode: room.code,
@@ -413,7 +435,8 @@ export class RoomManager {
         style: participant.draft.style,
         rerollsUsed: participant.draft.rerollsUsed,
         rerollsMax: getRerollLimit(room.config.mode),
-        watchedSeriesId: participant.watchedSeriesId
+        watchedSeriesId: participant.watchedSeriesId,
+        mapPreferences: [...participant.draft.mapPreferences]
       } : null,
       deadlineAt: room.deadlineAt,
       tournament: room.tournament ? this.publicTournament(room, participantId) : null,
@@ -439,11 +462,14 @@ export class RoomManager {
       }
       if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
         for (const participant of room.participants.values()) {
-          if (!isDraftComplete(room.config.mode, participant.draft)) {
+          const picksCompleted = room.config.mode === 'pro' ? participant.draft.proPickedPlayerIds.length : participant.draft.lineup.length;
+          if (picksCompleted < 5) {
             participant.draft = autocompleteDraft(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
           }
         }
-        this.beginTournament(room, now);
+        room.deadlineAt = null;
+        room.version += 1;
+        this.startTournamentIfReady(room, now);
         changed.push(code);
       } else if (room.tournament && room.nextTickAt !== null && now >= room.nextTickAt) {
         const currentRound = room.tournament.rounds[room.revealedRounds];
@@ -473,6 +499,7 @@ export class RoomManager {
         room.version += 1;
         changed.push(code);
       }
+      if (room.phase === 'draft') this.startTournamentIfReady(room, now);
     }
     return [...new Set(changed)];
   }
@@ -497,7 +524,22 @@ export class RoomManager {
       return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, id }, human: false, sourceTeamId: team.id };
     }).filter((organization) => !humanIds.has(organization.id));
     room.organizations = [...organizations, ...botPool].slice(0, room.config.entryStage === 'stage3' ? 16 : 8);
-    room.tournament = runOnlineTournament({ organizations, botPool, entryStage: room.config.entryStage, seed: room.seed });
+    const strategies: MapSimulationContext['strategies'] = new Map();
+    for (const participant of room.participants.values()) {
+      const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+      strategies.set(participant.id, createUserMapStrategy(
+        participant.id,
+        participant.draft.mapPreferences as [MapId, MapId, MapId],
+        selected,
+        teams
+      ));
+    }
+    for (const organization of botPool) {
+      const historicalTeam = organization.sourceTeamId ? teams.find((team) => team.id === organization.sourceTeamId) : null;
+      if (historicalTeam) strategies.set(organization.id, { ...createBotMapStrategy(historicalTeam), teamId: organization.id });
+    }
+    const mapContext: MapSimulationContext = { mode: toPresentationGameMode(room.config.mode), seed: `${room.seed}:online-maps`, strategies };
+    room.tournament = runOnlineTournament({ organizations, botPool, entryStage: room.config.entryStage, seed: room.seed, mapContext });
     room.deadlineAt = null;
     room.revealedRounds = 0;
     room.liveStep = 0;

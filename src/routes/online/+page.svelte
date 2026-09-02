@@ -11,7 +11,8 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
-  import { playerById, teamById, getTeamPlayers } from '$lib/game/data';
+  import { playerById, teamById, getTeamPlayers, teams } from '$lib/game/data';
+  import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
   import { averageOverall, getLineupStrengths, type OrganizationRosterView } from '$lib/game/organizationPresentation';
   import { buildOnlineRunCardReport } from '$lib/game/runCard';
@@ -19,7 +20,7 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import type { LineupSlotRole, OrgStyle, Player, SelectedPlayer, SeriesResult } from '$lib/game/types';
+  import type { LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult } from '$lib/game/types';
   import { OnlineRoomClient, createOnlineRoom } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
@@ -47,6 +48,8 @@
   let serverOffset = 0;
   let selectedOrganizationId: string | null = null;
   let downloadingImage = false;
+  let provisionalMapPreferences: MapId[] = [];
+  let mapLineupKey = '';
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
@@ -71,6 +74,8 @@
   $: myCampaign = snapshot?.tournament?.campaigns?.find((campaign) => campaign.organizationId === me?.id) ?? null;
   $: proAssignmentStatus = validateProAssignments(proAssignments, self?.proPickedPlayerIds ?? []);
   $: ownPlayers = (self?.lineup ?? []).map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+  $: onlineMapContributors = getLineupMapContributors(ownPlayers, teams);
+  $: onlineMapYears = getLineupMapYears(ownPlayers, teams);
   $: ownDisplayPlayers = snapshot?.config.mode === 'pro' && self
     ? buildProRoleEvaluations(ownPlayers, self.proRoleAssignments, self.style ?? 'balanced').map((evaluation) => evaluation.adjustedPlayer)
     : ownPlayers;
@@ -91,7 +96,7 @@
   });
 
   function updateCountdown() {
-    if (!snapshot?.deadlineAt) {
+    if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5)) {
       countdown = '';
       return;
     }
@@ -146,6 +151,13 @@
         if (next.self) {
           proStyle = next.self.style ?? 'balanced';
           proAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
+          const nextLineupKey = next.self.lineup.map((pick) => pick.playerId).join('|');
+          if (next.self.mapPreferences.length === 3) provisionalMapPreferences = [...next.self.mapPreferences];
+          else if (next.self.lineup.length === 5 && nextLineupKey !== mapLineupKey) {
+            const lineupPlayers = next.self.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+            provisionalMapPreferences = getDefaultMapSelection(lineupPlayers, teams);
+          }
+          mapLineupKey = nextLineupKey;
         }
         updateCountdown();
       },
@@ -193,6 +205,16 @@
     if (value) next[playerId] = value as LineupSlotRole;
     else delete next[playerId];
     proAssignments = next;
+  }
+
+  function toggleOnlineMap(mapId: MapId) {
+    if (provisionalMapPreferences.includes(mapId)) provisionalMapPreferences = provisionalMapPreferences.filter((item) => item !== mapId);
+    else if (onlineMapContributors[mapId].length > 0 && provisionalMapPreferences.length < 3) provisionalMapPreferences = [...provisionalMapPreferences, mapId];
+  }
+
+  function confirmOnlineMaps() {
+    if (!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)) return;
+    send({ type: 'submit-map-preferences', mapPreferences: provisionalMapPreferences as [MapId, MapId, MapId] });
   }
 
   async function copyRoomLink() {
@@ -376,6 +398,19 @@
             <div class="pro-role-status">{#if proAssignmentStatus.hasDuplicate}<span>{gameT('proRoleDuplicate')}</span>{/if}{#if proAssignmentStatus.unassignedCount}<span>{gameT('proRoleMissing')}: {proAssignmentStatus.unassignedCount}</span>{/if}</div>
             <button class="primary" type="button" disabled={!proAssignmentStatus.complete} on:click={confirmPro}>{t('configurePro')}</button>
           </section>
+        {:else if self.lineup.length === 5 && self.mapPreferences.length < 3}
+          <section class="panel online-map-selection">
+            <div class="section-heading"><div><span class="eyebrow">ACTIVE DUTY 2016–2026</span><h2>{gameT('chooseMapsTitle')}</h2></div><strong>{provisionalMapPreferences.length}/3</strong></div>
+            <div class="online-map-grid">
+              {#each MAP_POOL as mapId}
+                {@const count = onlineMapContributors[mapId].length}
+                <button class:selected={provisionalMapPreferences.includes(mapId)} disabled={count === 0 || (!provisionalMapPreferences.includes(mapId) && provisionalMapPreferences.length >= 3)} on:click={() => toggleOnlineMap(mapId)}>
+                  <strong>{getMapName(mapId)}</strong><span>{getMapFamiliarity(count)}% · {count}/5</span><small>{onlineMapYears[mapId].join(', ') || '—'}</small>
+                </button>
+              {/each}
+            </div>
+            <button class="primary wide" disabled={!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)} on:click={confirmOnlineMaps}>{gameT('confirmMaps')}</button>
+          </section>
         {:else if !me?.ready}
           <section class="roll-zone panel">
             {#if offeredTeam}
@@ -402,7 +437,7 @@
         {:else}
           <DraftHud selectedPlayers={displayLineup as SelectedPlayer[]} style={self.style ?? 'balanced'} styleLocked={Boolean(self.style)} styleLabel={gameT((self.style ?? 'balanced') as OrgStyle)} mode={presentationMode} revealed={me?.ready ?? false} label={gameT('orgHud')} onOpen={(player) => detailsPlayer = player} />
         {/if}
-        <section class="online-progress"><h2>{t('participants')}</h2>{#each snapshot.participants as participant}<article><span>{participant.organizationName}</span><b>{participant.picksCompleted}/5</b><i><em style={`width:${participant.picksCompleted * 20}%`}></em></i></article>{/each}</section>
+        <section class="online-progress"><h2>{t('participants')}</h2>{#each snapshot.participants as participant}<article><span>{participant.organizationName}</span><b>{participant.picksCompleted}/5 · {participant.mapPreferences.length}/3 MAPS</b><i><em style={`width:${participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + participant.mapPreferences.length * 10)}%`}></em></i></article>{/each}</section>
       {:else if snapshot.tournament}
         <section class="screen match-screen online-major-screen">
           <header class="match-topbar">
@@ -580,4 +615,5 @@
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid,.major-overview-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.standings article{font-size:.78rem}.bracket-columns{grid-template-columns:1fr;overflow:visible}.overview-match{grid-template-columns:1fr auto}.overview-team-right{grid-column:1}.overview-match small{grid-column:2;grid-row:1/3}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.overview-team-right{text-align:right}.standings .organization-link{font-weight:800}.bracket-columns .organization-link{width:100%}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
+  .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
 </style>

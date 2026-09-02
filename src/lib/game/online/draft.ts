@@ -1,7 +1,7 @@
-import { buildProRoleEvaluations, getProRoleFit, PRO_REQUIRED_ROLES, validateProAssignments } from '../proMode';
+import { getProRoleFit, PRO_REQUIRED_ROLES, validateProAssignments } from '../proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from '../roleRules';
 import { createSeededRng } from '../simulation';
-import type { HistoricalTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
+import type { HistoricalTeam, LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer } from '../types';
 import type { OnlineGameMode } from './contracts';
 import { pickDraftTeam } from './draft-pool';
 
@@ -15,6 +15,7 @@ export interface DraftState {
   usedTeamIds: string[];
   rolledTeamId: string | null;
   rerollsUsed: number;
+  mapPreferences: MapId[];
 }
 
 export const emptyDraftState = (): DraftState => ({
@@ -24,7 +25,8 @@ export const emptyDraftState = (): DraftState => ({
   style: null,
   usedTeamIds: [],
   rolledTeamId: null,
-  rerollsUsed: 0
+  rerollsUsed: 0,
+  mapPreferences: []
 });
 
 export const getRerollLimit = (mode: OnlineGameMode): number => mode === 'premier' ? 3 : 1;
@@ -153,13 +155,10 @@ export function autocompleteDraft(
   }
   if (pickIndex(state, mode) !== MAX_LINEUP_SIZE) throw new Error('Could not autocomplete a valid lineup');
   if (mode === 'pro') {
-    const selected = state.proPickedPlayerIds.map(playerLookup).filter((player): player is Player => Boolean(player));
-    const assignments = findBestProAssignments(selected);
-    const evaluations = buildProRoleEvaluations(selected, assignments, state.style ?? 'balanced');
-    state = { ...state, proRoleAssignments: assignments, lineup: evaluations.map((evaluation) => ({ playerId: evaluation.player.id, selectedSlotRole: evaluation.selectedRole })) };
+    state = { ...state, style: initial.style };
   }
   return state;
 }
 
 export const isDraftComplete = (mode: OnlineGameMode, state: DraftState): boolean =>
-  state.lineup.length === MAX_LINEUP_SIZE && (mode !== 'pro' || state.proPickedPlayerIds.length === MAX_LINEUP_SIZE);
+  state.lineup.length === MAX_LINEUP_SIZE && state.mapPreferences.length === 3 && (mode !== 'pro' || state.proPickedPlayerIds.length === MAX_LINEUP_SIZE);

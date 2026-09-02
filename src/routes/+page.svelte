@@ -40,9 +40,11 @@
     MAP_POOL,
     getDefaultMapSelection,
     getLineupMapContributors,
+    getLineupMapYears,
     getMapAffinity,
+    getMapFamiliarity,
     getMapName,
-    isValidMapSelection
+    isValidLineupMapSelection
   } from '$lib/game/maps';
   import {
     SPEEDS,
@@ -130,6 +132,7 @@
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
   $: mapContributors = getLineupMapContributors(selectedPlayers, teams);
+  $: mapYears = getLineupMapYears(selectedPlayers, teams);
   $: ownOrganizationView = selectedPlayers.length ? {
     id: 'user',
     name: t('orgHud'),
@@ -332,7 +335,7 @@
       update({ selectedMaps: selected.filter((item) => item !== mapId) });
       return;
     }
-    if (selected.length < 3) update({ selectedMaps: [...selected, mapId] });
+    if (mapContributors[mapId].length > 0 && selected.length < 3) update({ selectedMaps: [...selected, mapId] });
   }
 
   function autoSelectMaps() {
@@ -344,7 +347,7 @@
   }
 
   function launchMajor() {
-    if (!draftComplete || (isProMode && !$game.proRevealed) || !isValidMapSelection($game.selectedMaps)) return;
+    if (!draftComplete || (isProMode && !$game.proRevealed) || !isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)) return;
     resetSupportNudge();
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
@@ -535,6 +538,7 @@
         <div class="hero-actions">
           <button class="primary" type="button" on:click={beginGame}>{t('play')} <span>→</span></button>
           {#if isOnlineEnabled()}<a class="secondary online-home-button" href="/online">{t('playOnline')} <span>↗</span></a>{/if}
+          <a class="secondary online-home-button" href="/sandbox">Sandbox <span>↗</span></a>
         </div>
       </div>
       <div class="hero-visual" aria-hidden="true">
@@ -776,7 +780,7 @@
   {:else if $game.phase === 'map-selection'}
     <section class="screen shell map-selection-screen">
       <header class="screen-header centered">
-        <span class="eyebrow">MAP POOL · 3/7</span>
+        <span class="eyebrow">ACTIVE DUTY 2016–2026 · 3/11</span>
         <h1>{t('chooseMapsTitle')}</h1>
         <p>{t('chooseMapsDesc')}</p>
       </header>
@@ -794,13 +798,13 @@
             class:selected
             type="button"
             aria-pressed={selected}
-            disabled={!selected && $game.selectedMaps.length >= 3}
+            disabled={contributors.length === 0 || (!selected && $game.selectedMaps.length >= 3)}
             on:click={() => toggleMap(mapId)}
           >
             <span class="map-selection-index">{String(MAP_POOL.indexOf(mapId) + 1).padStart(2, '0')}</span>
             <strong>{getMapName(mapId)}</strong>
             <b class:even={affinity === 'EVEN'}>{affinity}</b>
-            <small>{contributors.length}/5 · {t('playerAffinity')}</small>
+            <small>{getMapFamiliarity(contributors.length)}% · {contributors.length}/5 {t('playerAffinity')} · {mapYears[mapId].join(', ') || '—'}</small>
             <div class="map-contributors" aria-label={`${contributors.length}/5 ${t('playerAffinity')}`}>
               {#each selectedPlayers as player}
                 <span class:contributes={contributors.some((contributor) => contributor.id === player.id)} title={player.nickname ?? player.id}>
@@ -814,7 +818,7 @@
       <div class="map-selection-actions">
         <button class="secondary" type="button" on:click={returnToLineup}>{t('backToLineup')}</button>
         <button class="secondary" type="button" on:click={autoSelectMaps}>{t('autoSelectMaps')}</button>
-        <button class="primary" type="button" disabled={!isValidMapSelection($game.selectedMaps)} on:click={launchMajor}>{t('confirmMaps')} →</button>
+        <button class="primary" type="button" disabled={!isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)} on:click={launchMajor}>{t('confirmMaps')} →</button>
       </div>
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
