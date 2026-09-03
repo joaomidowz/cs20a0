@@ -46,7 +46,9 @@ describe('online map preferences', () => {
     }
 
     manager.execute(code, host.participantId, { type: 'submit-map-preferences', requestId: 'maps-host-ok-01', mapPreferences: hostMaps }, now + 61_020);
-    expect(manager.getSnapshot(code, guest.participantId, now + 61_020).participants.find((item) => item.id === host.participantId)?.mapPreferences).toEqual(hostMaps);
+    const hostAsSeenByGuest = manager.getSnapshot(code, guest.participantId, now + 61_020).participants.find((item) => item.id === host.participantId);
+    expect(hostAsSeenByGuest?.mapsConfirmed).toBe(true);
+    expect(hostAsSeenByGuest?.mapPreferences).toEqual([]);
     expect(manager.getSnapshot(code, host.participantId, now + 61_020).phase).toBe('draft');
 
     manager.execute(code, guest.participantId, { type: 'submit-map-preferences', requestId: 'maps-guest-ok1', mapPreferences: guestMaps }, now + 61_030);

@@ -21,8 +21,11 @@
   $: showFullIntel = mode === 'premier' || draftComplete;
   $: rarity = (player.rarity ?? 'common').toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
+  let closeButton: HTMLButtonElement | null = null;
+
   onMount(() => {
     document.body.classList.add('modal-open');
+    closeButton?.focus();
     return () => document.body.classList.remove('modal-open');
   });
 
@@ -36,9 +39,11 @@
   }
 </script>
 
-<div class="sheet-backdrop" role="presentation" on:click={onClose} on:keydown={(event) => event.key === 'Escape' && onClose()}>
+<svelte:window on:keydown={(event) => event.key === 'Escape' && onClose()} />
+
+<div class="sheet-backdrop" role="presentation" on:click={onClose}>
   <div class="player-sheet {mode === 'faceit' && !draftComplete ? 'rarity-hidden' : `rarity-${rarity}`}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${player.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
-    <button class="sheet-close" type="button" on:click={onClose}>×</button>
+    <button class="sheet-close" type="button" bind:this={closeButton} aria-label={translate(language, 'close')} on:click={onClose}>×</button>
     <div class="sheet-player">
       <div class="avatar huge">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
       <div>

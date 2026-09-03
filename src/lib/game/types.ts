@@ -186,12 +186,36 @@ export interface PlayoffsResult {
   allMatches: SeriesResult[];
 }
 
+export interface MajorStanding {
+  organizationId: string;
+  name: string;
+  seed: number;
+  wins: number;
+  losses: number;
+  buchholz: number;
+  status: 'active' | 'qualified' | 'eliminated' | 'champion';
+}
+
+export interface MajorRound {
+  number: number;
+  phase: 'swiss' | 'quarterfinal' | 'semifinal' | 'final';
+  series: SeriesResult[];
+}
+
+/** The whole field's results, so the Major overview can show every other team, standings and the bracket. */
+export interface MajorTournament {
+  rounds: MajorRound[];
+  standings: MajorStanding[];
+  championId: string | null;
+}
+
 export interface MajorRun {
   stage3: Stage3Result;
   playoffs?: PlayoffsResult;
   matches: SeriesResult[];
   champion: boolean;
   placement: string;
+  tournament?: MajorTournament;
 }
 
 export interface PlayerRunStats {

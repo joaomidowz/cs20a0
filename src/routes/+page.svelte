@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from 'svelte';
+  import { dev } from '$app/environment';
   import { isOnlineEnabled } from '$lib/game/online/config';
   import { replaceState } from '$app/navigation';
   import Navbar from '$lib/components/Navbar.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
+  import HeroLive from '$lib/components/HeroLive.svelte';
+  import MajorOverview from '$lib/components/MajorOverview.svelte';
+  import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
@@ -15,7 +19,7 @@
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
-  import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
+  import { getPlayerBaseId, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import {
     buildMajorRun,
     calculateUserTeamPower,
@@ -63,6 +67,7 @@
   let detailsPlayer: Player | null = null;
   let toast = '';
   let awaitingAdvance = false;
+  let majorTab: 'current' | 'all' = 'current';
   let downloadingImage = false;
   let showSupportNudge = false;
   let supportNudgeShownThisRun = false;
@@ -71,6 +76,8 @@
   let enemyModalTeam: HistoricalTeam | null = null;
   let enemyModalPinned = false;
   let enemyHoverTimer: number | null = null;
+  let advanceTimer: number | null = null;
+  let toastTimer: number | null = null;
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
@@ -150,8 +157,6 @@
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
   $: stageLosses = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId !== 'user').length;
   $: hasStageRecord = stageWins + stageLosses > 0;
-  $: runMvp = [...$game.stats].sort((a, b) => getRunMvpScore(b) - getRunMvpScore(a))[0];
-  $: runWorst = [...$game.stats].sort((a, b) => a.runRating - b.runRating)[0];
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
 
@@ -162,6 +167,8 @@
     document.body.classList.remove('modal-open');
     clearSupportNudgeTimer();
     clearEnemyHoverTimer();
+    clearAdvanceTimer();
+    if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
 
@@ -172,6 +179,8 @@
   function goHome() {
     resetSupportNudge();
     closePlayer();
+    closeEnemyTeam();
+    clearAdvanceTimer();
     awaitingAdvance = false;
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(), ...preserved });
@@ -246,15 +255,18 @@
     enemyModalTeam = team;
   }
 
-  function hoverEnemyTeam(teamId: string) {
-    if (enemyModalPinned) return;
+  // The blocking roster modal opens on click only: opening it on hover/focus made it flicker (the modal steals focus and covers the button).
+  function hoverEnemyTeam(_teamId: string) {
     clearEnemyHoverTimer();
-    enemyHoverTimer = window.setTimeout(() => openEnemyTeam(teamId, false), 220);
   }
 
   function leaveEnemyTeam() {
     clearEnemyHoverTimer();
-    if (!enemyModalPinned) enemyModalTeam = null;
+  }
+
+  function openOverviewTeam(teamId: string) {
+    if (teamId === 'user') showOrgModal = true;
+    else pinEnemyTeam(teamId);
   }
 
   function pinEnemyTeam(teamId: string) {
@@ -294,6 +306,14 @@
 
   function confirmProBlindPick(player: Player) {
     if (!isProMode || !rolledTeam || draftComplete) return;
+    const alreadyPicked = $game.proPickedPlayerIds.some((pickedId) => {
+      const picked = playerById.get(pickedId);
+      return picked ? getPlayerBaseId(picked) === getPlayerBaseId(player) : false;
+    });
+    if (alreadyPicked) {
+      showToast(t('samePlayerPicked'));
+      return;
+    }
     const nextPickedIds = [...$game.proPickedPlayerIds, player.id];
     const nextAssignments = { ...$game.proRoleAssignments, [player.id]: null };
     update({
@@ -399,16 +419,24 @@
     clearSupportNudgeTimer();
   }
 
+  function clearAdvanceTimer() {
+    if (advanceTimer !== null) window.clearTimeout(advanceTimer);
+    advanceTimer = null;
+  }
+
   function seriesCompleted() {
     if ($game.simMode === 'auto') {
-      window.setTimeout(advanceSeries, 900);
+      clearAdvanceTimer();
+      advanceTimer = window.setTimeout(() => { advanceTimer = null; void advanceSeries(); }, 900);
     } else {
       awaitingAdvance = true;
     }
   }
 
   async function advanceSeries() {
+    clearAdvanceTimer();
     awaitingAdvance = false;
+    if (!$game.majorRun) return;
     const nextIndex = $game.completedSeries + 1;
     const next = $game.majorRun?.matches[nextIndex];
     if (!next) {
@@ -436,6 +464,8 @@
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(newSeed ? '' : $game.seed), ...preserved, phase: 'mode-select' });
     closePlayer();
+    closeEnemyTeam();
+    clearAdvanceTimer();
     awaitingAdvance = false;
   }
 
@@ -455,8 +485,12 @@
       url.searchParams.delete('picks');
       url.searchParams.delete('maps');
     }
-    await navigator.clipboard.writeText(url.toString());
-    showToast(t('copied'));
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      showToast(t('copied'));
+    } catch {
+      showToast(url.toString());
+    }
   }
 
   async function downloadRunImage() {
@@ -474,7 +508,8 @@
 
   function showToast(message: string) {
     toast = message;
-    window.setTimeout(() => (toast = ''), 1800);
+    if (toastTimer !== null) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => { toastTimer = null; toast = ''; }, 1800);
   }
 
   function changeSimulationMode(value: string) {
@@ -537,15 +572,10 @@
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">
           <button class="primary" type="button" on:click={beginGame}>{t('play')} <span>→</span></button>
-          {#if isOnlineEnabled()}<a class="secondary online-home-button" href="/online">{t('playOnline')} <span>↗</span></a>{/if}
-          <a class="secondary online-home-button" href="/sandbox">Sandbox <span>↗</span></a>
+          {#if isOnlineEnabled() || dev}<a class="secondary online-home-button" href="/online">{t('playOnline')} <span>↗</span></a>{/if}
         </div>
       </div>
-      <div class="hero-visual" aria-hidden="true">
-        <div class="radar"><i></i><i></i><i></i><i></i><span></span></div>
-        <div class="floating-score"><small>LIVE PROTOCOL</small><b>13 : 11</b><span>ROUND 24 / MR12</span></div>
-        <div class="crosshair"></div>
-      </div>
+      <HeroLive language={$game.language} />
     </section>
     <section class="feature-strip shell">
       <article><span>01</span><div><strong>{t('featureDraftTitle')}</strong><small>{t('featureDraftDesc')}</small></div></article>
@@ -844,6 +874,10 @@
           />
         </div>
       </div>
+      {#if $game.majorRun?.tournament}
+        <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }]} onChange={(value) => majorTab = value === 'all' ? 'all' : 'current'} /></div>
+      {/if}
+      <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
         {#key currentSeries.id}
           <SeriesViewer
@@ -852,7 +886,7 @@
             auto={$game.simMode === 'auto'}
             language={$game.language}
             interactiveTeamId={enemyTeamId}
-            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider') }}
+            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
             onComplete={seriesCompleted}
             onTeamHover={hoverEnemyTeam}
             onTeamHoverEnd={leaveEnemyTeam}
@@ -926,6 +960,12 @@
           <p class="timeline-empty">{t('waitingResult')}</p>
         {/if}
       </aside>
+      </div>
+      {#if $game.majorRun?.tournament}
+        <div hidden={majorTab !== 'all'}>
+          <MajorOverview tournament={$game.majorRun.tournament} cursor={{ liveSeriesId: currentSeries?.id ?? null }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
+        </div>
+      {/if}
     </section>
   {:else if $game.phase === 'result'}
     {@const run = $game.majorRun}
@@ -967,6 +1007,12 @@
             {/each}
           </div>
         </section>
+        {#if run.tournament}
+          <section class="result-overview">
+            <div class="section-heading"><div><span class="eyebrow">MAJOR</span><h2>{t('overviewMajor')}</h2></div></div>
+            <MajorOverview tournament={run.tournament} cursor={{ liveSeriesId: null, complete: true }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
+          </section>
+        {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
         <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
@@ -979,21 +1025,7 @@
           <article><small>{t('mapsPlayed')}</small><strong>{runAggregate.mapsPlayed}</strong></article><article><small>{t('mapsWon')}</small><strong>{runAggregate.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{runAggregate.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{runAggregate.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{runAggregate.roundsLost}</strong></article><article><small>KILLS</small><strong>{runAggregate.kills}</strong></article><article><small>DEATHS</small><strong>{runAggregate.deaths}</strong></article><article><small>K/D</small><strong>{runAggregate.kdRatio.toFixed(2)}</strong></article><article><small>ADR</small><strong>{runAggregate.adr}</strong></article><article><small>IMPACT</small><strong>{runAggregate.impact.toFixed(2)}</strong></article><article><small>CLUTCHES</small><strong>{runAggregate.clutches}</strong></article><article><small>OPENINGS</small><strong>{runAggregate.openingKills}</strong></article><article><small>RATING</small><strong>{runAggregate.rating.toFixed(2)}</strong></article>
         </div>
       {/if}
-      <div class="stats-grid">
-        {#each $game.stats as stat}
-          {@const player = proAdjustedPlayerById.get(stat.playerId) ?? playerById.get(stat.playerId)}
-          {#if player}
-            <article class="stat-card {rarityClass(player)}">
-              {#if runMvp?.playerId === player.id}<span class="mvp-badge">{t('runMvp')}</span>{/if}
-              {#if runWorst?.playerId === player.id}<span class="underperformer-badge">{t('worstRating')}</span>{/if}
-              <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{getRoleLabel(stat.assignedRole)} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{translateTitle($game.language, playerTitle(player))}</p></div><strong>{player.overall ?? 70}</strong></div>
-              <div class="rating"><small>RUN RATING</small><b>{stat.runRating.toFixed(2)}</b></div>
-              <div class="stat-numbers"><span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span><span><small>K/D</small><b>{stat.kdRatio.toFixed(2)}</b></span><span><small>ADR</small><b>{stat.adr}</b></span><span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span><span><small>CLUTCHES</small><b>{stat.clutches}</b></span><span><small>OPENINGS</small><b>{stat.openingKills}</b></span><span><small>{t('mapsWon')} / {t('mapsLost')}</small><b>{stat.mapsWon} / {stat.mapsLost}</b></span><span><small>{t('roundsWon')} / {t('roundsLost')}</small><b>{stat.roundsWon} / {stat.roundsLost}</b></span><span><small>CONSISTENCY</small><b>{stat.consistency}</b></span></div>
-              {#if stat.runRating < 0.85}<footer class="below-expected">{t('belowExpected')}</footer>{/if}
-            </article>
-          {/if}
-        {/each}
-      </div>
+      <RunStatsGrid stats={$game.stats} language={$game.language} players={proAdjustedPlayers} />
       <button class="secondary wide" type="button" on:click={() => update({ phase: 'result' })}>{t('backResult')}</button>
     </section>
   {/if}

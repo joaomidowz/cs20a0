@@ -45,21 +45,22 @@ const pairingPreference = (left: MutableStanding, right: MutableStanding) =>
 
 function findPairings(active: MutableStanding[]): Array<[MutableStanding, MutableStanding]> {
   const ordered = [...active].sort(standingOrder);
-  const search = (remaining: MutableStanding[]): Array<[MutableStanding, MutableStanding]> | null => {
+  const search = (remaining: MutableStanding[], allowRematch = false): Array<[MutableStanding, MutableStanding]> | null => {
     if (!remaining.length) return [];
     const left = remaining[0];
     const candidates = remaining.slice(1)
-      .filter((right) => !left.opponents.includes(right.organizationId))
+      .filter((right) => allowRematch || !left.opponents.includes(right.organizationId))
       .sort((a, b) => pairingPreference(left, a) - pairingPreference(left, b) || standingOrder(a, b));
     for (const right of candidates) {
       const rest = remaining.filter((standing) => standing !== left && standing !== right);
-      const tail = search(rest);
+      const tail = search(rest, allowRematch);
       if (tail) return [[left, right], ...tail];
     }
     return null;
   };
-  const result = search(ordered);
-  if (!result) throw new Error('Could not create a Swiss round without a rematch');
+  // A rematch-free pairing can be impossible late in the Swiss stage; a rematch beats crashing the whole tournament.
+  const result = search(ordered) ?? search(ordered, true);
+  if (!result) throw new Error('Could not create a Swiss round');
   return result;
 }
 
@@ -79,7 +80,8 @@ const updateBuchholz = (standings: MutableStanding[]) => {
 function simulateSwiss(
   organizations: TournamentOrganization[],
   seed: string,
-  mapContext?: MapSimulationContext
+  mapContext?: MapSimulationContext,
+  swissBestOf?: 1 | 3
 ): { rounds: PublicRound[]; standings: MutableStanding[]; qualified: TournamentOrganization[] } {
   if (organizations.length !== 16) throw new Error('Stage 3 requires exactly 16 organizations');
   const byId = new Map(organizations.map((organization) => [organization.id, organization]));
@@ -99,7 +101,7 @@ function simulateSwiss(
     if (!active.length) break;
     const pairings = findPairings(active);
     const series = pairings.map(([left, right], index) => {
-      const bestOf: 1 | 3 = left.wins === 2 || right.wins === 2 || left.losses === 2 || right.losses === 2 ? 3 : 1;
+      const bestOf: 1 | 3 = swissBestOf ?? (left.wins === 2 || right.wins === 2 || left.losses === 2 || right.losses === 2 ? 3 : 1);
       const simulationArgs = [
         getTeam(byId, left.organizationId),
         getTeam(byId, right.organizationId),
@@ -190,7 +192,7 @@ const calculateCampaigns = (organizations: TournamentOrganization[], rounds: Pub
       : last?.phase === 'final' ? 'placementRunnerUp'
         : last?.phase === 'semifinal' ? 'placement3to4'
           : last?.phase === 'quarterfinal' ? 'placement5to8'
-            : 'Eliminado no Stage 3';
+            : 'placementStage3';
     return { organizationId: organization.id, seriesWon, seriesLost: matches.length - seriesWon, mapsWon, mapsLost, roundsWon, roundsLost, placement };
   });
 };
@@ -201,9 +203,11 @@ export function runOnlineTournament(options: {
   entryStage: 'stage3' | 'playoffs';
   seed: string;
   mapContext?: MapSimulationContext;
+  /** Forces every Swiss series to this format (the offline Major is all BO3 except the final). */
+  swissBestOf?: 1 | 3;
 }): OnlineTournamentResult {
   const required = options.entryStage === 'stage3' ? 16 : 8;
-  if (options.organizations.length < 2 || options.organizations.length > required) throw new Error(`Tournament requires 2-${required} human organizations`);
+  if (options.organizations.length < 1 || options.organizations.length > required) throw new Error(`Tournament requires 1-${required} organizations`);
   const humanIds = new Set(options.organizations.map((organization) => organization.id));
   const bots = options.botPool.filter((organization) => !humanIds.has(organization.id)).slice(0, required - options.organizations.length);
   if (bots.length !== required - options.organizations.length) throw new Error('Not enough bots to complete the tournament field');
@@ -212,7 +216,7 @@ export function runOnlineTournament(options: {
   let standings: MutableStanding[];
   let playoffField: TournamentOrganization[];
   if (options.entryStage === 'stage3') {
-    const swiss = simulateSwiss(field, options.seed, options.mapContext);
+    const swiss = simulateSwiss(field, options.seed, options.mapContext, options.swissBestOf);
     rounds = swiss.rounds;
     standings = swiss.standings;
     playoffField = swiss.qualified;

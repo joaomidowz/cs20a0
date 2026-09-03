@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createOnlineServer } from '../server/app';
 import { ONLINE_DATA_HASH, players, teams } from '../server/data';
-import { RESUME_TTL_MS, RoomError, RoomManager } from '../server/room-manager';
+import { CONFIRMATION_GRACE_MS, RESUME_TTL_MS, RoomError, RoomManager } from '../server/room-manager';
 import { DEFAULT_ROOM_CONFIG, PROTOCOL_VERSION, type RoomSnapshot, type ServerMessage } from '../src/lib/game/online/contracts';
 import { getHistoricalTeamOverall } from '../src/lib/game/online/draft-pool';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -242,13 +242,14 @@ describe('authoritative online server', () => {
     server.advance(61_000);
 
     const snapshots = await Promise.all(clients.map(async (client) => {
-      const message = await client.waitFor((candidate) => candidate.type === 'snapshot' && candidate.snapshot.phase === 'draft' && candidate.snapshot.deadlineAt === null);
+      // After the pick deadline the room stays in draft with a confirmation window for roles and maps.
+      const message = await client.waitFor((candidate) => candidate.type === 'snapshot' && candidate.snapshot.phase === 'draft' && candidate.snapshot.deadlineStage === 'confirmation');
       if (message.type !== 'snapshot') throw new Error('Expected snapshot');
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.protocolVersion === 4 && snapshot.config.mode === mode)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.tournament === null)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
     for (const snapshot of snapshots) {
       expect(snapshot.self?.lineup).toHaveLength(5);
@@ -370,5 +371,99 @@ describe('authoritative online server', () => {
     client.send({ type: 'join', requestId: 'join-wrong', protocolVersion: PROTOCOL_VERSION, dataHash: '00000000', playerName: 'Player name', organizationName: 'Organization' });
     const error = await client.waitFor((message) => message.type === 'error');
     expect(error).toMatchObject({ type: 'error', code: 'DATA_MISMATCH' });
+  });
+
+  it('returns a draft to the lobby when fewer than two participants remain', () => {
+    const manager = new RoomManager();
+    const now = 50_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60 }, now);
+    const host = manager.join(code, 'Host player', 'Host org', now);
+    const guest = manager.join(code, 'Guest player', 'Guest org', now + 1);
+    manager.execute(code, host.participantId, { type: 'start', requestId: 'start-lobby-return' }, now + 2);
+    manager.disconnect(code, guest.participantId, now + 3);
+    expect(manager.getSnapshot(code, host.participantId, now + 4).phase).toBe('draft');
+
+    manager.tick(now + 3 + RESUME_TTL_MS);
+    const snapshot = manager.getSnapshot(code, host.participantId, now + 3 + RESUME_TTL_MS);
+    expect(snapshot.phase).toBe('lobby');
+    expect(snapshot.deadlineAt).toBeNull();
+    expect(snapshot.participants).toHaveLength(1);
+    expect(manager.join(code, 'New guest', 'New org', now + 5 + RESUME_TTL_MS).participantId).toBeTruthy();
+  });
+
+  it('opens a confirmation window after the pick deadline and then fills missing PRO roles and maps', () => {
+    const manager = new RoomManager();
+    const startedAt = 70_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, mode: 'pro', capacity: 2, draftDeadlineSeconds: 60 }, startedAt);
+    const host = manager.join(code, 'PRO host', 'PRO org', startedAt);
+    const guest = manager.join(code, 'PRO guest', 'Guest org', startedAt + 1);
+    manager.execute(code, host.participantId, { type: 'start', requestId: 'start-confirmation' }, startedAt + 2);
+
+    manager.tick(startedAt + 61_000);
+    const afterPicks = manager.getSnapshot(code, host.participantId, startedAt + 61_000);
+    expect(afterPicks.phase).toBe('draft');
+    expect(afterPicks.deadlineStage).toBe('confirmation');
+    expect(afterPicks.deadlineAt).toBe(startedAt + 61_000 + CONFIRMATION_GRACE_MS);
+    expect(afterPicks.self?.proPickedPlayerIds).toHaveLength(5);
+    expect(afterPicks.self?.lineup).toEqual([]);
+    expect(afterPicks.participants.find((participant) => participant.id === guest.participantId)?.mapsConfirmed).toBe(false);
+
+    const picked = afterPicks.self?.proPickedPlayerIds ?? [];
+    const selected = picked.map((id) => players.find((player) => player.id === id)!).filter(Boolean);
+    const assignments = findBestProAssignments(selected);
+    manager.execute(code, host.participantId, { type: 'configure-pro', requestId: 'configure-pro-host', style: 'aggressive', assignments }, startedAt + 62_000);
+
+    manager.tick(startedAt + 61_000 + CONFIRMATION_GRACE_MS);
+    const started = manager.getSnapshot(code, host.participantId, startedAt + 61_000 + CONFIRMATION_GRACE_MS);
+    expect(started.phase).not.toBe('draft');
+    expect(started.tournament).not.toBeNull();
+    expect(started.deadlineAt).toBeNull();
+    expect(started.self?.proRoleAssignments).toEqual(assignments);
+    expect(started.self?.style).toBe('aggressive');
+    expect(started.self?.mapPreferences).toHaveLength(3);
+    const guestView = manager.getSnapshot(code, guest.participantId, startedAt + 61_000 + CONFIRMATION_GRACE_MS);
+    expect(guestView.self?.lineup).toHaveLength(5);
+    expect(new Set(Object.values(guestView.self?.proRoleAssignments ?? {})).size).toBe(5);
+    expect(guestView.self?.mapPreferences).toHaveLength(3);
+  });
+
+  it('hides other participants map preferences while exposing confirmation state', () => {
+    const manager = new RoomManager();
+    const now = 90_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60 }, now);
+    const host = manager.join(code, 'Host player', 'Host org', now);
+    const guest = manager.join(code, 'Guest player', 'Guest org', now + 1);
+    manager.execute(code, host.participantId, { type: 'start', requestId: 'start-privacy' }, now + 2);
+    manager.tick(now + 61_000);
+    const hostView = manager.getSnapshot(code, host.participantId, now + 61_000);
+    const selected = (hostView.self?.lineup ?? []).map((pick) => players.find((player) => player.id === pick.playerId)!);
+    manager.execute(code, host.participantId, { type: 'submit-map-preferences', requestId: 'maps-privacy', mapPreferences: getDefaultMapSelection(selected, teams) }, now + 62_000);
+    const guestView = manager.getSnapshot(code, guest.participantId, now + 62_000);
+    const hostAsSeenByGuest = guestView.participants.find((participant) => participant.id === host.participantId);
+    expect(hostAsSeenByGuest?.mapsConfirmed).toBe(true);
+    expect(hostAsSeenByGuest?.mapPreferences).toEqual([]);
+    expect(manager.getSnapshot(code, host.participantId, now + 62_000).participants.find((participant) => participant.id === host.participantId)?.mapPreferences).toHaveLength(3);
+  });
+
+  it('re-executes a retried command whose first attempt failed instead of acknowledging a duplicate', () => {
+    const manager = new RoomManager();
+    const now = 100_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2 }, now);
+    const host = manager.join(code, 'Host player', 'Host org', now);
+    expect(() => manager.execute(code, host.participantId, { type: 'start', requestId: 'start-retry' }, now + 1)).toThrow(RoomError);
+    manager.join(code, 'Guest player', 'Guest org', now + 2);
+    expect(manager.execute(code, host.participantId, { type: 'start', requestId: 'start-retry' }, now + 3)).toEqual({ duplicate: false });
+    expect(manager.getSnapshot(code, host.participantId, now + 3).phase).toBe('draft');
+    expect(manager.execute(code, host.participantId, { type: 'start', requestId: 'start-retry' }, now + 4)).toEqual({ duplicate: true });
+  });
+
+  it('answers room lookups so clients can distinguish a missing room from an unreachable server', async () => {
+    const server = await startServer();
+    const roomCode = await createRoom(server, 2);
+    const found = await fetch(`${server.baseUrl}/rooms/${roomCode.toLowerCase()}`, { headers: { origin: 'http://localhost:5173' } });
+    expect(found.status).toBe(200);
+    expect(await found.json()).toMatchObject({ ok: true, roomCode });
+    const missing = await fetch(`${server.baseUrl}/rooms/ZZZZZZZZ`, { headers: { origin: 'http://localhost:5173' } });
+    expect(missing.status).toBe(404);
   });
 });

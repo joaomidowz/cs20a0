@@ -221,6 +221,28 @@ const pt = {
   ,placementRunnerUp: 'Vice-campeão'
   ,placement3to4: '3º–4º'
   ,placement5to8: '5º–8º'
+  ,placementStage3: 'Eliminado no Stage 3'
+  ,overviewMyMatch: 'Minha partida'
+  ,overviewMajor: 'Visão do Major'
+  ,overviewStandings: 'Tabela'
+  ,overviewBracket: 'Chaveamento'
+  ,overviewPlayoffs: 'Playoffs'
+  ,overviewEliminated: 'Eliminados'
+  ,overviewTbd: 'A definir'
+  ,overviewBuchholz: 'Buchholz'
+  ,overviewActive: 'Em disputa'
+  ,overviewQualified: 'Classificado'
+  ,overviewOut: 'Eliminado'
+  ,overviewChampion: 'Campeão'
+  ,overviewNoRounds: 'A primeira rodada ainda não começou.'
+  ,overviewSwiss: 'Stage 3 · Suíço'
+  ,overviewRecord: 'V–D'
+  ,overviewRound: 'Rodada'
+  ,mapNotPlayed: 'Não disputado'
+  ,mapStart: 'Início do mapa'
+  ,overviewCollapse: 'Recolher'
+  ,overviewExpand: 'Expandir'
+  ,overtime: 'Overtime'
   ,roleAwper: 'AWPer'
   ,roleIgl: 'Capitão'
   ,roleSupport: 'Suporte'
@@ -474,6 +496,28 @@ Object.assign(dictionaries.en, {
   placementRunnerUp: 'Runner-up',
   placement3to4: '3rd–4th',
   placement5to8: '5th–8th',
+  placementStage3: 'Eliminated in Stage 3',
+  overviewMyMatch: 'My match',
+  overviewMajor: 'Major overview',
+  overviewStandings: 'Standings',
+  overviewBracket: 'Bracket',
+  overviewPlayoffs: 'Playoffs',
+  overviewEliminated: 'Eliminated',
+  overviewTbd: 'TBD',
+  overviewBuchholz: 'Buchholz',
+  overviewActive: 'Active',
+  overviewQualified: 'Qualified',
+  overviewOut: 'Eliminated',
+  overviewChampion: 'Champion',
+  overviewNoRounds: 'The first round has not started yet.',
+  overviewSwiss: 'Stage 3 · Swiss',
+  overviewRecord: 'W–L',
+  overviewRound: 'Round',
+  mapNotPlayed: 'Not played',
+  mapStart: 'Map start',
+  overviewCollapse: 'Collapse',
+  overviewExpand: 'Expand',
+  overtime: 'Overtime',
   roleAwper: 'AWPer',
   roleIgl: 'Captain',
   roleSupport: 'Support',
@@ -550,6 +594,28 @@ Object.assign(dictionaries.es, {
   placementRunnerUp: 'Subcampeón',
   placement3to4: '3º–4º',
   placement5to8: '5º–8º',
+  placementStage3: 'Eliminado en el Stage 3',
+  overviewMyMatch: 'Mi partido',
+  overviewMajor: 'Vista del Major',
+  overviewStandings: 'Tabla',
+  overviewBracket: 'Llaves',
+  overviewPlayoffs: 'Playoffs',
+  overviewEliminated: 'Eliminados',
+  overviewTbd: 'Por definir',
+  overviewBuchholz: 'Buchholz',
+  overviewActive: 'En disputa',
+  overviewQualified: 'Clasificado',
+  overviewOut: 'Eliminado',
+  overviewChampion: 'Campeón',
+  overviewNoRounds: 'La primera ronda aún no comenzó.',
+  overviewSwiss: 'Stage 3 · Suizo',
+  overviewRecord: 'V–D',
+  overviewRound: 'Ronda',
+  mapNotPlayed: 'No disputado',
+  mapStart: 'Inicio del mapa',
+  overviewCollapse: 'Contraer',
+  overviewExpand: 'Expandir',
+  overtime: 'Overtime',
   roleAwper: 'AWPer',
   roleIgl: 'Capitán',
   roleSupport: 'Soporte',
@@ -632,8 +698,13 @@ const titleTranslationMap: Record<string, TranslationKey> = {
   'GOAT do CS:GO Peak': 'titleGoatCsgoPeak'
 };
 
+const legacyPlacementMap: Record<string, TranslationKey> = {
+  'Eliminado no Stage 3': 'placementStage3',
+  'Campeão': 'placementChampion'
+};
+
 export function translatePlacement(language: Language, placement: string): string {
-  const key = placement as TranslationKey;
+  const key = (legacyPlacementMap[placement] ?? placement) as TranslationKey;
   if (key in dictionaries['pt-BR']) return translate(language, key);
   return placement;
 }

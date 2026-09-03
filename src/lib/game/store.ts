@@ -108,6 +108,9 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   };
 };
 
+// Seed of a run opened from a shared link. Viewing it must not overwrite the visitor's own saved run.
+let sharedSnapshotSeed: string | null = null;
+
 const loadState = (): GameState => {
   if (!browser) return defaultState();
   const queryParams = new URLSearchParams(window.location.search);
@@ -118,7 +121,10 @@ const loadState = (): GameState => {
     simSpeed: preferences.simulationSpeed
   };
   const sharedRun = parseSharedRun(queryParams, preferredSimulation);
-  if (sharedRun) return sharedRun;
+  if (sharedRun) {
+    sharedSnapshotSeed = sharedRun.seed;
+    return sharedRun;
+  }
   try {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? (JSON.parse(saved) as Partial<GameState> & { selectedPlayerIds?: string[] }) : {};
@@ -172,6 +178,15 @@ export const game = writable<GameState>(loadState());
 
 if (browser) {
   game.subscribe((state) => {
+    if (sharedSnapshotSeed !== null) {
+      if (state.phase === 'result' && state.seed === sharedSnapshotSeed) {
+        saveSimulationPreferences(state.simMode, state.simSpeed);
+        document.documentElement.dataset.theme = state.theme;
+        document.documentElement.lang = state.language;
+        return;
+      }
+      sharedSnapshotSeed = null;
+    }
     localStorage.setItem(storageKey, JSON.stringify(state));
     saveSimulationPreferences(state.simMode, state.simSpeed);
     document.documentElement.dataset.theme = state.theme;

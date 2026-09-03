@@ -27,7 +27,7 @@
   .nudge-kicker{display:block;padding-right:30px;color:var(--accent);font-size:.52rem;font-weight:900;letter-spacing:.12em}
   strong{display:block;margin-top:8px;font:800 1.45rem 'Barlow Condensed',sans-serif}
   p{margin:7px 0 15px;color:var(--muted);font-size:.72rem;line-height:1.55}
-  .nudge-close{position:absolute;right:9px;top:9px;width:30px;height:30px;padding:0;border:1px solid var(--line);color:var(--muted);background:transparent;font-size:1.1rem;cursor:pointer}
+  .nudge-close{position:absolute;right:6px;top:6px;width:36px;height:36px;padding:0;border:1px solid var(--line);color:var(--muted);background:transparent;font-size:1.1rem;cursor:pointer}
   .nudge-actions{display:grid;grid-template-columns:1fr auto;gap:7px}
   .nudge-actions a,.nudge-actions button{display:grid;place-items:center;min-height:42px;padding:8px 12px;border:1px solid var(--line);font-size:.65rem;font-weight:900;text-decoration:none;text-transform:uppercase;cursor:pointer}
   .nudge-actions a{border-color:var(--accent);color:#0b0e09;background:var(--accent)}

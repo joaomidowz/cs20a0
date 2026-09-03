@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { translateTeamName } from '$lib/game/i18n';
-  import { getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
+  import { getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
   import type { Language, SeriesResult } from '$lib/game/types';
 
@@ -31,6 +31,8 @@
     ban?: string;
     pick?: string;
     decider?: string;
+    notPlayed?: string;
+    mapStart?: string;
   };
   export let onComplete: () => void = () => {};
   export let onTeamHover: (teamId: string) => void = () => {};
@@ -72,6 +74,28 @@
     isLive: displayStarted
   }) : null;
   $: visibleMaps = series.maps.slice(0, displayActiveMap + (currentMap && displayVisibleRounds >= currentMap.rounds.length ? 1 : 0));
+  // Bans are never shown: only the maps that will actually be played.
+  $: decidedMaps = getDecidedMaps(series);
+  $: roundTicks = currentMap ? currentMap.rounds.slice(0, displayVisibleRounds).map((round, index) => {
+    const before = index > 0 ? currentMap.rounds[index - 1] : { a: 0, b: 0 };
+    return round.a > before.a ? 'a' : 'b';
+  }) : [];
+  $: lastRoundWinner = roundTicks.length ? roundTicks[roundTicks.length - 1] : null;
+  $: inOvertime = Boolean(displayStarted && !displayFinished && !currentMapFinished && currentMapScore && (currentRound?.overtime || (currentMapScore.a >= 12 && currentMapScore.b >= 12)));
+  $: mapStates = decidedMaps.map((decided) => {
+    const index = series.maps.findIndex((map) => map.mapId === decided.mapId);
+    if (displayFinished) return decided.result ? labels.final ?? 'FINAL' : labels.notPlayed ?? 'Não disputado';
+    if (index >= 0 && index < displayActiveMap) return labels.final ?? 'FINAL';
+    if (index === displayActiveMap && displayStarted) return currentMapFinished ? labels.final ?? 'FINAL' : `${labels.live} · ${labels.round} ${displayVisibleRounds}`;
+    return labels.pending ?? 'A disputar';
+  });
+  $: mapScore = (decided: (typeof decidedMaps)[number]) => {
+    const index = series.maps.findIndex((map) => map.mapId === decided.mapId);
+    if (index < 0) return null;
+    if (displayFinished || index < displayActiveMap) return { a: series.maps[index].scoreA, b: series.maps[index].scoreB, done: true };
+    if (index === displayActiveMap && displayStarted && currentMapScore) return { a: currentMapScore.a, b: currentMapScore.b, done: currentMapFinished };
+    return null;
+  };
   $: visibleScoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   $: visibleScoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
   $: mapsLabel = language === 'en' ? 'MAPS' : 'MAPAS';
@@ -87,10 +111,12 @@
       const rounds = series.maps[mapIndex].rounds;
       while (visibleRounds < rounds.length && thisRun === runId) {
         const skipped = await wait(delay);
+        if (thisRun !== runId) return;
         if (skipped) continue;
         visibleRounds += 1;
       }
-      await wait(Math.min(900, delay));
+      if (thisRun !== runId) return;
+      if (mapIndex < series.maps.length - 1) await wait(Math.min(900, delay));
     }
     if (thisRun !== runId) return;
     finished = true;
@@ -149,8 +175,6 @@
           disabled={!isInteractiveTeam(series.teamA.id) && !series.teamA.isUser}
           on:mouseenter={() => handleTeamHover(series.teamA.id)}
           on:mouseleave={onTeamHoverEnd}
-          on:focus={() => handleTeamHover(series.teamA.id)}
-          on:blur={onTeamHoverEnd}
           on:click={() => activateTeam(series.teamA.id, series.teamA.isUser)}
         >
           {translateTeamName(language, series.teamA.name)}
@@ -162,8 +186,6 @@
           disabled={!isInteractiveTeam(series.teamB.id) && !series.teamB.isUser}
           on:mouseenter={() => handleTeamHover(series.teamB.id)}
           on:mouseleave={onTeamHoverEnd}
-          on:focus={() => handleTeamHover(series.teamB.id)}
-          on:blur={onTeamHoverEnd}
           on:click={() => activateTeam(series.teamB.id, series.teamB.isUser)}
         >
           {translateTeamName(language, series.teamB.name)}
@@ -191,55 +213,66 @@
     {/if}
   </div>
 
-  {#if series.veto?.length}
-    <div class="veto-summary">
-      <span class="eyebrow">{labels.veto ?? 'Veto'}</span>
-      <ol>
-        {#each series.veto as step}
-          <li
-            class:ban={step.action === 'ban'}
-            class:pick={step.action === 'pick'}
-            class:decider={step.action === 'decider'}
-          >
-            <small>{step.action === 'ban' ? labels.ban ?? 'Ban' : step.action === 'pick' ? labels.pick ?? 'Pick' : labels.decider ?? 'Decider'}</small>
-            <strong>{getMapName(step.mapId)}</strong>
-            <span>{vetoTeamName(step.teamId)}</span>
-          </li>
-        {/each}
-      </ol>
+  {#if displayStarted && !displayFinished && currentMap && currentMapScore}
+    <div class="live-map">
+      <div class="live-map-score">
+        <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name)}</span>
+        <b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>
+        <i>:</i>
+        <b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>
+        <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name)}</span>
+      </div>
+      {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
+      <div class="round-strip" aria-hidden="true">
+        {#each roundTicks as winner}<i class:user={(winner === 'a') === Boolean(series.teamA.isUser)} class:neutral={!series.teamA.isUser && !series.teamB.isUser}></i>{/each}
+      </div>
+      <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : lastRoundWinner ? `${labels.round} ${displayVisibleRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
     </div>
   {/if}
 
-  {#key `${displayActiveMap}:${displayVisibleRounds}:${displayStarted}:${displayFinished}`}
-    <div class="map-list">
-      {#each series.maps.slice(0, displayFinished ? series.maps.length : displayActiveMap + 1) as map, index}
-        {@const isPast = index < displayActiveMap || displayFinished}
-        {@const liveRound = index === displayActiveMap ? currentRound : null}
-        <article class="map-row" class:live={index === displayActiveMap && displayStarted}>
+  {#if decidedMaps.length}
+    <div class="decided-map-list">
+      {#each decidedMaps as decided, index (decided.mapId)}
+        {@const score = mapScore(decided)}
+        {@const mapIndex = series.maps.findIndex((map) => map.mapId === decided.mapId)}
+        {@const isLive = mapIndex === displayActiveMap && displayStarted && !displayFinished}
+        <article class:live={isLive} class:not-played={displayFinished && !decided.result} class:user-pick={Boolean(decided.teamId) && (decided.teamId === series.teamA.id ? series.teamA.isUser : series.teamB.isUser)}>
           <div>
-            <strong>{getMapName(map.mapId, map.map, labels.map ?? 'Mapa')}</strong>
-            <small>{isPast || (index === displayActiveMap && currentMapFinished) ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
+            <small>{decided.action === 'decider' ? labels.decider ?? 'Decider' : `${labels.pick ?? 'Pick'} · ${vetoTeamName(decided.teamId)}`}</small>
+            <strong>{getMapName(decided.mapId)}</strong>
+            <span>{mapStates[index]}</span>
           </div>
-          {#if isPast}
-            <div class="map-score">
-              <b>{map.scoreA}</b>
-              <span>:</span>
-              <b>{map.scoreB}</b>
-            </div>
-          {:else if index === displayActiveMap && currentMapScore}
-            <div class="map-score">
-              <b>{currentMapScore.a}</b>
-              <span>:</span>
-              <b>{currentMapScore.b}</b>
-            </div>
+          {#if score}
+            <b class:won={score.done && ((score.a > score.b && series.teamA.isUser) || (score.b > score.a && series.teamB.isUser))} class:lostmap={score.done && ((score.a < score.b && series.teamA.isUser) || (score.b < score.a && series.teamB.isUser))}>{score.a} : {score.b}</b>
           {:else}
-            <span class="map-pending">{labels.pending ?? 'A disputar'}</span>
+            <b class="muted">— : —</b>
           {/if}
-          {#if (isPast && map.overtime) || liveRound?.overtime}<span class="ot">OT</span>{/if}
+          {#if decided.result?.overtime && (score?.done)}<em class="ot">OT</em>{/if}
         </article>
       {/each}
     </div>
-  {/key}
+  {:else}
+    {#key `${displayActiveMap}:${displayVisibleRounds}:${displayStarted}:${displayFinished}`}
+      <div class="map-list">
+        {#each series.maps.slice(0, displayFinished ? series.maps.length : displayActiveMap + 1) as map, index}
+          {@const isPast = index < displayActiveMap || displayFinished}
+          <article class="map-row" class:live={index === displayActiveMap && displayStarted}>
+            <div>
+              <strong>{getMapName(map.mapId, map.map, labels.map ?? 'Mapa')}</strong>
+              <small>{isPast || (index === displayActiveMap && currentMapFinished) ? labels.final ?? 'FINAL' : index === displayActiveMap && displayStarted ? `${labels.mapInProgress ?? 'Mapa em progresso'} · ${labels.round} ${displayVisibleRounds}` : labels.pending ?? labels.waiting ?? 'A disputar'}</small>
+            </div>
+            {#if isPast}
+              <div class="map-score"><b>{map.scoreA}</b><span>:</span><b>{map.scoreB}</b></div>
+            {:else if index === displayActiveMap && currentMapScore}
+              <div class="map-score"><b>{currentMapScore.a}</b><span>:</span><b>{currentMapScore.b}</b></div>
+            {:else}
+              <span class="map-pending">{labels.pending ?? 'A disputar'}</span>
+            {/if}
+          </article>
+        {/each}
+      </div>
+    {/key}
+  {/if}
 
   {#if !controlled && !started && !finished}
     <button class="primary wide" type="button" on:click={play}>{labels.start}</button>
@@ -247,3 +280,24 @@
     <button class="secondary wide" type="button" disabled={visibleRounds >= (currentMap?.rounds.length ?? 0)} on:click={skipMap}>{labels.skip}</button>
   {/if}
 </section>
+
+<style>
+  .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
+  .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
+  .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
+  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
+  .round-strip{display:flex;flex-wrap:wrap;gap:3px;min-height:8px}.round-strip i{width:12px;height:8px;background:color-mix(in srgb,var(--danger) 70%,var(--line));animation:tickIn .18s ease-out}.round-strip i.user{background:var(--accent)}.round-strip i.neutral{background:var(--line)}
+  .live-map small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .decided-map-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:18px 0}
+  .decided-map-list article{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease}
+  .decided-map-list article.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.decided-map-list article.not-played{opacity:.5}.decided-map-list article.user-pick small{color:var(--accent)}
+  .decided-map-list small,.decided-map-list strong,.decided-map-list span{display:block}.decided-map-list small{min-height:1.2em;color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .decided-map-list strong{margin-top:5px;font-size:1.15rem;text-transform:uppercase}.decided-map-list span{margin-top:7px;color:var(--muted);font-size:.52rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .decided-map-list b{font:900 1.75rem 'Arial Narrow',Impact,sans-serif;white-space:nowrap}.decided-map-list b.muted{color:var(--line)}.decided-map-list b.won{color:var(--accent)}.decided-map-list b.lostmap{color:var(--danger)}
+  .decided-map-list .ot{position:absolute;right:6px;top:5px;color:var(--accent-2);font-size:.55rem;font-style:normal;font-weight:900}
+  .ot-alert{justify-self:center;padding:5px 12px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .7rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.18em;text-transform:uppercase;animation:otBlink .7s steps(2,start) infinite}
+  @keyframes otBlink{to{visibility:hidden;box-shadow:0 0 16px var(--accent-2)}}
+  @keyframes tickIn{from{transform:scaleY(.2);opacity:0}}
+  @media(max-width:620px){.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}}
+  @media(max-width:400px){.decided-map-list{grid-template-columns:1fr}}
+</style>

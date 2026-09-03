@@ -1,5 +1,5 @@
 import type { PublicStanding } from '../online/contracts';
-import type { CombatTeam, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult } from '../types';
+import type { CombatTeam, MajorTournament, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult } from '../types';
 
 export interface SandboxLineupSelection {
   organizationId: string;
@@ -26,6 +26,7 @@ export interface SandboxMajorState {
   userTeam: CombatTeam;
   matches: SandboxMajorMatch[];
   standings: PublicStanding[];
+  tournament: MajorTournament;
   championId: string | null;
   currentMatchIndex: number;
   finished: boolean;

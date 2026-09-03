@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game/proMode';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
-import { isValidLineupMapSelection } from '../src/lib/game/maps';
+import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
 import { createRunStats } from '../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng } from '../src/lib/game/simulation';
 import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, SeriesResult } from '../src/lib/game/types';
@@ -23,6 +23,7 @@ import {
 import {
   autocompleteDraft,
   chooseDraftPlayer,
+  completeProAssignments,
   drawDraftTeam,
   emptyDraftState,
   getRerollLimit,
@@ -35,6 +36,8 @@ import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
+/** After the pick deadline, participants get this long to confirm roles and maps before the server fills the gaps. */
+export const CONFIRMATION_GRACE_MS = 45_000;
 const REQUEST_CACHE_SIZE = 200;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -65,6 +68,7 @@ interface RoomState {
   version: number;
   createdAt: number;
   deadlineAt: number | null;
+  deadlineStage: 'picks' | 'confirmation' | null;
   hostParticipantId: string | null;
   participants: Map<string, ParticipantState>;
   tournament: OnlineTournamentResult | null;
@@ -201,6 +205,7 @@ export class RoomManager {
       version: 1,
       createdAt: now,
       deadlineAt: null,
+      deadlineStage: null,
       hostParticipantId: null,
       participants: new Map(),
       tournament: null,
@@ -266,8 +271,6 @@ export class RoomManager {
     const room = this.requireRoom(code);
     const participant = this.requireParticipant(room, participantId);
     if (participant.requestIds.includes(command.requestId)) return { duplicate: true };
-    participant.requestIds.push(command.requestId);
-    if (participant.requestIds.length > REQUEST_CACHE_SIZE) participant.requestIds.splice(0, participant.requestIds.length - REQUEST_CACHE_SIZE);
 
     switch (command.type) {
       case 'configure':
@@ -282,6 +285,7 @@ export class RoomManager {
         if ([...room.participants.values()].filter((candidate) => candidate.connected).length < 2) throw new RoomError('INVALID_ACTION', 'At least two connected participants are required');
         room.phase = 'draft';
         room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
+        room.deadlineStage = room.deadlineAt === null ? null : 'picks';
         break;
       case 'draw-team':
         this.requireDraft(room);
@@ -371,6 +375,9 @@ export class RoomManager {
         room.nextTickAt = now + roundInterval(room.config);
         break;
     }
+    // Only successful commands are cached: a retry after a failure must execute again instead of receiving a false ack.
+    participant.requestIds.push(command.requestId);
+    if (participant.requestIds.length > REQUEST_CACHE_SIZE) participant.requestIds.splice(0, participant.requestIds.length - REQUEST_CACHE_SIZE);
     room.version += 1;
     this.startTournamentIfReady(room, now);
     return { duplicate: false };
@@ -405,7 +412,8 @@ export class RoomManager {
         joinedAt: candidate.joinedAt,
         picksCompleted: room.config.mode === 'pro' ? candidate.draft.proPickedPlayerIds.length : candidate.draft.lineup.length,
         ready: isDraftComplete(room.config.mode, candidate.draft),
-        mapPreferences: [...candidate.draft.mapPreferences]
+        mapPreferences: candidate.id === participantId ? [...candidate.draft.mapPreferences] : [],
+        mapsConfirmed: candidate.draft.mapPreferences.length === 3
       }));
     const organizations = room.organizations?.map((organization): PublicOrganization => ({
       id: organization.id,
@@ -439,6 +447,7 @@ export class RoomManager {
         mapPreferences: [...participant.draft.mapPreferences]
       } : null,
       deadlineAt: room.deadlineAt,
+      deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
       tournament: room.tournament ? this.publicTournament(room, participantId) : null,
       ...(organizations ? { organizations } : {}),
       ...(participant && room.phase === 'completed' ? { selfResult: this.getSelfResult(room, participant) } : {}),
@@ -453,25 +462,55 @@ export class RoomManager {
         this.rooms.delete(code);
         continue;
       }
-      for (const [participantId, participant] of room.participants) {
-        if (!participant.connected && participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS) {
-          room.participants.delete(participantId);
-          room.version += 1;
-          changed.push(code);
-        }
+      try {
+        if (this.tickRoom(room, now)) changed.push(code);
+      } catch (error) {
+        // One broken room must never take the whole server (and every other room) down with it.
+        console.error(`[room ${code}] tick failed`, error);
+        room.deadlineAt = null;
+        room.deadlineStage = null;
+        room.nextTickAt = null;
+        room.version += 1;
+        changed.push(code);
       }
-      if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
+    }
+    return [...new Set(changed)];
+  }
+
+  private tickRoom(room: RoomState, now: number): boolean {
+    let changed = false;
+    for (const [participantId, participant] of room.participants) {
+      if (!participant.connected && participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS) {
+        room.participants.delete(participantId);
+        room.version += 1;
+        changed = true;
+      }
+    }
+    if (room.phase === 'draft' && room.participants.size < 2) {
+      // The remaining participant would otherwise wait forever: nobody else can join a started room.
+      this.returnToLobby(room);
+      return true;
+    }
+    if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
+      if (room.deadlineStage === 'confirmation') {
+        for (const participant of room.participants.values()) this.autocompleteConfirmation(room, participant);
+        room.deadlineAt = null;
+        room.deadlineStage = null;
+      } else {
         for (const participant of room.participants.values()) {
           const picksCompleted = room.config.mode === 'pro' ? participant.draft.proPickedPlayerIds.length : participant.draft.lineup.length;
           if (picksCompleted < 5) {
             participant.draft = autocompleteDraft(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
           }
         }
-        room.deadlineAt = null;
-        room.version += 1;
-        this.startTournamentIfReady(room, now);
-        changed.push(code);
-      } else if (room.tournament && room.nextTickAt !== null && now >= room.nextTickAt) {
+        const everyoneReady = [...room.participants.values()].every((participant) => isDraftComplete(room.config.mode, participant.draft));
+        room.deadlineAt = everyoneReady ? null : now + CONFIRMATION_GRACE_MS;
+        room.deadlineStage = everyoneReady ? null : 'confirmation';
+      }
+      room.version += 1;
+      this.startTournamentIfReady(room, now);
+      changed = true;
+    } else if (room.tournament && room.nextTickAt !== null && now >= room.nextTickAt) {
         const currentRound = room.tournament.rounds[room.revealedRounds];
         if (!currentRound) {
           room.phase = 'completed';
@@ -496,12 +535,43 @@ export class RoomManager {
           room.liveStep += 1;
           room.nextTickAt = now + (room.liveStep >= tournamentRoundLength(currentRound.series) ? ROUND_GAP_MS : roundInterval(room.config));
         }
-        room.version += 1;
-        changed.push(code);
-      }
-      if (room.phase === 'draft') this.startTournamentIfReady(room, now);
+      room.version += 1;
+      changed = true;
     }
-    return [...new Set(changed)];
+    if (room.phase === 'draft') this.startTournamentIfReady(room, now);
+    return changed;
+  }
+
+  private returnToLobby(room: RoomState) {
+    room.phase = 'lobby';
+    room.deadlineAt = null;
+    room.deadlineStage = null;
+    for (const participant of room.participants.values()) participant.draft = emptyDraftState();
+    room.version += 1;
+  }
+
+  /** Fills whatever is still missing after the confirmation window, keeping every role the participant already chose. */
+  private autocompleteConfirmation(room: RoomState, participant: ParticipantState) {
+    const draft = participant.draft;
+    if (room.config.mode === 'pro' && draft.lineup.length < 5 && draft.proPickedPlayerIds.length === 5) {
+      const selected = draft.proPickedPlayerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
+      if (selected.length === 5) {
+        const assignments = completeProAssignments(selected, draft.proRoleAssignments);
+        const style = draft.style ?? 'balanced';
+        const evaluations = buildProRoleEvaluations(selected, assignments, style);
+        participant.draft = {
+          ...draft,
+          style,
+          proRoleAssignments: { ...assignments },
+          lineup: evaluations.map((evaluation) => ({ playerId: evaluation.player.id, selectedSlotRole: evaluation.selectedRole })),
+          mapPreferences: []
+        };
+      }
+    }
+    if (participant.draft.lineup.length === 5 && participant.draft.mapPreferences.length !== 3) {
+      const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+      participant.draft.mapPreferences = [...getDefaultMapSelection(selected, teams)];
+    }
   }
 
   private startTournamentIfReady(room: RoomState, now: number) {

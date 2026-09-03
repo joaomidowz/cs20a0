@@ -310,7 +310,7 @@ describe('simulation', () => {
     const heavyLoss: MajorRun = {
       stage3: { wins: 0, losses: 1, qualified: false, matches: [] },
       champion: false,
-      placement: 'Eliminado no Stage 3',
+      placement: 'placementStage3',
       matches: [{
         id: 'heavy-loss',
         phase: 'stage3',

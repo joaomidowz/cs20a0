@@ -43,7 +43,7 @@ export function createSandboxMajor(selection: SandboxLineupSelection, rawSeed: s
   };
   const opponents = shuffledOpponents(selection, seed);
   const tournament = runOnlineTournament({
-    organizations: [userOrganization, opponents[0]], botPool: opponents.slice(1), entryStage: 'stage3', seed: `${seed}:sandbox-major`
+    organizations: [userOrganization], botPool: opponents, entryStage: 'stage3', seed: `${seed}:sandbox-major`
   });
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const selectedPlayers = selection.players.map((selected) => players.find((player) => player.id === selected.playerId)).filter((player) => player !== undefined);
@@ -71,6 +71,11 @@ export function createSandboxMajor(selection: SandboxLineupSelection, rawSeed: s
     userTeam,
     matches,
     standings: tournament.standings.map((standing) => ({ ...standing })),
+    tournament: {
+      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => matches.find((match) => match.id === series.id) ?? series) })),
+      standings: tournament.standings.map((standing) => ({ ...standing })),
+      championId: tournament.championId
+    },
     championId: tournament.championId,
     currentMatchIndex: 0,
     finished: matches.length === 0

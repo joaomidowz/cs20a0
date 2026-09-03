@@ -153,7 +153,9 @@ export interface PublicParticipant {
   joinedAt: number;
   picksCompleted: number;
   ready: boolean;
+  /** Only the requesting participant sees their own preferences; other participants receive an empty list. */
   mapPreferences: MapId[];
+  mapsConfirmed: boolean;
 }
 
 export interface PublicOrganization {
@@ -196,6 +198,8 @@ export interface RoomSnapshot {
   participants: PublicParticipant[];
   self: SelfDraftState | null;
   deadlineAt: number | null;
+  /** 'picks' while the lineup deadline runs, 'confirmation' during the short window to confirm roles and maps. */
+  deadlineStage: 'picks' | 'confirmation' | null;
   tournament: PublicTournament | null;
   organizations?: PublicOrganization[];
   selfResult?: PublicSelfResult | null;

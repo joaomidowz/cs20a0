@@ -1,3 +1,4 @@
+import { runOnlineTournament } from './online/tournament';
 import type {
   CombatTeam,
   GameMode,
@@ -412,6 +413,28 @@ export function simulatePlayoffs(
   };
 }
 
+/** Puts `focusId` on the A side of a series, swapping scores and round data consistently. */
+export function orientSeriesToTeam(series: SeriesResult, focusId: string): SeriesResult {
+  if (series.teamA.id === focusId || series.teamB.id !== focusId) return series;
+  return {
+    ...series,
+    teamA: series.teamB,
+    teamB: series.teamA,
+    scoreA: series.scoreB,
+    scoreB: series.scoreA,
+    maps: series.maps.map((map) => ({
+      ...map,
+      scoreA: map.scoreB,
+      scoreB: map.scoreA,
+      rounds: map.rounds.map((round) => ({ ...round, a: round.b, b: round.a }))
+    }))
+  };
+}
+
+/**
+ * Builds the offline Major with the same engine as the online mode: the user plus fifteen seeded historical teams play
+ * a full Swiss stage and an eight-team bracket, so the overview can show what happened to every other team.
+ */
 export function buildMajorRun(
   players: Player[],
   style: OrgStyle,
@@ -421,9 +444,8 @@ export function buildMajorRun(
   lineup: SelectedPlayer[] = [],
   options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
 ): MajorRun {
-  const rng = createSeededRng(`${seed}:major:${players.map((player) => player.id).join('|')}:${style}`);
+  const lineupKey = players.map((player) => player.id).join('|');
   const user = calculateUserTeamPower(players, style, lineup, seed);
-  const opponents = teams.map((team) => calculateHistoricalTeamPower(team, allPlayers));
   let mapContext: MapSimulationContext | undefined;
   const selectedMaps = options.selectedMaps ?? [];
   if (isValidLineupMapSelection(selectedMaps, players, teams)) {
@@ -432,19 +454,49 @@ export function buildMajorRun(
     for (const team of teams) strategies.set(team.id, createBotMapStrategy(team));
     mapContext = { mode: options.mode ?? 'premier', seed: `${seed}:offline-maps`, strategies };
   }
-  const stage3 = simulateStage3(user, opponents, rng, mapContext);
-  if (!stage3.qualified) {
-    return { stage3, matches: stage3.matches, champion: false, placement: 'Eliminado no Stage 3' };
+  const fieldRng = createSeededRng(`${seed}:major-field:${lineupKey}:${style}`);
+  const field = teams.map((team) => {
+    const combat = calculateHistoricalTeamPower(team, allPlayers);
+    return { id: team.id, name: combat.name, seed: 0, team: combat, human: false, sourceTeamId: team.id };
+  });
+  for (let index = field.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(fieldRng() * (index + 1));
+    [field[index], field[target]] = [field[target], field[index]];
   }
-  const used = new Set(stage3.matches.flatMap((match) => [match.teamA.id, match.teamB.id]));
-  const playoffPool = opponents.filter((team) => !used.has(team.id));
-  const playoffs = simulatePlayoffs(user, playoffPool.length >= 7 ? playoffPool : opponents, rng, mapContext);
-  const champion = playoffs.championId === user.id;
+  const tournament = runOnlineTournament({
+    organizations: [{ id: user.id, name: user.name, seed: 1, team: user, human: true }],
+    botPool: field,
+    entryStage: 'stage3',
+    seed: `${seed}:major:${lineupKey}:${style}`,
+    mapContext,
+    // 13a0: every offline series is BO3 except the BO5 final.
+    swissBestOf: 3
+  });
+  const userSeries = tournament.rounds.flatMap((round) => round.series).filter((series) => series.userMatch).map((series) => orientSeriesToTeam(series, user.id));
+  const stage3Matches = userSeries.filter((series) => series.phase === 'stage3');
+  const wins = stage3Matches.filter((series) => series.winnerId === user.id).length;
+  const losses = stage3Matches.length - wins;
+  const qualified = wins === 3;
+  const champion = tournament.championId === user.id;
+  const placement = tournament.campaigns.find((campaign) => campaign.organizationId === user.id)?.placement ?? 'placementStage3';
+  const playoffs: PlayoffsResult | undefined = qualified
+    ? {
+      championId: tournament.championId ?? '',
+      placement,
+      userMatches: userSeries.filter((series) => series.phase !== 'stage3'),
+      allMatches: tournament.rounds.filter((round) => round.phase !== 'swiss').flatMap((round) => round.series)
+    }
+    : undefined;
   return {
-    stage3,
+    stage3: { wins, losses, qualified, matches: stage3Matches },
     playoffs,
-    matches: [...stage3.matches, ...playoffs.userMatches],
+    matches: userSeries,
     champion,
-    placement: champion ? 'Campeão' : playoffs.placement
+    placement,
+    tournament: {
+      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series })),
+      standings: tournament.standings,
+      championId: tournament.championId
+    }
   };
 }

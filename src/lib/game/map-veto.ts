@@ -114,7 +114,7 @@ export function resolveMapVeto(options: {
   for (const [index, item] of sequence.entries()) {
     const mapId = chooseMap(options.seed, preliminaryStep + index, item.action, item.actor, item.opponent, available);
     available.splice(available.indexOf(mapId), 1);
-    steps.push({ order: index + 1, action: item.action, teamId: item.actor.teamId, mapId });
+    steps.push({ order: steps.length + 1, action: item.action, teamId: item.actor.teamId, mapId });
   }
   steps.push({ order: steps.length + 1, action: 'decider', teamId: null, mapId: available[0] });
 

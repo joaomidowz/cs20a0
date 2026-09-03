@@ -5,6 +5,8 @@
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
+  import MajorOverview from '$lib/components/MajorOverview.svelte';
+  import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
@@ -20,8 +22,8 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import type { LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult } from '$lib/game/types';
-  import { OnlineRoomClient, createOnlineRoom } from '$lib/game/online/client';
+  import type { LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
+  import { checkOnlineRoom, createOnlineRoom, isValidRoomCode, OnlineRoomClient, OnlineRoomCreationError, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -50,6 +52,7 @@
   let downloadingImage = false;
   let provisionalMapPreferences: MapId[] = [];
   let mapLineupKey = '';
+  let proLineupKey = '';
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
@@ -71,6 +74,13 @@
   $: liveCursor = snapshot?.tournament?.liveCursor ?? null;
   $: liveSeries = liveCursor?.primarySeries ?? null;
   $: myStanding = snapshot?.tournament?.standings.find((standing) => standing.organizationId === me?.id) ?? null;
+  $: onlineTournament = snapshot?.tournament ? buildOnlineTournamentView(snapshot.tournament) : null;
+  $: onlineCursor = {
+    liveSeriesId: null,
+    liveSeriesIds: liveCursor?.overviewSeries.filter((series) => series.status === 'live').map((series) => series.id) ?? [],
+    isResolved: (id: string) => completedSeries.some((series) => series.id === id) || (liveCursor?.overviewSeries.some((series) => series.id === id && series.status === 'completed') ?? false),
+    complete: snapshot?.phase === 'completed'
+  };
   $: myCampaign = snapshot?.tournament?.campaigns?.find((campaign) => campaign.organizationId === me?.id) ?? null;
   $: proAssignmentStatus = validateProAssignments(proAssignments, self?.proPickedPlayerIds ?? []);
   $: ownPlayers = (self?.lineup ?? []).map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
@@ -95,8 +105,27 @@
     if (clockTimer !== null) window.clearInterval(clockTimer);
   });
 
+  function describeError(code: OnlineClientErrorCode, fallback: string): string {
+    switch (code) {
+      case 'RESUME_EXPIRED': return t('sessionExpired');
+      case 'CONNECTION_FAILED': return t('connectionFailed');
+      case 'CONNECTION_LOST': return t('connectionLost');
+      case 'RECONNECT_GAVE_UP': return t('connectionGaveUp');
+      case 'ROOM_NOT_FOUND': return t('roomNotFound');
+      case 'ROOM_STARTED': return t('roomStarted');
+      case 'ROOM_FULL': return t('roomFull');
+      case 'NAME_TAKEN': return t('nameTaken');
+      case 'NOT_READY': return t('notReady');
+      case 'PROTOCOL_MISMATCH':
+      case 'DATA_MISMATCH': return t('versionMismatch');
+      case 'RATE_LIMITED': return t('rateLimited');
+      case 'CREATE_FAILED': return t('createFailed');
+      default: return fallback;
+    }
+  }
+
   function updateCountdown() {
-    if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5)) {
+    if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5 && snapshot.deadlineStage !== 'confirmation')) {
       countdown = '';
       return;
     }
@@ -125,15 +154,32 @@
       replaceState(url, {});
       connect();
     } catch (error) {
-      errorMessage = error instanceof Error ? error.message : 'Erro ao criar sala.';
+      errorMessage = error instanceof OnlineRoomCreationError ? describeError(error.code, error.message) : t('createFailed');
     } finally {
       creating = false;
     }
   }
 
-  function joinRoom() {
+  async function joinRoom() {
     roomCode = roomCode.trim().toUpperCase();
-    if (!validIdentity() || roomCode.length !== 8) return;
+    if (!validIdentity() || creating) return;
+    if (!isValidRoomCode(roomCode)) {
+      errorMessage = t('invalidCode');
+      return;
+    }
+    errorMessage = '';
+    creating = true;
+    try {
+      if (!(await checkOnlineRoom(getOnlineServerUrl(), roomCode))) {
+        errorMessage = t('roomNotFound');
+        return;
+      }
+    } catch {
+      errorMessage = t('connectionFailed');
+      return;
+    } finally {
+      creating = false;
+    }
     const url = new URL(window.location.href);
     url.searchParams.set('room', roomCode);
     replaceState(url, {});
@@ -143,14 +189,30 @@
   function connect() {
     client?.stop();
     client = new OnlineRoomClient(getOnlineServerUrl(), roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim() }, {
-      onConnection: (state) => { connection = state; },
+      onConnection: (state) => {
+        if (state === 'expired') {
+          // The room moved on without us (or the resume token died): back to the entry screen instead of a frozen snapshot.
+          snapshot = null;
+          connection = 'disconnected';
+          countdown = '';
+          if (!errorMessage) errorMessage = t('sessionExpired');
+          return;
+        }
+        connection = state;
+      },
       onSnapshot: (next) => {
         snapshot = next;
         serverOffset = next.serverTime - Date.now();
         config = next.config;
         if (next.self) {
-          proStyle = next.self.style ?? 'balanced';
-          proAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
+          const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
+          const nextProKey = next.self.proPickedPlayerIds.join('|');
+          // Only adopt server-side PRO choices when they exist or the picked players changed; otherwise every broadcast would wipe what the user is still filling in.
+          if (Object.keys(serverAssignments).length || nextProKey !== proLineupKey) {
+            proAssignments = serverAssignments;
+            proStyle = next.self.style ?? proStyle;
+          }
+          proLineupKey = nextProKey;
           const nextLineupKey = next.self.lineup.map((pick) => pick.playerId).join('|');
           if (next.self.mapPreferences.length === 3) provisionalMapPreferences = [...next.self.mapPreferences];
           else if (next.self.lineup.length === 5 && nextLineupKey !== mapLineupKey) {
@@ -161,7 +223,11 @@
         }
         updateCountdown();
       },
-      onError: (message) => { errorMessage = message; }
+      onError: (message, code) => {
+        errorMessage = describeError(code, message);
+        // A rejected host edit must not linger in the form.
+        if (snapshot) config = snapshot.config;
+      }
     });
     client.connect();
   }
@@ -233,7 +299,7 @@
   function phaseLabel(phase: SeriesResult['phase'] | 'swiss') {
     if (phase === 'swiss' || phase === 'stage3') return 'STAGE 3';
     if (phase === 'quarterfinal') return $language === 'en' ? 'QUARTERFINALS' : $language === 'es' ? 'CUARTOS DE FINAL' : 'QUARTAS DE FINAL';
-    if (phase === 'semifinal') return $language === 'en' ? 'SEMIFINALS' : 'SEMIFINAIS';
+    if (phase === 'semifinal') return $language === 'en' ? 'SEMIFINALS' : $language === 'es' ? 'SEMIFINALES' : 'SEMIFINAIS';
     return $language === 'en' ? 'GRAND FINAL' : $language === 'es' ? 'GRAN FINAL' : 'GRANDE FINAL';
   }
 
@@ -241,21 +307,31 @@
     send({ type: 'configure-simulation', ...patch });
   }
 
-  function phaseOverview(phase: SeriesResult['phase']): PublicOverviewSeries[] {
-    const completed: PublicOverviewSeries[] = completedSeries
-      .filter((series) => series.phase === phase)
-      .map((series) => ({
-        id: series.id,
-        phase: series.phase,
-        bestOf: series.bestOf,
-        teamA: { id: series.teamA.id, name: series.teamA.name },
-        teamB: { id: series.teamB.id, name: series.teamB.name },
-        scoreA: series.scoreA,
-        scoreB: series.scoreB,
-        status: 'completed'
-      }));
-    const live = liveCursor?.phase === phase ? liveCursor.overviewSeries : [];
-    return [...completed, ...live.filter((series) => !completed.some((item) => item.id === series.id))];
+  const stubTeam = (team: { id: string; name: string }): CombatTeam => ({ id: team.id, name: team.name, power: 0, mental: 0, clutch: 0, experience: 0 });
+
+  /** Completed rounds plus the round in progress (with running scores) in the shape the shared Major overview expects. */
+  function buildOnlineTournamentView(tournament: NonNullable<RoomSnapshot['tournament']>): MajorTournament {
+    const rounds: MajorTournament['rounds'] = tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series }));
+    const cursor = tournament.liveCursor;
+    if (cursor && cursor.overviewSeries.length && !rounds.some((round) => round.number === cursor.tournamentRound)) {
+      rounds.push({
+        number: cursor.tournamentRound,
+        phase: cursor.phase,
+        series: cursor.overviewSeries.map((series): SeriesResult => ({
+          id: series.id,
+          phase: series.phase,
+          bestOf: series.bestOf,
+          teamA: stubTeam(series.teamA),
+          teamB: stubTeam(series.teamB),
+          scoreA: series.scoreA,
+          scoreB: series.scoreB,
+          winnerId: series.status === 'completed' ? (series.scoreA > series.scoreB ? series.teamA.id : series.teamB.id) : '',
+          maps: [],
+          userMatch: series.teamA.id === me?.id || series.teamB.id === me?.id
+        }))
+      });
+    }
+    return { rounds, standings: tournament.standings, championId: tournament.championId };
   }
 
   function organizationPlayers(organization: PublicOrganization) {
@@ -345,13 +421,13 @@
           <button class="secondary" type="button" disabled={!identityValid || roomCode.trim().length !== 8} on:click={joinRoom}>{t('join')}</button>
         </section>
       </div>
-      {#if errorMessage}<p class="online-error">{errorMessage}</p>{/if}
+      {#if errorMessage}<p class="online-error" role="alert">{errorMessage}</p>{/if}
     </section>
   {:else}
     <section class="online-room">
       <header class:online-draft-header={snapshot.phase === 'draft'} class="online-header">
-        <div><div class="screen-kicker"><span class="eyebrow">{snapshot.phase.toUpperCase()} · {t(connection).toUpperCase()}</span><span class="multiplayer-tag">MULTIPLAYER</span></div><h1>{snapshot.phase === 'lobby' ? t('lobby') : snapshot.phase === 'draft' ? t('draft') : t('title')}</h1></div>
-        <div class="room-code"><span>{t('roomCode')}</span><button type="button" on:click={copyRoomLink}>{roomCode}</button></div>
+        <div><div class="screen-kicker"><span class="eyebrow">{snapshot.phase.toUpperCase()} · {t(connection).toUpperCase()}</span><span class="multiplayer-tag">MULTIPLAYER</span></div>{#if !snapshot.tournament}<h1>{snapshot.phase === 'lobby' ? t('lobby') : t('draft')}</h1>{:else}<p class="online-room-title">{t('title')}</p>{/if}</div>
+        <div class="room-code"><span>{t('roomCode')}</span><button type="button" aria-label={`${t('copyLink')} · ${roomCode}`} on:click={copyRoomLink}>{roomCode}</button></div>
       </header>
 
       {#if snapshot.phase === 'lobby'}
@@ -370,14 +446,14 @@
             <label><span>{t('mode')}</span><select value={config.mode} disabled={!isHost} on:change={(event) => saveConfig({ mode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['mode'] })}>{#each onlineModes as mode}<option value={mode}>{translateOnlineMode($language, mode).name}</option>{/each}</select><small class="mode-description">{translateOnlineMode($language, config.mode).description}</small></label>
             <label><span>{t('entryStage')}</span><select value={config.entryStage} disabled={!isHost} on:change={(event) => saveConfig({ entryStage: (event.currentTarget as HTMLSelectElement).value as RoomConfig['entryStage'] })}><option value="stage3">Stage 3</option><option value="playoffs">Playoffs</option></select></label>
             <label><span>{t('capacity')}</span><input type="number" min="2" max={config.entryStage === 'playoffs' ? 8 : 16} value={config.capacity} disabled={!isHost} on:change={(event) => saveConfig({ capacity: Number((event.currentTarget as HTMLInputElement).value) })} /></label>
-            <label><span>{t('deadline')}</span><select value={config.draftDeadlineSeconds ?? 'off'} disabled={!isHost} on:change={(event) => saveConfig({ draftDeadlineSeconds: (event.currentTarget as HTMLSelectElement).value === 'off' ? null : Number((event.currentTarget as HTMLSelectElement).value) as 60 | 120 | 180 | 300 })}><option value="60">60s</option><option value="120">120s</option><option value="180">180s</option><option value="300">300s</option><option value="off">{t('deadlineOff')}</option></select></label>
+            <label><span>{t('deadline')}</span><select value={String(config.draftDeadlineSeconds ?? 'off')} disabled={!isHost} on:change={(event) => saveConfig({ draftDeadlineSeconds: (event.currentTarget as HTMLSelectElement).value === 'off' ? null : Number((event.currentTarget as HTMLSelectElement).value) as 60 | 120 | 180 | 300 })}><option value="60">60s</option><option value="120">120s</option><option value="180">180s</option><option value="300">300s</option><option value="off">{t('deadlineOff')}</option></select></label>
             <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
             {#if isHost}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
         </div>
       {:else if snapshot.phase === 'draft' && self}
-        <div class="draft-status panel"><div><span>{t('participants')}</span><strong>{snapshot.participants.filter((participant) => participant.ready).length}/{snapshot.participants.length}</strong></div>{#if countdown}<div><span>{t('deadline')}</span><strong>{countdown}</strong></div>{/if}<div><span>STATUS</span><strong>{me?.ready ? 'READY' : `${snapshot.config.mode === 'pro' ? self.proPickedPlayerIds.length : self.lineup.length}/5`}</strong></div></div>
+        <div class="draft-status panel"><div><span>{t('participants')}</span><strong>{snapshot.participants.filter((participant) => participant.ready).length}/{snapshot.participants.length}</strong></div>{#if countdown}<div><span>{snapshot.deadlineStage === 'confirmation' ? t('confirmDeadline') : t('deadline')}</span><strong>{countdown}</strong></div>{/if}<div><span>STATUS</span><strong>{me?.ready ? 'READY' : `${snapshot.config.mode === 'pro' ? self.proPickedPlayerIds.length : self.lineup.length}/5`}</strong></div></div>
         {#if snapshot.config.mode !== 'pro' && !self.style}
           <section class="style-block panel">
             <div class="section-heading"><div><span class="eyebrow">TACTICAL IDENTITY</span><h2>{gameT('chooseStyle')}</h2></div></div>
@@ -388,7 +464,7 @@
         {#if snapshot.config.mode === 'pro' && self.proPickedPlayerIds.length === 5 && self.lineup.length < 5}
           <section class="panel pro-config">
             <span class="eyebrow">PRO CONFIG</span><h2>{t('completeRoles')}</h2>
-            <select bind:value={proStyle}><option value="aggressive">Aggressive</option><option value="balanced">Balanced</option><option value="tactical">Tactical</option></select>
+            <select bind:value={proStyle} aria-label={gameT('chooseStyle')}><option value="aggressive">{gameT('aggressive')}</option><option value="balanced">{gameT('balanced')}</option><option value="tactical">{gameT('tactical')}</option></select>
             <div>
               {#each self.proPickedPlayerIds as playerId}
                 {@const player = playerById.get(playerId)}
@@ -404,12 +480,12 @@
             <div class="online-map-grid">
               {#each MAP_POOL as mapId}
                 {@const count = onlineMapContributors[mapId].length}
-                <button class:selected={provisionalMapPreferences.includes(mapId)} disabled={count === 0 || (!provisionalMapPreferences.includes(mapId) && provisionalMapPreferences.length >= 3)} on:click={() => toggleOnlineMap(mapId)}>
+                <button type="button" class:selected={provisionalMapPreferences.includes(mapId)} aria-pressed={provisionalMapPreferences.includes(mapId)} disabled={count === 0 || (!provisionalMapPreferences.includes(mapId) && provisionalMapPreferences.length >= 3)} on:click={() => toggleOnlineMap(mapId)}>
                   <strong>{getMapName(mapId)}</strong><span>{getMapFamiliarity(count)}% · {count}/5</span><small>{onlineMapYears[mapId].join(', ') || '—'}</small>
                 </button>
               {/each}
             </div>
-            <button class="primary wide" disabled={!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)} on:click={confirmOnlineMaps}>{gameT('confirmMaps')}</button>
+            <button class="primary wide" type="button" disabled={!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)} on:click={confirmOnlineMaps}>{gameT('confirmMaps')}</button>
           </section>
         {:else if !me?.ready}
           <section class="roll-zone panel">
@@ -437,7 +513,7 @@
         {:else}
           <DraftHud selectedPlayers={displayLineup as SelectedPlayer[]} style={self.style ?? 'balanced'} styleLocked={Boolean(self.style)} styleLabel={gameT((self.style ?? 'balanced') as OrgStyle)} mode={presentationMode} revealed={me?.ready ?? false} label={gameT('orgHud')} onOpen={(player) => detailsPlayer = player} />
         {/if}
-        <section class="online-progress"><h2>{t('participants')}</h2>{#each snapshot.participants as participant}<article><span>{participant.organizationName}</span><b>{participant.picksCompleted}/5 · {participant.mapPreferences.length}/3 MAPS</b><i><em style={`width:${participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + participant.mapPreferences.length * 10)}%`}></em></i></article>{/each}</section>
+        <section class="online-progress"><h2>{t('participants')}</h2>{#each snapshot.participants as participant}<article><span>{participant.organizationName}</span><b>{participant.picksCompleted}/5 · {participant.mapsConfirmed ? '3/3' : '0/3'} {t('mapsConfirmed').toUpperCase()}</b><i role="progressbar" aria-label={participant.organizationName} aria-valuemin="0" aria-valuemax="100" aria-valuenow={participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + (participant.mapsConfirmed ? 20 : 0))}><em style={`width:${participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + (participant.mapsConfirmed ? 20 : 0))}%`}></em></i></article>{/each}</section>
       {:else if snapshot.tournament}
         <section class="screen match-screen online-major-screen">
           <header class="match-topbar">
@@ -503,6 +579,10 @@
                   language={$language}
                   labels={{ champion: gameT('champion'), eliminated: gameT('eliminated'), placement: gameT('placement'), record: gameT('record'), maps: gameT('maps'), mvp: gameT('runMvp') }}
                 />
+                <section class="online-stats">
+                  <div class="section-heading"><div><span class="eyebrow">POST-MAJOR</span><h2>{gameT('stats')}</h2></div></div>
+                  <RunStatsGrid stats={snapshot.selfResult.stats} language={$language} players={ownDisplayPlayers} />
+                </section>
                 <div class="result-actions online-result-actions"><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{gameT('downloadRunImage')}</button></div>
               {/if}
             {:else if liveSeries}
@@ -517,7 +597,7 @@
                   language={$language}
                   interactiveTeamIds={[liveSeries.series.teamA.id, liveSeries.series.teamB.id]}
                   onTeamClick={openOrganization}
-                  labels={{ start: gameT('startSeries'), skip: gameT('skipMap'), round: gameT('round'), live: t('live'), map: gameT('map'), final: gameT('final'), waiting: gameT('waiting'), pending: gameT('pending'), inProgress: gameT('inProgress'), mapInProgress: gameT('mapInProgress') }}
+                  labels={{ start: gameT('startSeries'), skip: gameT('skipMap'), round: gameT('round'), live: t('live'), map: gameT('map'), final: gameT('final'), waiting: gameT('waiting'), pending: gameT('pending'), inProgress: gameT('inProgress'), mapInProgress: gameT('mapInProgress'), notPlayed: gameT('mapNotPlayed'), mapStart: gameT('mapStart') }}
                 />
               {/key}
               {#if liveCursor?.status === 'waiting_host'}
@@ -553,33 +633,11 @@
               {#if !ownCompletedSeries.length}<p class="timeline-empty">{gameT('waitingResult')}</p>{/if}
             </aside>
           {:else}
-            {#if snapshot.phase === 'swiss'}
-              <section class="major-overview-grid">
-                <div class="panel overview-rounds">
-                  <div class="section-heading"><div><span class="eyebrow">STAGE 3 LIVE</span><h2>{t('allGames')}</h2></div></div>
-                  {#each snapshot.tournament.rounds.filter((round) => round.phase === 'swiss') as round}
-                    <div class="overview-round"><span class="timeline-phase-label">{gameT('round')} {round.number}</span>{#each round.series as series}<div class="overview-match"><button class="organization-link" type="button" on:click={() => openOrganization(series.teamA.id)}>{series.teamA.name}</button><b>{series.scoreA} : {series.scoreB}</b><button class="organization-link overview-team-right" type="button" on:click={() => openOrganization(series.teamB.id)}>{series.teamB.name}</button><small>{gameT('final')}</small></div>{/each}</div>
-                  {/each}
-                  {#if liveCursor?.phase === 'swiss'}
-                    <div class="overview-round"><span class="timeline-phase-label">{gameT('round')} {liveCursor.tournamentRound}</span>{#each liveCursor.overviewSeries as series}<div class:live={series.status === 'live'} class="overview-match"><button class="organization-link" type="button" on:click={() => openOrganization(series.teamA.id)}>{series.teamA.name}</button><b>{series.scoreA} : {series.scoreB}</b><button class="organization-link overview-team-right" type="button" on:click={() => openOrganization(series.teamB.id)}>{series.teamB.name}</button><small>{series.status === 'live' ? t('live') : gameT('pending')}</small></div>{/each}</div>
-                  {/if}
-                </div>
-                <div class="panel standings"><span class="eyebrow">{t('standings')}</span><h2>W–L / {t('buchholz')}</h2>{#each snapshot.tournament.standings as standing}<article class:champion={standing.status === 'champion'}><span>{standing.seed}</span><button class="organization-link" type="button" on:click={() => openOrganization(standing.organizationId)}>{standing.name}</button><b>{standing.wins}–{standing.losses}</b><small>{standing.buchholz}</small></article>{/each}</div>
-              </section>
-            {:else}
-              <section class="panel online-bracket">
-                <div class="section-heading"><div><span class="eyebrow">{t('bracket')}</span><h2>PLAYOFFS</h2></div></div>
-                <div class="bracket-columns">
-                  {#each ['quarterfinal', 'semifinal', 'final'] as phase}
-                    <section><h3>{phaseLabel(phase as SeriesResult['phase'])}</h3>{#each phaseOverview(phase as SeriesResult['phase']) as series}<article class:live={series.status === 'live'}><div><button class="organization-link" type="button" on:click={() => openOrganization(series.teamA.id)}>{series.teamA.name}</button><b>{series.scoreA}</b></div><div><button class="organization-link" type="button" on:click={() => openOrganization(series.teamB.id)}>{series.teamB.name}</button><b>{series.scoreB}</b></div><small>{series.status === 'live' ? t('live') : series.status === 'completed' ? gameT('final') : gameT('pending')}</small></article>{/each}</section>
-                  {/each}
-                </div>
-              </section>
-            {/if}
+            <MajorOverview tournament={onlineTournament} cursor={onlineCursor} userTeamId={me?.id ?? ''} language={$language} onTeam={openOrganization} showLiveScores />
           {/if}
         </section>
       {/if}
-      {#if errorMessage}<p class="online-error">{errorMessage}</p>{/if}
+      {#if errorMessage}<p class="online-error" role="alert">{errorMessage}</p>{/if}
     </section>
   {/if}
 </PageLayout>
@@ -605,15 +663,14 @@
   onClose={() => selectedOrganizationId = null}
 />
 
-{#if toast}<div class="toast">{toast}</div>{/if}
+{#if toast}<div class="toast" role="status" aria-live="polite">{toast}</div>{/if}
 
 <style>
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
-  .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:1fr auto;gap:6px;margin:8px 0}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}.standings{padding:20px}.standings article{display:grid;grid-template-columns:24px 1fr auto 36px;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.standings small{text-align:right;color:var(--muted)}.standings .champion{color:var(--accent)}
+  .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
+  .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
-  .online-major-screen{max-width:900px;margin:24px auto 0}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.major-overview-grid{display:grid;gap:14px;margin-top:18px}.overview-rounds,.standings,.online-bracket{padding:20px}.overview-round{display:grid;gap:6px;margin-top:18px}.overview-match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;padding:8px 10px;border:1px solid var(--line);background:var(--surface-2);font-size:.72rem}.overview-match b{font:900 1.2rem 'Barlow Condensed'}.overview-match small{color:var(--muted);font-size:.5rem;font-weight:900}.overview-match.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.overview-match.live small{color:var(--accent)}.standings article{display:grid;grid-template-columns:24px 1fr auto 36px;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.standings small{text-align:right;color:var(--muted)}.standings .champion{color:var(--accent)}.bracket-columns{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:14px;overflow-x:auto}.bracket-columns section{display:grid;align-content:center;gap:10px}.bracket-columns h3{margin:10px 0 2px;color:var(--muted);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}.bracket-columns article{position:relative;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.bracket-columns article.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.bracket-columns article>div{display:grid;grid-template-columns:1fr auto;gap:8px;padding:4px 0}.bracket-columns article small{display:block;margin-top:5px;color:var(--muted);font-size:.5rem;font-weight:900}.bracket-columns article.live small{color:var(--accent)}
-  @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid,.major-overview-grid{grid-template-columns:1fr 1fr}}
-  @media(max-width:679px){.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.standings article{font-size:.78rem}.bracket-columns{grid-template-columns:1fr;overflow:visible}.overview-match{grid-template-columns:1fr auto}.overview-team-right{grid-column:1}.overview-match small{grid-column:2;grid-row:1/3}.online-major-screen{margin-top:8px}}
-  .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.overview-team-right{text-align:right}.standings .organization-link{font-weight:800}.bracket-columns .organization-link{width:100%}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
+  @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
+  .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
 </style>

@@ -117,6 +117,45 @@ export function findBestProAssignments(selected: Player[]): Record<string, Lineu
   return best;
 }
 
+/** Fills only the roles that are still unassigned, never replacing a role the participant already chose. */
+export function completeProAssignments(selected: Player[], chosen: Record<string, LineupSlotRole | null>): Record<string, LineupSlotRole> {
+  if (selected.length !== MAX_LINEUP_SIZE) throw new Error('PRO lineup must contain five players');
+  const fixed: Record<string, LineupSlotRole> = {};
+  const usedRoles = new Set<LineupSlotRole>();
+  for (const player of selected) {
+    const role = chosen[player.id];
+    if (!role || !PRO_REQUIRED_ROLES.includes(role) || usedRoles.has(role)) continue;
+    fixed[player.id] = role;
+    usedRoles.add(role);
+  }
+  const remainingPlayers = selected.filter((player) => !fixed[player.id]);
+  const remainingRoles = PRO_REQUIRED_ROLES.filter((role) => !usedRoles.has(role));
+  let bestScore = Number.NEGATIVE_INFINITY;
+  let best: Record<string, LineupSlotRole> | null = null;
+  const search = (index: number, used: Set<LineupSlotRole>, current: Record<string, LineupSlotRole>, score: number) => {
+    if (index === remainingPlayers.length) {
+      if (score > bestScore) {
+        bestScore = score;
+        best = { ...current };
+      }
+      return;
+    }
+    const player = remainingPlayers[index];
+    for (const role of remainingRoles) {
+      if (used.has(role)) continue;
+      used.add(role);
+      current[player.id] = role;
+      search(index + 1, used, current, score + fitScore(player, role));
+      used.delete(role);
+      delete current[player.id];
+    }
+  };
+  search(0, new Set(), {}, 0);
+  const assignments = { ...fixed, ...(best ?? {}) };
+  if (!validateProAssignments(assignments, selected.map((player) => player.id)).complete) return findBestProAssignments(selected);
+  return assignments;
+}
+
 const firstValidPick = (teamPlayers: Player[], lineup: SelectedPlayer[], playerLookup: (id: string) => Player | undefined) => {
   for (const player of teamPlayers) {
     for (const role of getEligibleSlotRoles(player)) {

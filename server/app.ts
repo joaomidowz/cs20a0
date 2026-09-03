@@ -69,10 +69,18 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     if (request.method === 'GET' && url.pathname === '/health') {
       return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount() }, origin);
     }
+    const roomLookup = request.method === 'GET' ? /^\/rooms\/([A-Z2-9]{8})$/i.exec(url.pathname) : null;
+    if (roomLookup) {
+      // Lets the client tell "room not found" apart from "server unreachable" before opening a socket.
+      const exists = manager.hasRoom(roomLookup[1].toUpperCase());
+      return json(response, exists ? 200 : 404, exists ? { ok: true, roomCode: roomLookup[1].toUpperCase() } : { error: 'Room not found' }, origin);
+    }
     if (request.method === 'POST' && url.pathname === '/rooms') {
       const address = request.socket.remoteAddress ?? 'unknown';
       const current = now();
       const recent = (roomCreations.get(address) ?? []).filter((timestamp) => current - timestamp < 60_000);
+      if (recent.length) roomCreations.set(address, recent);
+      else roomCreations.delete(address);
       if (recent.length >= MAX_ROOM_CREATIONS_PER_MINUTE) return json(response, 429, { error: 'Rate limited' }, origin);
       try {
         const body = await readJsonBody(request) as Record<string, unknown>;
@@ -141,6 +149,13 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
             ? manager.join(roomCode, command.playerName, command.organizationName, current)
             : manager.resume(roomCode, command.resumeToken, current);
           session.participantId = joined.participantId;
+          // A participant owns a single live socket: an older tab is detached first so its close never marks the participant offline.
+          for (const [otherSocket, otherSession] of sessions) {
+            if (otherSocket === socket || otherSession.roomCode !== roomCode || otherSession.participantId !== joined.participantId) continue;
+            otherSession.participantId = null;
+            send(otherSocket, { type: 'error', code: 'INVALID_ACTION', message: 'This session was resumed from another connection' });
+            otherSocket.close();
+          }
           send(socket, { type: 'ack', requestId: command.requestId, version: manager.getSnapshot(roomCode, joined.participantId, current).version, resumeToken: joined.resumeToken });
           broadcastRoom(roomCode);
           return;
