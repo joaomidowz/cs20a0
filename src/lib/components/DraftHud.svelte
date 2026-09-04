@@ -1,6 +1,6 @@
 <script lang="ts">
   import { playerById, teamById } from '$lib/game/data';
-  import { getRoleLabel } from '$lib/game/roleRules';
+  import { getSelectedRoleLabel } from '$lib/game/roleRules';
   import type { GameMode, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
 
   export let selectedPlayers: SelectedPlayer[] = [];
@@ -38,7 +38,7 @@
           <span class="slot-index">0{index + 1}</span>
           <strong>{item.player.nickname ?? 'Unknown'}</strong>
           <small>{team?.name ?? 'Time'} · {item.player.year ?? '—'}</small>
-          <span class="slot-title">{getRoleLabel(item.selected.selectedSlotRole)}</span>
+          <span class="slot-title">{getSelectedRoleLabel(item.selected)}</span>
           {#if mode === 'premier' || revealed}<b>{item.player.overall ?? 70}</b>{:else}<b>??</b>{/if}
         {:else}
           <span class="slot-index">0{index + 1}</span>

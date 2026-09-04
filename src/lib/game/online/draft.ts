@@ -7,6 +7,9 @@ import { pickDraftTeam } from './draft-pool';
 
 export const MAX_LINEUP_SIZE = 5;
 
+/** Every online mode except PRO drafts with free roles: any composition, plus optional dual positions. */
+export const hasFreeRoles = (mode: OnlineGameMode): boolean => mode !== 'pro';
+
 export interface DraftState {
   lineup: SelectedPlayer[];
   proPickedPlayerIds: string[];
@@ -59,7 +62,8 @@ export function chooseDraftPlayer(
   state: DraftState,
   player: Player,
   role: LineupSlotRole | undefined,
-  playerLookup: (id: string) => Player | undefined
+  playerLookup: (id: string) => Player | undefined,
+  secondaryRole?: LineupSlotRole
 ): DraftState {
   if (!state.rolledTeamId || player.teamId !== state.rolledTeamId) throw new Error('Player is not in the current offer');
   if (mode === 'pro') {
@@ -73,11 +77,12 @@ export function chooseDraftPlayer(
       rolledTeamId: null
     };
   }
-  const validation = validatePlayerPick(player, state.lineup, role, playerLookup);
+  const validation = validatePlayerPick(player, state.lineup, role, playerLookup, { unlimitedRoles: hasFreeRoles(mode) });
   if (!validation.ok || !role) throw new Error(validation.reason ?? 'Invalid player pick');
+  if (secondaryRole && (secondaryRole === role || !getEligibleSlotRoles(player).includes(secondaryRole))) throw new Error('Invalid secondary role');
   return {
     ...state,
-    lineup: [...state.lineup, { playerId: player.id, selectedSlotRole: role }],
+    lineup: [...state.lineup, { playerId: player.id, selectedSlotRole: role, ...(secondaryRole ? { secondarySlotRole: secondaryRole } : {}) }],
     usedTeamIds: [...state.usedTeamIds, state.rolledTeamId],
     rolledTeamId: null
   };
@@ -156,10 +161,10 @@ export function completeProAssignments(selected: Player[], chosen: Record<string
   return assignments;
 }
 
-const firstValidPick = (teamPlayers: Player[], lineup: SelectedPlayer[], playerLookup: (id: string) => Player | undefined) => {
+const firstValidPick = (teamPlayers: Player[], lineup: SelectedPlayer[], playerLookup: (id: string) => Player | undefined, unlimitedRoles: boolean) => {
   for (const player of teamPlayers) {
     for (const role of getEligibleSlotRoles(player)) {
-      if (validatePlayerPick(player, lineup, role, playerLookup).ok) return { player, role };
+      if (validatePlayerPick(player, lineup, role, playerLookup, { unlimitedRoles }).ok) return { player, role };
     }
   }
   return null;
@@ -188,7 +193,7 @@ export function autocompleteDraft(
       else state = { ...state, usedTeamIds: [...state.usedTeamIds, offeredTeamId], rolledTeamId: null };
       continue;
     }
-    const valid = firstValidPick(roster, state.lineup, playerLookup);
+    const valid = firstValidPick(roster, state.lineup, playerLookup, hasFreeRoles(mode));
     if (valid) state = chooseDraftPlayer(mode, state, valid.player, valid.role, playerLookup);
     else state = { ...state, usedTeamIds: [...state.usedTeamIds, offeredTeamId], rolledTeamId: null };
   }

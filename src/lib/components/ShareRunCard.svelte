@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getRoleLabel } from '$lib/game/roleRules';
+  import { getSelectedRoleLabel } from '$lib/game/roleRules';
   import { translatePlacement } from '$lib/game/i18n';
   import { getRunMvpScore } from '$lib/game/runStats';
   import { buildOfflineRunCardReport, type RunCardReport } from '$lib/game/runCard';
@@ -63,7 +63,7 @@
         <article>
           <span class="share-index">0{index + 1}</span>
           <div class="share-avatar">{(item.player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
-          <div><strong>{item.player.nickname ?? 'Unknown'}</strong><small>{getRoleLabel(item.selected.selectedSlotRole)} · {item.player.year ?? ''}</small></div>
+          <div><strong>{item.player.nickname ?? 'Unknown'}</strong><small>{getSelectedRoleLabel(item.selected)} · {item.player.year ?? ''}</small></div>
           <b>{item.player.overall ?? 70}</b>
         </article>
       {/if}

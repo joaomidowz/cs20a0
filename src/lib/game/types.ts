@@ -97,6 +97,8 @@ export interface Player {
 export interface SelectedPlayer {
   playerId: string;
   selectedSlotRole: LineupSlotRole;
+  /** Second position (e.g. an AWPer who also calls). Only available in online modes with free roles. */
+  secondarySlotRole?: LineupSlotRole;
 }
 
 export interface HistoricalTeam {

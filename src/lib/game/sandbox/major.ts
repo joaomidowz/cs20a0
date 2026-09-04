@@ -1,9 +1,10 @@
-import { players, teams } from '../data';
+import { getTeamPlayers, playerById, players, teams } from '../data';
 import { createBotMapStrategy, createUserMapStrategy, resolveMapVeto } from '../map-veto';
 import { runOnlineTournament, type TournamentOrganization } from '../online/tournament';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
-import type { MapId } from '../types';
+import type { LineupSlotRole, MapId } from '../types';
 import { buildSandboxCombatTeam } from './lineup';
+import { buildSandboxRoundDetails, type SandboxRoster } from './rounds';
 import type { SandboxLineupSelection, SandboxMajorMatch, SandboxMajorState } from './types';
 
 const USER_TEAM_ID = 'sandbox-user';
@@ -46,7 +47,11 @@ export function createSandboxMajor(selection: SandboxLineupSelection, rawSeed: s
     organizations: [userOrganization], botPool: opponents, entryStage: 'stage3', seed: `${seed}:sandbox-major`
   });
   const teamById = new Map(teams.map((team) => [team.id, team]));
-  const selectedPlayers = selection.players.map((selected) => players.find((player) => player.id === selected.playerId)).filter((player) => player !== undefined);
+  const selectedPlayers = selection.players.map((selected) => playerById.get(selected.playerId)).filter((player) => player !== undefined);
+  const userRoles = new Map<string, LineupSlotRole>(selection.players.map((selected) => [selected.playerId, selected.selectedSlotRole]));
+  const rosterFor = (teamId: string): SandboxRoster => teamId === USER_TEAM_ID
+    ? { players: selectedPlayers, roles: userRoles }
+    : { players: getTeamPlayers(teamById.get(teamId) ?? null) };
   const userStrategy = createUserMapStrategy(USER_TEAM_ID, selection.mapPreferences as [MapId, MapId, MapId], selectedPlayers, teams);
   const matches: SandboxMajorMatch[] = tournament.rounds.flatMap((round) => round.series.map((match) => {
     const strategyFor = (teamId: string) => {
@@ -58,7 +63,11 @@ export function createSandboxMajor(selection: SandboxLineupSelection, rawSeed: s
     const veto = resolveMapVeto({ bestOf: match.bestOf, teamA: strategyFor(match.teamA.id), teamB: strategyFor(match.teamB.id), seed: `${seed}:${match.id}:veto` });
     return {
       ...match,
-      maps: match.maps.map((map, index) => ({ ...map, mapId: veto.playedMaps[index] })),
+      maps: match.maps.map((map, index) => ({
+        ...map,
+        mapId: veto.playedMaps[index],
+        details: buildSandboxRoundDetails(map, rosterFor(match.teamA.id), rosterFor(match.teamB.id), `${seed}:${match.id}:m${index}:rounds`)
+      })),
       veto: veto.steps,
       roundNumber: round.number,
       userMatch: match.teamA.id === USER_TEAM_ID || match.teamB.id === USER_TEAM_ID,

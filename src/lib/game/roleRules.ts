@@ -116,13 +116,25 @@ export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {
 const countRole = (selectedPlayers: SelectedPlayer[], role: LineupSlotRole) =>
   selectedPlayers.filter((selected) => selected.selectedSlotRole === role).length;
 
+export interface PickValidationOptions {
+  /** Free roles: any number of AWPers, IGLs, riflers... Only player eligibility and duplicates are enforced. */
+  unlimitedRoles?: boolean;
+}
+
+/** Primary role plus the optional secondary one. */
+export const getSelectedRoles = (selected: SelectedPlayer): LineupSlotRole[] =>
+  selected.secondarySlotRole && selected.secondarySlotRole !== selected.selectedSlotRole
+    ? [selected.selectedSlotRole, selected.secondarySlotRole]
+    : [selected.selectedSlotRole];
+
 const reasonForRole = (role: LineupSlotRole) => PICK_REASONS[role];
 
 export function validatePlayerPick(
   player: Player,
   selectedPlayers: SelectedPlayer[],
   desiredSlotRole?: LineupSlotRole,
-  playerLookup?: (id: string) => Player | undefined
+  playerLookup?: (id: string) => Player | undefined,
+  options: PickValidationOptions = {}
 ): { ok: boolean; reason?: string; validRoles: LineupSlotRole[] } {
   const baseId = getPlayerBaseId(player);
   const duplicate = selectedPlayers.some((selected) => {
@@ -132,7 +144,7 @@ export function validatePlayerPick(
   if (duplicate) return { ok: false, reason: PICK_REASONS.duplicate, validRoles: [] };
 
   const eligibleRoles = getEligibleSlotRoles(player);
-  const validRoles = eligibleRoles.filter((role) => countRole(selectedPlayers, role) < ROLE_LIMITS[role]);
+  const validRoles = options.unlimitedRoles ? [...eligibleRoles] : eligibleRoles.filter((role) => countRole(selectedPlayers, role) < ROLE_LIMITS[role]);
 
   if (desiredSlotRole) {
     if (!eligibleRoles.includes(desiredSlotRole)) {
@@ -161,4 +173,9 @@ export function getLineupRoleCounts(selectedPlayers: SelectedPlayer[]) {
 
 export function getRoleLabel(role: LineupSlotRole): string {
   return role === 'awper' ? 'AWPer' : role === 'igl' ? 'IGL' : role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/** "AWPer" or "AWPer · IGL" for dual-position picks. */
+export function getSelectedRoleLabel(selected: SelectedPlayer): string {
+  return getSelectedRoles(selected).map(getRoleLabel).join(' · ');
 }

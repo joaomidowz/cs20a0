@@ -22,6 +22,7 @@ import {
   type MapSimulationContext
 } from './map-veto';
 import { isValidLineupMapSelection } from './maps';
+import { getSelectedRoles } from './roleRules';
 
 export type SeededRng = () => number;
 
@@ -101,7 +102,7 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   if (!players.length) return { id: 'user', name: 'yourOrg', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
   const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
   const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
-  const assignedRoles = lineup.map((selected) => selected.selectedSlotRole);
+  const assignedRoles = lineup.flatMap((selected) => getSelectedRoles(selected));
   const awpers = assignedRoles.length ? assignedRoles.filter((role) => role === 'awper').length : players.filter((player) => hasRole(player, 'awp')).length;
   const igls = assignedRoles.length ? assignedRoles.filter((role) => role === 'igl').length : players.filter((player) => hasRole(player, 'igl')).length;
   const supports = assignedRoles.length ? assignedRoles.filter((role) => role === 'support').length : players.filter((player) => hasRole(player, 'support') || number(player.support) >= 88).length;

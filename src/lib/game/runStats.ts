@@ -1,4 +1,4 @@
-import { getEligibleSlotRoles } from './roleRules';
+import { getEligibleSlotRoles, getSelectedRoles } from './roleRules';
 import { createSeededRng } from './simulation';
 import type { LineupSlotRole, MajorRun, Player, PlayerRunStats, SelectedPlayer } from './types';
 
@@ -49,6 +49,10 @@ const RATING_RANGES: Record<ResultProfile, Array<[number, number]>> = {
   'close-loss': [[1.05, 1.3], [0.9, 1.04], [0.8, 1.02], [0.68, 0.91], [0.55, 0.81]],
   'heavy-loss': [[0.94, 1.1], [0.8, 1.04], [0.69, 0.91], [0.59, 0.8], [0.5, 0.7]]
 };
+
+/** Dual-position players are rated by their stronger position. */
+const bestRoleSkill = (player: Player, selected: SelectedPlayer | undefined, fallback: LineupSlotRole) =>
+  Math.max(...(selected ? getSelectedRoles(selected) : [fallback]).map((role) => roleSkill(player, role)));
 
 function roleSkill(player: Player, role: LineupSlotRole) {
   if (role === 'awper') return number(player.awp) * 0.62 + number(player.firepower) * 0.38;
@@ -128,13 +132,14 @@ export function createRunStats(
   userTeamId = 'user'
 ): PlayerRunStats[] {
   const summary = getRunSummary(run, userTeamId);
-  const roleByPlayer = new Map(lineup.map((selected) => [selected.playerId, selected.selectedSlotRole]));
+  const roleByPlayer = new Map(lineup.map((selected) => [selected.playerId, selected] as const));
   const ranked = players
     .map((player) => {
-      const role = roleByPlayer.get(player.id) ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
+      const selected = roleByPlayer.get(player.id);
+      const role = selected?.selectedSlotRole ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
       const rng = createSeededRng(`${seed}:stats-rank:${player.id}:${run.placement}`);
       const score = number(player.overall) * 0.55
-        + roleSkill(player, role) * 0.27
+        + bestRoleSkill(player, selected, role) * 0.27
         + number(player.consistency) * 0.1
         + number(player.mental) * 0.05
         + rarityBonus(player)
@@ -161,7 +166,8 @@ export function createRunStats(
   });
 
   return players.map((player) => {
-    const role = roleByPlayer.get(player.id) ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
+    const selected = roleByPlayer.get(player.id);
+    const role = selected?.selectedSlotRole ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
     const rng = createSeededRng(`${seed}:stats-line:${player.id}:${run.placement}`);
     const runRating = ratings.get(player.id) ?? 0.9;
     const lossRate = summary.mapsLost / Math.max(1, summary.mapsPlayed);

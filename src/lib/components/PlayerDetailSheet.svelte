@@ -13,15 +13,29 @@
   export let draftComplete = false;
   export let lineup: SelectedPlayer[] = [];
   export let playerLookup: (id: string) => Player | undefined;
-  export let onConfirm: (player: Player, role: LineupSlotRole) => void = () => {};
+  export let unlimitedRoles = false;
+  export let allowDualRole = false;
+  export let onConfirm: (player: Player, role: LineupSlotRole, secondaryRole?: LineupSlotRole) => void = () => {};
   export let onClose: () => void = () => {};
 
   $: eligibleRoles = getEligibleSlotRoles(player);
-  $: detailsValidation = validatePlayerPick(player, lineup, undefined, playerLookup);
+  $: detailsValidation = validatePlayerPick(player, lineup, undefined, playerLookup, { unlimitedRoles });
+  $: dualRoleOptions = allowDualRole && eligibleRoles.length >= 2 && eligibleRoles.length <= 4
+    ? eligibleRoles.flatMap((first, index) => eligibleRoles.slice(index + 1).map((second) => [first, second] as [LineupSlotRole, LineupSlotRole]))
+    : [];
   $: showFullIntel = mode === 'premier' || draftComplete;
   $: rarity = (player.rarity ?? 'common').toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
   let closeButton: HTMLButtonElement | null = null;
+
+  // Keys inside the dialog stay inside it, except Escape, which must still close the sheet.
+  function handleSheetKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+    event.stopPropagation();
+  }
 
   onMount(() => {
     document.body.classList.add('modal-open');
@@ -42,7 +56,7 @@
 <svelte:window on:keydown={(event) => event.key === 'Escape' && onClose()} />
 
 <div class="sheet-backdrop" role="presentation" on:click={onClose}>
-  <div class="player-sheet {mode === 'faceit' && !draftComplete ? 'rarity-hidden' : `rarity-${rarity}`}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${player.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="player-sheet {mode === 'faceit' && !draftComplete ? 'rarity-hidden' : `rarity-${rarity}`}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${player.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown={handleSheetKeydown}>
     <button class="sheet-close" type="button" bind:this={closeButton} aria-label={translate(language, 'close')} on:click={onClose}>×</button>
     <div class="sheet-player">
       <div class="avatar huge">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
@@ -68,15 +82,26 @@
         <span class="eyebrow">{translate(language, 'howUsePlayer')}</span>
         <h3>{player.nickname} · {translate(language, 'assignedRole')}</h3>
         {#if !detailsValidation.ok}<p class="pick-blocked-reason">{getPickReasonText(language, detailsValidation.reason)}</p>{/if}
+        {#if unlimitedRoles}<p class="free-roles-hint">{translate(language, 'freeRolesHint')}</p>{/if}
         <div>
           {#each eligibleRoles as role}
-            {@const roleValidation = validatePlayerPick(player, lineup, role, playerLookup)}
+            {@const roleValidation = validatePlayerPick(player, lineup, role, playerLookup, { unlimitedRoles })}
             <button class="secondary role-option" type="button" disabled={!roleValidation.ok} on:click={() => onConfirm(player, role)}>
               <span>{translate(language, eligibleRoles.length === 1 ? 'addAs' : 'useAs')} {getRoleLabel(role)}</span>
               {#if !roleValidation.ok}<small>{getPickReasonText(language, roleValidation.reason)}</small>{/if}
             </button>
           {/each}
         </div>
+        {#if dualRoleOptions.length && detailsValidation.ok}
+          <span class="eyebrow dual-role-label">{translate(language, 'dualRoleHint')}</span>
+          <div>
+            {#each dualRoleOptions as [first, second]}
+              <button class="secondary role-option dual" type="button" on:click={() => onConfirm(player, first, second)}>
+                <span>{translate(language, 'useAs')} {getRoleLabel(first)} · {getRoleLabel(second)}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

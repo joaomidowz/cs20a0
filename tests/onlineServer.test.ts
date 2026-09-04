@@ -248,7 +248,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 4 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 5 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
     for (const snapshot of snapshots) {

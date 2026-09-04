@@ -2,8 +2,10 @@
   import { onDestroy } from 'svelte';
   import { getMapName } from '$lib/game/maps';
   import { getVisibleMapScore } from '$lib/game/seriesPresentation';
-  import { getSandboxDecidedMaps, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
+  import { getSandboxDecidedMaps, SANDBOX_BUY_LABELS, SANDBOX_ENDING_LABELS, SANDBOX_PHASE_LABELS, SANDBOX_SIDE_LABELS, SANDBOX_WEAPON_LABELS } from '$lib/game/sandbox/presentation';
+  import { aggregateSandboxKills, countSandboxPistolWins, type SandboxRoundDetail } from '$lib/game/sandbox/rounds';
   import type { SandboxMajorMatch } from '$lib/game/sandbox/types';
+  import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
 
   export let match: SandboxMajorMatch;
   export let delay = 1500;
@@ -21,6 +23,9 @@
   let appliedDelay = delay;
   let pendingTimeout: number | null = null;
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
+  let shownKills = 0;
+  let killTimers: number[] = [];
+  let killCursor = '';
 
   const wait = (ms: number) => new Promise<boolean>((resolve) => {
     resolvePendingWait = resolve;
@@ -133,10 +138,45 @@
   }
 
   $: teamNames = { [match.teamA.id]: match.teamA.name, [match.teamB.id]: match.teamB.name } as Record<string, string>;
+  $: currentDetail = visibleRounds > 0 ? currentMap?.details?.[visibleRounds - 1] ?? null : null;
+  $: revealKills(currentDetail ? `${activeMap}:${visibleRounds}` : '', currentDetail, delay);
+  $: visibleKills = currentDetail ? currentDetail.kills.slice(0, shownKills) : [];
+  $: fragLeaders = currentMap?.details ? aggregateSandboxKills(currentMap.details, visibleRounds).slice(0, 3) : [];
+  $: mapExtras = match.maps.map((map) => {
+    const details = map.details ?? [];
+    return { pistols: countSandboxPistolWins(details), top: aggregateSandboxKills(details)[0] ?? null };
+  });
+
+  function clearKillTimers() {
+    killTimers.forEach((timer) => window.clearTimeout(timer));
+    killTimers = [];
+  }
+
+  // Kills of the last completed round trickle in during the wait for the next round, paced by their in-round time.
+  function revealKills(cursor: string, detail: SandboxRoundDetail | null, roundDelay: number) {
+    if (cursor === killCursor) return;
+    killCursor = cursor;
+    clearKillTimers();
+    if (!detail) {
+      shownKills = 0;
+      return;
+    }
+    if (roundDelay < 400) {
+      shownKills = detail.kills.length;
+      return;
+    }
+    shownKills = 0;
+    const span = roundDelay * 0.85;
+    const last = Math.max(1, detail.kills.at(-1)?.second ?? 1);
+    detail.kills.forEach((kill, index) => {
+      killTimers.push(window.setTimeout(() => { shownKills = index + 1; }, Math.round(span * kill.second / last)));
+    });
+  }
 
   onDestroy(() => {
     runId += 1;
     clearWait(true);
+    clearKillTimers();
   });
 </script>
 
@@ -169,6 +209,34 @@
         {#each roundTicks as winner}<i class:a={winner === 'a'} class:b={winner === 'b'} class:user={(winner === 'a') === userIsA}></i>{/each}
       </div>
       <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : lastRoundWinner ? `Round ${visibleRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
+      {#if currentDetail}
+        <div class="round-detail">
+          <div class="round-economy">
+            <span class="buy {currentDetail.economy.a.buy}" class:mine={userIsA}><i>{SANDBOX_SIDE_LABELS[currentDetail.sideA]}</i>{SANDBOX_BUY_LABELS[currentDetail.economy.a.buy]}{#if currentDetail.economy.a.awp}<em>AWP</em>{/if}</span>
+            <em class="round-number">R{currentDetail.number}</em>
+            <span class="buy right {currentDetail.economy.b.buy}" class:mine={!userIsA}>{#if currentDetail.economy.b.awp}<em>AWP</em>{/if}{SANDBOX_BUY_LABELS[currentDetail.economy.b.buy]}<i>{SANDBOX_SIDE_LABELS[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>
+          </div>
+          <ul class="kill-feed" aria-label="Feed de kills">
+            {#each visibleKills as kill, index (`${currentDetail.number}-${index}`)}
+              <li class:user={(kill.killerSide === 'a') === userIsA}>
+                <b class="killer">{kill.killerName}</b>
+                <span class="weapon" role="img" aria-label={SANDBOX_WEAPON_LABELS[kill.weapon]} title={SANDBOX_WEAPON_LABELS[kill.weapon]}>{@html WEAPON_ICONS[kill.weapon]}</span>
+                {#if kill.headshot}<i class="hs" title="Headshot">HS</i>{/if}
+                <b class="victim">{kill.victimName}</b>
+                <time>{kill.second}s</time>
+              </li>
+            {/each}
+          </ul>
+          {#if shownKills >= currentDetail.kills.length}
+            <small class="round-ending" class:user={(currentDetail.winner === 'a') === userIsA}>{SANDBOX_ENDING_LABELS[currentDetail.ending]}</small>
+          {/if}
+        </div>
+      {/if}
+      {#if fragLeaders.length}
+        <ol class="frag-leaders" aria-label="Frags do mapa">
+          {#each fragLeaders as line (line.playerId)}<li class:user={(line.side === 'a') === userIsA}><span>{line.name}</span><b>{line.kills}</b><small>/{line.deaths}</small></li>{/each}
+        </ol>
+      {/if}
     </div>
   {/if}
 
@@ -181,6 +249,9 @@
           <small>{decided.action === 'decider' ? 'DECIDER' : `PICK · ${teamNames[decided.teamId ?? ''] ?? ''}`}</small>
           <strong>{getMapName(decided.mapId)}</strong>
           <span>{mapStates[index]}</span>
+          {#if (finished || index < activeMap) && result && mapExtras[index]?.top}
+            <small class="map-extra">PISTOLS {mapExtras[index].pistols.a}–{mapExtras[index].pistols.b} · TOP {mapExtras[index].top?.name} {mapExtras[index].top?.kills}K</small>
+          {/if}
         </div>
         {#if finished || index < activeMap}
           {#if result}<b class:won={result.winnerId === userTeamId} class:lostmap={userTeamId && result.winnerId !== userTeamId}>{result.scoreA} : {result.scoreB}</b>{:else}<b class="muted">— : —</b>{/if}
@@ -222,6 +293,26 @@
   .ot-alert{justify-self:center;padding:5px 12px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .7rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.18em;text-transform:uppercase;animation:otBlink .7s steps(2,start) infinite}
   @keyframes otBlink{to{visibility:hidden;box-shadow:0 0 16px var(--accent-2)}}
   @keyframes tickIn{from{transform:scaleY(.2);opacity:0}}
-  @media(max-width:620px){.series-header{align-items:flex-start;flex-direction:column}.sandbox-live{justify-items:start}.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}}
+  .round-detail{display:grid;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+  .round-economy{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+  .round-economy .buy{display:flex;align-items:center;gap:6px;min-width:0;color:var(--muted);font-size:.62rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.round-economy .buy.right{justify-content:flex-end}
+  .round-economy .buy i{padding:2px 5px;border:1px solid var(--line);color:var(--text);font-size:.5rem;font-style:normal}.round-economy .buy.mine i{border-color:var(--accent);color:var(--accent)}
+  .round-economy .buy em{padding:2px 5px;background:var(--accent-2);color:var(--bg);font-size:.5rem;font-style:normal;letter-spacing:.06em}
+  .round-economy .buy.full{color:var(--text)}.round-economy .buy.eco{color:var(--danger)}.round-economy .buy.force{color:var(--accent-2)}
+  .round-number{color:var(--muted);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.1em}
+  .kill-feed{display:grid;gap:4px;min-height:24px;margin:0;padding:0;list-style:none}
+  .kill-feed li{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 8px;border-left:2px solid color-mix(in srgb,var(--danger) 70%,var(--line));background:color-mix(in srgb,var(--surface) 75%,transparent);font-size:.78rem;animation:slideIn .3s ease-out}.kill-feed li.user{border-left-color:var(--accent)}
+  .kill-feed .killer{overflow:hidden;color:var(--text);text-overflow:ellipsis;white-space:nowrap}.kill-feed li.user .killer{color:var(--accent)}
+  .kill-feed .victim{overflow:hidden;color:var(--muted);font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+  .kill-feed .weapon{display:inline-flex;flex:none;width:46px;height:16px;color:var(--text)}.kill-feed .weapon :global(svg){width:100%;height:100%}
+  .kill-feed .hs{flex:none;padding:1px 4px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-style:normal;font-weight:900}
+  .kill-feed time{flex:none;margin-left:auto;color:var(--muted);font-size:.6rem;font-variant-numeric:tabular-nums}
+  .live-map small.round-ending{color:var(--danger)}.live-map small.round-ending.user{color:var(--accent)}
+  .frag-leaders{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;padding:8px 0 0;border-top:1px solid var(--line);list-style:none}
+  .frag-leaders li{display:flex;align-items:baseline;gap:4px;color:var(--muted);font-size:.66rem}.frag-leaders li span{font-weight:800;text-transform:uppercase}.frag-leaders li.user span{color:var(--accent)}.frag-leaders b{color:var(--text);font:900 .95rem 'Arial Narrow',Impact,sans-serif}.frag-leaders small{font-size:.58rem}
+  .decided-map-list .map-extra{margin-top:6px;white-space:normal}
+  @keyframes slideIn{from{transform:translateX(-8px);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.kill-feed li,.round-strip i{animation:none}}
+  @media(max-width:620px){.series-header{align-items:flex-start;flex-direction:column}.sandbox-live{justify-items:start}.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}.kill-feed time{display:none}.kill-feed li{font-size:.72rem}}
   @media(max-width:400px){.decided-map-list{grid-template-columns:1fr}}
 </style>

@@ -315,7 +315,7 @@ export class RoomManager {
         const player = playerById.get(command.playerId);
         if (!player) throw new RoomError('INVALID_ACTION', 'Unknown player');
         try {
-          participant.draft = chooseDraftPlayer(room.config.mode, participant.draft, player, command.role, (id) => playerById.get(id));
+          participant.draft = chooseDraftPlayer(room.config.mode, participant.draft, player, command.role, (id) => playerById.get(id), command.secondaryRole);
         } catch (error) {
           throw new RoomError('INVALID_ACTION', error instanceof Error ? error.message : 'Invalid pick');
         }

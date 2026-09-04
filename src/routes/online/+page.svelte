@@ -13,6 +13,7 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
+  import { hasFreeRoles } from '$lib/game/online/draft';
   import { playerById, teamById, getTeamPlayers, teams } from '$lib/game/data';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -60,6 +61,7 @@
   $: identityValid = playerName.trim().length >= 2 && organizationName.trim().length >= 2;
   $: self = snapshot?.self ?? null;
   $: me = snapshot?.participants.find((participant) => participant.id === self?.participantId) ?? null;
+  $: freeRoles = snapshot ? hasFreeRoles(snapshot.config.mode) : false;
   $: isHost = Boolean(me?.host);
   $: offeredTeam = self?.rolledTeamId ? teamById.get(self.rolledTeamId) ?? null : null;
   $: offeredPlayers = getTeamPlayers(offeredTeam);
@@ -244,13 +246,13 @@
     send({ type: 'configure', config: next });
   }
 
-  function choosePlayer(player: Player, role?: LineupSlotRole) {
-    send({ type: 'pick-player', playerId: player.id, ...(role ? { role } : {}) });
+  function choosePlayer(player: Player, role?: LineupSlotRole, secondaryRole?: LineupSlotRole) {
+    send({ type: 'pick-player', playerId: player.id, ...(role ? { role } : {}), ...(secondaryRole ? { secondaryRole } : {}) });
     detailsPlayer = null;
   }
 
   function cardValidation(player: Player) {
-    return validatePlayerPick(player, self?.lineup ?? [], undefined, (id) => playerById.get(id));
+    return validatePlayerPick(player, self?.lineup ?? [], undefined, (id) => playerById.get(id), { unlimitedRoles: freeRoles });
   }
 
   function reasonText(reason?: string) {
@@ -650,6 +652,8 @@
     draftComplete={Boolean(me?.ready)}
     lineup={self?.lineup ?? []}
     playerLookup={(id) => playerById.get(id)}
+    unlimitedRoles={freeRoles}
+    allowDualRole={freeRoles}
     onConfirm={choosePlayer}
     onClose={() => detailsPlayer = null}
   />

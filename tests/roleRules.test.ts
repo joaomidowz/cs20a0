@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
-import { getEligibleSlotRoles, getPlayerBaseId, validatePlayerPick } from '../src/lib/game/roleRules';
+import { getEligibleSlotRoles, getPlayerBaseId, getSelectedRoleLabel, getSelectedRoles, validatePlayerPick } from '../src/lib/game/roleRules';
 import type { Player, SelectedPlayer } from '../src/lib/game/types';
 
 const players = playersJson as Player[];
@@ -76,5 +76,21 @@ describe('lineup role rules', () => {
       selected.push({ playerId: player.id, selectedSlotRole: role });
     }
     expect(selected).toHaveLength(5);
+  });
+
+  it('lifts every role limit with unlimitedRoles but keeps eligibility and duplicates', () => {
+    const fallen = byBaseId('fallen');
+    const awperTaken = [{ playerId: 'x-1', selectedSlotRole: 'awper' as const }];
+    expect(validatePlayerPick(fallen, awperTaken, 'awper', lookup).ok).toBe(false);
+    expect(validatePlayerPick(fallen, awperTaken, 'awper', lookup, { unlimitedRoles: true }).ok).toBe(true);
+    expect(validatePlayerPick(fallen, awperTaken, 'entry', lookup, { unlimitedRoles: true }).ok).toBe(false);
+    expect(validatePlayerPick(fallen, [{ playerId: fallen.id, selectedSlotRole: 'igl' }], 'awper', lookup, { unlimitedRoles: true }).ok).toBe(false);
+  });
+
+  it('labels dual positions', () => {
+    expect(getSelectedRoles({ playerId: 'p', selectedSlotRole: 'awper', secondarySlotRole: 'igl' })).toEqual(['awper', 'igl']);
+    expect(getSelectedRoles({ playerId: 'p', selectedSlotRole: 'awper', secondarySlotRole: 'awper' })).toEqual(['awper']);
+    expect(getSelectedRoleLabel({ playerId: 'p', selectedSlotRole: 'awper', secondarySlotRole: 'igl' })).toBe('AWPer · IGL');
+    expect(getSelectedRoleLabel({ playerId: 'p', selectedSlotRole: 'rifler' })).toBe('Rifler');
   });
 });

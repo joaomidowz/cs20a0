@@ -144,6 +144,9 @@ h2 { line-height: 1; text-transform: uppercase; }
 .role-option span,.role-option small{display:block}
 .role-option small{margin-top:3px;color:#ffb0a7;font-size:.5rem;line-height:1.2}
 .pick-blocked-reason{margin:7px 0;padding:8px}
+.free-roles-hint{margin:6px 0 8px;color:var(--muted);font-size:.62rem;font-weight:700;letter-spacing:.04em}
+.dual-role-label{display:block;margin:12px 0 6px;color:var(--accent-2)}
+.role-option.dual{border-color:color-mix(in srgb,var(--accent-2) 55%,var(--line))}.role-option.dual span{color:var(--accent-2)}
 
 @media (min-width:680px){.slots{grid-template-columns:repeat(5,minmax(0,1fr))}.player-card:not(.blocked):hover .overall{color:var(--accent)}}
 @media (max-width:679px){.player-sheet{padding:12px}.attribute-grid{gap:4px;margin:8px 0}.trait-list{margin-bottom:6px}.role-picker{margin-top:6px;padding-top:6px}.role-picker button{min-height:44px}}

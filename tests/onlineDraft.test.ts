@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
 import teamsJson from '../src/lib/data/cs/teams.game.json';
-import { autocompleteDraft, drawDraftTeam, emptyDraftState, findBestProAssignments, getRerollLimit } from '../src/lib/game/online/draft';
+import { autocompleteDraft, chooseDraftPlayer, drawDraftTeam, emptyDraftState, findBestProAssignments, getRerollLimit, hasFreeRoles } from '../src/lib/game/online/draft';
 import { DraftPoolExhaustedError, getEligibleDraftTeams, getHistoricalTeamOverall, pickDraftTeam } from '../src/lib/game/online/draft-pool';
 import type { HistoricalTeam, Player } from '../src/lib/game/types';
 
@@ -15,6 +15,45 @@ const historicalLine = (id: string, overalls: number[]) => {
 };
 
 describe('online draft domain', () => {
+  const lookup = (id: string) => players.find((player) => player.id === id);
+  const awpers = players.filter((player) => (player.role ?? '').toLowerCase() === 'awper' && player.teamId);
+  const offer = (playerToOffer: Player, lineup = emptyDraftState().lineup) => ({ ...emptyDraftState(), style: 'balanced' as const, rolledTeamId: playerToOffer.teamId!, lineup });
+
+  it('drafts with free roles in every mode except PRO', () => {
+    expect(hasFreeRoles('premier')).toBe(true);
+    expect(hasFreeRoles('faceit')).toBe(true);
+    expect(hasFreeRoles('fun')).toBe(true);
+    expect(hasFreeRoles('max_fun')).toBe(true);
+    expect(hasFreeRoles('pro')).toBe(false);
+  });
+
+  it('allows five AWPers in a free-roles lineup while still blocking the same player twice', () => {
+    const distinct: Player[] = [];
+    for (const player of awpers) {
+      const base = player.id.replace(/-\d{4}$/, '');
+      if (!distinct.some((picked) => picked.id.replace(/-\d{4}$/, '') === base || picked.teamId === player.teamId)) distinct.push(player);
+      if (distinct.length === 5) break;
+    }
+    expect(distinct).toHaveLength(5);
+    let state = emptyDraftState();
+    for (const player of distinct) {
+      state = chooseDraftPlayer('fun', offer(player, state.lineup), player, 'awper', lookup);
+    }
+    expect(state.lineup.map((pick) => pick.selectedSlotRole)).toEqual(['awper', 'awper', 'awper', 'awper', 'awper']);
+    const sameAgain = players.find((player) => player.id !== distinct[0].id && player.id.replace(/-\d{4}$/, '') === distinct[0].id.replace(/-\d{4}$/, '') && player.teamId);
+    if (sameAgain) expect(() => chooseDraftPlayer('fun', offer(sameAgain, state.lineup), sameAgain, 'awper', lookup)).toThrow();
+  });
+
+  it('stores a dual position when both roles are eligible and rejects invalid ones', () => {
+    const fallen = players.find((player) => player.id === 'fallen-2016') ?? players.find((player) => /fallen/i.test(player.id) && player.teamId)!;
+    const picked = chooseDraftPlayer('premier', offer(fallen), fallen, 'awper', lookup, 'igl');
+    expect(picked.lineup[0]).toEqual({ playerId: fallen.id, selectedSlotRole: 'awper', secondarySlotRole: 'igl' });
+    expect(() => chooseDraftPlayer('premier', offer(fallen), fallen, 'awper', lookup, 'awper')).toThrow();
+    expect(() => chooseDraftPlayer('premier', offer(fallen), fallen, 'awper', lookup, 'entry')).toThrow();
+    const single = chooseDraftPlayer('premier', offer(fallen), fallen, 'awper', lookup);
+    expect(single.lineup[0]).not.toHaveProperty('secondarySlotRole');
+  });
+
   it('namespaces offers by participant and keeps each sequence deterministic', () => {
     const first = drawDraftTeam('room', 'participant-a', 'premier', emptyDraftState(), teams, players);
     const again = drawDraftTeam('room', 'participant-a', 'premier', emptyDraftState(), teams, players);

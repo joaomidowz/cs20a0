@@ -40,6 +40,7 @@ describe('Sandbox Major without visual replay', () => {
     expect(second).toEqual(first);
     expect(first.matches.length).toBeGreaterThan(10);
     expect(first.matches.flatMap((match) => match.maps).every((map) => map.mapId && map.scoreA >= 0 && map.scoreB >= 0)).toBe(true);
+    expect(first.matches.flatMap((match) => match.maps).every((map) => map.details.length === map.rounds.length)).toBe(true);
     expect(first.matches.every((match) => new Set(match.veto?.map((step) => step.mapId)).size === match.veto?.length)).toBe(true);
   });
 
@@ -67,6 +68,7 @@ describe('Sandbox Major without visual replay', () => {
     expect(source).toContain("{ value: 'insta', label: 'Insta' }");
     expect(seriesViewer).toContain('getSandboxDecidedMaps(match)');
     expect(seriesViewer).toContain('Pular mapa atual');
+    expect(seriesViewer).toContain('kill-feed');
     expect(seriesViewer).not.toContain('step.action === \'ban\'');
   });
 

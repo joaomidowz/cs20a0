@@ -18,25 +18,25 @@ export const translateOnline = (language: Language, key: OnlineTranslationKey) =
 
 const modePresentation: Record<Language, Record<OnlineGameMode, { name: string; description: string }>> = {
   'pt-BR': {
-    premier: { name: 'Normal', description: 'Atributos visíveis e até três rerolls.' },
-    faceit: { name: 'Ranked', description: 'Atributos ocultos durante o draft e um reroll.' },
+    premier: { name: 'Normal', description: 'Atributos visíveis e até três rerolls. Funções livres e posição dupla.' },
+    faceit: { name: 'Ranked', description: 'Atributos ocultos durante o draft e um reroll. Funções livres e posição dupla.' },
     pro: { name: 'PRO', description: 'Ofertas cegas, funções únicas e um reroll.' },
-    fun: { name: 'Resenha', description: 'Somente lines históricas com média 82 ou maior; um reroll.' },
-    max_fun: { name: 'Resenha Máxima', description: 'Lines com média 90 ou maior, ou 80 ou menor; um reroll.' }
+    fun: { name: 'Resenha', description: 'Somente lines históricas com média 82 ou maior; um reroll. Funções livres e posição dupla.' },
+    max_fun: { name: 'Resenha Máxima', description: 'Lines com média 90 ou maior, ou 80 ou menor; um reroll. Funções livres e posição dupla.' }
   },
   en: {
-    premier: { name: 'Normal', description: 'Visible attributes and up to three rerolls.' },
-    faceit: { name: 'Ranked', description: 'Hidden attributes during the draft and one reroll.' },
+    premier: { name: 'Normal', description: 'Visible attributes and up to three rerolls. Free roles and dual positions.' },
+    faceit: { name: 'Ranked', description: 'Hidden attributes during the draft and one reroll. Free roles and dual positions.' },
     pro: { name: 'PRO', description: 'Blind offers, unique roles, and one reroll.' },
-    fun: { name: '4FUN', description: 'Historical lineups with an 82 or higher average only; one reroll.' },
-    max_fun: { name: 'Maximum Banter', description: 'Lineups averaging 90 or higher, or 80 or lower; one reroll.' }
+    fun: { name: '4FUN', description: 'Historical lineups with an 82 or higher average only; one reroll. Free roles and dual positions.' },
+    max_fun: { name: 'Maximum Banter', description: 'Lineups averaging 90 or higher, or 80 or lower; one reroll. Free roles and dual positions.' }
   },
   es: {
-    premier: { name: 'Normal', description: 'Atributos visibles y hasta tres rerolls.' },
-    faceit: { name: 'Ranked', description: 'Atributos ocultos durante el draft y un reroll.' },
+    premier: { name: 'Normal', description: 'Atributos visibles y hasta tres rerolls. Funciones libres y posición doble.' },
+    faceit: { name: 'Ranked', description: 'Atributos ocultos durante el draft y un reroll. Funciones libres y posición doble.' },
     pro: { name: 'PRO', description: 'Ofertas a ciegas, funciones únicas y un reroll.' },
-    fun: { name: 'De Chill', description: 'Solo alineaciones históricas con media 82 o superior; un reroll.' },
-    max_fun: { name: 'Locura Máxima', description: 'Alineaciones con media 90 o superior, o 80 o inferior; un reroll.' }
+    fun: { name: 'De Chill', description: 'Solo alineaciones históricas con media 82 o superior; un reroll. Funciones libres y posición doble.' },
+    max_fun: { name: 'Locura Máxima', description: 'Alineaciones con media 90 o superior, o 80 o inferior; un reroll. Funciones libres y posición doble.' }
   }
 };
 

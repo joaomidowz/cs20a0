@@ -1,5 +1,6 @@
 import type { PublicStanding } from '../online/contracts';
-import type { CombatTeam, MajorTournament, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult } from '../types';
+import type { CombatTeam, MajorTournament, MapId, MapResult, OrgStyle, Player, SelectedPlayer, SeriesResult } from '../types';
+import type { SandboxRoundDetail } from './rounds';
 
 export interface SandboxLineupSelection {
   organizationId: string;
@@ -14,7 +15,13 @@ export interface SandboxLineupValidation {
   players: Player[];
 }
 
+export interface SandboxMapResult extends MapResult {
+  /** Sandbox-only economy + kill feed derived from the simulated rounds. */
+  details: SandboxRoundDetail[];
+}
+
 export interface SandboxMajorMatch extends SeriesResult {
+  maps: SandboxMapResult[];
   roundNumber: number;
   userMatch: boolean;
   resolved: boolean;

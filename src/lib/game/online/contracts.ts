@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { GameMode, LineupSlotRole, MapId, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 4 as const;
+export const PROTOCOL_VERSION = 5 as const;
 export const ROOM_CODE_LENGTH = 8;
 
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
@@ -60,7 +60,8 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({
     type: z.literal('pick-player'),
     playerId: z.string().min(1).max(100),
-    role: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
+    role: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional(),
+    secondaryRole: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
   }).strict(),
   baseCommandSchema.extend({
     type: z.literal('configure-pro'),
