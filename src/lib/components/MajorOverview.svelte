@@ -51,7 +51,7 @@
     {/if}
     <section class="panel overview-panel">
       <span class="eyebrow">{t('overviewStandings')}</span>
-      <StandingsTable {standings} {userTeamId} {onTeam} labels={{ record: t('overviewRecord'), buchholz: t('overviewBuchholz'), active: t('overviewActive'), qualified: t('overviewQualified'), eliminated: t('overviewOut'), champion: t('overviewChampion') }} />
+      <StandingsTable {standings} {userTeamId} {onTeam} labels={{ record: t('overviewRecord'), buchholz: t('overviewBuchholz'), active: t('overviewActive'), qualified: t('overviewQualified'), eliminated: t('overviewOut'), champion: t('overviewChampion'), runnerUp: t('placementRunnerUp'), third: t('placement3to4'), fifth: t('placement5to8'), playoffs: t('overviewInPlayoffs') }} />
     </section>
   </div>
 {/if}

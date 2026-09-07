@@ -195,6 +195,7 @@ export function computeStandings(tournament: MajorTournament, revealedRounds: nu
     losses: 0,
     buchholz: 0,
     status: tournament.rounds[0]?.phase === 'swiss' ? 'active' : 'qualified',
+    placement: null,
     opponents: []
   }));
   const byId = new Map(standings.map((standing) => [standing.organizationId, standing]));
@@ -214,16 +215,27 @@ export function computeStandings(tournament: MajorTournament, revealedRounds: nu
         if (loser.losses === 3) loser.status = 'eliminated';
       } else {
         loser.status = 'eliminated';
+        loser.placement = round.phase === 'quarterfinal' ? '5to8' : round.phase === 'semifinal' ? '3to4' : 'runnerUp';
         winner.status = round.phase === 'final' ? 'champion' : 'qualified';
+        if (round.phase === 'final') winner.placement = 'champion';
       }
     }
     const wins = new Map(standings.map((standing) => [standing.organizationId, standing.wins]));
     for (const standing of standings) standing.buchholz = standing.opponents.reduce((sum, id) => sum + (wins.get(id) ?? 0), 0);
   }
-  const rank = (status: MajorStanding['status']) => (status === 'champion' ? 0 : status === 'qualified' ? 1 : status === 'active' ? 2 : 3);
+  // Podium first (champion, runner-up, semifinalists), then whoever is still alive in the bracket, then the quarterfinal
+  // losers, the teams still fighting in Stage 3 and finally the Stage 3 eliminations.
+  const rank = (standing: MajorStanding) => {
+    if (standing.placement === 'champion') return 0;
+    if (standing.placement === 'runnerUp') return 1;
+    if (standing.placement === '3to4') return 2;
+    if (standing.status === 'qualified') return 3;
+    if (standing.placement === '5to8') return 4;
+    return standing.status === 'active' ? 5 : 6;
+  };
   return standings
     .map(({ opponents: _opponents, ...standing }) => standing)
-    .sort((left, right) => rank(left.status) - rank(right.status) || right.wins - left.wins || right.buchholz - left.buchholz || left.losses - right.losses || left.seed - right.seed);
+    .sort((left, right) => rank(left) - rank(right) || right.wins - left.wins || right.buchholz - left.buchholz || left.losses - right.losses || left.seed - right.seed);
 }
 
 /** Number of rounds whose every series is completed, counted from the start. */

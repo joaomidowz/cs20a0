@@ -279,6 +279,8 @@ export interface MajorStanding {
   losses: number;
   buchholz: number;
   status: 'active' | 'qualified' | 'eliminated' | 'champion';
+  /** Final placement once the bracket decided it; null while the team is still in the running or out in Stage 3. */
+  placement?: 'champion' | 'runnerUp' | '3to4' | '5to8' | null;
 }
 
 export interface MajorRound {

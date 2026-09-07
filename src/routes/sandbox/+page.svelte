@@ -460,6 +460,12 @@
           {:else if pendingDecision?.kind === 'eco-call'}
             <EcoCallPrompt roundNumber={pendingDecision.roundNumber} money={pendingDecision.money} language="pt-BR" onCall={decideEco} />
           {/if}
+          {#if liveView.phase === 'live' && !liveView.finished}
+            <div class="sandbox-live-actions">
+              <TimeoutButton remaining={liveView.timeoutsLeft} disabled={Boolean(pendingDecision)} language="pt-BR" onCall={requestTimeout} />
+              <small>Lado: {liveView.userSide ? (liveView.userSide === 'ct' ? 'CT' : 'TR') : '—'}{liveRunning ? '' : ' · pausado'}</small>
+            </div>
+          {/if}
           {#key currentMatch.id}
             <SandboxSeriesViewer
               match={currentMatch}
@@ -475,12 +481,6 @@
               onSkipMap={skipLiveMap}
             />
           {/key}
-          {#if liveView.phase === 'live' && !liveView.finished}
-            <div class="sandbox-live-actions">
-              <TimeoutButton remaining={liveView.timeoutsLeft} disabled={Boolean(pendingDecision)} language="pt-BR" onCall={requestTimeout} />
-              <small>Lado: {liveView.userSide ? (liveView.userSide === 'ct' ? 'CT' : 'TR') : '—'}{liveRunning ? '' : ' · pausado'}</small>
-            </div>
-          {/if}
           {#if currentSeriesReady && simulationMode === 'manual'}
             <button class="primary sandbox-next" type="button" on:click={advanceCurrentMatch}>Confirmar resultado e avançar</button>
           {:else if currentSeriesReady}
@@ -538,7 +538,7 @@
   .sandbox-header{max-width:760px;margin-bottom:24px}.sandbox-header h1{margin:8px 0;font-size:clamp(3rem,8vw,6rem)}.sandbox-header p{color:var(--muted);line-height:1.6}
   .sandbox-setup{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;padding:14px}
   .control-hint{color:var(--muted);font-size:.6rem;line-height:1.35}
-  .sandbox-live-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}.sandbox-live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .sandbox-live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.sandbox-live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   label{display:grid;gap:6px;min-width:0}label>span:first-child{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   select,input{width:100%;min-width:0;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:0;color:var(--text);background:var(--surface-2);font:inherit}
   .seed-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}.seed-row .secondary{min-height:44px;padding:0 12px;font-size:.62rem}

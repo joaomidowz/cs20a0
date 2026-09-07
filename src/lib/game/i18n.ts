@@ -234,6 +234,7 @@ const pt = {
   ,overviewQualified: 'Classificado'
   ,overviewOut: 'Eliminado'
   ,overviewChampion: 'Campeão'
+  ,overviewInPlayoffs: 'Nos playoffs'
   ,overviewNoRounds: 'A primeira rodada ainda não começou.'
   ,overviewSwiss: 'Stage 3 · Suíço'
   ,overviewRecord: 'V–D'
@@ -327,7 +328,7 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
-  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
+  overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
   pickSide: 'Elige el lado inicial', pickSideHint: 'Tu rival eligió el mapa. ¿De qué lado empiezas?', pickSideDecider: 'Ganaste el cuchillo. ¿De qué lado empiezas?', sideCt: 'Empezar de CT', sideT: 'Empezar de TR',
   ecoCall: 'Call de economía', ecoCallHint: 'Perdieron el pistol. ¿Cómo jugar la segunda ronda?', ecoCallForce: 'Forzar', ecoCallForceHint: 'Compra lo que alcanza: opción real en la ronda 2, economía en riesgo si pierden.', ecoCallSave: 'Guardar', ecoCallSaveHint: 'Cede la ronda 2 para asegurar un full buy en la ronda 3.', money: 'dinero',
   vetoTitle: 'Veto de mapas', vetoYourTurn: 'Tu turno', vetoWaiting: 'Esperando', vetoBanNow: 'Banea un mapa', vetoPickNow: 'Elige un mapa', vetoBanned: 'Baneado', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Disponible', vetoOpponentTurn: 'El rival está decidiendo…', decisionCountdown: 'Decide en', opponentDeciding: 'Rival decidiendo…', killFeed: 'Feed de kills', topFraggers: 'Frags del mapa', sideLabel: 'Lado',
@@ -547,6 +548,7 @@ Object.assign(dictionaries.en, {
   overviewQualified: 'Qualified',
   overviewOut: 'Eliminated',
   overviewChampion: 'Champion',
+  overviewInPlayoffs: 'In the playoffs',
   overviewNoRounds: 'The first round has not started yet.',
   overviewSwiss: 'Stage 3 · Swiss',
   overviewRecord: 'W–L',

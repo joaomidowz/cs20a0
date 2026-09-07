@@ -83,9 +83,7 @@
         {/each}
       </ul>
     {/if}
-    {#if shownKills >= currentDetail.kills.length}
-      <small class="round-ending" class:user={isMine(currentDetail.winner)} class:enemy={userIsA !== null && !isMine(currentDetail.winner)}>{endingLabels[currentDetail.ending]} · {teamNames[currentDetail.winner]}</small>
-    {/if}
+    <small class="round-ending" class:user={isMine(currentDetail.winner)} class:enemy={userIsA !== null && !isMine(currentDetail.winner)}>{shownKills >= currentDetail.kills.length ? `${endingLabels[currentDetail.ending]} · ${teamNames[currentDetail.winner]}` : ''}</small>
     {#if fragLeaders.length}
       <ol class="frag-leaders" aria-label="Top fraggers">
         {#each fragLeaders as line (line.playerId)}<li class:user={isMine(line.side)}><span>{line.name}</span><b>{line.kills}</b><small>/{line.deaths}</small></li>{/each}
@@ -106,7 +104,9 @@
   .round-tag{padding:2px 6px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-weight:900;letter-spacing:.08em;white-space:nowrap;animation:tagIn .25s ease-out}
   .round-tag.mine{border-color:var(--accent);color:var(--accent)}.round-tag.clutch,.round-tag.eco-win{background:var(--accent-2);color:var(--bg)}.round-tag.clutch.mine,.round-tag.eco-win.mine{background:var(--accent)}
   .round-tag.timeout{border-style:dashed}
-  .kill-feed{display:grid;gap:4px;min-height:24px;margin:0;padding:0;list-style:none}
+  /* Fixed footprint: five rows are reserved so the HUD never jumps while kills trickle in and the timeout button stays put. */
+  .kill-feed{display:grid;gap:4px;min-height:152px;margin:0;padding:0;list-style:none;align-content:start}
+  .compact .kill-feed{min-height:0}
   .kill-feed li{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 8px;border-left:2px solid var(--line);background:color-mix(in srgb,var(--surface) 75%,transparent);font-size:.78rem;animation:slideIn .3s ease-out}
   .kill-feed li.user{border-left-color:var(--accent)}.kill-feed li.enemy{border-left-color:color-mix(in srgb,var(--danger) 70%,var(--line))}
   .kill-feed .killer{overflow:hidden;color:var(--text);text-overflow:ellipsis;white-space:nowrap}.kill-feed li.user .killer{color:var(--accent)}
@@ -114,8 +114,8 @@
   .kill-feed .weapon{display:inline-flex;flex:none;width:46px;height:16px;color:var(--text)}.kill-feed .weapon :global(svg){width:100%;height:100%}
   .kill-feed .hs{flex:none;padding:1px 4px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-style:normal;font-weight:900}
   .kill-feed time{flex:none;margin-left:auto;color:var(--muted);font-size:.6rem;font-variant-numeric:tabular-nums}
-  .round-ending{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.round-ending.user{color:var(--accent)}.round-ending.enemy{color:var(--danger)}
-  .frag-leaders{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;padding:8px 0 0;border-top:1px solid var(--line);list-style:none}
+  .round-ending{min-height:1.2em;color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.round-ending.user{color:var(--accent)}.round-ending.enemy{color:var(--danger)}
+  .frag-leaders{display:flex;flex-wrap:wrap;gap:6px 16px;min-height:30px;margin:0;padding:8px 0 0;border-top:1px solid var(--line);list-style:none}
   .frag-leaders li{display:flex;align-items:baseline;gap:4px;color:var(--muted);font-size:.66rem}.frag-leaders li span{font-weight:800;text-transform:uppercase}.frag-leaders li.user span{color:var(--accent)}.frag-leaders b{color:var(--text);font:900 .95rem 'Arial Narrow',Impact,sans-serif}.frag-leaders small{font-size:.58rem}
   .compact .kill-feed li{font-size:.7rem}
   @keyframes slideIn{from{transform:translateX(-8px);opacity:0}}
