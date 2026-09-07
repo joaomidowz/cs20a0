@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { translate } from '../src/lib/game/i18n';
 import { translateOnline } from '../src/lib/game/online/i18n';
-import { getVisibleMapScore, isSeriesVisuallyStarted } from '../src/lib/game/seriesPresentation';
+import { getCommittedRounds, getFlashRound, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '../src/lib/game/seriesPresentation';
 import type { MapResult, RoundScore } from '../src/lib/game/types';
 
 const map: MapResult = {
@@ -80,5 +80,38 @@ describe('series presentation', () => {
       .toEqual(['Ao vivo', 'Live', 'En vivo']);
     expect([translateOnline('pt-BR', 'live'), translateOnline('en', 'live'), translateOnline('es', 'live')])
       .toEqual(['Ao vivo', 'Live', 'En vivo']);
+  });
+
+  describe('round commit', () => {
+    it('keeps the first round in progress (0-0) until its feed resolves it', () => {
+      expect(getCommittedRounds(1, 0, true, false)).toBe(0);
+      expect(getCommittedRounds(1, 1, true, false)).toBe(1);
+    });
+
+    it('commits the previous round as soon as the next one is revealed', () => {
+      expect(getCommittedRounds(5, 3, true, false)).toBe(4);
+      expect(getCommittedRounds(5, 5, true, false)).toBe(5);
+      expect(getCommittedRounds(5, 9, true, false)).toBe(5);
+    });
+
+    it('commits at once when there is no feed to play or the commit is instant', () => {
+      expect(getCommittedRounds(3, 0, false, false)).toBe(3);
+      expect(getCommittedRounds(3, 0, true, true)).toBe(3);
+      expect(getCommittedRounds(0, 0, true, false)).toBe(0);
+    });
+
+    it('is instant on ultra speed, when the series is over and on the last round of a map', () => {
+      expect(shouldCommitInstantly({ delay: 1500, finished: false, mapFinished: false })).toBe(false);
+      expect(shouldCommitInstantly({ delay: 180, finished: false, mapFinished: false })).toBe(true);
+      expect(shouldCommitInstantly({ delay: 1500, finished: true, mapFinished: false })).toBe(true);
+      expect(shouldCommitInstantly({ delay: 1500, finished: false, mapFinished: true })).toBe(true);
+    });
+
+    it('flashes the last committed round while the next one plays and clears it afterwards', () => {
+      expect(getFlashRound(0, 0)).toBeNull();
+      expect(getFlashRound(4, 4)).toBe(4);
+      expect(getFlashRound(5, 4)).toBe(4);
+      expect(getFlashRound(6, 4)).toBeNull();
+    });
   });
 });

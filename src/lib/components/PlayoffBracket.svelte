@@ -7,6 +7,16 @@
   export let championId: string | null = null;
   export let labels: { quarterfinal: string; semifinal: string; final: string; tbd: string; live: string; pending: string };
   export let onTeam: (teamId: string) => void = () => {};
+  /** When provided, live matches become buttons that open that series. */
+  export let onSeries: ((seriesId: string) => void) | null = null;
+
+  const watchable = (match: BracketColumn['matches'][number]) => Boolean(onSeries) && match.id !== null && match.status === 'live';
+  const openSeries = (match: BracketColumn['matches'][number]) => { if (match.id) onSeries?.(match.id); };
+  const onSeriesKey = (event: KeyboardEvent, match: BracketColumn['matches'][number]) => {
+    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    openSeries(match);
+  };
 </script>
 
 <div class="bracket" role="region" aria-label={labels.final}>
@@ -15,10 +25,11 @@
       <header><span>{labels[column.phase]}</span></header>
       <div class="bracket-matches">
         {#each column.matches as match, index (match.id ?? `${column.phase}-${index}`)}
-          <article class="bracket-match" class:live={match.status === 'live'} class:tbd={match.status === 'tbd'} class:mine={match.a.id === userTeamId || match.b.id === userTeamId}>
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <article class="bracket-match" class:live={match.status === 'live'} class:tbd={match.status === 'tbd'} class:mine={match.a.id === userTeamId || match.b.id === userTeamId} class:watchable={watchable(match)} role={watchable(match) ? 'button' : undefined} tabindex={watchable(match) ? 0 : undefined} aria-label={watchable(match) ? `${match.a.name ?? labels.tbd} x ${match.b.name ?? labels.tbd}` : undefined} on:click={() => watchable(match) && openSeries(match)} on:keydown={(event) => watchable(match) && onSeriesKey(event, match)}>
             {#each [match.a, match.b] as slot, slotIndex}
               {#if slot.id}
-                <button type="button" class="bracket-slot" class:winner={slot.winner} class:loser={match.status === 'completed' && !slot.winner} class:user={slot.id === userTeamId} class:champion={column.phase === 'final' && slot.id === championId} disabled={slot.id === userTeamId} on:click={() => slot.id && onTeam(slot.id)}>
+                <button type="button" class="bracket-slot" class:winner={slot.winner} class:loser={match.status === 'completed' && !slot.winner} class:user={slot.id === userTeamId} class:champion={column.phase === 'final' && slot.id === championId} disabled={slot.id === userTeamId} on:click|stopPropagation={() => slot.id && onTeam(slot.id)}>
                   <TeamBadge id={slot.id} name={slot.name ?? ''} highlight={slot.id === userTeamId} /><span>{slot.name}</span>{#if slot.score !== null}<b>{slot.score}</b>{/if}
                 </button>
               {:else}
@@ -41,6 +52,7 @@
   .bracket-matches{display:flex;flex-direction:column;justify-content:space-around;gap:10px}
   .bracket-match{position:relative;display:grid;gap:2px;padding:6px;border:1px solid var(--line);background:var(--surface-2)}
   .bracket-match.mine{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}.bracket-match.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.bracket-match.tbd{border-style:dashed}
+  .bracket-match.watchable{cursor:pointer}.bracket-match.watchable:hover,.bracket-match.watchable:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface-2))}.bracket-match.watchable:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .bracket-column:not(.final) .bracket-match::after{content:'';position:absolute;right:-18px;top:50%;width:18px;height:1px;background:var(--line)}
   .bracket-match small{position:absolute;right:6px;top:-7px;padding:1px 5px;background:var(--surface);color:#ff7676;font-size:.48rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.bracket-match small:empty{display:none}
   .bracket-slot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;min-height:34px;padding:3px 5px;border:0;color:var(--text);background:transparent;font:inherit;text-align:left;cursor:pointer}

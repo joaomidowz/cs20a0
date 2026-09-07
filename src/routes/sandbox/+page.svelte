@@ -11,6 +11,8 @@
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
+  import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
+  import CollapsibleStats from '$lib/components/CollapsibleStats.svelte';
   import { createRunStats } from '$lib/game/runStats';
   import { orientSeriesToTeam } from '$lib/game/simulation';
   import { getTeamPlayers, playerById, teamById, teams } from '$lib/game/data';
@@ -441,12 +443,15 @@
             <article><small>Poder do time</small><strong>{major.userTeam.power.toFixed(1)}</strong></article>
             <article><small>Campeão</small><strong>{championName}</strong></article>
           </div>
-          {#if sandboxStats.length}
-            <section class="sandbox-stats">
-              <div class="section-heading"><div><span class="eyebrow">POST-MAJOR</span><h2>Estatísticas e MVP</h2></div></div>
-              <RunStatsGrid stats={sandboxStats} language="pt-BR" />
-            </section>
-          {/if}
+          <section class="sandbox-stats">
+            <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>MVP do Major</h2></div></div>
+            <MajorAwardsPanel awards={major.tournament.awards ?? null} language="pt-BR" userTeamId={major.userTeam.id} />
+            {#if sandboxStats.length}
+              <CollapsibleStats eyebrow="POST-MAJOR" title="Estatísticas da run" language="pt-BR">
+                <RunStatsGrid stats={sandboxStats} language="pt-BR" />
+              </CollapsibleStats>
+            {/if}
+          </section>
           <div class="sandbox-final-actions">
             <button class="primary" type="button" on:click={playAgainWithNewSeed}>Mesmo elenco, nova seed</button>
             <button class="secondary" type="button" on:click={restart}>Novo Sandbox</button>

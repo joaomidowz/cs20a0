@@ -2,9 +2,10 @@
   import { onDestroy } from 'svelte';
   import RoundFeed from '$lib/components/RoundFeed.svelte';
   import RoundStrip from '$lib/components/RoundStrip.svelte';
+  import RoundFlash from '$lib/components/live/RoundFlash.svelte';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
-  import { getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
+  import { getCommittedRounds, getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
   import type { Language, RoundDetail, SeriesResult } from '$lib/game/types';
 
@@ -54,6 +55,8 @@
   let runId = 0;
   let pendingTimeout: number | null = null;
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
+  /** Last round whose kill feed finished playing (per map), reported by RoundFeed. */
+  let resolved = { map: -1, round: 0 };
 
   const wait = (ms: number) => new Promise<boolean>((resolve) => {
     resolvePendingWait = resolve;
@@ -74,8 +77,16 @@
     finished: displayFinished
   });
   $: currentMap = series.maps[displayActiveMap];
-  $: currentRound = displayVisibleRounds > 0 ? currentMap?.rounds[displayVisibleRounds - 1] : null;
   $: currentMapFinished = Boolean(currentMap && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0 && currentMap.winnerId);
+  $: currentDetails = liveDetails ?? currentMap?.details ?? null;
+  $: feedDelay = controlled ? controlledDelay : delay;
+  $: liveDetail = displayVisibleRounds > 0 ? currentDetails?.find((detail) => detail?.number === displayVisibleRounds) ?? null : null;
+  // The revealed round stays in progress (score, strip and ending unchanged) until its kill feed resolves it.
+  $: instantCommit = shouldCommitInstantly({ delay: feedDelay, finished: displayFinished, mapFinished: currentMapFinished });
+  $: committedRounds = getCommittedRounds(displayVisibleRounds, resolved.map === displayActiveMap ? resolved.round : 0, Boolean(liveDetail?.kills.length), instantCommit);
+  $: roundInProgress = displayStarted && committedRounds < displayVisibleRounds;
+  $: committedDetail = committedRounds > 0 ? currentDetails?.find((detail) => detail?.number === committedRounds) ?? null : null;
+  $: currentRound = committedRounds > 0 ? currentMap?.rounds[committedRounds - 1] : null;
   $: currentMapScore = currentMap ? getVisibleMapScore(currentMap, currentRound, {
     isComplete: displayFinished || currentMapFinished,
     isLive: displayStarted
@@ -83,17 +94,15 @@
   $: visibleMaps = series.maps.slice(0, displayActiveMap + (currentMap && displayVisibleRounds >= currentMap.rounds.length ? 1 : 0));
   // Bans are never shown: only the maps that will actually be played.
   $: decidedMaps = getDecidedMaps(series);
-  $: visibleRoundScores = currentMap ? currentMap.rounds.slice(0, displayVisibleRounds) : [];
+  $: visibleRoundScores = currentMap ? currentMap.rounds.slice(0, committedRounds) : [];
   $: roundTicks = visibleRoundScores.map((round, index) => {
     const before = index > 0 ? visibleRoundScores[index - 1] : { a: 0, b: 0 };
     return round.a > before.a ? 'a' : 'b';
   });
   $: lastRoundWinner = roundTicks.length ? roundTicks[roundTicks.length - 1] : null;
   $: userIsA = series.teamA.isUser ? true : series.teamB.isUser ? false : null;
-  $: currentDetails = liveDetails ?? currentMap?.details ?? null;
   $: teamNames = { a: translateTeamName(language, series.teamA.name), b: translateTeamName(language, series.teamB.name) };
   $: headline = currentMap && currentMapFinished ? getMapHeadline({ ...currentMap, details: currentDetails ?? currentMap.details }, teamNames, language) : null;
-  $: feedDelay = controlled ? controlledDelay : delay;
   $: inOvertime = Boolean(displayStarted && !displayFinished && !currentMapFinished && currentMapScore && (currentRound?.overtime || (currentMapScore.a >= 12 && currentMapScore.b >= 12)));
   $: mapStates = decidedMaps.map((decided) => {
     const index = series.maps.findIndex((map) => map.mapId === decided.mapId);
@@ -135,6 +144,10 @@
     finished = true;
     started = false;
     onComplete();
+  }
+
+  function handleRoundResolved(round: number) {
+    resolved = { map: displayActiveMap, round };
   }
 
   function skipMap() {
@@ -230,17 +243,18 @@
     <div class="live-map">
       <div class="live-map-score">
         <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name)}</span>
-        <b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>
+        {#key currentMapScore.a}<b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
         <i>:</i>
-        <b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>
+        {#key currentMapScore.b}<b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>{/key}
         <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name)}</span>
       </div>
+      <RoundFlash detail={committedDetail} cursor={`${series.id}:${displayActiveMap}:${committedRounds}`} {language} {userIsA} />
       {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
       <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} />
-      <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : lastRoundWinner ? `${labels.round} ${displayVisibleRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
+      <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
       {#if currentDetails?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} />
+        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} />
       {/if}
     </div>
   {/if}
@@ -302,7 +316,10 @@
   .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
-  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
+  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease;animation:scorePulse .45s ease-out}
+  @keyframes scorePulse{0%{transform:scale(1.25);color:var(--accent-2)}}
+  .live-map small.round-status{min-height:1.2em}.live-map small.in-progress{color:var(--text)}.live-map small.in-progress::after{content:'';display:inline-block;width:6px;height:6px;margin-left:7px;border-radius:50%;background:#ff3b3b;vertical-align:middle;animation:livePulse 1.1s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.live-map-score b,.live-map small.in-progress::after{animation:none}}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
   .map-headline{justify-self:center;padding:6px 14px;border:1px solid var(--text);color:var(--text);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;animation:headlineIn .4s ease-out}.map-headline.comeback{border-color:var(--accent-2);color:var(--accent-2);box-shadow:0 0 18px color-mix(in srgb,var(--accent-2) 40%,transparent)}.map-headline.mine{border-color:var(--accent);color:var(--accent)}
   .decided-map-list .map-extra{margin-top:6px;white-space:normal}
   @keyframes headlineIn{from{transform:scale(.9);opacity:0}}

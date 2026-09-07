@@ -50,6 +50,8 @@ export interface TournamentEngineOptions {
   controllerFor?: (organization: TournamentOrganization) => Controller;
   /** Whether a series waits for the two organizations to veto by hand. Defaults to human vs human only. */
   interactiveVeto?: (left: TournamentOrganization, right: TournamentOrganization) => boolean;
+  /** Decision kinds human controllers take by hand in every series (see `LiveSeriesConfig.humanDecisions`). */
+  humanDecisions?: LiveSeriesConfig['humanDecisions'];
 }
 
 export interface TournamentRoundState {
@@ -198,7 +200,8 @@ function createSeries(state: TournamentEngineState, left: TournamentOrganization
     strategies: strategyA && strategyB ? { a: strategyA, b: strategyB } : null,
     rosters: { a: mapContext?.rosters?.get(left.id), b: mapContext?.rosters?.get(right.id) },
     controllers: { a: controllerFor(left), b: controllerFor(right) },
-    interactiveVeto: Boolean(strategyA && strategyB) && interactiveVeto(left, right)
+    interactiveVeto: Boolean(strategyA && strategyB) && interactiveVeto(left, right),
+    ...(state.options.humanDecisions ? { humanDecisions: state.options.humanDecisions } : {})
   };
   return createLiveSeries(config);
 }

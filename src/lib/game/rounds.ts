@@ -13,6 +13,7 @@ import type {
   Roster,
   RoundDetail,
   RoundEnding,
+  RoundHighlight,
   RoundKill,
   RoundScore,
   RoundTag,
@@ -109,7 +110,30 @@ const FULL_BUY_MONEY = 3600;
 const WINNER_REBUY_BASE = 0.2;
 const BUY_RANK: Record<BuyType, number> = { eco: 0, pistol: 1, force: 1, full: 2 };
 /** Round-win edge of each buy: the difference between the two teams' values is added to the round probability. */
-const BUY_EDGE: Record<BuyType, number> = { eco: 0, pistol: 0.112, force: 0.157, full: 0.28 };
+const BUY_EDGE: Record<BuyType, number> = { eco: 0, pistol: 0.112, force: 0.19, full: 0.35 };
+/**
+ * Kills the losing team gets before the round is decided, as weights for 0..4 kills, indexed by the buy gap
+ * (winner rank minus loser rank, -2..2). A full buy that loses to an eco still trades most of its players;
+ * an eco that loses to a full buy rarely gets more than one.
+ */
+const LOSER_KILL_WEIGHTS: number[][] = [
+  [1, 3, 12, 48, 36],
+  [1, 5, 20, 50, 24],
+  [1, 4, 26, 53, 16],
+  [13, 23, 33, 25, 6],
+  [45, 35, 15, 4, 1]
+];
+/** Winner kills when the bomb or the clock decides the round instead of a wipe, as weights for 1..5 kills. */
+const WINNER_KILL_WEIGHTS: Record<Exclude<RoundEnding, 'elimination'>, number[]> = {
+  bomb: [3, 8, 27, 36, 26],
+  defuse: [3, 8, 27, 36, 26],
+  time: [6, 16, 38, 40, 0]
+};
+/**
+ * Multiplier on a player's chance of the next kill by the kills it already has in the round: after an opening kill the
+ * teammates take the trades, while a player with three kills is in a dominant position and tends to close the round.
+ */
+const HOT_HAND = [1, 0.55, 0.4, 2, 5];
 const MOMENTUM_STEP = 0.01;
 const MAX_MOMENTUM = 5;
 const TIMEOUT_BONUS = 0.05;
@@ -147,7 +171,8 @@ const isAwper = (player: Player, roles?: Map<string, LineupSlotRole>) => {
 const killerWeight = (player: Player, holdsAwp: boolean) => {
   const base = (player.firepower ?? 70) * 0.6 + (player.entry ?? 65) * 0.25 + (player.overall ?? 75) * 0.15;
   const awpBonus = holdsAwp ? (player.awp ?? 70) * 0.5 : 0;
-  return Math.max(10, base + awpBonus);
+  // Squared so stars take a clearly bigger share of the frags (and of the multi-kills) than role players.
+  return Math.max(10, base + awpBonus) ** 2;
 };
 
 const victimWeight = (player: Player) => Math.max(10, 115 - (player.consistency ?? 65) * 0.35 - (player.mental ?? 65) * 0.15);
@@ -376,8 +401,9 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
     a: economy.a.awp && state.teams.a.awpers.length ? state.teams.a.awpers[Math.floor(rng() * state.teams.a.awpers.length)]?.id ?? null : null,
     b: economy.b.awp && state.teams.b.awpers.length ? state.teams.b.awpers[Math.floor(rng() * state.teams.b.awpers.length)]?.id ?? null : null
   };
-  const winnerKills = ending === 'elimination' ? 5 : 1 + Math.floor(rng() * 4);
-  const loserKills = Math.max(0, Math.min(4, Math.round(rng() * 3.6 - gap * 0.8 + (ending === 'elimination' ? -0.4 : 0.4))));
+  const weighted = (weights: number[], offset: number) => pick(rng, weights.map((weight, index) => [index + offset, weight] as [number, number]));
+  const winnerKills = ending === 'elimination' ? 5 : weighted(WINNER_KILL_WEIGHTS[ending], 1);
+  const loserKills = weighted(LOSER_KILL_WEIGHTS[clamp(gap, -2, 2) + 2], 0);
   // Every loser kill happens before the final winner kill so an eliminated team never frags after dying out.
   const order: TeamSide[] = [...Array<TeamSide>(winnerKills - 1).fill(winner), ...Array<TeamSide>(loserKills).fill(loser)];
   for (let cursor = order.length - 1; cursor > 0; cursor -= 1) {
@@ -386,14 +412,15 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   }
   order.push(winner);
   const kills: RoundKill[] = [];
-  if (!rosters.a || !rosters.b) return { kills, clutch: false, winnerDeaths: loserKills };
+  if (!rosters.a || !rosters.b) return { kills, clutch: false, winnerDeaths: loserKills, highlight: null, multiKill: null };
   const alive: Record<TeamSide, Player[]> = { a: [...rosters.a.players], b: [...rosters.b.players] };
+  const killsBy = new Map<string, number>();
   let second = 8 + rng() * 20;
-  let clutch = false;
+  let clutch: { player: Player; against: number; kills: number } | null = null;
   for (const side of order) {
     const enemy = other(side);
     if (!alive[side].length || !alive[enemy].length) break;
-    const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id)] as [Player, number]));
+    const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id) * HOT_HAND[Math.min(HOT_HAND.length - 1, killsBy.get(player.id) ?? 0)]] as [Player, number]));
     const victim = pick(rng, alive[enemy].map((player) => [player, victimWeight(player)] as [Player, number]));
     alive[enemy] = alive[enemy].filter((player) => player.id !== victim.id);
     const weapon = chooseWeapon(economy[side], sides[side], awpHolder[side] === killer.id, rng);
@@ -402,11 +429,43 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
       victimId: victim.id, victimName: playerName(victim),
       weapon, headshot: rng() < HEADSHOT_RATE[weapon], second: Math.round(Math.min(115, second))
     });
+    killsBy.set(killer.id, (killsBy.get(killer.id) ?? 0) + 1);
     second += 6 + rng() * 18;
-    // The winner is down to its last player while two or more enemies still stand: a clutch is on.
-    if (side === loser && alive[winner].length === 1 && alive[loser].length >= 2) clutch = true;
+    // The winner is down to its last player while two or more enemies still stand: a clutch is on. From here on
+    // every kill in the round belongs to that survivor (the loser never frags after the winner's last death).
+    if (side === loser && alive[winner].length === 1 && alive[loser].length >= 2 && !clutch) {
+      clutch = { player: alive[winner][0], against: alive[loser].length, kills: 0 };
+    } else if (clutch && side === winner) clutch.kills += 1;
   }
-  return { kills, clutch, winnerDeaths: loserKills };
+  return { kills, clutch: clutch !== null, winnerDeaths: loserKills, ...pickHighlight(kills, winner, clutch) };
+}
+
+const HIGHLIGHT_RANK: Record<RoundHighlight['kind'], number> = { ace: 5, quad: 3, triple: 1, clutch: 0 };
+const highlightRank = (highlight: RoundHighlight) => (highlight.kind === 'clutch' ? ((highlight.against ?? 0) >= 3 ? 4 : 2) : HIGHLIGHT_RANK[highlight.kind]);
+
+/**
+ * The single feat worth flashing for the round: ace > 1v3+ clutch > 4k > 1v2 clutch > 3k, the winner's feat first on
+ * ties. Also returns the multi-kill tag for the best fragger of the round (either side).
+ */
+function pickHighlight(kills: RoundKill[], winner: TeamSide, clutch: { player: Player; against: number; kills: number } | null): { highlight: RoundHighlight | null; multiKill: RoundTag | null } {
+  const lines = new Map<string, RoundHighlight>();
+  for (const kill of kills) {
+    const line = lines.get(kill.killerId) ?? { kind: 'triple', playerId: kill.killerId, playerName: kill.killerName, side: kill.killerSide, kills: 0 };
+    line.kills += 1;
+    lines.set(kill.killerId, line);
+  }
+  const candidates: RoundHighlight[] = [...lines.values()]
+    .filter((line) => line.kills >= 3)
+    .map((line) => ({ ...line, kind: line.kills >= 5 ? 'ace' : line.kills === 4 ? 'quad' : 'triple' }));
+  const best = candidates.reduce<RoundHighlight | null>((top, line) => (!top || line.kills > top.kills || (line.kills === top.kills && line.side === winner && top.side !== winner) ? line : top), null);
+  const multiKill: RoundTag | null = best ? (best.kind === 'ace' ? 'ace' : best.kind === 'quad' ? '4k' : '3k') : null;
+  const clutchHighlight: RoundHighlight | null = clutch
+    ? { kind: 'clutch', playerId: clutch.player.id, playerName: playerName(clutch.player), side: winner, kills: clutch.kills, against: clutch.against }
+    : null;
+  const highlight = [best, clutchHighlight]
+    .filter((entry): entry is RoundHighlight => entry !== null)
+    .sort((left, right) => highlightRank(right) - highlightRank(left))[0] ?? null;
+  return { highlight, multiKill };
 }
 
 /**
@@ -453,12 +512,13 @@ export function playNextRound(state: MapState): RoundDetail {
   const loser = other(winner);
 
   const gap = BUY_RANK[economy[winner].buy] - BUY_RANK[economy[loser].buy];
-  const eliminationChance = clamp(0.5 + gap * 0.15, 0.25, 0.9);
+  // Most rounds end with a wipe; the bomb and the clock decide the rest, more often when the buys are even.
+  const eliminationChance = clamp(0.6 + gap * 0.125, 0.35, 0.92);
   let ending: RoundEnding;
   if (rng() < eliminationChance) ending = 'elimination';
   else if (sides[winner] === 't') ending = 'bomb';
   else ending = rng() < 0.7 ? 'defuse' : 'time';
-  const { kills, clutch, winnerDeaths } = buildKills(state, winner, ending, economy, sides);
+  const { kills, clutch, winnerDeaths, highlight, multiKill } = buildKills(state, winner, ending, economy, sides);
 
   if (winner === 'a') state.scoreA += 1;
   else state.scoreB += 1;
@@ -489,6 +549,7 @@ export function playNextRound(state: MapState): RoundDetail {
   if (!pistolRound && economy[winner].buy === 'eco' && economy[loser].buy !== 'eco') tags.push('eco-win');
   if (!pistolRound && economy[winner].buy === 'force' && economy[loser].buy === 'full') tags.push('force-win');
   if (clutch) tags.push('clutch');
+  if (multiKill) tags.push(multiKill);
   if (momentumBefore[loser] >= 3) tags.push('streak-break');
   if (index === HALF_ROUNDS - 1 || index === REGULATION_ROUNDS - 1) tags.push('half-end');
   if (deficitBefore[winner] >= COMEBACK_DEFICIT - 3 && winnerRuntime.maxDeficit >= COMEBACK_DEFICIT && winnerRuntime.momentum >= 3) tags.push('comeback-alert');
@@ -525,7 +586,8 @@ export function playNextRound(state: MapState): RoundDetail {
     ending,
     momentum: momentumBefore,
     ...(timeout ? { timeout } : {}),
-    tags
+    tags,
+    ...(highlight ? { highlight } : {})
   };
   state.details.push(detail);
   state.pendingTimeout = null;
@@ -599,7 +661,8 @@ export function flipRoundDetail(detail: RoundDetail): RoundDetail {
     economy: { a: detail.economy.b, b: detail.economy.a },
     kills: detail.kills.map((kill) => ({ ...kill, killerSide: other(kill.killerSide) })),
     ...(detail.momentum ? { momentum: { a: detail.momentum.b, b: detail.momentum.a } } : {}),
-    ...(detail.timeout ? { timeout: other(detail.timeout) } : {})
+    ...(detail.timeout ? { timeout: other(detail.timeout) } : {}),
+    ...(detail.highlight ? { highlight: { ...detail.highlight, side: other(detail.highlight.side) } } : {})
   };
 }
 

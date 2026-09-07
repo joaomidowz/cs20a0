@@ -9,9 +9,17 @@
   import HeroLive from '$lib/components/HeroLive.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
+  import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
+  import CollapsibleStats from '$lib/components/CollapsibleStats.svelte';
+  /** Run statistics panel of the result screen (closed by default; the 'seeStats' button opens it in place). */
+  let resultStatsOpen = false;
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
+  import VetoBoard from '$lib/components/live/VetoBoard.svelte';
+  import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
+  import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
+  import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
@@ -21,7 +29,6 @@
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
   import { getPlayerBaseId, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import {
-    buildMajorRun,
     calculateUserTeamPower,
     createSeededRng,
     pickRandomTeam
@@ -41,6 +48,25 @@
   } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import {
+    applyOfflineEcoCall,
+    applyOfflineSide,
+    applyOfflineVeto,
+    confirmOfflineSeries,
+    createOfflineMajor,
+    getOfflineDecisionRules,
+    getOfflineLiveView,
+    offlineCompletedSeries,
+    pendingOfflineDecision,
+    requestOfflineTimeout,
+    restoreOfflineMajor,
+    skipOfflineMap,
+    stepOfflineSeries,
+    toMajorRun,
+    type OfflineLiveView,
+    type OfflineMajorState
+  } from '$lib/game/offlineMajor';
+  import type { PendingSeriesDecision } from '$lib/game/online/live-series';
+  import {
     MAP_POOL,
     getDefaultMapSelection,
     getLineupMapContributors,
@@ -56,6 +82,7 @@
     type HistoricalTeam,
     type LineupSlotRole,
     type MapId,
+    type MapSide,
     type OrgStyle,
     type Player,
     type SeriesResult,
@@ -81,6 +108,13 @@
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
+  // The live engine of the offline Major lives only in memory; `$game.offlineLog` is what rebuilds it after a reload.
+  let offline: OfflineMajorState | null = null;
+  let offlineView: OfflineLiveView | null = null;
+  let offlinePending: PendingSeriesDecision | null = null;
+  let liveRunning = false;
+  let liveTimer: number | null = null;
+  let offlineNotifiedSeriesId: string | null = null;
 
   function getPhaseLabel(phase: SeriesResult['phase']): string {
     const labels: Record<string, string> = {
@@ -159,6 +193,10 @@
   $: hasStageRecord = stageWins + stageLosses > 0;
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
+  $: offlineRules = getOfflineDecisionRules($game.mode ?? 'premier');
+  $: userFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(mapContributors[mapId].length)])) as Record<MapId, number>;
+  $: liveTeamNames = currentSeries ? { [currentSeries.teamA.id]: translateTeamName($game.language, currentSeries.teamA.name), [currentSeries.teamB.id]: translateTeamName($game.language, currentSeries.teamB.name) } as Record<string, string> : {};
+  $: if ($game.simMode === 'auto' && offlineView && !offlineView.finished && !liveRunning && ($game.phase === 'stage3' || $game.phase === 'playoffs')) startOfflineSeries();
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
@@ -181,6 +219,7 @@
     closePlayer();
     closeEnemyTeam();
     clearAdvanceTimer();
+    clearOfflineRun();
     awaitingAdvance = false;
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(), ...preserved });
@@ -369,17 +408,161 @@
   function launchMajor() {
     if (!draftComplete || (isProMode && !$game.proRevealed) || !isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)) return;
     resetSupportNudge();
-    const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
-    const runLineup = isProMode ? proLineup : selectedLineup;
-    const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+    resultStatsOpen = false;
+    clearOfflineRun();
+    const { runPlayers, runLineup } = runInputs();
+    offline = createOfflineMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier'
     });
-    const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
     awaitingAdvance = false;
-    update({ majorRun, stats, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
+    refreshOfflineView();
+    // Stats need the finished run: they are computed when the last series is confirmed.
+    update({ majorRun: toMajorRun(offline), offlineLog: offline.log, stats: [], selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
     scheduleSupportNudge();
   }
+
+  function runInputs() {
+    const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
+    const runLineup = isProMode ? proLineup : selectedLineup;
+    return { runPlayers, runLineup };
+  }
+
+  function refreshOfflineView() {
+    offlineView = offline ? getOfflineLiveView(offline) : null;
+    offlinePending = offline ? pendingOfflineDecision(offline) : null;
+  }
+
+  /** Pushes the engine snapshot (and the replay log) into the persisted state after every change. */
+  function syncOffline() {
+    if (!offline) return;
+    refreshOfflineView();
+    update({ majorRun: toMajorRun(offline), offlineLog: offline.log });
+  }
+
+  function clearOfflineRun() {
+    stopLiveTick();
+    offline = null;
+    offlineView = null;
+    offlinePending = null;
+    offlineNotifiedSeriesId = null;
+  }
+
+  /** Rebuilds the in-memory engine from the persisted replay log when the page opens on a run in progress. */
+  function restoreOfflineRun() {
+    if (offline) return;
+    if (($game.phase !== 'stage3' && $game.phase !== 'playoffs') || !$game.majorRun || !$game.offlineLog) return;
+    const { runPlayers, runLineup } = runInputs();
+    if (runPlayers.length !== 5) return;
+    try {
+      offline = restoreOfflineMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, { selectedMaps: $game.selectedMaps, mode: $game.mode ?? 'premier' }, $game.offlineLog);
+    } catch {
+      offline = null;
+      return;
+    }
+    clearAdvanceTimer();
+    awaitingAdvance = false;
+    offlineNotifiedSeriesId = null;
+    refreshOfflineView();
+    const majorRun = toMajorRun(offline);
+    const completedSeries = offlineCompletedSeries(offline);
+    const current = majorRun.matches[completedSeries];
+    if (!current) {
+      finishOfflineRun(majorRun, completedSeries);
+      return;
+    }
+    update({ majorRun, offlineLog: offline.log, completedSeries, phase: current.phase === 'stage3' ? 'stage3' : 'playoffs' });
+    if (offlineView?.finished) {
+      offlineNotifiedSeriesId = offlineView.seriesId;
+      seriesCompleted();
+    }
+  }
+
+  function finishOfflineRun(majorRun: NonNullable<typeof $game.majorRun>, completedSeries: number) {
+    const { runPlayers, runLineup } = runInputs();
+    const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
+    update({ majorRun, offlineLog: offline?.log ?? $game.offlineLog, stats, completedSeries, phase: 'result' });
+  }
+
+  /** Interactive series: one engine step per tick, paused while the user has a decision to take. */
+  function scheduleLiveTick() {
+    if (liveTimer !== null || !offline || !liveRunning || offlinePending || !offlineView || offlineView.finished) return;
+    const gap = offlineView.phase === 'intermission' ? 900 : SPEEDS[$game.simSpeed];
+    liveTimer = window.setTimeout(() => {
+      liveTimer = null;
+      if (!offline || !liveRunning) return;
+      stepOfflineSeries(offline);
+      afterOfflineChange();
+    }, gap);
+  }
+
+  function stopLiveTick() {
+    if (liveTimer !== null) window.clearTimeout(liveTimer);
+    liveTimer = null;
+    liveRunning = false;
+  }
+
+  function startOfflineSeries() {
+    if (!offline || !offlineView || offlineView.finished) return;
+    liveRunning = true;
+    scheduleLiveTick();
+  }
+
+  function afterOfflineChange() {
+    if (!offline) return;
+    syncOffline();
+    if (!offlineView) return;
+    if (offlineView.finished) {
+      stopLiveTick();
+      if (offlineNotifiedSeriesId !== offlineView.seriesId) {
+        offlineNotifiedSeriesId = offlineView.seriesId;
+        seriesCompleted();
+      }
+      return;
+    }
+    scheduleLiveTick();
+  }
+
+  function decideVeto(mapId: MapId) {
+    if (!offline || offlinePending?.kind !== 'veto') return;
+    try { applyOfflineVeto(offline, offlinePending.action, mapId); } catch { return; }
+    afterOfflineChange();
+  }
+
+  function decideSide(side: MapSide) {
+    if (!offline || offlinePending?.kind !== 'side') return;
+    try { applyOfflineSide(offline, side); } catch { return; }
+    afterOfflineChange();
+  }
+
+  function decideEco(call: 'force' | 'eco') {
+    if (!offline || offlinePending?.kind !== 'eco-call') return;
+    try { applyOfflineEcoCall(offline, call); } catch { return; }
+    afterOfflineChange();
+  }
+
+  function callOfflineTimeout() {
+    if (!offline) return;
+    try { requestOfflineTimeout(offline); } catch { return; }
+    showToast(t('timeoutCalled'));
+    afterOfflineChange();
+  }
+
+  function skipLiveMap() {
+    if (!offline || !offlineView || offlineView.finished) return;
+    if (liveTimer !== null) window.clearTimeout(liveTimer);
+    liveTimer = null;
+    skipOfflineMap(offline);
+    afterOfflineChange();
+  }
+
+  onMount(() => {
+    restoreOfflineRun();
+  });
+
+  onDestroy(() => {
+    stopLiveTick();
+  });
 
   function maybeShowSupportNudge(phase: string, completedSeries: number) {
     if (supportNudgeShownThisRun || supportNudgeDismissedThisRun) return;
@@ -437,6 +620,24 @@
     clearAdvanceTimer();
     awaitingAdvance = false;
     if (!$game.majorRun) return;
+    if (offline) {
+      if (!confirmOfflineSeries(offline)) return;
+      stopLiveTick();
+      offlineNotifiedSeriesId = null;
+      refreshOfflineView();
+      const majorRun = toMajorRun(offline);
+      const completedSeries = offlineCompletedSeries(offline);
+      const upcoming = majorRun.matches[completedSeries];
+      if (!upcoming) {
+        finishOfflineRun(majorRun, completedSeries);
+        return;
+      }
+      update({ majorRun, offlineLog: offline.log, completedSeries, phase: upcoming.phase === 'stage3' ? 'stage3' : 'playoffs' });
+      await tick();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Runs saved before the interactive Major (no replay log) keep the self-driven replay of the batch result.
     const nextIndex = $game.completedSeries + 1;
     const next = $game.majorRun?.matches[nextIndex];
     if (!next) {
@@ -461,11 +662,13 @@
 
   function resetRun(newSeed = false) {
     resetSupportNudge();
+    resultStatsOpen = false;
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(newSeed ? '' : $game.seed), ...preserved, phase: 'mode-select' });
     closePlayer();
     closeEnemyTeam();
     clearAdvanceTimer();
+    clearOfflineRun();
     awaitingAdvance = false;
   }
 
@@ -873,27 +1076,69 @@
             onChange={changeSimulationSpeed}
           />
         </div>
+        <small class="offline-hint">{offlineRules.veto ? t('offlineDecisionsFull') : t('offlineDecisionsPauseOnly')}</small>
       </div>
       {#if $game.majorRun?.tournament}
         <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }]} onChange={(value) => majorTab = value === 'all' ? 'all' : 'current'} /></div>
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
-        {#key currentSeries.id}
-          <SeriesViewer
-            series={currentSeries}
-            delay={SPEEDS[$game.simSpeed]}
-            auto={$game.simMode === 'auto'}
-            language={$game.language}
-            interactiveTeamId={enemyTeamId}
-            labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
-            onComplete={seriesCompleted}
-            onTeamHover={hoverEnemyTeam}
-            onTeamHoverEnd={leaveEnemyTeam}
-            onTeamClick={pinEnemyTeam}
-            onOrgClick={() => showOrgModal = true}
-          />
-        {/key}
+        {#if offlineView && offlineView.seriesId === currentSeries.id}
+          {#if offlineView.phase === 'veto' && offlineView.veto}
+            <VetoBoard available={offlineView.veto.available} steps={offlineView.veto.steps} turnTeamId={offlineView.veto.turnTeamId} action={offlineView.veto.action} teamNames={liveTeamNames} myTeamId="user" familiarity={userFamiliarity} language={$game.language} onAction={decideVeto} />
+          {/if}
+          {#if offlinePending?.kind === 'side'}
+            <SidePickPrompt mapId={offlinePending.mapId} decider={currentSeries.maps[offlinePending.mapIndex]?.pickedBy === null} language={$game.language} onPick={decideSide} />
+          {:else if offlinePending?.kind === 'eco-call'}
+            <EcoCallPrompt roundNumber={offlinePending.roundNumber} money={offlinePending.money} language={$game.language} onCall={decideEco} />
+          {/if}
+          {#if offlineView.phase === 'live' && !offlineView.finished}
+            <div class="live-actions">
+              <TimeoutButton remaining={offlineView.timeoutsLeft} disabled={Boolean(offlinePending)} language={$game.language} onCall={callOfflineTimeout} />
+              <small>{t('sideLabel')}: {offlineView.userSide ? (offlineView.userSide === 'ct' ? 'CT' : $game.language === 'en' ? 'T' : 'TR') : '—'}</small>
+              <button class="secondary live-skip" type="button" disabled={Boolean(offlinePending)} on:click={skipLiveMap}>{t('skipMap')}</button>
+            </div>
+          {/if}
+          {#key currentSeries.id}
+            <SeriesViewer
+              series={currentSeries}
+              controlled
+              controlledActiveMap={offlineView.activeMap}
+              controlledVisibleRounds={offlineView.visibleRounds}
+              controlledStarted={offlineView.started || offlineView.phase === 'side-pick' || offlineView.phase === 'live'}
+              controlledFinished={offlineView.finished}
+              controlledDelay={SPEEDS[$game.simSpeed]}
+              liveDetails={currentSeries.maps[offlineView.activeMap]?.details ?? null}
+              language={$game.language}
+              interactiveTeamId={enemyTeamId}
+              labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
+              onTeamHover={hoverEnemyTeam}
+              onTeamHoverEnd={leaveEnemyTeam}
+              onTeamClick={pinEnemyTeam}
+              onOrgClick={() => showOrgModal = true}
+            />
+          {/key}
+          {#if !offlineView.finished && !liveRunning && offlineView.phase !== 'veto'}
+            <button class="primary wide next-match" type="button" on:click={startOfflineSeries}>{t('startSeries')}</button>
+          {/if}
+        {:else}
+          <!-- Legacy replay of a batch run saved before the interactive Major (no replay log to rebuild the engine). -->
+          {#key currentSeries.id}
+            <SeriesViewer
+              series={currentSeries}
+              delay={SPEEDS[$game.simSpeed]}
+              auto={$game.simMode === 'auto'}
+              language={$game.language}
+              interactiveTeamId={enemyTeamId}
+              labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
+              onComplete={seriesCompleted}
+              onTeamHover={hoverEnemyTeam}
+              onTeamHoverEnd={leaveEnemyTeam}
+              onTeamClick={pinEnemyTeam}
+              onOrgClick={() => showOrgModal = true}
+            />
+          {/key}
+        {/if}
         {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
       <aside class="timeline panel">
@@ -977,6 +1222,18 @@
         <div class="campaign-grid">
           <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
+        <section class="result-awards">
+          <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>{t('majorMvp')}</h2></div></div>
+          <MajorAwardsPanel awards={run.tournament?.awards ?? null} language={$game.language} userTeamId="user" onTeam={openOverviewTeam} />
+        </section>
+        <CollapsibleStats id="run-stats" eyebrow="POST-MAJOR ANALYTICS" title={t('stats')} language={$game.language} bind:open={resultStatsOpen}>
+          {#if runAggregate}
+            <div class="campaign-grid stats-overview">
+              <article><small>{t('mapsPlayed')}</small><strong>{runAggregate.mapsPlayed}</strong></article><article><small>{t('mapsWon')}</small><strong>{runAggregate.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{runAggregate.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{runAggregate.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{runAggregate.roundsLost}</strong></article><article><small>KILLS</small><strong>{runAggregate.kills}</strong></article><article><small>DEATHS</small><strong>{runAggregate.deaths}</strong></article><article><small>K/D</small><strong>{runAggregate.kdRatio.toFixed(2)}</strong></article><article><small>ADR</small><strong>{runAggregate.adr}</strong></article><article><small>IMPACT</small><strong>{runAggregate.impact.toFixed(2)}</strong></article><article><small>CLUTCHES</small><strong>{runAggregate.clutches}</strong></article><article><small>OPENINGS</small><strong>{runAggregate.openingKills}</strong></article><article><small>RATING</small><strong>{runAggregate.rating.toFixed(2)}</strong></article>
+            </div>
+          {/if}
+          <RunStatsGrid stats={$game.stats} language={$game.language} players={proAdjustedPlayers} />
+        </CollapsibleStats>
         <section class="panel match-history">
           <div class="section-heading"><div><span class="eyebrow">MATCH LOG</span><h2>{t('allMatches')}</h2></div></div>
           <div class="timeline-phases">
@@ -1014,7 +1271,7 @@
           </section>
         {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
-        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
+        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}
@@ -1073,3 +1330,11 @@
 <OrganizationRosterModal organization={ownOrganizationView} isOpen={showOrgModal} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} onClose={() => showOrgModal = false} />
 
 {#if toast}<div class="toast">{toast}</div>{/if}
+
+<style>
+  .offline-hint{grid-column:1/-1;color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}
+  .live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .live-actions .live-skip{min-height:40px;padding:0 12px;font-size:.6rem}
+  @media (max-width:560px){.live-actions{flex-wrap:wrap}.live-actions small{order:3;flex-basis:100%}}
+</style>

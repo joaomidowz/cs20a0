@@ -2,10 +2,11 @@
   import { onDestroy } from 'svelte';
   import RoundFeed from '$lib/components/RoundFeed.svelte';
   import RoundStrip from '$lib/components/RoundStrip.svelte';
+  import RoundFlash from '$lib/components/live/RoundFlash.svelte';
   import { getMapName } from '$lib/game/maps';
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
   import { aggregateKills } from '$lib/game/rounds';
-  import { getVisibleMapScore } from '$lib/game/seriesPresentation';
+  import { getCommittedRounds, getVisibleMapScore, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getSandboxDecidedMaps, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxMajorMatch } from '$lib/game/sandbox/types';
 
@@ -33,6 +34,8 @@
   let appliedDelay = delay;
   let pendingTimeout: number | null = null;
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
+  /** Last round whose kill feed finished playing (per map), reported by RoundFeed. */
+  let resolved = { map: -1, round: 0 };
 
   const wait = (ms: number) => new Promise<boolean>((resolve) => {
     resolvePendingWait = resolve;
@@ -49,13 +52,19 @@
   $: displayFinished = controlled ? controlledFinished : finished;
   $: decidedMaps = getSandboxDecidedMaps(match);
   $: currentMap = match.maps[displayActiveMap];
-  $: visibleRoundScores = currentMap ? currentMap.rounds.slice(0, displayVisibleRounds) : [];
-  $: currentRound = displayVisibleRounds > 0 ? currentMap?.rounds[displayVisibleRounds - 1] : null;
-  $: previousRound = displayVisibleRounds > 1 ? currentMap?.rounds[displayVisibleRounds - 2] : null;
+  $: currentMapFinished = Boolean(currentMap && currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0);
+  $: liveDetail = displayVisibleRounds > 0 ? currentMap?.details?.find((detail) => detail?.number === displayVisibleRounds) ?? null : null;
+  // The revealed round stays in progress (score, strip and ending unchanged) until its kill feed resolves it.
+  $: instantCommit = shouldCommitInstantly({ delay, finished: displayFinished, mapFinished: currentMapFinished });
+  $: committedRounds = getCommittedRounds(displayVisibleRounds, resolved.map === displayActiveMap ? resolved.round : 0, Boolean(liveDetail?.kills.length), instantCommit);
+  $: roundInProgress = displayStarted && committedRounds < displayVisibleRounds;
+  $: committedDetail = committedRounds > 0 ? currentMap?.details?.find((detail) => detail?.number === committedRounds) ?? null : null;
+  $: visibleRoundScores = currentMap ? currentMap.rounds.slice(0, committedRounds) : [];
+  $: currentRound = committedRounds > 0 ? currentMap?.rounds[committedRounds - 1] : null;
+  $: previousRound = committedRounds > 1 ? currentMap?.rounds[committedRounds - 2] : null;
   $: lastRoundWinner = currentRound
     ? (previousRound ? (currentRound.a > previousRound.a ? 'a' : 'b') : currentRound.a > 0 ? 'a' : 'b')
     : null;
-  $: currentMapFinished = Boolean(currentMap && currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0);
   $: inOvertime = Boolean(displayStarted && !displayFinished && !currentMapFinished && currentRound && (currentRound.overtime || (currentRound.a >= 12 && currentRound.b >= 12)));
   $: currentMapScore = currentMap
     ? getVisibleMapScore(currentMap, currentRound, { isComplete: displayFinished || currentMapFinished, isLive: displayStarted })
@@ -143,6 +152,10 @@
     notifyComplete();
   }
 
+  function handleRoundResolved(round: number) {
+    resolved = { map: displayActiveMap, round };
+  }
+
   function skipMap() {
     if (controlled) {
       onSkipMap();
@@ -185,17 +198,18 @@
     <div class="live-map">
       <div class="live-map-score">
         <span class:mine={userIsA}>{match.teamA.name}</span>
-        <b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>
+        {#key currentMapScore.a}<b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
         <i>:</i>
-        <b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>
+        {#key currentMapScore.b}<b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>{/key}
         <span class:mine={!userIsA}>{match.teamB.name}</span>
       </div>
+      <RoundFlash detail={committedDetail} cursor={`${match.id}:${displayActiveMap}:${committedRounds}`} language="pt-BR" {userIsA} />
       {#if inOvertime && currentMapScore}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={(headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
       <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} />
-      <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : lastRoundWinner ? `Round ${displayVisibleRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
+      <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : roundInProgress ? `Round ${displayVisibleRounds} · em andamento` : lastRoundWinner ? `Round ${committedRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
       {#if currentMap.details?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} {delay} language="pt-BR" {teamNames} />
+        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} {delay} language="pt-BR" {teamNames} onRoundResolved={handleRoundResolved} />
       {/if}
     </div>
   {/if}
@@ -241,7 +255,10 @@
   .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
-  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
+  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease;animation:scorePulse .45s ease-out}
+  @keyframes scorePulse{0%{transform:scale(1.25);color:var(--accent-2)}}
+  .live-map small.round-status{min-height:1.2em}.live-map small.in-progress{color:var(--text)}.live-map small.in-progress::after{content:'';display:inline-block;width:6px;height:6px;margin-left:7px;border-radius:50%;background:#ff3b3b;vertical-align:middle;animation:livePulse 1.1s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.live-map-score b,.live-map small.in-progress::after{animation:none}}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
   .live-map small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
   .map-headline{justify-self:center;padding:6px 14px;border:1px solid var(--text);color:var(--text);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;animation:headlineIn .4s ease-out}.map-headline.comeback{border-color:var(--accent-2);color:var(--accent-2);box-shadow:0 0 18px color-mix(in srgb,var(--accent-2) 40%,transparent)}.map-headline.mine{border-color:var(--accent);color:var(--accent)}
   .decided-map-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:18px 0}

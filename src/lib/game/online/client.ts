@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { PROTOCOL_VERSION, type ClientCommand, type ErrorCode, type RoomConfig, type RoomSnapshot, type ServerMessage } from './contracts';
+import { PROTOCOL_VERSION, roomConfigSchema, type ClientCommand, type ErrorCode, type RoomConfig, type RoomSnapshot, type ServerMessage } from './contracts';
 import { ONLINE_DATA_HASH } from './dataset';
 
 type ClientCommandInput = ClientCommand extends infer Command
@@ -17,6 +17,16 @@ export interface OnlineClientHandlers {
   onError: (message: string, code: OnlineClientErrorCode) => void;
 }
 
+type RunSnapshot = Pick<RoomSnapshot, 'phase' | 'season'>;
+
+/** True only when an authoritative snapshot moves the room into the draft of another run. */
+export function isNewOnlineRun(previous: RunSnapshot | null, next: RunSnapshot): boolean {
+  if (!previous || next.phase !== 'draft') return false;
+  if (previous.phase === 'completed') return true;
+  const seasonKey = (snapshot: RunSnapshot) => snapshot.season ? `${snapshot.season.number}:${snapshot.season.run}` : '';
+  return previous.phase !== 'lobby' && seasonKey(previous) !== seasonKey(next);
+}
+
 const tokenKey = (roomCode: string) => `cs13a0:online:resume:${roomCode}`;
 const RECONNECT_BASE_MS = 1_500;
 const RECONNECT_MAX_MS = 15_000;
@@ -25,6 +35,96 @@ const RECONNECT_MAX_ATTEMPTS = 8;
 const TERMINAL_CODES: ReadonlySet<ErrorCode> = new Set(['ROOM_NOT_FOUND', 'ROOM_STARTED', 'ROOM_FULL', 'NAME_TAKEN', 'PROTOCOL_MISMATCH', 'DATA_MISMATCH']);
 
 export const isValidRoomCode = (code: string) => /^[A-Z2-9]{8}$/.test(code);
+
+const IDENTITY_KEY = 'cs13a0:online:identity';
+const CONFIG_KEY = 'cs13a0:online:config';
+
+const readStoredValue = (key: string): string | null => {
+  if (!browser) return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredValue = (key: string, value: string): void => {
+  if (!browser) return;
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage is optional: online play and reconnection still work for the lifetime of this page.
+  }
+};
+
+const removeStoredValue = (key: string): void => {
+  if (!browser) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Best effort only.
+  }
+};
+
+const loadResumeToken = (roomCode: string): string | null => {
+  const token = readStoredValue(tokenKey(roomCode));
+  return token && token.length >= 32 && token.length <= 256 ? token : null;
+};
+
+export const hasOnlineResumeToken = (roomCode: string): boolean => Boolean(loadResumeToken(roomCode));
+
+export interface OnlineIdentity {
+  playerName: string;
+  organizationName: string;
+}
+
+const normalizeIdentity = (identity: Partial<OnlineIdentity> | null): OnlineIdentity | null => {
+  if (typeof identity?.playerName !== 'string' || typeof identity?.organizationName !== 'string') return null;
+  const playerName = identity.playerName.trim().slice(0, 24);
+  const organizationName = identity.organizationName.trim().slice(0, 24);
+  return playerName.length >= 2 && organizationName.length >= 2 ? { playerName, organizationName } : null;
+};
+
+/** Last player/organization names used to host or join a room, so the entry screen comes prefilled. */
+export function loadOnlineIdentity(): OnlineIdentity | null {
+  try {
+    const raw = readStoredValue(IDENTITY_KEY);
+    if (!raw) return null;
+    return normalizeIdentity(JSON.parse(raw) as Partial<OnlineIdentity> | null);
+  } catch {
+    return null;
+  }
+}
+
+export function saveOnlineIdentity(identity: OnlineIdentity) {
+  try {
+    const normalized = normalizeIdentity(identity);
+    if (normalized) writeStoredValue(IDENTITY_KEY, JSON.stringify(normalized));
+  } catch {
+    // Storage may be unavailable (private mode, quota); the cache is a convenience only.
+  }
+}
+
+/** Last room config the host used, validated against the current schema so stale shapes are ignored. */
+export function loadOnlineConfig(): RoomConfig | null {
+  try {
+    const raw = readStoredValue(CONFIG_KEY);
+    if (!raw) return null;
+    const result = roomConfigSchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveOnlineConfig(config: RoomConfig) {
+  try {
+    const result = roomConfigSchema.safeParse(config);
+    if (result.success) writeStoredValue(CONFIG_KEY, JSON.stringify(result.data));
+  } catch {
+    // Same as above: best effort.
+  }
+}
 
 export class OnlineRoomClient {
   private socket: WebSocket | null = null;
@@ -51,7 +151,7 @@ export class OnlineRoomClient {
     socket.addEventListener('open', () => {
       if (this.socket !== socket) return;
       this.handlers.onConnection('connected');
-      const resumeToken = localStorage.getItem(tokenKey(this.roomCode));
+      const resumeToken = loadResumeToken(this.roomCode);
       if (resumeToken) {
         this.sendRaw({ type: 'resume', requestId: this.requestId(), protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, resumeToken });
       } else {
@@ -69,11 +169,11 @@ export class OnlineRoomClient {
       if (message.type === 'ack') {
         this.joined = true;
         this.reconnectAttempts = 0;
-        if (message.resumeToken) localStorage.setItem(tokenKey(this.roomCode), message.resumeToken);
+        if (message.resumeToken) writeStoredValue(tokenKey(this.roomCode), message.resumeToken);
       } else if (message.type === 'snapshot') {
         this.handlers.onSnapshot(message.snapshot);
       } else if (message.code === 'RESUME_EXPIRED') {
-        localStorage.removeItem(tokenKey(this.roomCode));
+        removeStoredValue(tokenKey(this.roomCode));
         this.joined = false;
         this.joinWithIdentity();
       } else if (TERMINAL_CODES.has(message.code)) {

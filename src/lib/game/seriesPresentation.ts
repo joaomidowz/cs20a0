@@ -51,3 +51,38 @@ export function getDecidedMaps(series: Pick<SeriesResult, 'maps' | 'veto'>): Dec
     result: series.maps.find((map) => map.mapId === step.mapId) ?? null
   }));
 }
+
+/** Feed delays under this play the kills at once, so the round has no in-progress phase. */
+export const INSTANT_FEED_DELAY = 400;
+
+export interface RoundCommitState {
+  /** Milliseconds per round of the kill feed. */
+  delay: number;
+  /** The whole series is over (nothing may stay pending on screen). */
+  finished: boolean;
+  /** The revealed round is the last one of the map. */
+  mapFinished: boolean;
+}
+
+/** Whether the round just revealed must be committed on the spot instead of being played by the kill feed first. */
+export function shouldCommitInstantly(state: RoundCommitState): boolean {
+  return state.delay < INSTANT_FEED_DELAY || state.finished || state.mapFinished;
+}
+
+/**
+ * Rounds whose result may be shown (score, strip tick, ending line).
+ * The last revealed round stays "in progress" until its kill feed resolved it, unless there is no feed to play or the
+ * commit is instant. A previous round that never resolved commits as soon as the next one is revealed.
+ */
+export function getCommittedRounds(visibleRounds: number, resolvedRound: number, hasFeed: boolean, instant: boolean): number {
+  if (visibleRounds <= 0) return 0;
+  if (instant || !hasFeed) return visibleRounds;
+  return resolvedRound >= visibleRounds ? visibleRounds : visibleRounds - 1;
+}
+
+/** Which round detail should flash on screen: the last committed one, and only while it is the latest revealed round or the next one is still being played. */
+export function getFlashRound(visibleRounds: number, committedRounds: number): number | null {
+  if (committedRounds <= 0) return null;
+  if (visibleRounds - committedRounds > 1) return null;
+  return committedRounds;
+}

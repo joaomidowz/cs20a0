@@ -7,6 +7,8 @@
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
+  import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
+  import CollapsibleStats from '$lib/components/CollapsibleStats.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
@@ -15,6 +17,9 @@
   import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
   import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
   import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
+  import SeasonPanel from '$lib/components/online/SeasonPanel.svelte';
+  import RematchPanel from '$lib/components/online/RematchPanel.svelte';
+  import LiveSeriesSwitcher from '$lib/components/online/LiveSeriesSwitcher.svelte';
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
@@ -28,7 +33,7 @@
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
   import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
-  import { checkOnlineRoom, createOnlineRoom, isValidRoomCode, OnlineRoomClient, OnlineRoomCreationError, type OnlineClientErrorCode } from '$lib/game/online/client';
+  import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomClient, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -61,6 +66,8 @@
   let decisionCountdown = '';
   /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
   let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
+  /** Seconds left in the rematch window after a run ends (0 when closed). */
+  let rematchSeconds = 0;
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
@@ -85,6 +92,10 @@
   $: myDecision = liveSeries?.decision && liveSeries.decision.teamId === me?.id ? liveSeries.decision : null;
   $: mySeriesId = liveSeries?.series.userMatch && me ? liveSeries.series.id : null;
   $: myTimeouts = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? liveSeries.timeouts.a : liveSeries.timeouts.b) : 0;
+  /** The user's own series in the round being played, whether or not it is the one on screen. */
+  $: myLiveOverview = me ? liveCursor?.overviewSeries.find((series) => series.status === 'live' && (series.teamA.id === me?.id || series.teamB.id === me?.id)) ?? null : null;
+  /** True while the viewer shows a series the user is not playing (Major overview → watch). */
+  $: watchingOther = Boolean(liveSeries && !liveSeries.series.userMatch && myLiveOverview);
   $: liveDetailList = liveSeries && liveDetails.key === `${liveSeries.series.id}:${liveSeries.activeMap}` ? liveDetails.rounds : null;
   $: liveTeamNames = liveSeries ? { [liveSeries.series.teamA.id]: liveSeries.series.teamA.name, [liveSeries.series.teamB.id]: liveSeries.series.teamB.name } as Record<string, string> : {};
   $: myFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(onlineMapContributors[mapId].length)])) as Record<MapId, number>;
@@ -111,9 +122,16 @@
   $: selectedOrganizationView = selectedOrganizationId ? buildOrganizationView(selectedOrganizationId) : null;
 
   onMount(() => {
+    const cachedIdentity = loadOnlineIdentity();
+    if (cachedIdentity) {
+      playerName = cachedIdentity.playerName;
+      organizationName = cachedIdentity.organizationName;
+    }
+    const cachedConfig = loadOnlineConfig();
+    if (cachedConfig) config = cachedConfig;
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
-    if (roomCode && localStorage.getItem(`cs13a0:online:resume:${roomCode}`)) connect();
+    if (roomCode && hasOnlineResumeToken(roomCode)) connect();
   });
 
   onDestroy(() => {
@@ -141,6 +159,7 @@
       case 'INVALID_MAP': return t('invalidMap');
       case 'TIMEOUT_UNAVAILABLE': return t('timeoutUnavailable');
       case 'SERIES_MISMATCH': return t('seriesMismatch');
+      case 'REMATCH_CLOSED': return t('rematchClosed');
       default: return fallback;
     }
   }
@@ -148,6 +167,8 @@
   function updateCountdown() {
     const decisionDeadline = snapshot?.self?.pendingDecision?.deadlineAt ?? null;
     decisionCountdown = decisionDeadline === null ? '' : `${Math.max(0, Math.ceil((decisionDeadline - (Date.now() + serverOffset)) / 1_000))}s`;
+    const rematchDeadline = snapshot?.season?.rematch?.deadlineAt ?? null;
+    rematchSeconds = rematchDeadline === null ? 0 : Math.max(0, Math.ceil((rematchDeadline - (Date.now() + serverOffset)) / 1_000));
     if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5 && snapshot.deadlineStage !== 'confirmation')) {
       countdown = '';
       return;
@@ -170,6 +191,8 @@
     if (!validIdentity()) return;
     creating = true;
     errorMessage = '';
+    saveOnlineIdentity({ playerName, organizationName });
+    saveOnlineConfig(config);
     try {
       roomCode = await createOnlineRoom(getOnlineServerUrl(), config);
       const url = new URL(window.location.href);
@@ -192,6 +215,7 @@
     }
     errorMessage = '';
     creating = true;
+    saveOnlineIdentity({ playerName, organizationName });
     try {
       if (!(await checkOnlineRoom(getOnlineServerUrl(), roomCode))) {
         errorMessage = t('roomNotFound');
@@ -215,19 +239,24 @@
       onConnection: (state) => {
         if (state === 'expired') {
           // The room moved on without us (or the resume token died): back to the entry screen instead of a frozen snapshot.
+          resetTransientRoomState();
           snapshot = null;
           connection = 'disconnected';
-          countdown = '';
           if (!errorMessage) errorMessage = t('sessionExpired');
           return;
         }
         connection = state;
       },
       onSnapshot: (next) => {
+        const previous = snapshot;
+        const newRun = isNewOnlineRun(previous, next);
         snapshot = next;
         serverOffset = next.serverTime - Date.now();
         config = next.config;
+        if (newRun) startNewRun(next);
         mergeLiveDetails(next);
+        // A fresh authoritative snapshot confirms that a transient reconnect error no longer applies.
+        errorMessage = '';
         if (next.self) {
           const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
           const nextProKey = next.self.proPickedPlayerIds.join('|');
@@ -267,6 +296,41 @@
     liveDetails = { key, rounds };
   }
 
+  /** A rematch brought the room back to the draft: nothing from the previous run may linger on screen. */
+  function startNewRun(next: RoomSnapshot) {
+    resetTransientRoomState();
+    showToast(next.season ? `${t('newRun')} · ${t('season')} ${next.season.number}` : t('newRun'));
+  }
+
+  /** Clears view-only state; room identity and host preferences remain cached for the next connection. */
+  function resetTransientRoomState() {
+    proAssignments = {};
+    proStyle = 'balanced';
+    provisionalMapPreferences = [];
+    mapLineupKey = '';
+    proLineupKey = '';
+    liveDetails = { key: '', rounds: [] };
+    expandedTimelineMatch = null;
+    detailsPlayer = null;
+    selectedOrganizationId = null;
+    activeTab = 'current';
+    countdown = '';
+    decisionCountdown = '';
+    rematchSeconds = 0;
+    downloadingImage = false;
+  }
+
+  function voteRematch(accept: boolean) {
+    send({ type: 'rematch-vote', accept });
+  }
+
+  /** Switches the live viewer to another series of the round (null returns to the user's own). */
+  function watchSeries(seriesId: string | null) {
+    if (seriesId !== (liveSeries?.series.id ?? null)) liveDetails = { key: '', rounds: [] };
+    send({ type: 'watch-match', seriesId });
+    activeTab = 'current';
+  }
+
   function send(command: Parameters<OnlineRoomClient['send']>[0]) {
     errorMessage = '';
     client?.send(command);
@@ -276,6 +340,7 @@
     const next = { ...config, ...patch };
     if (next.entryStage === 'playoffs' && next.capacity > 8) next.capacity = 8;
     config = next;
+    saveOnlineConfig(next);
     send({ type: 'configure', config: next });
   }
 
@@ -465,6 +530,10 @@
         <div class="room-code"><span>{t('roomCode')}</span><button type="button" aria-label={`${t('copyLink')} · ${roomCode}`} on:click={copyRoomLink}>{roomCode}</button></div>
       </header>
 
+      {#if snapshot.season && (snapshot.phase === 'lobby' || snapshot.phase === 'draft')}
+        <SeasonPanel season={snapshot.season} language={$language} selfParticipantId={self?.participantId ?? null} inProgress compact />
+      {/if}
+
       {#if snapshot.phase === 'lobby'}
         <div class="lobby-grid">
           <section class="panel participants-panel">
@@ -484,6 +553,7 @@
             <label><span>{t('deadline')}</span><select value={String(config.draftDeadlineSeconds ?? 'off')} disabled={!isHost} on:change={(event) => saveConfig({ draftDeadlineSeconds: (event.currentTarget as HTMLSelectElement).value === 'off' ? null : Number((event.currentTarget as HTMLSelectElement).value) as 60 | 120 | 180 | 300 })}><option value="60">60s</option><option value="120">120s</option><option value="180">180s</option><option value="300">300s</option><option value="off">{t('deadlineOff')}</option></select></label>
             <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
+            <label><span>{t('seasonLength')}</span><select value={String(config.seasonRuns)} disabled={!isHost} on:change={(event) => saveConfig({ seasonRuns: Number((event.currentTarget as HTMLSelectElement).value) as RoomConfig['seasonRuns'] })}><option value="1">{t('seasonSingleRun')}</option><option value="2">2 runs</option><option value="3">3 runs</option><option value="4">4 runs</option></select><small class="mode-description">{t('seasonLengthHint')}</small></label>
             {#if isHost}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
         </div>
@@ -581,6 +651,13 @@
             </div>
           {/if}
 
+          {#if snapshot.phase === 'completed' && snapshot.season}
+            {#if snapshot.season.rematch}
+              <RematchPanel rematch={snapshot.season.rematch} participants={snapshot.participants} selfParticipantId={self?.participantId ?? null} secondsLeft={rematchSeconds} language={$language} onVote={voteRematch} />
+            {/if}
+            <SeasonPanel season={snapshot.season} language={$language} selfParticipantId={self?.participantId ?? null} />
+          {/if}
+
           <div class="major-tabs"><SegmentedControl value={activeTab} label={t('title')} options={[{ value: 'current', label: t('currentGame') }, { value: 'all', label: t('allGames') }]} onChange={(value) => activeTab = value as 'current' | 'all'} /></div>
 
           {#if activeTab === 'current'}
@@ -615,12 +692,26 @@
                   labels={{ champion: gameT('champion'), eliminated: gameT('eliminated'), placement: gameT('placement'), record: gameT('record'), maps: gameT('maps'), mvp: gameT('runMvp') }}
                 />
                 <section class="online-stats">
-                  <div class="section-heading"><div><span class="eyebrow">POST-MAJOR</span><h2>{gameT('stats')}</h2></div></div>
-                  <RunStatsGrid stats={snapshot.selfResult.stats} language={$language} players={ownDisplayPlayers} />
+                  <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>{gameT('majorMvp')}</h2></div></div>
+                  <MajorAwardsPanel awards={snapshot.tournament?.awards ?? null} language={$language} userTeamId={me?.id ?? null} onTeam={openOrganization} />
+                  <CollapsibleStats eyebrow="POST-MAJOR" title={gameT('stats')} language={$language}>
+                    <RunStatsGrid stats={snapshot.selfResult.stats} language={$language} players={ownDisplayPlayers} />
+                  </CollapsibleStats>
                 </section>
                 <div class="result-actions online-result-actions"><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{gameT('downloadRunImage')}</button></div>
               {/if}
             {:else if liveSeries}
+              <LiveSeriesSwitcher series={liveCursor?.overviewSeries ?? []} activeId={liveSeries.series.id} myTeamId={me?.id ?? ''} labels={{ title: t('liveMatches'), myMatch: t('myMatch'), live: t('live') }} onSelect={watchSeries} />
+              {#if watchingOther}
+                <div class="watch-bar" class:alert={Boolean(self?.pendingDecision)} role={self?.pendingDecision ? 'alert' : 'status'}>
+                  <div>
+                    <span class="eyebrow">{t('watching').toUpperCase()}</span>
+                    <strong>{liveSeries.series.teamA.name} <em>x</em> {liveSeries.series.teamB.name}</strong>
+                    {#if self?.pendingDecision}<b>{t('decisionPendingElsewhere')}{#if decisionCountdown} · {decisionCountdown}{/if}</b>{/if}
+                  </div>
+                  <button class:primary={Boolean(self?.pendingDecision)} class:secondary={!self?.pendingDecision} type="button" on:click={() => watchSeries(null)}>{t('backToMyMatch')}</button>
+                </div>
+              {/if}
               {#if liveSeries.phase === 'veto' && liveSeries.veto}
                 <VetoBoard
                   available={liveSeries.veto.available}
@@ -669,6 +760,7 @@
                 {#if isHost}<button class="primary wide next-match" type="button" on:click={() => send({ type: 'advance-round' })}>{t('startRound')} →</button>{:else}<p class="host-wait panel">{t('waitingHost')}</p>{/if}
               {/if}
             {:else}
+              <LiveSeriesSwitcher series={liveCursor?.overviewSeries ?? []} activeId={null} myTeamId={me?.id ?? ''} labels={{ title: t('liveMatches'), myMatch: t('myMatch'), live: t('live') }} onSelect={watchSeries} />
               <section class="panel waiting-panel"><div class="scanner"><span></span></div><h2>{t('noGames')}</h2></section>
             {/if}
 
@@ -698,7 +790,7 @@
               {#if !ownCompletedSeries.length}<p class="timeline-empty">{gameT('waitingResult')}</p>{/if}
             </aside>
           {:else}
-            <MajorOverview tournament={onlineTournament} cursor={onlineCursor} userTeamId={me?.id ?? ''} language={$language} onTeam={openOrganization} showLiveScores />
+            <MajorOverview tournament={onlineTournament} cursor={onlineCursor} userTeamId={me?.id ?? ''} language={$language} onTeam={openOrganization} onSeries={snapshot.phase === 'completed' ? null : (id) => watchSeries(id)} showLiveScores />
           {/if}
         </section>
       {/if}
@@ -735,6 +827,7 @@
 <style>
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
+  .watch-bar{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:44px;padding:0 14px}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}

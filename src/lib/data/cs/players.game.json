@@ -1664,17 +1664,17 @@
       "awper",
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "legend",
     "traits": [],
     "overall": 94,
-    "firepower": 85,
-    "clutch": 84,
+    "firepower": 99,
+    "clutch": 88,
     "entry": 83,
-    "awp": 93,
+    "awp": 99,
     "support": 78,
     "igl": 30,
-    "experience": 89,
-    "consistency": 84,
+    "experience": 95,
+    "consistency": 95,
     "mental": 85,
     "badges": [],
     "awardBadges": [],
@@ -2773,13 +2773,13 @@
       "awpIgl",
       "majorAura"
     ],
-    "overall": 97,
+    "overall": 99,
     "firepower": 98,
     "clutch": 96,
     "entry": 87,
     "awp": 99,
     "support": 88,
-    "igl": 96,
+    "igl": 99,
     "experience": 96,
     "consistency": 96,
     "mental": 98,
@@ -4489,7 +4489,8 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "needsReview": false
   },
   {
     "id": "fer-2016",
@@ -7719,18 +7720,18 @@
       "awper",
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "legend",
     "traits": [],
     "overall": 94,
     "firepower": 85,
-    "clutch": 84,
+    "clutch": 98,
     "entry": 83,
-    "awp": 93,
+    "awp": 99,
     "support": 78,
     "igl": 30,
-    "experience": 89,
-    "consistency": 84,
-    "mental": 85,
+    "experience": 94,
+    "consistency": 90,
+    "mental": 92,
     "badges": [
       "major-participant",
       "needs-roster-review"
@@ -10162,7 +10163,8 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "needsReview": false
   },
   {
     "id": "fer-2017",
@@ -12188,18 +12190,18 @@
       "awper",
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "superstar",
     "traits": [],
     "overall": 94,
     "firepower": 85,
     "clutch": 84,
     "entry": 83,
-    "awp": 93,
+    "awp": 99,
     "support": 78,
     "igl": 30,
-    "experience": 89,
-    "consistency": 84,
-    "mental": 85,
+    "experience": 97,
+    "consistency": 91,
+    "mental": 93,
     "badges": [
       "major-participant",
       "needs-roster-review"
@@ -13607,7 +13609,8 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "needsReview": false
   },
   {
     "id": "fer-2018",
@@ -17237,18 +17240,18 @@
       "lurker",
       "rifler"
     ],
-    "rarity": "rare",
+    "rarity": "legend",
     "traits": [],
-    "overall": 93,
-    "firepower": 82,
-    "clutch": 87,
-    "entry": 77,
+    "overall": 95,
+    "firepower": 99,
+    "clutch": 94,
+    "entry": 83,
     "awp": 50,
     "support": 92,
-    "igl": 82,
-    "experience": 89,
-    "consistency": 84,
-    "mental": 85,
+    "igl": 95,
+    "experience": 95,
+    "consistency": 90,
+    "mental": 97,
     "badges": [
       "major-participant",
       "needs-roster-review"
@@ -17265,7 +17268,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "IEM Katowice Major 2019"
+    "sourceEvent": "IEM Katowice Major 2019",
+    "hltvTop20": null
   },
   {
     "id": "zellsis-2019",
@@ -21406,7 +21410,7 @@
     "entry": 84,
     "awp": 18,
     "support": 92,
-    "igl": 94,
+    "igl": 98,
     "experience": 92,
     "consistency": 87,
     "mental": 93,
@@ -21420,7 +21424,8 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "roleConfidence": "medium"
+    "roleConfidence": "medium",
+    "needsReview": false
   },
   {
     "id": "ropz-2019",

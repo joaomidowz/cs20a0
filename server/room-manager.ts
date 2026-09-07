@@ -2,12 +2,15 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game/proMode';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
 import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
+import { computeMajorAwards } from '../src/lib/game/majorAwards';
 import { createRunStats } from '../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng, orientSeriesToTeam } from '../src/lib/game/simulation';
-import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, Roster, SeriesResult } from '../src/lib/game/types';
+import type { CombatTeam, MajorAwards, MajorRun, MapId, MapResult, OrgStyle, Player, Roster, SeriesResult } from '../src/lib/game/types';
 import {
   DEFAULT_ROOM_CONFIG,
   PROTOCOL_VERSION,
+  REMATCH_WINDOW_MS,
+  seasonPointsFor,
   toPresentationGameMode,
   type ClientCommand,
   type ErrorCode,
@@ -18,6 +21,9 @@ import {
   type PublicParticipant,
   type PublicPendingDecision,
   type PublicRoundDetail,
+  type PublicSeason,
+  type PublicSeasonRunResult,
+  type PublicSeasonStanding,
   type RoomConfig,
   type RoomPhase,
   type RoomSnapshot
@@ -103,6 +109,33 @@ interface LiveSeriesRuntime {
   decisionKey: string | null;
 }
 
+/** One organization's line in the season table, keyed by its normalized name so a rejoining participant keeps it. */
+interface SeasonLine {
+  participantId: string | null;
+  organizationName: string;
+  playerName: string;
+  /** First join of the organization in this room; the last tiebreak of the season table. */
+  joinedAt: number;
+  runs: PublicSeasonRunResult[];
+}
+
+interface SeasonState {
+  number: number;
+  /** Runs completed in the current season. */
+  run: number;
+  results: Map<string, SeasonLine>;
+  championName: string | null;
+}
+
+/** Acceptance window offered after every run: whoever accepts plays the next run together. */
+interface RematchState {
+  deadlineAt: number;
+  /** Participants present when the run ended. Every one of them owns the full acceptance window, even offline. */
+  eligible: Set<string>;
+  accepted: Set<string>;
+  declined: Set<string>;
+}
+
 interface RoomState {
   code: string;
   seed: string;
@@ -123,6 +156,10 @@ interface RoomState {
   nextRoundAt: number | null;
   emptySince: number | null;
   resultCache: { version: number; result: OnlineTournamentResult } | null;
+  season: SeasonState;
+  rematch: RematchState | null;
+  /** Awards of the completed run, computed once when the champion is known. */
+  awards: MajorAwards | null;
 }
 
 export interface JoinResult {
@@ -156,9 +193,10 @@ const publicDecision = (pending: PendingSeriesDecision, deadlineAt: number | nul
 
 /**
  * The viewer's picture of a live series: oriented so `focusId` is team A, hidden ratings zeroed, the kill feed limited
- * to the last rounds of the live map (and only when `includeDetails`). Future results do not exist yet, so they cannot leak.
+ * to the last rounds of the live map (and only when `includeDetails`). `userMatch` tells whether the viewer's own
+ * organization plays in it, whatever the focus. Future results do not exist yet, so they cannot leak.
  */
-function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, includeDetails: boolean): PublicLiveSeries {
+function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, viewerId: string | null, includeDetails: boolean): PublicLiveSeries {
   const { state } = runtime;
   const oriented = orientSeriesToTeam(toSeriesResult(state), focusId);
   const flipped = oriented.teamA.id !== state.config.teamA.id;
@@ -176,7 +214,7 @@ function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, include
       teamA: publicTeam(oriented.teamA, oriented.teamA.id === focusId),
       teamB: publicTeam(oriented.teamB, oriented.teamB.id === focusId),
       maps,
-      userMatch: oriented.teamA.id === focusId || oriented.teamB.id === focusId
+      userMatch: viewerId !== null && (oriented.teamA.id === viewerId || oriented.teamB.id === viewerId)
     },
     activeMap,
     visibleRounds: maps[activeMap]?.rounds.length ?? 0,
@@ -222,6 +260,24 @@ const randomRoomCode = () => {
 
 const normalizeName = (value: string) => value.trim().toLocaleLowerCase('en-US');
 
+const PLACEMENT_RANK: Record<string, number> = { placementChampion: 0, placementRunnerUp: 1, placement3to4: 2, placement5to8: 3 };
+const placementRank = (placement: string) => PLACEMENT_RANK[placement] ?? 4;
+const seasonPoints = (line: SeasonLine) => line.runs.reduce((sum, run) => sum + run.points, 0);
+const seasonTitles = (line: SeasonLine) => line.runs.filter((run) => run.champion).length;
+
+/** Season table order: points, then titles, then the better last run, then who joined the room first. */
+const seasonOrder = (left: SeasonLine, right: SeasonLine) => {
+  const lastLeft = left.runs.at(-1);
+  const lastRight = right.runs.at(-1);
+  return seasonPoints(right) - seasonPoints(left) ||
+    seasonTitles(right) - seasonTitles(left) ||
+    placementRank(lastLeft?.placement ?? 'placementStage3') - placementRank(lastRight?.placement ?? 'placementStage3') ||
+    (lastRight?.points ?? 0) - (lastLeft?.points ?? 0) ||
+    left.joinedAt - right.joinedAt;
+};
+
+const emptySeason = (number: number): SeasonState => ({ number, run: 0, results: new Map(), championName: null });
+
 export class RoomManager {
   private readonly rooms = new Map<string, RoomState>();
 
@@ -245,7 +301,10 @@ export class RoomManager {
       roundStarted: false,
       nextRoundAt: null,
       emptySince: now,
-      resultCache: null
+      resultCache: null,
+      season: emptySeason(1),
+      rematch: null,
+      awards: null
     });
     return code;
   }
@@ -287,7 +346,7 @@ export class RoomManager {
   resume(code: string, resumeToken: string, now = Date.now()): JoinResult {
     const room = this.requireRoom(code);
     const participant = [...room.participants.values()].find((candidate) => candidate.resumeToken === resumeToken);
-    if (!participant || (participant.disconnectedAt !== null && now - participant.disconnectedAt > RESUME_TTL_MS)) {
+    if (!participant || (participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS)) {
       throw new RoomError('RESUME_EXPIRED', 'Resume token is invalid or expired');
     }
     participant.connected = true;
@@ -383,6 +442,21 @@ export class RoomManager {
       }
       case 'watch-match':
         participant.watchedSeriesId = command.seriesId;
+        break;
+      case 'rematch-vote':
+        if (
+          room.phase !== 'completed' ||
+          !room.rematch ||
+          now >= room.rematch.deadlineAt ||
+          !room.rematch.eligible.has(participant.id)
+        ) throw new RoomError('REMATCH_CLOSED', 'The rematch window is closed');
+        if (command.accept) {
+          room.rematch.accepted.add(participant.id);
+          room.rematch.declined.delete(participant.id);
+        } else {
+          room.rematch.declined.add(participant.id);
+          room.rematch.accepted.delete(participant.id);
+        }
         break;
       case 'configure-simulation':
         this.requireHost(room, participantId);
@@ -492,7 +566,8 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true },
+      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true },
+      season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
       roomCode: room.code,
@@ -558,6 +633,7 @@ export class RoomManager {
       this.returnToLobby(room);
       return true;
     }
+    if (room.phase === 'completed' && room.rematch && this.resolveRematch(room, now)) return true;
     if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
       if (room.deadlineStage === 'confirmation') {
         for (const participant of room.participants.values()) this.autocompleteConfirmation(room, participant);
@@ -595,6 +671,7 @@ export class RoomManager {
             room.phase = 'completed';
             room.live = new Map();
             room.nextRoundAt = null;
+            this.completeRun(room, now);
           } else {
             this.prepareRound(room);
             room.nextRoundAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
@@ -614,6 +691,107 @@ export class RoomManager {
     room.deadlineStage = null;
     for (const participant of room.participants.values()) participant.draft = emptyDraftState();
     room.version += 1;
+  }
+
+  /**
+   * The run just ended: every human's placement becomes season points, the awards of the whole field are computed
+   * once, the season champion is declared after its last run and the rematch window opens for everybody.
+   */
+  private completeRun(room: RoomState, now: number) {
+    const result = toResult(room.engine!);
+    room.awards = computeMajorAwards(result.rounds, result.championId);
+    const season = room.season;
+    const runNumber = season.run + 1;
+    for (const participant of [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)) {
+      const placement = result.campaigns.find((campaign) => campaign.organizationId === participant.id)?.placement ?? 'placementStage3';
+      const stage3Wins = result.rounds.flatMap((round) => round.series)
+        .filter((series) => series.phase === 'stage3' && series.winnerId === participant.id).length;
+      const key = normalizeName(participant.organizationName);
+      const line = season.results.get(key) ?? {
+        participantId: participant.id,
+        organizationName: participant.organizationName,
+        playerName: participant.playerName,
+        joinedAt: participant.joinedAt,
+        runs: []
+      };
+      line.participantId = participant.id;
+      line.playerName = participant.playerName;
+      line.runs.push({ run: runNumber, placement, points: seasonPointsFor(placement, stage3Wins), champion: result.championId === participant.id });
+      season.results.set(key, line);
+    }
+    season.run = runNumber;
+    if (season.run >= room.config.seasonRuns) season.championName = [...season.results.values()].sort(seasonOrder)[0]?.organizationName ?? null;
+    room.rematch = {
+      deadlineAt: now + REMATCH_WINDOW_MS,
+      eligible: new Set(room.participants.keys()),
+      accepted: new Set(),
+      declined: new Set()
+    };
+  }
+
+  /**
+   * Closes the rematch window once its deadline passes or every participant who finished the run has voted. Two or more
+   * acceptances restart the room with them; otherwise the room simply stays completed.
+   */
+  private resolveRematch(room: RoomState, now: number): boolean {
+    const rematch = room.rematch!;
+    const everyoneVoted = rematch.eligible.size > 0 && [...rematch.eligible]
+      .every((participantId) => rematch.accepted.has(participantId) || rematch.declined.has(participantId));
+    if (now < rematch.deadlineAt && !everyoneVoted) return false;
+    const accepted = [...room.participants.values()]
+      .filter((participant) => rematch.eligible.has(participant.id) && rematch.accepted.has(participant.id));
+    room.rematch = null;
+    if (accepted.length >= 2) this.restartRoom(room, accepted, now);
+    room.version += 1;
+    return true;
+  }
+
+  /** Starts the next run with the participants who accepted: a fresh draft on a new seed, straight into the draft phase. */
+  private restartRoom(room: RoomState, accepted: ParticipantState[], now: number) {
+    const keep = new Set(accepted.map((participant) => participant.id));
+    for (const participantId of [...room.participants.keys()]) {
+      if (!keep.has(participantId)) room.participants.delete(participantId);
+    }
+    for (const participant of room.participants.values()) {
+      participant.draft = emptyDraftState();
+      participant.watchedSeriesId = null;
+    }
+    room.seed = randomBytes(24).toString('base64url');
+    room.engine = null;
+    room.organizations = null;
+    room.live = new Map();
+    room.resultCache = null;
+    room.awards = null;
+    room.roundStarted = false;
+    room.nextRoundAt = null;
+    room.hostParticipantId = [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)[0]?.id ?? null;
+    if (room.season.run >= room.config.seasonRuns) room.season = emptySeason(room.season.number + 1);
+    room.phase = 'draft';
+    room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
+    room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+  }
+
+  /** The points table; null until the room's first run ends (a fresh season afterwards shows run 0 and no standings). */
+  private publicSeason(room: RoomState): PublicSeason | null {
+    const { season } = room;
+    if (season.number === 1 && season.run === 0) return null;
+    const standings: PublicSeasonStanding[] = [...season.results.values()].sort(seasonOrder).map((line) => ({
+      participantId: line.participantId && room.participants.has(line.participantId) ? line.participantId : null,
+      organizationName: line.organizationName,
+      playerName: line.playerName,
+      points: seasonPoints(line),
+      runs: line.runs.map((run) => ({ ...run }))
+    }));
+    return {
+      number: season.number,
+      run: season.run,
+      totalRuns: room.config.seasonRuns,
+      standings,
+      championName: season.championName,
+      rematch: room.rematch
+        ? { deadlineAt: room.rematch.deadlineAt, accepted: [...room.rematch.accepted], declined: [...room.rematch.declined] }
+        : null
+    };
   }
 
   /** Fills whatever is still missing after the confirmation window, keeping every role the participant already chose. */
@@ -752,6 +930,7 @@ export class RoomManager {
   private publicTournament(room: RoomState, participantId: string | null) {
     const tournament = revealTournament(this.tournamentResult(room), completedRoundCount(room.engine!));
     tournament.liveCursor = this.liveCursor(room, participantId);
+    if (room.phase === 'completed') tournament.awards = room.awards;
     return tournament;
   }
 
@@ -771,12 +950,11 @@ export class RoomManager {
     const standings = revealTournament(this.tournamentResult(room), completedRoundCount(engine)).standings;
     const seedById = new Map(standings.map((standing) => [standing.organizationId, standing.seed]));
     const participant = participantId ? room.participants.get(participantId) ?? null : null;
-    let primary = participantId ? runtimes.find((runtime) => runtime.state.config.teamA.id === participantId || runtime.state.config.teamB.id === participantId) : undefined;
-    let focusId = participantId ?? '';
-    if (!primary && participant?.watchedSeriesId) {
-      primary = room.live.get(participant.watchedSeriesId);
-      focusId = primary?.state.config.teamA.id ?? '';
-    }
+    const plays = (runtime: LiveSeriesRuntime) => Boolean(participantId) && (runtime.state.config.teamA.id === participantId || runtime.state.config.teamB.id === participantId);
+    // A live series being watched takes precedence over the viewer's own; a stale watch id falls back to the usual pick.
+    const watched = participant?.watchedSeriesId ? room.live.get(participant.watchedSeriesId) : undefined;
+    let primary = watched ?? runtimes.find(plays);
+    let focusId = primary && plays(primary) ? participantId! : primary?.state.config.teamA.id ?? '';
     if (!primary) {
       const humanCandidates = runtimes
         .flatMap((runtime) => [runtime.state.config.teamA.id, runtime.state.config.teamB.id].filter((id) => !id.startsWith('bot-')).map((id) => ({ runtime, id })))
@@ -790,13 +968,13 @@ export class RoomManager {
       ? 'completed'
       : room.roundStarted ? 'live'
         : room.config.simulationMode === 'manual' ? 'waiting_host' : 'waiting';
-    const ownSeries = Boolean(participantId && primary && (primary.state.config.teamA.id === participantId || primary.state.config.teamB.id === participantId));
+    const ownSeries = Boolean(primary && plays(primary));
     return {
       tournamentRound: completedRoundCount(engine) + 1,
       phase: round?.phase ?? engine.rounds.at(-1)?.phase ?? 'final',
       status,
       nextRoundAt: room.nextRoundAt,
-      primarySeries: primary ? sanitizeLiveSeries(primary, focusId, ownSeries || Boolean(participant?.watchedSeriesId)) : null,
+      primarySeries: primary ? sanitizeLiveSeries(primary, focusId, participantId, ownSeries || Boolean(participant?.watchedSeriesId)) : null,
       overviewSeries: runtimes.map((runtime) => overviewSeries(runtime, room.roundStarted))
     };
   }

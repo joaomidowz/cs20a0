@@ -1,7 +1,17 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, MapId, MapSide, MapVetoStep, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, MajorAwards, MapId, MapSide, MapVetoStep, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 6 as const;
+export const PROTOCOL_VERSION = 7 as const;
+/** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
+export const REMATCH_WINDOW_MS = 10_000;
+/** Season points by placement; Stage 3 eliminations score one point per series won (0-2). */
+export const SEASON_POINTS: Record<string, number> = {
+  placementChampion: 10,
+  placementRunnerUp: 7,
+  placement3to4: 5,
+  placement5to8: 3
+};
+export const seasonPointsFor = (placement: string, stage3Wins: number) => SEASON_POINTS[placement] ?? Math.max(0, Math.min(2, stage3Wins));
 export const ROOM_CODE_LENGTH = 8;
 
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
@@ -15,7 +25,9 @@ export const roomConfigSchema = z.object({
   capacity: z.number().int().min(2).max(16),
   draftDeadlineSeconds: z.union([z.literal(60), z.literal(120), z.literal(180), z.literal(300), z.null()]),
   simulationMode: z.enum(['automatic', 'manual']),
-  simulationSpeed: z.enum(['normal', 'fast', 'ultra'])
+  simulationSpeed: z.enum(['normal', 'fast', 'ultra']),
+  /** Runs of a season: points add up across them and the season champion is declared after the last one. */
+  seasonRuns: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default(1)
 }).strict().superRefine((config, context) => {
   if (config.entryStage === 'playoffs' && config.capacity > 8) {
     context.addIssue({ code: 'custom', path: ['capacity'], message: 'Playoffs rooms support at most 8 participants' });
@@ -23,6 +35,8 @@ export const roomConfigSchema = z.object({
 });
 
 export type RoomConfig = z.infer<typeof roomConfigSchema>;
+/** What a client may send: `seasonRuns` is optional and defaults to a single run. */
+export type RoomConfigInput = z.input<typeof roomConfigSchema>;
 
 export const DEFAULT_ROOM_CONFIG: RoomConfig = {
   mode: 'premier',
@@ -30,7 +44,8 @@ export const DEFAULT_ROOM_CONFIG: RoomConfig = {
   capacity: 16,
   draftDeadlineSeconds: 120,
   simulationMode: 'automatic',
-  simulationSpeed: 'normal'
+  simulationSpeed: 'normal',
+  seasonRuns: 1
 };
 
 const requestIdSchema = z.string().min(8).max(80);
@@ -77,7 +92,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     simulationSpeed: z.enum(['normal', 'fast', 'ultra']).optional()
   }).strict(),
   baseCommandSchema.extend({ type: z.literal('advance-round') }).strict(),
-  // Live decisions (protocol 6). `seriesId` guards against a decision landing after the series moved on.
+  // Live decisions (protocol 7). `seriesId` guards against a decision landing after the series moved on.
   baseCommandSchema.extend({
     type: z.literal('veto-action'),
     seriesId: seriesIdSchema,
@@ -88,7 +103,9 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   baseCommandSchema.extend({ type: z.literal('pick-side'), seriesId: seriesIdSchema, side: z.enum(['ct', 't']) }).strict(),
   baseCommandSchema.extend({ type: z.literal('call-timeout'), seriesId: seriesIdSchema }).strict(),
-  baseCommandSchema.extend({ type: z.literal('eco-call'), seriesId: seriesIdSchema, call: z.enum(['force', 'eco']) }).strict()
+  baseCommandSchema.extend({ type: z.literal('eco-call'), seriesId: seriesIdSchema, call: z.enum(['force', 'eco']) }).strict(),
+  /** Season (protocol 7): accept or decline the rematch offered during the window after a run ends. */
+  baseCommandSchema.extend({ type: z.literal('rematch-vote'), accept: z.boolean() }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -176,6 +193,8 @@ export interface PublicTournament {
   championId: string | null;
   currentRound: number;
   liveCursor: PublicLiveCursor | null;
+  /** MVP, best lineup and top players of the whole Major; only sent once the room is completed. */
+  awards?: MajorAwards | null;
   campaigns?: Array<{
     organizationId: string;
     seriesWon: number;
@@ -232,9 +251,47 @@ export interface SelfDraftState {
   pendingDecision: { seriesId: string; kind: PublicPendingDecision['kind']; deadlineAt: number | null } | null;
 }
 
+export interface PublicSeasonRunResult {
+  run: number;
+  placement: string;
+  points: number;
+  champion: boolean;
+}
+
+export interface PublicSeasonStanding {
+  /** Current participant id when the organization is still in the room, null when it left after a run. */
+  participantId: string | null;
+  organizationName: string;
+  playerName: string;
+  points: number;
+  runs: PublicSeasonRunResult[];
+}
+
+/**
+ * Points table of the room across its runs. A season is `totalRuns` long; once the last run ends the champion is
+ * declared and the next rematch opens a new season. `rematch` is non-null only during the acceptance window.
+ */
+export interface PublicSeason {
+  /** Season number in this room (starts at 1). */
+  number: number;
+  /** Runs completed in the current season. */
+  run: number;
+  totalRuns: number;
+  standings: PublicSeasonStanding[];
+  /** Organization that won the season, once `run >= totalRuns`. */
+  championName: string | null;
+  rematch: {
+    deadlineAt: number;
+    /** Participants who already accepted the rematch. */
+    accepted: string[];
+    /** Participants who declined. */
+    declined: string[];
+  } | null;
+}
+
 export interface RoomSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION;
-  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true };
+  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true; season: true };
   dataHash: string;
   version: number;
   roomCode: string;
@@ -249,6 +306,8 @@ export interface RoomSnapshot {
   tournament: PublicTournament | null;
   organizations?: PublicOrganization[];
   selfResult?: PublicSelfResult | null;
+  /** Points across the runs of this room (null before the first run ends). */
+  season: PublicSeason | null;
   serverTime: number;
 }
 
@@ -271,7 +330,8 @@ export type ErrorCode =
   | 'DECISION_NOT_PENDING'
   | 'INVALID_MAP'
   | 'TIMEOUT_UNAVAILABLE'
-  | 'SERIES_MISMATCH';
+  | 'SERIES_MISMATCH'
+  | 'REMATCH_CLOSED';
 
 export type ServerMessage =
   | { type: 'ack'; requestId: string; version: number; resumeToken?: string }

@@ -117,6 +117,17 @@ const pt = {
   stats: 'Estatísticas da run',
   runMvp: 'MVP da Run',
   worstRating: 'Pior rating',
+  majorMvp: 'MVP do Major',
+  bestTeam: 'Melhor time',
+  topPlayers: 'Top jogadores',
+  teamRatings: 'Times por rating',
+  clutchKing: 'Rei do clutch',
+  highlightReel: 'Destaque',
+  rating: 'Rating',
+  awardsUnavailable: 'Prêmios indisponíveis para esta run.',
+  showStats: 'Ver estatísticas',
+  hideStats: 'Fechar estatísticas',
+  team: 'Time',
   belowExpected: 'Abaixo do esperado',
   backResult: 'Voltar ao resultado',
   composition: 'Leitura da composição',
@@ -282,6 +293,7 @@ const pt = {
   ,comeback: 'Virada'
   ,halfTime: 'Intervalo'
   ,tacticalTimeout: 'Pausa tática'
+  ,roundInProgress: 'em andamento'
   ,timeoutsLeft: 'pausa restante'
   ,timeoutCalled: 'Pausa tática acionada'
   ,pickSide: 'Escolha o lado inicial'
@@ -311,6 +323,8 @@ const pt = {
   ,killFeed: 'Feed de kills'
   ,topFraggers: 'Frags do mapa'
   ,sideLabel: 'Lado'
+  ,offlineDecisionsFull: 'Veto, escolha de lado, call de economia e pausa tática nas suas mãos'
+  ,offlineDecisionsPauseOnly: 'Pausa tática nas suas mãos; veto, escolha de lado e economia automáticos'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -328,10 +342,11 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
-  overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
+  overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', roundInProgress: 'en curso', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
   pickSide: 'Elige el lado inicial', pickSideHint: 'Tu rival eligió el mapa. ¿De qué lado empiezas?', pickSideDecider: 'Ganaste el cuchillo. ¿De qué lado empiezas?', sideCt: 'Empezar de CT', sideT: 'Empezar de TR',
   ecoCall: 'Call de economía', ecoCallHint: 'Perdieron el pistol. ¿Cómo jugar la segunda ronda?', ecoCallForce: 'Forzar', ecoCallForceHint: 'Compra lo que alcanza: opción real en la ronda 2, economía en riesgo si pierden.', ecoCallSave: 'Guardar', ecoCallSaveHint: 'Cede la ronda 2 para asegurar un full buy en la ronda 3.', money: 'dinero',
   vetoTitle: 'Veto de mapas', vetoYourTurn: 'Tu turno', vetoWaiting: 'Esperando', vetoBanNow: 'Banea un mapa', vetoPickNow: 'Elige un mapa', vetoBanned: 'Baneado', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Disponible', vetoOpponentTurn: 'El rival está decidiendo…', decisionCountdown: 'Decide en', opponentDeciding: 'Rival decidiendo…', killFeed: 'Feed de kills', topFraggers: 'Frags del mapa', sideLabel: 'Lado',
+  offlineDecisionsFull: 'Veto, elección de lado, call de economía y pausa táctica en tus manos', offlineDecisionsPauseOnly: 'Pausa táctica en tus manos; veto, elección de lado y economía automáticos',
   quarterfinal: 'Cuartos de final',
   semifinal: 'Semifinal',
   playSameSeed: 'Jugar con la misma seed',
@@ -372,6 +387,17 @@ Object.assign(dictionaries.es, {
   shareImage: 'Compartir imagen',
   copyRunLink: 'Copiar enlace de la partida',
   worstRating: 'Peor rating',
+  majorMvp: 'MVP del Major',
+  bestTeam: 'Mejor equipo',
+  topPlayers: 'Mejores jugadores',
+  teamRatings: 'Equipos por rating',
+  clutchKing: 'Rey del clutch',
+  highlightReel: 'Destacado',
+  rating: 'Rating',
+  awardsUnavailable: 'Premios no disponibles para esta partida.',
+  showStats: 'Ver estadísticas',
+  hideStats: 'Cerrar estadísticas',
+  team: 'Equipo',
   belowExpected: 'Por debajo de lo esperado',
   configurationSaved: 'Configuración guardada',
   automatic: 'Automático',
@@ -456,6 +482,17 @@ Object.assign(dictionaries.en, {
   shareImage: 'Share image',
   copyRunLink: 'Copy run link',
   worstRating: 'Worst rating',
+  majorMvp: 'Major MVP',
+  bestTeam: 'Best team',
+  topPlayers: 'Top players',
+  teamRatings: 'Teams by rating',
+  clutchKing: 'Clutch king',
+  highlightReel: 'Highlight reel',
+  rating: 'Rating',
+  awardsUnavailable: 'Awards unavailable for this run.',
+  showStats: 'View statistics',
+  hideStats: 'Hide statistics',
+  team: 'Team',
   belowExpected: 'Below expectations',
   configurationSaved: 'Settings saved',
   automatic: 'Automatic',
@@ -727,10 +764,11 @@ Object.assign(dictionaries.en, {
   ban: 'Ban',
   pick: 'Pick',
   decider: 'Decider',
-  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called',
+  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', roundInProgress: 'in progress', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called',
   pickSide: 'Choose your starting side', pickSideHint: 'Your opponent picked the map. Which side do you start on?', pickSideDecider: 'You won the knife round. Which side do you start on?', sideCt: 'Start CT', sideT: 'Start T',
   ecoCall: 'Economy call', ecoCallHint: 'You lost the pistol. How do you play round two?', ecoCallForce: 'Force buy', ecoCallForceHint: 'Buy what you can now: a real shot at round 2, a broken economy if it fails.', ecoCallSave: 'Save', ecoCallSaveHint: 'Give up round 2 to guarantee a full buy in round 3.', money: 'money',
-  vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side'
+  vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side',
+  offlineDecisionsFull: 'Veto, side pick, economy call and tactical timeout in your hands', offlineDecisionsPauseOnly: 'Tactical timeout in your hands; veto, side pick and economy automatic'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

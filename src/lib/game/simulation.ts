@@ -1,3 +1,4 @@
+import { computeMajorAwards } from './majorAwards';
 import { runOnlineTournament } from './online/tournament';
 import type {
   CombatTeam,
@@ -491,6 +492,8 @@ export function buildMajorRun(
   const qualified = wins === 3;
   const champion = tournament.championId === user.id;
   const placement = tournament.campaigns.find((campaign) => campaign.organizationId === user.id)?.placement ?? 'placementStage3';
+  // Awards look at the whole field, so they are computed before the non-user kill feeds are stripped below.
+  const awards = computeMajorAwards(tournament.rounds, tournament.championId);
   const playoffs: PlayoffsResult | undefined = qualified
     ? {
       championId: tournament.championId ?? '',
@@ -509,7 +512,8 @@ export function buildMajorRun(
       // Only the user's matches keep their kill feeds: the whole field would not fit comfortably in localStorage.
       rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)) })),
       standings: tournament.standings,
-      championId: tournament.championId
+      championId: tournament.championId,
+      awards
     }
   };
 }

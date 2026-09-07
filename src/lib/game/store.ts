@@ -40,6 +40,7 @@ export const defaultState = (seed = ''): GameState => ({
   simMode: 'manual',
   simSpeed: 'normal',
   majorRun: null,
+  offlineLog: null,
   completedSeries: 0,
   stats: []
 });
@@ -82,6 +83,8 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const runPlayers = mode === 'pro' ? proEvaluations.map((evaluation) => evaluation.adjustedPlayer) : pickedPlayers;
   const runLineup = mode === 'pro' ? buildProLineup(proEvaluations) : selectedPlayers;
   const validSelectedMaps = isValidLineupMapSelection(selectedMaps, runPlayers, teams) ? selectedMaps : [];
+  // Shared links replay the batch simulation (every decision by the bot policies). When the owner took decisions by
+  // hand during their run (veto, side, eco call, timeouts) the shared result can differ from what they actually played.
   const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup, {
     ...(isValidMapSelection(validSelectedMaps) ? { selectedMaps: validSelectedMaps } : {}),
     mode
@@ -139,7 +142,8 @@ const loadState = (): GameState => {
     }
     delete parsed.selectedPlayerIds;
     if (!isValidMapSelection(parsed.selectedMaps ?? [])) parsed.selectedMaps = [];
-    if (parsed.majorRun && parsed.selectedPlayers?.length && (!parsed.stats?.length || parsed.stats.some((stat) => !stat.assignedRole))) {
+    // Stats only exist once a run is over: an offline Major in progress (stage3/playoffs) keeps them empty on purpose.
+    if (parsed.majorRun && (parsed.phase === 'result' || parsed.phase === 'stats') && parsed.selectedPlayers?.length && (!parsed.stats?.length || parsed.stats.some((stat) => !stat.assignedRole))) {
       const selectedPlayers = parsed.selectedPlayers
         .map((selected) => playerById.get(selected.playerId))
         .filter((player): player is NonNullable<typeof player> => Boolean(player));

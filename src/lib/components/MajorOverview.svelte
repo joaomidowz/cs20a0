@@ -11,6 +11,8 @@
   export let userTeamId = '';
   export let language: Language = 'pt-BR';
   export let onTeam: (teamId: string) => void = () => {};
+  /** Opens a series (online: switches the live viewer to it). Null keeps the cards static. */
+  export let onSeries: ((seriesId: string) => void) | null = null;
   /** Online rounds carry running scores that are safe to show; offline/sandbox series hold final results and must stay hidden while live. */
   export let showLiveScores = false;
 
@@ -39,14 +41,14 @@
         {#if swissCollapsed}
           <p class="overview-summary">{swiss.qualified.flatMap((group) => group.teams.map((team) => team.name)).join(' · ')}</p>
         {:else}
-        <SwissGraph graph={swiss} {userTeamId} {onTeam} {showLiveScores} labels={{ round: t('overviewRound'), playoffs: t('overviewPlayoffs'), eliminated: t('overviewEliminated'), live: t('live'), pending: t('pending'), noRounds: t('overviewNoRounds') }} />
+        <SwissGraph graph={swiss} {userTeamId} {onTeam} {onSeries} {showLiveScores} labels={{ round: t('overviewRound'), playoffs: t('overviewPlayoffs'), eliminated: t('overviewEliminated'), live: t('live'), pending: t('pending'), noRounds: t('overviewNoRounds') }} />
         {/if}
       </section>
     {/if}
     {#if showBracket}
       <section class="panel overview-panel">
         <span class="eyebrow">{t('overviewBracket')}</span>
-        <PlayoffBracket columns={bracket} {userTeamId} {championId} {onTeam} labels={{ quarterfinal: phaseLabel('quarterfinal'), semifinal: phaseLabel('semifinal'), final: phaseLabel('final'), tbd: t('overviewTbd'), live: t('live'), pending: t('pending') }} />
+        <PlayoffBracket columns={bracket} {userTeamId} {championId} {onTeam} {onSeries} labels={{ quarterfinal: phaseLabel('quarterfinal'), semifinal: phaseLabel('semifinal'), final: phaseLabel('final'), tbd: t('overviewTbd'), live: t('live'), pending: t('pending') }} />
       </section>
     {/if}
     <section class="panel overview-panel">

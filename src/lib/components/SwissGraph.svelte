@@ -7,8 +7,17 @@
   export let showLiveScores = false;
   export let labels: { round: string; playoffs: string; eliminated: string; live: string; pending: string; noRounds: string };
   export let onTeam: (teamId: string) => void = () => {};
+  /** When provided, live series cards become buttons that open that series. */
+  export let onSeries: ((seriesId: string) => void) | null = null;
 
   const clickable = (teamId: string) => teamId !== userTeamId;
+  const watchable = (status: 'completed' | 'live' | 'pending') => Boolean(onSeries) && status === 'live';
+  const openSeries = (seriesId: string) => onSeries?.(seriesId);
+  const onSeriesKey = (event: KeyboardEvent, seriesId: string) => {
+    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    openSeries(seriesId);
+  };
 </script>
 
 <div class="swiss-graph" role="region" aria-label="Swiss">
@@ -25,12 +34,13 @@
               {#each group.series as entry (entry.series.id)}
                 {@const winnerA = entry.status === 'completed' && entry.series.winnerId === entry.series.teamA.id}
                 {@const winnerB = entry.status === 'completed' && entry.series.winnerId === entry.series.teamB.id}
-                <div class="swiss-match" class:live={entry.status === 'live'} class:mine={entry.series.teamA.id === userTeamId || entry.series.teamB.id === userTeamId}>
-                  <button type="button" class="swiss-team" class:winner={winnerA} class:loser={entry.status === 'completed' && !winnerA} class:user={entry.series.teamA.id === userTeamId} disabled={!clickable(entry.series.teamA.id)} on:click={() => onTeam(entry.series.teamA.id)}>
+                <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+                <div class="swiss-match" class:live={entry.status === 'live'} class:mine={entry.series.teamA.id === userTeamId || entry.series.teamB.id === userTeamId} class:watchable={watchable(entry.status)} role={watchable(entry.status) ? 'button' : undefined} tabindex={watchable(entry.status) ? 0 : undefined} aria-label={watchable(entry.status) ? `${entry.series.teamA.name} x ${entry.series.teamB.name}` : undefined} on:click={() => watchable(entry.status) && openSeries(entry.series.id)} on:keydown={(event) => watchable(entry.status) && onSeriesKey(event, entry.series.id)}>
+                  <button type="button" class="swiss-team" class:winner={winnerA} class:loser={entry.status === 'completed' && !winnerA} class:user={entry.series.teamA.id === userTeamId} disabled={!clickable(entry.series.teamA.id)} on:click|stopPropagation={() => onTeam(entry.series.teamA.id)}>
                     <TeamBadge id={entry.series.teamA.id} name={entry.series.teamA.name} highlight={entry.series.teamA.id === userTeamId} /><span>{entry.series.teamA.name}</span>
                     {#if entry.status === 'completed' || (showLiveScores && entry.status === 'live')}<b>{entry.series.scoreA}</b>{/if}
                   </button>
-                  <button type="button" class="swiss-team" class:winner={winnerB} class:loser={entry.status === 'completed' && !winnerB} class:user={entry.series.teamB.id === userTeamId} disabled={!clickable(entry.series.teamB.id)} on:click={() => onTeam(entry.series.teamB.id)}>
+                  <button type="button" class="swiss-team" class:winner={winnerB} class:loser={entry.status === 'completed' && !winnerB} class:user={entry.series.teamB.id === userTeamId} disabled={!clickable(entry.series.teamB.id)} on:click|stopPropagation={() => onTeam(entry.series.teamB.id)}>
                     <TeamBadge id={entry.series.teamB.id} name={entry.series.teamB.name} highlight={entry.series.teamB.id === userTeamId} /><span>{entry.series.teamB.name}</span>
                     {#if entry.status === 'completed' || (showLiveScores && entry.status === 'live')}<b>{entry.series.scoreB}</b>{/if}
                   </button>
@@ -84,6 +94,7 @@
   .swiss-match{position:relative;display:grid;gap:2px;padding:6px 6px 4px;border:1px solid var(--line);background:var(--surface)}
   .swiss-match.mine{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
   .swiss-match.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
+  .swiss-match.watchable{cursor:pointer}.swiss-match.watchable:hover,.swiss-match.watchable:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}.swiss-match.watchable:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.swiss-match.watchable.live small::after{content:' ▶';color:var(--accent)}
   .swiss-match small{color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.swiss-match.live small{color:#ff7676}
   .swiss-team{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;min-height:30px;padding:2px 4px;border:0;color:var(--text);background:transparent;font:inherit;text-align:left;cursor:pointer}
   .swiss-team:disabled{cursor:default;opacity:1}.swiss-team:not(:disabled):hover span{color:var(--accent);text-decoration:underline;text-underline-offset:3px}

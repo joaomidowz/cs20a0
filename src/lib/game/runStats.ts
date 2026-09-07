@@ -1,6 +1,7 @@
+import { aggregatePlayerLines } from './majorAwards';
 import { getEligibleSlotRoles, getSelectedRoles } from './roleRules';
 import { createSeededRng } from './simulation';
-import type { LineupSlotRole, MajorRun, Player, PlayerRunStats, SelectedPlayer } from './types';
+import type { LineupSlotRole, MajorPlayerAward, MajorRun, Player, PlayerRunStats, SelectedPlayer, SeriesResult } from './types';
 
 type ResultProfile = 'dominant-win' | 'close-win' | 'close-loss' | 'heavy-loss';
 
@@ -124,6 +125,106 @@ export function getRunSummary(run: MajorRun, userTeamId = 'user'): RunSummary {
   };
 }
 
+/** Partial feeds must not be mixed with the full map/round summary: old or truncated saves use the synthetic fallback. */
+const hasCompleteKillFeed = (series: SeriesResult[]) =>
+  series.length > 0 && series.every((match) =>
+    match.maps.length > 0 && match.maps.every((map) => {
+      const details = map.details ?? [];
+      return details.length === map.scoreA + map.scoreB && details.some((detail) => detail.kills.length > 0);
+    }));
+
+const standardDeviation = (values: number[]) => {
+  if (values.length <= 1) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
+};
+
+/**
+ * Run statistics taken from the real kill feed of the user's series. Returns null when any lineup player is missing
+ * from the feed (old saved runs, shared links without details), so the caller can fall back to the synthetic model.
+ *
+ * Formulas (per player, over every round of the user's series):
+ *   runRating   = HLTV Rating 1.0 (see majorAwards.ratingOf), rounded to 2 decimals
+ *   kills/deaths/clutches/openingKills = straight sums from the kill feed
+ *   kdRatio     = kills / max(1, deaths)
+ *   mvpCount    = maps the team won where the player had the best rating of the lineup
+ *   consistency = 100 − 90 · stddev(rating per map), clamped to 45–99 (a single map counts as perfectly steady)
+ *   adr         = kills / rounds · 105 + seeded noise in ±4, clamped to 40–115
+ *   impact      = 0.3 + 2 · openingKills/rounds + 0.8 · kills/rounds + 4 · (0.25·3K + 0.5·4K + 1·ace)/rounds, clamped to 0.5–1.6
+ */
+function createKillFeedRunStats(
+  players: Player[],
+  run: MajorRun,
+  seed: string,
+  roleByPlayer: Map<string, SelectedPlayer>,
+  userTeamId: string,
+  summary: RunSummary
+): PlayerRunStats[] | null {
+  if (!hasCompleteKillFeed(run.matches)) return null;
+  const lineupIds = new Set(players.map((player) => player.id));
+  const totals = new Map(aggregatePlayerLines(run.matches)
+    .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId))
+    .map((line) => [line.playerId, line] as const));
+  if (players.some((player) => (totals.get(player.id)?.rounds ?? 0) <= 0)) return null;
+
+  // Rating of every lineup player on every map (one aggregate per single-map series) for MVP counts and consistency.
+  const perMap = new Map<string, number[]>();
+  const mvpCounts = new Map<string, number>();
+  for (const match of run.matches) {
+    for (const map of match.maps) {
+      if (!(map.details ?? []).some((detail) => detail.kills.length > 0)) continue;
+      const lines = aggregatePlayerLines([{ ...match, maps: [map] }])
+        .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId));
+      let best: MajorPlayerAward | null = null;
+      for (const line of lines) {
+        perMap.set(line.playerId, [...(perMap.get(line.playerId) ?? []), line.rating]);
+        if (!best
+          || line.rating > best.rating
+          || (line.rating === best.rating && line.kills > best.kills)
+          || (line.rating === best.rating && line.kills === best.kills && line.deaths < best.deaths)
+          || (line.rating === best.rating && line.kills === best.kills && line.deaths === best.deaths && line.playerId < best.playerId)) best = line;
+      }
+      if (best && map.winnerId === userTeamId) mvpCounts.set(best.playerId, (mvpCounts.get(best.playerId) ?? 0) + 1);
+    }
+  }
+
+  return players.map((player) => {
+    const selected = roleByPlayer.get(player.id);
+    const role = selected?.selectedSlotRole ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
+    const line = totals.get(player.id)!;
+    const rng = createSeededRng(`${seed}:stats-feed:${player.id}:${run.placement}`);
+    const rounds = Math.max(1, line.rounds);
+    const killsPerRound = line.kills / rounds;
+    const multiWeight = (line.multiKills.triple * 0.25 + line.multiKills.quad * 0.5 + line.multiKills.ace) / rounds * 4;
+    const adr = Math.round(clamp(killsPerRound * 105 + (rng() - 0.5) * 8, 40, 115));
+    const impact = Number(clamp(0.3 + (line.openingKills / rounds) * 2 + killsPerRound * 0.8 + multiWeight, 0.5, 1.6).toFixed(2));
+    const consistency = Math.round(clamp(100 - standardDeviation(perMap.get(player.id) ?? []) * 90, 45, 99));
+    return {
+      playerId: player.id,
+      assignedRole: role,
+      runRating: line.rating,
+      kills: line.kills,
+      deaths: line.deaths,
+      kdRatio: Number((line.kills / Math.max(1, line.deaths)).toFixed(2)),
+      adr,
+      impact,
+      clutches: line.clutches,
+      openingKills: line.openingKills,
+      mvpCount: mvpCounts.get(player.id) ?? 0,
+      consistency,
+      mapsPlayed: summary.mapsPlayed,
+      mapsWon: summary.mapsWon,
+      mapsLost: summary.mapsLost,
+      roundsWon: summary.roundsWon,
+      roundsLost: summary.roundsLost
+    };
+  });
+}
+
+/**
+ * Statistics of the user's lineup for a finished run. Real numbers from the kill feed when the user's series carry
+ * one; otherwise a synthetic, seed-reproducible model shaped by the result profile (old saves, shared links).
+ */
 export function createRunStats(
   players: Player[],
   run: MajorRun,
@@ -133,6 +234,8 @@ export function createRunStats(
 ): PlayerRunStats[] {
   const summary = getRunSummary(run, userTeamId);
   const roleByPlayer = new Map(lineup.map((selected) => [selected.playerId, selected] as const));
+  const real = createKillFeedRunStats(players, run, seed, roleByPlayer, userTeamId, summary);
+  if (real) return real;
   const ranked = players
     .map((player) => {
       const selected = roleByPlayer.get(player.id);

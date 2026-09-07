@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { aggregateKills } from '$lib/game/rounds';
-  import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel, highlightTag } from '$lib/game/roundPresentation';
+  import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel, getVisibleRoundTag } from '$lib/game/roundPresentation';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail } from '$lib/game/types';
 
@@ -14,18 +14,23 @@
   export let language: Language = 'pt-BR';
   export let teamNames: { a: string; b: string } = { a: 'A', b: 'B' };
   export let compact = false;
+  /** Called once per round as soon as its whole kill feed is on screen (the parent then commits the round). */
+  export let onRoundResolved: (roundNumber: number) => void = () => {};
 
   let shownKills = 0;
   let killTimers: number[] = [];
   let killCursor = '';
+  let resolvedCursor = '';
 
   // Online snapshots deliver a rolling window, so the round is looked up by number rather than by index.
   $: knownDetails = details.filter((detail): detail is RoundDetail => Boolean(detail));
   $: currentDetail = visibleRounds > 0 ? knownDetails.find((detail) => detail.number === visibleRounds) ?? null : null;
   $: revealKills(currentDetail ? `${currentDetail.number}:${currentDetail.kills.length}` : '', currentDetail, delay);
   $: visibleKills = currentDetail ? currentDetail.kills.slice(0, shownKills) : [];
-  $: fragLeaders = compact ? [] : aggregateKills(knownDetails.filter((detail) => detail.number <= visibleRounds)).slice(0, 3);
-  $: tag = highlightTag(currentDetail);
+  $: resolved = Boolean(currentDetail && shownKills >= currentDetail.kills.length);
+  $: if (currentDetail && resolved) notifyResolved(currentDetail.number);
+  $: fragLeaders = compact ? [] : aggregateKills(knownDetails.filter((detail) => detail.number < visibleRounds || (detail.number === visibleRounds && resolved))).slice(0, 3);
+  $: tag = getVisibleRoundTag(currentDetail, resolved);
   $: buyLabels = BUY_LABELS[language];
   $: sideLabels = SIDE_LABELS[language];
   $: endingLabels = ENDING_LABELS[language];
@@ -34,6 +39,12 @@
   function clearKillTimers() {
     killTimers.forEach((timer) => window.clearTimeout(timer));
     killTimers = [];
+  }
+
+  function notifyResolved(roundNumber: number) {
+    if (resolvedCursor === killCursor) return;
+    resolvedCursor = killCursor;
+    onRoundResolved(roundNumber);
   }
 
   function revealKills(cursor: string, detail: RoundDetail | null, roundDelay: number) {
@@ -66,7 +77,7 @@
       <div class="round-center">
         <em class="round-number">R{currentDetail.number}</em>
         {#if currentDetail.timeout}<b class="round-tag timeout" class:mine={isMine(currentDetail.timeout)}>⏸ {teamNames[currentDetail.timeout]}</b>{/if}
-        {#if tag}<b class="round-tag {tag}" class:mine={isMine(currentDetail.winner)}>{getRoundTagLabel(language, tag)}</b>{/if}
+        {#if tag}<b class="round-tag {tag}" class:mine={resolved && isMine(currentDetail.winner)}>{getRoundTagLabel(language, tag)}</b>{/if}
       </div>
       <span class="buy right {currentDetail.economy.b.buy}" class:mine={isMine('b')} title={`${teamNames.b} · $${currentDetail.economy.b.money}`}>{#if currentDetail.economy.b.awp}<em>AWP</em>{/if}{buyLabels[currentDetail.economy.b.buy]}<i>{sideLabels[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>
     </div>
@@ -83,7 +94,7 @@
         {/each}
       </ul>
     {/if}
-    <small class="round-ending" class:user={isMine(currentDetail.winner)} class:enemy={userIsA !== null && !isMine(currentDetail.winner)}>{shownKills >= currentDetail.kills.length ? `${endingLabels[currentDetail.ending]} · ${teamNames[currentDetail.winner]}` : ''}</small>
+    <small class="round-ending" class:user={isMine(currentDetail.winner)} class:enemy={userIsA !== null && !isMine(currentDetail.winner)}>{resolved ? `${endingLabels[currentDetail.ending]} · ${teamNames[currentDetail.winner]}` : ''}</small>
     {#if fragLeaders.length}
       <ol class="frag-leaders" aria-label="Top fraggers">
         {#each fragLeaders as line (line.playerId)}<li class:user={isMine(line.side)}><span>{line.name}</span><b>{line.kills}</b><small>/{line.deaths}</small></li>{/each}
@@ -99,7 +110,7 @@
   .round-economy .buy i{padding:2px 5px;border:1px solid var(--line);color:var(--text);font-size:.5rem;font-style:normal}.round-economy .buy.mine i{border-color:var(--accent);color:var(--accent)}
   .round-economy .buy em{padding:2px 5px;background:var(--accent-2);color:var(--bg);font-size:.5rem;font-style:normal;letter-spacing:.06em}
   .round-economy .buy.full{color:var(--text)}.round-economy .buy.eco{color:var(--danger)}.round-economy .buy.force{color:var(--accent-2)}
-  .round-center{display:flex;align-items:center;gap:6px}
+  .round-center{display:flex;align-items:center;gap:6px;min-height:20px}
   .round-number{color:var(--muted);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.1em}
   .round-tag{padding:2px 6px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-weight:900;letter-spacing:.08em;white-space:nowrap;animation:tagIn .25s ease-out}
   .round-tag.mine{border-color:var(--accent);color:var(--accent)}.round-tag.clutch,.round-tag.eco-win{background:var(--accent-2);color:var(--bg)}.round-tag.clutch.mine,.round-tag.eco-win.mine{background:var(--accent)}

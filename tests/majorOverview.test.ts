@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildBracket, buildSwissGraph, computeStandings, countCompletedRounds, revealRounds } from '../src/lib/game/majorOverview';
 import { players, teams } from '../src/lib/game/data';
@@ -77,5 +78,43 @@ describe('Major overview presentation', () => {
     expect(final[0].status).toBe('champion');
     expect(final[0].organizationId).toBe(tournament.championId);
     expect(final.filter((standing) => standing.status === 'eliminated')).toHaveLength(15);
+  });
+});
+
+describe('Major overview series cards', () => {
+  const read = (name: string) => readFileSync(new URL(`../src/lib/components/${name}`, import.meta.url), 'utf8');
+
+  it('forwards onSeries from MajorOverview to the Swiss graph and the bracket', () => {
+    const overview = read('MajorOverview.svelte');
+    expect(overview).toContain('export let onSeries: ((seriesId: string) => void) | null = null;');
+    expect(overview).toContain('<SwissGraph graph={swiss} {userTeamId} {onTeam} {onSeries}');
+    expect(overview).toContain('<PlayoffBracket columns={bracket} {userTeamId} {championId} {onTeam} {onSeries}');
+  });
+
+  it('opens only live series and keeps team-name clicks from also opening the series card', () => {
+    for (const name of ['SwissGraph.svelte', 'PlayoffBracket.svelte']) {
+      const source = read(name);
+      expect(source).toContain('on:click|stopPropagation={() =>');
+      expect(source).toContain("role={watchable(");
+      expect(source).toContain('on:keydown={(event) => watchable(');
+      const watchable = source.split('\n').find((line) => line.includes('const watchable')) ?? '';
+      expect(watchable).toContain("=== 'live'");
+      expect(watchable).not.toContain("=== 'completed'");
+    }
+  });
+
+  it('keeps standings values on one aligned row and gives list changes restrained motion', () => {
+    const standings = read('StandingsTable.svelte');
+    expect(standings).toContain('animate:flip');
+    expect(standings).toContain('in:fly');
+    expect(standings).toContain('out:fade');
+    expect(standings).toContain('white-space:nowrap');
+    expect(standings).toContain('grid-template-columns:minmax(38px,1fr) 32px 18px 58px');
+    expect(standings).toContain('prefers-reduced-motion: reduce');
+
+    const layout = read('PageLayout.svelte');
+    expect(layout).toContain('in:fly');
+    expect(layout).toContain('out:fade');
+    expect(layout).toContain("matchMedia('(prefers-reduced-motion: reduce)')");
   });
 });

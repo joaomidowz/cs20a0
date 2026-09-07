@@ -124,6 +124,9 @@ describe('authoritative online server', () => {
 
     expect(manager.getSnapshot(code, host.participantId, startedAt)).not.toHaveProperty('organizations');
     expect(manager.getSnapshot(code, host.participantId, startedAt)).not.toHaveProperty('selfResult');
+    // Protocol 7: the season table travels with every snapshot and is null until the first run ends.
+    expect(manager.getSnapshot(code, host.participantId, startedAt).capabilities.season).toBe(true);
+    expect(manager.getSnapshot(code, host.participantId, startedAt).season).toBeNull();
 
     manager.execute(code, host.participantId, { type: 'start', requestId: 'start-public-data' }, startedAt + 2);
     expect(manager.getSnapshot(code, host.participantId, startedAt + 2)).not.toHaveProperty('organizations');
@@ -136,6 +139,8 @@ describe('authoritative online server', () => {
     expect(tournamentSnapshot.organizations?.find((organization) => organization.id === host.participantId)?.lineup).toHaveLength(5);
     expect(tournamentSnapshot.organizations?.find((organization) => !organization.human)?.sourceTeamId).toBeTruthy();
     expect(tournamentSnapshot).not.toHaveProperty('selfResult');
+    expect(tournamentSnapshot.season).toBeNull();
+    expect(tournamentSnapshot.tournament?.awards).toBeUndefined();
 
     let current = startedAt + 61_000;
     let completed = tournamentSnapshot;
@@ -294,7 +299,7 @@ describe('authoritative online server', () => {
       if ((live?.visibleRounds ?? 0) >= 2) break;
     }
     let timeoutUsed = false;
-    if (ecoDecision) {
+    if (ecoDecision?.kind === 'eco-call') {
       // The prompt follows whichever pistol the human lost: round 2, or round 14 when the first-half pistol was won.
       expect(ecoDecision).toMatchObject({ kind: 'eco-call', teamId: host.participantId });
       expect([2, 14]).toContain(ecoDecision.roundNumber);
@@ -304,7 +309,8 @@ describe('authoritative online server', () => {
       now += 200;
       manager.tick(now);
       live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
-      const called = live?.series.maps[ecoDecision.mapIndex]?.details?.find((detail) => detail.number === ecoDecision.roundNumber);
+      const { mapIndex, roundNumber } = ecoDecision;
+      const called = live?.series.maps[mapIndex]?.details?.find((detail) => detail.number === roundNumber);
       expect(called?.economy.a.buy).toBe('force');
       expect(called?.timeout).toBe('a');
     }
@@ -340,7 +346,7 @@ describe('authoritative online server', () => {
     expect(later?.overviewSeries.find((series) => series.id === botSeries?.id)?.liveMap?.a).toBeDefined();
   });
 
-  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 4 with synchronized valid $mode pools', async ({ capacity, mode }) => {
+  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 7 with synchronized valid $mode pools', async ({ capacity, mode }) => {
     const server = await startServer();
     const roomCode = await createRoom(server, capacity, mode);
     const clients = await Promise.all(Array.from({ length: capacity }, () => TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`)));
@@ -368,7 +374,8 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 6 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 7 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.capabilities.season === true && snapshot.season === null && snapshot.config.seasonRuns === 1)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
     for (const snapshot of snapshots) {
@@ -384,7 +391,7 @@ describe('authoritative online server', () => {
     }
   }, 20_000);
 
-  it('rejects protocol 3 after the protocol 4 upgrade', async () => {
+  it('rejects an obsolete protocol after the protocol 7 upgrade', async () => {
     const server = await startServer();
     const roomCode = await createRoom(server, 2);
     const client = await TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`);
@@ -424,6 +431,18 @@ describe('authoritative online server', () => {
 
     manager.resume(code, first.resumeToken, 12_000);
     expect(manager.getSnapshot(code, first.participantId, 12_000).hostParticipantId).toBe(first.participantId);
+  });
+
+  it('accepts reconnection before the TTL and rejects it at the exact expiration boundary', () => {
+    const manager = new RoomManager();
+    const code = manager.createRoom(DEFAULT_ROOM_CONFIG, 10_000);
+    const participant = manager.join(code, 'Player name', 'Organization', 10_000);
+    manager.disconnect(code, participant.participantId, 11_000);
+    expect(manager.resume(code, participant.resumeToken, 11_000 + RESUME_TTL_MS - 1).participantId).toBe(participant.participantId);
+
+    manager.disconnect(code, participant.participantId, 20_000 + RESUME_TTL_MS);
+    expect(() => manager.resume(code, participant.resumeToken, 20_000 + RESUME_TTL_MS * 2))
+      .toThrowError(expect.objectContaining({ code: 'RESUME_EXPIRED' }));
   });
 
   it('preserves five PRO picks after three seconds and across reconnection while waiting for atomic roles and maps', () => {

@@ -24,6 +24,7 @@ import {
   toResult,
   type TournamentEngineState
 } from '../online/tournament-engine';
+import { computeMajorAwards } from '../majorAwards';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
 import type { LineupSlotRole, MapId, MapSide, Roster, SeriesResult } from '../types';
 import { buildSandboxCombatTeam } from './lineup';
@@ -132,7 +133,8 @@ export function createSandboxMajor(selection: SandboxLineupSelection, rawSeed: s
     tournament: {
       rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => matches.find((match) => match.id === series.id) ?? series) })),
       standings: tournament.standings.map((standing) => ({ ...standing })),
-      championId: tournament.championId
+      championId: tournament.championId,
+      awards: computeMajorAwards(tournament.rounds, tournament.championId)
     },
     championId: tournament.championId,
     currentMatchIndex: 0,
@@ -191,7 +193,8 @@ function syncFromEngine(state: SandboxMajorState): SandboxMajorState {
     tournament: {
       rounds: result.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => matches.find((match) => match.id === series.id) ?? series) })),
       standings: result.standings.map((standing) => ({ ...standing })),
-      championId: result.championId
+      championId: result.championId,
+      awards: engine.finished ? computeMajorAwards(result.rounds, result.championId) : null
     },
     championId: result.championId,
     currentMatchIndex: Math.max(0, currentMatchIndex),

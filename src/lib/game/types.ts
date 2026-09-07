@@ -80,7 +80,22 @@ export type RoundTag =
   | 'streak-break'
   | 'half-end'
   | 'comeback-alert'
-  | 'match-point';
+  | 'match-point'
+  | '3k'
+  | '4k'
+  | 'ace';
+
+/** The single most notable individual feat of a round, produced by the engine while the kills are generated. */
+export interface RoundHighlight {
+  kind: 'ace' | 'quad' | 'triple' | 'clutch';
+  playerId: string;
+  playerName: string;
+  side: TeamSide;
+  /** Kills the player got in the round. */
+  kills: number;
+  /** For clutches: how many enemies were alive when the player was left alone (1vN). */
+  against?: number;
+}
 
 export interface TeamEconomy {
   buy: BuyType;
@@ -116,6 +131,8 @@ export interface RoundDetail {
   /** Team that called a tactical timeout right before this round. */
   timeout?: TeamSide;
   tags: RoundTag[];
+  /** Ace, multi-kill or clutch worth flashing on screen, when the round had one. */
+  highlight?: RoundHighlight;
 }
 
 export interface Roster {
@@ -289,11 +306,60 @@ export interface MajorRound {
   series: SeriesResult[];
 }
 
+/** Tournament-wide line of one player, derived from the kill feed of every map they played (HLTV Rating 1.0). */
+export interface MajorPlayerAward {
+  playerId: string;
+  name: string;
+  teamId: string;
+  teamName: string;
+  rating: number;
+  kills: number;
+  deaths: number;
+  kdRatio: number;
+  headshots: number;
+  rounds: number;
+  mapsPlayed: number;
+  /** Rounds won as the last player alive against two or more enemies. */
+  clutches: number;
+  openingKills: number;
+  multiKills: { triple: number; quad: number; ace: number };
+  /** Final placement key of the player's team (placementChampion, placementRunnerUp, ...). */
+  placement: string;
+}
+
+export interface MajorTeamAward {
+  teamId: string;
+  name: string;
+  /** Average rating of the lineup across the tournament. */
+  rating: number;
+  mapsWon: number;
+  mapsLost: number;
+  roundsWon: number;
+  roundsLost: number;
+  placement: string;
+}
+
+/** Individual and team awards of a whole Major, computed from every series that carried a kill feed. */
+export interface MajorAwards {
+  mvp: MajorPlayerAward | null;
+  /** Best players of the tournament by rating (MVP first), at most eight. */
+  topPlayers: MajorPlayerAward[];
+  /** Lineup with the highest average rating. */
+  topTeam: MajorTeamAward | null;
+  /** Every team by rating, best first. */
+  teams: MajorTeamAward[];
+  clutchKing: MajorPlayerAward | null;
+  /** Player with the most aces (and quads as tiebreak), when anyone got one. */
+  highlightReel: MajorPlayerAward | null;
+}
+
 /** The whole field's results, so the Major overview can show every other team, standings and the bracket. */
 export interface MajorTournament {
   rounds: MajorRound[];
   standings: MajorStanding[];
   championId: string | null;
+  /** MVP, best team and top players of the whole event (present once the champion is known). */
+  awards?: MajorAwards | null;
 }
 
 export interface MajorRun {
@@ -325,6 +391,29 @@ export interface PlayerRunStats {
   roundsLost: number;
 }
 
+/** One thing the user did in an offline series, in order: rounds stepped, a timeout, or a decision (always the user's team). */
+export type OfflineSeriesEvent =
+  | { kind: 'step'; count: number }
+  | { kind: 'timeout' }
+  /** A pending decision settled with the bot policy on the user's behalf. */
+  | { kind: 'auto' }
+  | { kind: 'veto'; action: 'ban' | 'pick'; mapId: MapId }
+  | { kind: 'side'; side: MapSide }
+  | { kind: 'eco-call'; call: 'force' | 'eco' };
+
+export interface OfflineSeriesLog {
+  seriesId: string;
+  events: OfflineSeriesEvent[];
+  /** The user acknowledged the finished series and the tournament moved on. */
+  confirmed: boolean;
+}
+
+/** Serializable replay log of an offline Major: replaying it over the same draft rebuilds the live engine exactly. */
+export interface OfflineDecisionLog {
+  version: 1;
+  series: OfflineSeriesLog[];
+}
+
 export interface GameState {
   phase: GamePhase;
   language: Language;
@@ -344,6 +433,8 @@ export interface GameState {
   simMode: SimMode;
   simSpeed: SimSpeed;
   majorRun: MajorRun | null;
+  /** What the user did in the offline Major so far; the in-memory engine is rebuilt from it on reload. */
+  offlineLog: OfflineDecisionLog | null;
   completedSeries: number;
   stats: PlayerRunStats[];
 }

@@ -37,6 +37,12 @@ export interface LiveSeriesConfig {
   controllers: { a: Controller; b: Controller };
   /** When true the veto waits for `applySeriesDecision`; otherwise it is resolved at creation with the bot policy. */
   interactiveVeto: boolean;
+  /**
+   * Which decision kinds a human controller actually takes by hand; a kind set to false is settled with the bot policy
+   * immediately (e.g. the offline "Normal" queue: tactical timeouts by hand, side and eco call automatic).
+   * Timeouts are never listed here: `requestSeriesTimeout` works for every human team.
+   */
+  humanDecisions?: Partial<Record<PendingSeriesDecision['kind'], boolean>>;
 }
 
 export interface VetoBoard {
@@ -118,11 +124,11 @@ export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
   return state;
 }
 
-/** Bots never wait: any decision that falls to a bot is taken immediately with the bot policy. */
+/** Bots never wait: any decision that falls to a bot (or to a human who delegated that kind) is taken immediately. */
 function settleBots(state: LiveSeriesState): void {
   for (;;) {
     const pending = rawPendingDecision(state);
-    if (!pending || controllerOf(state, pending.teamId) !== 'bot') return;
+    if (!pending || waitsForHuman(state, pending)) return;
     resolvePending(state);
   }
 }
@@ -132,10 +138,14 @@ export const controllerOf = (state: LiveSeriesState, teamId: string): Controller
   return side ? state.config.controllers[side] : 'bot';
 };
 
+/** True when a human takes this decision by hand (controller 'human' and the kind not delegated to the policy). */
+const waitsForHuman = (state: LiveSeriesState, pending: PendingSeriesDecision) =>
+  controllerOf(state, pending.teamId) === 'human' && (state.config.humanDecisions?.[pending.kind] ?? true);
+
 /** The decision a human has to take right now, if any (bot decisions are never left pending). */
 export function pendingSeriesDecision(state: LiveSeriesState): PendingSeriesDecision | null {
   const pending = rawPendingDecision(state);
-  return pending && controllerOf(state, pending.teamId) === 'human' ? pending : null;
+  return pending && waitsForHuman(state, pending) ? pending : null;
 }
 
 function rawPendingDecision(state: LiveSeriesState): PendingSeriesDecision | null {

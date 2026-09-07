@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { fade, fly } from 'svelte/transition';
   import type { Language, Theme } from '$lib/game/types';
   import { translate } from '$lib/game/i18n';
   import Navbar from './Navbar.svelte';
@@ -9,6 +12,15 @@
   export let onLanguage: (language: Language) => void;
   export let onTheme: () => void;
   export let wide = false;
+
+  let reducedMotion = typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  onMount(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotion = () => reducedMotion = query.matches;
+    query.addEventListener('change', updateMotion);
+    return () => query.removeEventListener('change', updateMotion);
+  });
 
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 </script>
@@ -21,7 +33,12 @@
   onHome={() => window.location.href = '/'}
 />
 
-<main class:wide class="page-content shell narrow">
+<main
+  class:wide
+  class="page-content shell narrow"
+  in:fly={{ y: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 160, easing: cubicOut }}
+  out:fade={{ duration: reducedMotion ? 0 : 90 }}
+>
   <slot />
 </main>
 

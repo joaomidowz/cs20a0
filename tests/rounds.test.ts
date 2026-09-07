@@ -11,10 +11,13 @@ import {
   playNextRound,
   requestTimeout,
   toMapResult,
+  flipRoundDetail,
   MapDecisionError
 } from '../src/lib/game/rounds';
-import { createSeededRng, simulateMap } from '../src/lib/game/simulation';
-import type { CombatTeam } from '../src/lib/game/types';
+import { getHighlightLabel, getRoundFlash, getVisibleRoundTag, highlightTag } from '../src/lib/game/roundPresentation';
+import { getTeamPlayers, players, teams } from '../src/lib/game/data';
+import { calculateHistoricalTeamPower, createSeededRng, simulateMap } from '../src/lib/game/simulation';
+import type { CombatTeam, RoundDetail, RoundHighlight, TeamSide } from '../src/lib/game/types';
 
 const team = (id: string, power: number, style: CombatTeam['style'] = 'balanced'): CombatTeam => ({
   id, name: id, power, mental: 85, clutch: 85, experience: 85, consistency: 85, style
@@ -173,5 +176,221 @@ describe('round engine', () => {
     }
     expect(fullVsEco).toBeGreaterThan(100);
     expect(fullWins / fullVsEco).toBeGreaterThanOrEqual(0.72);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Kill realism and highlights: measured over thousands of rounds with real rosters.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const BUY_RANK = { eco: 0, pistol: 1, force: 1, full: 2 } as const;
+const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+const loserOf = (round: RoundDetail): TeamSide => (round.winner === 'a' ? 'b' : 'a');
+const buyGap = (round: RoundDetail) => BUY_RANK[round.economy[round.winner].buy] - BUY_RANK[round.economy[loserOf(round)].buy];
+const killsPerPlayer = (round: RoundDetail) => {
+  const counts = new Map<string, number>();
+  for (const kill of round.kills) counts.set(kill.killerId, (counts.get(kill.killerId) ?? 0) + 1);
+  return counts;
+};
+const bestMultiKill = (round: RoundDetail) => Math.max(0, ...killsPerPlayer(round).values());
+
+/** Rounds of `maps` maps between real historical rosters (≈ 20 rounds per map). */
+const rosterRounds = (maps: number, seed = 'realism'): RoundDetail[] => {
+  const pool = teams.slice(0, 12);
+  const details: RoundDetail[] = [];
+  for (let index = 0; index < maps; index += 1) {
+    const teamA = pool[index % pool.length];
+    const teamB = pool[(index * 7 + 3) % pool.length];
+    if (teamA.id === teamB.id) continue;
+    const map = simulateMap(calculateHistoricalTeamPower(teamA, players), calculateHistoricalTeamPower(teamB, players), createSeededRng(`${seed}-${index}`), 1, {
+      rosterA: { players: getTeamPlayers(teamA) },
+      rosterB: { players: getTeamPlayers(teamB) }
+    });
+    details.push(...(map.details ?? []));
+  }
+  return details;
+};
+
+describe('kill realism', () => {
+  const rounds = rosterRounds(400);
+  const gunRounds = rounds.filter((round) => !round.tags.includes('pistol'));
+
+  it('lands around seven or eight kills per round with most rounds ending in a wipe', () => {
+    expect(rounds.length).toBeGreaterThan(6000);
+    const total = mean(rounds.map((round) => round.kills.length));
+    expect(total).toBeGreaterThanOrEqual(6.5);
+    expect(total).toBeLessThanOrEqual(8);
+    const eliminations = rounds.filter((round) => round.ending === 'elimination').length / rounds.length;
+    expect(eliminations).toBeGreaterThanOrEqual(0.55);
+    expect(eliminations).toBeLessThanOrEqual(0.72);
+  });
+
+  it('gives the winner five kills on a wipe and mostly three to five when the bomb or the clock decides', () => {
+    const decided = rounds.filter((round) => round.ending !== 'elimination');
+    const winnerKills = decided.map((round) => round.kills.filter((kill) => kill.killerSide === round.winner).length);
+    expect(winnerKills.every((kills) => kills >= 1)).toBe(true);
+    expect(winnerKills.filter((kills) => kills >= 3).length / winnerKills.length).toBeGreaterThanOrEqual(0.8);
+    expect(rounds.filter((round) => round.ending === 'elimination').every((round) => round.kills.filter((kill) => kill.killerSide === round.winner).length === 5)).toBe(true);
+    // The clock only runs out while the losing side still stands: never five kills on a time ending.
+    expect(rounds.filter((round) => round.ending === 'time').every((round) => round.kills.filter((kill) => kill.killerSide === round.winner).length <= 4)).toBe(true);
+  });
+
+  it('scales the loser kills with the buy gap: even buys trade, full buys wipe ecos', () => {
+    const loserKills = (gap: number) => gunRounds.filter((round) => buyGap(round) === gap).map((round) => round.kills.filter((kill) => kill.killerSide !== round.winner).length);
+    const even = loserKills(0);
+    const oneDown = loserKills(1);
+    const twoDown = loserKills(2);
+    expect(even.length).toBeGreaterThan(1500);
+    expect(oneDown.length).toBeGreaterThan(800);
+    expect(twoDown.length).toBeGreaterThan(300);
+    expect(mean(even)).toBeGreaterThanOrEqual(2.55);
+    expect(mean(even)).toBeLessThanOrEqual(3.05);
+    expect(even.filter((kills) => kills >= 2 && kills <= 4).length / even.length).toBeGreaterThanOrEqual(0.85);
+    expect(mean(oneDown)).toBeGreaterThanOrEqual(1.55);
+    expect(mean(oneDown)).toBeLessThanOrEqual(2.05);
+    expect(mean(twoDown)).toBeGreaterThanOrEqual(0.55);
+    expect(mean(twoDown)).toBeLessThanOrEqual(1.05);
+    expect(twoDown.filter((kills) => kills <= 1).length / twoDown.length).toBeGreaterThanOrEqual(0.7);
+    expect(twoDown.filter((kills) => kills >= 3).length / twoDown.length).toBeLessThanOrEqual(0.1);
+    expect(rounds.every((round) => round.kills.filter((kill) => kill.killerSide !== round.winner).length <= 4)).toBe(true);
+  });
+
+  it('lets a lower buy win against a full buy, and then it still frags three to five', () => {
+    const upsets = gunRounds.filter((round) => buyGap(round) < 0);
+    expect(upsets.length).toBeGreaterThan(300);
+    const winnerKills = upsets.map((round) => round.kills.filter((kill) => kill.killerSide === round.winner).length);
+    expect(winnerKills.filter((kills) => kills >= 3).length / winnerKills.length).toBeGreaterThanOrEqual(0.8);
+    const loserKills = upsets.map((round) => round.kills.filter((kill) => kill.killerSide !== round.winner).length);
+    expect(mean(loserKills)).toBeGreaterThanOrEqual(2.5);
+  });
+
+  it('keeps ecos and forces as real but rare upsets against a full buy for equal teams', () => {
+    // BUY_EDGE retune: eco vs full ≈ 10–15% and force vs full ≈ 30–38% (was ≈ 22% / 30% before the kill retune).
+    const details: RoundDetail[] = [];
+    for (let index = 0; index < 500; index += 1) details.push(...simulateMap(team('a', 90), team('b', 90), createSeededRng(`edge-${index}`), 1, { mapId: 'dust2' }).details!);
+    const share = (low: 'eco' | 'force', high: 'full') => {
+      const matchups = details.filter((round) => !round.tags.includes('pistol') && [round.economy.a.buy, round.economy.b.buy].sort().join('/') === `${high}/${low}`.split('/').sort().join('/'));
+      expect(matchups.length).toBeGreaterThan(300);
+      return matchups.filter((round) => round.economy[round.winner].buy === low).length / matchups.length;
+    };
+    const ecoVsFull = share('eco', 'full');
+    expect(ecoVsFull).toBeGreaterThanOrEqual(0.09);
+    expect(ecoVsFull).toBeLessThanOrEqual(0.17);
+    const forceVsFull = share('force', 'full');
+    expect(forceVsFull).toBeGreaterThanOrEqual(0.28);
+    expect(forceVsFull).toBeLessThanOrEqual(0.39);
+  });
+});
+
+describe('round highlights', () => {
+  const rounds = rosterRounds(400, 'highlights');
+
+  it('produces aces, 4ks and 3ks at plausible frequencies and tags them', () => {
+    expect(rounds.length).toBeGreaterThanOrEqual(3000);
+    const count = (kills: number) => rounds.filter((round) => bestMultiKill(round) === kills).length / rounds.length;
+    const aces = rounds.filter((round) => bestMultiKill(round) >= 5).length / rounds.length;
+    expect(aces).toBeGreaterThanOrEqual(0.005);
+    expect(aces).toBeLessThanOrEqual(0.03);
+    expect(count(4)).toBeGreaterThanOrEqual(0.03);
+    expect(count(4)).toBeLessThanOrEqual(0.09);
+    expect(count(3)).toBeGreaterThanOrEqual(0.12);
+    expect(count(3)).toBeLessThanOrEqual(0.3);
+    for (const round of rounds) {
+      const best = bestMultiKill(round);
+      expect(round.tags.includes('ace')).toBe(best >= 5);
+      expect(round.tags.includes('4k')).toBe(best === 4);
+      expect(round.tags.includes('3k')).toBe(best === 3);
+    }
+  });
+
+  it('keeps the highlight consistent with the kills and the clutch rule', () => {
+    const rank = (highlight: RoundHighlight) => (highlight.kind === 'ace' ? 5 : highlight.kind === 'clutch' ? ((highlight.against ?? 0) >= 3 ? 4 : 2) : highlight.kind === 'quad' ? 3 : 1);
+    let clutches = 0;
+    for (const round of rounds) {
+      const perPlayer = killsPerPlayer(round);
+      const highlight = round.highlight;
+      if (round.tags.includes('clutch')) {
+        clutches += 1;
+        expect(highlight).toBeDefined();
+      }
+      if (!highlight) {
+        expect(bestMultiKill(round)).toBeLessThan(3);
+        expect(round.tags).not.toContain('clutch');
+        continue;
+      }
+      expect(perPlayer.get(highlight.playerId)).toBeGreaterThanOrEqual(1);
+      if (highlight.kind === 'clutch') {
+        expect(highlight.side).toBe(round.winner);
+        expect(highlight.against).toBeGreaterThanOrEqual(2);
+        expect(round.tags).toContain('clutch');
+        // Once the winner is down to its last player every remaining kill belongs to that player.
+        const lastDeath = round.kills.map((kill) => kill.killerSide).lastIndexOf(loserOf(round));
+        const after = round.kills.slice(lastDeath + 1);
+        expect(after.length).toBe(highlight.kills);
+        expect(after.every((kill) => kill.killerId === highlight.playerId && kill.killerSide === round.winner)).toBe(true);
+      } else {
+        expect(perPlayer.get(highlight.playerId)).toBe(highlight.kills);
+        expect(highlight.kind).toBe(highlight.kills >= 5 ? 'ace' : highlight.kills === 4 ? 'quad' : 'triple');
+        expect(highlight.kills).toBe(bestMultiKill(round));
+      }
+      // Priority: ace > 1v3+ clutch > 4k > 1v2 clutch > 3k; the winner's feat first on ties.
+      const alternatives: RoundHighlight[] = [...perPlayer.entries()]
+        .filter(([, kills]) => kills >= 3)
+        .map(([playerId, kills]) => ({ kind: kills >= 5 ? 'ace' : kills === 4 ? 'quad' : 'triple', playerId, playerName: '', side: round.kills.find((kill) => kill.killerId === playerId)!.killerSide, kills }));
+      for (const alternative of alternatives) {
+        expect(rank(highlight)).toBeGreaterThanOrEqual(rank(alternative));
+        if (rank(highlight) === rank(alternative) && highlight.playerId !== alternative.playerId && alternative.side === round.winner) expect(highlight.side).toBe(round.winner);
+      }
+    }
+    expect(clutches / rounds.length).toBeGreaterThan(0.03);
+    expect(clutches / rounds.length).toBeLessThan(0.14);
+    expect(rounds.some((round) => round.highlight?.kind === 'clutch' && (round.highlight.against ?? 0) >= 3)).toBe(true);
+    expect(rounds.some((round) => round.highlight?.kind === 'ace')).toBe(true);
+  });
+
+  it('is deterministic, including the highlights', () => {
+    const first = rosterRounds(20, 'det-highlight');
+    const second = rosterRounds(20, 'det-highlight');
+    expect(second).toEqual(first);
+    expect(first.some((round) => round.highlight)).toBe(true);
+  });
+
+  it('mirrors the highlight side when a round detail is flipped', () => {
+    const round = rounds.find((detail) => detail.highlight)!;
+    const flipped = flipRoundDetail(round);
+    expect(flipped.highlight).toEqual({ ...round.highlight, side: round.highlight!.side === 'a' ? 'b' : 'a' });
+    expect(flipRoundDetail(flipped)).toEqual(round);
+    const plain = rounds.find((detail) => !detail.highlight)!;
+    expect('highlight' in flipRoundDetail(plain)).toBe(false);
+  });
+
+  it('labels highlights and picks what to flash for a round', () => {
+    const ace: RoundHighlight = { kind: 'ace', playerId: 's1mple', playerName: 's1mple', side: 'a', kills: 5 };
+    const clutch: RoundHighlight = { kind: 'clutch', playerId: 'niko', playerName: 'NiKo', side: 'b', kills: 2, against: 3 };
+    expect(getHighlightLabel('pt-BR', ace)).toEqual({ title: 'ACE', subtitle: 's1mple · 5 kills' });
+    expect(getHighlightLabel('en', clutch)).toEqual({ title: 'CLUTCH 1v3', subtitle: 'NiKo' });
+    expect(getHighlightLabel('es', { ...ace, kind: 'quad', kills: 4 }).title).toBe('4K');
+    expect(getHighlightLabel('es', { ...ace, kind: 'triple', kills: 3 }).title).toBe('3K');
+    expect(getRoundFlash('pt-BR', { winner: 'a', tags: ['ace', 'eco-win'], highlight: ace })).toMatchObject({ kind: 'ace', title: 'ACE', side: 'a' });
+    expect(getRoundFlash('en', { winner: 'b', tags: ['clutch'], highlight: clutch })).toMatchObject({ kind: 'clutch', title: 'CLUTCH 1v3', subtitle: 'NiKo', side: 'b' });
+    // Round-level turnarounds beat a 3k, and flash even without an individual feat.
+    expect(getRoundFlash('pt-BR', { winner: 'b', tags: ['3k', 'eco-win'], highlight: { ...ace, kind: 'triple', kills: 3 } })).toMatchObject({ kind: 'eco-win', title: 'ECO VENCEU', side: 'b' });
+    expect(getRoundFlash('es', { winner: 'a', tags: ['force-win'] })).toMatchObject({ kind: 'force-win', title: 'GANÓ EL FORZADO', side: 'a' });
+    expect(getRoundFlash('en', { winner: 'b', tags: ['comeback-alert', 'streak-break'] })).toMatchObject({ kind: 'comeback', title: 'FIGHTING BACK', side: 'b' });
+    expect(getRoundFlash('en', { winner: 'a', tags: ['3k', 'streak-break'], highlight: { ...ace, kind: 'triple', kills: 3 } })).toMatchObject({ kind: 'triple', title: '3K', side: 'a' });
+    expect(getRoundFlash('pt-BR', { winner: 'b', tags: ['streak-break'] })).toMatchObject({ kind: 'streak-break', title: 'QUEBROU A SÉRIE', side: 'b' });
+    expect(getRoundFlash('pt-BR', { winner: 'a', tags: ['pistol', 'anti-eco', 'match-point'] })).toBeNull();
+    expect(highlightTag({ tags: ['pistol', '3k', 'eco-win', 'clutch'] })).toBe('clutch');
+    expect(highlightTag({ tags: ['4k', 'eco-win', 'ace'] })).toBe('ace');
+    expect(highlightTag({ tags: ['streak-break', '3k'] })).toBe('3k');
+  });
+
+  it('does not reveal result-dependent tags while the round is still in progress', () => {
+    const detail = {
+      tags: ['pistol', 'anti-eco', 'match-point', '3k'] as RoundDetail['tags']
+    };
+    expect(getVisibleRoundTag(detail, false)).toBe('pistol');
+    expect(getVisibleRoundTag({ tags: ['anti-eco', 'match-point', '3k'] }, false)).toBeNull();
+    expect(getVisibleRoundTag(detail, true)).toBe('3k');
   });
 });
