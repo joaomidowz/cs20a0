@@ -226,16 +226,18 @@ describe('authoritative online server', () => {
     expect(hostSeries?.series.maps[0]?.details?.every((detail) => detail.momentum === undefined)).toBe(true);
     expect(hostSnapshot.tournament?.rounds).toHaveLength(0);
 
+    // The humans' series is usually the slowest of the round (decision deadlines), so the round closes on the same tick
+    // it ends and the cursor moves on: the reliable signal is the series showing up in the public history.
     let finishedSnapshot = hostSnapshot;
-    for (let index = 0; index < 600 && !finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished; index += 1) {
+    const inHistory = (snapshot: RoomSnapshot) => snapshot.tournament?.rounds.flatMap((round) => round.series).find((series) => series.id === seriesId);
+    for (let index = 0; index < 600 && !inHistory(finishedSnapshot) && !finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished; index += 1) {
       now += 1_000;
       manager.tick(now);
       finishedSnapshot = manager.getSnapshot(code, host.participantId, now);
     }
-    expect(finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished).toBe(true);
-    expect(finishedSnapshot.tournament?.liveCursor?.primarySeries?.series.winnerId).not.toBe('');
-    // A round only moves into the public history once every series in it is over.
-    expect(finishedSnapshot.tournament?.rounds.length).toBeLessThanOrEqual(1);
+    const recorded = inHistory(finishedSnapshot) ?? finishedSnapshot.tournament?.liveCursor?.primarySeries?.series;
+    expect(recorded?.winnerId).toBeTruthy();
+    expect(recorded?.maps.every((map) => map.winnerId && map.rounds.length >= 13)).toBe(true);
     expect(finishedSnapshot.tournament?.rounds.every((round) => round.series.every((series) => series.winnerId))).toBe(true);
   });
 
