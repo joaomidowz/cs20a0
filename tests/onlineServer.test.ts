@@ -295,15 +295,18 @@ describe('authoritative online server', () => {
     }
     let timeoutUsed = false;
     if (ecoDecision) {
-      expect(ecoDecision).toMatchObject({ kind: 'eco-call', teamId: host.participantId, roundNumber: 2 });
+      // The prompt follows whichever pistol the human lost: round 2, or round 14 when the first-half pistol was won.
+      expect(ecoDecision).toMatchObject({ kind: 'eco-call', teamId: host.participantId });
+      expect([2, 14]).toContain(ecoDecision.roundNumber);
       expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-early', seriesId }, now)).not.toThrow();
       timeoutUsed = true;
       manager.execute(code, host.participantId, { type: 'eco-call', requestId: 'eco-host', seriesId, call: 'force' }, now);
       now += 200;
       manager.tick(now);
       live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
-      expect(live?.series.maps[0]?.details?.find((detail) => detail.number === 2)?.economy.a.buy).toBe('force');
-      expect(live?.series.maps[0]?.details?.find((detail) => detail.number === 2)?.timeout).toBe('a');
+      const called = live?.series.maps[ecoDecision.mapIndex]?.details?.find((detail) => detail.number === ecoDecision.roundNumber);
+      expect(called?.economy.a.buy).toBe('force');
+      expect(called?.timeout).toBe('a');
     }
     // One tactical timeout per half: the second request of the half is refused.
     if (!timeoutUsed) expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-1', seriesId }, now)).not.toThrow();
