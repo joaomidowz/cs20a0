@@ -235,6 +235,35 @@ describe('simulation', () => {
     expect(power).toBeGreaterThanOrEqual(94);
   });
 
+  it('lets a stacked lineup beat a mid-tier team almost every time while keeping close matchups open', () => {
+    const N = 1500;
+    const stacked: CombatTeam = { ...team('stacked', 104), consistency: 95 };
+    const mid: CombatTeam = { ...team('mid', 89), consistency: 82 };
+    let md1 = 0;
+    let md3 = 0;
+    for (let index = 0; index < N; index += 1) {
+      if (simulateSeries(stacked, mid, 1, createSeededRng(`stacked-md1-${index}`)).winnerId === stacked.id) md1 += 1;
+      if (simulateSeries(stacked, mid, 3, createSeededRng(`stacked-md3-${index}`)).winnerId === stacked.id) md3 += 1;
+    }
+    expect(md1 / N).toBeGreaterThanOrEqual(0.88);
+    expect(md3 / N).toBeGreaterThanOrEqual(0.95);
+
+    let close = 0;
+    for (let index = 0; index < N; index += 1) {
+      if (simulateSeries(team('a', 92), team('b', 90), 3, createSeededRng(`close-${index}`)).winnerId === 'a') close += 1;
+    }
+    expect(close / N).toBeGreaterThan(0.55);
+    expect(close / N).toBeLessThan(0.7);
+  });
+
+  it('lets five superstars push the team power past the old ceiling', () => {
+    const stars = (playersJson as Player[]).slice(0, 5).map((player) => ({ ...player, overall: 99, firepower: 97, consistency: 95 }));
+    const lineup: SelectedPlayer[] = stars.map((player, index) => ({ playerId: player.id, selectedSlotRole: (['igl', 'support', 'awper', 'entry', 'rifler'] as const)[index] }));
+    const power = calculateUserTeamPower(stars, 'balanced', lineup, 'stars').power;
+    expect(power).toBeGreaterThan(99);
+    expect(power).toBeLessThanOrEqual(106);
+  });
+
   it('turns superior tactical study into extra win probability', () => {
     const baseline = team('baseline', 86);
     const tactical: CombatTeam = {

@@ -7,7 +7,7 @@ import {
   getSelectedMapPowerBonus,
   getTeamMapPreferences
 } from './maps';
-import type { GameMode, HistoricalTeam, MapAffinity, MapId, MapVetoStep, Player } from './types';
+import type { GameMode, HistoricalTeam, MapAffinity, MapId, MapVetoStep, Player, Roster } from './types';
 
 export interface MapStrategy {
   teamId: string;
@@ -21,6 +21,8 @@ export interface MapSimulationContext {
   mode: GameMode;
   seed: string;
   strategies: Map<string, MapStrategy>;
+  /** Lineups by team id, used to generate the kill feed of every round. */
+  rosters?: Map<string, Roster>;
 }
 
 export interface MapVetoResult {
@@ -42,16 +44,17 @@ const hashUnit = (value: string) => {
 const strategyStrength = (strategy: MapStrategy, mapId: MapId) => {
   const selectedIndex = strategy.selectedMaps.indexOf(mapId);
   const selectionScore = selectedIndex < 0 ? 0 : 3 + (2 - selectedIndex) * 0.75;
-  return affinityScore[strategy.affinities[mapId]] * 4 + selectionScore;
+  // Familiarity matters on top of the declared affinity so a lineup bans what it has never played.
+  return affinityScore[strategy.affinities[mapId]] * 4 + selectionScore + strategy.familiarity[mapId] / 50;
 };
 
-function chooseMap(
+export function chooseMap(
   seed: string,
   step: number,
   action: 'ban' | 'pick',
   actor: MapStrategy,
   opponent: MapStrategy,
-  available: MapId[]
+  available: readonly MapId[]
 ): MapId {
   return [...available].sort((left, right) => {
     const score = (mapId: MapId) => {
@@ -66,56 +69,59 @@ function chooseMap(
   })[0];
 }
 
+export const VETO_POOL_SIZE = 7;
+
+/**
+ * Maps a veto is played on. Maps both lineups know come first; a map only one side has ever played is added only
+ * when it is needed to reach seven, so nobody ends up on a decider they have never touched when there is an alternative.
+ */
+export function getVetoAvailableMaps(teamA: MapStrategy, teamB: MapStrategy): MapId[] {
+  const shared = MAP_POOL.filter((mapId) => teamA.familiarity[mapId] > 0 && teamB.familiarity[mapId] > 0);
+  if (shared.length >= VETO_POOL_SIZE) return shared;
+  const oneSided = MAP_POOL
+    .filter((mapId) => !shared.includes(mapId) && (teamA.familiarity[mapId] > 0 || teamB.familiarity[mapId] > 0))
+    .sort((left, right) => (teamA.familiarity[right] + teamB.familiarity[right]) - (teamA.familiarity[left] + teamB.familiarity[left]) || left.localeCompare(right));
+  const available = [...shared, ...oneSided.slice(0, VETO_POOL_SIZE - shared.length)];
+  if (available.length < VETO_POOL_SIZE) throw new Error('A map veto requires at least seven maps known by one of the lineups');
+  return MAP_POOL.filter((mapId) => available.includes(mapId));
+}
+
+export interface VetoPlanStep {
+  action: 'ban' | 'pick';
+  actor: 'a' | 'b';
+}
+
+/** Alternating preliminary bans while more than seven maps remain, then the standard sequence for the format. */
+export function buildVetoPlan(bestOf: 1 | 3 | 5, availableCount: number): VetoPlanStep[] {
+  const plan: VetoPlanStep[] = [];
+  for (let remaining = availableCount; remaining > VETO_POOL_SIZE; remaining -= 1) {
+    plan.push({ action: 'ban', actor: plan.length % 2 === 0 ? 'a' : 'b' });
+  }
+  const sequence: Array<'ban' | 'pick'> = bestOf === 1
+    ? ['ban', 'ban', 'ban', 'ban', 'ban', 'ban']
+    : bestOf === 3
+      ? ['ban', 'ban', 'pick', 'pick', 'ban', 'ban']
+      : ['ban', 'ban', 'pick', 'pick', 'pick', 'pick'];
+  sequence.forEach((action, index) => plan.push({ action, actor: index % 2 === 0 ? 'a' : 'b' }));
+  return plan;
+}
+
 export function resolveMapVeto(options: {
   bestOf: 1 | 3 | 5;
   teamA: MapStrategy;
   teamB: MapStrategy;
   seed: string;
 }): MapVetoResult {
-  const sequence: Array<{ action: 'ban' | 'pick'; actor: MapStrategy; opponent: MapStrategy }> = options.bestOf === 1
-    ? [
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA },
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA },
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA }
-    ]
-    : options.bestOf === 3
-      ? [
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA },
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA }
-      ]
-      : [
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA }
-      ];
-
-  const available = MAP_POOL.filter((mapId) => options.teamA.familiarity[mapId] > 0 || options.teamB.familiarity[mapId] > 0);
-  if (available.length < 7) throw new Error('A map veto requires at least seven maps known by one of the lineups');
+  const available = getVetoAvailableMaps(options.teamA, options.teamB);
+  const plan = buildVetoPlan(options.bestOf, available.length);
   const steps: MapVetoStep[] = [];
-  let preliminaryStep = 0;
-  while (available.length > 7) {
-    const actor = preliminaryStep % 2 === 0 ? options.teamA : options.teamB;
-    const opponent = actor === options.teamA ? options.teamB : options.teamA;
-    const mapId = chooseMap(options.seed, preliminaryStep, 'ban', actor, opponent, available);
+  plan.forEach((item, index) => {
+    const actor = item.actor === 'a' ? options.teamA : options.teamB;
+    const opponent = item.actor === 'a' ? options.teamB : options.teamA;
+    const mapId = chooseMap(options.seed, index, item.action, actor, opponent, available);
     available.splice(available.indexOf(mapId), 1);
-    steps.push({ order: steps.length + 1, action: 'ban', teamId: actor.teamId, mapId });
-    preliminaryStep += 1;
-  }
-  for (const [index, item] of sequence.entries()) {
-    const mapId = chooseMap(options.seed, preliminaryStep + index, item.action, item.actor, item.opponent, available);
-    available.splice(available.indexOf(mapId), 1);
-    steps.push({ order: steps.length + 1, action: item.action, teamId: item.actor.teamId, mapId });
-  }
+    steps.push({ order: steps.length + 1, action: item.action, teamId: actor.teamId, mapId });
+  });
   steps.push({ order: steps.length + 1, action: 'decider', teamId: null, mapId: available[0] });
 
   return {

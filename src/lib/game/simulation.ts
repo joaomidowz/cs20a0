@@ -10,10 +10,12 @@ import type {
   Player,
   SelectedPlayer,
   PlayoffsResult,
-  RoundScore,
+  Roster,
+  SeriesDecision,
   SeriesResult,
   Stage3Result
 } from './types';
+import { createMapState, flipMapResult, playMapToEnd } from './rounds';
 import {
   createBotMapStrategy,
   createUserMapStrategy,
@@ -126,10 +128,11 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   return {
     id: 'user',
     name: 'yourOrg',
-    power: Math.max(45, Math.min(99, (average + composition) * styleMultiplier + eliteCoreBonus)),
+    power: Math.max(45, Math.min(MAX_TEAM_POWER, (average + composition) * styleMultiplier + eliteCoreBonus + getStarCarry(players))),
     mental: avg('mental'),
     clutch: avg('clutch'),
     experience: avg('experience'),
+    consistency: avg('consistency'),
     style,
     studyPercentage,
     aggressionPercentage,
@@ -137,10 +140,22 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   };
 }
 
+/** Upper bound of a lineup's power: stars are allowed to push a team past the old 99 ceiling. */
+export const MAX_TEAM_POWER = 106;
+
+/** Superstars carry: every point of overall above 92 adds up, capped so one lineup cannot run away. */
+export function getStarCarry(players: Player[]): number {
+  return Math.min(6, players.reduce((sum, player) => sum + Math.max(0, number(player.overall) - 92) * 0.45, 0));
+}
+
+const stabilityOf = (team: Pick<CombatTeam, 'consistency'>) => Math.max(0, Math.min(1, (number(team.consistency, 80) - 70) / 30));
+
 export function getMatchDayPower(team: CombatTeam, rng: SeededRng): number {
   const roll = rng();
   const intensity = rng();
-  let multiplier = 0.985 + intensity * 0.03;
+  // Steady lineups barely fluctuate (±1% at consistency 100); shaky ones keep the old ±1.5% swing.
+  const stability = stabilityOf(team);
+  let multiplier = 1 - (0.015 - 0.005 * stability) + intensity * (0.03 - 0.01 * stability);
 
   if (team.style === 'aggressive') {
     const goodDayChance = 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
@@ -153,7 +168,7 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng): number {
     multiplier = 1.02 + intensity * 0.025;
   }
 
-  return Math.max(45, Math.min(103, team.power * multiplier));
+  return Math.max(45, Math.min(MAX_TEAM_POWER + 4, team.power * multiplier));
 }
 
 export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: Player[]): CombatTeam {
@@ -165,86 +180,65 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
   const rankBonus = Math.max(0, 4 - rank * 0.55);
   const chemistry = number(team.teamStats?.chemistry, roster.length === 5 ? 88 : 75);
   const completeRosterBonus = roster.length >= 5 ? 2.8 : 0.5;
-  const power = playerAverage * 0.72 + number(team.teamPowerPreview ?? team.power, playerAverage) * 0.2 + chemistry * 0.08 + rankBonus + completeRosterBonus;
+  const power = playerAverage * 0.72 + number(team.teamPowerPreview ?? team.power, playerAverage) * 0.2 + chemistry * 0.08 + rankBonus + completeRosterBonus + getStarCarry(roster);
+  const rosterConsistency = roster.length ? roster.reduce((sum, player) => sum + number(player.consistency, 80), 0) / roster.length : 80;
   return {
     id: team.id,
     name: `${team.name ?? 'Time'} ${team.year ?? ''}`.trim(),
-    power: Math.max(50, Math.min(99, power)),
+    power: Math.max(50, Math.min(MAX_TEAM_POWER, power)),
     mental: number(team.teamStats?.mental, 82),
     clutch: number(team.teamStats?.clutch, 82),
-    experience: number(team.teamStats?.experience, 82)
+    experience: number(team.teamStats?.experience, 82),
+    consistency: number(team.teamStats?.consistency, rosterConsistency),
+    style: (team.style === 'aggressive' || team.style === 'tactical' || team.style === 'balanced') ? team.style : undefined
   };
 }
 
 export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number {
   const diff = teamA.power - teamB.power;
-  let probability = 1 / (1 + Math.exp(-diff / 9));
+  // Flat on purpose: economy, sides and momentum add their own edges round by round on top of this base.
+  let probability = 1 / (1 + Math.exp(-diff / 16));
   const tacticalStudyBonus = (team: CombatTeam) => {
     if (team.style !== 'tactical') return 0;
     const studyAdvantage = (team.studyPercentage ?? 0) - (team.aggressionPercentage ?? 0);
     return studyAdvantage > 0 ? Math.min(0.08, studyAdvantage / 500) : 0;
   };
   probability += tacticalStudyBonus(teamA) - tacticalStudyBonus(teamB);
-  return Math.max(0.18, Math.min(0.82, probability));
+  return Math.max(0.06, Math.min(0.94, probability));
 }
 
-export function simulateRound(
-  context: { teamA: CombatTeam; teamB: CombatTeam; scoreA: number; scoreB: number; overtime?: boolean },
-  rng: SeededRng
-): 'a' | 'b' {
-  let probability = getWinProbability(context.teamA, context.teamB);
-  const scoreDiff = context.scoreA - context.scoreB;
-  probability -= Math.max(-0.035, Math.min(0.035, scoreDiff * 0.004));
-  if (context.overtime) {
-    const mentalA = (context.teamA.mental + context.teamA.clutch) / 2;
-    const mentalB = (context.teamB.mental + context.teamB.clutch) / 2;
-    probability += (mentalA - mentalB) / 550;
-  }
-  const noise = (rng() - 0.5) * 0.09;
-  return rng() < Math.max(0.12, Math.min(0.88, probability + noise)) ? 'a' : 'b';
+export interface MapOptions {
+  mapId?: MapId;
+  powerBonusA?: number;
+  powerBonusB?: number;
+  rosterA?: Roster;
+  rosterB?: Roster;
+  /** Team that chooses its starting side (the opponent of whoever picked the map). Omit for a coin flip. */
+  sidePickerTeamId?: string | null;
+  pickedBy?: string | null;
 }
 
+/** Plays a full MR12 map (with MR3 overtime) through the round engine, letting bot policies take every decision. */
 export function simulateMap(
   teamA: CombatTeam,
   teamB: CombatTeam,
   rng: SeededRng,
   map = 1,
-  options: { mapId?: MapId; powerBonusA?: number; powerBonusB?: number } = {}
+  options: MapOptions = {}
 ): MapResult {
-  const variationA = (rng() - 0.5) * 7;
-  const variationB = (rng() - 0.5) * 7;
-  const mapA = { ...teamA, power: teamA.power + variationA + (options.powerBonusA ?? 0) };
-  const mapB = { ...teamB, power: teamB.power + variationB + (options.powerBonusB ?? 0) };
-  let scoreA = 0;
-  let scoreB = 0;
-  const rounds: RoundScore[] = [];
-  const playRound = (overtime: boolean) => {
-    const winner = simulateRound({ teamA: mapA, teamB: mapB, scoreA, scoreB, overtime }, rng);
-    if (winner === 'a') scoreA += 1;
-    else scoreB += 1;
-    rounds.push({ a: scoreA, b: scoreB, overtime });
-  };
-
-  while (scoreA < 13 && scoreB < 13 && scoreA + scoreB < 24) playRound(false);
-  let overtime = scoreA === 12 && scoreB === 12;
-  while (overtime) {
-    const startA = scoreA;
-    const startB = scoreB;
-    while (scoreA - startA < 4 && scoreB - startB < 4 && scoreA + scoreB - startA - startB < 6) playRound(true);
-    if (scoreA - startA === 3 && scoreB - startB === 3) continue;
-    break;
-  }
-
-  return {
-    map,
-    ...(options.mapId ? { mapId: options.mapId } : {}),
-    scoreA,
-    scoreB,
-    winnerId: scoreA > scoreB ? teamA.id : teamB.id,
-    rounds,
-    overtime
-  };
+  return playMapToEnd(createMapState(teamA, teamB, { ...options, rng, mapNumber: map }));
 }
+
+export interface SeriesOptions {
+  rosters?: Map<string, Roster>;
+}
+
+const seriesRosters = (options: SeriesOptions | undefined, teamA: CombatTeam, teamB: CombatTeam) => ({
+  rosterA: options?.rosters?.get(teamA.id),
+  rosterB: options?.rosters?.get(teamB.id)
+});
+
+const collectDecisions = (maps: MapResult[]): SeriesDecision[] => maps.flatMap((map) => map.decisions ?? []);
 
 export function simulateSeries(
   teamA: CombatTeam,
@@ -252,7 +246,8 @@ export function simulateSeries(
   bestOf: 1 | 3 | 5,
   rng: SeededRng,
   phase: SeriesResult['phase'] = 'stage3',
-  seriesId = `${phase}-${teamA.id}-${teamB.id}`
+  seriesId = `${phase}-${teamA.id}-${teamB.id}`,
+  options?: SeriesOptions
 ): SeriesResult {
   const needed = Math.ceil(bestOf / 2);
   const maps: MapResult[] = [];
@@ -262,8 +257,9 @@ export function simulateSeries(
   const pressureB = phase === 'final' ? (teamB.experience + teamB.mental) / 180 : 1;
   const adjustedA = { ...teamA, power: getMatchDayPower(teamA, rng) + pressureA };
   const adjustedB = { ...teamB, power: getMatchDayPower(teamB, rng) + pressureB };
+  const rosters = seriesRosters(options, teamA, teamB);
   while (scoreA < needed && scoreB < needed) {
-    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1);
+    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, rosters);
     maps.push(result);
     if (result.winnerId === teamA.id) scoreA += 1;
     else scoreB += 1;
@@ -278,6 +274,7 @@ export function simulateSeries(
     scoreB,
     winnerId: scoreA > scoreB ? teamA.id : teamB.id,
     maps,
+    decisions: collectDecisions(maps),
     userMatch: Boolean(teamA.isUser || teamB.isUser)
   };
 }
@@ -293,7 +290,7 @@ export function simulateMappedSeries(
 ): SeriesResult {
   const strategyA = mapContext.strategies.get(teamA.id);
   const strategyB = mapContext.strategies.get(teamB.id);
-  if (!strategyA || !strategyB) return simulateSeries(teamA, teamB, bestOf, rng, phase, seriesId);
+  if (!strategyA || !strategyB) return simulateSeries(teamA, teamB, bestOf, rng, phase, seriesId, { rosters: mapContext.rosters });
 
   const veto = resolveMapVeto({
     bestOf,
@@ -309,13 +306,21 @@ export function simulateMappedSeries(
   const pressureB = phase === 'final' ? (teamB.experience + teamB.mental) / 180 : 1;
   const adjustedA = { ...teamA, power: getMatchDayPower(teamA, rng) + pressureA };
   const adjustedB = { ...teamB, power: getMatchDayPower(teamB, rng) + pressureB };
+  const rosters = seriesRosters({ rosters: mapContext.rosters }, teamA, teamB);
+  const playedSteps = veto.steps.filter((step) => step.action !== 'ban');
 
-  for (const mapId of veto.playedMaps) {
+  for (const step of playedSteps) {
     if (scoreA >= needed || scoreB >= needed) break;
+    const pickedBy = step.action === 'pick' ? step.teamId : null;
+    // Whoever did not pick the map chooses the side; the decider goes to a knife round (coin flip inside the engine).
+    const sidePickerTeamId = pickedBy === teamA.id ? teamB.id : pickedBy === teamB.id ? teamA.id : null;
     const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, {
-      mapId,
-      powerBonusA: getStrategyMapBonus(strategyA, mapId, mapContext.mode),
-      powerBonusB: getStrategyMapBonus(strategyB, mapId, mapContext.mode)
+      ...rosters,
+      mapId: step.mapId,
+      pickedBy,
+      sidePickerTeamId,
+      powerBonusA: getStrategyMapBonus(strategyA, step.mapId, mapContext.mode),
+      powerBonusB: getStrategyMapBonus(strategyB, step.mapId, mapContext.mode)
     });
     maps.push(result);
     if (result.winnerId === teamA.id) scoreA += 1;
@@ -333,6 +338,7 @@ export function simulateMappedSeries(
     winnerId: scoreA > scoreB ? teamA.id : teamB.id,
     maps,
     veto: veto.steps,
+    decisions: collectDecisions(maps),
     userMatch: Boolean(teamA.isUser || teamB.isUser)
   };
 }
@@ -423,14 +429,15 @@ export function orientSeriesToTeam(series: SeriesResult, focusId: string): Serie
     teamB: series.teamA,
     scoreA: series.scoreB,
     scoreB: series.scoreA,
-    maps: series.maps.map((map) => ({
-      ...map,
-      scoreA: map.scoreB,
-      scoreB: map.scoreA,
-      rounds: map.rounds.map((round) => ({ ...round, a: round.b, b: round.a }))
-    }))
+    maps: series.maps.map(flipMapResult)
   };
 }
+
+/** Drops the per-round kill feed of a series (kept only for the matches worth replaying, to keep saved runs small). */
+export const stripSeriesDetails = (series: SeriesResult): SeriesResult => ({
+  ...series,
+  maps: series.maps.map(({ details: _details, ...map }) => map)
+});
 
 /**
  * Builds the offline Major with the same engine as the online mode: the user plus fifteen seeded historical teams play
@@ -455,6 +462,10 @@ export function buildMajorRun(
     for (const team of teams) strategies.set(team.id, createBotMapStrategy(team));
     mapContext = { mode: options.mode ?? 'premier', seed: `${seed}:offline-maps`, strategies };
   }
+  const rosters = new Map<string, Roster>();
+  rosters.set(user.id, { players, roles: new Map(lineup.map((selected) => [selected.playerId, selected.selectedSlotRole])) });
+  for (const team of teams) rosters.set(team.id, { players: allPlayers.filter((player) => (team.players ?? []).includes(player.id)) });
+  if (mapContext) mapContext.rosters = rosters;
   const fieldRng = createSeededRng(`${seed}:major-field:${lineupKey}:${style}`);
   const field = teams.map((team) => {
     const combat = calculateHistoricalTeamPower(team, allPlayers);
@@ -485,7 +496,7 @@ export function buildMajorRun(
       championId: tournament.championId ?? '',
       placement,
       userMatches: userSeries.filter((series) => series.phase !== 'stage3'),
-      allMatches: tournament.rounds.filter((round) => round.phase !== 'swiss').flatMap((round) => round.series)
+      allMatches: tournament.rounds.filter((round) => round.phase !== 'swiss').flatMap((round) => round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)))
     }
     : undefined;
   return {
@@ -495,7 +506,8 @@ export function buildMajorRun(
     champion,
     placement,
     tournament: {
-      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series })),
+      // Only the user's matches keep their kill feeds: the whole field would not fit comfortably in localStorage.
+      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)) })),
       standings: tournament.standings,
       championId: tournament.championId
     }

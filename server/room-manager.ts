@@ -3,8 +3,8 @@ import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
 import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
 import { createRunStats } from '../src/lib/game/runStats';
-import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng } from '../src/lib/game/simulation';
-import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, SeriesResult } from '../src/lib/game/types';
+import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng, orientSeriesToTeam } from '../src/lib/game/simulation';
+import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, Roster, SeriesResult } from '../src/lib/game/types';
 import {
   DEFAULT_ROOM_CONFIG,
   PROTOCOL_VERSION,
@@ -16,6 +16,8 @@ import {
   type PublicOrganization,
   type PublicOverviewSeries,
   type PublicParticipant,
+  type PublicPendingDecision,
+  type PublicRoundDetail,
   type RoomConfig,
   type RoomPhase,
   type RoomSnapshot
@@ -31,13 +33,46 @@ import {
   type DraftState
 } from '../src/lib/game/online/draft';
 import { DraftPoolExhaustedError } from '../src/lib/game/online/draft-pool';
-import { revealTournament, runOnlineTournament, type OnlineTournamentResult, type TournamentOrganization } from '../src/lib/game/online/tournament';
+import { revealTournament, type OnlineTournamentResult, type TournamentOrganization } from '../src/lib/game/online/tournament';
+import {
+  completeRound,
+  completedRoundCount,
+  createTournamentEngine,
+  currentRound,
+  isRoundComplete,
+  startNextRound,
+  toResult,
+  type TournamentEngineState
+} from '../src/lib/game/online/tournament-engine';
+import {
+  LiveSeriesError,
+  applySeriesDecision,
+  autoDecide,
+  pendingSeriesDecision,
+  requestSeriesTimeout,
+  seriesSideA,
+  seriesTimeouts,
+  stepSeries,
+  toSeriesResult,
+  type LiveSeriesState,
+  type PendingSeriesDecision
+} from '../src/lib/game/online/live-series';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
 /** After the pick deadline, participants get this long to confirm roles and maps before the server fills the gaps. */
 export const CONFIRMATION_GRACE_MS = 45_000;
+/** Pause between tournament rounds (automatic mode) and between maps of a series. */
+export const ROUND_GAP_MS = 900;
+export const MAP_GAP_MS = 900;
+/** How long a human gets for each live decision before the server decides with the bot policy. */
+export const VETO_STEP_DEADLINE_MS = 20_000;
+export const SIDE_PICK_DEADLINE_MS = 12_000;
+export const ECO_CALL_DEADLINE_MS = 8_000;
+const DECISION_DEADLINE_MS: Record<PendingSeriesDecision['kind'], number> = { veto: VETO_STEP_DEADLINE_MS, side: SIDE_PICK_DEADLINE_MS, 'eco-call': ECO_CALL_DEADLINE_MS };
+/** Rounds of kill feed sent per snapshot for the viewer's own series; the client accumulates the rest. */
+const DETAIL_WINDOW = 3;
 const REQUEST_CACHE_SIZE = 200;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -60,6 +95,14 @@ interface ParticipantState {
   requestIds: string[];
 }
 
+/** Server-side pacing of one live series: its own clock plus the deadline of the human decision it waits for. */
+interface LiveSeriesRuntime {
+  state: LiveSeriesState;
+  nextRoundAt: number | null;
+  decisionDeadlineAt: number | null;
+  decisionKey: string | null;
+}
+
 interface RoomState {
   code: string;
   seed: string;
@@ -71,13 +114,15 @@ interface RoomState {
   deadlineStage: 'picks' | 'confirmation' | null;
   hostParticipantId: string | null;
   participants: Map<string, ParticipantState>;
-  tournament: OnlineTournamentResult | null;
+  engine: TournamentEngineState | null;
   organizations: TournamentOrganization[] | null;
-  revealedRounds: number;
-  liveStep: number;
+  /** Series of the tournament round in progress, keyed by series id. */
+  live: Map<string, LiveSeriesRuntime>;
   roundStarted: boolean;
-  nextTickAt: number | null;
+  /** When the next tournament round goes live (automatic mode); null while live or waiting for the host. */
+  nextRoundAt: number | null;
   emptySince: number | null;
+  resultCache: { version: number; result: OnlineTournamentResult } | null;
 }
 
 export interface JoinResult {
@@ -85,10 +130,7 @@ export interface JoinResult {
   resumeToken: string;
 }
 
-const ROUND_GAP_MS = 900;
 const roundInterval = (config: RoomConfig) => config.simulationSpeed === 'normal' ? 2_400 : config.simulationSpeed === 'fast' ? 1_200 : 200;
-const seriesRoundCount = (series: SeriesResult) => series.maps.reduce((sum, map) => sum + map.rounds.length, 0);
-const tournamentRoundLength = (series: SeriesResult[]) => Math.max(0, ...series.map(seriesRoundCount));
 
 const publicTeam = (team: CombatTeam, isUser: boolean): CombatTeam => ({
   id: team.id,
@@ -100,87 +142,76 @@ const publicTeam = (team: CombatTeam, isUser: boolean): CombatTeam => ({
   isUser
 });
 
-function orientSeries(series: SeriesResult, focusId: string): SeriesResult {
-  if (series.teamA.id === focusId || series.teamB.id !== focusId) return series;
-  return {
-    ...series,
-    teamA: series.teamB,
-    teamB: series.teamA,
-    scoreA: series.scoreB,
-    scoreB: series.scoreA,
-    maps: series.maps.map((map) => ({
-      ...map,
-      scoreA: map.scoreB,
-      scoreB: map.scoreA,
-      rounds: map.rounds.map((round) => ({ ...round, a: round.b, b: round.a }))
-    }))
-  };
-}
+const publicRoundDetail = ({ momentum: _momentum, ...detail }: NonNullable<MapResult['details']>[number]): PublicRoundDetail => detail;
 
-function sanitizeLiveSeries(source: SeriesResult, step: number, focusId: string): PublicLiveSeries {
-  const series = orientSeries(source, focusId);
-  const visibleMaps: MapResult[] = [];
-  let remaining = Math.max(0, step);
-  for (let index = 0; index < series.maps.length; index += 1) {
-    const map = series.maps[index];
-    const visibleRoundCount = Math.min(remaining, map.rounds.length);
-    if (index > 0 && visibleRoundCount === 0) break;
-    const visibleRounds = map.rounds.slice(0, visibleRoundCount);
-    const mapComplete = visibleRoundCount === map.rounds.length;
-    const current = visibleRounds.at(-1);
-    visibleMaps.push({
-      ...map,
-      scoreA: mapComplete ? map.scoreA : current?.a ?? 0,
-      scoreB: mapComplete ? map.scoreB : current?.b ?? 0,
-      winnerId: mapComplete ? map.winnerId : '',
-      rounds: visibleRounds,
-      overtime: mapComplete ? map.overtime : Boolean(current?.overtime)
-    });
-    remaining -= visibleRoundCount;
-    if (!mapComplete) break;
-  }
-  const complete = step >= seriesRoundCount(series);
-  const scoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
-  const scoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
-  const activeMap = Math.max(0, visibleMaps.length - 1);
+const decisionKey = (pending: PendingSeriesDecision) =>
+  pending.kind === 'veto' ? `veto:${pending.step}` : pending.kind === 'side' ? `side:${pending.mapIndex}` : `eco:${pending.mapIndex}:${pending.roundNumber}`;
+
+const publicDecision = (pending: PendingSeriesDecision, deadlineAt: number | null): PublicPendingDecision =>
+  pending.kind === 'veto'
+    ? { kind: 'veto', teamId: pending.teamId, deadlineAt, action: pending.action, step: pending.step, available: pending.available }
+    : pending.kind === 'side'
+      ? { kind: 'side', teamId: pending.teamId, deadlineAt, mapIndex: pending.mapIndex, mapId: pending.mapId }
+      : { kind: 'eco-call', teamId: pending.teamId, deadlineAt, mapIndex: pending.mapIndex, roundNumber: pending.roundNumber, money: pending.money };
+
+/**
+ * The viewer's picture of a live series: oriented so `focusId` is team A, hidden ratings zeroed, the kill feed limited
+ * to the last rounds of the live map (and only when `includeDetails`). Future results do not exist yet, so they cannot leak.
+ */
+function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, includeDetails: boolean): PublicLiveSeries {
+  const { state } = runtime;
+  const oriented = orientSeriesToTeam(toSeriesResult(state), focusId);
+  const flipped = oriented.teamA.id !== state.config.teamA.id;
+  const activeMap = state.current ? state.current.index : Math.max(0, oriented.maps.length - 1);
+  const maps = oriented.maps.map(({ details, ...map }, index) => ({
+    ...map,
+    ...(includeDetails && details && index === activeMap ? { details: details.slice(-DETAIL_WINDOW).map(publicRoundDetail) } : {})
+  }));
+  const pending = pendingSeriesDecision(state);
+  const timeouts = seriesTimeouts(state);
+  const sideA = seriesSideA(state);
   return {
     series: {
-      ...series,
-      teamA: publicTeam(series.teamA, series.teamA.id === focusId),
-      teamB: publicTeam(series.teamB, series.teamB.id === focusId),
-      scoreA,
-      scoreB,
-      winnerId: complete ? series.winnerId : '',
-      maps: visibleMaps,
-      userMatch: series.teamA.id === focusId || series.teamB.id === focusId
+      ...oriented,
+      teamA: publicTeam(oriented.teamA, oriented.teamA.id === focusId),
+      teamB: publicTeam(oriented.teamB, oriented.teamB.id === focusId),
+      maps,
+      userMatch: oriented.teamA.id === focusId || oriented.teamB.id === focusId
     },
     activeMap,
-    visibleRounds: visibleMaps[activeMap]?.rounds.length ?? 0,
-    started: step > 0,
-    finished: complete
+    visibleRounds: maps[activeMap]?.rounds.length ?? 0,
+    started: state.maps.length > 0 || state.current !== null,
+    finished: state.phase === 'finished',
+    phase: state.phase,
+    veto: state.veto
+      ? {
+        available: [...state.veto.available],
+        steps: [...state.veto.steps],
+        turnTeamId: pending?.kind === 'veto' ? pending.teamId : null,
+        action: pending?.kind === 'veto' ? pending.action : null,
+        step: state.veto.cursor
+      }
+      : null,
+    decision: pending ? publicDecision(pending, runtime.decisionDeadlineAt) : null,
+    timeouts: flipped ? { a: timeouts.b, b: timeouts.a } : timeouts,
+    sideA: sideA && flipped ? (sideA === 'ct' ? 't' : 'ct') : sideA,
+    nextRoundAt: runtime.nextRoundAt
   };
 }
 
-function overviewSeries(series: SeriesResult, step: number): PublicOverviewSeries {
-  let remaining = Math.max(0, step);
-  let scoreA = 0;
-  let scoreB = 0;
-  for (const map of series.maps) {
-    if (remaining < map.rounds.length) break;
-    remaining -= map.rounds.length;
-    if (map.winnerId === series.teamA.id) scoreA += 1;
-    else scoreB += 1;
-  }
-  const complete = step >= seriesRoundCount(series);
+function overviewSeries(runtime: LiveSeriesRuntime, roundStarted: boolean): PublicOverviewSeries {
+  const { state } = runtime;
+  const current = state.current;
   return {
-    id: series.id,
-    phase: series.phase,
-    bestOf: series.bestOf,
-    teamA: { id: series.teamA.id, name: series.teamA.name },
-    teamB: { id: series.teamB.id, name: series.teamB.name },
-    scoreA,
-    scoreB,
-    status: complete ? 'completed' : step > 0 ? 'live' : 'pending'
+    id: state.config.id,
+    phase: state.config.phase,
+    bestOf: state.config.bestOf,
+    teamA: { id: state.config.teamA.id, name: state.config.teamA.name },
+    teamB: { id: state.config.teamB.id, name: state.config.teamB.name },
+    scoreA: state.scoreA,
+    scoreB: state.scoreB,
+    status: state.phase === 'finished' ? 'completed' : roundStarted ? 'live' : 'pending',
+    liveMap: current ? { mapId: current.state.mapId ?? null, a: current.state.scoreA, b: current.state.scoreB } : null
   };
 }
 
@@ -208,13 +239,13 @@ export class RoomManager {
       deadlineStage: null,
       hostParticipantId: null,
       participants: new Map(),
-      tournament: null,
+      engine: null,
       organizations: null,
-      revealedRounds: 0,
-      liveStep: 0,
+      live: new Map(),
       roundStarted: false,
-      nextTickAt: null,
-      emptySince: now
+      nextRoundAt: null,
+      emptySince: now,
+      resultCache: null
     });
     return code;
   }
@@ -355,25 +386,60 @@ export class RoomManager {
         break;
       case 'configure-simulation':
         this.requireHost(room, participantId);
-        if (!room.tournament) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
+        if (!room.engine) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
         if (command.simulationMode) room.config = { ...room.config, simulationMode: command.simulationMode };
         if (command.simulationSpeed) room.config = { ...room.config, simulationSpeed: command.simulationSpeed };
         if (room.roundStarted && command.simulationSpeed) {
-          const currentRound = room.tournament.rounds[room.revealedRounds];
-          room.nextTickAt = now + (currentRound && room.liveStep >= tournamentRoundLength(currentRound.series) ? ROUND_GAP_MS : roundInterval(room.config));
+          // The new pace is felt immediately; series paused for a decision keep waiting for it.
+          for (const runtime of room.live.values()) {
+            if (runtime.state.phase !== 'finished' && !pendingSeriesDecision(runtime.state)) runtime.nextRoundAt = now + roundInterval(room.config);
+          }
         }
-        if (!room.roundStarted && room.config.simulationMode === 'automatic' && room.phase !== 'completed') room.nextTickAt = now + ROUND_GAP_MS;
-        if (!room.roundStarted && room.config.simulationMode === 'manual') room.nextTickAt = null;
+        if (!room.roundStarted && room.config.simulationMode === 'automatic' && room.phase !== 'completed') room.nextRoundAt = now + ROUND_GAP_MS;
+        if (!room.roundStarted && room.config.simulationMode === 'manual') room.nextRoundAt = null;
         break;
       case 'advance-round':
         this.requireHost(room, participantId);
-        if (!room.tournament || room.phase === 'completed') throw new RoomError('INVALID_PHASE', 'There is no tournament round to start');
+        if (!room.engine || room.phase === 'completed') throw new RoomError('INVALID_PHASE', 'There is no tournament round to start');
         if (room.config.simulationMode !== 'manual') throw new RoomError('INVALID_ACTION', 'The room is not in manual mode');
         if (room.roundStarted) throw new RoomError('INVALID_ACTION', 'The tournament round is already live');
-        room.roundStarted = true;
-        room.liveStep = 0;
-        room.nextTickAt = now + roundInterval(room.config);
+        this.launchRound(room, now);
         break;
+      case 'veto-action':
+      case 'pick-side':
+      case 'eco-call':
+      case 'call-timeout': {
+        if (!room.engine || !room.roundStarted) throw new RoomError('INVALID_PHASE', 'No series is live');
+        const runtime = room.live.get(command.seriesId);
+        if (!runtime || (runtime.state.config.teamA.id !== participantId && runtime.state.config.teamB.id !== participantId)) {
+          throw new RoomError('SERIES_MISMATCH', 'This series is not yours or is no longer live');
+        }
+        try {
+          if (command.type === 'call-timeout') {
+            requestSeriesTimeout(runtime.state, participantId);
+          } else {
+            const pending = pendingSeriesDecision(runtime.state);
+            const kind = command.type === 'veto-action' ? 'veto' : command.type === 'pick-side' ? 'side' : 'eco-call';
+            if (!pending || pending.kind !== kind) throw new LiveSeriesError('DECISION_NOT_PENDING', `No ${kind} decision is pending`);
+            if (pending.teamId !== participantId) throw new LiveSeriesError('NOT_YOUR_TURN', 'It is not your turn');
+            if (command.type === 'veto-action') {
+              if (pending.kind === 'veto' && command.step !== undefined && command.step !== pending.step) throw new LiveSeriesError('DECISION_NOT_PENDING', 'That veto step is over');
+              applySeriesDecision(runtime.state, { kind: 'veto', teamId: participantId, action: command.action, mapId: command.mapId });
+            } else if (command.type === 'pick-side') {
+              applySeriesDecision(runtime.state, { kind: 'side', teamId: participantId, side: command.side });
+            } else {
+              applySeriesDecision(runtime.state, { kind: 'eco-call', teamId: participantId, call: command.call });
+            }
+            runtime.decisionKey = null;
+            runtime.decisionDeadlineAt = null;
+            runtime.nextRoundAt = now + roundInterval(room.config);
+          }
+        } catch (error) {
+          if (error instanceof LiveSeriesError) throw new RoomError(error.code === 'SERIES_FINISHED' ? 'INVALID_PHASE' : error.code, error.message);
+          throw error;
+        }
+        break;
+      }
     }
     // Only successful commands are cached: a retry after a failure must execute again instead of receiving a false ack.
     participant.requestIds.push(command.requestId);
@@ -426,7 +492,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false },
+      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true },
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
       roomCode: room.code,
@@ -444,11 +510,12 @@ export class RoomManager {
         rerollsUsed: participant.draft.rerollsUsed,
         rerollsMax: getRerollLimit(room.config.mode),
         watchedSeriesId: participant.watchedSeriesId,
-        mapPreferences: [...participant.draft.mapPreferences]
+        mapPreferences: [...participant.draft.mapPreferences],
+        pendingDecision: this.selfPendingDecision(room, participant.id)
       } : null,
       deadlineAt: room.deadlineAt,
       deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
-      tournament: room.tournament ? this.publicTournament(room, participantId) : null,
+      tournament: room.engine ? this.publicTournament(room, participantId) : null,
       ...(organizations ? { organizations } : {}),
       ...(participant && room.phase === 'completed' ? { selfResult: this.getSelfResult(room, participant) } : {}),
       serverTime: now
@@ -469,7 +536,7 @@ export class RoomManager {
         console.error(`[room ${code}] tick failed`, error);
         room.deadlineAt = null;
         room.deadlineStage = null;
-        room.nextTickAt = null;
+        room.nextRoundAt = null;
         room.version += 1;
         changed.push(code);
       }
@@ -510,33 +577,32 @@ export class RoomManager {
       room.version += 1;
       this.startTournamentIfReady(room, now);
       changed = true;
-    } else if (room.tournament && room.nextTickAt !== null && now >= room.nextTickAt) {
-        const currentRound = room.tournament.rounds[room.revealedRounds];
-        if (!currentRound) {
-          room.phase = 'completed';
-          room.nextTickAt = null;
-        } else if (!room.roundStarted) {
-          room.roundStarted = true;
-          room.liveStep = 0;
-          room.nextTickAt = now + roundInterval(room.config);
-        } else if (room.liveStep >= tournamentRoundLength(currentRound.series)) {
-          room.revealedRounds += 1;
-          room.liveStep = 0;
-          room.roundStarted = false;
-          const nextRound = room.tournament.rounds[room.revealedRounds];
-          if (!nextRound) {
-            room.phase = 'completed';
-            room.nextTickAt = null;
-          } else {
-            room.phase = nextRound.phase === 'swiss' ? 'swiss' : 'playoffs';
-            room.nextTickAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
-          }
-        } else {
-          room.liveStep += 1;
-          room.nextTickAt = now + (room.liveStep >= tournamentRoundLength(currentRound.series) ? ROUND_GAP_MS : roundInterval(room.config));
+    } else if (room.engine && room.phase !== 'completed') {
+      if (!room.roundStarted) {
+        if (room.nextRoundAt !== null && now >= room.nextRoundAt) {
+          this.launchRound(room, now);
+          changed = true;
         }
-      room.version += 1;
-      changed = true;
+      } else {
+        for (const runtime of room.live.values()) {
+          if (this.advanceSeries(room, runtime, now)) changed = true;
+        }
+        const round = currentRound(room.engine);
+        if (round && isRoundComplete(round)) {
+          completeRound(room.engine);
+          room.roundStarted = false;
+          if (room.engine.finished) {
+            room.phase = 'completed';
+            room.live = new Map();
+            room.nextRoundAt = null;
+          } else {
+            this.prepareRound(room);
+            room.nextRoundAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
+          }
+          changed = true;
+        }
+      }
+      if (changed) room.version += 1;
     }
     if (room.phase === 'draft') this.startTournamentIfReady(room, now);
     return changed;
@@ -580,7 +646,7 @@ export class RoomManager {
   }
 
   private beginTournament(room: RoomState, now: number) {
-    if (room.tournament) return;
+    if (room.engine) return;
     const organizations = [...room.participants.values()].map((participant, index) => this.toTournamentOrganization(participant, index + 1, room.config.mode));
     const humanIds = new Set(organizations.map((organization) => organization.id));
     const shuffledTeams = [...teams].sort((left, right) => {
@@ -595,6 +661,7 @@ export class RoomManager {
     }).filter((organization) => !humanIds.has(organization.id));
     room.organizations = [...organizations, ...botPool].slice(0, room.config.entryStage === 'stage3' ? 16 : 8);
     const strategies: MapSimulationContext['strategies'] = new Map();
+    const rosters = new Map<string, Roster>();
     for (const participant of room.participants.values()) {
       const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
       strategies.set(participant.id, createUserMapStrategy(
@@ -603,58 +670,134 @@ export class RoomManager {
         selected,
         teams
       ));
+      rosters.set(participant.id, { players: selected, roles: new Map(participant.draft.lineup.map((pick) => [pick.playerId, pick.selectedSlotRole])) });
     }
     for (const organization of botPool) {
       const historicalTeam = organization.sourceTeamId ? teams.find((team) => team.id === organization.sourceTeamId) : null;
-      if (historicalTeam) strategies.set(organization.id, { ...createBotMapStrategy(historicalTeam), teamId: organization.id });
+      if (!historicalTeam) continue;
+      strategies.set(organization.id, { ...createBotMapStrategy(historicalTeam), teamId: organization.id });
+      rosters.set(organization.id, { players: players.filter((player) => (historicalTeam.players ?? []).includes(player.id)) });
     }
-    const mapContext: MapSimulationContext = { mode: toPresentationGameMode(room.config.mode), seed: `${room.seed}:online-maps`, strategies };
-    room.tournament = runOnlineTournament({ organizations, botPool, entryStage: room.config.entryStage, seed: room.seed, mapContext });
+    const mapContext: MapSimulationContext = { mode: toPresentationGameMode(room.config.mode), seed: `${room.seed}:online-maps`, strategies, rosters };
+    room.engine = createTournamentEngine({
+      organizations,
+      botPool,
+      entryStage: room.config.entryStage,
+      seed: room.seed,
+      mapContext,
+      swissBestOf: 3,
+      controllerFor: (organization) => organization.human ? 'human' : 'bot',
+      // Only two humans veto by hand; against a bot the veto is settled by the policies, decisions inside the maps stay live.
+      interactiveVeto: (left, right) => left.human && right.human
+    });
     room.deadlineAt = null;
-    room.revealedRounds = 0;
-    room.liveStep = 0;
-    room.roundStarted = false;
+    this.prepareRound(room);
     room.phase = room.config.entryStage === 'stage3' ? 'swiss' : 'playoffs';
-    room.nextTickAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
+    room.nextRoundAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
     room.version += 1;
   }
 
-  private publicTournament(room: RoomState, participantId: string | null) {
-    const tournament = revealTournament(room.tournament!, room.revealedRounds);
-    const currentRound = room.tournament!.rounds[room.revealedRounds];
-    if (!currentRound || room.phase === 'completed') {
-      tournament.liveCursor = currentRound ? this.liveCursor(room, currentRound.series, participantId) : null;
-      return tournament;
+  /** Pairs the next tournament round so everybody can see the matchups while the round waits to go live. */
+  private prepareRound(room: RoomState) {
+    const round = startNextRound(room.engine!);
+    room.live = new Map(round.series.map((series) => [series.config.id, { state: series, nextRoundAt: null, decisionDeadlineAt: null, decisionKey: null }]));
+    room.roundStarted = false;
+    room.phase = round.phase === 'swiss' ? 'swiss' : 'playoffs';
+  }
+
+  private launchRound(room: RoomState, now: number) {
+    room.roundStarted = true;
+    room.nextRoundAt = null;
+    for (const runtime of room.live.values()) runtime.nextRoundAt = now + roundInterval(room.config);
+  }
+
+  /**
+   * One tick of a live series: a pending human decision pauses this series alone (and is taken by the server when its
+   * deadline passes); otherwise the series moves one round when its own clock is due.
+   */
+  private advanceSeries(room: RoomState, runtime: LiveSeriesRuntime, now: number): boolean {
+    const { state } = runtime;
+    if (state.phase === 'finished') return false;
+    const pending = pendingSeriesDecision(state);
+    if (pending) {
+      const key = decisionKey(pending);
+      if (runtime.decisionKey !== key) {
+        runtime.decisionKey = key;
+        runtime.decisionDeadlineAt = now + DECISION_DEADLINE_MS[pending.kind];
+        return true;
+      }
+      if (runtime.decisionDeadlineAt !== null && now >= runtime.decisionDeadlineAt) {
+        autoDecide(state);
+        runtime.decisionKey = null;
+        runtime.decisionDeadlineAt = null;
+        runtime.nextRoundAt = now + roundInterval(room.config);
+        return true;
+      }
+      return false;
     }
-    tournament.liveCursor = this.liveCursor(room, currentRound.series, participantId);
+    if (runtime.nextRoundAt === null) runtime.nextRoundAt = now + roundInterval(room.config);
+    if (now < runtime.nextRoundAt) return false;
+    const outcome = stepSeries(state);
+    runtime.nextRoundAt = outcome === 'finished' ? null : outcome === 'map-complete' ? now + MAP_GAP_MS : now + roundInterval(room.config);
+    return true;
+  }
+
+  private tournamentResult(room: RoomState): OnlineTournamentResult {
+    if (room.resultCache?.version === room.version) return room.resultCache.result;
+    const result = toResult(room.engine!);
+    room.resultCache = { version: room.version, result };
+    return result;
+  }
+
+  private publicTournament(room: RoomState, participantId: string | null) {
+    const tournament = revealTournament(this.tournamentResult(room), completedRoundCount(room.engine!));
+    tournament.liveCursor = this.liveCursor(room, participantId);
     return tournament;
   }
 
-  private liveCursor(room: RoomState, series: SeriesResult[], participantId: string | null): PublicLiveCursor {
-    const standings = revealTournament(room.tournament!, room.revealedRounds).standings;
+  private selfPendingDecision(room: RoomState, participantId: string): NonNullable<RoomSnapshot['self']>['pendingDecision'] {
+    if (!room.engine || !room.roundStarted) return null;
+    for (const runtime of room.live.values()) {
+      const pending = pendingSeriesDecision(runtime.state);
+      if (pending?.teamId === participantId) return { seriesId: runtime.state.config.id, kind: pending.kind, deadlineAt: runtime.decisionDeadlineAt };
+    }
+    return null;
+  }
+
+  private liveCursor(room: RoomState, participantId: string | null): PublicLiveCursor {
+    const engine = room.engine!;
+    const round = currentRound(engine);
+    const runtimes = [...room.live.values()];
+    const standings = revealTournament(this.tournamentResult(room), completedRoundCount(engine)).standings;
     const seedById = new Map(standings.map((standing) => [standing.organizationId, standing.seed]));
-    let primary = participantId ? series.find((match) => match.teamA.id === participantId || match.teamB.id === participantId) : undefined;
+    const participant = participantId ? room.participants.get(participantId) ?? null : null;
+    let primary = participantId ? runtimes.find((runtime) => runtime.state.config.teamA.id === participantId || runtime.state.config.teamB.id === participantId) : undefined;
     let focusId = participantId ?? '';
+    if (!primary && participant?.watchedSeriesId) {
+      primary = room.live.get(participant.watchedSeriesId);
+      focusId = primary?.state.config.teamA.id ?? '';
+    }
     if (!primary) {
-      const humanCandidates = series
-        .flatMap((match) => [match.teamA.id, match.teamB.id].filter((id) => !id.startsWith('bot-')).map((id) => ({ match, id })))
+      const humanCandidates = runtimes
+        .flatMap((runtime) => [runtime.state.config.teamA.id, runtime.state.config.teamB.id].filter((id) => !id.startsWith('bot-')).map((id) => ({ runtime, id })))
         .sort((left, right) => (seedById.get(left.id) ?? 999) - (seedById.get(right.id) ?? 999));
-      const fallback = [...series].sort((left, right) => Math.min(seedById.get(left.teamA.id) ?? 999, seedById.get(left.teamB.id) ?? 999) - Math.min(seedById.get(right.teamA.id) ?? 999, seedById.get(right.teamB.id) ?? 999))[0];
-      primary = humanCandidates[0]?.match ?? fallback;
-      focusId = humanCandidates[0]?.id ?? primary?.teamA.id ?? '';
+      const bySeed = (runtime: LiveSeriesRuntime) => Math.min(seedById.get(runtime.state.config.teamA.id) ?? 999, seedById.get(runtime.state.config.teamB.id) ?? 999);
+      const fallback = [...runtimes].sort((left, right) => bySeed(left) - bySeed(right))[0];
+      primary = humanCandidates[0]?.runtime ?? fallback;
+      focusId = humanCandidates[0]?.id ?? primary?.state.config.teamA.id ?? '';
     }
     const status: PublicLiveCursor['status'] = room.phase === 'completed'
       ? 'completed'
       : room.roundStarted ? 'live'
         : room.config.simulationMode === 'manual' ? 'waiting_host' : 'waiting';
+    const ownSeries = Boolean(participantId && primary && (primary.state.config.teamA.id === participantId || primary.state.config.teamB.id === participantId));
     return {
-      tournamentRound: room.revealedRounds + 1,
-      phase: room.tournament!.rounds[room.revealedRounds]?.phase ?? 'final',
+      tournamentRound: completedRoundCount(engine) + 1,
+      phase: round?.phase ?? engine.rounds.at(-1)?.phase ?? 'final',
       status,
-      step: room.liveStep,
-      nextTickAt: room.nextTickAt,
-      primarySeries: primary ? sanitizeLiveSeries(primary, room.liveStep, focusId) : null,
-      overviewSeries: series.map((match) => overviewSeries(match, room.liveStep))
+      nextRoundAt: room.nextRoundAt,
+      primarySeries: primary ? sanitizeLiveSeries(primary, focusId, ownSeries || Boolean(participant?.watchedSeriesId)) : null,
+      overviewSeries: runtimes.map((runtime) => overviewSeries(runtime, room.roundStarted))
     };
   }
 
@@ -677,13 +820,15 @@ export class RoomManager {
   }
 
   private getSelfResult(room: RoomState, participant: ParticipantState) {
-    const campaign = room.tournament?.campaigns.find((candidate) => candidate.organizationId === participant.id);
-    if (!room.tournament || !campaign) return null;
-    const matches = room.tournament.rounds.flatMap((round) => round.series)
+    if (!room.engine) return null;
+    const tournament = this.tournamentResult(room);
+    const campaign = tournament.campaigns.find((candidate) => candidate.organizationId === participant.id);
+    if (!campaign) return null;
+    const matches = tournament.rounds.flatMap((round) => round.series)
       .filter((series) => series.teamA.id === participant.id || series.teamB.id === participant.id);
     const stageMatches = matches.filter((series) => series.phase === 'stage3');
     const stageWins = stageMatches.filter((series) => series.winnerId === participant.id).length;
-    const champion = room.tournament.championId === participant.id;
+    const champion = tournament.championId === participant.id;
     const run: MajorRun = {
       stage3: {
         wins: stageWins,

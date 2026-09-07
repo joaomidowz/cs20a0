@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { translateTeamName } from '$lib/game/i18n';
+  import RoundFeed from '$lib/components/RoundFeed.svelte';
+  import RoundStrip from '$lib/components/RoundStrip.svelte';
+  import { translate, translateTeamName } from '$lib/game/i18n';
+  import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
   import { getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
-  import type { Language, SeriesResult } from '$lib/game/types';
+  import type { Language, RoundDetail, SeriesResult } from '$lib/game/types';
 
   export let series: SeriesResult;
   export let delay = 1500;
@@ -14,6 +17,10 @@
   export let controlledStarted = false;
   export let controlledFinished = false;
   export let language: Language = 'en';
+  /** Round details of the live map when they arrive separately from `series` (online snapshots send a rolling window). */
+  export let liveDetails: RoundDetail[] | null = null;
+  /** Kill feed pacing in controlled mode (ms per round). */
+  export let controlledDelay = 1500;
   export let interactiveTeamId: string | null = null;
   export let interactiveTeamIds: string[] = [];
   export let labels: {
@@ -76,11 +83,17 @@
   $: visibleMaps = series.maps.slice(0, displayActiveMap + (currentMap && displayVisibleRounds >= currentMap.rounds.length ? 1 : 0));
   // Bans are never shown: only the maps that will actually be played.
   $: decidedMaps = getDecidedMaps(series);
-  $: roundTicks = currentMap ? currentMap.rounds.slice(0, displayVisibleRounds).map((round, index) => {
-    const before = index > 0 ? currentMap.rounds[index - 1] : { a: 0, b: 0 };
+  $: visibleRoundScores = currentMap ? currentMap.rounds.slice(0, displayVisibleRounds) : [];
+  $: roundTicks = visibleRoundScores.map((round, index) => {
+    const before = index > 0 ? visibleRoundScores[index - 1] : { a: 0, b: 0 };
     return round.a > before.a ? 'a' : 'b';
-  }) : [];
+  });
   $: lastRoundWinner = roundTicks.length ? roundTicks[roundTicks.length - 1] : null;
+  $: userIsA = series.teamA.isUser ? true : series.teamB.isUser ? false : null;
+  $: currentDetails = liveDetails ?? currentMap?.details ?? null;
+  $: teamNames = { a: translateTeamName(language, series.teamA.name), b: translateTeamName(language, series.teamB.name) };
+  $: headline = currentMap && currentMapFinished ? getMapHeadline({ ...currentMap, details: currentDetails ?? currentMap.details }, teamNames, language) : null;
+  $: feedDelay = controlled ? controlledDelay : delay;
   $: inOvertime = Boolean(displayStarted && !displayFinished && !currentMapFinished && currentMapScore && (currentRound?.overtime || (currentMapScore.a >= 12 && currentMapScore.b >= 12)));
   $: mapStates = decidedMaps.map((decided) => {
     const index = series.maps.findIndex((map) => map.mapId === decided.mapId);
@@ -223,10 +236,12 @@
         <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name)}</span>
       </div>
       {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
-      <div class="round-strip" aria-hidden="true">
-        {#each roundTicks as winner}<i class:user={(winner === 'a') === Boolean(series.teamA.isUser)} class:neutral={!series.teamA.isUser && !series.teamB.isUser}></i>{/each}
-      </div>
+      {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
+      <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} />
       <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : lastRoundWinner ? `${labels.round} ${displayVisibleRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
+      {#if currentDetails?.length && displayVisibleRounds > 0}
+        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} />
+      {/if}
     </div>
   {/if}
 
@@ -236,11 +251,13 @@
         {@const score = mapScore(decided)}
         {@const mapIndex = series.maps.findIndex((map) => map.mapId === decided.mapId)}
         {@const isLive = mapIndex === displayActiveMap && displayStarted && !displayFinished}
+        {@const pistols = score?.done && decided.result?.details?.length ? countPistols(decided.result.details) : null}
         <article class:live={isLive} class:not-played={displayFinished && !decided.result} class:user-pick={Boolean(decided.teamId) && (decided.teamId === series.teamA.id ? series.teamA.isUser : series.teamB.isUser)}>
           <div>
             <small>{decided.action === 'decider' ? labels.decider ?? 'Decider' : `${labels.pick ?? 'Pick'} · ${vetoTeamName(decided.teamId)}`}</small>
             <strong>{getMapName(decided.mapId)}</strong>
             <span>{mapStates[index]}</span>
+            {#if pistols}<small class="map-extra">{translate(language, 'pistols')} {pistols.a}–{pistols.b}{decided.result?.comeback ? ` · ${translate(language, 'comeback')}` : ''}</small>{/if}
           </div>
           {#if score}
             <b class:won={score.done && ((score.a > score.b && series.teamA.isUser) || (score.b > score.a && series.teamB.isUser))} class:lostmap={score.done && ((score.a < score.b && series.teamA.isUser) || (score.b < score.a && series.teamB.isUser))}>{score.a} : {score.b}</b>
@@ -286,7 +303,9 @@
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
   .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
-  .round-strip{display:flex;flex-wrap:wrap;gap:3px;min-height:8px}.round-strip i{width:12px;height:8px;background:color-mix(in srgb,var(--danger) 70%,var(--line));animation:tickIn .18s ease-out}.round-strip i.user{background:var(--accent)}.round-strip i.neutral{background:var(--line)}
+  .map-headline{justify-self:center;padding:6px 14px;border:1px solid var(--text);color:var(--text);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;animation:headlineIn .4s ease-out}.map-headline.comeback{border-color:var(--accent-2);color:var(--accent-2);box-shadow:0 0 18px color-mix(in srgb,var(--accent-2) 40%,transparent)}.map-headline.mine{border-color:var(--accent);color:var(--accent)}
+  .decided-map-list .map-extra{margin-top:6px;white-space:normal}
+  @keyframes headlineIn{from{transform:scale(.9);opacity:0}}
   .live-map small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
   .decided-map-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:18px 0}
   .decided-map-list article{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease}
@@ -297,7 +316,6 @@
   .decided-map-list .ot{position:absolute;right:6px;top:5px;color:var(--accent-2);font-size:.55rem;font-style:normal;font-weight:900}
   .ot-alert{justify-self:center;padding:5px 12px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .7rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.18em;text-transform:uppercase;animation:otBlink .7s steps(2,start) infinite}
   @keyframes otBlink{to{visibility:hidden;box-shadow:0 0 16px var(--accent-2)}}
-  @keyframes tickIn{from{transform:scaleY(.2);opacity:0}}
   @media(max-width:620px){.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}}
   @media(max-width:400px){.decided-map-list{grid-template-columns:1fr}}
 </style>

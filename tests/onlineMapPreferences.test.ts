@@ -11,8 +11,8 @@ const lineupPlayers = (manager: RoomManager, code: string, participantId: string
     .filter((player): player is Player => Boolean(player));
 
 describe('online map preferences', () => {
-  it('uses protocol 5 and parses exactly three historical maps', () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it('uses protocol 6 and parses exactly three historical maps', () => {
+    expect(PROTOCOL_VERSION).toBe(6);
     expect(parseClientCommand({
       type: 'submit-map-preferences', requestId: 'maps-valid-0001', mapPreferences: ['train', 'cache', 'overpass']
     })).toMatchObject({ type: 'submit-map-preferences' });

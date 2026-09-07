@@ -276,6 +276,40 @@ const pt = {
   ,byRole: 'Por função'
   ,roleRankings: 'Ranking por posição'
   ,top: 'Top'
+  ,pistolRound: 'Pistol'
+  ,pistols: 'Pistols'
+  ,comeback: 'Virada'
+  ,halfTime: 'Intervalo'
+  ,tacticalTimeout: 'Pausa tática'
+  ,timeoutsLeft: 'pausa restante'
+  ,timeoutCalled: 'Pausa tática acionada'
+  ,pickSide: 'Escolha o lado inicial'
+  ,pickSideHint: 'Seu adversário escolheu o mapa. Você começa de qual lado?'
+  ,pickSideDecider: 'Você venceu a faca. Começa de qual lado?'
+  ,sideCt: 'Começar de CT'
+  ,sideT: 'Começar de TR'
+  ,ecoCall: 'Call de economia'
+  ,ecoCallHint: 'Vocês perderam o pistol. Como jogar o segundo round?'
+  ,ecoCallForce: 'Forçar'
+  ,ecoCallForceHint: 'Compra o que dá agora: chance real no round 2, economia arriscada se perder.'
+  ,ecoCallSave: 'Guardar'
+  ,ecoCallSaveHint: 'Entrega o round 2 para garantir um full buy no round 3.'
+  ,money: 'dinheiro'
+  ,vetoTitle: 'Veto de mapas'
+  ,vetoYourTurn: 'Sua vez'
+  ,vetoWaiting: 'Aguardando'
+  ,vetoBanNow: 'Bana um mapa'
+  ,vetoPickNow: 'Escolha um mapa'
+  ,vetoBanned: 'Banido'
+  ,vetoPicked: 'Pick'
+  ,vetoDecider: 'Decider'
+  ,vetoAvailable: 'Disponível'
+  ,vetoOpponentTurn: 'O adversário está decidindo…'
+  ,decisionCountdown: 'Decide em'
+  ,opponentDeciding: 'Adversário decidindo…'
+  ,killFeed: 'Feed de kills'
+  ,topFraggers: 'Frags do mapa'
+  ,sideLabel: 'Lado'
 } as const;
 
 type TranslationKey = keyof typeof pt;
@@ -293,6 +327,10 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
+  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
+  pickSide: 'Elige el lado inicial', pickSideHint: 'Tu rival eligió el mapa. ¿De qué lado empiezas?', pickSideDecider: 'Ganaste el cuchillo. ¿De qué lado empiezas?', sideCt: 'Empezar de CT', sideT: 'Empezar de TR',
+  ecoCall: 'Call de economía', ecoCallHint: 'Perdieron el pistol. ¿Cómo jugar la segunda ronda?', ecoCallForce: 'Forzar', ecoCallForceHint: 'Compra lo que alcanza: opción real en la ronda 2, economía en riesgo si pierden.', ecoCallSave: 'Guardar', ecoCallSaveHint: 'Cede la ronda 2 para asegurar un full buy en la ronda 3.', money: 'dinero',
+  vetoTitle: 'Veto de mapas', vetoYourTurn: 'Tu turno', vetoWaiting: 'Esperando', vetoBanNow: 'Banea un mapa', vetoPickNow: 'Elige un mapa', vetoBanned: 'Baneado', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Disponible', vetoOpponentTurn: 'El rival está decidiendo…', decisionCountdown: 'Decide en', opponentDeciding: 'Rival decidiendo…', killFeed: 'Feed de kills', topFraggers: 'Frags del mapa', sideLabel: 'Lado',
   quarterfinal: 'Cuartos de final',
   semifinal: 'Semifinal',
   playSameSeed: 'Jugar con la misma seed',
@@ -686,7 +724,11 @@ Object.assign(dictionaries.en, {
   veto: 'Map veto',
   ban: 'Ban',
   pick: 'Pick',
-  decider: 'Decider'
+  decider: 'Decider',
+  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called',
+  pickSide: 'Choose your starting side', pickSideHint: 'Your opponent picked the map. Which side do you start on?', pickSideDecider: 'You won the knife round. Which side do you start on?', sideCt: 'Start CT', sideT: 'Start T',
+  ecoCall: 'Economy call', ecoCallHint: 'You lost the pistol. How do you play round two?', ecoCallForce: 'Force buy', ecoCallForceHint: 'Buy what you can now: a real shot at round 2, a broken economy if it fails.', ecoCallSave: 'Save', ecoCallSaveHint: 'Give up round 2 to guarantee a full buy in round 3.', money: 'money',
+  vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

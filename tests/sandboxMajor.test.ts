@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { getTeamPlayers, teams } from '../src/lib/game/data';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
-import { advanceSandboxMajor, createSandboxMajor } from '../src/lib/game/sandbox/major';
+import { advanceSandboxMajor, applySandboxDecision, callSandboxTimeout, createSandboxMajor, currentSandboxSeries, getSandboxLiveView, pendingSandboxDecision, skipSandboxMap, stepSandboxSeries } from '../src/lib/game/sandbox/major';
 import { chooseSandboxSlotRole, createRandomSandboxLineup, previewSandboxLineupPower, previewSandboxSwapDelta, validateSandboxLineup } from '../src/lib/game/sandbox/lineup';
 import { getSandboxCampaignSummary, getSandboxDecidedMaps, getSandboxPhaseOverview, getSandboxTeamName, getSandboxUserProgress } from '../src/lib/game/sandbox/presentation';
 import { players } from '../src/lib/game/data';
@@ -60,7 +60,8 @@ describe('Sandbox Major without visual replay', () => {
   it('keeps the Sandbox route free of replay, radar and Canvas dependencies', () => {
     const source = readFileSync(new URL('../src/routes/sandbox/+page.svelte', import.meta.url), 'utf8');
     const seriesViewer = readFileSync(new URL('../src/lib/components/SandboxSeriesViewer.svelte', import.meta.url), 'utf8');
-    expect(`${source}\n${seriesViewer}`).not.toMatch(/Replay|Canvas|radar|game\/replay/i);
+    const roundFeed = readFileSync(new URL('../src/lib/components/RoundFeed.svelte', import.meta.url), 'utf8');
+    expect(`${source}\n${seriesViewer}\n${roundFeed}`).not.toMatch(/Replay|Canvas|radar|game\/replay/i);
     expect(source).toContain('mapPreferences');
     expect(source).toContain('SandboxPlayerPicker');
     expect(source).toContain('Jogo atual');
@@ -68,7 +69,8 @@ describe('Sandbox Major without visual replay', () => {
     expect(source).toContain("{ value: 'insta', label: 'Insta' }");
     expect(seriesViewer).toContain('getSandboxDecidedMaps(match)');
     expect(seriesViewer).toContain('Pular mapa atual');
-    expect(seriesViewer).toContain('kill-feed');
+    expect(seriesViewer).toContain('RoundFeed');
+    expect(roundFeed).toContain('kill-feed');
     expect(seriesViewer).not.toContain('step.action === \'ban\'');
   });
 
@@ -128,5 +130,94 @@ describe('Sandbox Major without visual replay', () => {
     expect(summary.champion).toBe(major.championId === major.userTeam.id);
     expect(getSandboxPhaseOverview(major).every((group) => group.status === 'completed')).toBe(true);
     expect(getSandboxUserProgress(major).current).toBeNull();
+  });
+
+  it('opens an interactive Major with the user vetoing against a bot and deciding inside the maps', () => {
+    let major = createSandboxMajor(selection, 'sandbox-interactive', { interactive: true });
+    expect(major.interactive).toBe(true);
+    expect(major.engine).not.toBeNull();
+    // Only the first round exists so far and every bot-only series in it is already over.
+    expect(major.matches.every((match) => match.roundNumber === 1)).toBe(true);
+    expect(major.matches.filter((match) => !match.userMatch).every((match) => match.resolved && match.winnerId)).toBe(true);
+    const live = currentSandboxSeries(major)!;
+    expect(live.phase).toBe('veto');
+    const pending = pendingSandboxDecision(major)!;
+    expect(pending).toMatchObject({ kind: 'veto', teamId: 'sandbox-user', action: 'ban' });
+    expect(stepSandboxSeries(major)).toBe(major);
+    if (pending.kind !== 'veto') throw new Error('unreachable');
+    major = applySandboxDecision(major, { kind: 'veto', teamId: 'sandbox-user', action: 'ban', mapId: pending.available[0] });
+    // The bot answers at once, so the user is up again (or the veto has moved to the picks).
+    expect(getSandboxLiveView(major)?.veto?.steps.length).toBeGreaterThanOrEqual(2);
+    let guard = 0;
+    while (pendingSandboxDecision(major)?.kind === 'veto' && guard < 20) {
+      const next = pendingSandboxDecision(major)!;
+      if (next.kind !== 'veto') break;
+      major = applySandboxDecision(major, { kind: 'veto', teamId: 'sandbox-user', action: next.action, mapId: next.available[0] });
+      guard += 1;
+    }
+    expect(getSandboxLiveView(major)?.veto?.steps.at(-1)?.action).toBe('decider');
+    expect(getSandboxDecidedMaps(major.matches[major.currentMatchIndex])).toHaveLength(3);
+
+    // Play the whole series, answering every prompt, then confirm it to reach the next round.
+    guard = 0;
+    while (!getSandboxLiveView(major)?.finished && guard < 400) {
+      const decision = pendingSandboxDecision(major);
+      if (decision?.kind === 'side') major = applySandboxDecision(major, { kind: 'side', teamId: 'sandbox-user', side: 'ct' });
+      else if (decision?.kind === 'eco-call') major = applySandboxDecision(major, { kind: 'eco-call', teamId: 'sandbox-user', call: 'force' });
+      else major = stepSandboxSeries(major);
+      guard += 1;
+    }
+    const view = getSandboxLiveView(major)!;
+    expect(view.finished).toBe(true);
+    const played = major.matches[major.currentMatchIndex];
+    expect(played.userMatch).toBe(true);
+    expect(played.winnerId).toBeTruthy();
+    expect(played.decisions?.some((decision) => decision.kind === 'side' && decision.teamId === 'sandbox-user' && !decision.auto)).toBe(true);
+    expect(played.resolved).toBe(false);
+    expect(major.finished).toBe(false);
+    major = advanceSandboxMajor(major);
+    expect(major.matches.find((match) => match.id === played.id)?.resolved).toBe(true);
+    expect(major.matches.some((match) => match.roundNumber === 2)).toBe(true);
+    expect(currentSandboxSeries(major)?.phase).toBe('veto');
+    expect(getSandboxUserProgress(major)).toEqual({ played: 1, current: 2 });
+  });
+
+  it('lets the interactive user skip a map and call one timeout per half, then runs the rest of the Major on its own', () => {
+    let major = createSandboxMajor(selection, 'sandbox-skip', { interactive: true });
+    let guard = 0;
+    while (pendingSandboxDecision(major)?.kind === 'veto' && guard < 20) {
+      const next = pendingSandboxDecision(major)!;
+      if (next.kind !== 'veto') break;
+      major = applySandboxDecision(major, { kind: 'veto', teamId: 'sandbox-user', action: next.action, mapId: next.available.at(-1)! });
+      guard += 1;
+    }
+    major = stepSandboxSeries(major);
+    if (pendingSandboxDecision(major)?.kind === 'side') major = applySandboxDecision(major, { kind: 'side', teamId: 'sandbox-user', side: 't' });
+    major = stepSandboxSeries(major);
+    expect(getSandboxLiveView(major)?.visibleRounds).toBe(1);
+    if (pendingSandboxDecision(major)?.kind === 'eco-call') major = applySandboxDecision(major, { kind: 'eco-call', teamId: 'sandbox-user', call: 'eco' });
+    major = callSandboxTimeout(major);
+    expect(getSandboxLiveView(major)?.timeoutsLeft).toBe(0);
+    expect(() => callSandboxTimeout(major)).toThrow();
+    major = skipSandboxMap(major);
+    const afterSkip = getSandboxLiveView(major)!;
+    expect(major.matches[major.currentMatchIndex].maps[0].winnerId || pendingSandboxDecision(major)).toBeTruthy();
+    expect(afterSkip.seriesId).toBe(major.matches[major.currentMatchIndex].id);
+
+    // Auto-resolve everything else: the Sandbox must reach a champion without the user's input.
+    guard = 0;
+    while (!major.finished && guard < 5_000) {
+      const decision = pendingSandboxDecision(major);
+      if (decision?.kind === 'veto') major = applySandboxDecision(major, { kind: 'veto', teamId: 'sandbox-user', action: decision.action, mapId: decision.available[0] });
+      else if (decision?.kind === 'side') major = applySandboxDecision(major, { kind: 'side', teamId: 'sandbox-user', side: 'ct' });
+      else if (decision?.kind === 'eco-call') major = applySandboxDecision(major, { kind: 'eco-call', teamId: 'sandbox-user', call: 'force' });
+      else if (getSandboxLiveView(major)?.finished) major = advanceSandboxMajor(major);
+      else major = stepSandboxSeries(major);
+      guard += 1;
+    }
+    expect(major.finished).toBe(true);
+    expect(major.championId).toBeTruthy();
+    expect(getSandboxCampaignSummary(major).placement).not.toBe('—');
+    expect(getSandboxPhaseOverview(major).every((group) => group.status === 'completed')).toBe(true);
   });
 });

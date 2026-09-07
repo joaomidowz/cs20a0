@@ -1,6 +1,6 @@
+import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS } from '../roundPresentation';
 import { getDecidedMaps, type DecidedMap } from '../seriesPresentation';
 import type { SeriesResult } from '../types';
-import type { SandboxBuy, SandboxRoundEnding, SandboxSide, SandboxWeapon } from './rounds';
 import type { SandboxMajorMatch, SandboxMajorState } from './types';
 
 export type SandboxDecidedMap = DecidedMap;
@@ -16,27 +16,10 @@ export const SANDBOX_PHASE_LABELS: Record<SeriesResult['phase'], string> = {
   final: 'GRANDE FINAL'
 };
 
-export const SANDBOX_BUY_LABELS: Record<SandboxBuy, string> = {
-  pistol: 'PISTOL',
-  eco: 'ECO',
-  force: 'FORÇADO',
-  full: 'FULL BUY'
-};
-
-export const SANDBOX_SIDE_LABELS: Record<SandboxSide, string> = { ct: 'CT', t: 'TR' };
-
-export const SANDBOX_ENDING_LABELS: Record<SandboxRoundEnding, string> = {
-  elimination: 'Eliminação',
-  bomb: 'Bomba explodiu',
-  defuse: 'Bomba desarmada',
-  time: 'Tempo esgotado'
-};
-
-export const SANDBOX_WEAPON_LABELS: Record<SandboxWeapon, string> = {
-  ak47: 'AK-47', m4a1: 'M4A1-S', awp: 'AWP', usp: 'USP-S', glock: 'Glock-18', deagle: 'Desert Eagle',
-  famas: 'FAMAS', galil: 'Galil AR', mac10: 'MAC-10', mp9: 'MP9', fiveseven: 'Five-SeveN', p250: 'P250',
-  tec9: 'Tec-9', knife: 'Faca'
-};
+export const SANDBOX_BUY_LABELS = BUY_LABELS['pt-BR'];
+export const SANDBOX_SIDE_LABELS = SIDE_LABELS['pt-BR'];
+export const SANDBOX_ENDING_LABELS = ENDING_LABELS['pt-BR'];
+export const SANDBOX_WEAPON_LABELS = WEAPON_LABELS;
 
 export type SandboxMatchStatus = 'completed' | 'live' | 'pending';
 

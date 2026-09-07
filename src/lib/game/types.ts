@@ -64,6 +64,72 @@ export interface MapVetoStep {
   mapId: MapId;
 }
 
+export type BuyType = 'pistol' | 'eco' | 'force' | 'full';
+export type MapSide = 'ct' | 't';
+export type TeamSide = 'a' | 'b';
+export type Weapon =
+  | 'ak47' | 'm4a1' | 'awp' | 'usp' | 'glock' | 'deagle' | 'famas' | 'galil'
+  | 'mac10' | 'mp9' | 'fiveseven' | 'p250' | 'tec9' | 'knife';
+export type RoundEnding = 'elimination' | 'bomb' | 'defuse' | 'time';
+export type RoundTag =
+  | 'pistol'
+  | 'anti-eco'
+  | 'force-win'
+  | 'eco-win'
+  | 'clutch'
+  | 'streak-break'
+  | 'half-end'
+  | 'comeback-alert'
+  | 'match-point';
+
+export interface TeamEconomy {
+  buy: BuyType;
+  awp: boolean;
+  /** Average money per player before the buy, rounded. */
+  money: number;
+}
+
+export interface RoundKill {
+  killerId: string;
+  killerName: string;
+  killerSide: TeamSide;
+  victimId: string;
+  victimName: string;
+  weapon: Weapon;
+  headshot: boolean;
+  /** Seconds into the round. */
+  second: number;
+}
+
+/** Everything that happened in one round: produced by the engine while the round is simulated, never derived afterwards. */
+export interface RoundDetail {
+  number: number;
+  winner: TeamSide;
+  /** Side team A played this round (team B is the opposite). */
+  sideA: MapSide;
+  overtime: boolean;
+  economy: { a: TeamEconomy; b: TeamEconomy };
+  kills: RoundKill[];
+  ending: RoundEnding;
+  /** Consecutive round wins each team carried into this round (stripped from what online clients receive). */
+  momentum?: { a: number; b: number };
+  /** Team that called a tactical timeout right before this round. */
+  timeout?: TeamSide;
+  tags: RoundTag[];
+}
+
+export interface Roster {
+  players: Player[];
+  /** Roles assigned by the user (authoritative over data-derived roles). */
+  roles?: Map<string, LineupSlotRole>;
+}
+
+export type SeriesDecision =
+  | { kind: 'veto'; teamId: string; action: 'ban' | 'pick'; mapId: MapId; auto: boolean }
+  | { kind: 'side'; teamId: string; mapIndex: number; side: MapSide; auto: boolean }
+  | { kind: 'eco-call'; teamId: string; mapIndex: number; roundNumber: number; call: 'force' | 'eco'; auto: boolean }
+  | { kind: 'timeout'; teamId: string; mapIndex: number; roundNumber: number; auto: boolean };
+
 export interface Player {
   id: string;
   baseId?: string | null;
@@ -142,6 +208,8 @@ export interface CombatTeam {
   isUser?: boolean;
   organizationId?: string;
   lineup?: SelectedPlayer[];
+  /** Average consistency of the lineup (0-100); steadier teams swing less between maps and match days. */
+  consistency?: number;
 }
 
 export interface RoundScore {
@@ -158,6 +226,19 @@ export interface MapResult {
   winnerId: string;
   rounds: RoundScore[];
   overtime: boolean;
+  /** One entry per round (economy, sides, kills, tags). Present when the map was played by the round engine. */
+  details?: RoundDetail[];
+  aStartsCt?: boolean;
+  /** Score of each regulation half (and each overtime block). */
+  halves?: Array<{ a: number; b: number }>;
+  /** Team that won after trailing by four or more rounds (or losing the first half by four or more). */
+  comeback?: TeamSide;
+  /** Organization that picked this map in the veto; null for the decider. */
+  pickedBy?: string | null;
+  /** Organization that chose its starting side. */
+  sidePickerId?: string;
+  /** Decisions taken on this map (side, eco call, timeouts). */
+  decisions?: SeriesDecision[];
 }
 
 export interface SeriesResult {
@@ -171,6 +252,8 @@ export interface SeriesResult {
   winnerId: string;
   maps: MapResult[];
   veto?: MapVetoStep[];
+  /** Decisions (veto, side, eco call, timeout) taken during the series, in order. */
+  decisions?: SeriesDecision[];
   userMatch: boolean;
 }
 

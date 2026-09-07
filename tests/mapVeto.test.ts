@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_POOL } from '../src/lib/game/maps';
-import { resolveMapVeto, type MapStrategy } from '../src/lib/game/map-veto';
+import { buildVetoPlan, getVetoAvailableMaps, resolveMapVeto, type MapStrategy } from '../src/lib/game/map-veto';
 import type { MapAffinity, MapId } from '../src/lib/game/types';
 
 const strategy = (teamId: string, selectedMaps: [MapId, MapId, MapId], bot = false): MapStrategy => {
@@ -36,7 +36,7 @@ describe('map veto', () => {
     expect(second).toEqual(first);
   });
 
-  it('alternates preliminary bans until a union larger than seven reaches the standard veto', () => {
+  it('keeps maps only one lineup knows out of the veto when both share at least seven maps', () => {
     const allA = strategy('all-a', ['cache', 'cobblestone', 'train']);
     const allB = strategy('all-b', ['ancient', 'anubis', 'vertigo']);
     for (const mapId of MAP_POOL) {
@@ -46,9 +46,34 @@ describe('map veto', () => {
       allB.familiarity[mapId] = mapId === 'cobblestone' ? 0 : 20;
     }
     const result = resolveMapVeto({ bestOf: 3, teamA: allA, teamB: allB, seed: 'historical-union' });
-    expect(result.steps).toHaveLength(11);
-    expect(result.steps.slice(0, 4).map((step) => step.action)).toEqual(['ban', 'ban', 'ban', 'ban']);
-    expect(new Set(result.steps.map((step) => step.mapId)).size).toBe(11);
+    // Nine shared maps: two preliminary bans, then the standard BO3 sequence. Vertigo and Cobblestone never appear.
+    expect(result.steps).toHaveLength(9);
+    expect(result.steps.slice(0, 2).map((step) => step.action)).toEqual(['ban', 'ban']);
+    expect(new Set(result.steps.map((step) => step.mapId)).size).toBe(9);
+    expect(result.steps.some((step) => step.mapId === 'vertigo' || step.mapId === 'cobblestone')).toBe(false);
     expect(result.playedMaps).toHaveLength(3);
+  });
+
+  it('fills the pool with one-sided maps only when the shared pool is short, so a 2018 bot cannot force Cobblestone', () => {
+    const modern = strategy('modern', ['ancient', 'anubis', 'mirage']);
+    const legacy = strategy('legacy', ['cobblestone', 'train', 'cache'], true);
+    for (const mapId of MAP_POOL) {
+      modern.familiarity[mapId] = ['ancient', 'anubis', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'vertigo'].includes(mapId) ? 100 : 0;
+      legacy.familiarity[mapId] = ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'].includes(mapId) ? 100 : 0;
+    }
+    const available = getVetoAvailableMaps(modern, legacy);
+    expect(available).toHaveLength(7);
+    expect(available).toEqual(expect.arrayContaining(['dust2', 'inferno', 'mirage', 'nuke', 'overpass']));
+    const result = resolveMapVeto({ bestOf: 1, teamA: modern, teamB: legacy, seed: 'era-clash' });
+    const decider = result.steps.at(-1)!;
+    expect(decider.action).toBe('decider');
+    expect(modern.familiarity[decider.mapId]).toBeGreaterThan(0);
+    expect(legacy.familiarity[decider.mapId]).toBeGreaterThan(0);
+  });
+
+  it('builds the same plan the resolver follows', () => {
+    expect(buildVetoPlan(3, 7).map((step) => `${step.action}:${step.actor}`)).toEqual(['ban:a', 'ban:b', 'pick:a', 'pick:b', 'ban:a', 'ban:b']);
+    expect(buildVetoPlan(1, 9).map((step) => step.action)).toEqual(['ban', 'ban', 'ban', 'ban', 'ban', 'ban', 'ban', 'ban']);
+    expect(buildVetoPlan(5, 7).filter((step) => step.action === 'pick')).toHaveLength(4);
   });
 });

@@ -1,6 +1,6 @@
 import type { PublicStanding } from '../online/contracts';
-import type { CombatTeam, MajorTournament, MapId, MapResult, OrgStyle, Player, SelectedPlayer, SeriesResult } from '../types';
-import type { SandboxRoundDetail } from './rounds';
+import type { TournamentEngineState } from '../online/tournament-engine';
+import type { CombatTeam, MajorTournament, MapId, MapResult, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
 
 export interface SandboxLineupSelection {
   organizationId: string;
@@ -16,8 +16,8 @@ export interface SandboxLineupValidation {
 }
 
 export interface SandboxMapResult extends MapResult {
-  /** Sandbox-only economy + kill feed derived from the simulated rounds. */
-  details: SandboxRoundDetail[];
+  /** Economy + kill feed produced by the round engine while the map was simulated. */
+  details: RoundDetail[];
 }
 
 export interface SandboxMajorMatch extends SeriesResult {
@@ -37,4 +37,10 @@ export interface SandboxMajorState {
   championId: string | null;
   currentMatchIndex: number;
   finished: boolean;
+  /** Interactive Sandbox: the user vetoes, picks sides, calls timeouts and eco calls in their own series. */
+  interactive: boolean;
+  /** Incremental engine behind an interactive Sandbox (null in the automatic, fully precomputed mode). */
+  engine: TournamentEngineState | null;
+  /** Ids of the user's series already confirmed with "advance". */
+  confirmedSeriesIds: string[];
 }
