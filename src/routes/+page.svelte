@@ -37,6 +37,7 @@
     type CampaignMajorState
   } from '$lib/game/campaign-major';
   import type { PendingSeriesDecision } from '$lib/game/online/live-series';
+  import type { MajorRun } from '$lib/game/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
@@ -111,6 +112,8 @@
   let liveTimer: number | null = null;
   let liveRunning = false;
   let automationTimer: number | null = null;
+  /** The saved campaign was already looked at: before that the old viewer must not start playing on its own. */
+  let campaignChecked = false;
   /** Half already covered by an automatic tactical pause. */
   let autoPausedHalf = '';
 
@@ -143,6 +146,7 @@
   onMount(() => {
     strategicPreferences = loadStrategicPreferences();
     restoreCampaign();
+    campaignChecked = true;
     return game.subscribe((state) => {
       const url = new URL(window.location.href);
       if (state.seed) url.searchParams.set('seed', state.seed);
@@ -429,19 +433,38 @@
   }
 
 
-  /** A campaign saved in the browser comes back with the series it already played, ready to keep deciding. */
+  /** Series a run saved before the live campaign already played, taken from the run itself. */
+  function playedFromSavedRun(run: MajorRun, completed: number): Record<string, SeriesResult> {
+    const played: Record<string, SeriesResult> = {};
+    for (const match of run.matches.slice(0, completed)) {
+      if (match.winnerId) played[match.id] = match;
+    }
+    return played;
+  }
+
+  /**
+   * A campaign saved in the browser comes back with the series it already played, ready to keep deciding. A save the
+   * engine cannot reproduce keeps the Major exactly as it was: the run is never rebuilt on top of the player.
+   */
   function restoreCampaign() {
     if (campaign || !$game.majorRun || ($game.phase !== 'stage3' && $game.phase !== 'playoffs')) return;
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
     if (runPlayers.length !== 5) return;
+    // Um save antigo traz o campo vazio, então as séries jogadas saem da própria run guardada.
+    const saved = $game.playedSeries;
+    const played = saved && Object.keys(saved).length > 0 ? saved : playedFromSavedRun($game.majorRun, $game.completedSeries);
     try {
-      campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+      const restored = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
         selectedMaps: $game.selectedMaps,
         mode: $game.mode ?? 'premier',
-        played: $game.playedSeries ?? {}
+        played
       });
-      update({ majorRun: campaign.run });
+      const expected = Object.keys(played).length;
+      const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
+      if (restored.restoredSeriesIds.length !== expected || wonBack < expected) return;
+      campaign = restored;
+      update({ majorRun: restored.run, playedSeries: campaignPlayedSeries(restored) });
     } catch { /* a run from an older version keeps the Major it already had */ }
   }
 
@@ -1075,7 +1098,7 @@
           <SeriesViewer
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
-            auto={!campaignView && $game.simMode === 'auto'}
+            auto={campaignChecked && !campaignView && $game.simMode === 'auto'}
             controlled={Boolean(campaignView)}
             controlledActiveMap={campaignView?.activeMap ?? 0}
             controlledVisibleRounds={campaignView?.visibleRounds ?? 0}

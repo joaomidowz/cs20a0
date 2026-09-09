@@ -23,7 +23,7 @@ import {
   toResult,
   type TournamentEngineState
 } from './online/tournament-engine';
-import { createMajorField, toMajorRun } from './simulation';
+import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
 import type { GameMode, HistoricalTeam, MajorRun, MapId, MapSide, OrgStyle, Player, SelectedPlayer, SeriesResult } from './types';
 
 /**
@@ -37,6 +37,8 @@ export interface CampaignMajorState {
   confirmedSeriesIds: string[];
   /** Derived view the campaign screens read. */
   run: MajorRun;
+  /** Series restored from a saved campaign, to tell a clean restore from an incompatible save. */
+  restoredSeriesIds: string[];
   finished: boolean;
 }
 
@@ -88,6 +90,7 @@ export function createCampaignMajor(
     engine,
     confirmedSeriesIds: Object.keys(played),
     run: { stage3: { wins: 0, losses: 0, qualified: false, matches: [] }, matches: [], champion: false, placement: 'placementStage3' },
+    restoredSeriesIds: [],
     finished: false
   };
   return settle(state, played);
@@ -117,7 +120,11 @@ function settle(state: CampaignMajorState, played: Record<string, SeriesResult> 
     for (const series of round.series) {
       if (series.phase === 'finished') continue;
       const restored = played[series.config.id];
-      if (restored) adoptSeriesResult(series, restored);
+      if (restored) {
+        // A saved run stores the series turned to the player, so it goes back to the order the engine uses.
+        adoptSeriesResult(series, orientSeriesToTeam(restored, series.config.teamA.id));
+        state.restoredSeriesIds = [...state.restoredSeriesIds, series.config.id];
+      }
       else if (series.config.teamA.id !== state.userTeamId && series.config.teamB.id !== state.userTeamId) runSeriesToEnd(series);
     }
     const user = userSeriesOf(state);
