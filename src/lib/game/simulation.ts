@@ -1,4 +1,5 @@
 import { runOnlineTournament } from './online/tournament';
+import type { OnlineTournamentResult } from './online/tournament-engine';
 import type {
   CombatTeam,
   GameMode,
@@ -443,7 +444,8 @@ export const stripSeriesDetails = (series: SeriesResult): SeriesResult => ({
  * Builds the offline Major with the same engine as the online mode: the user plus fifteen seeded historical teams play
  * a full Swiss stage and an eight-team bracket, so the overview can show what happened to every other team.
  */
-export function buildMajorRun(
+/** The user's organization, the shuffled historical field and the map context every offline Major runs on. */
+export function createMajorField(
   players: Player[],
   style: OrgStyle,
   teams: HistoricalTeam[],
@@ -451,7 +453,7 @@ export function buildMajorRun(
   seed: string,
   lineup: SelectedPlayer[] = [],
   options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
-): MajorRun {
+) {
   const lineupKey = players.map((player) => player.id).join('|');
   const user = calculateUserTeamPower(players, style, lineup, seed);
   let mapContext: MapSimulationContext | undefined;
@@ -475,22 +477,18 @@ export function buildMajorRun(
     const target = Math.floor(fieldRng() * (index + 1));
     [field[index], field[target]] = [field[target], field[index]];
   }
-  const tournament = runOnlineTournament({
-    organizations: [{ id: user.id, name: user.name, seed: 1, team: user, human: true }],
-    botPool: field,
-    entryStage: 'stage3',
-    seed: `${seed}:major:${lineupKey}:${style}`,
-    mapContext,
-    // 13a0: every offline series is BO3 except the BO5 final.
-    swissBestOf: 3
-  });
-  const userSeries = tournament.rounds.flatMap((round) => round.series).filter((series) => series.userMatch).map((series) => orientSeriesToTeam(series, user.id));
+  return { user, field, mapContext, tournamentSeed: `${seed}:major:${lineupKey}:${style}` };
+}
+
+/** Turns a finished tournament into the campaign run the offline screens read. */
+export function toMajorRun(tournament: OnlineTournamentResult, userId: string): MajorRun {
+  const userSeries = tournament.rounds.flatMap((round) => round.series).filter((series) => series.userMatch).map((series) => orientSeriesToTeam(series, userId));
   const stage3Matches = userSeries.filter((series) => series.phase === 'stage3');
-  const wins = stage3Matches.filter((series) => series.winnerId === user.id).length;
+  const wins = stage3Matches.filter((series) => series.winnerId === userId).length;
   const losses = stage3Matches.length - wins;
   const qualified = wins === 3;
-  const champion = tournament.championId === user.id;
-  const placement = tournament.campaigns.find((campaign) => campaign.organizationId === user.id)?.placement ?? 'placementStage3';
+  const champion = tournament.championId === userId;
+  const placement = tournament.campaigns.find((campaign) => campaign.organizationId === userId)?.placement ?? 'placementStage3';
   const playoffs: PlayoffsResult | undefined = qualified
     ? {
       championId: tournament.championId ?? '',
@@ -512,4 +510,26 @@ export function buildMajorRun(
       championId: tournament.championId
     }
   };
+}
+
+export function buildMajorRun(
+  players: Player[],
+  style: OrgStyle,
+  teams: HistoricalTeam[],
+  allPlayers: Player[],
+  seed: string,
+  lineup: SelectedPlayer[] = [],
+  options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
+): MajorRun {
+  const { user, field, mapContext, tournamentSeed } = createMajorField(players, style, teams, allPlayers, seed, lineup, options);
+  const tournament = runOnlineTournament({
+    organizations: [{ id: user.id, name: user.name, seed: 1, team: user, human: true }],
+    botPool: field,
+    entryStage: 'stage3',
+    seed: tournamentSeed,
+    mapContext,
+    // 13a0: every offline series is BO3 except the BO5 final.
+    swissBestOf: 3
+  });
+  return toMajorRun(tournament, user.id);
 }

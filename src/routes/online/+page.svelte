@@ -11,6 +11,9 @@
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, type AutomationAttempt } from '$lib/game/online-automation';
+  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
   import VetoBoard from '$lib/components/live/VetoBoard.svelte';
   import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
   import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
@@ -29,7 +32,7 @@
   import { language, theme } from '$lib/game/pageState';
   import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, isValidRoomCode, OnlineRoomClient, OnlineRoomCreationError, type OnlineClientErrorCode } from '$lib/game/online/client';
-  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
+  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -59,6 +62,12 @@
   let mapLineupKey = '';
   let proLineupKey = '';
   let decisionCountdown = '';
+  let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  /** Last answer the gear sent, so a slow snapshot does not repeat it and a refused one is retried. */
+  let autoAnsweredDecision: AutomationAttempt | null = null;
+  /** Last automatic tactical pause asked for. */
+  let autoPausedHalf: AutomationAttempt | null = null;
+  let mySide: 'a' | 'b' | null = null;
   /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
   let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
@@ -85,7 +94,10 @@
   $: myDecision = liveSeries?.decision && liveSeries.decision.teamId === me?.id ? liveSeries.decision : null;
   $: mySeriesId = liveSeries?.series.userMatch && me ? liveSeries.series.id : null;
   $: myTimeouts = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? liveSeries.timeouts.a : liveSeries.timeouts.b) : 0;
+  $: mySide = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? 'a' : 'b') : null;
   $: liveDetailList = liveSeries && liveDetails.key === `${liveSeries.series.id}:${liveSeries.activeMap}` ? liveDetails.rounds : null;
+  $: answerAutomatedDecision(myDecision, strategicPreferences);
+  $: callAutomaticPause(liveDetailList, strategicPreferences);
   $: liveTeamNames = liveSeries ? { [liveSeries.series.teamA.id]: liveSeries.series.teamA.name, [liveSeries.series.teamB.id]: liveSeries.series.teamB.name } as Record<string, string> : {};
   $: myFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(onlineMapContributors[mapId].length)])) as Record<MapId, number>;
   $: speedDelay = snapshot?.config.simulationSpeed === 'normal' ? 2400 : snapshot?.config.simulationSpeed === 'fast' ? 1200 : 200;
@@ -110,7 +122,41 @@
     : null;
   $: selectedOrganizationView = selectedOrganizationId ? buildOrganizationView(selectedOrganizationId) : null;
 
+
+  function setStrategicPreferences(value: StrategicAutomationPreferences) {
+    strategicPreferences = value;
+    saveStrategicPreferences(value);
+  }
+
+  /** Answers the decision waiting on this player whenever its toggle is on, instead of waiting for the deadline. */
+  function answerAutomatedDecision(decision: PublicPendingDecision | null, preferences: StrategicAutomationPreferences) {
+    if (!decision || !liveSeries || !mySeriesId || !answersDecision(decision, preferences)) return;
+    const key = decisionKey(liveSeries.series.id, decision);
+    if (!shouldAnswerAgain(autoAnsweredDecision, key, Date.now())) return;
+    autoAnsweredDecision = { key, at: Date.now() };
+    const style = self?.style ?? 'balanced';
+    if (decision.kind === 'veto') {
+      const mapId = autoVetoMap(decision.available, myFamiliarity, decision.action);
+      if (mapId) send({ type: 'veto-action', seriesId: liveSeries.series.id, action: decision.action, mapId, step: decision.step });
+    } else if (decision.kind === 'side') {
+      send({ type: 'pick-side', seriesId: mySeriesId, side: autoSidePick(style, decision.mapId) });
+    } else {
+      send({ type: 'eco-call', seriesId: mySeriesId, call: autoEcoCall(style, decision.money) });
+    }
+  }
+
+  function callAutomaticPause(rounds: RoundDetail[] | null, preferences: StrategicAutomationPreferences) {
+    if (!preferences.autoPause || !rounds?.length || !liveSeries || !mySeriesId || !mySide) return;
+    if (liveSeries.phase !== 'live' || liveSeries.finished || myDecision) return;
+    if (!shouldCallTimeout(rounds, mySide, myTimeouts)) return;
+    const half = `${liveSeries.series.id}:${liveSeries.activeMap}:${myTimeouts}`;
+    if (!shouldAnswerAgain(autoPausedHalf, half, Date.now())) return;
+    autoPausedHalf = { key: half, at: Date.now() };
+    send({ type: 'call-timeout', seriesId: mySeriesId });
+  }
+
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
     if (roomCode && localStorage.getItem(`cs13a0:online:resume:${roomCode}`)) connect();
@@ -570,13 +616,16 @@
               </div>
               <div class="control-group">
                 <span>{gameT('speed')} {isHost ? '' : '· HOST'}</span>
-                <SegmentedControl
-                  value={snapshot.config.simulationSpeed}
-                  label={gameT('speed')}
-                  disabled={!isHost}
-                  options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                  onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
-                />
+                <div class="control-row">
+                  <SegmentedControl
+                    value={snapshot.config.simulationSpeed}
+                    label={gameT('speed')}
+                    disabled={!isHost}
+                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
+                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                  />
+                  <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} />
+                </div>
               </div>
             </div>
           {/if}
@@ -645,7 +694,7 @@
               {/if}
               {#if mySeriesId && liveSeries.phase === 'live' && !liveSeries.finished}
                 <div class="live-actions">
-                  <TimeoutButton remaining={myTimeouts} disabled={Boolean(myDecision)} language={$language} onCall={() => mySeriesId && send({ type: 'call-timeout', seriesId: mySeriesId })} />
+                  {#if !strategicPreferences.autoPause}<TimeoutButton remaining={myTimeouts} disabled={Boolean(myDecision)} language={$language} onCall={() => mySeriesId && send({ type: 'call-timeout', seriesId: mySeriesId })} />{/if}
                   <small>{gameT('sideLabel')}: {liveSeries.sideA ? (liveSeries.sideA === 'ct' ? 'CT' : $language === 'en' ? 'T' : 'TR') : '—'}</small>
                 </div>
               {/if}
@@ -659,6 +708,7 @@
                   controlledFinished={liveSeries.finished}
                   controlledDelay={speedDelay}
                   liveDetails={liveDetailList}
+                  simpleFeed={strategicPreferences.simpleFeed}
                   language={$language}
                   interactiveTeamIds={[liveSeries.series.teamA.id, liveSeries.series.teamB.id]}
                   onTeamClick={openOrganization}

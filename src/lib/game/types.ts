@@ -344,6 +344,8 @@ export interface GameState {
   simMode: SimMode;
   simSpeed: SimSpeed;
   majorRun: MajorRun | null;
+  /** The user's series already played, so a saved campaign restores exactly what it showed. */
+  playedSeries?: Record<string, SeriesResult>;
   completedSeries: number;
   stats: PlayerRunStats[];
 }

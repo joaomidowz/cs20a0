@@ -9,9 +9,34 @@
   import HeroLive from '$lib/components/HeroLive.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
+  import RunHighlights from '$lib/components/RunHighlights.svelte';
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
+  import VetoBoard from '$lib/components/live/VetoBoard.svelte';
+  import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
+  import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
+  import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import { TIMEOUT_LOSS_STREAK } from '$lib/game/bot-policies';
+  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
+  import {
+    advanceCampaignMajor,
+    applyCampaignEcoCall,
+    applyCampaignSide,
+    applyCampaignVeto,
+    autoDecideCampaign,
+    campaignPlayedSeries,
+    createCampaignMajor,
+    getCampaignLiveView,
+    pendingCampaignDecision,
+    skipCampaignMap,
+    stepCampaignSeries,
+    callCampaignTimeout,
+    type CampaignLiveView,
+    type CampaignMajorState
+  } from '$lib/game/campaign-major';
+  import type { PendingSeriesDecision } from '$lib/game/online/live-series';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
@@ -81,6 +106,13 @@
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
+  let campaign: CampaignMajorState | null = null;
+  let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  let liveTimer: number | null = null;
+  let liveRunning = false;
+  let automationTimer: number | null = null;
+  /** Half already covered by an automatic tactical pause. */
+  let autoPausedHalf = '';
 
   function getPhaseLabel(phase: SeriesResult['phase']): string {
     const labels: Record<string, string> = {
@@ -109,6 +141,8 @@
   }
 
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
+    restoreCampaign();
     return game.subscribe((state) => {
       const url = new URL(window.location.href);
       if (state.seed) url.searchParams.set('seed', state.seed);
@@ -152,6 +186,14 @@
   } : null;
   $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
+  $: campaignView = campaign ? getCampaignLiveView(campaign) : null;
+  $: campaignPending = campaign ? pendingCampaignDecision(campaign) : null;
+  $: liveTeamNames = currentSeries ? { [currentSeries.teamA.id]: currentSeries.teamA.name, [currentSeries.teamB.id]: currentSeries.teamB.name } as Record<string, string> : {};
+  $: userFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(mapContributors[mapId]?.length ?? 0)])) as Record<MapId, number>;
+  $: queueAutomation(campaignPending, campaignView, strategicPreferences);
+  $: if (campaignView && !campaignView.finished && !liveRunning && $game.simMode === 'auto') liveRunning = true;
+  $: if (liveRunning && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
+  $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
@@ -168,6 +210,8 @@
     clearSupportNudgeTimer();
     clearEnemyHoverTimer();
     clearAdvanceTimer();
+    stopLiveTick();
+    if (automationTimer !== null) window.clearTimeout(automationTimer);
     if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
@@ -371,14 +415,123 @@
     resetSupportNudge();
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
-    const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+    campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier'
     });
+    const majorRun = campaign.run;
     const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
     awaitingAdvance = false;
-    update({ majorRun, stats, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
+    autoPausedHalf = '';
+    liveRunning = false;
+    update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
     scheduleSupportNudge();
+  }
+
+
+  /** A campaign saved in the browser comes back with the series it already played, ready to keep deciding. */
+  function restoreCampaign() {
+    if (campaign || !$game.majorRun || ($game.phase !== 'stage3' && $game.phase !== 'playoffs')) return;
+    const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
+    const runLineup = isProMode ? proLineup : selectedLineup;
+    if (runPlayers.length !== 5) return;
+    try {
+      campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+        selectedMaps: $game.selectedMaps,
+        mode: $game.mode ?? 'premier',
+        played: $game.playedSeries ?? {}
+      });
+      update({ majorRun: campaign.run });
+    } catch { /* a run from an older version keeps the Major it already had */ }
+  }
+
+  function setStrategicPreferences(value: StrategicAutomationPreferences) {
+    strategicPreferences = value;
+    saveStrategicPreferences(value);
+  }
+
+  const isAutomated = (decision: PendingSeriesDecision, preferences: StrategicAutomationPreferences) =>
+    decision.kind === 'eco-call' ? preferences.autoEconomy : preferences.autoMapPicksAndVetos;
+
+  const pauseKey = (view: CampaignLiveView) => `${view.seriesId}:${view.activeMap}:${view.timeoutsLeft}`;
+
+  const wantsAutomaticPause = (view: CampaignLiveView | null, preferences: StrategicAutomationPreferences) =>
+    Boolean(preferences.autoPause && view && view.phase === 'live' && !view.finished
+      && view.timeoutsLeft > 0 && view.lossStreak >= TIMEOUT_LOSS_STREAK && autoPausedHalf !== pauseKey(view));
+
+  /** Queues the automation: writing the campaign from inside a reactive block would not restart the cycle. */
+  function queueAutomation(pending: PendingSeriesDecision | null, view: CampaignLiveView | null, preferences: StrategicAutomationPreferences) {
+    if (!campaign || automationTimer !== null) return;
+    const decides = Boolean(pending && isAutomated(pending, preferences));
+    if (!decides && !(!pending && wantsAutomaticPause(view, preferences))) return;
+    automationTimer = window.setTimeout(runAutomation, 0);
+  }
+
+  /** Takes every decision the player left on automatic, then the tactical pause when it is on. */
+  function runAutomation() {
+    automationTimer = null;
+    if (!campaign) return;
+    let next = campaign;
+    for (let guard = 0; guard < 40; guard += 1) {
+      const pending = pendingCampaignDecision(next);
+      if (!pending || !isAutomated(pending, strategicPreferences)) break;
+      next = autoDecideCampaign(next);
+    }
+    const view = pendingCampaignDecision(next) ? null : getCampaignLiveView(next);
+    if (wantsAutomaticPause(view, strategicPreferences) && view) {
+      autoPausedHalf = pauseKey(view);
+      try { next = callCampaignTimeout(next); } catch { /* no timeout left in this half */ }
+    }
+    commitCampaign(next);
+  }
+
+  /** Publishes the campaign state into the store so the timeline, the overview and the statistics follow along. */
+  function commitCampaign(next: CampaignMajorState) {
+    campaign = next;
+    const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
+    const runLineup = isProMode ? proLineup : selectedLineup;
+    update({ majorRun: next.run, playedSeries: campaignPlayedSeries(next), stats: createRunStats(runPlayers, next.run, $game.seed, runLineup) });
+  }
+
+  /** Plays the user's series one step at a time, stopping whenever a decision is pending. */
+  function scheduleLiveTick() {
+    if (liveTimer !== null) return;
+    liveTimer = window.setTimeout(() => {
+      liveTimer = null;
+      if (!campaign || !liveRunning) return;
+      commitCampaign(stepCampaignSeries(campaign));
+    }, Math.max(120, SPEEDS[$game.simSpeed]));
+  }
+
+  function stopLiveTick() {
+    if (liveTimer !== null) window.clearTimeout(liveTimer);
+    liveTimer = null;
+    liveRunning = false;
+  }
+
+  function decideVeto(mapId: MapId) {
+    if (!campaign || campaignPending?.kind !== 'veto') return;
+    commitCampaign(applyCampaignVeto(campaign, campaignPending.action, mapId));
+  }
+
+  function decideSide(side: 'ct' | 't') {
+    if (!campaign || campaignPending?.kind !== 'side') return;
+    commitCampaign(applyCampaignSide(campaign, side));
+  }
+
+  function decideEco(call: 'force' | 'eco') {
+    if (!campaign || campaignPending?.kind !== 'eco-call') return;
+    commitCampaign(applyCampaignEcoCall(campaign, call));
+  }
+
+  function requestCampaignTimeout() {
+    if (!campaign) return;
+    try { commitCampaign(callCampaignTimeout(campaign)); } catch { /* no timeout left in this half */ }
+  }
+
+  function skipCurrentMap() {
+    if (!campaign) return;
+    commitCampaign(skipCampaignMap(campaign));
   }
 
   function maybeShowSupportNudge(phase: string, completedSeries: number) {
@@ -436,6 +589,9 @@
   async function advanceSeries() {
     clearAdvanceTimer();
     awaitingAdvance = false;
+    stopLiveTick();
+    autoPausedHalf = '';
+    if (campaign) commitCampaign(advanceCampaignMajor(campaign));
     if (!$game.majorRun) return;
     const nextIndex = $game.completedSeries + 1;
     const next = $game.majorRun?.matches[nextIndex];
@@ -866,12 +1022,15 @@
         </div>
         <div class="control-group">
           <span>{t('speed')}</span>
-          <SegmentedControl
-            value={$game.simSpeed}
-            label={t('speed')}
-            options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
-            onChange={changeSimulationSpeed}
-          />
+          <div class="control-row">
+            <SegmentedControl
+              value={$game.simSpeed}
+              label={t('speed')}
+              options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
+              onChange={changeSimulationSpeed}
+            />
+            <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} />
+          </div>
         </div>
       </div>
       {#if $game.majorRun?.tournament}
@@ -879,11 +1038,51 @@
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
+        {#if campaignView && !campaignView.finished}
+          {#if campaignView.phase === 'veto' && campaignView.veto}
+            <VetoBoard
+              available={campaignView.veto.available}
+              steps={campaignView.veto.steps}
+              turnTeamId={campaignView.veto.turnTeamId}
+              action={campaignView.veto.action}
+              teamNames={liveTeamNames}
+              myTeamId="user"
+              familiarity={userFamiliarity}
+              language={$game.language}
+              onAction={decideVeto}
+            />
+          {/if}
+          {#if campaignPending?.kind === 'side'}
+            <SidePickPrompt mapId={campaignPending.mapId} decider={currentSeries.maps[campaignPending.mapIndex]?.pickedBy === null} language={$game.language} onPick={decideSide} />
+          {:else if campaignPending?.kind === 'eco-call'}
+            <EcoCallPrompt roundNumber={campaignPending.roundNumber} money={campaignPending.money} language={$game.language} onCall={decideEco} />
+          {/if}
+          {#if campaignView.phase !== 'veto' && !campaignPending}
+            <div class="live-actions">
+              <div class="live-buttons">
+                {#if !strategicPreferences.autoPause && campaignView.phase === 'live'}<TimeoutButton remaining={campaignView.timeoutsLeft} disabled={Boolean(campaignPending)} language={$game.language} onCall={requestCampaignTimeout} />{/if}
+                {#if !liveRunning}
+                  <button class="primary live-button" type="button" on:click={() => { liveRunning = true; }}>{t('startSeries')}</button>
+                {:else}
+                  <button class="secondary live-button" type="button" on:click={skipCurrentMap}>{t('skipMap')}</button>
+                {/if}
+              </div>
+              {#if campaignView.phase === 'live'}<small>{t('sideLabel')}: {campaignView.userSide ? (campaignView.userSide === 'ct' ? 'CT' : $game.language === 'en' ? 'T' : 'TR') : '—'}</small>{/if}
+            </div>
+          {/if}
+        {/if}
         {#key currentSeries.id}
           <SeriesViewer
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
-            auto={$game.simMode === 'auto'}
+            auto={!campaignView && $game.simMode === 'auto'}
+            controlled={Boolean(campaignView)}
+            controlledActiveMap={campaignView?.activeMap ?? 0}
+            controlledVisibleRounds={campaignView?.visibleRounds ?? 0}
+            controlledStarted={Boolean(campaignView && (campaignView.started || campaignView.phase === 'side-pick' || campaignView.phase === 'live'))}
+            controlledFinished={Boolean(campaignView?.finished)}
+            controlledDelay={SPEEDS[$game.simSpeed]}
+            simpleFeed={strategicPreferences.simpleFeed}
             language={$game.language}
             interactiveTeamId={enemyTeamId}
             labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
@@ -1026,6 +1225,7 @@
         </div>
       {/if}
       <RunStatsGrid stats={$game.stats} language={$game.language} players={proAdjustedPlayers} />
+      <RunHighlights matches={$game.majorRun?.matches ?? []} userTeamId="user" language={$game.language} />
       <button class="secondary wide" type="button" on:click={() => update({ phase: 'result' })}>{t('backResult')}</button>
     </section>
   {/if}

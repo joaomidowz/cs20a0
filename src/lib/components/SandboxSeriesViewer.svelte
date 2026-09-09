@@ -13,6 +13,10 @@
   export let delay = 1500;
   export let auto = false;
   export let userTeamId = '';
+  /** Simple mode: the round strip and the result stay, the kill feed goes away. */
+  export let simpleFeed = false;
+  /** When false the start and skip buttons are rendered by the page, next to the tactical pause. */
+  export let showActions = true;
   /** Interactive Sandbox: the route drives the series and tells the viewer what is visible. */
   export let controlled = false;
   export let controlledActiveMap = 0;
@@ -192,10 +196,10 @@
       </div>
       {#if inOvertime && currentMapScore}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={(headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
-      <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} />
+      <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} language="pt-BR" {teamNames} />
       <small>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : lastRoundWinner ? `Round ${displayVisibleRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
       {#if currentMap.details?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} {delay} language="pt-BR" {teamNames} />
+        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} {delay} language="pt-BR" {teamNames} simple={simpleFeed} />
       {/if}
     </div>
   {/if}
@@ -225,10 +229,12 @@
     {/each}
   </div>
 
-  {#if !displayStarted && !displayFinished}
-    <button class="primary wide" type="button" on:click={play}>Iniciar série</button>
-  {:else if displayStarted && !displayFinished}
-    <button class="secondary wide" type="button" on:click={skipMap} disabled={currentMapFinished}>Pular mapa atual</button>
+  {#if showActions}
+    {#if !displayStarted && !displayFinished}
+      <button class="primary wide" type="button" on:click={play}>Iniciar série</button>
+    {:else if displayStarted && !displayFinished}
+      <button class="secondary wide" type="button" on:click={skipMap} disabled={currentMapFinished}>Pular mapa atual</button>
+    {/if}
   {/if}
 </section>
 

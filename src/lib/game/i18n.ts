@@ -78,6 +78,16 @@ const pt = {
   fast: 'Rápido',
   ultra: 'Ultra',
   insta: 'Insta',
+  gearAutomation: 'Automação',
+  gearPicksBans: 'Picks e bans automáticos',
+  gearPicksBansHint: 'Desligado: você faz o veto de mapas e escolhe o lado.',
+  gearPause: 'Pausa tática automática',
+  gearPauseHint: 'Ligado: a pausa é pedida sozinha depois de quatro rounds perdidos seguidos.',
+  gearEconomy: 'Force ou save pós-pistol automático',
+  gearEconomyHint: 'Desligado: você escolhe forçar ou salvar depois de perder o pistol.',
+  gearSimple: 'Modo simples',
+  gearSimpleHint: 'Ligado: esconde o kill feed e mostra só o resultado de cada round.',
+  gearSettings: 'Configurações',
   enterMajor: 'Entrar no Stage 3',
   startSeries: 'Iniciar série',
   nextMatch: 'Próxima partida',
@@ -711,7 +721,17 @@ Object.assign(dictionaries.es, {
   veto: 'Veto de mapas',
   ban: 'Ban',
   pick: 'Pick',
-  decider: 'Decisivo'
+  decider: 'Decisivo',
+  gearAutomation: 'Automatización',
+  gearPicksBans: 'Picks y bans automáticos',
+  gearPicksBansHint: 'Apagado: tú haces el veto de mapas y eliges el lado.',
+  gearPause: 'Pausa táctica automática',
+  gearPauseHint: 'Encendido: la pausa se pide sola tras cuatro rondas perdidas seguidas.',
+  gearEconomy: 'Force o save tras el pistol automático',
+  gearEconomyHint: 'Apagado: tú eliges forzar o salvar tras perder el pistol.',
+  gearSimple: 'Modo simple',
+  gearSimpleHint: 'Encendido: oculta el kill feed y muestra solo el resultado de cada ronda.',
+  gearSettings: 'Ajustes'
 });
 
 Object.assign(dictionaries.en, {
@@ -730,7 +750,17 @@ Object.assign(dictionaries.en, {
   pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called',
   pickSide: 'Choose your starting side', pickSideHint: 'Your opponent picked the map. Which side do you start on?', pickSideDecider: 'You won the knife round. Which side do you start on?', sideCt: 'Start CT', sideT: 'Start T',
   ecoCall: 'Economy call', ecoCallHint: 'You lost the pistol. How do you play round two?', ecoCallForce: 'Force buy', ecoCallForceHint: 'Buy what you can now: a real shot at round 2, a broken economy if it fails.', ecoCallSave: 'Save', ecoCallSaveHint: 'Give up round 2 to guarantee a full buy in round 3.', money: 'money',
-  vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side'
+  vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side',
+  gearAutomation: 'Automation',
+  gearPicksBans: 'Automatic picks and bans',
+  gearPicksBansHint: 'Off: you handle the map veto and the side pick.',
+  gearPause: 'Automatic tactical pause',
+  gearPauseHint: 'On: the pause is called for you after four straight lost rounds.',
+  gearEconomy: 'Automatic force or save after the pistol',
+  gearEconomyHint: 'Off: you choose to force or save after losing the pistol.',
+  gearSimple: 'Simple mode',
+  gearSimpleHint: 'On: hides the kill feed and shows only each round result.',
+  gearSettings: 'Settings'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];
