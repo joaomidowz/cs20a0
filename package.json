@@ -12,7 +12,8 @@
     "validate": "npm run check && npm test && npm run build && npm run server:build",
     "server:dev": "tsx watch server/index.ts",
     "server:build": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist-server/index.cjs",
-    "server:start": "node dist-server/index.cjs"
+    "server:start": "node dist-server/index.cjs",
+    "data:pull": "cp ../cs13a0-data-studio/data/workspace/players.game.json ../cs13a0-data-studio/data/workspace/teams.game.json src/lib/data/cs/"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.9",

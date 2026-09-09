@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createOnlineServer } from '../server/app';
 import { ONLINE_DATA_HASH, players, teams } from '../server/data';
-import { CONFIRMATION_GRACE_MS, RESUME_TTL_MS, RoomError, RoomManager } from '../server/room-manager';
+import { CONFIRMATION_GRACE_MS, RESUME_TTL_MS, ROUND_GAP_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS } from '../server/room-manager';
 import { DEFAULT_ROOM_CONFIG, PROTOCOL_VERSION, type RoomSnapshot, type ServerMessage } from '../src/lib/game/online/contracts';
 import { getHistoricalTeamOverall } from '../src/lib/game/online/draft-pool';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -155,7 +155,7 @@ describe('authoritative online server', () => {
     expect(guestResult?.campaign.organizationId).not.toBe(completed.selfResult?.campaign.organizationId);
   });
 
-  it('reveals one synchronized CS round at a time without leaking the result', () => {
+  it('runs each live series on its own clock and shows both humans the same mirrored rounds', () => {
     const manager = new RoomManager();
     const startedAt = 1_000;
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt);
@@ -167,37 +167,151 @@ describe('authoritative online server', () => {
     confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
     const waiting = manager.getSnapshot(code, host.participantId, startedAt + 61_000);
     expect(waiting.tournament?.rounds).toHaveLength(0);
-    expect(waiting.tournament?.liveCursor).toMatchObject({ status: 'waiting', step: 0 });
+    expect(waiting.tournament?.liveCursor).toMatchObject({ status: 'waiting', nextRoundAt: expect.any(Number) });
+    const roundStartsAt = waiting.tournament!.liveCursor!.nextRoundAt!;
+    expect(roundStartsAt - (startedAt + 61_000)).toBeGreaterThanOrEqual(ROUND_GAP_MS);
+    // The matchups of the first round are already visible while everybody waits for it to go live.
+    expect(waiting.tournament?.liveCursor?.overviewSeries).toHaveLength(8);
+    expect(waiting.tournament?.liveCursor?.overviewSeries.every((series) => series.status === 'pending')).toBe(true);
 
-    manager.tick(startedAt + 61_901);
-    manager.tick(startedAt + 62_101);
-    const hostSnapshot = manager.getSnapshot(code, host.participantId, startedAt + 62_101);
-    const guestSnapshot = manager.getSnapshot(code, guest.participantId, startedAt + 62_101);
-    const hostLive = hostSnapshot.tournament?.liveCursor;
-    const guestLive = guestSnapshot.tournament?.liveCursor;
+    // Seeds 1 and 2 (the two humans) meet in round one, so their series opens with an interactive veto.
+    let now = roundStartsAt;
+    manager.tick(now);
+    now += 200;
+    manager.tick(now);
+    const hostLive = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor;
+    expect(hostLive).toMatchObject({ status: 'live', nextRoundAt: null });
+    expect(hostLive?.primarySeries?.phase).toBe('veto');
+    expect(hostLive?.primarySeries?.decision).toMatchObject({ kind: 'veto', teamId: host.participantId, action: 'ban', deadlineAt: now + VETO_STEP_DEADLINE_MS });
+    const seriesId = hostLive!.primarySeries!.series.id;
+    const available = hostLive!.primarySeries!.veto!.available;
+    expect(() => manager.execute(code, guest.participantId, { type: 'veto-action', requestId: 'veto-guest-early', seriesId, action: 'ban', mapId: available[0] }, now)).toThrowError(/turn/);
+    expect(() => manager.execute(code, host.participantId, { type: 'veto-action', requestId: 'veto-host-pick', seriesId, action: 'pick', mapId: available[0] }, now)).toThrowError(RoomError);
+    manager.execute(code, host.participantId, { type: 'veto-action', requestId: 'veto-host-ban-1', seriesId, action: 'ban', mapId: available[0] }, now);
+    const afterBan = manager.getSnapshot(code, guest.participantId, now).tournament?.liveCursor?.primarySeries;
+    expect(afterBan?.veto?.steps).toHaveLength(1);
+    expect(afterBan?.veto?.steps[0]).toMatchObject({ action: 'ban', teamId: host.participantId, mapId: available[0] });
+    manager.tick(now + 100);
+    expect(manager.getSnapshot(code, guest.participantId, now + 100).self?.pendingDecision).toMatchObject({ seriesId, kind: 'veto' });
 
-    expect(hostLive).toMatchObject({ status: 'live', step: 1 });
-    expect(guestLive).toMatchObject({ status: 'live', step: 1 });
-    expect(hostLive?.primarySeries?.series.id).toBe(guestLive?.primarySeries?.series.id);
-    expect(hostLive?.primarySeries?.visibleRounds).toBe(1);
-    expect(guestLive?.primarySeries?.visibleRounds).toBe(1);
-    const hostRound = hostLive?.primarySeries?.series.maps[0]?.rounds[0];
-    const guestRound = guestLive?.primarySeries?.series.maps[0]?.rounds[0];
+    // The other series in the round keep playing while the humans veto.
+    now += 1_000;
+    manager.tick(now);
+    const others = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.overviewSeries.filter((series) => series.id !== seriesId) ?? [];
+    expect(others.some((series) => series.liveMap && series.liveMap.a + series.liveMap.b > 0)).toBe(true);
+
+    // Every remaining decision expires: the server decides with the bot policy and the series gets under way.
+    let hostSnapshot = manager.getSnapshot(code, host.participantId, now);
+    for (let index = 0; index < 400 && (hostSnapshot.tournament?.liveCursor?.primarySeries?.visibleRounds ?? 0) < 1; index += 1) {
+      now += 1_000;
+      manager.tick(now);
+      hostSnapshot = manager.getSnapshot(code, host.participantId, now);
+    }
+    const guestSnapshot = manager.getSnapshot(code, guest.participantId, now);
+    const hostSeries = hostSnapshot.tournament?.liveCursor?.primarySeries;
+    const guestSeries = guestSnapshot.tournament?.liveCursor?.primarySeries;
+    expect(hostSeries?.series.id).toBe(guestSeries?.series.id);
+    expect(hostSeries?.veto?.steps.length).toBeGreaterThanOrEqual(7);
+    expect(hostSeries?.veto?.steps.at(-1)?.action).toBe('decider');
+    expect(hostSeries?.series.decisions?.filter((decision) => decision.kind === 'veto' && decision.auto).length).toBeGreaterThanOrEqual(5);
+    expect(hostSeries?.visibleRounds).toBe(guestSeries?.visibleRounds);
+    const hostRound = hostSeries?.series.maps[0]?.rounds[0];
+    const guestRound = guestSeries?.series.maps[0]?.rounds[0];
     expect(hostRound).toEqual(guestRound ? { a: guestRound.b, b: guestRound.a, overtime: guestRound.overtime } : undefined);
-    expect(hostLive?.primarySeries?.series.winnerId).toBe('');
-    expect(hostLive?.overviewSeries.every((series) => series.scoreA === 0 && series.scoreB === 0)).toBe(true);
+    expect(hostSeries?.series.teamA.id).toBe(host.participantId);
+    expect(guestSeries?.series.teamA.id).toBe(guest.participantId);
+    expect(hostSeries?.series.teamA.power).toBe(0);
+    expect(hostSeries?.series.winnerId).toBe('');
+    expect(hostSeries?.series.maps[0]?.details?.length).toBeGreaterThan(0);
+    expect(hostSeries?.series.maps[0]?.details?.every((detail) => detail.momentum === undefined)).toBe(true);
     expect(hostSnapshot.tournament?.rounds).toHaveLength(0);
 
-    let cursorTime = startedAt + 62_100;
+    // The humans' series is usually the slowest of the round (decision deadlines), so the round closes on the same tick
+    // it ends and the cursor moves on: the reliable signal is the series showing up in the public history.
     let finishedSnapshot = hostSnapshot;
-    for (let index = 0; index < 300 && !finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished; index += 1) {
-      cursorTime += 200;
-      manager.tick(cursorTime);
-      finishedSnapshot = manager.getSnapshot(code, host.participantId, cursorTime);
+    const inHistory = (snapshot: RoomSnapshot) => snapshot.tournament?.rounds.flatMap((round) => round.series).find((series) => series.id === seriesId);
+    for (let index = 0; index < 600 && !inHistory(finishedSnapshot) && !finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished; index += 1) {
+      now += 1_000;
+      manager.tick(now);
+      finishedSnapshot = manager.getSnapshot(code, host.participantId, now);
     }
-    expect(finishedSnapshot.tournament?.liveCursor?.primarySeries?.finished).toBe(true);
-    expect(finishedSnapshot.tournament?.liveCursor?.primarySeries?.series.winnerId).not.toBe('');
-    expect(finishedSnapshot.tournament?.rounds).toHaveLength(0);
+    const recorded = inHistory(finishedSnapshot) ?? finishedSnapshot.tournament?.liveCursor?.primarySeries?.series;
+    expect(recorded?.winnerId).toBeTruthy();
+    expect(recorded?.maps.every((map) => map.winnerId && map.rounds.length >= 13)).toBe(true);
+    expect(finishedSnapshot.tournament?.rounds.every((round) => round.series.every((series) => series.winnerId))).toBe(true);
+  });
+
+  it('pauses only the series waiting for a human side pick and honours an explicit eco call', () => {
+    const manager = new RoomManager();
+    const startedAt = 3_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt);
+    const host = manager.join(code, 'Host player', 'Host org', startedAt);
+    const guest = manager.join(code, 'Guest player', 'Guest org', startedAt + 1);
+    manager.execute(code, host.participantId, { type: 'start', requestId: 'start-decisions' }, startedAt);
+    manager.tick(startedAt + 61_000);
+    confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
+    let now = manager.getSnapshot(code, host.participantId, startedAt + 61_001).tournament!.liveCursor!.nextRoundAt!;
+    manager.tick(now);
+    // Human vs bot: the veto is automatic, but the human still picks the side when the bot picked the map.
+    let live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+    expect(live?.veto?.steps.length).toBeGreaterThanOrEqual(7);
+    expect(live?.veto?.turnTeamId).toBeNull();
+    let decision = live?.decision ?? null;
+    for (let index = 0; index < 40 && !decision; index += 1) {
+      now += 200;
+      manager.tick(now);
+      live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+      decision = live?.decision ?? null;
+    }
+    expect(decision?.teamId).toBe(host.participantId);
+    const seriesId = live!.series.id;
+    if (decision?.kind === 'side') {
+      const roundsBefore = live!.visibleRounds;
+      now += 5_000;
+      manager.tick(now);
+      live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+      expect(live?.visibleRounds).toBe(roundsBefore);
+      const others = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.overviewSeries.filter((series) => series.id !== seriesId) ?? [];
+      expect(others.some((series) => series.liveMap && series.liveMap.a + series.liveMap.b > 0)).toBe(true);
+      expect(() => manager.execute(code, guest.participantId, { type: 'pick-side', requestId: 'side-guest', seriesId, side: 'ct' }, now)).toThrowError(/not yours/);
+      manager.execute(code, host.participantId, { type: 'pick-side', requestId: 'side-host', seriesId, side: 'ct' }, now);
+      live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+      expect(live?.decision).toBeNull();
+      expect(live?.sideA).toBe('ct');
+    } else {
+      // The human picked the map, so the bot chose the side and the first prompt is the eco call after a lost pistol.
+      expect(decision?.kind).toBe('eco-call');
+      expect(live?.series.maps[0]?.pickedBy).toBe(host.participantId);
+    }
+
+    // After the pistol round the loser gets an eco call; when it is the human, the call is applied to round two.
+    let ecoDecision = null as typeof live extends infer T ? (T extends { decision: infer D } ? D : never) : never;
+    for (let index = 0; index < 40 && !ecoDecision; index += 1) {
+      now += 200;
+      manager.tick(now);
+      live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+      if (live?.decision?.kind === 'eco-call') ecoDecision = live.decision;
+      if ((live?.visibleRounds ?? 0) >= 2) break;
+    }
+    let timeoutUsed = false;
+    if (ecoDecision) {
+      // The prompt follows whichever pistol the human lost: round 2, or round 14 when the first-half pistol was won.
+      expect(ecoDecision).toMatchObject({ kind: 'eco-call', teamId: host.participantId });
+      expect([2, 14]).toContain(ecoDecision.roundNumber);
+      expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-early', seriesId }, now)).not.toThrow();
+      timeoutUsed = true;
+      manager.execute(code, host.participantId, { type: 'eco-call', requestId: 'eco-host', seriesId, call: 'force' }, now);
+      now += 200;
+      manager.tick(now);
+      live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
+      const called = live?.series.maps[ecoDecision.mapIndex]?.details?.find((detail) => detail.number === ecoDecision.roundNumber);
+      expect(called?.economy.a.buy).toBe('force');
+      expect(called?.timeout).toBe('a');
+    }
+    // One tactical timeout per half: the second request of the half is refused.
+    if (!timeoutUsed) expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-1', seriesId }, now)).not.toThrow();
+    expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-2', seriesId }, now)).toThrowError(/timeout/i);
+    expect(() => manager.execute(code, host.participantId, { type: 'pick-side', requestId: 'side-late', seriesId: 'nope', side: 'ct' }, now)).toThrowError(/not yours/);
   });
 
   it('lets only the host start a tournament round in manual mode', () => {
@@ -210,14 +324,20 @@ describe('authoritative online server', () => {
     manager.tick(startedAt + 61_000);
     confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
 
-    expect(manager.getSnapshot(code, guest.participantId, startedAt + 61_000).tournament?.liveCursor).toMatchObject({ status: 'waiting_host', step: 0, nextTickAt: null });
+    expect(manager.getSnapshot(code, guest.participantId, startedAt + 61_000).tournament?.liveCursor).toMatchObject({ status: 'waiting_host', nextRoundAt: null });
     expect(() => manager.execute(code, guest.participantId, { type: 'advance-round', requestId: 'advance-guest-01' }, startedAt + 61_010)).toThrowError(RoomError);
+    expect(() => manager.execute(code, host.participantId, { type: 'veto-action', requestId: 'veto-before-start', seriesId: 'x', action: 'ban', mapId: 'mirage' }, startedAt + 61_010)).toThrowError(/No series is live/);
 
     manager.execute(code, host.participantId, { type: 'advance-round', requestId: 'advance-host-001' }, startedAt + 61_010);
     const started = manager.getSnapshot(code, guest.participantId, startedAt + 61_010).tournament?.liveCursor;
-    expect(started).toMatchObject({ status: 'live', step: 0, nextTickAt: startedAt + 62_210 });
-    manager.tick(startedAt + 62_210);
-    expect(manager.getSnapshot(code, guest.participantId, startedAt + 62_210).tournament?.liveCursor).toMatchObject({ status: 'live', step: 1 });
+    expect(started).toMatchObject({ status: 'live', nextRoundAt: null });
+    expect(started?.overviewSeries.every((series) => series.status === 'live')).toBe(true);
+    const botSeries = started?.overviewSeries.find((series) => series.teamA.id.startsWith('bot-') && series.teamB.id.startsWith('bot-'));
+    expect(botSeries).toBeDefined();
+    manager.tick(startedAt + 61_010 + 1_200);
+    manager.tick(startedAt + 61_010 + 2_400);
+    const later = manager.getSnapshot(code, guest.participantId, startedAt + 61_010 + 2_400).tournament?.liveCursor;
+    expect(later?.overviewSeries.find((series) => series.id === botSeries?.id)?.liveMap?.a).toBeDefined();
   });
 
   it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 4 with synchronized valid $mode pools', async ({ capacity, mode }) => {
@@ -248,7 +368,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 5 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 6 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
     for (const snapshot of snapshots) {

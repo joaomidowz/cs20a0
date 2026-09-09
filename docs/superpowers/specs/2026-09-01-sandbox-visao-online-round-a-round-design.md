@@ -44,3 +44,17 @@ Nenhum componente, asset ou dependência de replay visual será incorporado à b
 ## Validação
 
 Testes de domínio cobrirão a extração exclusiva dos mapas decididos, incluindo terceiro mapa não disputado e ausência de bans. Testes de componente/rota cobrirão os controles de velocidade e a ausência de referências a radar, Canvas ou replay. O gate final inclui `npm run validate` e verificação no navegador em `/sandbox` nos modos automático e manual.
+
+## Modo interativo (opcional, 2026-09-07)
+
+Um toggle **Decisões: Automático / Interativo** na configuração do Sandbox liga o modo interativo. Nele, a série do usuário é simulada de forma incremental pelo mesmo motor de torneio e de série ao vivo usado pelo modo online (`src/lib/game/online/tournament-engine.ts` e `live-series.ts`), e quatro decisões viram entradas reais que mudam o resultado:
+
+- **Veto de mapas** contra o bot (bans e picks alternados; o bot responde na hora);
+- **Escolha de lado** no mapa escolhido pelo adversário e no decider (faca);
+- **Pausa tática**, uma por metade, que zera a sequência do adversário e dá um pequeno bônus no round seguinte;
+- **Call de economia** após perder o pistol (forçar o round 2 ou guardar para o round 3).
+
+Enquanto uma decisão está pendente a série fica pausada; as séries entre bots da mesma rodada já estão resolvidas. No modo interativo a faixa de veto aparece (é a decisão em curso); com o toggle desligado valem todas as garantias originais desta spec: resultados pré-calculados, sem faixa de veto e sem recalcular nada na animação.
+
+O feed de rounds (economia, lados, kills, tags e manchete de virada) passou a ser produzido pelo motor durante a simulação (`src/lib/game/rounds.ts`), e não mais derivado depois; por isso ele é idêntico nos modos automático e interativo e coerente com o placar.
+

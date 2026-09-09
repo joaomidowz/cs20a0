@@ -168,3 +168,21 @@ export function getSelectedMapPowerBonus(mode: GameMode, affinity: MapAffinity):
 
 export const getMapName = (mapId: MapId | undefined, fallbackNumber?: number, fallbackLabel = 'Mapa') =>
   mapId ? MAP_NAMES[mapId] : fallbackNumber === undefined ? '' : `${fallbackLabel} ${fallbackNumber}`;
+
+/**
+ * How much each map favours the CT side per round (positive = CT-sided). Small on purpose: sides tilt a round,
+ * they do not decide it. Values follow community win-rate splits of the active-duty era each map belongs to.
+ */
+export const MAP_SIDE_BIAS: Record<MapId, number> = {
+  nuke: 0.06,
+  train: 0.05,
+  overpass: 0.03,
+  ancient: 0.03,
+  inferno: 0.02,
+  mirage: 0.02,
+  vertigo: 0.02,
+  anubis: 0,
+  dust2: -0.01,
+  cache: -0.01,
+  cobblestone: -0.02
+};

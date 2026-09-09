@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getTeamPlayers, teams } from '../src/lib/game/data';
+import { getTeamPlayers, players, teams } from '../src/lib/game/data';
 import { calculateHistoricalTeamPower, createSeededRng, simulateMap } from '../src/lib/game/simulation';
-import { aggregateSandboxKills, buildSandboxRoundDetails, countSandboxPistolWins, type SandboxWeapon } from '../src/lib/game/sandbox/rounds';
-import { players } from '../src/lib/game/data';
+import { aggregateSandboxKills, countSandboxPistolWins, type SandboxWeapon } from '../src/lib/game/sandbox/rounds';
+import type { RoundDetail } from '../src/lib/game/types';
 
 const [teamA, teamB] = teams.slice(0, 2);
 const rosterA = { players: getTeamPlayers(teamA) };
@@ -10,34 +10,37 @@ const rosterB = { players: getTeamPlayers(teamB) };
 const combatA = calculateHistoricalTeamPower(teamA, players);
 const combatB = calculateHistoricalTeamPower(teamB, players);
 
-const buildMap = (seed: string) => simulateMap(combatA, combatB, createSeededRng(seed), 1);
-const buildDetails = (seed: string) => buildSandboxRoundDetails(buildMap(seed), rosterA, rosterB, `${seed}:rounds`);
+const buildMap = (seed: string, options: Parameters<typeof simulateMap>[4] = {}) =>
+  simulateMap(combatA, combatB, createSeededRng(seed), 1, { rosterA, rosterB, ...options });
+const buildDetails = (seed: string): RoundDetail[] => buildMap(seed).details ?? [];
 
 const PISTOLS: SandboxWeapon[] = ['usp', 'glock', 'deagle', 'fiveseven', 'p250', 'tec9'];
 const RIFLES: SandboxWeapon[] = ['ak47', 'm4a1', 'awp'];
 
-describe('sandbox round details', () => {
-  it('is deterministic for the same map and seed and covers every round', () => {
-    const map = buildMap('feed-a');
-    const first = buildSandboxRoundDetails(map, rosterA, rosterB, 'feed-a:rounds');
-    const second = buildSandboxRoundDetails(map, rosterA, rosterB, 'feed-a:rounds');
+describe('round details produced by the engine', () => {
+  it('is deterministic for the same seed and covers every round', () => {
+    const first = buildMap('feed-a');
+    const second = buildMap('feed-a');
     expect(second).toEqual(first);
-    expect(first).toHaveLength(map.rounds.length);
-    expect(first.map((round) => round.number)).toEqual(map.rounds.map((_, index) => index + 1));
-    const other = buildSandboxRoundDetails(map, rosterA, rosterB, 'feed-b:rounds');
-    expect(other.flatMap((round) => round.kills)).not.toEqual(first.flatMap((round) => round.kills));
+    expect(first.details).toHaveLength(first.rounds.length);
+    expect(first.details!.map((round) => round.number)).toEqual(first.rounds.map((_, index) => index + 1));
+    const other = buildMap('feed-b');
+    expect(other.details!.flatMap((round) => round.kills)).not.toEqual(first.details!.flatMap((round) => round.kills));
   });
 
-  it('matches the winner of every simulated round and keeps sides swapping at halftime', () => {
+  it('matches the winner of every round and keeps sides swapping at halftime', () => {
     for (const seed of ['feed-a', 'feed-b', 'feed-c']) {
       const map = buildMap(seed);
-      const details = buildSandboxRoundDetails(map, rosterA, rosterB, `${seed}:rounds`);
+      const details = map.details!;
       details.forEach((round, index) => {
         const before = index > 0 ? map.rounds[index - 1] : { a: 0, b: 0 };
         expect(round.winner).toBe(map.rounds[index].a > before.a ? 'a' : 'b');
       });
       expect(details[12].sideA).not.toBe(details[0].sideA);
       expect(details.slice(0, 12).every((round) => round.sideA === details[0].sideA)).toBe(true);
+      expect(details[0].sideA).toBe(map.aStartsCt ? 'ct' : 't');
+      expect(map.halves!.length).toBeGreaterThanOrEqual(2);
+      expect(map.halves![0].a + map.halves![0].b).toBe(12);
     }
   });
 
@@ -46,6 +49,7 @@ describe('sandbox round details', () => {
       const details = buildDetails(seed);
       expect(details[0].economy.a.buy).toBe('pistol');
       expect(details[0].economy.b.buy).toBe('pistol');
+      expect(details[0].tags).toContain('pistol');
       expect(details[12].economy.a.buy).toBe('pistol');
       expect(details[12].economy.b.buy).toBe('pistol');
       for (const round of details) {
@@ -65,12 +69,14 @@ describe('sandbox round details', () => {
   it('never lets the AWP show up on a team without an AWPer', () => {
     // Synthetic players: real ids/nicknames could match the known-role fallbacks (e.g. FalleN is always an AWPer).
     const noAwpers = { players: [1, 2, 3, 4, 5].map((index) => ({ id: `synthetic-${index}`, nickname: `Synth${index}`, role: 'rifler', awp: 40, firepower: 80, entry: 70, overall: 80 })) };
-    const details = buildSandboxRoundDetails(buildMap('feed-a'), noAwpers, rosterB, 'feed-a:noawp');
+    const details = buildMap('feed-a', { rosterA: noAwpers }).details!;
     expect(details.every((round) => !round.economy.a.awp)).toBe(true);
     expect(details.flatMap((round) => round.kills).filter((kill) => kill.killerSide === 'a').every((kill) => kill.weapon !== 'awp')).toBe(true);
     const userAwper = { players: noAwpers.players, roles: new Map([[noAwpers.players[0].id, 'awper' as const]]) };
-    const withUser = buildSandboxRoundDetails(buildMap('feed-a'), userAwper, rosterB, 'feed-a:userawp');
-    const awpKills = withUser.flatMap((round) => round.kills).filter((kill) => kill.weapon === 'awp' && kill.killerSide === 'a');
+    const awpKills = ['feed-a', 'feed-b', 'feed-c', 'feed-d', 'feed-e']
+      .flatMap((seed) => buildMap(seed, { rosterA: userAwper }).details!)
+      .flatMap((round) => round.kills)
+      .filter((kill) => kill.weapon === 'awp' && kill.killerSide === 'a');
     expect(awpKills.length).toBeGreaterThan(0);
     expect(awpKills.every((kill) => kill.killerId === noAwpers.players[0].id)).toBe(true);
   });
@@ -110,7 +116,10 @@ describe('sandbox round details', () => {
     expect(pistols.a + pistols.b).toBe(2);
   });
 
-  it('returns nothing when a roster is missing', () => {
-    expect(buildSandboxRoundDetails(buildMap('feed-a'), { players: [] }, rosterB, 'x')).toEqual([]);
+  it('still simulates the map (without a kill feed) when a roster is missing', () => {
+    const map = simulateMap(combatA, combatB, createSeededRng('feed-a'), 1, { rosterB });
+    expect(map.details).toHaveLength(map.rounds.length);
+    expect(map.details!.every((round) => round.kills.length === 0)).toBe(true);
+    expect(Math.max(map.scoreA, map.scoreB)).toBeGreaterThanOrEqual(13);
   });
 });

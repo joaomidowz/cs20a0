@@ -4,16 +4,25 @@
   import SandboxPlayerPicker from '$lib/components/SandboxPlayerPicker.svelte';
   import SandboxSeriesViewer from '$lib/components/SandboxSeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import { TIMEOUT_LOSS_STREAK } from '$lib/game/bot-policies';
+  import type { PendingSeriesDecision } from '$lib/game/online/live-series';
+  import VetoBoard from '$lib/components/live/VetoBoard.svelte';
+  import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
+  import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
+  import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
+  import RunHighlights from '$lib/components/RunHighlights.svelte';
   import { createRunStats } from '$lib/game/runStats';
   import { orientSeriesToTeam } from '$lib/game/simulation';
   import { getTeamPlayers, playerById, teamById, teams } from '$lib/game/data';
   import { getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, MAP_POOL } from '$lib/game/maps';
   import { language, theme } from '$lib/game/pageState';
   import { getEligibleSlotRoles, getRoleLabel } from '$lib/game/roleRules';
-  import { advanceSandboxMajor, createSandboxMajor } from '$lib/game/sandbox/major';
+  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
+  import { advanceSandboxMajor, autoDecideSandbox, applySandboxEcoCall, applySandboxSide, applySandboxVeto, callSandboxTimeout, createSandboxMajor, getSandboxLiveView, pendingSandboxDecision, skipSandboxMap, stepSandboxSeries, type SandboxLiveView } from '$lib/game/sandbox/major';
   import { createRandomSandboxLineup, getDefaultSandboxMapPreferences, previewSandboxLineupPower, validateSandboxLineup } from '$lib/game/sandbox/lineup';
   import { getSandboxCampaignSummary, getSandboxTeamName, getSandboxUserProgress, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxLineupSelection, SandboxMajorState } from '$lib/game/sandbox/types';
@@ -37,6 +46,12 @@
   };
   let seed = 'sandbox-major';
   let simulationMode: 'automatic' | 'manual' = 'automatic';
+  let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  /** Marks the half already covered by an automatic pause, so it is asked at most once per half. */
+  let autoPausedHalf = '';
+  let automationTimer: number | null = null;
+  let liveRunning = false;
+  let liveTimer: number | null = null;
   let major: SandboxMajorState | null = null;
   let timer: number | null = null;
   let editingSlot: number | null = null;
@@ -84,6 +99,14 @@
   $: progress = major ? getSandboxUserProgress(major) : null;
   $: championName = major ? getSandboxTeamName(major, major.championId) : '';
   $: sandboxStats = major?.finished && campaign ? buildSandboxStats(major, campaign.placement) : [];
+  $: liveView = major?.interactive ? getSandboxLiveView(major) : null;
+  $: pendingDecision = major?.interactive ? pendingSandboxDecision(major) : null;
+  $: liveTeamNames = currentMatch ? { [currentMatch.teamA.id]: currentMatch.teamA.name, [currentMatch.teamB.id]: currentMatch.teamB.name } as Record<string, string> : {};
+  $: userFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(contributors[mapId].length)])) as Record<MapId, number>;
+  $: if (liveView?.finished && !currentSeriesReady) { liveRunning = false; currentSeriesReady = true; }
+  $: if (liveView && !liveView.finished && !liveRunning && simulationMode === 'automatic' && !currentSeriesReady) liveRunning = true;
+  $: if (liveRunning && liveView && !liveView.finished && !pendingDecision && liveTimer === null) scheduleLiveTick();
+  $: queueAutomation(pendingDecision, liveView, strategicPreferences);
 
   const placementKey = (state: SandboxMajorState, summary: { champion: boolean; lastPhase: string | null }) =>
     summary.champion ? 'placementChampion' : summary.lastPhase === 'final' ? 'placementRunnerUp' : summary.lastPhase === 'semifinal' ? 'placement3to4' : summary.lastPhase === 'quarterfinal' ? 'placement5to8' : 'placementStage3';
@@ -108,6 +131,7 @@
   $: if (simulationMode === 'automatic' && currentSeriesReady && currentMatch && !major?.finished) scheduleAdvance(currentMatch.id);
 
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
     const storedSpeed = localStorage.getItem(SPEED_KEY);
     if (storedSpeed === 'normal' || storedSpeed === 'fast' || storedSpeed === 'ultra' || storedSpeed === 'insta') simulationSpeed = storedSpeed;
     try {
@@ -127,10 +151,67 @@
     hydrated = true;
   });
 
-  onDestroy(() => { if (timer !== null) window.clearTimeout(timer); });
+  onDestroy(() => {
+    if (timer !== null) window.clearTimeout(timer);
+    if (liveTimer !== null) window.clearTimeout(liveTimer);
+    if (automationTimer !== null) window.clearTimeout(automationTimer);
+  });
 
   function persistSelection(value: SandboxLineupSelection) {
     try { localStorage.setItem(SELECTION_KEY, JSON.stringify({ ...value, seed, simulationMode })); } catch { /* storage unavailable */ }
+  }
+
+  /** Interactive mode: plays the user's series one step at a time, pausing whenever a decision is pending. */
+  function scheduleLiveTick() {
+    if (liveTimer !== null) return;
+    const gap = liveView?.phase === 'intermission' ? 900 : speedDelays[simulationSpeed];
+    liveTimer = window.setTimeout(() => {
+      liveTimer = null;
+      if (!major?.interactive || !liveRunning) return;
+      if (simulationSpeed === 'insta') {
+        let next = major;
+        for (let guard = 0; guard < 200 && !pendingSandboxDecision(next) && !getSandboxLiveView(next)?.finished; guard += 1) next = stepSandboxSeries(next);
+        major = next;
+      } else {
+        major = stepSandboxSeries(major);
+      }
+    }, gap);
+  }
+
+  function stopLiveTick() {
+    if (liveTimer !== null) window.clearTimeout(liveTimer);
+    liveTimer = null;
+    liveRunning = false;
+  }
+
+  function startLiveSeries() {
+    if (!major?.interactive || liveView?.finished) return;
+    liveRunning = true;
+  }
+
+  function decideVeto(mapId: MapId) {
+    if (!major || pendingDecision?.kind !== 'veto') return;
+    major = applySandboxVeto(major, pendingDecision.action, mapId);
+  }
+
+  function decideSide(side: 'ct' | 't') {
+    if (!major || pendingDecision?.kind !== 'side') return;
+    major = applySandboxSide(major, side);
+  }
+
+  function decideEco(call: 'force' | 'eco') {
+    if (!major || pendingDecision?.kind !== 'eco-call') return;
+    major = applySandboxEcoCall(major, call);
+  }
+
+  function requestTimeout() {
+    if (!major) return;
+    try { major = callSandboxTimeout(major); } catch { /* no timeout left in this half */ }
+  }
+
+  function skipLiveMap() {
+    if (!major?.interactive) return;
+    major = skipSandboxMap(major);
   }
 
   function scheduleAdvance(matchId: string) {
@@ -187,7 +268,8 @@
   function startMajor() {
     if (!validation.valid) return;
     persistSelection(selection);
-    major = createSandboxMajor(selection, seed);
+    stopLiveTick();
+    major = createSandboxMajor(selection, seed, { interactive: true });
     currentSeriesReady = false;
     majorView = 'current';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -206,10 +288,51 @@
     persistSelection(selection);
   }
 
+  function setStrategicPreferences(value: StrategicAutomationPreferences) {
+    strategicPreferences = value;
+    saveStrategicPreferences(value);
+  }
+
+  const isAutomated = (decision: PendingSeriesDecision, preferences: StrategicAutomationPreferences) =>
+    decision.kind === 'eco-call' ? preferences.autoEconomy : preferences.autoMapPicksAndVetos;
+
+  const pauseKey = (view: SandboxLiveView) => `${view.seriesId}:${view.activeMap}:${view.timeoutsLeft}`;
+
+  const wantsAutomaticPause = (view: SandboxLiveView | null, preferences: StrategicAutomationPreferences) =>
+    Boolean(preferences.autoPause && view && view.phase === 'live' && !view.finished
+      && view.timeoutsLeft > 0 && view.lossStreak >= TIMEOUT_LOSS_STREAK && autoPausedHalf !== pauseKey(view));
+
+  /** Queues the automation: writing the Major from inside a reactive block would not restart the cycle. */
+  function queueAutomation(pending: PendingSeriesDecision | null, view: SandboxLiveView | null, preferences: StrategicAutomationPreferences) {
+    if (!major || automationTimer !== null) return;
+    const decides = Boolean(pending && isAutomated(pending, preferences));
+    if (!decides && !(!pending && wantsAutomaticPause(view, preferences))) return;
+    automationTimer = window.setTimeout(runAutomation, 0);
+  }
+
+  /** Takes every decision the player left on automatic, then the tactical pause when it is on. */
+  function runAutomation() {
+    automationTimer = null;
+    if (!major) return;
+    let next = major;
+    for (let guard = 0; guard < 40; guard += 1) {
+      const pending = pendingSandboxDecision(next);
+      if (!pending || !isAutomated(pending, strategicPreferences)) break;
+      next = autoDecideSandbox(next);
+    }
+    const view = pendingSandboxDecision(next) ? null : getSandboxLiveView(next);
+    if (wantsAutomaticPause(view, strategicPreferences) && view) {
+      autoPausedHalf = pauseKey(view);
+      try { next = callSandboxTimeout(next); } catch { /* no timeout left in this half */ }
+    }
+    major = next;
+  }
+
   function advanceCurrentMatch() {
     if (!major) return;
     if (timer !== null) window.clearTimeout(timer);
     timer = null;
+    stopLiveTick();
     currentSeriesReady = false;
     major = advanceSandboxMajor(major);
   }
@@ -217,6 +340,7 @@
   function restart() {
     if (timer !== null) window.clearTimeout(timer);
     timer = null;
+    stopLiveTick();
     currentSeriesReady = false;
     major = null;
   }
@@ -247,7 +371,7 @@
     <section class="sandbox-setup panel">
       <label><span>Organização</span><select value={selection.organizationId} on:change={(event) => updateOrganization(event.currentTarget.value)}>{#each teams as team}<option value={team.id}>{team.name} · {team.year}</option>{/each}</select></label>
       <div class="control-group"><span>Estilo</span><SegmentedControl value={selection.style} options={styleOptions} label="Estilo de jogo" onChange={(value) => selection = { ...selection, style: value as OrgStyle }} /></div>
-      <div class="control-group"><span>Avanço</span><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /></div>
+      <div class="control-group"><span>Avanço</span><div class="control-row"><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /><AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} /></div></div>
       <label class="seed-field"><span>Seed</span><span class="seed-row"><input bind:value={seed} maxlength="48" on:change={() => persistSelection(selection)} /><button class="secondary" type="button" on:click={randomizeSeed} title="Gerar outra seed">Nova</button></span></label>
     </section>
 
@@ -336,7 +460,7 @@
 
       <section class="sandbox-controls panel">
         <div class="control-group"><span>Visão</span><SegmentedControl value={majorView} options={viewOptions} label="Visão do Major" onChange={(value) => majorView = value as 'current' | 'all'} /></div>
-        <div class="control-group"><span>Velocidade</span><SegmentedControl value={simulationSpeed} options={speedOptions} label="Velocidade da simulação" onChange={setSimulationSpeed} /></div>
+        <div class="control-group"><span>Velocidade</span><div class="control-row"><SegmentedControl value={simulationSpeed} options={speedOptions} label="Velocidade da simulação" onChange={setSimulationSpeed} /><AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} /></div></div>
         <div class="control-group"><span>Avanço</span><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /></div>
         <button class="secondary" type="button" on:click={restart}>Montar outro time</button>
       </section>
@@ -362,10 +486,55 @@
               <RunStatsGrid stats={sandboxStats} language="pt-BR" />
             </section>
           {/if}
+          <RunHighlights matches={major.matches.filter((match) => match.userMatch)} userTeamId={major.userTeam.id} language="pt-BR" />
           <div class="sandbox-final-actions">
             <button class="primary" type="button" on:click={playAgainWithNewSeed}>Mesmo elenco, nova seed</button>
             <button class="secondary" type="button" on:click={restart}>Novo Sandbox</button>
           </div>
+        {:else if currentMatch && major.interactive && liveView}
+          {#if liveView.phase === 'veto' && liveView.veto}
+            <VetoBoard available={liveView.veto.available} steps={liveView.veto.steps} turnTeamId={liveView.veto.turnTeamId} action={liveView.veto.action} teamNames={liveTeamNames} myTeamId={major.userTeam.id} familiarity={userFamiliarity} language="pt-BR" onAction={decideVeto} />
+          {/if}
+          {#if pendingDecision?.kind === 'side'}
+            <SidePickPrompt mapId={pendingDecision.mapId} decider={currentMatch.maps[pendingDecision.mapIndex]?.pickedBy === null} language="pt-BR" onPick={decideSide} />
+          {:else if pendingDecision?.kind === 'eco-call'}
+            <EcoCallPrompt roundNumber={pendingDecision.roundNumber} money={pendingDecision.money} language="pt-BR" onCall={decideEco} />
+          {/if}
+          {#if !liveView.finished && liveView.phase !== 'veto' && !pendingDecision}
+            <div class="sandbox-live-actions">
+              <div class="live-buttons">
+                {#if !strategicPreferences.autoPause && liveView.phase === 'live'}<TimeoutButton remaining={liveView.timeoutsLeft} disabled={Boolean(pendingDecision)} language="pt-BR" onCall={requestTimeout} />{/if}
+                {#if !liveRunning}
+                  <button class="primary live-button" type="button" on:click={startLiveSeries}>Iniciar série</button>
+                {:else}
+                  <button class="secondary live-button" type="button" on:click={skipLiveMap}>Pular mapa atual</button>
+                {/if}
+              </div>
+              {#if liveView.phase === 'live'}<small>Lado: {liveView.userSide ? (liveView.userSide === 'ct' ? 'CT' : 'TR') : '—'}{liveRunning ? '' : ' · pausado'}</small>{/if}
+            </div>
+          {/if}
+          {#key currentMatch.id}
+            <SandboxSeriesViewer
+              match={currentMatch}
+              delay={speedDelays[simulationSpeed]}
+              userTeamId={major.userTeam.id}
+              controlled
+              controlledActiveMap={liveView.activeMap}
+              controlledVisibleRounds={liveView.visibleRounds}
+              controlledStarted={liveView.started || liveView.phase === 'side-pick' || liveView.phase === 'live'}
+              controlledFinished={liveView.finished}
+              simpleFeed={strategicPreferences.simpleFeed}
+              showActions={false}
+              onTeam={openTeam}
+              onStart={startLiveSeries}
+              onSkipMap={skipLiveMap}
+            />
+          {/key}
+          {#if currentSeriesReady && simulationMode === 'manual'}
+            <button class="primary sandbox-next" type="button" on:click={advanceCurrentMatch}>Confirmar resultado e avançar</button>
+          {:else if currentSeriesReady}
+            <p class="automatic-note">Preparando a próxima série…</p>
+          {/if}
         {:else if currentMatch}
           {#key currentMatch.id}
             <SandboxSeriesViewer match={currentMatch} delay={speedDelays[simulationSpeed]} auto={simulationMode === 'automatic'} userTeamId={major.userTeam.id} onTeam={openTeam} onComplete={() => currentSeriesReady = true} />
@@ -416,7 +585,8 @@
 
 <style>
   .sandbox-header{max-width:760px;margin-bottom:24px}.sandbox-header h1{margin:8px 0;font-size:clamp(3rem,8vw,6rem)}.sandbox-header p{color:var(--muted);line-height:1.6}
-  .sandbox-setup{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px;padding:14px}
+  .sandbox-setup{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;padding:14px}
+  .sandbox-live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.sandbox-live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   label{display:grid;gap:6px;min-width:0}label>span:first-child{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   select,input{width:100%;min-width:0;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:0;color:var(--text);background:var(--surface-2);font:inherit}
   .seed-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}.seed-row .secondary{min-height:44px;padding:0 12px;font-size:.62rem}

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, MapId, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, MapId, MapSide, MapVetoStep, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 5 as const;
+export const PROTOCOL_VERSION = 6 as const;
 export const ROOM_CODE_LENGTH = 8;
 
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
@@ -37,6 +37,7 @@ const requestIdSchema = z.string().min(8).max(80);
 const participantNameSchema = z.string().trim().min(2).max(24);
 const baseCommandSchema = z.object({ requestId: requestIdSchema });
 const mapIdSchema = z.enum(['ancient', 'anubis', 'cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train', 'vertigo']);
+const seriesIdSchema = z.string().min(1).max(160);
 
 export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({
@@ -75,7 +76,19 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     simulationMode: z.enum(['automatic', 'manual']).optional(),
     simulationSpeed: z.enum(['normal', 'fast', 'ultra']).optional()
   }).strict(),
-  baseCommandSchema.extend({ type: z.literal('advance-round') }).strict()
+  baseCommandSchema.extend({ type: z.literal('advance-round') }).strict(),
+  // Live decisions (protocol 6). `seriesId` guards against a decision landing after the series moved on.
+  baseCommandSchema.extend({
+    type: z.literal('veto-action'),
+    seriesId: seriesIdSchema,
+    action: z.enum(['ban', 'pick']),
+    mapId: mapIdSchema,
+    /** Veto step the client believes it is answering; a stale step is rejected instead of banning the wrong map. */
+    step: z.number().int().min(0).max(24).optional()
+  }).strict(),
+  baseCommandSchema.extend({ type: z.literal('pick-side'), seriesId: seriesIdSchema, side: z.enum(['ct', 't']) }).strict(),
+  baseCommandSchema.extend({ type: z.literal('call-timeout'), seriesId: seriesIdSchema }).strict(),
+  baseCommandSchema.extend({ type: z.literal('eco-call'), seriesId: seriesIdSchema, call: z.enum(['force', 'eco']) }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -107,22 +120,52 @@ export interface PublicOverviewSeries {
   scoreA: number;
   scoreB: number;
   status: 'pending' | 'live' | 'completed';
+  /** Running score of the map being played, when the series is live. */
+  liveMap?: { mapId: MapId | null; a: number; b: number } | null;
 }
 
+export type LiveSeriesPhase = 'veto' | 'intermission' | 'side-pick' | 'live' | 'finished';
+
+/** Round detail as sent to clients: the internal momentum counters stay on the server. */
+export type PublicRoundDetail = RoundDetail;
+
+export interface PublicVetoBoard {
+  available: MapId[];
+  steps: MapVetoStep[];
+  /** Organization whose turn it is, or null once the veto is complete. */
+  turnTeamId: string | null;
+  action: 'ban' | 'pick' | null;
+  step: number;
+}
+
+export type PublicPendingDecision =
+  | { kind: 'veto'; teamId: string; deadlineAt: number | null; action: 'ban' | 'pick'; step: number; available: MapId[] }
+  | { kind: 'side'; teamId: string; deadlineAt: number | null; mapIndex: number; mapId: MapId | null }
+  | { kind: 'eco-call'; teamId: string; deadlineAt: number | null; mapIndex: number; roundNumber: number; money: number };
+
 export interface PublicLiveSeries {
+  /** Oriented so the viewer's organization (when playing) is team A; `maps[activeMap].details` holds the recent kill feed. */
   series: SeriesResult;
   activeMap: number;
   visibleRounds: number;
   started: boolean;
   finished: boolean;
+  phase: LiveSeriesPhase;
+  veto: PublicVetoBoard | null;
+  decision: PublicPendingDecision | null;
+  /** Tactical timeouts left in the current half, oriented like `series` (a = the viewer's side when they play). */
+  timeouts: { a: number; b: number };
+  sideA: MapSide | null;
+  /** When the next round of this series is due (null while paused for a decision or finished). */
+  nextRoundAt: number | null;
 }
 
 export interface PublicLiveCursor {
   tournamentRound: number;
   phase: PublicRound['phase'];
   status: 'waiting' | 'waiting_host' | 'live' | 'completed';
-  step: number;
-  nextTickAt: number | null;
+  /** When the tournament round starts (automatic mode) — null while live or waiting for the host. */
+  nextRoundAt: number | null;
   primarySeries: PublicLiveSeries | null;
   overviewSeries: PublicOverviewSeries[];
 }
@@ -185,11 +228,13 @@ export interface SelfDraftState {
   rerollsMax: number;
   watchedSeriesId: string | null;
   mapPreferences: MapId[];
+  /** Decision this participant has to take right now in their own series, if any. */
+  pendingDecision: { seriesId: string; kind: PublicPendingDecision['kind']; deadlineAt: number | null } | null;
 }
 
 export interface RoomSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION;
-  capabilities: { mapPreferences: true; replayV1: false };
+  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true };
   dataHash: string;
   version: number;
   roomCode: string;
@@ -221,7 +266,12 @@ export type ErrorCode =
   | 'INVALID_ACTION'
   | 'DRAFT_POOL_EXHAUSTED'
   | 'RATE_LIMITED'
-  | 'RESUME_EXPIRED';
+  | 'RESUME_EXPIRED'
+  | 'NOT_YOUR_TURN'
+  | 'DECISION_NOT_PENDING'
+  | 'INVALID_MAP'
+  | 'TIMEOUT_UNAVAILABLE'
+  | 'SERIES_MISMATCH';
 
 export type ServerMessage =
   | { type: 'ack'; requestId: string; version: number; resumeToken?: string }

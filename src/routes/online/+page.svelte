@@ -11,6 +11,13 @@
   import DraftHud from '$lib/components/DraftHud.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, type AutomationAttempt } from '$lib/game/online-automation';
+  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
+  import VetoBoard from '$lib/components/live/VetoBoard.svelte';
+  import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
+  import EcoCallPrompt from '$lib/components/live/EcoCallPrompt.svelte';
+  import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
@@ -23,9 +30,9 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import type { LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
+  import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, isValidRoomCode, OnlineRoomClient, OnlineRoomCreationError, type OnlineClientErrorCode } from '$lib/game/online/client';
-  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
+  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -54,6 +61,15 @@
   let provisionalMapPreferences: MapId[] = [];
   let mapLineupKey = '';
   let proLineupKey = '';
+  let decisionCountdown = '';
+  let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  /** Last answer the gear sent, so a slow snapshot does not repeat it and a refused one is retried. */
+  let autoAnsweredDecision: AutomationAttempt | null = null;
+  /** Last automatic tactical pause asked for. */
+  let autoPausedHalf: AutomationAttempt | null = null;
+  let mySide: 'a' | 'b' | null = null;
+  /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
+  let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
@@ -75,6 +91,16 @@
   $: ownCompletedSeries = me ? completedSeries.filter((series) => series.teamA.id === me?.id || series.teamB.id === me?.id) : [];
   $: liveCursor = snapshot?.tournament?.liveCursor ?? null;
   $: liveSeries = liveCursor?.primarySeries ?? null;
+  $: myDecision = liveSeries?.decision && liveSeries.decision.teamId === me?.id ? liveSeries.decision : null;
+  $: mySeriesId = liveSeries?.series.userMatch && me ? liveSeries.series.id : null;
+  $: myTimeouts = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? liveSeries.timeouts.a : liveSeries.timeouts.b) : 0;
+  $: mySide = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? 'a' : 'b') : null;
+  $: liveDetailList = liveSeries && liveDetails.key === `${liveSeries.series.id}:${liveSeries.activeMap}` ? liveDetails.rounds : null;
+  $: answerAutomatedDecision(myDecision, strategicPreferences);
+  $: callAutomaticPause(liveDetailList, strategicPreferences);
+  $: liveTeamNames = liveSeries ? { [liveSeries.series.teamA.id]: liveSeries.series.teamA.name, [liveSeries.series.teamB.id]: liveSeries.series.teamB.name } as Record<string, string> : {};
+  $: myFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(onlineMapContributors[mapId].length)])) as Record<MapId, number>;
+  $: speedDelay = snapshot?.config.simulationSpeed === 'normal' ? 2400 : snapshot?.config.simulationSpeed === 'fast' ? 1200 : 200;
   $: myStanding = snapshot?.tournament?.standings.find((standing) => standing.organizationId === me?.id) ?? null;
   $: onlineTournament = snapshot?.tournament ? buildOnlineTournamentView(snapshot.tournament) : null;
   $: onlineCursor = {
@@ -96,7 +122,41 @@
     : null;
   $: selectedOrganizationView = selectedOrganizationId ? buildOrganizationView(selectedOrganizationId) : null;
 
+
+  function setStrategicPreferences(value: StrategicAutomationPreferences) {
+    strategicPreferences = value;
+    saveStrategicPreferences(value);
+  }
+
+  /** Answers the decision waiting on this player whenever its toggle is on, instead of waiting for the deadline. */
+  function answerAutomatedDecision(decision: PublicPendingDecision | null, preferences: StrategicAutomationPreferences) {
+    if (!decision || !liveSeries || !mySeriesId || !answersDecision(decision, preferences)) return;
+    const key = decisionKey(liveSeries.series.id, decision);
+    if (!shouldAnswerAgain(autoAnsweredDecision, key, Date.now())) return;
+    autoAnsweredDecision = { key, at: Date.now() };
+    const style = self?.style ?? 'balanced';
+    if (decision.kind === 'veto') {
+      const mapId = autoVetoMap(decision.available, myFamiliarity, decision.action);
+      if (mapId) send({ type: 'veto-action', seriesId: liveSeries.series.id, action: decision.action, mapId, step: decision.step });
+    } else if (decision.kind === 'side') {
+      send({ type: 'pick-side', seriesId: mySeriesId, side: autoSidePick(style, decision.mapId) });
+    } else {
+      send({ type: 'eco-call', seriesId: mySeriesId, call: autoEcoCall(style, decision.money) });
+    }
+  }
+
+  function callAutomaticPause(rounds: RoundDetail[] | null, preferences: StrategicAutomationPreferences) {
+    if (!preferences.autoPause || !rounds?.length || !liveSeries || !mySeriesId || !mySide) return;
+    if (liveSeries.phase !== 'live' || liveSeries.finished || myDecision) return;
+    if (!shouldCallTimeout(rounds, mySide, myTimeouts)) return;
+    const half = `${liveSeries.series.id}:${liveSeries.activeMap}:${myTimeouts}`;
+    if (!shouldAnswerAgain(autoPausedHalf, half, Date.now())) return;
+    autoPausedHalf = { key: half, at: Date.now() };
+    send({ type: 'call-timeout', seriesId: mySeriesId });
+  }
+
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
     if (roomCode && localStorage.getItem(`cs13a0:online:resume:${roomCode}`)) connect();
@@ -122,11 +182,18 @@
       case 'DATA_MISMATCH': return t('versionMismatch');
       case 'RATE_LIMITED': return t('rateLimited');
       case 'CREATE_FAILED': return t('createFailed');
+      case 'NOT_YOUR_TURN': return t('notYourTurn');
+      case 'DECISION_NOT_PENDING': return t('decisionNotPending');
+      case 'INVALID_MAP': return t('invalidMap');
+      case 'TIMEOUT_UNAVAILABLE': return t('timeoutUnavailable');
+      case 'SERIES_MISMATCH': return t('seriesMismatch');
       default: return fallback;
     }
   }
 
   function updateCountdown() {
+    const decisionDeadline = snapshot?.self?.pendingDecision?.deadlineAt ?? null;
+    decisionCountdown = decisionDeadline === null ? '' : `${Math.max(0, Math.ceil((decisionDeadline - (Date.now() + serverOffset)) / 1_000))}s`;
     if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5 && snapshot.deadlineStage !== 'confirmation')) {
       countdown = '';
       return;
@@ -206,6 +273,7 @@
         snapshot = next;
         serverOffset = next.serverTime - Date.now();
         config = next.config;
+        mergeLiveDetails(next);
         if (next.self) {
           const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
           const nextProKey = next.self.proPickedPlayerIds.join('|');
@@ -232,6 +300,17 @@
       }
     });
     client.connect();
+  }
+
+  /** Keeps every round of the live map even though each snapshot only carries the last few. */
+  function mergeLiveDetails(next: RoomSnapshot) {
+    const primary = next.tournament?.liveCursor?.primarySeries;
+    if (!primary) return;
+    const key = `${primary.series.id}:${primary.activeMap}`;
+    const incoming = primary.series.maps[primary.activeMap]?.details ?? [];
+    const rounds = liveDetails.key === key ? [...liveDetails.rounds] : [];
+    for (const detail of incoming) rounds[detail.number - 1] = detail;
+    liveDetails = { key, rounds };
   }
 
   function send(command: Parameters<OnlineRoomClient['send']>[0]) {
@@ -537,13 +616,16 @@
               </div>
               <div class="control-group">
                 <span>{gameT('speed')} {isHost ? '' : '· HOST'}</span>
-                <SegmentedControl
-                  value={snapshot.config.simulationSpeed}
-                  label={gameT('speed')}
-                  disabled={!isHost}
-                  options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                  onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
-                />
+                <div class="control-row">
+                  <SegmentedControl
+                    value={snapshot.config.simulationSpeed}
+                    label={gameT('speed')}
+                    disabled={!isHost}
+                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
+                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                  />
+                  <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} />
+                </div>
               </div>
             </div>
           {/if}
@@ -588,6 +670,34 @@
                 <div class="result-actions online-result-actions"><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{gameT('downloadRunImage')}</button></div>
               {/if}
             {:else if liveSeries}
+              {#if liveSeries.phase === 'veto' && liveSeries.veto}
+                <VetoBoard
+                  available={liveSeries.veto.available}
+                  steps={liveSeries.veto.steps}
+                  turnTeamId={liveSeries.veto.turnTeamId}
+                  action={liveSeries.veto.action}
+                  teamNames={liveTeamNames}
+                  myTeamId={me?.id ?? null}
+                  familiarity={mySeriesId ? myFamiliarity : {}}
+                  countdown={myDecision?.kind === 'veto' ? decisionCountdown : ''}
+                  language={$language}
+                  onAction={(mapId) => liveSeries?.veto && send({ type: 'veto-action', seriesId: liveSeries.series.id, action: liveSeries.veto.action ?? 'ban', mapId, step: liveSeries.veto.step })}
+                />
+                {#if mySeriesId}<p class="veto-intro">{t('vetoIntro')}</p>{/if}
+              {/if}
+              {#if myDecision?.kind === 'side' && mySeriesId}
+                <SidePickPrompt mapId={myDecision.mapId} decider={liveSeries.series.maps[myDecision.mapIndex]?.pickedBy === null} countdown={decisionCountdown} language={$language} onPick={(side) => mySeriesId && send({ type: 'pick-side', seriesId: mySeriesId, side })} />
+              {:else if myDecision?.kind === 'eco-call' && mySeriesId}
+                <EcoCallPrompt roundNumber={myDecision.roundNumber} money={myDecision.money} countdown={decisionCountdown} language={$language} onCall={(call) => mySeriesId && send({ type: 'eco-call', seriesId: mySeriesId, call })} />
+              {:else if liveSeries.decision && liveSeries.phase !== 'veto'}
+                <p class="host-wait panel decision-wait">{gameT('opponentDeciding')}</p>
+              {/if}
+              {#if mySeriesId && liveSeries.phase === 'live' && !liveSeries.finished}
+                <div class="live-actions">
+                  {#if !strategicPreferences.autoPause}<TimeoutButton remaining={myTimeouts} disabled={Boolean(myDecision)} language={$language} onCall={() => mySeriesId && send({ type: 'call-timeout', seriesId: mySeriesId })} />{/if}
+                  <small>{gameT('sideLabel')}: {liveSeries.sideA ? (liveSeries.sideA === 'ct' ? 'CT' : $language === 'en' ? 'T' : 'TR') : '—'}</small>
+                </div>
+              {/if}
               {#key liveSeries.series.id}
                 <SeriesViewer
                   series={liveSeries.series}
@@ -596,6 +706,9 @@
                   controlledVisibleRounds={liveSeries.visibleRounds}
                   controlledStarted={liveSeries.started}
                   controlledFinished={liveSeries.finished}
+                  controlledDelay={speedDelay}
+                  liveDetails={liveDetailList}
+                  simpleFeed={strategicPreferences.simpleFeed}
                   language={$language}
                   interactiveTeamIds={[liveSeries.series.teamA.id, liveSeries.series.teamB.id]}
                   onTeamClick={openOrganization}
@@ -672,6 +785,7 @@
 <style>
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
+  .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
