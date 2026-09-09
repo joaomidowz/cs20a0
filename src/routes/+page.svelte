@@ -648,6 +648,22 @@
     awaitingAdvance = false;
   }
 
+  /** Keeps the drafted lineup and the map pool, draws a new Major and goes straight to Stage 3. */
+  function playAgainWithSameLineup() {
+    if (selectedLineup.length !== 5) return;
+    resetSupportNudge();
+    closePlayer();
+    closeEnemyTeam();
+    clearAdvanceTimer();
+    stopLiveTick();
+    awaitingAdvance = false;
+    autoPausedHalf = '';
+    campaign = null;
+    update({ seed: makeSeed(), majorRun: null, playedSeries: {}, stats: [], completedSeries: 0, phase: 'map-selection' });
+    launchMajor();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function copyLink() {
     const url = new URL(window.location.href);
     url.searchParams.set('seed', $game.seed);
@@ -1236,7 +1252,7 @@
           </section>
         {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
-        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
+        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" on:click={() => update({ phase: 'stats' })}>{t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}
