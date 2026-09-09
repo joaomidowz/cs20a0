@@ -1,5 +1,6 @@
 <script lang="ts">
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
   import TeamCard from '$lib/components/TeamCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
   import { teams } from '$lib/game/data';
@@ -7,6 +8,7 @@
   import { language, theme } from '$lib/game/pageState';
   import { sortTeamsByPlacement } from '$lib/game/teamViews';
   import type { HistoricalTeam } from '$lib/game/types';
+  import { SEO_BY_ROUTE } from '$lib/seo';
 
   let selectedTeam: HistoricalTeam | null = null;
 
@@ -25,6 +27,8 @@
     .map(([year, yearTeams]) => ({ year, teams: yearTeams.sort(sortTeamsByPlacement) }))
     .filter((section) => section.teams.length);
 </script>
+
+<SeoHead metadata={SEO_BY_ROUTE['/teams']} />
 
 <PageLayout
   language={$language}

@@ -71902,7 +71902,7 @@
     "teamId": "furia-2026",
     "year": 2026,
     "game": "CS2",
-    "role": "rifler",
+    "role": "awper",
     "overall": 90,
     "rarity": "superstar",
     "traits": [],
@@ -71942,8 +71942,7 @@
       "IEM Cologne 2026 EVP"
     ],
     "eligibleSlotRoles": [
-      "rifler",
-      "support"
+      "awper"
     ],
     "roleConfidence": "medium",
     "needsReview": false,

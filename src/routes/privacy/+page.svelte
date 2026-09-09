@@ -1,10 +1,14 @@
 <script lang="ts">
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
   import { translate } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
+  import { SEO_BY_ROUTE } from '$lib/seo';
 
   $: t = (key: Parameters<typeof translate>[1]) => translate($language, key);
 </script>
+
+<SeoHead metadata={SEO_BY_ROUTE['/privacy']} />
 
 <PageLayout
   language={$language}

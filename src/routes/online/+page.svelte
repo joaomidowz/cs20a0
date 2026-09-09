@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import OrganizationRosterModal from '$lib/components/OrganizationRosterModal.svelte';
@@ -37,6 +38,7 @@
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
+  import { SEO_BY_ROUTE } from '$lib/seo';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import '../../app.css';
 
@@ -485,9 +487,7 @@
   }
 </script>
 
-<svelte:head>
-  <title>{t('title')} · cs13a0</title>
-</svelte:head>
+<SeoHead metadata={SEO_BY_ROUTE['/online']} />
 
 <PageLayout wide language={$language} theme={$theme} onLanguage={(value) => $language = value} onTheme={() => $theme = $theme === 'dark' ? 'light' : 'dark'}>
   {#if !isOnlineEnabled()}

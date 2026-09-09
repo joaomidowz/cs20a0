@@ -601,9 +601,9 @@ export function playNextRound(state: MapState): RoundDetail {
         autoDecide(state);
       }
     }
-    for (const side of ['a', 'b'] as TeamSide[]) {
-      const runtime = state.teams[side];
-      if (state.controllers[side] === 'bot' && botShouldTimeout(runtime.lossStreak, runtime.timeoutsRemaining)) requestTimeout(state, runtime.team.id, true);
+    const loserRuntimeAfterRound = state.teams[loser];
+    if (state.controllers[loser] === 'bot' && botShouldTimeout(loserRuntimeAfterRound.lossStreak, loserRuntimeAfterRound.timeoutsRemaining)) {
+      requestTimeout(state, loserRuntimeAfterRound.team.id, true);
     }
   }
   return detail;

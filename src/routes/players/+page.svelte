@@ -1,5 +1,6 @@
 <script lang="ts">
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
   import { players, teamById } from '$lib/game/data';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
@@ -9,6 +10,7 @@
   } from '$lib/game/playerRankings';
   import { getRoleLabel } from '$lib/game/roleRules';
   import type { Player } from '$lib/game/types';
+  import { SEO_BY_ROUTE } from '$lib/seo';
 
   $: t = (key: Parameters<typeof translate>[1]) => translate($language, key);
 
@@ -17,6 +19,8 @@
     return team ? translateTeamName($language, team.name ?? team.id) : player.teamId ?? '—';
   }
 </script>
+
+<SeoHead metadata={SEO_BY_ROUTE['/players']} />
 
 <PageLayout
   language={$language}

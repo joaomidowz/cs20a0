@@ -324,7 +324,10 @@
   const styleLabel = (style: OrgStyle) => styleOptions.find((option) => option.value === style)?.label ?? style;
 </script>
 
-<svelte:head><title>Sandbox · CS13a0</title></svelte:head>
+<svelte:head>
+  <title>Sandbox · CS13a0</title>
+  <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
 
 <PageLayout language={$language} theme={$theme} onLanguage={(value) => $language = value} onTheme={() => $theme = $theme === 'dark' ? 'light' : 'dark'} wide>
   {#if !major}

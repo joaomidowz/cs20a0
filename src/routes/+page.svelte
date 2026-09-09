@@ -4,6 +4,7 @@
   import { isOnlineEnabled } from '$lib/game/online/config';
   import { replaceState } from '$app/navigation';
   import Navbar from '$lib/components/Navbar.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import HeroLive from '$lib/components/HeroLive.svelte';
@@ -25,6 +26,7 @@
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
+  import { HOME_SEO_COPY, HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
   import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
   import { getPlayerBaseId, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
@@ -746,9 +748,9 @@
   }
 </script>
 
+<SeoHead metadata={SEO_BY_ROUTE['/']} />
 <svelte:head>
-  <title>cs13a0 · Monte sua line e sobreviva ao Major</title>
-  <meta name="description" content={t('metaDescription')} />
+  <script type="application/ld+json">{JSON.stringify(HOME_STRUCTURED_DATA)}</script>
 </svelte:head>
 
 <Navbar
@@ -784,6 +786,11 @@
       <article><span>01</span><div><strong>{t('featureDraftTitle')}</strong><small>{t('featureDraftDesc')}</small></div></article>
       <article><span>02</span><div><strong>{t('featureSeedTitle')}</strong><small>{t('featureSeedDesc')}</small></div></article>
       <article><span>03</span><div><strong>{t('featureRulesTitle')}</strong><small>{t('featureRulesDesc')}</small></div></article>
+    </section>
+    <section class="seo-intro shell" aria-labelledby="seo-intro-title">
+      <span class="eyebrow">COUNTER-STRIKE ATRAVÉS DAS ERAS</span>
+      <h2 id="seo-intro-title">Seu campeonato, sua line, sua história</h2>
+      <p>{HOME_SEO_COPY}</p>
     </section>
   {:else if $game.phase === 'mode-select'}
     <section class="screen shell narrow">

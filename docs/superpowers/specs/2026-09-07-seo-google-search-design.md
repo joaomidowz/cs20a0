@@ -28,6 +28,8 @@ Criar `static/sitemap.xml` em XML UTF-8 com as URLs públicas e canônicas:
 
 Criar `static/robots.txt` permitindo o rastreamento geral e declarando `Sitemap: https://cs13a0.com/sitemap.xml`. O arquivo não tenta esconder `/sandbox`, pois `robots.txt` não é mecanismo de privacidade nem de remoção de índice; a exclusão do sitemap é suficiente para o escopo atual.
 
+Como `/sandbox` continua tecnicamente acessível pela SPA, sua página deve declarar `noindex, nofollow` no `svelte:head`.
+
 ## Metadados
 
 Cada página pública recebe, por `svelte:head`:
@@ -40,6 +42,10 @@ Cada página pública recebe, por `svelte:head`:
 - Twitter Card (`twitter:card`, `twitter:title`, `twitter:description`).
 
 A página inicial também recebe dados estruturados JSON-LD do tipo `WebApplication`, descrevendo o cs13a0 como jogo/simulador gratuito de Counter-Strike acessível no navegador. Nenhuma alegação de associação oficial com Valve, ESL, PGL ou HLTV será feita.
+
+O JSON-LD deve declarar exatamente `applicationCategory: "GameApplication"` e `operatingSystem: "Web Browser"`.
+
+`og:image` e `twitter:image` só serão emitidos se já houver no projeto uma imagem social apropriada. A inspeção encontrou apenas o favicon vetorial, que não é uma imagem de compartilhamento 1200×630; portanto, este incremento não adicionará essas duas propriedades nem criará uma imagem improvisada.
 
 O projeto atual usa uma shell SPA com `ssr = false`. Os metadados de rota serão aplicados durante a hidratação do SvelteKit, o que atende ao renderizador JavaScript do Google, mas prévias sociais que não executam JavaScript podem usar metadados incompletos. Transformar as páginas institucionais em HTML pré-renderizado é uma melhoria posterior e está fora deste incremento para evitar alterar a arquitetura do jogo.
 
@@ -79,6 +85,7 @@ Não será criada uma lista artificial com 100 palavras-chave nem a tag `meta na
 - O build contém `/robots.txt` apontando para o sitemap canônico.
 - Todas as referências SEO usam `https://cs13a0.com`, sem `www`.
 - As páginas públicas têm título, descrição, canonical, Open Graph e Twitter Cards configurados.
-- A home contém dados estruturados válidos e texto natural de aproximadamente 100 palavras.
+- `/sandbox` declara `noindex, nofollow` e não aparece no sitemap.
+- A home contém dados estruturados válidos com `GameApplication` e `Web Browser`, além de texto natural de aproximadamente 100 palavras.
 - Check, testes e build passam localmente.
 - O estado final permanece somente local, sem push nem deploy.
