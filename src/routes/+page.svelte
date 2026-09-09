@@ -1,4 +1,20 @@
 <script lang="ts">
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import StrategicMatch from '$lib/components/StrategicMatch.svelte';
+  import { loadStrategicPreferences, saveStrategicPreferences } from '$lib/game/preferences';
+  import { DEFAULT_STRATEGIC_AUTOMATION, type StrategicAutomationPreferences, type StrategicSeriesState } from '$lib/game/strategic-series';
+  let strategicPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  function setStrategicPreferences(value: StrategicAutomationPreferences) { strategicPreferences = value; saveStrategicPreferences(value); }
+  function updateStrategicSeries(state: StrategicSeriesState) {
+    const live = { ...$game.majorRun!.strategicSeries, [state.result.id]: state };
+    const majorRun = buildMajorRun(isProMode ? proAdjustedPlayers : selectedPlayers, $game.style, teams, players, $game.seed, selectedLineup, { selectedMaps: $game.selectedMaps, mode: $game.mode ?? 'premier', live });
+    const stats = createRunStats(isProMode ? proAdjustedPlayers : selectedPlayers, majorRun, $game.seed, selectedLineup);
+    update({ majorRun, stats });
+    if (state.result.winnerId) {
+      clearAdvanceTimer();
+      advanceTimer = window.setTimeout(() => { void advanceSeries(); }, 1500);
+    }
+  }
   import { onDestroy, onMount, tick } from 'svelte';
   import { dev } from '$app/environment';
   import { isOnlineEnabled } from '$lib/game/online/config';
@@ -59,6 +75,7 @@
     type OrgStyle,
     type Player,
     type SeriesResult,
+    type AutomationMode,
     type SimMode,
     type SimSpeed
   } from '$lib/game/types';
@@ -81,6 +98,7 @@
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
+  let automaticDraftTimer: number | null = null;
 
   function getPhaseLabel(phase: SeriesResult['phase']): string {
     const labels: Record<string, string> = {
@@ -109,6 +127,7 @@
   }
 
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
     return game.subscribe((state) => {
       const url = new URL(window.location.href);
       if (state.seed) url.searchParams.set('seed', state.seed);
@@ -152,6 +171,9 @@
   } : null;
   $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
   $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
+  $: if ($game.majorRun?.strategicSeries && currentSeries?.winnerId && advanceTimer === null) {
+    advanceTimer = window.setTimeout(() => { void advanceSeries(); }, 1500);
+  }
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
   $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
@@ -159,6 +181,7 @@
   $: hasStageRecord = stageWins + stageLosses > 0;
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
+  $: scheduleAutomaticMaps($game.phase, strategicPreferences.autoMapPicksAndVetos ? 'automatic' : 'manual');
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
@@ -170,6 +193,7 @@
     clearAdvanceTimer();
     if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
+    if (automaticDraftTimer !== null) window.clearTimeout(automaticDraftTimer);
   });
 
   function beginGame() {
@@ -182,7 +206,7 @@
     closeEnemyTeam();
     clearAdvanceTimer();
     awaitingAdvance = false;
-    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
+    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed, automationPreferences: $game.automationPreferences, visualMode: $game.visualMode };
     game.set({ ...defaultState(), ...preserved });
     replaceState(new URL('/', window.location.origin), {});
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -215,6 +239,17 @@
     const rng = createSeededRng(`${$game.seed}:draft:${pickCount}:${$game.usedTeamIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
     if (team) update({ rolledTeamId: team.id });
+  }
+
+  function scheduleAutomaticMaps(phase: string, mode: AutomationMode) {
+    if (phase !== 'map-selection' || mode !== 'automatic' || automaticDraftTimer !== null) return;
+    automaticDraftTimer = window.setTimeout(() => {
+      automaticDraftTimer = null;
+      if ($game.phase !== 'map-selection' || !strategicPreferences.autoMapPicksAndVetos) return;
+      const selectedMaps = $game.selectedMaps.length === 3 ? $game.selectedMaps : getDefaultMapSelection(selectedPlayers, teams);
+      update({ selectedMaps });
+      launchMajor();
+    }, 180);
   }
 
   function rerollTeam() {
@@ -373,7 +408,8 @@
     const runLineup = isProMode ? proLineup : selectedLineup;
     const majorRun = buildMajorRun(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
-      mode: $game.mode ?? 'premier'
+      mode: $game.mode ?? 'premier',
+      live: {}
     });
     const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
     awaitingAdvance = false;
@@ -425,7 +461,8 @@
   }
 
   function seriesCompleted() {
-    if ($game.simMode === 'auto') {
+    awaitingAdvance = true;
+    if ($game.automationPreferences.match === 'automatic') {
       clearAdvanceTimer();
       advanceTimer = window.setTimeout(() => { advanceTimer = null; void advanceSeries(); }, 900);
     } else {
@@ -461,7 +498,7 @@
 
   function resetRun(newSeed = false) {
     resetSupportNudge();
-    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
+    const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed, automationPreferences: $game.automationPreferences, visualMode: $game.visualMode };
     game.set({ ...defaultState(newSeed ? '' : $game.seed), ...preserved, phase: 'mode-select' });
     closePlayer();
     closeEnemyTeam();
@@ -514,6 +551,16 @@
 
   function changeSimulationMode(value: string) {
     update({ simMode: value as SimMode });
+    showToast(t('configurationSaved'));
+  }
+
+  function changeAutomationPreference(key: 'draft' | 'veto' | 'match', value: string) {
+    if (value !== 'manual' && value !== 'automatic') return;
+    update({ automationPreferences: { ...$game.automationPreferences, [key]: value } });
+    if (key === 'match') {
+      clearAdvanceTimer();
+      if (awaitingAdvance && value === 'automatic') seriesCompleted();
+    }
     showToast(t('configurationSaved'));
   }
 
@@ -605,7 +652,7 @@
     <section class="screen shell">
       <header class="draft-header">
         <div><span class="eyebrow">DRAFT ROOM · {$game.mode ? t($game.mode) : ''}</span><h1>{draftComplete ? t('complete') : `${t('opportunity')} ${selectedPlayers.length + 1}/5`}</h1></div>
-        <button class="seed-button" type="button" on:click={copyLink}>SEED / {$game.seed}</button>
+        <div class="draft-header-actions"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} /><button class="seed-button" type="button" on:click={copyLink}>SEED / {$game.seed}</button></div>
       </header>
 
       {#if !$game.styleLocked && !isProMode}
@@ -816,7 +863,7 @@
       </header>
       <div class="map-selection-status panel">
         <span>{t('mapsSelected')}</span>
-        <strong>{$game.selectedMaps.length}/3</strong>
+        <div class="map-selection-status-actions"><strong>{$game.selectedMaps.length}/3</strong><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} /></div>
       </div>
       <div class="map-selection-grid">
         {#each MAP_POOL as mapId}
@@ -853,25 +900,20 @@
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
     <section class="screen shell match-screen">
+      {#if !$game.majorRun?.strategicSeries}<p class="panel legacy-notice">Campanha legada: as novas decisões estratégicas ficam disponíveis em uma nova campanha.</p>{/if}
       <header class="match-topbar"><div><span class="eyebrow">MAJOR LIVE</span><h1>{phaseLabel()}</h1></div>{#if $game.phase === 'stage3' && hasStageRecord}<div class="record"><span>{stageWins}</span><small>W</small><b>:</b><span>{stageLosses}</span><small>L</small></div>{/if}</header>
       <div class="match-controls panel">
         <div class="control-group">
-          <span>{t('simulationMode')}</span>
-          <SegmentedControl
-            value={$game.simMode}
-            label={t('simulationMode')}
-            options={[{ value: 'manual', label: t('manual') }, { value: 'auto', label: t('automatic') }]}
-            onChange={changeSimulationMode}
-          />
-        </div>
-        <div class="control-group">
           <span>{t('speed')}</span>
-          <SegmentedControl
-            value={$game.simSpeed}
-            label={t('speed')}
-            options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
-            onChange={changeSimulationSpeed}
-          />
+          <div class="control-row">
+            <SegmentedControl
+              value={$game.simSpeed}
+              label={t('speed')}
+              options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
+              onChange={changeSimulationSpeed}
+            />
+            <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} />
+          </div>
         </div>
       </div>
       {#if $game.majorRun?.tournament}
@@ -880,10 +922,13 @@
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
         {#key currentSeries.id}
+          {#if $game.majorRun?.strategicSeries?.[currentSeries.id]}
+            <StrategicMatch state={$game.majorRun.strategicSeries[currentSeries.id]} preferences={strategicPreferences} userTeamId="user" delay={SPEEDS[$game.simSpeed]} onChange={updateStrategicSeries} onTeam={pinEnemyTeam} />
+          {:else}
           <SeriesViewer
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
-            auto={$game.simMode === 'auto'}
+            auto={$game.automationPreferences.match === 'automatic'}
             language={$game.language}
             interactiveTeamId={enemyTeamId}
             labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
@@ -893,8 +938,9 @@
             onTeamClick={pinEnemyTeam}
             onOrgClick={() => showOrgModal = true}
           />
+          {/if}
         {/key}
-        {#if awaitingAdvance}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
+        {#if awaitingAdvance && $game.automationPreferences.match === 'manual'}<button class="primary wide next-match" type="button" on:click={advanceSeries}>{t('nextMatch')} →</button>{/if}
       {/if}
       <aside class="timeline panel">
         <span class="eyebrow">RUN TIMELINE</span>

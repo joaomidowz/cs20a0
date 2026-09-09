@@ -28,6 +28,7 @@ export interface SandboxMajorMatch extends SeriesResult {
 }
 
 export interface SandboxMajorState {
+  strategicSeries?: import('../strategic-series').StrategicSeriesBook;
   seed: string;
   selection: SandboxLineupSelection;
   userTeam: CombatTeam;

@@ -1,10 +1,13 @@
+import { DEFAULT_STRATEGIC_AUTOMATION, advanceStrategicRound, applyStrategicVeto, resolveAutomaticVetos, strategicRoundContext, type StrategicAutomationPreferences, type StrategicSeriesBook } from '../src/lib/game/strategic-series';
+import { getCurrentVetoAction, recommendVetoMap } from '../src/lib/game/map-veto';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game/proMode';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
 import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
 import { createRunStats } from '../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng } from '../src/lib/game/simulation';
-import type { CombatTeam, MajorRun, MapId, MapResult, OrgStyle, Player, SeriesResult } from '../src/lib/game/types';
+import type { AutomationPreferences, CombatTeam, MajorRun, MapId, MapResult, OrgStyle, PendingDecision, Player, RoundDecision, SeriesResult, VisualMode } from '../src/lib/game/types';
+import { getHalfId, getLegalBuys, ROUND_DECISION_TIMEOUT_MS } from '../src/lib/game/match-engine';
 import {
   DEFAULT_ROOM_CONFIG,
   PROTOCOL_VERSION,
@@ -57,6 +60,13 @@ interface ParticipantState {
   disconnectedAt: number | null;
   draft: DraftState;
   watchedSeriesId: string | null;
+  automationPreferences: AutomationPreferences;
+  visualMode: VisualMode;
+  pendingDecision: PendingDecision | null;
+  preferencesConfirmed: boolean;
+  strategicPreferences: StrategicAutomationPreferences;
+  roundDecision: RoundDecision | null;
+  pauseQueued: boolean;
   requestIds: string[];
 }
 
@@ -77,6 +87,11 @@ interface RoomState {
   liveStep: number;
   roundStarted: boolean;
   nextTickAt: number | null;
+  vetoProgress: Map<string, number>;
+  strategicSeries: StrategicSeriesBook;
+  mapContext?: MapSimulationContext;
+  seriesNextAt: Record<string, number>;
+  roundTransitionAt?: number;
   emptySince: number | null;
 }
 
@@ -112,6 +127,7 @@ function orientSeries(series: SeriesResult, focusId: string): SeriesResult {
       ...map,
       scoreA: map.scoreB,
       scoreB: map.scoreA,
+      events: map.events?.map(event => ({ ...event, winner: event.winner === 'a' ? 'b' : 'a', sideA: event.sideA === 'ct' ? 't' : 'ct', score: { ...event.score, a: event.score.b, b: event.score.a }, economy: { a: event.economy.b, b: event.economy.a }, kills: event.kills.map(kill => ({ ...kill, killerSide: kill.killerSide === 'a' ? 'b' : 'a' })) })),
       rounds: map.rounds.map((round) => ({ ...round, a: round.b, b: round.a }))
     }))
   };
@@ -126,7 +142,7 @@ function sanitizeLiveSeries(source: SeriesResult, step: number, focusId: string)
     const visibleRoundCount = Math.min(remaining, map.rounds.length);
     if (index > 0 && visibleRoundCount === 0) break;
     const visibleRounds = map.rounds.slice(0, visibleRoundCount);
-    const mapComplete = visibleRoundCount === map.rounds.length;
+    const mapComplete = Boolean(map.winnerId) && visibleRoundCount === map.rounds.length;
     const current = visibleRounds.at(-1);
     visibleMaps.push({
       ...map,
@@ -134,12 +150,13 @@ function sanitizeLiveSeries(source: SeriesResult, step: number, focusId: string)
       scoreB: mapComplete ? map.scoreB : current?.b ?? 0,
       winnerId: mapComplete ? map.winnerId : '',
       rounds: visibleRounds,
-      overtime: mapComplete ? map.overtime : Boolean(current?.overtime)
+      overtime: mapComplete ? map.overtime : Boolean(current?.overtime),
+      events: map.events?.slice(0, visibleRoundCount)
     });
     remaining -= visibleRoundCount;
     if (!mapComplete) break;
   }
-  const complete = step >= seriesRoundCount(series);
+  const complete = Boolean(series.winnerId) && step >= seriesRoundCount(series);
   const scoreA = visibleMaps.filter((map) => map.winnerId === series.teamA.id).length;
   const scoreB = visibleMaps.filter((map) => map.winnerId === series.teamB.id).length;
   const activeMap = Math.max(0, visibleMaps.length - 1);
@@ -171,7 +188,7 @@ function overviewSeries(series: SeriesResult, step: number): PublicOverviewSerie
     if (map.winnerId === series.teamA.id) scoreA += 1;
     else scoreB += 1;
   }
-  const complete = step >= seriesRoundCount(series);
+  const complete = Boolean(series.winnerId) && step >= seriesRoundCount(series);
   return {
     id: series.id,
     phase: series.phase,
@@ -214,6 +231,9 @@ export class RoomManager {
       liveStep: 0,
       roundStarted: false,
       nextTickAt: null,
+      vetoProgress: new Map(),
+      strategicSeries: {},
+      seriesNextAt: {},
       emptySince: now
     });
     return code;
@@ -244,6 +264,13 @@ export class RoomManager {
       disconnectedAt: null,
       draft: emptyDraftState(),
       watchedSeriesId: null,
+      automationPreferences: { draft: 'manual', veto: 'manual', match: 'manual' },
+      visualMode: 'complete',
+      pendingDecision: null,
+      preferencesConfirmed: false,
+      strategicPreferences: { ...DEFAULT_STRATEGIC_AUTOMATION },
+      roundDecision: null,
+      pauseQueued: false,
       requestIds: []
     };
     room.participants.set(participant.id, participant);
@@ -286,6 +313,11 @@ export class RoomManager {
         room.phase = 'draft';
         room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
         room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+        for (const candidate of room.participants.values()) {
+          if (candidate.automationPreferences.draft !== 'automatic') continue;
+          if (room.config.mode !== 'pro' && !candidate.draft.style) continue;
+          candidate.draft = autocompleteDraft(room.seed, candidate.id, room.config.mode, candidate.draft, teams, players);
+        }
         break;
       case 'draw-team':
         this.requireDraft(room);
@@ -309,6 +341,9 @@ export class RoomManager {
         this.requireDraft(room);
         if (room.config.mode === 'pro') throw new RoomError('INVALID_ACTION', 'PRO style and roles must be confirmed together');
         participant.draft.style = command.style;
+        if (participant.automationPreferences.draft === 'automatic' && !participant.draft.usedTeamIds.length) {
+          participant.draft = autocompleteDraft(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
+        }
         break;
       case 'pick-player': {
         this.requireDraft(room);
@@ -353,6 +388,27 @@ export class RoomManager {
       case 'watch-match':
         participant.watchedSeriesId = command.seriesId;
         break;
+      case 'update-preferences': {
+        participant.strategicPreferences = { ...participant.strategicPreferences, ...command.automation };
+        participant.preferencesConfirmed = true;
+        if (participant.strategicPreferences.autoEconomy && participant.pendingDecision?.type === 'round') participant.pendingDecision = null;
+        if (participant.strategicPreferences.autoMapPicksAndVetos && participant.pendingDecision?.type === 'veto') participant.pendingDecision = null;
+        if (room.tournament) room.nextTickAt = now;
+        break;
+      }
+      case 'request-tactical-pause': {
+        const state = room.strategicSeries[command.seriesId];
+        const side = state?.result.teamA.id === participant.id ? 'a' : state?.result.teamB.id === participant.id ? 'b' : null;
+        if (!state?.map || !side || state.map.map !== command.map || state.map.round + 1 !== command.round || state.result.winnerId || state.map.finished || !strategicRoundContext(state, side).pauseAvailable) throw new RoomError('INVALID_ACTION', 'Tactical pause is unavailable for this round');
+        participant.pauseQueued = true;
+        break;
+      }
+      case 'submit-veto':
+        this.submitVetoDecision(room, participant, command.mapId, now);
+        break;
+      case 'submit-round-decision':
+        this.submitRoundDecision(room, participant, command.decision, now);
+        break;
       case 'configure-simulation':
         this.requireHost(room, participantId);
         if (!room.tournament) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
@@ -372,7 +428,8 @@ export class RoomManager {
         if (room.roundStarted) throw new RoomError('INVALID_ACTION', 'The tournament round is already live');
         room.roundStarted = true;
         room.liveStep = 0;
-        room.nextTickAt = now + roundInterval(room.config);
+        this.prepareRoundDecisions(room, now);
+        room.nextTickAt = this.pendingDecisionDeadline(room) ?? now + roundInterval(room.config);
         break;
     }
     // Only successful commands are cached: a retry after a failure must execute again instead of receiving a false ack.
@@ -426,7 +483,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false },
+      capabilities: { mapPreferences: true, replayV1: false, incrementalRounds: true, contextualDecisions: true },
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
       roomCode: room.code,
@@ -444,7 +501,11 @@ export class RoomManager {
         rerollsUsed: participant.draft.rerollsUsed,
         rerollsMax: getRerollLimit(room.config.mode),
         watchedSeriesId: participant.watchedSeriesId,
-        mapPreferences: [...participant.draft.mapPreferences]
+        mapPreferences: [...participant.draft.mapPreferences],
+        automationPreferences: { ...participant.strategicPreferences },
+        tacticalPause: this.tacticalPauseState(room, participant),
+        visualMode: participant.visualMode,
+        pendingDecision: participant.pendingDecision ? structuredClone(participant.pendingDecision) : null
       } : null,
       deadlineAt: room.deadlineAt,
       deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
@@ -511,30 +572,7 @@ export class RoomManager {
       this.startTournamentIfReady(room, now);
       changed = true;
     } else if (room.tournament && room.nextTickAt !== null && now >= room.nextTickAt) {
-        const currentRound = room.tournament.rounds[room.revealedRounds];
-        if (!currentRound) {
-          room.phase = 'completed';
-          room.nextTickAt = null;
-        } else if (!room.roundStarted) {
-          room.roundStarted = true;
-          room.liveStep = 0;
-          room.nextTickAt = now + roundInterval(room.config);
-        } else if (room.liveStep >= tournamentRoundLength(currentRound.series)) {
-          room.revealedRounds += 1;
-          room.liveStep = 0;
-          room.roundStarted = false;
-          const nextRound = room.tournament.rounds[room.revealedRounds];
-          if (!nextRound) {
-            room.phase = 'completed';
-            room.nextTickAt = null;
-          } else {
-            room.phase = nextRound.phase === 'swiss' ? 'swiss' : 'playoffs';
-            room.nextTickAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
-          }
-        } else {
-          room.liveStep += 1;
-          room.nextTickAt = now + (room.liveStep >= tournamentRoundLength(currentRound.series) ? ROUND_GAP_MS : roundInterval(room.config));
-        }
+        this.tickStrategicMatches(room, now);
       room.version += 1;
       changed = true;
     }
@@ -609,13 +647,18 @@ export class RoomManager {
       if (historicalTeam) strategies.set(organization.id, { ...createBotMapStrategy(historicalTeam), teamId: organization.id });
     }
     const mapContext: MapSimulationContext = { mode: toPresentationGameMode(room.config.mode), seed: `${room.seed}:online-maps`, strategies };
-    room.tournament = runOnlineTournament({ organizations, botPool, entryStage: room.config.entryStage, seed: room.seed, mapContext });
+    room.mapContext = mapContext;
+    room.config.simulationMode = 'automatic';
+    room.tournament = runOnlineTournament({ organizations, botPool, entryStage: room.config.entryStage, seed: room.seed, mapContext, live: room.strategicSeries });
     room.deadlineAt = null;
     room.revealedRounds = 0;
     room.liveStep = 0;
     room.roundStarted = false;
     room.phase = room.config.entryStage === 'stage3' ? 'swiss' : 'playoffs';
-    room.nextTickAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
+    room.vetoProgress = new Map();
+    room.roundStarted = true;
+    this.prepareStrategicDecisions(room, now);
+    room.nextTickAt = now + ROUND_GAP_MS;
     room.version += 1;
   }
 
@@ -653,9 +696,128 @@ export class RoomManager {
       status,
       step: room.liveStep,
       nextTickAt: room.nextTickAt,
-      primarySeries: primary ? sanitizeLiveSeries(primary, room.liveStep, focusId) : null,
-      overviewSeries: series.map((match) => overviewSeries(match, room.liveStep))
+      primarySeries: primary
+        ? sanitizeLiveSeries(primary, seriesRoundCount(primary), focusId)
+        : null,
+      overviewSeries: series.map((match) => overviewSeries(match, seriesRoundCount(match)))
     };
+  }
+
+  private tacticalPauseState(room: RoomState, participant: ParticipantState) {
+    const state = Object.values(room.strategicSeries).find(s => !s.result.winnerId && (s.result.teamA.id === participant.id || s.result.teamB.id === participant.id));
+    if (!state?.map || state.map.finished) return null;
+    const side = state.result.teamA.id === participant.id ? 'a' : 'b';
+    return { seriesId: state.result.id, map: state.map.map, round: state.map.round + 1, available: strategicRoundContext(state, side).pauseAvailable, queued: participant.pauseQueued };
+  }
+
+  private rebuildStrategicTournament(room: RoomState) {
+    const field = room.organizations!;
+    room.tournament = runOnlineTournament({ organizations: field.filter(org => org.human), botPool: field.filter(org => !org.human), entryStage: room.config.entryStage, seed: room.seed, mapContext: room.mapContext, live: room.strategicSeries });
+  }
+
+  private prepareStrategicDecisions(room: RoomState, now: number) {
+    const prefs = Object.fromEntries([...room.participants.values()].map(p => [p.id, p.strategicPreferences]));
+    for (const series of room.tournament?.rounds[room.revealedRounds]?.series ?? []) {
+      let state = room.strategicSeries[series.id];
+      if (!state || state.result.winnerId) continue;
+      state = resolveAutomaticVetos(state, prefs);
+      room.strategicSeries[series.id] = state;
+      const action = getCurrentVetoAction(state.veto);
+      if (!state.veto.finished && action) {
+        const actor = room.participants.get(action.actorId);
+        if (actor && !actor.pendingDecision) actor.pendingDecision = {
+          type: 'veto', participantIds: [series.teamA.id, series.teamB.id], seriesId: series.id, actorId: actor.id, action: action.action,
+          legalMapIds: [...state.veto.available], recommendation: recommendVetoMap(state.veto), deadlineAt: now + ROUND_DECISION_TIMEOUT_MS
+        };
+        continue;
+      }
+      room.seriesNextAt[series.id] ??= now + roundInterval(room.config);
+      for (const side of ['a', 'b'] as const) {
+        const id = side === 'a' ? state.result.teamA.id : state.result.teamB.id;
+        const participant = room.participants.get(id);
+        if (!participant || !state.map || state.map.finished || participant.roundDecision || participant.pendingDecision) continue;
+        const ctx = strategicRoundContext(state, side);
+        if (participant.strategicPreferences.autoEconomy || ctx.legalBuys.length <= 1) continue;
+        participant.pendingDecision = { type: 'round', participantIds: [series.teamA.id, series.teamB.id], seriesId: series.id,
+          map: state.map.map, round: state.map.round + 1, legalBuys: ctx.legalBuys, canTacticalPause: ctx.pauseAvailable,
+          recommendation: { ...ctx.recommendation, tacticalPause: participant.strategicPreferences.autoPause && ctx.recommendation.tacticalPause },
+          deadlineAt: now + ROUND_DECISION_TIMEOUT_MS };
+      }
+    }
+    this.rebuildStrategicTournament(room);
+  }
+
+  private tickStrategicMatches(room: RoomState, now: number) {
+    for (const participant of room.participants.values()) {
+      const pending = participant.pendingDecision;
+      if (!pending || now < pending.deadlineAt) continue;
+      if (pending.type === 'veto') room.strategicSeries[pending.seriesId] = applyStrategicVeto(room.strategicSeries[pending.seriesId], pending.recommendation);
+      else participant.roundDecision = { ...pending.recommendation };
+      participant.pendingDecision = null;
+    }
+    this.prepareStrategicDecisions(room, now);
+    const current = room.tournament!.rounds[room.revealedRounds];
+    if (!current) { room.phase = 'completed'; room.nextTickAt = null; return; }
+    for (const series of current.series) {
+      const state = room.strategicSeries[series.id];
+      if (!state || state.result.winnerId || !state.veto.finished || !state.map || now < (room.seriesNextAt[series.id] ?? Infinity)) continue;
+      const humans = [...room.participants.values()].filter(p => p.id === series.teamA.id || p.id === series.teamB.id);
+      if (humans.some(p => p.pendingDecision)) continue;
+      const decisions: Partial<Record<'a' | 'b', RoundDecision>> = {};
+      for (const participant of humans) {
+        const side = state.result.teamA.id === participant.id ? 'a' : 'b';
+        const ctx = strategicRoundContext(state, side);
+        decisions[side] = {
+          buy: participant.roundDecision?.buy ?? ctx.recommendation.buy,
+          tacticalPause: participant.pauseQueued || participant.roundDecision?.tacticalPause || (participant.strategicPreferences.autoPause && ctx.recommendation.tacticalPause)
+        };
+        participant.roundDecision = null;
+        participant.pauseQueued = false;
+      }
+      room.strategicSeries[series.id] = advanceStrategicRound(state, decisions);
+      room.seriesNextAt[series.id] = now + roundInterval(room.config);
+    }
+    this.rebuildStrategicTournament(room);
+    const resolved = room.tournament!.rounds[room.revealedRounds];
+    if (resolved?.series.every(series => Boolean(series.winnerId))) {
+      room.roundTransitionAt ??= now + Math.max(1500, roundInterval(room.config));
+      if (now < room.roundTransitionAt) { room.nextTickAt = room.roundTransitionAt; return; }
+      room.roundTransitionAt = undefined;
+      room.revealedRounds++;
+      const next = room.tournament!.rounds[room.revealedRounds];
+      if (!next) { room.phase = 'completed'; room.nextTickAt = null; return; }
+      room.phase = next.phase === 'swiss' ? 'swiss' : 'playoffs';
+    }
+    room.roundStarted = true;
+    room.liveStep++;
+    this.prepareStrategicDecisions(room, now);
+    const deadlines = [...room.participants.values()].flatMap(p => p.pendingDecision ? [p.pendingDecision.deadlineAt] : []);
+    const activeTimes = Object.entries(room.seriesNextAt).filter(([id]) => !room.strategicSeries[id]?.result.winnerId).map(([, at]) => Math.max(now + 100, at));
+    room.nextTickAt = Math.min(now + roundInterval(room.config), ...deadlines, ...activeTimes);
+  }
+
+  private pendingDecisionDeadline(room: RoomState): number | null {
+    const deadlines = [...room.participants.values()].flatMap(p => p.pendingDecision ? [p.pendingDecision.deadlineAt] : []);
+    return deadlines.length ? Math.min(...deadlines) : null;
+  }
+
+  private prepareRoundDecisions(room: RoomState, now: number) { this.prepareStrategicDecisions(room, now); }
+
+  private submitVetoDecision(room: RoomState, participant: ParticipantState, mapId: MapId, now: number) {
+    const pending = participant.pendingDecision;
+    if (!pending || pending.type !== 'veto' || now >= pending.deadlineAt || !pending.legalMapIds.includes(mapId)) throw new RoomError('INVALID_ACTION', 'No legal pending veto');
+    room.strategicSeries[pending.seriesId] = applyStrategicVeto(room.strategicSeries[pending.seriesId], mapId);
+    participant.pendingDecision = null;
+    this.prepareStrategicDecisions(room, now);
+    room.nextTickAt = now;
+  }
+
+  private submitRoundDecision(room: RoomState, participant: ParticipantState, decision: RoundDecision, now: number) {
+    const pending = participant.pendingDecision;
+    if (!pending || pending.type !== 'round' || now >= pending.deadlineAt || !pending.legalBuys.includes(decision.buy) || (decision.tacticalPause && !pending.canTacticalPause)) throw new RoomError('INVALID_ACTION', 'No legal pending round decision');
+    participant.roundDecision = { ...decision };
+    participant.pendingDecision = null;
+    room.nextTickAt = now;
   }
 
   private toTournamentOrganization(participant: ParticipantState, seed: number, mode: RoomConfig['mode']): TournamentOrganization {

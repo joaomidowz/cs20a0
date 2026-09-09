@@ -167,7 +167,7 @@ describe('authoritative online server', () => {
     confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
     const waiting = manager.getSnapshot(code, host.participantId, startedAt + 61_000);
     expect(waiting.tournament?.rounds).toHaveLength(0);
-    expect(waiting.tournament?.liveCursor).toMatchObject({ status: 'waiting', step: 0 });
+    expect(waiting.tournament?.liveCursor).toMatchObject({ status: 'live', step: 0 });
 
     manager.tick(startedAt + 61_901);
     manager.tick(startedAt + 62_101);
@@ -176,16 +176,17 @@ describe('authoritative online server', () => {
     const hostLive = hostSnapshot.tournament?.liveCursor;
     const guestLive = guestSnapshot.tournament?.liveCursor;
 
-    expect(hostLive).toMatchObject({ status: 'live', step: 1 });
-    expect(guestLive).toMatchObject({ status: 'live', step: 1 });
+    expect(hostLive).toMatchObject({ status: 'live', step: 2 });
+    expect(guestLive).toMatchObject({ status: 'live', step: 2 });
     expect(hostLive?.primarySeries?.series.id).toBe(guestLive?.primarySeries?.series.id);
-    expect(hostLive?.primarySeries?.visibleRounds).toBe(1);
-    expect(guestLive?.primarySeries?.visibleRounds).toBe(1);
+    expect(hostLive?.primarySeries?.visibleRounds).toBe(2);
+    expect(guestLive?.primarySeries?.visibleRounds).toBe(2);
     const hostRound = hostLive?.primarySeries?.series.maps[0]?.rounds[0];
     const guestRound = guestLive?.primarySeries?.series.maps[0]?.rounds[0];
     expect(hostRound).toEqual(guestRound ? { a: guestRound.b, b: guestRound.a, overtime: guestRound.overtime } : undefined);
     expect(hostLive?.primarySeries?.series.winnerId).toBe('');
-    expect(hostLive?.overviewSeries.every((series) => series.scoreA === 0 && series.scoreB === 0)).toBe(true);
+    expect(hostLive?.primarySeries?.series.maps).toHaveLength(1);
+    expect(hostLive?.primarySeries?.series.maps[0].events).toHaveLength(2);
     expect(hostSnapshot.tournament?.rounds).toHaveLength(0);
 
     let cursorTime = startedAt + 62_100;
@@ -200,27 +201,23 @@ describe('authoritative online server', () => {
     expect(finishedSnapshot.tournament?.rounds).toHaveLength(0);
   });
 
-  it('lets only the host start a tournament round in manual mode', () => {
+  it('advances automatically and reserves only speed control for the host', () => {
     const manager = new RoomManager();
-    const startedAt = 2_000;
+    const startedAt = 2000;
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60, simulationMode: 'manual', simulationSpeed: 'fast' }, startedAt);
     const host = manager.join(code, 'Host player', 'Host org', startedAt);
     const guest = manager.join(code, 'Guest player', 'Guest org', startedAt + 1);
     manager.execute(code, host.participantId, { type: 'start', requestId: 'start-manual-01' }, startedAt);
     manager.tick(startedAt + 61_000);
     confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
-
-    expect(manager.getSnapshot(code, guest.participantId, startedAt + 61_000).tournament?.liveCursor).toMatchObject({ status: 'waiting_host', step: 0, nextTickAt: null });
-    expect(() => manager.execute(code, guest.participantId, { type: 'advance-round', requestId: 'advance-guest-01' }, startedAt + 61_010)).toThrowError(RoomError);
-
-    manager.execute(code, host.participantId, { type: 'advance-round', requestId: 'advance-host-001' }, startedAt + 61_010);
-    const started = manager.getSnapshot(code, guest.participantId, startedAt + 61_010).tournament?.liveCursor;
-    expect(started).toMatchObject({ status: 'live', step: 0, nextTickAt: startedAt + 62_210 });
-    manager.tick(startedAt + 62_210);
-    expect(manager.getSnapshot(code, guest.participantId, startedAt + 62_210).tournament?.liveCursor).toMatchObject({ status: 'live', step: 1 });
+    expect(manager.getSnapshot(code, guest.participantId).config.simulationMode).toBe('automatic');
+    expect(() => manager.execute(code, guest.participantId, { type: 'configure-simulation', requestId: 'guest-speed-01', simulationSpeed: 'ultra' })).toThrowError(RoomError);
+    manager.execute(code, host.participantId, { type: 'configure-simulation', requestId: 'host-speed-001', simulationSpeed: 'ultra' }, startedAt + 61_010);
+    manager.tick(startedAt + 63_000);
+    expect(manager.getSnapshot(code, guest.participantId).tournament?.liveCursor?.primarySeries?.visibleRounds).toBeGreaterThan(0);
   });
 
-  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 4 with synchronized valid $mode pools', async ({ capacity, mode }) => {
+  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 7 with synchronized valid $mode pools', async ({ capacity, mode }) => {
     const server = await startServer();
     const roomCode = await createRoom(server, capacity, mode);
     const clients = await Promise.all(Array.from({ length: capacity }, () => TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`)));
@@ -248,7 +245,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 5 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 7 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
     for (const snapshot of snapshots) {
@@ -264,11 +261,11 @@ describe('authoritative online server', () => {
     }
   }, 20_000);
 
-  it('rejects protocol 3 after the protocol 4 upgrade', async () => {
+  it('rejects protocol 5 after the protocol 7 upgrade', async () => {
     const server = await startServer();
     const roomCode = await createRoom(server, 2);
     const client = await TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`);
-    client.send({ type: 'join', requestId: 'join-old-protocol', protocolVersion: 3, dataHash: ONLINE_DATA_HASH, playerName: 'Old client', organizationName: 'Old org' });
+    client.send({ type: 'join', requestId: 'join-old-protocol', protocolVersion: 5, dataHash: ONLINE_DATA_HASH, playerName: 'Old client', organizationName: 'Old org' });
     const error = await client.waitFor((message) => message.type === 'error');
     expect(error).toMatchObject({ type: 'error', code: 'PROTOCOL_MISMATCH' });
   });

@@ -10,6 +10,16 @@
   export let match: SandboxMajorMatch;
   export let delay = 1500;
   export let auto = false;
+  export let controlled = false;
+  export let controlledActiveMap = 0;
+  export let controlledVisibleRounds = 0;
+  export let controlledFinished = false;
+  $: if (controlled) {
+    activeMap = controlledActiveMap;
+    visibleRounds = controlledVisibleRounds;
+    finished = controlledFinished;
+    started = !controlledFinished;
+  }
   export let userTeamId = '';
   export let onTeam: (teamId: string) => void = () => {};
   export let onComplete: () => void = () => {};
@@ -43,7 +53,7 @@
   $: lastRoundWinner = currentRound
     ? (previousRound ? (currentRound.a > previousRound.a ? 'a' : 'b') : currentRound.a > 0 ? 'a' : 'b')
     : null;
-  $: currentMapFinished = Boolean(currentMap && visibleRounds >= currentMap.rounds.length);
+  $: currentMapFinished = Boolean(currentMap?.winnerId && visibleRounds >= currentMap.rounds.length);
   $: inOvertime = Boolean(started && !finished && !currentMapFinished && currentRound && (currentRound.overtime || (currentRound.a >= 12 && currentRound.b >= 12)));
   $: currentMapScore = currentMap
     ? getVisibleMapScore(currentMap, currentRound, { isComplete: finished || currentMapFinished, isLive: started })
@@ -61,8 +71,8 @@
   }) : [];
   // Computed reactively (not via a template helper) so labels update when the playback state changes.
   $: mapStates = decidedMaps.map((decided, index) => mapState(index, Boolean(decided.result), { finished, started, activeMap, visibleRounds, currentMapFinished }));
-  $: if (auto && !started && !finished) void play();
-  $: if (delay === 0 && started && !finished) finishSeries();
+  $: if (!controlled && auto && !started && !finished) void play();
+  $: if (!controlled && delay === 0 && started && !finished) finishSeries();
   $: if (delay !== appliedDelay) applyDelay(delay);
 
   function applyDelay(nextDelay: number) {
@@ -227,6 +237,7 @@
               </li>
             {/each}
           </ul>
+          {#if shownKills >= currentDetail.kills.length && currentDetail.highlight}<strong>{currentDetail.highlight.type.toUpperCase()} · {currentDetail.highlight.playerName}{#if currentDetail.highlight.versus} · 1v{currentDetail.highlight.versus}{/if}</strong>{/if}
           {#if shownKills >= currentDetail.kills.length}
             <small class="round-ending" class:user={(currentDetail.winner === 'a') === userIsA}>{SANDBOX_ENDING_LABELS[currentDetail.ending]}</small>
           {/if}
@@ -264,9 +275,9 @@
     {/each}
   </div>
 
-  {#if !started && !finished}
+  {#if !controlled && !started && !finished}
     <button class="primary wide" type="button" on:click={play}>Iniciar série</button>
-  {:else if started}
+  {:else if !controlled && started}
     <button class="secondary wide" type="button" on:click={skipMap} disabled={currentMapFinished}>Pular mapa atual</button>
   {/if}
 </section>

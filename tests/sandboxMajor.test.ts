@@ -34,11 +34,13 @@ describe('Sandbox Major without visual replay', () => {
     expect(validateSandboxLineup(unrestricted)).toMatchObject({ valid: true, errors: {} });
   });
 
-  it('creates a deterministic complete Major with named maps, scores and duplicate-free vetoes', () => {
+  it('creates a deterministic first round without precomputing human results with named maps, scores and duplicate-free vetoes', () => {
     const first = createSandboxMajor(selection, 'sandbox-history');
     const second = createSandboxMajor(selection, 'sandbox-history');
     expect(second).toEqual(first);
-    expect(first.matches.length).toBeGreaterThan(10);
+    expect(first.matches).toHaveLength(8);
+    expect(first.championId).toBeNull();
+    expect(first.matches.find(match => match.userMatch)?.maps).toEqual([]);
     expect(first.matches.flatMap((match) => match.maps).every((map) => map.mapId && map.scoreA >= 0 && map.scoreB >= 0)).toBe(true);
     expect(first.matches.flatMap((match) => match.maps).every((map) => map.details.length === map.rounds.length)).toBe(true);
     expect(first.matches.every((match) => new Set(match.veto?.map((step) => step.mapId)).size === match.veto?.length)).toBe(true);
@@ -117,7 +119,8 @@ describe('Sandbox Major without visual replay', () => {
     expect(overview[0].phase).toBe('stage3');
     expect(overview[0].status).toBe('active');
     expect(overview.flatMap((group) => group.matches).filter((entry) => entry.status === 'live')).toHaveLength(1);
-    expect(overview.flatMap((group) => group.matches).some((entry) => entry.status === 'pending')).toBe(true);
+    expect(major.matches.find(match => match.userMatch)?.winnerId).toBe('');
+    expect(major.tournament.rounds).toHaveLength(1);
     expect(getSandboxUserProgress(major)).toEqual({ played: 0, current: 1 });
 
     while (!major.finished) major = advanceSandboxMajor(major);

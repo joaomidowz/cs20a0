@@ -6,8 +6,8 @@ import { translateOnlineMode } from '../src/lib/game/online/i18n';
 const onlinePageSource = readFileSync(new URL('../src/routes/online/+page.svelte', import.meta.url), 'utf8');
 
 describe('online mode presentation', () => {
-  it('uses protocol 5 and accepts both online-only modes', () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it('uses protocol 7 and accepts both online-only modes', () => {
+    expect(PROTOCOL_VERSION).toBe(7);
     expect(roomConfigSchema.parse({ mode: 'fun', entryStage: 'stage3', capacity: 2, draftDeadlineSeconds: 60, simulationMode: 'automatic', simulationSpeed: 'normal' }).mode).toBe('fun');
     expect(roomConfigSchema.parse({ mode: 'max_fun', entryStage: 'stage3', capacity: 16, draftDeadlineSeconds: null, simulationMode: 'manual', simulationSpeed: 'ultra' }).mode).toBe('max_fun');
   });

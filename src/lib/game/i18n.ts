@@ -78,6 +78,13 @@ const pt = {
   fast: 'Rápido',
   ultra: 'Ultra',
   insta: 'Insta',
+  gearAutomation: 'Automação',
+  gearPicksBans: 'Picks e bans automáticos',
+  gearPicksBansHint: 'Desligado: você faz o veto e os picks de mapa.',
+  gearPause: 'Pausa tática automática',
+  gearPauseHint: 'Desligado: você decide quando pedir a pausa.',
+  gearEconomy: 'Force ou save pós-pistol automático',
+  gearEconomyHint: 'Desligado: você escolhe eco, force ou full buy quando houver decisão de compra.',
   enterMajor: 'Entrar no Stage 3',
   startSeries: 'Iniciar série',
   nextMatch: 'Próxima partida',
@@ -671,7 +678,14 @@ Object.assign(dictionaries.es, {
   veto: 'Veto de mapas',
   ban: 'Ban',
   pick: 'Pick',
-  decider: 'Decisivo'
+  decider: 'Decisivo',
+  gearAutomation: 'Automatización',
+  gearPicksBans: 'Picks y bans automáticos',
+  gearPicksBansHint: 'Apagado: tú haces el veto y los picks de mapa.',
+  gearPause: 'Pausa táctica automática',
+  gearPauseHint: 'Apagado: tú decides cuándo pedir la pausa.',
+  gearEconomy: 'Force o save tras el pistol automático',
+  gearEconomyHint: 'Apagado: tú eliges eco, force o full buy cuando haya decisión de compra.'
 });
 
 Object.assign(dictionaries.en, {
@@ -686,7 +700,14 @@ Object.assign(dictionaries.en, {
   veto: 'Map veto',
   ban: 'Ban',
   pick: 'Pick',
-  decider: 'Decider'
+  decider: 'Decider',
+  gearAutomation: 'Automation',
+  gearPicksBans: 'Automatic picks and bans',
+  gearPicksBansHint: 'Off: you handle the map veto and picks.',
+  gearPause: 'Automatic tactical pause',
+  gearPauseHint: 'Off: you decide when to call the pause.',
+  gearEconomy: 'Automatic force or save after the pistol',
+  gearEconomyHint: 'Off: you choose eco, force or full buy whenever there is a buy decision.'
 });
 
 export const translate = (language: Language, key: TranslationKey) => dictionaries[language][key] ?? pt[key];

@@ -23,6 +23,7 @@ import {
 } from './map-veto';
 import { isValidLineupMapSelection } from './maps';
 import { getSelectedRoles } from './roleRules';
+import { completeIncrementalMap, createIncrementalMap, toMapResult, type IncrementalMapState } from './match-engine';
 
 export type SeededRng = () => number;
 
@@ -133,7 +134,10 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
     style,
     studyPercentage,
     aggressionPercentage,
-    isUser: true
+    isUser: true,
+    lineup,
+    players,
+    igl: avg('igl')
   };
 }
 
@@ -172,7 +176,10 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
     power: Math.max(50, Math.min(99, power)),
     mental: number(team.teamStats?.mental, 82),
     clutch: number(team.teamStats?.clutch, 82),
-    experience: number(team.teamStats?.experience, 82)
+    experience: number(team.teamStats?.experience, 82),
+    lineup: roster.map((player) => ({ playerId: player.id, selectedSlotRole: hasRole(player, 'awp') ? 'awper' : hasRole(player, 'igl') ? 'igl' : 'rifler' })),
+    players: roster,
+    igl: roster.length ? roster.reduce((sum, player) => sum + number(player.igl, 55), 0) / roster.length : 70
   };
 }
 
@@ -209,41 +216,23 @@ export function simulateMap(
   teamB: CombatTeam,
   rng: SeededRng,
   map = 1,
-  options: { mapId?: MapId; powerBonusA?: number; powerBonusB?: number } = {}
+  options: {
+    mapId?: MapId;
+    powerBonusA?: number;
+    powerBonusB?: number;
+    decisionProvider?: (state: IncrementalMapState) => Partial<Record<'a' | 'b', import('./types').RoundDecision>>;
+  } = {}
 ): MapResult {
-  const variationA = (rng() - 0.5) * 7;
-  const variationB = (rng() - 0.5) * 7;
-  const mapA = { ...teamA, power: teamA.power + variationA + (options.powerBonusA ?? 0) };
-  const mapB = { ...teamB, power: teamB.power + variationB + (options.powerBonusB ?? 0) };
-  let scoreA = 0;
-  let scoreB = 0;
-  const rounds: RoundScore[] = [];
-  const playRound = (overtime: boolean) => {
-    const winner = simulateRound({ teamA: mapA, teamB: mapB, scoreA, scoreB, overtime }, rng);
-    if (winner === 'a') scoreA += 1;
-    else scoreB += 1;
-    rounds.push({ a: scoreA, b: scoreB, overtime });
-  };
-
-  while (scoreA < 13 && scoreB < 13 && scoreA + scoreB < 24) playRound(false);
-  let overtime = scoreA === 12 && scoreB === 12;
-  while (overtime) {
-    const startA = scoreA;
-    const startB = scoreB;
-    while (scoreA - startA < 4 && scoreB - startB < 4 && scoreA + scoreB - startA - startB < 6) playRound(true);
-    if (scoreA - startA === 3 && scoreB - startB === 3) continue;
-    break;
-  }
-
-  return {
+  const generatedSeed = `${Math.floor(rng() * 0x100000000).toString(36)}:${Math.floor(rng() * 0x100000000).toString(36)}`;
+  return toMapResult(completeIncrementalMap(createIncrementalMap({
+    teamA,
+    teamB,
+    seed: generatedSeed,
     map,
-    ...(options.mapId ? { mapId: options.mapId } : {}),
-    scoreA,
-    scoreB,
-    winnerId: scoreA > scoreB ? teamA.id : teamB.id,
-    rounds,
-    overtime
-  };
+    mapId: options.mapId,
+    powerBonusA: options.powerBonusA,
+    powerBonusB: options.powerBonusB
+  }), options.decisionProvider));
 }
 
 export function simulateSeries(
@@ -427,6 +416,7 @@ export function orientSeriesToTeam(series: SeriesResult, focusId: string): Serie
       ...map,
       scoreA: map.scoreB,
       scoreB: map.scoreA,
+      events: map.events?.map(event => ({ ...event, winner: event.winner === 'a' ? 'b' : 'a', sideA: event.sideA === 'ct' ? 't' : 'ct', score: { ...event.score, a: event.score.b, b: event.score.a }, economy: { a: event.economy.b, b: event.economy.a }, kills: event.kills.map(kill => ({ ...kill, killerSide: kill.killerSide === 'a' ? 'b' : 'a' })) })),
       rounds: map.rounds.map((round) => ({ ...round, a: round.b, b: round.a }))
     }))
   };
@@ -443,7 +433,7 @@ export function buildMajorRun(
   allPlayers: Player[],
   seed: string,
   lineup: SelectedPlayer[] = [],
-  options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
+  options: { selectedMaps?: MapId[]; mode?: GameMode; live?: import('./strategic-series').StrategicSeriesBook } = {}
 ): MajorRun {
   const lineupKey = players.map((player) => player.id).join('|');
   const user = calculateUserTeamPower(players, style, lineup, seed);
@@ -471,12 +461,13 @@ export function buildMajorRun(
     seed: `${seed}:major:${lineupKey}:${style}`,
     mapContext,
     // 13a0: every offline series is BO3 except the BO5 final.
-    swissBestOf: 3
+    swissBestOf: 3,
+    live: options.live
   });
   const userSeries = tournament.rounds.flatMap((round) => round.series).filter((series) => series.userMatch).map((series) => orientSeriesToTeam(series, user.id));
   const stage3Matches = userSeries.filter((series) => series.phase === 'stage3');
   const wins = stage3Matches.filter((series) => series.winnerId === user.id).length;
-  const losses = stage3Matches.length - wins;
+  const losses = stage3Matches.filter(series => series.winnerId && series.winnerId !== user.id).length;
   const qualified = wins === 3;
   const champion = tournament.championId === user.id;
   const placement = tournament.campaigns.find((campaign) => campaign.organizationId === user.id)?.placement ?? 'placementStage3';
@@ -489,6 +480,7 @@ export function buildMajorRun(
     }
     : undefined;
   return {
+    ...(options.live ? { strategicSeries: options.live } : {}),
     stage3: { wins, losses, qualified, matches: stage3Matches },
     playoffs,
     matches: userSeries,

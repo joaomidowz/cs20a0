@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import { playerById, players, teams } from './data';
-import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
+import { loadPersonalPreferences, loadSimulationPreferences, savePersonalPreferences, saveSimulationPreferences } from './preferences';
 import { buildProLineup, buildProRoleEvaluations } from './proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
@@ -39,6 +39,9 @@ export const defaultState = (seed = ''): GameState => ({
   selectedMaps: [],
   simMode: 'manual',
   simSpeed: 'normal',
+  automationPreferences: { draft: 'manual', veto: 'manual', match: 'manual' },
+  visualMode: 'complete',
+  simulationStateVersion: 3,
   majorRun: null,
   completedSeries: 0,
   stats: []
@@ -116,9 +119,12 @@ const loadState = (): GameState => {
   const queryParams = new URLSearchParams(window.location.search);
   const querySeed = queryParams.get('seed');
   const preferences = loadSimulationPreferences();
+  const personalPreferences = loadPersonalPreferences();
   const preferredSimulation = {
     simMode: preferences.simulationMode,
-    simSpeed: preferences.simulationSpeed
+    simSpeed: preferences.simulationSpeed,
+    automationPreferences: { draft: personalPreferences.draft, veto: personalPreferences.veto, match: personalPreferences.match },
+    visualMode: personalPreferences.visual
   };
   const sharedRun = parseSharedRun(queryParams, preferredSimulation);
   if (sharedRun) {
@@ -128,6 +134,7 @@ const loadState = (): GameState => {
   try {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? (JSON.parse(saved) as Partial<GameState> & { selectedPlayerIds?: string[] }) : {};
+    if (parsed.majorRun && parsed.simulationStateVersion === undefined) parsed.simulationStateVersion = 1;
     if (!parsed.selectedPlayers && parsed.selectedPlayerIds?.length) {
       parsed.selectedPlayers = parsed.selectedPlayerIds.reduce<GameState['selectedPlayers']>((selected, playerId) => {
         const player = playerById.get(playerId);

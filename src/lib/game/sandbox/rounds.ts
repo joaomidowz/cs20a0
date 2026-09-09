@@ -1,6 +1,6 @@
 import { getEligibleSlotRoles } from '../roleRules';
 import { createSeededRng, type SeededRng } from '../simulation';
-import type { LineupSlotRole, MapResult, Player } from '../types';
+import type { LineupSlotRole, MapResult, Player, RoundEvent, RoundHighlight } from '../types';
 
 export type SandboxBuy = 'pistol' | 'eco' | 'force' | 'full';
 export type SandboxSide = 'ct' | 't';
@@ -38,6 +38,7 @@ export interface SandboxRoundDetail {
   economy: { a: SandboxTeamEconomy; b: SandboxTeamEconomy };
   kills: SandboxKill[];
   ending: SandboxRoundEnding;
+  highlight?: RoundHighlight | null;
 }
 
 export interface SandboxRoster {
@@ -53,6 +54,23 @@ export interface SandboxFragLine {
   kills: number;
   deaths: number;
   headshots: number;
+}
+
+/** Presentation adapter only: no randomness or narrative is generated after the shared engine finishes a round. */
+export function roundEventsToSandboxDetails(events: RoundEvent[]): SandboxRoundDetail[] {
+  return events.map((event) => ({
+    number: event.number,
+    winner: event.winner,
+    sideA: event.sideA,
+    overtime: event.overtime,
+    economy: {
+      a: { buy: event.economy.a.buy, awp: event.economy.a.awp, money: event.economy.a.moneyBefore },
+      b: { buy: event.economy.b.buy, awp: event.economy.b.awp, money: event.economy.b.moneyBefore }
+    },
+    kills: event.kills,
+    ending: event.ending,
+    highlight: event.highlight
+  }));
 }
 
 const START_MONEY = 800;

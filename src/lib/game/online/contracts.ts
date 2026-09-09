@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, MapId, OrgStyle, PlayerRunStats, SelectedPlayer, SeriesResult } from '../types';
+import type { AutomationPreferences, GameMode, LineupSlotRole, MapId, OrgStyle, PendingDecision, PlayerRunStats, RoundDecision, SelectedPlayer, SeriesResult, VisualMode } from '../types';
 
-export const PROTOCOL_VERSION = 5 as const;
+export const PROTOCOL_VERSION = 7 as const;
 export const ROOM_CODE_LENGTH = 8;
 
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
@@ -37,6 +37,9 @@ const requestIdSchema = z.string().min(8).max(80);
 const participantNameSchema = z.string().trim().min(2).max(24);
 const baseCommandSchema = z.object({ requestId: requestIdSchema });
 const mapIdSchema = z.enum(['ancient', 'anubis', 'cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train', 'vertigo']);
+const automationModeSchema = z.enum(['manual', 'automatic']);
+const automationPreferencesSchema = z.object({ autoMapPicksAndVetos: z.boolean(), autoPause: z.boolean(), autoEconomy: z.boolean() }).strict();
+const roundDecisionSchema = z.object({ buy: z.enum(['eco', 'force', 'full']), tacticalPause: z.boolean() }).strict();
 
 export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({
@@ -70,6 +73,14 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   baseCommandSchema.extend({ type: z.literal('submit-map-preferences'), mapPreferences: z.tuple([mapIdSchema, mapIdSchema, mapIdSchema]) }).strict(),
   baseCommandSchema.extend({ type: z.literal('watch-match'), seriesId: z.string().max(160).nullable() }).strict(),
+  baseCommandSchema.extend({
+    type: z.literal('update-preferences'),
+    automation: automationPreferencesSchema.partial().optional(),
+    visual: z.enum(['complete', 'clean']).optional()
+  }).strict(),
+  baseCommandSchema.extend({ type: z.literal('submit-veto'), mapId: mapIdSchema }).strict(),
+  baseCommandSchema.extend({ type: z.literal('submit-round-decision'), decision: roundDecisionSchema }).strict(),
+  baseCommandSchema.extend({ type: z.literal('request-tactical-pause'), seriesId: z.string(), map: z.number().int(), round: z.number().int() }).strict(),
   baseCommandSchema.extend({
     type: z.literal('configure-simulation'),
     simulationMode: z.enum(['automatic', 'manual']).optional(),
@@ -185,11 +196,15 @@ export interface SelfDraftState {
   rerollsMax: number;
   watchedSeriesId: string | null;
   mapPreferences: MapId[];
+  automationPreferences: import('../strategic-series').StrategicAutomationPreferences;
+  tacticalPause: { seriesId: string; map: number; round: number; available: boolean; queued: boolean } | null;
+  visualMode: VisualMode;
+  pendingDecision: PendingDecision | null;
 }
 
 export interface RoomSnapshot {
-  protocolVersion: typeof PROTOCOL_VERSION;
-  capabilities: { mapPreferences: true; replayV1: false };
+  protocolVersion: number;
+  capabilities: { mapPreferences: true; replayV1: false; incrementalRounds: true; contextualDecisions: true };
   dataHash: string;
   version: number;
   roomCode: string;

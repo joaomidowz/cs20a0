@@ -95,6 +95,95 @@ const fitScore = (player: Player, role: LineupSlotRole): number => {
   return fitValue + Number(attribute ?? 0);
 };
 
+export interface DraftHistory {
+  /** Positive values mean this base player has worked well for this user before. */
+  playerScores?: Record<string, number>;
+  roleScores?: Partial<Record<LineupSlotRole, number>>;
+}
+
+export interface AutomaticDraftPick {
+  player: Player;
+  role?: LineupSlotRole;
+  score: number;
+}
+
+const visibleNumber = (value: number | null | undefined, fallback = 65) => Number.isFinite(value) ? Number(value) : fallback;
+
+/**
+ * Scores an offer from only the information visible in the selected queue. PRO is deliberately blind:
+ * overall and every skill attribute are ignored until reveal.
+ */
+export function scoreDraftCandidate(options: {
+  player: Player;
+  role?: LineupSlotRole;
+  mode: OnlineGameMode;
+  style: OrgStyle;
+  lineup: SelectedPlayer[];
+  history?: DraftHistory;
+  seed: string;
+}): number {
+  const baseId = (options.player.baseId?.trim() || options.player.id).replace(/[-_\s]?(?:19|20)\d{2}$/i, '').toLowerCase();
+  const personal = Math.max(-4, Math.min(4, options.history?.playerScores?.[baseId] ?? 0));
+  const jitter = (createSeededRng(`${options.seed}:${options.player.id}:${options.role ?? 'blind'}`)() - .5) * 3.2;
+  if (options.mode === 'pro') return personal + jitter;
+  const player = options.player;
+  const styleScore = options.style === 'aggressive'
+    ? visibleNumber(player.firepower) * .28 + visibleNumber(player.entry) * .24 + visibleNumber(player.mental) * .08
+    : options.style === 'tactical'
+      ? visibleNumber(player.igl, 35) * .2 + visibleNumber(player.support) * .2 + visibleNumber(player.mental) * .16
+      : visibleNumber(player.overall) * .28 + visibleNumber(player.consistency) * .18 + visibleNumber(player.clutch) * .12;
+  const roleAttribute = options.role === 'awper' ? player.awp : options.role === 'igl' ? player.igl : options.role === 'entry' ? player.entry
+    : options.role === 'support' ? player.support : options.role === 'lurker' ? player.clutch : player.firepower;
+  const currentRoles = new Set(options.lineup.map((pick) => pick.selectedSlotRole));
+  const composition = options.role && !currentRoles.has(options.role) ? 6 : options.role === 'rifler' ? 0 : -1.5;
+  const history = personal + (options.role ? options.history?.roleScores?.[options.role] ?? 0 : 0);
+  return styleScore + visibleNumber(player.overall) * .34 + visibleNumber(roleAttribute) * .18 + composition + history + jitter;
+}
+
+export function chooseAutomaticDraftPick(options: {
+  roster: Player[];
+  mode: OnlineGameMode;
+  state: DraftState;
+  style?: OrgStyle;
+  history?: DraftHistory;
+  seed: string;
+  playerLookup: (id: string) => Player | undefined;
+}): AutomaticDraftPick | null {
+  const style = options.style ?? options.state.style ?? 'balanced';
+  const candidates: AutomaticDraftPick[] = [];
+  for (const player of options.roster) {
+    if (options.mode === 'pro') {
+      if (!options.state.proPickedPlayerIds.includes(player.id)) candidates.push({ player, score: scoreDraftCandidate({ player, mode: options.mode, style, lineup: options.state.lineup, history: options.history, seed: options.seed }) });
+      continue;
+    }
+    for (const role of getEligibleSlotRoles(player)) {
+      if (!validatePlayerPick(player, options.state.lineup, role, options.playerLookup, { unlimitedRoles: hasFreeRoles(options.mode) }).ok) continue;
+      candidates.push({ player, role, score: scoreDraftCandidate({ player, role, mode: options.mode, style, lineup: options.state.lineup, history: options.history, seed: options.seed }) });
+    }
+  }
+  candidates.sort((left, right) => right.score - left.score || left.player.id.localeCompare(right.player.id) || (left.role ?? '').localeCompare(right.role ?? ''));
+  if (!candidates.length) return null;
+  // Seeded imperfection: when choices are within 2.5 points, occasionally use the runner-up.
+  const near = candidates.filter((candidate) => candidates[0].score - candidate.score <= 2.5).slice(0, 3);
+  const rng = createSeededRng(`${options.seed}:near-choice`);
+  return near.length > 1 && rng() < .28 ? near[1 + Math.floor(rng() * (near.length - 1))] : near[0];
+}
+
+export function shouldAutomaticReroll(options: {
+  bestOfferScore: number;
+  mode: OnlineGameMode;
+  rerollsUsed: number;
+  pickIndex: number;
+  seed: string;
+}): boolean {
+  if (options.rerollsUsed >= getRerollLimit(options.mode)) return false;
+  // Expected offer declines slightly near the end because fewer team-years remain.
+  const expected = options.mode === 'pro' ? 1.1 : 71 - options.pickIndex * .7;
+  const margin = options.mode === 'pro' ? 3.4 : 7;
+  const jitter = (createSeededRng(`${options.seed}:reroll`)() - .5) * 1.5;
+  return options.bestOfferScore + margin + jitter < expected;
+}
+
 export function findBestProAssignments(selected: Player[]): Record<string, LineupSlotRole> {
   if (selected.length !== MAX_LINEUP_SIZE) throw new Error('PRO lineup must contain five players');
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -187,14 +276,13 @@ export function autocompleteDraft(
     const offeredTeamId = state.rolledTeamId;
     if (!offeredTeamId) throw new Error('Draft offer was not generated');
     const roster = players.filter((player) => player.teamId === offeredTeamId);
-    if (mode === 'pro') {
-      const chosen = roster.find((player) => !state.proPickedPlayerIds.includes(player.id));
-      if (chosen) state = chooseDraftPlayer(mode, state, chosen, undefined, playerLookup);
-      else state = { ...state, usedTeamIds: [...state.usedTeamIds, offeredTeamId], rolledTeamId: null };
-      continue;
+    let automatic = chooseAutomaticDraftPick({ roster, mode, state, seed: `${roomSeed}:${participantId}:${guard}`, playerLookup });
+    if (automatic && shouldAutomaticReroll({ bestOfferScore: automatic.score, mode, rerollsUsed: state.rerollsUsed, pickIndex: pickIndex(state, mode), seed: `${roomSeed}:${participantId}:${guard}` })) {
+      state = drawDraftTeam(roomSeed, participantId, mode, state, teams, players, true);
+      const rerolledRoster = players.filter((player) => player.teamId === state.rolledTeamId);
+      automatic = chooseAutomaticDraftPick({ roster: rerolledRoster, mode, state, seed: `${roomSeed}:${participantId}:${guard}:rerolled`, playerLookup });
     }
-    const valid = firstValidPick(roster, state.lineup, playerLookup, hasFreeRoles(mode));
-    if (valid) state = chooseDraftPlayer(mode, state, valid.player, valid.role, playerLookup);
+    if (automatic) state = chooseDraftPlayer(mode, state, automatic.player, automatic.role, playerLookup);
     else state = { ...state, usedTeamIds: [...state.usedTeamIds, offeredTeamId], rolledTeamId: null };
   }
   if (pickIndex(state, mode) !== MAX_LINEUP_SIZE) throw new Error('Could not autocomplete a valid lineup');

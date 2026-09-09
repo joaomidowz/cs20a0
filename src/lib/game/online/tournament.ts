@@ -1,3 +1,4 @@
+import { createStrategicSeries, type StrategicSeriesBook } from '../strategic-series';
 import { createSeededRng, simulateMappedSeries, simulateSeries } from '../simulation';
 import type { MapSimulationContext } from '../map-veto';
 import type { CombatTeam, SeriesResult } from '../types';
@@ -31,6 +32,26 @@ interface MutableStanding extends PublicStanding {
   opponents: string[];
 }
 
+const botResults = new WeakMap<StrategicSeriesBook, Map<string, SeriesResult>>();
+function cachedBotMatch(live: StrategicSeriesBook | undefined, id: string, simulate: () => SeriesResult): SeriesResult {
+  if (!live) return simulate();
+  let cache = botResults.get(live);
+  if (!cache) { cache = new Map(); botResults.set(live, cache); }
+  let result = cache.get(id);
+  if (!result) { result = simulate(); cache.set(id, result); }
+  return result;
+}
+
+export interface ContinuousSwissStanding extends PublicStanding {
+  opponents: string[];
+}
+
+export interface ContinuousSwissPairingResult {
+  pairings: Array<[ContinuousSwissStanding, ContinuousSwissStanding]>;
+  waitingIds: string[];
+  usedFallback: boolean;
+}
+
 const standingOrder = (left: MutableStanding, right: MutableStanding) =>
   right.wins - left.wins ||
   right.buchholz - left.buchholz ||
@@ -42,6 +63,81 @@ const pairingPreference = (left: MutableStanding, right: MutableStanding) =>
   Math.abs(left.wins - right.wins) * 1000 +
   Math.abs(left.losses - right.losses) * 100 +
   Math.abs(left.seed - right.seed);
+
+/**
+ * Pairs only teams that are ready. Same-record, rematch-free games are emitted first; callers can keep
+ * `allowFallback` false while another eligible game is in flight, then enable it to prevent a real deadlock.
+ */
+export function pairContinuousSwiss(
+  standings: ContinuousSwissStanding[],
+  readyIds: Iterable<string>,
+  allowFallback = false
+): ContinuousSwissPairingResult {
+  const ready = new Set(readyIds);
+  const available = standings.filter((standing) => standing.status === 'active' && ready.has(standing.organizationId)).sort(standingOrder);
+  const paired = new Set<string>();
+  const pairings: Array<[ContinuousSwissStanding, ContinuousSwissStanding]> = [];
+  const makePass = (crossRecord: boolean, rematch: boolean) => {
+    for (const left of available) {
+      if (paired.has(left.organizationId)) continue;
+      const right = available.filter((candidate) => candidate !== left && !paired.has(candidate.organizationId))
+        .filter((candidate) => crossRecord || (candidate.wins === left.wins && candidate.losses === left.losses))
+        .filter((candidate) => rematch || !left.opponents.includes(candidate.organizationId))
+        .sort((a, b) => pairingPreference(left, a) - pairingPreference(left, b) || standingOrder(a, b))[0];
+      if (!right) continue;
+      paired.add(left.organizationId);
+      paired.add(right.organizationId);
+      pairings.push([left, right]);
+    }
+  };
+  makePass(false, false);
+  let usedFallback = false;
+  if (allowFallback) {
+    const before = pairings.length;
+    makePass(true, false);
+    makePass(true, true);
+    usedFallback = pairings.length > before;
+  }
+  return { pairings, waitingIds: available.filter((standing) => !paired.has(standing.organizationId)).map((standing) => standing.organizationId), usedFallback };
+}
+
+export type PlayoffNodeId = 'qf1' | 'qf2' | 'qf3' | 'qf4' | 'sf1' | 'sf2' | 'final';
+
+export interface PlayoffDependencyNode {
+  id: PlayoffNodeId;
+  phase: 'quarterfinal' | 'semifinal' | 'final';
+  bestOf: 3 | 5;
+  left: string | { winnerOf: PlayoffNodeId };
+  right: string | { winnerOf: PlayoffNodeId };
+}
+
+export function createPlayoffDependencies(qualifiedIds: string[]): PlayoffDependencyNode[] {
+  if (qualifiedIds.length !== 8) throw new Error('Playoffs require exactly 8 qualified teams');
+  return [
+    { id: 'qf1', phase: 'quarterfinal', bestOf: 3, left: qualifiedIds[0], right: qualifiedIds[7] },
+    { id: 'qf2', phase: 'quarterfinal', bestOf: 3, left: qualifiedIds[3], right: qualifiedIds[4] },
+    { id: 'qf3', phase: 'quarterfinal', bestOf: 3, left: qualifiedIds[1], right: qualifiedIds[6] },
+    { id: 'qf4', phase: 'quarterfinal', bestOf: 3, left: qualifiedIds[2], right: qualifiedIds[5] },
+    { id: 'sf1', phase: 'semifinal', bestOf: 3, left: { winnerOf: 'qf1' }, right: { winnerOf: 'qf2' } },
+    { id: 'sf2', phase: 'semifinal', bestOf: 3, left: { winnerOf: 'qf3' }, right: { winnerOf: 'qf4' } },
+    { id: 'final', phase: 'final', bestOf: 5, left: { winnerOf: 'sf1' }, right: { winnerOf: 'sf2' } }
+  ];
+}
+
+export function getReadyPlayoffNodes(
+  nodes: PlayoffDependencyNode[],
+  winners: Partial<Record<PlayoffNodeId, string>>,
+  started: Iterable<PlayoffNodeId> = []
+): Array<PlayoffDependencyNode & { teamAId: string; teamBId: string }> {
+  const active = new Set(started);
+  const resolve = (slot: PlayoffDependencyNode['left']) => typeof slot === 'string' ? slot : winners[slot.winnerOf];
+  return nodes.flatMap((node) => {
+    if (active.has(node.id) || winners[node.id]) return [];
+    const teamAId = resolve(node.left);
+    const teamBId = resolve(node.right);
+    return teamAId && teamBId ? [{ ...node, teamAId, teamBId }] : [];
+  });
+}
 
 function findPairings(active: MutableStanding[]): Array<[MutableStanding, MutableStanding]> {
   const ordered = [...active].sort(standingOrder);
@@ -81,7 +177,9 @@ function simulateSwiss(
   organizations: TournamentOrganization[],
   seed: string,
   mapContext?: MapSimulationContext,
-  swissBestOf?: 1 | 3
+  swissBestOf?: 1 | 3,
+  live?: StrategicSeriesBook,
+  humanIds?: Set<string>
 ): { rounds: PublicRound[]; standings: MutableStanding[]; qualified: TournamentOrganization[] } {
   if (organizations.length !== 16) throw new Error('Stage 3 requires exactly 16 organizations');
   const byId = new Map(organizations.map((organization) => [organization.id, organization]));
@@ -110,7 +208,11 @@ function simulateSwiss(
         'stage3',
         `swiss-r${roundNumber}-m${index + 1}-${left.organizationId}-${right.organizationId}`
       ] as const;
-      const match = mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs);
+      const interactive = live && mapContext && (humanIds?.has(left.organizationId) || humanIds?.has(right.organizationId));
+      const match = interactive
+        ? (live[simulationArgs[5]] ??= createStrategicSeries(simulationArgs[0], simulationArgs[1], simulationArgs[2], simulationArgs[4], simulationArgs[5], mapContext)).result
+        : cachedBotMatch(live, simulationArgs[5], () => mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs));
+      if (!match.winnerId) return match;
       left.opponents.push(right.organizationId);
       right.opponents.push(left.organizationId);
       const winner = match.winnerId === left.organizationId ? left : right;
@@ -123,9 +225,10 @@ function simulateSwiss(
     });
     updateBuchholz(standings);
     rounds.push({ number: roundNumber, phase: 'swiss', series, revealed: true });
+    if (series.some(match => !match.winnerId)) break;
   }
   const qualifiedStandings = standings.filter((standing) => standing.status === 'qualified').sort(standingOrder);
-  if (qualifiedStandings.length !== 8 || standings.filter((standing) => standing.status === 'eliminated').length !== 8) {
+  if (!live && (qualifiedStandings.length !== 8 || standings.filter((standing) => standing.status === 'eliminated').length !== 8)) {
     throw new Error('Swiss stage did not resolve to eight qualified and eight eliminated organizations');
   }
   return {
@@ -135,7 +238,7 @@ function simulateSwiss(
   };
 }
 
-function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: string, startRound: number, mapContext?: MapSimulationContext) {
+function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: string, startRound: number, mapContext?: MapSimulationContext, live?: StrategicSeriesBook, humanIds?: Set<string>) {
   if (organizations.length !== 8) throw new Error('Playoffs require exactly 8 organizations');
   const seeded = [...organizations].sort((a, b) => a.seed - b.seed);
   const quarterfinals: Array<[TournamentOrganization, TournamentOrganization]> = [
@@ -163,22 +266,27 @@ function simulatePlayoffBracket(organizations: TournamentOrganization[], seed: s
         definition.phase,
         `${definition.phase}-m${index + 1}-${left.id}-${right.id}`
       ] as const;
-      const match = mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs);
+      const interactive = live && mapContext && (humanIds?.has(left.id) || humanIds?.has(right.id));
+      const match = interactive
+        ? (live[simulationArgs[5]] ??= createStrategicSeries(simulationArgs[0], simulationArgs[1], simulationArgs[2], simulationArgs[4], simulationArgs[5], mapContext)).result
+        : cachedBotMatch(live, simulationArgs[5], () => mapContext ? simulateMappedSeries(...simulationArgs, mapContext) : simulateSeries(...simulationArgs));
+      if (!match.winnerId) return match;
       winners.push(match.winnerId === left.id ? left : right);
       return match;
     });
     rounds.push({ number: startRound + roundIndex, phase: definition.phase, series, revealed: true });
+    if (series.some(match => !match.winnerId)) break;
     pairings = [];
     for (let index = 0; index < winners.length; index += 2) {
       if (winners[index + 1]) pairings.push([winners[index], winners[index + 1]]);
     }
   }
   const final = rounds.at(-1)?.series[0];
-  return { rounds, championId: final?.winnerId ?? null };
+  return { rounds, championId: final?.phase === 'final' ? final.winnerId || null : null };
 }
 
 const calculateCampaigns = (organizations: TournamentOrganization[], rounds: PublicRound[], championId: string | null): OrganizationCampaign[] => {
-  const allSeries = rounds.flatMap((round) => round.series);
+  const allSeries = rounds.flatMap((round) => round.series).filter(series => series.winnerId);
   return organizations.map((organization) => {
     const matches = allSeries.filter((series) => series.teamA.id === organization.id || series.teamB.id === organization.id);
     const seriesWon = matches.filter((series) => series.winnerId === organization.id).length;
@@ -205,6 +313,7 @@ export function runOnlineTournament(options: {
   mapContext?: MapSimulationContext;
   /** Forces every Swiss series to this format (the offline Major is all BO3 except the final). */
   swissBestOf?: 1 | 3;
+  live?: StrategicSeriesBook;
 }): OnlineTournamentResult {
   const required = options.entryStage === 'stage3' ? 16 : 8;
   if (options.organizations.length < 1 || options.organizations.length > required) throw new Error(`Tournament requires 1-${required} organizations`);
@@ -216,7 +325,7 @@ export function runOnlineTournament(options: {
   let standings: MutableStanding[];
   let playoffField: TournamentOrganization[];
   if (options.entryStage === 'stage3') {
-    const swiss = simulateSwiss(field, options.seed, options.mapContext, options.swissBestOf);
+    const swiss = simulateSwiss(field, options.seed, options.mapContext, options.swissBestOf, options.live, humanIds);
     rounds = swiss.rounds;
     standings = swiss.standings;
     playoffField = swiss.qualified;
@@ -233,7 +342,9 @@ export function runOnlineTournament(options: {
     }));
     playoffField = field;
   }
-  const playoffs = simulatePlayoffBracket(playoffField, options.seed, rounds.length + 1, options.mapContext);
+  const playoffs = playoffField.length === 8 && !rounds.some(round => round.series.some(match => !match.winnerId))
+    ? simulatePlayoffBracket(playoffField, options.seed, rounds.length + 1, options.mapContext, options.live, humanIds)
+    : { rounds: [], championId: null };
   rounds.push(...playoffs.rounds);
   const champion = standings.find((standing) => standing.organizationId === playoffs.championId);
   if (champion) champion.status = 'champion';

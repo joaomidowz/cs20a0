@@ -1,4 +1,15 @@
 <script lang="ts">
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import StrategicMatch from '$lib/components/StrategicMatch.svelte';
+  import { loadStrategicPreferences, saveStrategicPreferences } from '$lib/game/preferences';
+  import { DEFAULT_STRATEGIC_AUTOMATION, type StrategicAutomationPreferences, type StrategicSeriesState } from '$lib/game/strategic-series';
+  let strategicPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
+  function setStrategicPreferences(value: StrategicAutomationPreferences) { strategicPreferences = value; saveStrategicPreferences(value); }
+  function updateStrategicSeries(state: StrategicSeriesState) {
+    const live = { ...major!.strategicSeries, [state.result.id]: state };
+    major = createSandboxMajor(major!.selection, major!.seed, live);
+    localStorage.setItem('cs13a0:sandbox:strategic-run', JSON.stringify(major));
+  }
   import { onDestroy, onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SandboxPlayerPicker from '$lib/components/SandboxPlayerPicker.svelte';
@@ -12,12 +23,13 @@
   import { getTeamPlayers, playerById, teamById, teams } from '$lib/game/data';
   import { getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, MAP_POOL } from '$lib/game/maps';
   import { language, theme } from '$lib/game/pageState';
+  import { loadPersonalPreferences, savePersonalPreferences } from '$lib/game/preferences';
   import { getEligibleSlotRoles, getRoleLabel } from '$lib/game/roleRules';
   import { advanceSandboxMajor, createSandboxMajor } from '$lib/game/sandbox/major';
   import { createRandomSandboxLineup, getDefaultSandboxMapPreferences, previewSandboxLineupPower, validateSandboxLineup } from '$lib/game/sandbox/lineup';
   import { getSandboxCampaignSummary, getSandboxTeamName, getSandboxUserProgress, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxLineupSelection, SandboxMajorState } from '$lib/game/sandbox/types';
-  import type { MajorRun, PlayerRunStats } from '$lib/game/types';
+  import type { AutomationPreferences, MajorRun, PlayerRunStats, VisualMode } from '$lib/game/types';
   import type { HistoricalTeam, LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
   import '../../app.css';
 
@@ -36,7 +48,9 @@
     mapPreferences: getDefaultSandboxMapPreferences(rosterPicks(initialRoster))
   };
   let seed = 'sandbox-major';
-  let simulationMode: 'automatic' | 'manual' = 'automatic';
+  let simulationMode: 'automatic' | 'manual' = 'manual';
+  let automationPreferences: AutomationPreferences = { draft: 'manual', veto: 'manual', match: 'manual' };
+  let visualMode: VisualMode = 'complete';
   let major: SandboxMajorState | null = null;
   let timer: number | null = null;
   let editingSlot: number | null = null;
@@ -108,6 +122,15 @@
   $: if (simulationMode === 'automatic' && currentSeriesReady && currentMatch && !major?.finished) scheduleAdvance(currentMatch.id);
 
   onMount(() => {
+    strategicPreferences = loadStrategicPreferences();
+    try {
+      const saved = localStorage.getItem('cs13a0:sandbox:strategic-run');
+      if (saved) major = JSON.parse(saved);
+    } catch { /* Keep setup usable if the saved campaign is invalid. */ }
+    const personal = loadPersonalPreferences();
+    automationPreferences = { draft: personal.draft, veto: personal.veto, match: personal.match };
+    visualMode = personal.visual;
+    simulationMode = personal.match;
     const storedSpeed = localStorage.getItem(SPEED_KEY);
     if (storedSpeed === 'normal' || storedSpeed === 'fast' || storedSpeed === 'ultra' || storedSpeed === 'insta') simulationSpeed = storedSpeed;
     try {
@@ -187,7 +210,9 @@
   function startMajor() {
     if (!validation.valid) return;
     persistSelection(selection);
+    if (strategicPreferences.autoMapPicksAndVetos && selection.mapPreferences.length !== 3) autoSelectMaps();
     major = createSandboxMajor(selection, seed);
+    localStorage.setItem('cs13a0:sandbox:strategic-run', JSON.stringify(major));
     currentSeriesReady = false;
     majorView = 'current';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -202,8 +227,17 @@
   function setSimulationMode(value: string) {
     if (value !== 'automatic' && value !== 'manual') return;
     simulationMode = value;
+    automationPreferences = { ...automationPreferences, match: value };
+    savePersonalPreferences({ ...automationPreferences, visual: visualMode });
     if (value === 'manual' && timer !== null) { window.clearTimeout(timer); timer = null; }
     persistSelection(selection);
+  }
+
+  function setAutomationMode(key: 'draft' | 'veto', value: string) {
+    if (value !== 'automatic' && value !== 'manual') return;
+    automationPreferences = { ...automationPreferences, [key]: value };
+    if (key === 'veto' && value === 'automatic') autoSelectMaps();
+    savePersonalPreferences({ ...automationPreferences, visual: visualMode });
   }
 
   function advanceCurrentMatch() {
@@ -215,6 +249,7 @@
   }
 
   function restart() {
+    localStorage.removeItem('cs13a0:sandbox:strategic-run');
     if (timer !== null) window.clearTimeout(timer);
     timer = null;
     currentSeriesReady = false;
@@ -247,7 +282,6 @@
     <section class="sandbox-setup panel">
       <label><span>Organização</span><select value={selection.organizationId} on:change={(event) => updateOrganization(event.currentTarget.value)}>{#each teams as team}<option value={team.id}>{team.name} · {team.year}</option>{/each}</select></label>
       <div class="control-group"><span>Estilo</span><SegmentedControl value={selection.style} options={styleOptions} label="Estilo de jogo" onChange={(value) => selection = { ...selection, style: value as OrgStyle }} /></div>
-      <div class="control-group"><span>Avanço</span><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /></div>
       <label class="seed-field"><span>Seed</span><span class="seed-row"><input bind:value={seed} maxlength="48" on:change={() => persistSelection(selection)} /><button class="secondary" type="button" on:click={randomizeSeed} title="Gerar outra seed">Nova</button></span></label>
     </section>
 
@@ -305,7 +339,7 @@
     </div>
 
     <section class="sandbox-maps panel">
-      <header><div><span class="eyebrow">ACTIVE DUTY 2016–2026</span><h2>Três preferências</h2></div><div class="sandbox-maps-actions"><strong>{selection.mapPreferences.length}/3</strong><button class="secondary" type="button" on:click={autoSelectMaps}>Auto</button></div></header>
+      <header><div><span class="eyebrow">ACTIVE DUTY 2016–2026</span><h2>Três preferências</h2></div><div class="sandbox-maps-actions"><strong>{selection.mapPreferences.length}/3</strong><button class="secondary" type="button" on:click={autoSelectMaps}>Auto</button><AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} /></div></header>
       <div class="sandbox-map-grid">
         {#each rankedMaps as mapId (mapId)}
           {@const count = contributors[mapId].length}
@@ -336,8 +370,7 @@
 
       <section class="sandbox-controls panel">
         <div class="control-group"><span>Visão</span><SegmentedControl value={majorView} options={viewOptions} label="Visão do Major" onChange={(value) => majorView = value as 'current' | 'all'} /></div>
-        <div class="control-group"><span>Velocidade</span><SegmentedControl value={simulationSpeed} options={speedOptions} label="Velocidade da simulação" onChange={setSimulationSpeed} /></div>
-        <div class="control-group"><span>Avanço</span><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /></div>
+        <div class="control-group"><span>Velocidade</span><div class="control-row"><SegmentedControl value={simulationSpeed} options={speedOptions} label="Velocidade da simulação" onChange={setSimulationSpeed} /><AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} /></div></div>
         <button class="secondary" type="button" on:click={restart}>Montar outro time</button>
       </section>
 
@@ -368,7 +401,11 @@
           </div>
         {:else if currentMatch}
           {#key currentMatch.id}
+            {#if major.strategicSeries?.[currentMatch.id]}
+              <StrategicMatch state={major.strategicSeries[currentMatch.id]} preferences={strategicPreferences} userTeamId={major.userTeam.id} delay={speedDelays[simulationSpeed]} onChange={updateStrategicSeries} onTeam={openTeam} />
+            {:else}
             <SandboxSeriesViewer match={currentMatch} delay={speedDelays[simulationSpeed]} auto={simulationMode === 'automatic'} userTeamId={major.userTeam.id} onTeam={openTeam} onComplete={() => currentSeriesReady = true} />
+            {/if}
           {/key}
           {#if currentSeriesReady && simulationMode === 'manual'}
             <button class="primary sandbox-next" type="button" on:click={advanceCurrentMatch}>Confirmar resultado e avançar</button>
@@ -440,7 +477,7 @@
   .power-stats{display:grid;gap:6px;margin:10px 0 0}.power-stats div{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}.power-stats dt{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.power-stats dd{margin:0;font-size:.85rem;font-weight:800;text-align:right}
   .role-summary{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}.role-summary span{padding:5px 7px;border:1px dashed var(--line);color:var(--muted);font-size:.52rem;font-weight:900;text-transform:uppercase}.role-summary span.filled{border-style:solid;border-color:color-mix(in srgb,var(--accent) 55%,var(--line));color:var(--text)}.role-summary span.multi{border-color:var(--accent-2);color:var(--accent-2)}
   .power-warnings{margin:10px 0 0;padding-left:16px;color:var(--accent-2);font-size:.66rem;line-height:1.45}.power-ok{margin:10px 0 0;color:var(--accent);font-size:.66rem;line-height:1.45}
-  .sandbox-maps{padding:18px}.sandbox-maps>header{display:flex;align-items:center;justify-content:space-between;gap:14px}.sandbox-maps h2{margin:4px 0}.sandbox-maps-actions{display:flex;align-items:center;gap:10px}.sandbox-maps-actions strong{color:var(--accent);font-size:1.8rem}.sandbox-maps-actions .secondary{min-height:40px;padding:0 12px;font-size:.62rem}
+  .sandbox-maps{padding:18px}.sandbox-maps>header{display:flex;align-items:center;justify-content:space-between;gap:14px}.sandbox-maps h2{margin:4px 0}.sandbox-maps-actions{display:flex;align-items:center;gap:10px;--gear-size:40px}.sandbox-maps-actions strong{color:var(--accent);font-size:1.8rem}.sandbox-maps-actions .secondary{min-height:40px;padding:0 12px;font-size:.62rem}
   .sandbox-map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:7px;margin-top:14px}
   .sandbox-map-grid button{position:relative;display:grid;gap:5px;padding:13px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer;transition:border-color .18s ease,transform .18s ease}
   .sandbox-map-grid button:not(:disabled):hover{border-color:var(--accent);transform:translateY(-2px)}.sandbox-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.sandbox-map-grid button:disabled{opacity:.38;cursor:not-allowed}

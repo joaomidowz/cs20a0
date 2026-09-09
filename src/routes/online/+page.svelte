@@ -1,4 +1,9 @@
 <script lang="ts">
+  import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import SandboxSeriesViewer from '$lib/components/SandboxSeriesViewer.svelte';
+  import { roundEventsToSandboxDetails } from '$lib/game/sandbox/rounds';
+  import { loadStrategicPreferences, saveStrategicPreferences } from '$lib/game/preferences';
+  import { DEFAULT_STRATEGIC_AUTOMATION, type StrategicAutomationPreferences } from '$lib/game/strategic-series';
   import { onDestroy, onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
@@ -23,7 +28,8 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import type { LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
+  import { loadPersonalPreferences, savePersonalPreferences } from '$lib/game/preferences';
+  import type { AutomationMode, AutomationPreferences, LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament, VisualMode } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, isValidRoomCode, OnlineRoomClient, OnlineRoomCreationError, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
@@ -45,6 +51,7 @@
   let activeTab: 'current' | 'all' = 'current';
   let expandedTimelineMatch: string | null = null;
   let countdown = '';
+  let decisionCountdown = '';
   let clockTimer: number | null = null;
   let proAssignments: Record<string, LineupSlotRole> = {};
   let proStyle: OrgStyle = 'balanced';
@@ -54,6 +61,8 @@
   let provisionalMapPreferences: MapId[] = [];
   let mapLineupKey = '';
   let proLineupKey = '';
+  let preferencesSentForRoom = '';
+  let personalPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
@@ -97,6 +106,7 @@
   $: selectedOrganizationView = selectedOrganizationId ? buildOrganizationView(selectedOrganizationId) : null;
 
   onMount(() => {
+    personalPreferences = loadStrategicPreferences();
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
     if (roomCode && localStorage.getItem(`cs13a0:online:resume:${roomCode}`)) connect();
@@ -127,6 +137,11 @@
   }
 
   function updateCountdown() {
+    const pendingDeadline = snapshot?.self?.pendingDecision?.deadlineAt;
+    if (pendingDeadline) {
+      const pendingSeconds = Math.ceil(Math.max(0, pendingDeadline - (Date.now() + serverOffset)) / 1_000);
+      decisionCountdown = `${pendingSeconds}s`;
+    } else decisionCountdown = '';
     if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5 && snapshot.deadlineStage !== 'confirmation')) {
       countdown = '';
       return;
@@ -207,6 +222,16 @@
         serverOffset = next.serverTime - Date.now();
         config = next.config;
         if (next.self) {
+          if (preferencesSentForRoom !== next.roomCode) {
+            preferencesSentForRoom = next.roomCode;
+            send({ type: 'update-preferences', automation: personalPreferences });
+          } else {
+            personalPreferences = { ...next.self.automationPreferences };
+          }
+          if (next.phase === 'draft' && personalPreferences.autoMapPicksAndVetos && next.self.lineup.length === 5 && next.self.mapPreferences.length !== 3) {
+            const selected = next.self.lineup.map(pick => playerById.get(pick.playerId)).filter((p): p is Player => Boolean(p));
+            send({ type: 'submit-map-preferences', mapPreferences: getDefaultMapSelection(selected, teams) as [MapId, MapId, MapId] });
+          }
           const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
           const nextProKey = next.self.proPickedPlayerIds.join('|');
           // Only adopt server-side PRO choices when they exist or the picked players changed; otherwise every broadcast would wipe what the user is still filling in.
@@ -307,6 +332,12 @@
 
   function configureSimulation(patch: Pick<Partial<RoomConfig>, 'simulationMode' | 'simulationSpeed'>) {
     send({ type: 'configure-simulation', ...patch });
+  }
+
+  function setAutomationPreference(value: StrategicAutomationPreferences) {
+    personalPreferences = value;
+    saveStrategicPreferences(value);
+    send({ type: 'update-preferences', automation: value });
   }
 
   const stubTeam = (team: { id: string; name: string }): CombatTeam => ({ id: team.id, name: team.name, power: 0, mental: 0, clutch: 0, experience: 0 });
@@ -429,7 +460,7 @@
     <section class="online-room">
       <header class:online-draft-header={snapshot.phase === 'draft'} class="online-header">
         <div><div class="screen-kicker"><span class="eyebrow">{snapshot.phase.toUpperCase()} · {t(connection).toUpperCase()}</span><span class="multiplayer-tag">MULTIPLAYER</span></div>{#if !snapshot.tournament}<h1>{snapshot.phase === 'lobby' ? t('lobby') : t('draft')}</h1>{:else}<p class="online-room-title">{t('title')}</p>{/if}</div>
-        <div class="room-code"><span>{t('roomCode')}</span><button type="button" aria-label={`${t('copyLink')} · ${roomCode}`} on:click={copyRoomLink}>{roomCode}</button></div>
+        <div class="online-header-actions">{#if snapshot.phase === 'draft'}<AutomationGear value={personalPreferences} language={$language} onChange={setAutomationPreference} />{/if}<div class="room-code"><span>{t('roomCode')}</span><button type="button" aria-label={`${t('copyLink')} · ${roomCode}`} on:click={copyRoomLink}>{roomCode}</button></div></div>
       </header>
 
       {#if snapshot.phase === 'lobby'}
@@ -449,7 +480,6 @@
             <label><span>{t('entryStage')}</span><select value={config.entryStage} disabled={!isHost} on:change={(event) => saveConfig({ entryStage: (event.currentTarget as HTMLSelectElement).value as RoomConfig['entryStage'] })}><option value="stage3">Stage 3</option><option value="playoffs">Playoffs</option></select></label>
             <label><span>{t('capacity')}</span><input type="number" min="2" max={config.entryStage === 'playoffs' ? 8 : 16} value={config.capacity} disabled={!isHost} on:change={(event) => saveConfig({ capacity: Number((event.currentTarget as HTMLInputElement).value) })} /></label>
             <label><span>{t('deadline')}</span><select value={String(config.draftDeadlineSeconds ?? 'off')} disabled={!isHost} on:change={(event) => saveConfig({ draftDeadlineSeconds: (event.currentTarget as HTMLSelectElement).value === 'off' ? null : Number((event.currentTarget as HTMLSelectElement).value) as 60 | 120 | 180 | 300 })}><option value="60">60s</option><option value="120">120s</option><option value="180">180s</option><option value="300">300s</option><option value="off">{t('deadlineOff')}</option></select></label>
-            <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
             {#if isHost}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
@@ -526,24 +556,17 @@
           {#if snapshot.phase !== 'completed'}
             <div class="match-controls panel">
               <div class="control-group">
-                <span>{gameT('simulationMode')} {isHost ? '' : '· HOST'}</span>
-                <SegmentedControl
-                  value={snapshot.config.simulationMode}
-                  label={gameT('simulationMode')}
-                  disabled={!isHost}
-                  options={[{ value: 'manual', label: gameT('manual') }, { value: 'automatic', label: gameT('automatic') }]}
-                  onChange={(value) => configureSimulation({ simulationMode: value as RoomConfig['simulationMode'] })}
-                />
-              </div>
-              <div class="control-group">
                 <span>{gameT('speed')} {isHost ? '' : '· HOST'}</span>
-                <SegmentedControl
-                  value={snapshot.config.simulationSpeed}
-                  label={gameT('speed')}
-                  disabled={!isHost}
-                  options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                  onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
-                />
+                <div class="control-row">
+                  <SegmentedControl
+                    value={snapshot.config.simulationSpeed}
+                    label={gameT('speed')}
+                    disabled={!isHost}
+                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
+                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                  />
+                  <AutomationGear value={personalPreferences} language={$language} onChange={setAutomationPreference} />
+                </div>
               </div>
             </div>
           {/if}
@@ -587,21 +610,32 @@
                 </section>
                 <div class="result-actions online-result-actions"><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{gameT('downloadRunImage')}</button></div>
               {/if}
+            {:else if self?.pendingDecision?.type === 'veto'}
+              <section class="panel round-decision" aria-live="polite">
+                <div><span class="eyebrow">VETO · {self.pendingDecision.action.toUpperCase()}</span><h2>{self.pendingDecision.action === 'ban' ? 'Banir mapa' : 'Escolher mapa'}</h2><small>Expira em {decisionCountdown}</small></div>
+                <div class="decision-actions">{#each self.pendingDecision.legalMapIds as mapId}<button type="button" class:recommended={mapId === self.pendingDecision.recommendation} on:click={() => send({ type: 'submit-veto', mapId })}>{getMapName(mapId)}</button>{/each}</div>
+              </section>
             {:else if liveSeries}
               {#key liveSeries.series.id}
-                <SeriesViewer
-                  series={liveSeries.series}
-                  controlled
-                  controlledActiveMap={liveSeries.activeMap}
-                  controlledVisibleRounds={liveSeries.visibleRounds}
-                  controlledStarted={liveSeries.started}
-                  controlledFinished={liveSeries.finished}
-                  language={$language}
-                  interactiveTeamIds={[liveSeries.series.teamA.id, liveSeries.series.teamB.id]}
-                  onTeamClick={openOrganization}
-                  labels={{ start: gameT('startSeries'), skip: gameT('skipMap'), round: gameT('round'), live: t('live'), map: gameT('map'), final: gameT('final'), waiting: gameT('waiting'), pending: gameT('pending'), inProgress: gameT('inProgress'), mapInProgress: gameT('mapInProgress'), notPlayed: gameT('mapNotPlayed'), mapStart: gameT('mapStart') }}
-                />
-              {/key}
+                <SandboxSeriesViewer
+                  match={{ ...liveSeries.series, userMatch: true, resolved: liveSeries.finished, roundNumber: liveCursor?.tournamentRound ?? 1, maps: liveSeries.series.maps.map(map => ({ ...map, details: roundEventsToSandboxDetails(map.events ?? []) })) }}
+                  userTeamId={self?.participantId ?? ''}
+                  controlled controlledActiveMap={liveSeries.activeMap} controlledVisibleRounds={liveSeries.visibleRounds} controlledFinished={liveSeries.finished}
+                  delay={snapshot.config.simulationSpeed === 'normal' ? 2400 : snapshot.config.simulationSpeed === 'fast' ? 1200 : 200}
+                  onTeam={openOrganization}
+                />              {/key}
+              {#if self?.pendingDecision?.type === 'round'}
+                <section class="panel round-decision" aria-live="polite">
+                  <div><span class="eyebrow">DECISÃO · R{self.pendingDecision.round}</span><h2>Compra do próximo round</h2><small>Expira em {decisionCountdown}</small></div>
+                  <div class="decision-actions">
+                    {#each self.pendingDecision.legalBuys as buy}<button type="button" class:recommended={buy === self.pendingDecision.recommendation.buy} on:click={() => send({ type: 'submit-round-decision', decision: { buy, tacticalPause: false } })}>{buy === 'eco' ? 'Guardar / Eco' : buy === 'force' ? 'Forçar' : 'Compra completa'}</button>{/each}
+                    {#if !personalPreferences.autoPause && self.pendingDecision.canTacticalPause}<button type="button" on:click={() => send({ type: 'submit-round-decision', decision: { buy: self.pendingDecision?.type === 'round' ? self.pendingDecision.recommendation.buy : 'eco', tacticalPause: true } })}>Pausa tática</button>{/if}
+                  </div>
+                </section>
+              {/if}
+              {#if !personalPreferences.autoPause && self?.tacticalPause}
+                <button class="secondary wide" type="button" disabled={!self.tacticalPause.available || self.tacticalPause.queued} on:click={() => self?.tacticalPause && send({ type: 'request-tactical-pause', seriesId: self.tacticalPause.seriesId, map: self.tacticalPause.map, round: self.tacticalPause.round })}>{self.tacticalPause.queued ? 'Pausa tática solicitada' : self.tacticalPause.available ? 'Pedir pausa tática' : 'Pausa utilizada neste half'}</button>
+              {/if}
               {#if liveCursor?.status === 'waiting_host'}
                 {#if isHost}<button class="primary wide next-match" type="button" on:click={() => send({ type: 'advance-round' })}>{t('startRound')} →</button>{:else}<p class="host-wait panel">{t('waitingHost')}</p>{/if}
               {/if}
@@ -671,10 +705,11 @@
 
 <style>
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
-  .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
+  .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header-actions{display:flex;align-items:end;gap:10px;--gear-size:40px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
+  .round-decision{display:grid;gap:14px;margin:14px 0;padding:18px;border-color:var(--accent)}.round-decision h2{margin:4px 0}.round-decision small{color:var(--muted)}.decision-actions{display:flex;flex-wrap:wrap;gap:8px}.decision-actions button{padding:10px 12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);font-weight:800;cursor:pointer}.decision-actions button.recommended{border-color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
 </style>

@@ -45,6 +45,25 @@
   let started = false;
   let finished = false;
   let runId = 0;
+  let paused = false;
+  let waitingForMap = false;
+  let resumePlayback: (() => void) | null = null;
+
+  $: if (auto && waitingForMap) continuePlayback();
+
+  function continuePlayback() {
+    paused = false;
+    waitingForMap = false;
+    resumePlayback?.();
+    resumePlayback = null;
+  }
+
+  async function waitForPlayback() {
+    while (paused || waitingForMap) {
+      await new Promise<void>((resolve) => { resumePlayback = resolve; });
+    }
+  }
+
   let pendingTimeout: number | null = null;
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
 
@@ -110,13 +129,23 @@
       visibleRounds = 0;
       const rounds = series.maps[mapIndex].rounds;
       while (visibleRounds < rounds.length && thisRun === runId) {
+        await waitForPlayback();
+        if (thisRun !== runId) return;
         const skipped = await wait(delay);
         if (thisRun !== runId) return;
+        if (paused) continue;
         if (skipped) continue;
         visibleRounds += 1;
       }
       if (thisRun !== runId) return;
-      if (mapIndex < series.maps.length - 1) await wait(Math.min(900, delay));
+      if (mapIndex < series.maps.length - 1) {
+        waitingForMap = !auto;
+        await waitForPlayback();
+        if (thisRun !== runId) return;
+        await wait(Math.min(900, Math.max(delay, 250)));
+        await waitForPlayback();
+        if (thisRun !== runId) return;
+      }
     }
     if (thisRun !== runId) return;
     finished = true;
@@ -159,6 +188,7 @@
 
   onDestroy(() => {
     runId += 1;
+    continuePlayback();
     if (pendingTimeout !== null) window.clearTimeout(pendingTimeout);
     resolvePendingWait?.(true);
   });
@@ -277,6 +307,11 @@
   {#if !controlled && !started && !finished}
     <button class="primary wide" type="button" on:click={play}>{labels.start}</button>
   {:else if !controlled && started}
+    {#if waitingForMap}
+      <button class="primary wide" type="button" on:click={continuePlayback}>{language === 'en' ? 'Start next map' : 'Iniciar próximo mapa'}</button>
+    {:else}
+      <button class="secondary wide" type="button" aria-pressed={paused} on:click={() => paused ? continuePlayback() : paused = true}>{paused ? (language === 'en' ? 'Resume simulation' : 'Retomar simulação') : (language === 'en' ? 'Pause simulation' : 'Pausar simulação')}</button>
+    {/if}
     <button class="secondary wide" type="button" disabled={visibleRounds >= (currentMap?.rounds.length ?? 0)} on:click={skipMap}>{labels.skip}</button>
   {/if}
 </section>

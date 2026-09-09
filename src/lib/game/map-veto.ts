@@ -28,6 +28,18 @@ export interface MapVetoResult {
   playedMaps: MapId[];
 }
 
+export interface IncrementalMapVetoState {
+  bestOf: 1 | 3 | 5;
+  seed: string;
+  teamA: MapStrategy;
+  teamB: MapStrategy;
+  available: MapId[];
+  sequence: Array<{ action: 'ban' | 'pick'; actorId: string }>;
+  cursor: number;
+  steps: MapVetoStep[];
+  finished: boolean;
+}
+
 const affinityScore: Record<MapAffinity, number> = { EVEN: 0, '+': 1, '++': 2, '+++': 3 };
 
 const hashUnit = (value: string) => {
@@ -45,7 +57,7 @@ const strategyStrength = (strategy: MapStrategy, mapId: MapId) => {
   return affinityScore[strategy.affinities[mapId]] * 4 + selectionScore;
 };
 
-function chooseMap(
+export function chooseAutomaticVetoMap(
   seed: string,
   step: number,
   action: 'ban' | 'pick',
@@ -66,39 +78,19 @@ function chooseMap(
   })[0];
 }
 
-export function resolveMapVeto(options: {
+const vetoSequence = (bestOf: 1 | 3 | 5, teamA: string, teamB: string): Array<{ action: 'ban' | 'pick'; actorId: string }> => {
+  const actions: Array<'ban' | 'pick'> = bestOf === 1
+    ? ['ban', 'ban', 'ban', 'ban', 'ban', 'ban']
+    : bestOf === 3 ? ['ban', 'ban', 'pick', 'pick', 'ban', 'ban'] : ['ban', 'ban', 'pick', 'pick', 'pick', 'pick'];
+  return actions.map((action, index) => ({ action, actorId: index % 2 === 0 ? teamA : teamB }));
+};
+
+export function createIncrementalMapVeto(options: {
   bestOf: 1 | 3 | 5;
   teamA: MapStrategy;
   teamB: MapStrategy;
   seed: string;
-}): MapVetoResult {
-  const sequence: Array<{ action: 'ban' | 'pick'; actor: MapStrategy; opponent: MapStrategy }> = options.bestOf === 1
-    ? [
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA },
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA },
-      { action: 'ban', actor: options.teamA, opponent: options.teamB },
-      { action: 'ban', actor: options.teamB, opponent: options.teamA }
-    ]
-    : options.bestOf === 3
-      ? [
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA },
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA }
-      ]
-      : [
-        { action: 'ban', actor: options.teamA, opponent: options.teamB },
-        { action: 'ban', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA },
-        { action: 'pick', actor: options.teamA, opponent: options.teamB },
-        { action: 'pick', actor: options.teamB, opponent: options.teamA }
-      ];
-
+}): IncrementalMapVetoState {
   const available = MAP_POOL.filter((mapId) => options.teamA.familiarity[mapId] > 0 || options.teamB.familiarity[mapId] > 0);
   if (available.length < 7) throw new Error('A map veto requires at least seven maps known by one of the lineups');
   const steps: MapVetoStep[] = [];
@@ -106,21 +98,64 @@ export function resolveMapVeto(options: {
   while (available.length > 7) {
     const actor = preliminaryStep % 2 === 0 ? options.teamA : options.teamB;
     const opponent = actor === options.teamA ? options.teamB : options.teamA;
-    const mapId = chooseMap(options.seed, preliminaryStep, 'ban', actor, opponent, available);
+    const mapId = chooseAutomaticVetoMap(options.seed, preliminaryStep, 'ban', actor, opponent, available);
     available.splice(available.indexOf(mapId), 1);
     steps.push({ order: steps.length + 1, action: 'ban', teamId: actor.teamId, mapId });
     preliminaryStep += 1;
   }
-  for (const [index, item] of sequence.entries()) {
-    const mapId = chooseMap(options.seed, preliminaryStep + index, item.action, item.actor, item.opponent, available);
-    available.splice(available.indexOf(mapId), 1);
-    steps.push({ order: steps.length + 1, action: item.action, teamId: item.actor.teamId, mapId });
+  return {
+    ...options,
+    available,
+    sequence: vetoSequence(options.bestOf, options.teamA.teamId, options.teamB.teamId),
+    cursor: 0,
+    steps,
+    finished: false
+  };
+}
+
+export function getCurrentVetoAction(state: IncrementalMapVetoState) {
+  return state.sequence[state.cursor] ?? null;
+}
+
+export function recommendVetoMap(state: IncrementalMapVetoState): MapId {
+  const item = getCurrentVetoAction(state);
+  if (!item) {
+    if (state.available.length !== 1) throw new Error('Veto has no active action');
+    return state.available[0];
   }
-  steps.push({ order: steps.length + 1, action: 'decider', teamId: null, mapId: available[0] });
+  const actor = item.actorId === state.teamA.teamId ? state.teamA : state.teamB;
+  const opponent = actor === state.teamA ? state.teamB : state.teamA;
+  return chooseAutomaticVetoMap(state.seed, state.steps.length, item.action, actor, opponent, state.available);
+}
+
+export function advanceIncrementalMapVeto(source: IncrementalMapVetoState, mapId = recommendVetoMap(source)): IncrementalMapVetoState {
+  if (source.finished) return source;
+  const state: IncrementalMapVetoState = { ...source, available: [...source.available], steps: [...source.steps] };
+  const item = getCurrentVetoAction(state);
+  if (!item || !state.available.includes(mapId)) throw new Error('Map is not legal for the current veto action');
+  state.available.splice(state.available.indexOf(mapId), 1);
+  state.steps.push({ order: state.steps.length + 1, action: item.action, teamId: item.actorId, mapId });
+  state.cursor += 1;
+  if (state.cursor >= state.sequence.length) {
+    if (state.available.length !== 1) throw new Error('Veto did not leave exactly one decider');
+    state.steps.push({ order: state.steps.length + 1, action: 'decider', teamId: null, mapId: state.available[0] });
+    state.finished = true;
+  }
+  return state;
+}
+
+export function resolveMapVeto(options: {
+  bestOf: 1 | 3 | 5;
+  teamA: MapStrategy;
+  teamB: MapStrategy;
+  seed: string;
+}): MapVetoResult {
+  let state = createIncrementalMapVeto(options);
+  while (!state.finished) state = advanceIncrementalMapVeto(state);
 
   return {
-    steps,
-    playedMaps: steps.filter((step) => step.action !== 'ban').map((step) => step.mapId)
+    steps: state.steps,
+    playedMaps: state.steps.filter((step) => step.action !== 'ban').map((step) => step.mapId)
   };
 }
 
