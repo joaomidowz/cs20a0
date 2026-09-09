@@ -391,28 +391,6 @@ export interface PlayerRunStats {
   roundsLost: number;
 }
 
-/** One thing the user did in an offline series, in order: rounds stepped, a timeout, or a decision (always the user's team). */
-export type OfflineSeriesEvent =
-  | { kind: 'step'; count: number }
-  | { kind: 'timeout' }
-  /** A pending decision settled with the bot policy on the user's behalf. */
-  | { kind: 'auto' }
-  | { kind: 'veto'; action: 'ban' | 'pick'; mapId: MapId }
-  | { kind: 'side'; side: MapSide }
-  | { kind: 'eco-call'; call: 'force' | 'eco' };
-
-export interface OfflineSeriesLog {
-  seriesId: string;
-  events: OfflineSeriesEvent[];
-  /** The user acknowledged the finished series and the tournament moved on. */
-  confirmed: boolean;
-}
-
-/** Serializable replay log of an offline Major: replaying it over the same draft rebuilds the live engine exactly. */
-export interface OfflineDecisionLog {
-  version: 1;
-  series: OfflineSeriesLog[];
-}
 
 export interface GameState {
   phase: GamePhase;
@@ -433,8 +411,8 @@ export interface GameState {
   simMode: SimMode;
   simSpeed: SimSpeed;
   majorRun: MajorRun | null;
-  /** What the user did in the offline Major so far; the in-memory engine is rebuilt from it on reload. */
-  offlineLog: OfflineDecisionLog | null;
+  /** The user's series already played, so a saved campaign restores exactly what it showed. */
+  playedSeries?: Record<string, SeriesResult>;
   completedSeries: number;
   stats: PlayerRunStats[];
 }

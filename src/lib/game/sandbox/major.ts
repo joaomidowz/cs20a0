@@ -2,9 +2,11 @@ import { getTeamPlayers, playerById, players, teams } from '../data';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../map-veto';
 import {
   applySeriesDecision,
+  autoDecide,
   pendingSeriesDecision,
   requestSeriesTimeout,
   runSeriesToEnd,
+  seriesLossStreak,
   seriesSideA,
   seriesTimeouts,
   stepSeries,
@@ -250,6 +252,14 @@ export function skipSandboxMap(state: SandboxMajorState): SandboxMajorState {
   return syncFromEngine(state);
 }
 
+/** Resolves the decision waiting on the user with the same policy a bot would use. */
+export function autoDecideSandbox(state: SandboxMajorState): SandboxMajorState {
+  const live = currentSandboxSeries(state);
+  if (!live || !pendingSeriesDecision(live)) return state;
+  autoDecide(live);
+  return syncFromEngine(state);
+}
+
 export function callSandboxTimeout(state: SandboxMajorState): SandboxMajorState {
   const live = currentSandboxSeries(state);
   if (!live) return state;
@@ -265,6 +275,8 @@ export interface SandboxLiveView {
   started: boolean;
   finished: boolean;
   timeoutsLeft: number;
+  /** Rounds the user has lost in a row in the live map. */
+  lossStreak: number;
   userSide: MapSide | null;
   veto: { available: MapId[]; steps: NonNullable<SeriesResult['veto']>; turnTeamId: string | null; action: 'ban' | 'pick' | null } | null;
 }
@@ -277,6 +289,7 @@ export function getSandboxLiveView(state: SandboxMajorState): SandboxLiveView | 
   const pending = pendingSeriesDecision(live);
   const userIsA = live.config.teamA.id === USER_TEAM_ID;
   const timeouts = seriesTimeouts(live);
+  const streaks = seriesLossStreak(live);
   const sideA = seriesSideA(live);
   return {
     seriesId: live.config.id,
@@ -286,6 +299,7 @@ export function getSandboxLiveView(state: SandboxMajorState): SandboxLiveView | 
     started: result.maps.length > 0,
     finished: live.phase === 'finished',
     timeoutsLeft: userIsA ? timeouts.a : timeouts.b,
+    lossStreak: userIsA ? streaks.a : streaks.b,
     userSide: sideA ? (userIsA ? sideA : sideA === 'ct' ? 't' : 'ct') : null,
     veto: live.veto
       ? { available: [...live.veto.available], steps: [...live.veto.steps], turnTeamId: pending?.kind === 'veto' ? pending.teamId : null, action: pending?.kind === 'veto' ? pending.action : null }

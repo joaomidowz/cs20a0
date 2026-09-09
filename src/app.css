@@ -155,6 +155,12 @@ h2 { line-height: 1; text-transform: uppercase; }
 @media (max-width:359px){.slots{grid-template-columns:1fr}}
 
 .control-group{display:grid;gap:7px;min-width:0}
+.control-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
+.live-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;margin:0 0 12px;padding:6px 12px;border:1px solid var(--line);background:var(--surface)}
+.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.live-buttons{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.live-button{min-height:40px;padding:0 16px;font-size:.66rem}
+@media (max-width:679px){.live-actions{align-items:stretch;flex-direction:column;gap:8px}.live-buttons{width:100%}.live-buttons .live-button{flex:1}}
 .control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
 .segmented-control{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;padding:3px;border:1px solid var(--line);background:var(--surface-2)}
 .segmented-control button{min-width:0;min-height:40px;padding:6px 9px;border:0;color:var(--muted);background:transparent;font-size:.68rem;font-weight:800;text-transform:uppercase;cursor:pointer;transition:.18s ease}

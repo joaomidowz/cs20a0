@@ -315,6 +315,25 @@ export function seriesTimeouts(state: LiveSeriesState): { a: number; b: number }
 
 export const seriesSideA = (state: LiveSeriesState): MapSide | null => (state.current ? getCurrentSideA(state.current.state) : null);
 
+/** Restores a series that was already played, so a saved campaign keeps the exact result it showed. */
+export function adoptSeriesResult(state: LiveSeriesState, result: SeriesResult): void {
+  state.maps = result.maps.map((map) => ({ ...map }));
+  state.playedMaps = result.maps.map((map) => ({ mapId: map.mapId, pickedBy: map.pickedBy ?? null }));
+  state.current = null;
+  state.scoreA = result.scoreA;
+  state.scoreB = result.scoreB;
+  state.winnerId = result.winnerId;
+  state.phase = 'finished';
+  state.vetoDecisions = [];
+  if (state.veto) state.veto = { ...state.veto, available: [], steps: [...(result.veto ?? [])] };
+}
+
+/** Rounds each team has lost in a row in the live map (0 when no map is running). */
+export function seriesLossStreak(state: LiveSeriesState): { a: number; b: number } {
+  if (!state.current) return { a: 0, b: 0 };
+  return { a: state.current.state.teams.a.lossStreak, b: state.current.state.teams.b.lossStreak };
+}
+
 /** Snapshot of the series so far: the live map (if any) is included with `winnerId` empty. */
 export function toSeriesResult(state: LiveSeriesState): SeriesResult {
   const maps = state.current ? [...state.maps, toMapResult(state.current.state)] : [...state.maps];

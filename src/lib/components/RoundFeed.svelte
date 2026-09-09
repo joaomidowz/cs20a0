@@ -16,6 +16,8 @@
   export let compact = false;
   /** Called once per round as soon as its whole kill feed is on screen (the parent then commits the round). */
   export let onRoundResolved: (roundNumber: number) => void = () => {};
+  /** Simple mode: keeps the round result and hides the kill by kill feed. */
+  export let simple = false;
 
   let shownKills = 0;
   let killTimers: number[] = [];
@@ -81,7 +83,7 @@
       </div>
       <span class="buy right {currentDetail.economy.b.buy}" class:mine={isMine('b')} title={`${teamNames.b} · $${currentDetail.economy.b.money}`}>{#if currentDetail.economy.b.awp}<em>AWP</em>{/if}{buyLabels[currentDetail.economy.b.buy]}<i>{sideLabels[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>
     </div>
-    {#if currentDetail.kills.length}
+    {#if currentDetail.kills.length && !simple}
       <ul class="kill-feed" aria-label="Kill feed">
         {#each visibleKills as kill, index (`${currentDetail.number}-${index}`)}
           <li class:user={isMine(kill.killerSide)} class:enemy={userIsA !== null && !isMine(kill.killerSide)}>

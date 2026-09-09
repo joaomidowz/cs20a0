@@ -20,6 +20,8 @@
   export let language: Language = 'en';
   /** Round details of the live map when they arrive separately from `series` (online snapshots send a rolling window). */
   export let liveDetails: RoundDetail[] | null = null;
+  /** Simple mode: the round strip and the result stay, the kill feed goes away. */
+  export let simpleFeed = false;
   /** Kill feed pacing in controlled mode (ms per round). */
   export let controlledDelay = 1500;
   export let interactiveTeamId: string | null = null;
@@ -251,10 +253,10 @@
       <RoundFlash detail={committedDetail} cursor={`${series.id}:${displayActiveMap}:${committedRounds}`} {language} {userIsA} />
       {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
-      <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} />
+      <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} {language} {teamNames} />
       <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
       {#if currentDetails?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} />
+        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}
     </div>
   {/if}

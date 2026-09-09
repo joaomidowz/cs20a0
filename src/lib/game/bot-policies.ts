@@ -31,5 +31,8 @@ export function botEcoCall(team: Pick<CombatTeam, 'style'>, money: number, rng: 
 export const defaultHumanEcoCall = (style: OrgStyle | undefined, money = 0): 'force' | 'eco' =>
   style === 'aggressive' ? 'force' : style === 'tactical' ? 'eco' : money >= 2400 ? 'force' : 'eco';
 
+/** Lost rounds in a row that call for a tactical timeout (bots, and players with the pause on automatic). */
+export const TIMEOUT_LOSS_STREAK = 4;
+
 /** Bots burn their tactical timeout after four straight lost rounds. */
-export const botShouldTimeout = (lossStreak: number, timeoutsRemaining: number) => lossStreak >= 4 && timeoutsRemaining > 0;
+export const botShouldTimeout = (lossStreak: number, timeoutsRemaining: number) => lossStreak >= TIMEOUT_LOSS_STREAK && timeoutsRemaining > 0;

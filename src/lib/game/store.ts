@@ -40,7 +40,7 @@ export const defaultState = (seed = ''): GameState => ({
   simMode: 'manual',
   simSpeed: 'normal',
   majorRun: null,
-  offlineLog: null,
+  playedSeries: {},
   completedSeries: 0,
   stats: []
 });
