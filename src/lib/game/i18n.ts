@@ -123,6 +123,7 @@ const pt = {
   shareRun: 'Compartilhar run',
   newSeed: 'Nova seed',
   playSameSeed: 'Jogar mesma seed',
+  sameLineupNewMajor: 'Mesmo time, novo Major',
   copied: 'Link copiado',
   stats: 'Estatísticas da run',
   runMvp: 'MVP da Run',
@@ -729,6 +730,7 @@ Object.assign(dictionaries.es, {
   gearPauseHint: 'Encendido: la pausa se pide sola tras cuatro rondas perdidas seguidas.',
   gearEconomy: 'Force o save tras el pistol automático',
   gearEconomyHint: 'Apagado: tú eliges forzar o salvar tras perder el pistol.',
+  sameLineupNewMajor: 'Mismo equipo, nuevo Major',
   gearSimple: 'Modo simple',
   gearSimpleHint: 'Encendido: oculta el kill feed y muestra solo el resultado de cada ronda.',
   gearSettings: 'Ajustes'
@@ -758,6 +760,7 @@ Object.assign(dictionaries.en, {
   gearPauseHint: 'On: the pause is called for you after four straight lost rounds.',
   gearEconomy: 'Automatic force or save after the pistol',
   gearEconomyHint: 'Off: you choose to force or save after losing the pistol.',
+  sameLineupNewMajor: 'Same lineup, new Major',
   gearSimple: 'Simple mode',
   gearSimpleHint: 'On: hides the kill feed and shows only each round result.',
   gearSettings: 'Settings'
