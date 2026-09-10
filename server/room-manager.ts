@@ -366,7 +366,12 @@ export class RoomManager {
     return { participantId: participant.id, resumeToken: participant.resumeToken };
   }
 
-  execute(code: string, participantId: string, command: Exclude<ClientCommand, { type: 'join' | 'resume' }>, now = Date.now()): { duplicate: boolean } {
+  /** Current room version: every change bumps it, so an `ack` can report it without building a snapshot. */
+  getVersion(code: string): number {
+    return this.requireRoom(code).version;
+  }
+
+  execute(code: string, participantId: string, command: Exclude<ClientCommand, { type: 'join' | 'resume' | 'resync' }>, now = Date.now()): { duplicate: boolean } {
     const room = this.requireRoom(code);
     const participant = this.requireParticipant(room, participantId);
     if (participant.requestIds.includes(command.requestId)) return { duplicate: true };
@@ -590,7 +595,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true },
+      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true, liveUpdates: true },
       season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
       version: room.version,

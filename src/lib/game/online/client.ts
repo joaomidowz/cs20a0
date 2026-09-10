@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { PROTOCOL_VERSION, roomConfigSchema, type ClientCommand, type ErrorCode, type RoomConfig, type RoomSnapshot, type ServerMessage } from './contracts';
+import { PROTOCOL_VERSION, roomConfigSchema, type ClientCommand, type ErrorCode, type LiveUpdate, type RoomConfig, type RoomSnapshot, type ServerMessage } from './contracts';
 import { ONLINE_DATA_HASH } from './dataset';
 
 type ClientCommandInput = ClientCommand extends infer Command
@@ -13,7 +13,10 @@ export type OnlineClientErrorCode = ErrorCode | 'CONNECTION_FAILED' | 'CONNECTIO
 
 export interface OnlineClientHandlers {
   onConnection: (state: OnlineConnectionState) => void;
+  /** The whole room: sent on join/resume/resync and on every rare event (participants, config, phase, round closed). */
   onSnapshot: (snapshot: RoomSnapshot) => void;
+  /** Only what changes round by round while the tournament runs; never carries history. */
+  onLive: (update: LiveUpdate) => void;
   onError: (message: string, code: OnlineClientErrorCode) => void;
 }
 
@@ -132,6 +135,8 @@ export class OnlineRoomClient {
   private reconnectAttempts = 0;
   private stopped = false;
   private joined = false;
+  /** Version of the last snapshot or live update applied; an older live update that arrives late is dropped. */
+  private lastVersion = 0;
 
   constructor(
     private readonly serverUrl: string,
@@ -171,19 +176,28 @@ export class OnlineRoomClient {
         this.reconnectAttempts = 0;
         if (message.resumeToken) writeStoredValue(tokenKey(this.roomCode), message.resumeToken);
       } else if (message.type === 'snapshot') {
+        // A snapshot is always authoritative: it resets the version watermark even after a reconnect.
+        this.lastVersion = message.snapshot.version;
         this.handlers.onSnapshot(message.snapshot);
-      } else if (message.code === 'RESUME_EXPIRED') {
-        removeStoredValue(tokenKey(this.roomCode));
-        this.joined = false;
-        this.joinWithIdentity();
-      } else if (TERMINAL_CODES.has(message.code)) {
-        const wasJoined = this.joined;
-        this.stop();
-        this.handlers.onError(message.message, message.code);
-        this.handlers.onConnection(wasJoined ? 'expired' : 'disconnected');
-      } else {
-        this.handlers.onError(message.message, message.code);
+      } else if (message.type === 'live') {
+        if (message.live.version < this.lastVersion) return;
+        this.lastVersion = message.live.version;
+        this.handlers.onLive(message.live);
+      } else if (message.type === 'error') {
+        if (message.code === 'RESUME_EXPIRED') {
+          removeStoredValue(tokenKey(this.roomCode));
+          this.joined = false;
+          this.joinWithIdentity();
+        } else if (TERMINAL_CODES.has(message.code)) {
+          const wasJoined = this.joined;
+          this.stop();
+          this.handlers.onError(message.message, message.code);
+          this.handlers.onConnection(wasJoined ? 'expired' : 'disconnected');
+        } else {
+          this.handlers.onError(message.message, message.code);
+        }
       }
+      // Any other message type comes from a newer server this client does not understand: ignored, not an error.
     });
     socket.addEventListener('close', () => {
       if (this.socket !== socket) return;
@@ -212,6 +226,11 @@ export class OnlineRoomClient {
 
   send(command: ClientCommandInput) {
     this.sendRaw({ ...command, requestId: this.requestId() } as ClientCommand);
+  }
+
+  /** Asks the server for a fresh full snapshot (e.g. a live update arrived before any snapshot on this socket). */
+  resync() {
+    this.send({ type: 'resync' });
   }
 
   stop() {

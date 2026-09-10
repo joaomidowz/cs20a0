@@ -3,7 +3,7 @@ import type { GameMode, LineupSlotRole, MajorAwards, MapId, MapSide, MapVetoStep
 
 export type { OnlineGameMode } from '../types';
 
-export const PROTOCOL_VERSION = 8 as const;
+export const PROTOCOL_VERSION = 9 as const;
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
 /** Season points by placement; Stage 3 eliminations score one point per series won (0-2). */
@@ -112,7 +112,9 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     alias: z.string().trim().min(2).max(24),
     role: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']),
     secondaryRole: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
-  }).strict()
+  }).strict(),
+  /** Live updates (protocol 9): asks for a fresh full snapshot when the client suspects it fell out of sync. */
+  baseCommandSchema.extend({ type: z.literal('resync') }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -300,7 +302,7 @@ export interface PublicSeason {
 
 export interface RoomSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION;
-  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true; season: true; secretPlayers: true };
+  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true; season: true; secretPlayers: true; liveUpdates: true };
   dataHash: string;
   version: number;
   roomCode: string;
@@ -318,6 +320,20 @@ export interface RoomSnapshot {
   /** Points across the runs of this room (null before the first run ends). */
   season: PublicSeason | null;
   serverTime: number;
+}
+
+/**
+ * What changes round by round while a tournament runs (protocol 9). A `snapshot` carries the whole room and is sent
+ * on join, resume, resync and every rare event (participants, config, phase, a tournament round closing); between
+ * those the server only sends this, so the history is never retransmitted. `pendingDecision` is authoritative: null
+ * means the viewer has nothing to decide right now.
+ */
+export interface LiveUpdate {
+  version: number;
+  serverTime: number;
+  phase: RoomPhase;
+  cursor: PublicLiveCursor;
+  pendingDecision: SelfDraftState['pendingDecision'];
 }
 
 export type ErrorCode =
@@ -345,6 +361,7 @@ export type ErrorCode =
 export type ServerMessage =
   | { type: 'ack'; requestId: string; version: number; resumeToken?: string }
   | { type: 'error'; requestId?: string; code: ErrorCode; message: string }
-  | { type: 'snapshot'; snapshot: RoomSnapshot };
+  | { type: 'snapshot'; snapshot: RoomSnapshot }
+  | { type: 'live'; live: LiveUpdate };
 
 export const parseClientCommand = (value: unknown): ClientCommand => clientCommandSchema.parse(value);

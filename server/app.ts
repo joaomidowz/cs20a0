@@ -156,13 +156,19 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
             send(otherSocket, { type: 'error', code: 'INVALID_ACTION', message: 'This session was resumed from another connection' });
             otherSocket.close();
           }
-          send(socket, { type: 'ack', requestId: command.requestId, version: manager.getSnapshot(roomCode, joined.participantId, current).version, resumeToken: joined.resumeToken });
+          send(socket, { type: 'ack', requestId: command.requestId, version: manager.getVersion(roomCode), resumeToken: joined.resumeToken });
           broadcastRoom(roomCode);
           return;
         }
         if (!session.participantId) throw new RoomError('NOT_JOINED', 'Join the room first');
+        if (command.type === 'resync') {
+          // A client that suspects it fell out of sync gets the whole room again, on its own socket only.
+          send(socket, { type: 'ack', requestId: command.requestId, version: manager.getVersion(roomCode) });
+          send(socket, { type: 'snapshot', snapshot: manager.getSnapshot(roomCode, session.participantId, current) });
+          return;
+        }
         manager.execute(roomCode, session.participantId, command, current);
-        send(socket, { type: 'ack', requestId: command.requestId, version: manager.getSnapshot(roomCode, session.participantId, current).version });
+        send(socket, { type: 'ack', requestId: command.requestId, version: manager.getVersion(roomCode) });
         broadcastRoom(roomCode);
       } catch (error) {
         const typed = asError(error);
