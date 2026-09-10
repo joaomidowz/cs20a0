@@ -37,7 +37,7 @@
           {@const team = item.player.teamId ? teamById.get(item.player.teamId) : null}
           <span class="slot-index">0{index + 1}</span>
           <strong>{item.player.nickname ?? 'Unknown'}</strong>
-          <small>{team?.name ?? 'Time'} · {item.player.year ?? '—'}</small>
+          <small>{item.player.id.startsWith('secret-') ? 'SECRET' : team?.name ?? 'Time'} · {item.player.year ?? '—'}</small>
           <span class="slot-title">{getSelectedRoleLabel(item.selected)}</span>
           {#if mode === 'premier' || revealed}<b>{item.player.overall ?? 70}</b>{:else}<b>??</b>{/if}
         {:else}

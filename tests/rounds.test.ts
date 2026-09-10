@@ -3,8 +3,12 @@ import {
   applyDecision,
   autoDecide,
   createMapState,
+  getConsecutiveLosses,
   getCurrentSideA,
   getTimeoutsRemaining,
+  timeoutBonus,
+  timeoutTiming,
+  TIMEOUT_BONUS_BY_MODE,
   isMapFinished,
   pendingDecision,
   playMapToEnd,
@@ -16,6 +20,7 @@ import {
 } from '../src/lib/game/rounds';
 import { getHighlightLabel, getRoundFlash, getVisibleRoundTag, highlightTag } from '../src/lib/game/roundPresentation';
 import { getTeamPlayers, players, teams } from '../src/lib/game/data';
+import { currentLossStreak } from '../src/lib/game/online-automation';
 import { calculateHistoricalTeamPower, createSeededRng, simulateMap } from '../src/lib/game/simulation';
 import type { CombatTeam, RoundDetail, RoundHighlight, TeamSide } from '../src/lib/game/types';
 
@@ -86,6 +91,8 @@ describe('round engine', () => {
     if (pendingDecision(state)) autoDecide(state);
     const round = playNextRound(state);
     expect(round.timeout).toBe('a');
+    expect(round.timeoutTiming).toMatch(/^(window|early|late)$/);
+    expect(state.decisions.find((decision) => decision.kind === 'timeout')).toMatchObject({ timing: round.timeoutTiming });
     expect(state.decisions.filter((decision) => decision.kind === 'timeout' && decision.teamId === 'a')).toHaveLength(1);
     // The second half hands the timeout back.
     while (state.rounds.length < 12 && !isMapFinished(state)) {
@@ -98,6 +105,40 @@ describe('round engine', () => {
     expect(getTimeoutsRemaining(state, 'a')).toBe(1);
   });
 
+  it('weighs the tactical timeout by queue and by how well it is timed', () => {
+    expect(timeoutTiming(0)).toBe('early');
+    expect(timeoutTiming(1)).toBe('early');
+    expect(timeoutTiming(2)).toBe('window');
+    expect(timeoutTiming(4)).toBe('window');
+    expect(timeoutTiming(5)).toBe('late');
+    expect(timeoutBonus('premier', 'window')).toBeCloseTo(0.03);
+    expect(timeoutBonus('faceit', 'window')).toBeCloseTo(0.03);
+    expect(timeoutBonus('pro', 'window')).toBeCloseTo(0.08);
+    expect(timeoutBonus('fun', 'window')).toBeCloseTo(0.1);
+    expect(timeoutBonus('max_fun', 'early')).toBeCloseTo(0.1 / 3);
+    expect(timeoutBonus('pro', 'late')).toBeCloseTo(0.08 / 3);
+    // The armed bonus is a pure function of the state: a pause called during a two-loss streak lands in the window.
+    for (const mode of ['premier', 'pro', 'fun'] as const) {
+      const state = createMapState(team('a', 90), team('b', 90), { rng: createSeededRng('timing'), mapId: 'mirage', mode, controllers: { a: 'human', b: 'bot' } });
+      while (!isMapFinished(state) && getConsecutiveLosses(state, 'a') < 2) {
+        if (pendingDecision(state)) autoDecide(state);
+        playNextRound(state);
+      }
+      expect(requestTimeout(state, 'a')).toBe(true);
+      expect(state.pendingTimeoutTiming).toBe('window');
+      expect(state.pendingTimeoutBonus).toBeCloseTo(TIMEOUT_BONUS_BY_MODE[mode]);
+    }
+  });
+
+  it('counts straight losses per half exactly like the client-side automation does', () => {
+    const state = createMapState(team('a', 90), team('b', 90), { rng: createSeededRng('streaks'), mapId: 'inferno' });
+    while (!isMapFinished(state)) {
+      if (pendingDecision(state)) autoDecide(state);
+      playNextRound(state);
+      for (const side of ['a', 'b'] as TeamSide[]) expect(getConsecutiveLosses(state, side)).toBe(currentLossStreak(state.details, side));
+    }
+  });
+
   it('is deterministic for the same seed and decisions, and diverges with different decisions', () => {
     const run = (side: 'ct' | 't') => {
       const state = createMapState(team('a', 92), team('b', 90), { rng: createSeededRng('det'), mapId: 'inferno', sidePickerTeamId: 'a', controllers: { a: 'human', b: 'bot' } });
@@ -106,6 +147,14 @@ describe('round engine', () => {
     };
     expect(run('ct')).toEqual(run('ct'));
     expect(run('ct').rounds).not.toEqual(run('t').rounds);
+    // A pause called at the same round in both runs keeps them identical: the bonus draws no extra random numbers.
+    const paused = () => {
+      const state = createMapState(team('a', 92), team('b', 90), { rng: createSeededRng('det-pause'), mapId: 'inferno', mode: 'pro', controllers: { a: 'human', b: 'bot' } });
+      for (let index = 0; index < 5; index += 1) { if (pendingDecision(state)) autoDecide(state); playNextRound(state); }
+      requestTimeout(state, 'a');
+      return playMapToEnd(state);
+    };
+    expect(paused()).toEqual(paused());
   });
 
   it('produces valid MR12 maps with halves, overtime blocks and comeback flags', () => {
@@ -289,11 +338,12 @@ describe('round highlights', () => {
     expect(rounds.length).toBeGreaterThanOrEqual(3000);
     const count = (kills: number) => rounds.filter((round) => bestMultiKill(round) === kills).length / rounds.length;
     const aces = rounds.filter((round) => bestMultiKill(round) >= 5).length / rounds.length;
-    expect(aces).toBeGreaterThanOrEqual(0.005);
-    expect(aces).toBeLessThanOrEqual(0.03);
-    expect(count(4)).toBeGreaterThanOrEqual(0.03);
-    expect(count(4)).toBeLessThanOrEqual(0.09);
-    expect(count(3)).toBeGreaterThanOrEqual(0.12);
+    // Real pro play: an ace about every 400-500 rounds, a 4K in ~1-3% of the rounds, a 3K in roughly one round in five.
+    expect(aces).toBeGreaterThanOrEqual(0.0008);
+    expect(aces).toBeLessThanOrEqual(0.006);
+    expect(count(4)).toBeGreaterThanOrEqual(0.01);
+    expect(count(4)).toBeLessThanOrEqual(0.045);
+    expect(count(3)).toBeGreaterThanOrEqual(0.1);
     expect(count(3)).toBeLessThanOrEqual(0.3);
     for (const round of rounds) {
       const best = bestMultiKill(round);

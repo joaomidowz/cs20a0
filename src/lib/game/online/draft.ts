@@ -176,9 +176,9 @@ export function autocompleteDraft(
   mode: OnlineGameMode,
   initial: DraftState,
   teams: HistoricalTeam[],
-  players: Player[]
+  players: Player[],
+  playerLookup: (id: string) => Player | undefined = (id) => players.find((player) => player.id === id)
 ): DraftState {
-  const playerLookup = (id: string) => players.find((player) => player.id === id);
   let state: DraftState = { ...initial, style: initial.style ?? 'balanced' };
   let guard = 0;
   while (pickIndex(state, mode) < MAX_LINEUP_SIZE && guard < teams.length * 3) {

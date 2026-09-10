@@ -235,7 +235,7 @@ export function computeStandings(tournament: MajorTournament, revealedRounds: nu
   };
   return standings
     .map(({ opponents: _opponents, ...standing }) => standing)
-    .sort((left, right) => rank(left) - rank(right) || right.wins - left.wins || right.buchholz - left.buchholz || left.losses - right.losses || left.seed - right.seed);
+    .sort((left, right) => rank(left) - rank(right) || right.wins - left.wins || left.losses - right.losses || right.buchholz - left.buchholz || left.seed - right.seed);
 }
 
 /** Number of rounds whose every series is completed, counted from the start. */

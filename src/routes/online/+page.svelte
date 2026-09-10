@@ -15,7 +15,7 @@
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import AutomationGear from '$lib/components/AutomationGear.svelte';
-  import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, type AutomationAttempt } from '$lib/game/online-automation';
+  import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, timeoutTimingFor, type AutomationAttempt } from '$lib/game/online-automation';
   import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
   import VetoBoard from '$lib/components/live/VetoBoard.svelte';
   import SidePickPrompt from '$lib/components/live/SidePickPrompt.svelte';
@@ -27,7 +27,8 @@
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
-  import { playerById, teamById, getTeamPlayers, teams } from '$lib/game/data';
+  import { playerById, secretPlayers, teamById, getTeamPlayers, teams } from '$lib/game/data';
+  import { isSecretPlayerId, SECRET_ORGANIZATION_PICKS } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
   import { averageOverall, getLineupStrengths, type OrganizationRosterView } from '$lib/game/organizationPresentation';
@@ -77,6 +78,8 @@
   let mySide: 'a' | 'b' | null = null;
   /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
   let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
+  /** The "secret player joined" toast fires once per draft. */
+  let secretToastShown = false;
   /** Seconds left in the rematch window after a run ends (0 when closed). */
   let rematchSeconds = 0;
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
@@ -125,6 +128,10 @@
   $: myCampaign = snapshot?.tournament?.campaigns?.find((campaign) => campaign.organizationId === me?.id) ?? null;
   $: proAssignmentStatus = validateProAssignments(proAssignments, self?.proPickedPlayerIds ?? []);
   $: ownPlayers = (self?.lineup ?? []).map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+  $: secretPicksLeft = self?.secretPicksLeft ?? 0;
+  $: secretInLineup = Boolean(self?.lineup.some((pick) => isSecretPlayerId(pick.playerId)));
+  $: if (snapshot?.phase === 'draft' && secretInLineup && !secretToastShown) { secretToastShown = true; showToast(t('secretJoined')); }
+  $: if (snapshot?.phase !== 'draft') secretToastShown = false;
   $: onlineMapContributors = getLineupMapContributors(ownPlayers, teams);
   $: onlineMapYears = getLineupMapYears(ownPlayers, teams);
   $: ownDisplayPlayers = snapshot?.config.mode === 'pro' && self
@@ -393,7 +400,8 @@
   }
 
   function choosePlayer(player: Player, role?: LineupSlotRole, secondaryRole?: LineupSlotRole) {
-    send({ type: 'pick-player', playerId: player.id, ...(role ? { role } : {}), ...(secondaryRole ? { secondaryRole } : {}) });
+    if (isSecretPlayerId(player.id) && role) send({ type: 'pick-secret', alias: player.nickname ?? '', role, ...(secondaryRole ? { secondaryRole } : {}) });
+    else send({ type: 'pick-player', playerId: player.id, ...(role ? { role } : {}), ...(secondaryRole ? { secondaryRole } : {}) });
     detailsPlayer = null;
   }
 
@@ -639,6 +647,18 @@
             <button class="primary wide" type="button" disabled={!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)} on:click={confirmOnlineMaps}>{gameT('confirmMaps')}</button>
           </section>
         {:else if !me?.ready}
+          {#if secretPicksLeft > 0 && self.lineup.length < 5 && self.style}
+            <section class="panel secret-zone">
+              <div class="section-heading"><div><span class="eyebrow">VARGÃO ACADEMY</span><h2>{t('secretTeam')}</h2></div><strong>{secretPicksLeft}/{SECRET_ORGANIZATION_PICKS}</strong></div>
+              <p class="pick-instruction">{t('secretTeamHint')}</p>
+              <div class="player-grid">
+                {#each secretPlayers as player (player.id)}
+                  {@const validation = cardValidation(player)}
+                  <PlayerCard {player} mode={presentationMode} language={$language} blockedReason={validation.ok ? '' : reasonText(validation.reason)} onOpen={(selected) => detailsPlayer = selected} />
+                {/each}
+              </div>
+            </section>
+          {/if}
           <section class="roll-zone panel">
             {#if offeredTeam}
               {#if snapshot.config.mode === 'pro'}
@@ -785,7 +805,7 @@
               {/if}
               {#if mySeriesId && liveSeries.phase === 'live' && !liveSeries.finished}
                 <div class="live-actions">
-                  {#if !strategicPreferences.autoPause}<TimeoutButton remaining={myTimeouts} disabled={Boolean(myDecision)} language={$language} onCall={() => mySeriesId && send({ type: 'call-timeout', seriesId: mySeriesId })} />{/if}
+                  {#if !strategicPreferences.autoPause}<TimeoutButton remaining={myTimeouts} timing={liveDetailList && mySide ? timeoutTimingFor(liveDetailList, mySide) : null} disabled={Boolean(myDecision)} language={$language} onCall={() => mySeriesId && send({ type: 'call-timeout', seriesId: mySeriesId })} />{/if}
                   <small>{gameT('sideLabel')}: {liveSeries.sideA ? (liveSeries.sideA === 'ct' ? 'CT' : $language === 'en' ? 'T' : 'TR') : '—'}</small>
                 </div>
               {/if}
@@ -878,6 +898,7 @@
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
   .watch-bar{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:44px;padding:0 14px}
+  .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}

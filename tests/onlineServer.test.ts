@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createOnlineServer } from '../server/app';
-import { ONLINE_DATA_HASH, players, teams } from '../server/data';
+import { ONLINE_DATA_HASH, playerById, players, teams } from '../server/data';
 import { CONFIRMATION_GRACE_MS, RESUME_TTL_MS, ROUND_GAP_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS } from '../server/room-manager';
+import { drawHumanSeeds } from '../src/lib/game/online/tournament-engine';
 import { DEFAULT_ROOM_CONFIG, PROTOCOL_VERSION, type RoomSnapshot, type ServerMessage } from '../src/lib/game/online/contracts';
 import { getHistoricalTeamOverall } from '../src/lib/game/online/draft-pool';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -98,6 +99,21 @@ async function createRoom(server: RunningServer, capacity: number, mode: OnlineG
   return (await response.json() as { roomCode: string }).roomCode;
 }
 
+/**
+ * Human seeds come from the room seed, so a test that needs the two humans to meet (or not) in the first round looks
+ * for a seed whose draw puts them eight apart in a sixteen-team Swiss (or in the same quarterfinal of an eight-team bracket).
+ */
+function seedWhereHumans(fieldSize: 16 | 8, meet: boolean): string {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const seed = `humans-${fieldSize}-${meet}-${attempt}`;
+    const [first, second] = drawHumanSeeds(seed, 2, fieldSize);
+    // The host must also hold the higher seed (team A), so the first veto step is the host's.
+    const together = fieldSize === 16 ? second - first === 8 : first + second === 9 && first < second;
+    if (together === meet) return seed;
+  }
+  throw new Error('No seed found for the requested human pairing');
+}
+
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.close()));
 });
@@ -105,7 +121,7 @@ afterEach(async () => {
 function confirmManagerMaps(manager: RoomManager, code: string, participantIds: string[], now: number) {
   participantIds.forEach((participantId, index) => {
     const lineup = manager.getSnapshot(code, participantId, now).self?.lineup ?? [];
-    const selected = lineup.map((pick) => players.find((player) => player.id === pick.playerId)!).filter(Boolean);
+    const selected = lineup.map((pick) => playerById.get(pick.playerId)!).filter(Boolean);
     manager.execute(code, participantId, {
       type: 'submit-map-preferences',
       requestId: `maps-${index.toString().padStart(8, '0')}`,
@@ -163,7 +179,7 @@ describe('authoritative online server', () => {
   it('runs each live series on its own clock and shows both humans the same mirrored rounds', () => {
     const manager = new RoomManager();
     const startedAt = 1_000;
-    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt);
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt, seedWhereHumans(16, true));
     const host = manager.join(code, 'Host player', 'Host org', startedAt);
     const guest = manager.join(code, 'Guest player', 'Guest org', startedAt + 1);
     manager.execute(code, host.participantId, { type: 'start', requestId: 'start-sync-0001' }, startedAt);
@@ -179,7 +195,7 @@ describe('authoritative online server', () => {
     expect(waiting.tournament?.liveCursor?.overviewSeries).toHaveLength(8);
     expect(waiting.tournament?.liveCursor?.overviewSeries.every((series) => series.status === 'pending')).toBe(true);
 
-    // Seeds 1 and 2 (the two humans) meet in round one, so their series opens with an interactive veto.
+    // The room seed was chosen so the two humans meet in round one: their series opens with an interactive veto.
     let now = roundStartsAt;
     manager.tick(now);
     now += 200;
@@ -249,7 +265,7 @@ describe('authoritative online server', () => {
   it('pauses only the series waiting for a human side pick and honours an explicit eco call', () => {
     const manager = new RoomManager();
     const startedAt = 3_000;
-    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt);
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt, seedWhereHumans(8, false));
     const host = manager.join(code, 'Host player', 'Host org', startedAt);
     const guest = manager.join(code, 'Guest player', 'Guest org', startedAt + 1);
     manager.execute(code, host.participantId, { type: 'start', requestId: 'start-decisions' }, startedAt);
@@ -313,6 +329,7 @@ describe('authoritative online server', () => {
       const called = live?.series.maps[mapIndex]?.details?.find((detail) => detail.number === roundNumber);
       expect(called?.economy.a.buy).toBe('force');
       expect(called?.timeout).toBe('a');
+      expect(called?.timeoutTiming).toMatch(/^(window|early|late)$/);
     }
     // One tactical timeout per half: the second request of the half is refused.
     if (!timeoutUsed) expect(() => manager.execute(code, host.participantId, { type: 'call-timeout', requestId: 'timeout-1', seriesId }, now)).not.toThrow();
@@ -346,7 +363,7 @@ describe('authoritative online server', () => {
     expect(later?.overviewSeries.find((series) => series.id === botSeries?.id)?.liveMap?.a).toBeDefined();
   });
 
-  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 7 with synchronized valid $mode pools', async ({ capacity, mode }) => {
+  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 8 with synchronized valid $mode pools', async ({ capacity, mode }) => {
     const server = await startServer();
     const roomCode = await createRoom(server, capacity, mode);
     const clients = await Promise.all(Array.from({ length: capacity }, () => TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`)));
@@ -374,7 +391,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 7 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 8 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.capabilities.season === true && snapshot.season === null && snapshot.config.seasonRuns === 1)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
@@ -391,7 +408,7 @@ describe('authoritative online server', () => {
     }
   }, 20_000);
 
-  it('rejects an obsolete protocol after the protocol 7 upgrade', async () => {
+  it('rejects an obsolete protocol after the protocol 8 upgrade', async () => {
     const server = await startServer();
     const roomCode = await createRoom(server, 2);
     const client = await TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`);
@@ -604,5 +621,57 @@ describe('authoritative online server', () => {
     expect(await found.json()).toMatchObject({ ok: true, roomCode });
     const missing = await fetch(`${server.baseUrl}/rooms/ZZZZZZZZ`, { headers: { origin: 'http://localhost:5173' } });
     expect(missing.status).toBe(404);
+  });
+  it('brings secret players into Resenha lineups and lets Vargão Academy pick three of them', () => {
+    const manager = new RoomManager();
+    const startedAt = 9_000;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, mode: 'fun', entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt);
+    const host = manager.join(code, 'Midowz', 'Org A', startedAt);
+    const guest = manager.join(code, 'Guest', 'Vargão Academy', startedAt + 1);
+    expect(manager.getSnapshot(code, host.participantId, startedAt).capabilities.secretPlayers).toBe(true);
+    manager.execute(code, host.participantId, { type: 'start', requestId: 'start-secret' }, startedAt + 2);
+
+    // The host's alias is already in the lineup; the Academy starts empty with three secret picks to spend.
+    const hostSelf = manager.getSnapshot(code, host.participantId, startedAt + 3).self!;
+    expect(hostSelf.lineup).toEqual([{ playerId: 'secret-midowz', selectedSlotRole: 'lurker' }]);
+    expect(hostSelf.secretPicksLeft).toBe(0);
+    expect(manager.getSnapshot(code, host.participantId, startedAt + 3).participants.find((participant) => participant.id === host.participantId)?.picksCompleted).toBe(1);
+    expect(() => manager.execute(code, host.participantId, { type: 'pick-secret', requestId: 'host-secret', alias: 'Vargas', role: 'igl' }, startedAt + 4)).toThrow(RoomError);
+    const guestSelf = manager.getSnapshot(code, guest.participantId, startedAt + 3).self!;
+    expect(guestSelf.lineup).toEqual([]);
+    expect(guestSelf.secretPicksLeft).toBe(3);
+    manager.execute(code, guest.participantId, { type: 'set-style', requestId: 'guest-style', style: 'balanced' }, startedAt + 4);
+    manager.execute(code, guest.participantId, { type: 'pick-secret', requestId: 'guest-secret-1', alias: 'Vargas', role: 'igl' }, startedAt + 5);
+    manager.execute(code, guest.participantId, { type: 'pick-secret', requestId: 'guest-secret-2', alias: 'Raf4Moon', role: 'rifler' }, startedAt + 6);
+    manager.execute(code, guest.participantId, { type: 'pick-secret', requestId: 'guest-secret-3', alias: 'H1ro', role: 'awper' }, startedAt + 7);
+    expect(() => manager.execute(code, guest.participantId, { type: 'pick-secret', requestId: 'guest-secret-4', alias: 'Gveds', role: 'lurker' }, startedAt + 8)).toThrow(RoomError);
+    expect(manager.getSnapshot(code, guest.participantId, startedAt + 8).self?.lineup.map((pick) => pick.playerId)).toEqual(['secret-vargas', 'secret-raf4moon', 'secret-h1ro']);
+    expect(manager.getSnapshot(code, guest.participantId, startedAt + 8).self?.secretPicksLeft).toBe(0);
+
+    // The deadline autocompletes around the secret players and the run finishes with them in the statistics.
+    manager.tick(startedAt + 61_000);
+    for (const id of [host.participantId, guest.participantId]) {
+      const lineup = manager.getSnapshot(code, id, startedAt + 61_000).self!.lineup;
+      expect(lineup).toHaveLength(5);
+      expect(lineup.filter((pick) => pick.playerId.startsWith('secret-')).length).toBe(id === host.participantId ? 1 : 3);
+    }
+    confirmManagerMaps(manager, code, [host.participantId, guest.participantId], startedAt + 61_000);
+    let now = startedAt + 61_000;
+    let snapshot = manager.getSnapshot(code, host.participantId, now);
+    for (let index = 0; index < 4_000 && snapshot.phase !== 'completed'; index += 1) {
+      now += 200;
+      manager.tick(now);
+      snapshot = manager.getSnapshot(code, host.participantId, now);
+    }
+    expect(snapshot.phase).toBe('completed');
+    expect(snapshot.selfResult?.stats).toHaveLength(5);
+    expect(snapshot.selfResult?.stats.some((stat) => stat.playerId === 'secret-midowz')).toBe(true);
+
+    // Outside the Resenha queues the same names mean nothing.
+    const plain = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60 }, startedAt);
+    const plainHost = manager.join(plain, 'Midowz', 'Org A', startedAt);
+    manager.join(plain, 'Guest', 'Vargão Academy', startedAt + 1);
+    manager.execute(plain, plainHost.participantId, { type: 'start', requestId: 'start-plain' }, startedAt + 2);
+    expect(manager.getSnapshot(plain, plainHost.participantId, startedAt + 3).self?.lineup).toEqual([]);
   });
 });

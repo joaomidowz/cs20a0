@@ -36,7 +36,7 @@ describe('map veto', () => {
     expect(second).toEqual(first);
   });
 
-  it('keeps maps only one lineup knows out of the veto when both share at least seven maps', () => {
+  it('trims a shared pool larger than seven to the seven most familiar maps, like a real active-duty pool', () => {
     const allA = strategy('all-a', ['cache', 'cobblestone', 'train']);
     const allB = strategy('all-b', ['ancient', 'anubis', 'vertigo']);
     for (const mapId of MAP_POOL) {
@@ -45,13 +45,24 @@ describe('map veto', () => {
       allA.familiarity[mapId] = mapId === 'vertigo' ? 0 : 20;
       allB.familiarity[mapId] = mapId === 'cobblestone' ? 0 : 20;
     }
-    const result = resolveMapVeto({ bestOf: 3, teamA: allA, teamB: allB, seed: 'historical-union' });
-    // Nine shared maps: two preliminary bans, then the standard BO3 sequence. Vertigo and Cobblestone never appear.
-    expect(result.steps).toHaveLength(9);
-    expect(result.steps.slice(0, 2).map((step) => step.action)).toEqual(['ban', 'ban']);
-    expect(new Set(result.steps.map((step) => step.mapId)).size).toBe(9);
-    expect(result.steps.some((step) => step.mapId === 'vertigo' || step.mapId === 'cobblestone')).toBe(false);
-    expect(result.playedMaps).toHaveLength(3);
+    // Nine shared maps: the two least familiar ones leave the pool before the veto starts.
+    allA.familiarity.overpass = 5;
+    allB.familiarity.train = 5;
+    const available = getVetoAvailableMaps(allA, allB);
+    expect(available).toHaveLength(7);
+    expect(available).not.toEqual(expect.arrayContaining(['overpass']));
+    expect(available).not.toEqual(expect.arrayContaining(['train']));
+    expect(available.some((mapId) => mapId === 'vertigo' || mapId === 'cobblestone')).toBe(false);
+
+    const bo3 = resolveMapVeto({ bestOf: 3, teamA: allA, teamB: allB, seed: 'historical-union' });
+    expect(bo3.steps.map((step) => step.action)).toEqual(['ban', 'ban', 'pick', 'pick', 'ban', 'ban', 'decider']);
+    expect(new Set(bo3.steps.map((step) => step.mapId)).size).toBe(7);
+    expect(bo3.playedMaps).toHaveLength(3);
+
+    // BO5 follows the rulebook: ban, ban, pick, pick, pick, pick and the remaining map as the fifth decider.
+    const bo5 = resolveMapVeto({ bestOf: 5, teamA: allA, teamB: allB, seed: 'historical-union' });
+    expect(bo5.steps.map((step) => `${step.action}:${step.teamId ?? '-'}`)).toEqual(['ban:all-a', 'ban:all-b', 'pick:all-a', 'pick:all-b', 'pick:all-a', 'pick:all-b', 'decider:-']);
+    expect(bo5.playedMaps).toHaveLength(5);
   });
 
   it('fills the pool with one-sided maps only when the shared pool is short, so a 2018 bot cannot force Cobblestone', () => {
@@ -74,6 +85,8 @@ describe('map veto', () => {
   it('builds the same plan the resolver follows', () => {
     expect(buildVetoPlan(3, 7).map((step) => `${step.action}:${step.actor}`)).toEqual(['ban:a', 'ban:b', 'pick:a', 'pick:b', 'ban:a', 'ban:b']);
     expect(buildVetoPlan(1, 9).map((step) => step.action)).toEqual(['ban', 'ban', 'ban', 'ban', 'ban', 'ban', 'ban', 'ban']);
-    expect(buildVetoPlan(5, 7).filter((step) => step.action === 'pick')).toHaveLength(4);
+    // A preliminary ban never makes the same team act twice in a row.
+    expect(buildVetoPlan(3, 8).map((step) => `${step.action}:${step.actor}`)).toEqual(['ban:a', 'ban:b', 'ban:a', 'pick:b', 'pick:a', 'ban:b', 'ban:a']);
+    expect(buildVetoPlan(5, 7).map((step) => `${step.action}:${step.actor}`)).toEqual(['ban:a', 'ban:b', 'pick:a', 'pick:b', 'pick:a', 'pick:b']);
   });
 });

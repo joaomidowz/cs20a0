@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, currentLossStreak, decisionKey, halfOfRound, shouldAnswerAgain, shouldCallTimeout } from '../src/lib/game/online-automation';
+import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, currentLossStreak, decisionKey, halfOfRound, shouldAnswerAgain, shouldCallTimeout, timeoutTimingFor } from '../src/lib/game/online-automation';
 import { DEFAULT_STRATEGIC_AUTOMATION } from '../src/lib/game/preferences';
 import type { PublicPendingDecision } from '../src/lib/game/online/contracts';
 import type { RoundDetail, TeamSide } from '../src/lib/game/types';
@@ -60,6 +60,17 @@ describe('automação da engrenagem no online', () => {
     expect(currentLossStreak([...firstHalf, round(13, 'b')], 'a')).toBe(1);
     expect(halfOfRound(12)).not.toBe(halfOfRound(13));
     expect(halfOfRound(25)).not.toBe(halfOfRound(24));
+  });
+
+  it('classifica o momento da pausa pela sequência de derrotas do tempo atual', () => {
+    const streak = [round(1, 'b'), round(2, 'b'), round(3, 'b'), round(4, 'b'), round(5, 'b')];
+    expect(timeoutTimingFor([], 'a')).toBe('early');
+    expect(timeoutTimingFor(streak.slice(0, 1), 'a')).toBe('early');
+    expect(timeoutTimingFor(streak.slice(0, 2), 'a')).toBe('window');
+    expect(timeoutTimingFor(streak.slice(0, 4), 'a')).toBe('window');
+    expect(timeoutTimingFor(streak, 'a')).toBe('late');
+    // O intervalo zera a contagem: o round 13 abre o segundo tempo.
+    expect(timeoutTimingFor([round(10, 'b'), round(11, 'b'), round(12, 'b'), round(13, 'b')], 'a')).toBe('early');
   });
 
   it('pede a pausa depois de quatro derrotas seguidas, e só se restar pausa', () => {

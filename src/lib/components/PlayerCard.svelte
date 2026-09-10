@@ -32,7 +32,7 @@
 >
   <span class="player-topline">
     <span class="avatar">{initials}</span>
-    {#if showRarity}<span class="rarity-label">{rarity}</span>{/if}
+    {#if player.id.startsWith('secret-')}<span class="secret-label">SECRET</span>{:else if showRarity}<span class="rarity-label">{rarity}</span>{/if}
   </span>
   <span class="player-name">{player.nickname ?? 'Unknown'}</span>
   <span class="player-title">{translateTitle(language, playerTitle(player))}</span>

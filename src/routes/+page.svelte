@@ -1111,7 +1111,7 @@
           {#if campaignView.phase !== 'veto' && !campaignPending}
             <div class="live-actions">
               <div class="live-buttons">
-                {#if !strategicPreferences.autoPause && campaignView.phase === 'live'}<TimeoutButton remaining={campaignView.timeoutsLeft} disabled={Boolean(campaignPending)} language={$game.language} onCall={requestCampaignTimeout} />{/if}
+                {#if !strategicPreferences.autoPause && campaignView.phase === 'live'}<TimeoutButton remaining={campaignView.timeoutsLeft} timing={campaignView.timeoutTiming} disabled={Boolean(campaignPending)} language={$game.language} onCall={requestCampaignTimeout} />{/if}
                 {#if !liveRunning}
                   <button class="primary live-button" type="button" on:click={() => { liveRunning = true; }}>{t('startSeries')}</button>
                 {:else}

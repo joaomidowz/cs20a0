@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { aggregateKills } from '$lib/game/rounds';
+  import { translate } from '$lib/game/i18n';
   import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel, getVisibleRoundTag } from '$lib/game/roundPresentation';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail } from '$lib/game/types';
@@ -78,7 +79,7 @@
       <span class="buy {currentDetail.economy.a.buy}" class:mine={isMine('a')} title={`${teamNames.a} · $${currentDetail.economy.a.money}`}><i>{sideLabels[currentDetail.sideA]}</i>{buyLabels[currentDetail.economy.a.buy]}{#if currentDetail.economy.a.awp}<em>AWP</em>{/if}</span>
       <div class="round-center">
         <em class="round-number">R{currentDetail.number}</em>
-        {#if currentDetail.timeout}<b class="round-tag timeout" class:mine={isMine(currentDetail.timeout)}>⏸ {teamNames[currentDetail.timeout]}</b>{/if}
+        {#if currentDetail.timeout}<b class="round-tag timeout" class:mine={isMine(currentDetail.timeout)} title={currentDetail.timeoutTiming ? translate(language, currentDetail.timeoutTiming === 'window' ? 'timeoutWindow' : currentDetail.timeoutTiming === 'early' ? 'timeoutEarly' : 'timeoutLate') : undefined}>⏸ {teamNames[currentDetail.timeout]}{#if currentDetail.timeoutTiming && currentDetail.timeoutTiming !== 'window'} · ⅓{/if}</b>{/if}
         {#if tag}<b class="round-tag {tag}" class:mine={resolved && isMine(currentDetail.winner)}>{getRoundTagLabel(language, tag)}</b>{/if}
       </div>
       <span class="buy right {currentDetail.economy.b.buy}" class:mine={isMine('b')} title={`${teamNames.b} · $${currentDetail.economy.b.money}`}>{#if currentDetail.economy.b.awp}<em>AWP</em>{/if}{buyLabels[currentDetail.economy.b.buy]}<i>{sideLabels[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>

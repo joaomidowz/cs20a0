@@ -100,11 +100,11 @@ describe('series presentation', () => {
       expect(getCommittedRounds(0, 0, true, false)).toBe(0);
     });
 
-    it('is instant on ultra speed, when the series is over and on the last round of a map', () => {
+    it('is instant only on ultra speed: the last round of a map or a series still plays its feed', () => {
       expect(shouldCommitInstantly({ delay: 1500, finished: false, mapFinished: false })).toBe(false);
       expect(shouldCommitInstantly({ delay: 180, finished: false, mapFinished: false })).toBe(true);
-      expect(shouldCommitInstantly({ delay: 1500, finished: true, mapFinished: false })).toBe(true);
-      expect(shouldCommitInstantly({ delay: 1500, finished: false, mapFinished: true })).toBe(true);
+      expect(shouldCommitInstantly({ delay: 1500, finished: true, mapFinished: false })).toBe(false);
+      expect(shouldCommitInstantly({ delay: 1500, finished: false, mapFinished: true })).toBe(false);
     });
 
     it('flashes the last committed round while the next one plays and clears it afterwards', () => {

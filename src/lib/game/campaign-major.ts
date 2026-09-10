@@ -7,6 +7,7 @@ import {
   runSeriesToEnd,
   seriesLossStreak,
   seriesSideA,
+  seriesTimeoutTiming,
   seriesTimeouts,
   stepSeries,
   type LiveSeriesState,
@@ -24,7 +25,7 @@ import {
   type TournamentEngineState
 } from './online/tournament-engine';
 import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
-import type { GameMode, HistoricalTeam, MajorRun, MapId, MapSide, OrgStyle, Player, SelectedPlayer, SeriesResult } from './types';
+import type { GameMode, HistoricalTeam, MajorRun, MapId, MapSide, OrgStyle, Player, SelectedPlayer, SeriesResult, TimeoutTiming } from './types';
 
 /**
  * The campaign Major played round by round: the user's series stop for the veto, the side, the economy call and the
@@ -50,8 +51,10 @@ export interface CampaignLiveView {
   started: boolean;
   finished: boolean;
   timeoutsLeft: number;
-  /** Rounds the user has lost in a row in the live map. */
+  /** Rounds the user has lost in a row in the current half of the live map. */
   lossStreak: number;
+  /** How a timeout called now would be timed (window = full effect). */
+  timeoutTiming: TimeoutTiming | null;
   userSide: MapSide | null;
   veto: { available: MapId[]; steps: NonNullable<SeriesResult['veto']>; turnTeamId: string | null; action: 'ban' | 'pick' | null } | null;
 }
@@ -225,6 +228,7 @@ export function getCampaignLiveView(state: CampaignMajorState): CampaignLiveView
   const userIsA = live.config.teamA.id === state.userTeamId;
   const timeouts = seriesTimeouts(live);
   const streaks = seriesLossStreak(live);
+  const timing = seriesTimeoutTiming(live);
   const sideA = seriesSideA(live);
   const maps = state.run.matches.find((match) => match.id === live.config.id)?.maps ?? [];
   return {
@@ -236,6 +240,7 @@ export function getCampaignLiveView(state: CampaignMajorState): CampaignLiveView
     finished: live.phase === 'finished',
     timeoutsLeft: userIsA ? timeouts.a : timeouts.b,
     lossStreak: userIsA ? streaks.a : streaks.b,
+    timeoutTiming: timing ? (userIsA ? timing.a : timing.b) : null,
     userSide: sideA ? (userIsA ? sideA : sideA === 'ct' ? 't' : 'ct') : null,
     veto: live.veto
       ? { available: [...live.veto.available], steps: [...live.veto.steps], turnTeamId: pending?.kind === 'veto' ? pending.teamId : null, action: pending?.kind === 'veto' ? pending.action : null }

@@ -7,7 +7,7 @@ import {
   getSelectedMapPowerBonus,
   getTeamMapPreferences
 } from './maps';
-import type { GameMode, HistoricalTeam, MapAffinity, MapId, MapVetoStep, Player, Roster } from './types';
+import type { HistoricalTeam, MapAffinity, MapId, MapVetoStep, OnlineGameMode, Player, Roster } from './types';
 
 export interface MapStrategy {
   teamId: string;
@@ -18,7 +18,7 @@ export interface MapStrategy {
 }
 
 export interface MapSimulationContext {
-  mode: GameMode;
+  mode: OnlineGameMode;
   seed: string;
   strategies: Map<string, MapStrategy>;
   /** Lineups by team id, used to generate the kill feed of every round. */
@@ -72,16 +72,20 @@ export function chooseMap(
 export const VETO_POOL_SIZE = 7;
 
 /**
- * Maps a veto is played on. Maps both lineups know come first; a map only one side has ever played is added only
- * when it is needed to reach seven, so nobody ends up on a decider they have never touched when there is an alternative.
+ * The seven maps a veto is played on, like the active-duty pool of a real Major. Maps both lineups know come first,
+ * the most familiar ones when more than seven are shared; a map only one side has ever played is added only when it
+ * is needed to reach seven, so nobody ends up on a decider they have never touched when there is an alternative.
  */
 export function getVetoAvailableMaps(teamA: MapStrategy, teamB: MapStrategy): MapId[] {
+  const combined = (mapId: MapId) => teamA.familiarity[mapId] + teamB.familiarity[mapId];
+  const byFamiliarity = (left: MapId, right: MapId) => combined(right) - combined(left) || MAP_POOL.indexOf(left) - MAP_POOL.indexOf(right);
   const shared = MAP_POOL.filter((mapId) => teamA.familiarity[mapId] > 0 && teamB.familiarity[mapId] > 0);
-  if (shared.length >= VETO_POOL_SIZE) return shared;
   const oneSided = MAP_POOL
     .filter((mapId) => !shared.includes(mapId) && (teamA.familiarity[mapId] > 0 || teamB.familiarity[mapId] > 0))
-    .sort((left, right) => (teamA.familiarity[right] + teamB.familiarity[right]) - (teamA.familiarity[left] + teamB.familiarity[left]) || left.localeCompare(right));
-  const available = [...shared, ...oneSided.slice(0, VETO_POOL_SIZE - shared.length)];
+    .sort(byFamiliarity);
+  const available = shared.length >= VETO_POOL_SIZE
+    ? [...shared].sort(byFamiliarity).slice(0, VETO_POOL_SIZE)
+    : [...shared, ...oneSided.slice(0, VETO_POOL_SIZE - shared.length)];
   if (available.length < VETO_POOL_SIZE) throw new Error('A map veto requires at least seven maps known by one of the lineups');
   return MAP_POOL.filter((mapId) => available.includes(mapId));
 }
@@ -91,18 +95,21 @@ export interface VetoPlanStep {
   actor: 'a' | 'b';
 }
 
-/** Alternating preliminary bans while more than seven maps remain, then the standard sequence for the format. */
+/**
+ * The official sequence for the format on a seven-map pool: BO1 six alternating bans, BO3 ban/ban/pick/pick/ban/ban,
+ * BO5 ban/ban/pick/pick/pick/pick; the last map is always the decider. Pools larger than seven (never produced by
+ * `getVetoAvailableMaps`) get alternating preliminary bans first, keeping the turn order continuous.
+ */
 export function buildVetoPlan(bestOf: 1 | 3 | 5, availableCount: number): VetoPlanStep[] {
   const plan: VetoPlanStep[] = [];
-  for (let remaining = availableCount; remaining > VETO_POOL_SIZE; remaining -= 1) {
-    plan.push({ action: 'ban', actor: plan.length % 2 === 0 ? 'a' : 'b' });
-  }
+  const push = (action: 'ban' | 'pick') => plan.push({ action, actor: plan.length % 2 === 0 ? 'a' : 'b' });
+  for (let remaining = availableCount; remaining > VETO_POOL_SIZE; remaining -= 1) push('ban');
   const sequence: Array<'ban' | 'pick'> = bestOf === 1
     ? ['ban', 'ban', 'ban', 'ban', 'ban', 'ban']
     : bestOf === 3
       ? ['ban', 'ban', 'pick', 'pick', 'ban', 'ban']
       : ['ban', 'ban', 'pick', 'pick', 'pick', 'pick'];
-  sequence.forEach((action, index) => plan.push({ action, actor: index % 2 === 0 ? 'a' : 'b' }));
+  sequence.forEach(push);
   return plan;
 }
 
@@ -150,7 +157,7 @@ export function createBotMapStrategy(team: HistoricalTeam): MapStrategy {
   return { teamId: team.id, selectedMaps, affinities, familiarity, bot: true };
 }
 
-export function getStrategyMapBonus(strategy: MapStrategy, mapId: MapId, mode: GameMode): number {
+export function getStrategyMapBonus(strategy: MapStrategy, mapId: MapId, mode: OnlineGameMode): number {
   if (!strategy.selectedMaps.includes(mapId)) return 0;
   return getSelectedMapPowerBonus(mode, strategy.affinities[mapId]);
 }

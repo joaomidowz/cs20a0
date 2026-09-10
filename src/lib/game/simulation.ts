@@ -4,6 +4,7 @@ import type { OnlineTournamentResult } from './online/tournament-engine';
 import type {
   CombatTeam,
   GameMode,
+  OnlineGameMode,
   HistoricalTeam,
   MajorRun,
   MapId,
@@ -218,6 +219,7 @@ export interface MapOptions {
   /** Team that chooses its starting side (the opponent of whoever picked the map). Omit for a coin flip. */
   sidePickerTeamId?: string | null;
   pickedBy?: string | null;
+  mode?: OnlineGameMode;
 }
 
 /** Plays a full MR12 map (with MR3 overtime) through the round engine, letting bot policies take every decision. */
@@ -319,6 +321,7 @@ export function simulateMappedSeries(
     const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, {
       ...rosters,
       mapId: step.mapId,
+      mode: mapContext.mode,
       pickedBy,
       sidePickerTeamId,
       powerBonusA: getStrategyMapBonus(strategyA, step.mapId, mapContext.mode),

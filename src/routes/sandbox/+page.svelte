@@ -511,7 +511,7 @@
           {#if !liveView.finished && liveView.phase !== 'veto' && !pendingDecision}
             <div class="sandbox-live-actions">
               <div class="live-buttons">
-                {#if !strategicPreferences.autoPause && liveView.phase === 'live'}<TimeoutButton remaining={liveView.timeoutsLeft} disabled={Boolean(pendingDecision)} language="pt-BR" onCall={requestTimeout} />{/if}
+                {#if !strategicPreferences.autoPause && liveView.phase === 'live'}<TimeoutButton remaining={liveView.timeoutsLeft} timing={liveView.timeoutTiming} disabled={Boolean(pendingDecision)} language="pt-BR" onCall={requestTimeout} />{/if}
                 {#if !liveRunning}
                   <button class="primary live-button" type="button" on:click={startLiveSeries}>Iniciar série</button>
                 {:else}

@@ -5,7 +5,7 @@
   import RoundFlash from '$lib/components/live/RoundFlash.svelte';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
-  import { getCommittedRounds, getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '$lib/game/seriesPresentation';
+  import { LAST_ROUND_FEED_FACTOR, getCommittedRounds, getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
   import type { Language, RoundDetail, SeriesResult } from '$lib/game/types';
 
@@ -79,12 +79,15 @@
     finished: displayFinished
   });
   $: currentMap = series.maps[displayActiveMap];
-  $: currentMapFinished = Boolean(currentMap && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0 && currentMap.winnerId);
+  // The map only reads as finished once its last round was committed (the feed of that round played out).
+  $: currentMapFinished = Boolean(currentMap && committedRounds >= currentMap.rounds.length && currentMap.rounds.length > 0 && currentMap.winnerId);
   $: currentDetails = liveDetails ?? currentMap?.details ?? null;
   $: feedDelay = controlled ? controlledDelay : delay;
+  // The last round of a map plays slower so its whole kill feed is seen before the map closes.
+  $: roundFeedDelay = currentMap && currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length ? feedDelay * LAST_ROUND_FEED_FACTOR : feedDelay;
   $: liveDetail = displayVisibleRounds > 0 ? currentDetails?.find((detail) => detail?.number === displayVisibleRounds) ?? null : null;
   // The revealed round stays in progress (score, strip and ending unchanged) until its kill feed resolves it.
-  $: instantCommit = shouldCommitInstantly({ delay: feedDelay, finished: displayFinished, mapFinished: currentMapFinished });
+  $: instantCommit = shouldCommitInstantly({ delay: feedDelay });
   $: committedRounds = getCommittedRounds(displayVisibleRounds, resolved.map === displayActiveMap ? resolved.round : 0, Boolean(liveDetail?.kills.length), instantCommit);
   $: roundInProgress = displayStarted && committedRounds < displayVisibleRounds;
   $: committedDetail = committedRounds > 0 ? currentDetails?.find((detail) => detail?.number === committedRounds) ?? null : null;
@@ -139,6 +142,9 @@
         if (skipped) continue;
         visibleRounds += 1;
       }
+      if (thisRun !== runId) return;
+      // Let the last round's kill feed play out before the map closes (and before the next map starts).
+      if (series.maps[mapIndex].details?.length && delay >= 400) await wait(delay * LAST_ROUND_FEED_FACTOR);
       if (thisRun !== runId) return;
       if (mapIndex < series.maps.length - 1) await wait(Math.min(900, delay));
     }
@@ -256,7 +262,7 @@
       <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} {language} {teamNames} />
       <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
       {#if currentDetails?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={feedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
+        <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={roundFeedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}
     </div>
   {/if}

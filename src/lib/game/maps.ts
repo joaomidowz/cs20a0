@@ -1,5 +1,6 @@
 import type {
   GameMode,
+  OnlineGameMode,
   HistoricalMapRecord,
   HistoricalTeam,
   MapAffinity,
@@ -160,7 +161,7 @@ export const isValidLineupMapSelection = (maps: readonly unknown[], players: Pla
   return maps.every((mapId) => contributors[mapId].length > 0);
 };
 
-export function getSelectedMapPowerBonus(mode: GameMode, affinity: MapAffinity): number {
+export function getSelectedMapPowerBonus(mode: OnlineGameMode, affinity: MapAffinity): number {
   if (affinity === 'EVEN') return 0;
   const level = affinity === '+' ? 1 : affinity === '++' ? 2 : 3;
   return level * (mode === 'faceit' || mode === 'pro' ? 1.5 : 0.5);

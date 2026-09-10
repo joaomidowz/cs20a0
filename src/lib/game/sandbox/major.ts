@@ -8,6 +8,7 @@ import {
   runSeriesToEnd,
   seriesLossStreak,
   seriesSideA,
+  seriesTimeoutTiming,
   seriesTimeouts,
   stepSeries,
   toSeriesResult,
@@ -28,7 +29,7 @@ import {
 } from '../online/tournament-engine';
 import { computeMajorAwards } from '../majorAwards';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
-import type { LineupSlotRole, MapId, MapSide, Roster, SeriesResult } from '../types';
+import type { LineupSlotRole, MapId, MapSide, Roster, SeriesResult, TimeoutTiming } from '../types';
 import { buildSandboxCombatTeam } from './lineup';
 import type { SandboxLineupSelection, SandboxMajorMatch, SandboxMajorState } from './types';
 
@@ -277,6 +278,7 @@ export interface SandboxLiveView {
   timeoutsLeft: number;
   /** Rounds the user has lost in a row in the live map. */
   lossStreak: number;
+  timeoutTiming: TimeoutTiming | null;
   userSide: MapSide | null;
   veto: { available: MapId[]; steps: NonNullable<SeriesResult['veto']>; turnTeamId: string | null; action: 'ban' | 'pick' | null } | null;
 }
@@ -290,6 +292,7 @@ export function getSandboxLiveView(state: SandboxMajorState): SandboxLiveView | 
   const userIsA = live.config.teamA.id === USER_TEAM_ID;
   const timeouts = seriesTimeouts(live);
   const streaks = seriesLossStreak(live);
+  const timing = seriesTimeoutTiming(live);
   const sideA = seriesSideA(live);
   return {
     seriesId: live.config.id,
@@ -300,6 +303,7 @@ export function getSandboxLiveView(state: SandboxMajorState): SandboxLiveView | 
     finished: live.phase === 'finished',
     timeoutsLeft: userIsA ? timeouts.a : timeouts.b,
     lossStreak: userIsA ? streaks.a : streaks.b,
+    timeoutTiming: timing ? (userIsA ? timing.a : timing.b) : null,
     userSide: sideA ? (userIsA ? sideA : sideA === 'ct' ? 't' : 'ct') : null,
     veto: live.veto
       ? { available: [...live.veto.available], steps: [...live.veto.steps], turnTeamId: pending?.kind === 'veto' ? pending.teamId : null, action: pending?.kind === 'veto' ? pending.action : null }

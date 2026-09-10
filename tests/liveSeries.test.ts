@@ -125,6 +125,13 @@ describe('live series', () => {
     stepSeries(state);
     const details = toSeriesResult(state).maps[0].details!;
     expect(details.at(-1)?.timeout).toBe('a');
+    expect(details.at(-1)?.timeoutTiming).toMatch(/^(window|early|late)$/);
+  });
+
+  it('carries the queue into every map so Resenha pauses weigh more', () => {
+    const state = createLiveSeries(config({ mode: 'fun', interactiveVeto: false, controllers: { a: 'human', b: 'bot' } }));
+    stepSeries(state);
+    expect(state.current?.state.mode).toBe('fun');
   });
 
   it('is deterministic for the same seed and decisions, and replays a decision log to the same result', () => {
@@ -147,6 +154,17 @@ describe('live series', () => {
     const automatic = createLiveSeries(config());
     runSeriesToEnd(automatic);
     expect(toSeriesResult(automatic).maps.map((map) => map.rounds)).not.toEqual(first.maps.map((map) => map.rounds));
+  });
+
+  it('opens a BO5 veto on exactly seven maps even when both lineups know the whole pool', () => {
+    const wide = (teamId: string, selected: [MapId, MapId, MapId]) => {
+      const base = strategy(teamId, selected);
+      for (const mapId of MAP_POOL) base.familiarity[mapId] = 60;
+      return base;
+    };
+    const state = createLiveSeries(config({ bestOf: 5, phase: 'final', strategies: { a: wide('a', ['ancient', 'mirage', 'nuke']), b: wide('b', ['anubis', 'cache', 'inferno']) } }));
+    expect(state.veto?.available).toHaveLength(7);
+    expect(state.veto?.plan.map((step) => `${step.action}:${step.actor}`)).toEqual(['ban:a', 'ban:b', 'pick:a', 'pick:b', 'pick:a', 'pick:b']);
   });
 
   it('plays numbered maps without a veto when no strategies exist', () => {

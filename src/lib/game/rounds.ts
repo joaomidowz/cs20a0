@@ -9,6 +9,7 @@ import type {
   MapId,
   MapResult,
   MapSide,
+  OnlineGameMode,
   Player,
   Roster,
   RoundDetail,
@@ -20,6 +21,7 @@ import type {
   SeriesDecision,
   TeamEconomy,
   TeamSide,
+  TimeoutTiming,
   Weapon
 } from './types';
 
@@ -45,6 +47,8 @@ export interface MapStateOptions {
   sidePickerTeamId?: string | null;
   controllers?: { a: Controller; b: Controller };
   pickedBy?: string | null;
+  /** Queue the map is played in; the tactical timeout weighs more in PRO and in the Resenha modes. */
+  mode?: OnlineGameMode;
 }
 
 interface TeamRuntime {
@@ -53,6 +57,8 @@ interface TeamRuntime {
   awpers: Player[];
   money: number;
   lossStreak: number;
+  /** Rounds lost in a row in the current half (resets on a win and at every half); drives the timeout window. */
+  consecutiveLosses: number;
   momentum: number;
   timeoutsRemaining: number;
   maxDeficit: number;
@@ -65,6 +71,7 @@ interface TeamRuntime {
 export interface MapState {
   mapNumber: number;
   mapId?: MapId;
+  mode: OnlineGameMode;
   rng: SeededRng;
   controllers: { a: Controller; b: Controller };
   teams: { a: TeamRuntime; b: TeamRuntime };
@@ -80,6 +87,9 @@ export interface MapState {
   pendingSide: TeamSide | null;
   pendingEcoCall: { side: TeamSide; roundNumber: number } | null;
   pendingTimeout: TeamSide | null;
+  /** Probability edge the armed timeout gives its caller in the next round, and how well timed it was. */
+  pendingTimeoutBonus: number;
+  pendingTimeoutTiming: TimeoutTiming | null;
   finished: boolean;
   winner: TeamSide | null;
   comeback: TeamSide | null;
@@ -131,12 +141,34 @@ const WINNER_KILL_WEIGHTS: Record<Exclude<RoundEnding, 'elimination'>, number[]>
 };
 /**
  * Multiplier on a player's chance of the next kill by the kills it already has in the round: after an opening kill the
- * teammates take the trades, while a player with three kills is in a dominant position and tends to close the round.
+ * teammates take the trades, so 3Ks stay uncommon, 4Ks rare and aces an event (about one every four hundred rounds).
+ * Stars (95+) keep a hotter hand than role players.
  */
-const HOT_HAND = [1, 0.55, 0.4, 2, 5];
+const HOT_HAND = [1, 0.62, 0.22, 0.3, 0.45];
+const STAR_HOT_HAND = [1, 0.75, 0.45, 0.6, 1];
+const STAR_OVERALL = 95;
+const hotHand = (player: Player, kills: number) => {
+  const table = number(player.overall, 75) >= STAR_OVERALL ? STAR_HOT_HAND : HOT_HAND;
+  return table[Math.min(table.length - 1, kills)];
+};
+/**
+ * Share of the rounds in which the winner's last survivor beats N enemies alone. Real clutch kings sit around 20% in
+ * 1v3s; ordinary players well under 10%. A rejected draw reorders the kills so the round is decided by a trade instead.
+ */
+const CLUTCH_ACCEPTANCE: Record<number, number> = { 2: 1, 3: 0.35, 4: 0.14, 5: 0.05 };
+/** How much each position weighs in the frag split: entries and lurkers create the picks, IGLs and supports set them up. */
+const ROLE_KILL_FACTOR: Record<LineupSlotRole, number> = { entry: 1.06, lurker: 1.05, rifler: 1.03, awper: 1, igl: 0.96, support: 0.95 };
 const MOMENTUM_STEP = 0.01;
 const MAX_MOMENTUM = 5;
-const TIMEOUT_BONUS = 0.05;
+/** Round-win edge of a well-timed tactical timeout, by queue: barely felt in Normal/Ranked, decisive in PRO and Resenha. */
+export const TIMEOUT_BONUS_BY_MODE: Record<OnlineGameMode, number> = { premier: 0.03, faceit: 0.03, pro: 0.08, fun: 0.1, max_fun: 0.1 };
+/** Straight losses in the half during which a timeout has its full effect; earlier or later it keeps a third of it. */
+export const TIMEOUT_WINDOW = { from: 2, to: 4 } as const;
+export const TIMEOUT_OFF_WINDOW_FACTOR = 1 / 3;
+export const timeoutTiming = (consecutiveLosses: number): TimeoutTiming =>
+  consecutiveLosses < TIMEOUT_WINDOW.from ? 'early' : consecutiveLosses <= TIMEOUT_WINDOW.to ? 'window' : 'late';
+export const timeoutBonus = (mode: OnlineGameMode, timing: TimeoutTiming) =>
+  (TIMEOUT_BONUS_BY_MODE[mode] ?? TIMEOUT_BONUS_BY_MODE.premier) * (timing === 'window' ? 1 : TIMEOUT_OFF_WINDOW_FACTOR);
 const REGULATION_ROUNDS = 24;
 const HALF_ROUNDS = 12;
 const OVERTIME_HALF_ROUNDS = 3;
@@ -168,11 +200,13 @@ const isAwper = (player: Player, roles?: Map<string, LineupSlotRole>) => {
   return getEligibleSlotRoles(player).includes('awper') || (player.awp ?? 0) >= 85;
 };
 
-const killerWeight = (player: Player, holdsAwp: boolean) => {
+const roleOf = (player: Player, roster: Roster | null): LineupSlotRole => roster?.roles?.get(player.id) ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
+
+const killerWeight = (player: Player, holdsAwp: boolean, role: LineupSlotRole) => {
   const base = (player.firepower ?? 70) * 0.6 + (player.entry ?? 65) * 0.25 + (player.overall ?? 75) * 0.15;
-  const awpBonus = holdsAwp ? (player.awp ?? 70) * 0.5 : 0;
-  // Squared so stars take a clearly bigger share of the frags (and of the multi-kills) than role players.
-  return Math.max(10, base + awpBonus) ** 2;
+  const awpBonus = holdsAwp ? (player.awp ?? 70) * 0.25 : 0;
+  // Raised to a power so stars take a bigger share of the frags than role players, without the AWP running away with every round.
+  return (Math.max(10, base + awpBonus) * ROLE_KILL_FACTOR[role]) ** 1.3;
 };
 
 const victimWeight = (player: Player) => Math.max(10, 115 - (player.consistency ?? 65) * 0.35 - (player.mental ?? 65) * 0.15);
@@ -252,6 +286,7 @@ const createRuntime = (team: CombatTeam, roster: Roster | undefined, variation: 
   awpers: roster?.players.filter((player) => isAwper(player, roster.roles)) ?? [],
   money: START_MONEY,
   lossStreak: 0,
+  consecutiveLosses: 0,
   momentum: 0,
   timeoutsRemaining: 1,
   maxDeficit: 0,
@@ -269,6 +304,7 @@ export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: Ma
   return {
     mapNumber: options.mapNumber ?? 1,
     mapId: options.mapId,
+    mode: options.mode ?? 'premier',
     rng,
     controllers: options.controllers ?? { a: 'bot', b: 'bot' },
     teams: {
@@ -287,6 +323,8 @@ export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: Ma
     pendingSide: sidePicker,
     pendingEcoCall: null,
     pendingTimeout: null,
+    pendingTimeoutBonus: 0,
+    pendingTimeoutTiming: null,
     finished: false,
     winner: null,
     comeback: null,
@@ -342,6 +380,10 @@ export function autoDecide(state: MapState): void {
   applyDecision(state, { type: 'eco-call', call: botEcoCall(runtime.team, runtime.money, state.rng) }, true);
 }
 
+/** Rounds a team has lost in a row in the current half (the timeout window opens at two and closes after four). */
+export const getConsecutiveLosses = (state: MapState, teamId: string) =>
+  teamIdOf(state, 'a') === teamId ? state.teams.a.consecutiveLosses : teamIdOf(state, 'b') === teamId ? state.teams.b.consecutiveLosses : 0;
+
 export const getTimeoutsRemaining = (state: MapState, teamId: string) =>
   teamIdOf(state, 'a') === teamId ? state.teams.a.timeoutsRemaining : teamIdOf(state, 'b') === teamId ? state.teams.b.timeoutsRemaining : 0;
 
@@ -360,9 +402,12 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
   const side: TeamSide | null = teamIdOf(state, 'a') === teamId ? 'a' : teamIdOf(state, 'b') === teamId ? 'b' : null;
   if (!side) throw new MapDecisionError('INVALID_DECISION', 'Unknown team');
   if (state.pendingTimeout || state.teams[side].timeoutsRemaining <= 0) return false;
+  const timing = timeoutTiming(state.teams[side].consecutiveLosses);
   state.teams[side].timeoutsRemaining -= 1;
   state.pendingTimeout = side;
-  state.decisions.push({ kind: 'timeout', teamId, mapIndex: state.mapNumber - 1, roundNumber: state.rounds.length + 1, auto });
+  state.pendingTimeoutBonus = timeoutBonus(state.mode, timing);
+  state.pendingTimeoutTiming = timing;
+  state.decisions.push({ kind: 'timeout', teamId, mapIndex: state.mapNumber - 1, roundNumber: state.rounds.length + 1, auto, timing });
   return true;
 }
 
@@ -382,7 +427,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
     const momentumEdge = (streak: number, opponent: CombatTeam) => MOMENTUM_STEP * streak * (1 - clamp((number(opponent.mental, 80) - 80) / 100, -0.2, 0.2));
     probability = base + economyEdge + sideBias + momentumEdge(a.momentum, b.team) - momentumEdge(b.momentum, a.team);
   }
-  if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? TIMEOUT_BONUS : -TIMEOUT_BONUS;
+  if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
   if (overtime) {
     const mentalA = (number(a.team.mental, 80) + number(a.team.clutch, 80)) / 2;
     const mentalB = (number(b.team.mental, 80) + number(b.team.clutch, 80)) / 2;
@@ -405,12 +450,33 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   const winnerKills = ending === 'elimination' ? 5 : weighted(WINNER_KILL_WEIGHTS[ending], 1);
   const loserKills = weighted(LOSER_KILL_WEIGHTS[clamp(gap, -2, 2) + 2], 0);
   // Every loser kill happens before the final winner kill so an eliminated team never frags after dying out.
-  const order: TeamSide[] = [...Array<TeamSide>(winnerKills - 1).fill(winner), ...Array<TeamSide>(loserKills).fill(loser)];
-  for (let cursor = order.length - 1; cursor > 0; cursor -= 1) {
-    const target = Math.floor(rng() * (cursor + 1));
-    [order[cursor], order[target]] = [order[target], order[cursor]];
+  const shuffled = (): TeamSide[] => {
+    const draft: TeamSide[] = [...Array<TeamSide>(winnerKills - 1).fill(winner), ...Array<TeamSide>(loserKills).fill(loser)];
+    for (let cursor = draft.length - 1; cursor > 0; cursor -= 1) {
+      const target = Math.floor(rng() * (cursor + 1));
+      [draft[cursor], draft[target]] = [draft[target], draft[cursor]];
+    }
+    draft.push(winner);
+    return draft;
+  };
+  // Enemies still standing when the winner is down to one player (0 when the round never became a clutch).
+  const clutchSize = (draft: TeamSide[]) => {
+    let winnerAlive = 5;
+    let loserAlive = 5;
+    for (const side of draft) {
+      if (side === loser) {
+        winnerAlive -= 1;
+        if (winnerAlive === 1 && loserAlive >= 2) return loserAlive;
+      } else loserAlive -= 1;
+    }
+    return 0;
+  };
+  let order = shuffled();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const against = clutchSize(order);
+    if (against < 3 || rng() < CLUTCH_ACCEPTANCE[Math.min(5, against)]) break;
+    order = shuffled();
   }
-  order.push(winner);
   const kills: RoundKill[] = [];
   if (!rosters.a || !rosters.b) return { kills, clutch: false, winnerDeaths: loserKills, highlight: null, multiKill: null };
   const alive: Record<TeamSide, Player[]> = { a: [...rosters.a.players], b: [...rosters.b.players] };
@@ -420,7 +486,7 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   for (const side of order) {
     const enemy = other(side);
     if (!alive[side].length || !alive[enemy].length) break;
-    const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id) * HOT_HAND[Math.min(HOT_HAND.length - 1, killsBy.get(player.id) ?? 0)]] as [Player, number]));
+    const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id, roleOf(player, rosters[side])) * hotHand(player, killsBy.get(player.id) ?? 0)] as [Player, number]));
     const victim = pick(rng, alive[enemy].map((player) => [player, victimWeight(player)] as [Player, number]));
     alive[enemy] = alive[enemy].filter((player) => player.id !== victim.id);
     const weapon = chooseWeapon(economy[side], sides[side], awpHolder[side] === killer.id, rng);
@@ -486,6 +552,7 @@ export function playNextRound(state: MapState): RoundDetail {
   if (index > 0 && halfIndexOf(index) !== halfIndexOf(index - 1)) {
     for (const runtime of [a, b]) {
       runtime.timeoutsRemaining = 1;
+      runtime.consecutiveLosses = 0;
       runtime.momentum = Math.floor(runtime.momentum / 2);
       runtime.plannedBuy = null;
       runtime.savedForBuy = false;
@@ -504,6 +571,7 @@ export function playNextRound(state: MapState): RoundDetail {
   const economy = { a: chooseBuy(a, pistolRound, rng), b: chooseBuy(b, pistolRound, rng) };
   const momentumBefore = { a: a.momentum, b: b.momentum };
   const timeout = state.pendingTimeout;
+  const timeoutTimingUsed = state.pendingTimeoutTiming;
   if (timeout) state.teams[other(timeout)].momentum = 0;
   const deficitBefore = { a: state.scoreB - state.scoreA, b: state.scoreA - state.scoreB };
 
@@ -537,6 +605,8 @@ export function playNextRound(state: MapState): RoundDetail {
   loserRuntime.money = Math.min(MAX_MONEY, Math.max(0, loserRuntime.money - spend(loser)) + bonus + plantBonus + killIncome(loser));
   loserRuntime.lossStreak += 1;
   winnerRuntime.lossStreak = Math.max(0, winnerRuntime.lossStreak - 1);
+  loserRuntime.consecutiveLosses += 1;
+  winnerRuntime.consecutiveLosses = 0;
   winnerRuntime.momentum = Math.min(MAX_MOMENTUM, winnerRuntime.momentum + 1);
   loserRuntime.momentum = 0;
   a.maxDeficit = Math.max(a.maxDeficit, state.scoreB - state.scoreA);
@@ -586,11 +656,14 @@ export function playNextRound(state: MapState): RoundDetail {
     ending,
     momentum: momentumBefore,
     ...(timeout ? { timeout } : {}),
+    ...(timeout && timeoutTimingUsed ? { timeoutTiming: timeoutTimingUsed } : {}),
     tags,
     ...(highlight ? { highlight } : {})
   };
   state.details.push(detail);
   state.pendingTimeout = null;
+  state.pendingTimeoutBonus = 0;
+  state.pendingTimeoutTiming = null;
 
   if (!state.finished) {
     // The pistol loser decides how to play the second round: humans get a prompt, bots decide now.
@@ -602,7 +675,7 @@ export function playNextRound(state: MapState): RoundDetail {
       }
     }
     const loserRuntimeAfterRound = state.teams[loser];
-    if (state.controllers[loser] === 'bot' && botShouldTimeout(loserRuntimeAfterRound.lossStreak, loserRuntimeAfterRound.timeoutsRemaining)) {
+    if (state.controllers[loser] === 'bot' && botShouldTimeout(loserRuntimeAfterRound.consecutiveLosses, loserRuntimeAfterRound.timeoutsRemaining)) {
       requestTimeout(state, loserRuntimeAfterRound.team.id, true);
     }
   }
@@ -617,6 +690,8 @@ function finish(state: MapState, winner: TeamSide) {
   state.winner = winner;
   state.pendingEcoCall = null;
   state.pendingTimeout = null;
+  state.pendingTimeoutBonus = 0;
+  state.pendingTimeoutTiming = null;
   const runtime = state.teams[winner];
   const firstHalf = state.halves[0];
   const lostFirstHalfBadly = firstHalf ? (winner === 'a' ? firstHalf.b - firstHalf.a : firstHalf.a - firstHalf.b) >= COMEBACK_DEFICIT : false;

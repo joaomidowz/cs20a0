@@ -8,8 +8,11 @@ import type { MajorAwards, MajorPlayerAward, MajorTeamAward, MapResult, RoundDet
  *   survival rating  = (rounds − deaths) / rounds / 0.317
  *   multi-kill       = (1K + 4·2K + 9·3K + 16·4K + 25·5K) / rounds / 1.277
  *   rating           = (kill + 0.7·survival + multi-kill) / 2.7
- * so an average player lands around 1.00 and a Major MVP typically sits between 1.20 and 1.40.
+ * The simulated field is more lopsided than a real Major (stomps and superstars are common), so the raw value is
+ * squeezed towards the average: an average player lands around 1.00, a star between 1.10 and 1.20, an MVP around 1.30
+ * and only a generational run reaches 1.40.
  */
+export const RATING_SPREAD = 0.7;
 
 interface PlayerLine {
   playerId: string;
@@ -49,7 +52,8 @@ export const ratingOf = (line: Pick<PlayerLine, 'kills' | 'deaths' | 'rounds' | 
   const killRating = line.kills / line.rounds / 0.679;
   const survivalRating = (line.rounds - line.deaths) / line.rounds / 0.317;
   const multi = (line.multi.one + 4 * line.multi.two + 9 * line.multi.triple + 16 * line.multi.quad + 25 * line.multi.ace) / line.rounds / 1.277;
-  return round2((killRating + 0.7 * survivalRating + multi) / 2.7);
+  const raw = (killRating + 0.7 * survivalRating + multi) / 2.7;
+  return round2(1 + (raw - 1) * RATING_SPREAD);
 };
 
 /** Placement of every team in the tournament (key form: placementChampion, placementRunnerUp, ...). */

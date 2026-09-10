@@ -58,15 +58,21 @@ export const INSTANT_FEED_DELAY = 400;
 export interface RoundCommitState {
   /** Milliseconds per round of the kill feed. */
   delay: number;
-  /** The whole series is over (nothing may stay pending on screen). */
-  finished: boolean;
-  /** The revealed round is the last one of the map. */
-  mapFinished: boolean;
+  /** Kept for callers that still describe the playback state; neither forces an instant commit any more. */
+  finished?: boolean;
+  mapFinished?: boolean;
 }
 
-/** Whether the round just revealed must be committed on the spot instead of being played by the kill feed first. */
+/** The last round of a map gets this much longer than a regular one, so every kill is on screen before the map closes. */
+export const LAST_ROUND_FEED_FACTOR = 1.6;
+
+/**
+ * Whether the round just revealed must be committed on the spot instead of being played by the kill feed first.
+ * Only the ultra speed skips the feed: the last round of a map (and of the series) plays out like every other one, so
+ * the map never closes before its final kills are on screen.
+ */
 export function shouldCommitInstantly(state: RoundCommitState): boolean {
-  return state.delay < INSTANT_FEED_DELAY || state.finished || state.mapFinished;
+  return state.delay < INSTANT_FEED_DELAY;
 }
 
 /**

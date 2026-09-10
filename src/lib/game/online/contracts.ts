@@ -1,7 +1,9 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, MajorAwards, MapId, MapSide, MapVetoStep, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, MajorAwards, MapId, MapSide, MapVetoStep, OnlineGameMode, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
 
-export const PROTOCOL_VERSION = 7 as const;
+export type { OnlineGameMode } from '../types';
+
+export const PROTOCOL_VERSION = 8 as const;
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
 /** Season points by placement; Stage 3 eliminations score one point per series won (0-2). */
@@ -13,8 +15,6 @@ export const SEASON_POINTS: Record<string, number> = {
 };
 export const seasonPointsFor = (placement: string, stage3Wins: number) => SEASON_POINTS[placement] ?? Math.max(0, Math.min(2, stage3Wins));
 export const ROOM_CODE_LENGTH = 8;
-
-export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
 
 export const toPresentationGameMode = (mode: OnlineGameMode): GameMode =>
   mode === 'fun' || mode === 'max_fun' ? 'premier' : mode;
@@ -105,7 +105,14 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({ type: z.literal('call-timeout'), seriesId: seriesIdSchema }).strict(),
   baseCommandSchema.extend({ type: z.literal('eco-call'), seriesId: seriesIdSchema, call: z.enum(['force', 'eco']) }).strict(),
   /** Season (protocol 7): accept or decline the rematch offered during the window after a run ends. */
-  baseCommandSchema.extend({ type: z.literal('rematch-vote'), accept: z.boolean() }).strict()
+  baseCommandSchema.extend({ type: z.literal('rematch-vote'), accept: z.boolean() }).strict(),
+  /** Secret players (protocol 8): a Vargão Academy lineup adds one of the aliases by hand. */
+  baseCommandSchema.extend({
+    type: z.literal('pick-secret'),
+    alias: z.string().trim().min(2).max(24),
+    role: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']),
+    secondaryRole: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
+  }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -249,6 +256,8 @@ export interface SelfDraftState {
   mapPreferences: MapId[];
   /** Decision this participant has to take right now in their own series, if any. */
   pendingDecision: { seriesId: string; kind: PublicPendingDecision['kind']; deadlineAt: number | null } | null;
+  /** Secret players a Vargão Academy lineup may still add (0 for everybody else). */
+  secretPicksLeft: number;
 }
 
 export interface PublicSeasonRunResult {
@@ -291,7 +300,7 @@ export interface PublicSeason {
 
 export interface RoomSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION;
-  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true; season: true };
+  capabilities: { mapPreferences: true; replayV1: false; liveDecisions: true; interactiveVeto: true; season: true; secretPlayers: true };
   dataHash: string;
   version: number;
   roomCode: string;

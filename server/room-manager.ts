@@ -3,6 +3,7 @@ import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
 import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
 import { computeMajorAwards } from '../src/lib/game/majorAwards';
+import { LAST_ROUND_FEED_FACTOR } from '../src/lib/game/seriesPresentation';
 import { createRunStats } from '../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, calculateUserTeamPower, createSeededRng, orientSeriesToTeam } from '../src/lib/game/simulation';
 import type { CombatTeam, MajorAwards, MajorRun, MapId, MapResult, OrgStyle, Player, Roster, SeriesResult } from '../src/lib/game/types';
@@ -45,6 +46,7 @@ import {
   completedRoundCount,
   createTournamentEngine,
   currentRound,
+  drawHumanSeeds,
   isRoundComplete,
   startNextRound,
   toResult,
@@ -63,6 +65,7 @@ import {
   type LiveSeriesState,
   type PendingSeriesDecision
 } from '../src/lib/game/online/live-series';
+import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 
 export const RESUME_TTL_MS = 120_000;
@@ -107,6 +110,8 @@ interface LiveSeriesRuntime {
   nextRoundAt: number | null;
   decisionDeadlineAt: number | null;
   decisionKey: string | null;
+  /** When the series ended; the round only closes once every client had time to play its last kill feed. */
+  finishedAt: number | null;
 }
 
 /** One organization's line in the season table, keyed by its normalized name so a rejoining participant keeps it. */
@@ -167,7 +172,11 @@ export interface JoinResult {
   resumeToken: string;
 }
 
+const lookupPlayer = (id: string) => playerById.get(id);
+
 const roundInterval = (config: RoomConfig) => config.simulationSpeed === 'normal' ? 2_400 : config.simulationSpeed === 'fast' ? 1_200 : 200;
+/** Pause after the last round of a map: the clients play that round's kill feed slower before the map closes. */
+const lastRoundLinger = (config: RoomConfig) => Math.round(roundInterval(config) * LAST_ROUND_FEED_FACTOR) + MAP_GAP_MS;
 
 const publicTeam = (team: CombatTeam, isUser: boolean): CombatTeam => ({
   id: team.id,
@@ -281,12 +290,12 @@ const emptySeason = (number: number): SeasonState => ({ number, run: 0, results:
 export class RoomManager {
   private readonly rooms = new Map<string, RoomState>();
 
-  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now()): string {
+  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url')): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
     this.rooms.set(code, {
       code,
-      seed: randomBytes(24).toString('base64url'),
+      seed,
       config,
       phase: 'lobby',
       version: 1,
@@ -374,9 +383,24 @@ export class RoomManager {
         if (room.phase !== 'lobby') throw new RoomError('INVALID_PHASE', 'The room is not in the lobby');
         if ([...room.participants.values()].filter((candidate) => candidate.connected).length < 2) throw new RoomError('INVALID_ACTION', 'At least two connected participants are required');
         room.phase = 'draft';
+        // The mode is final now: friends with a secret alias start the draft with their player already in the lineup.
+        for (const candidate of room.participants.values()) candidate.draft = withSecretPlayers(emptyDraftState(), room.config.mode, candidate.playerName, candidate.organizationName, lookupPlayer);
         room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
         room.deadlineStage = room.deadlineAt === null ? null : 'picks';
         break;
+      case 'pick-secret': {
+        this.requireDraft(room);
+        const alias = findSecretAlias(command.alias);
+        const player = alias ? playerById.get(secretPlayerId(alias)) : undefined;
+        if (!alias || !player) throw new RoomError('INVALID_ACTION', 'Unknown secret player');
+        try {
+          participant.draft = pickSecretPlayer(participant.draft, room.config.mode, participant.organizationName, alias, player, command.role, lookupPlayer, command.secondaryRole);
+        } catch (error) {
+          if (error instanceof SecretPickError) throw new RoomError('INVALID_ACTION', error.message);
+          throw new RoomError('INVALID_ACTION', error instanceof Error ? error.message : 'Invalid secret pick');
+        }
+        break;
+      }
       case 'draw-team':
         this.requireDraft(room);
         try {
@@ -566,7 +590,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true },
+      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true },
       season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
@@ -586,7 +610,8 @@ export class RoomManager {
         rerollsMax: getRerollLimit(room.config.mode),
         watchedSeriesId: participant.watchedSeriesId,
         mapPreferences: [...participant.draft.mapPreferences],
-        pendingDecision: this.selfPendingDecision(room, participant.id)
+        pendingDecision: this.selfPendingDecision(room, participant.id),
+        secretPicksLeft: room.phase === 'draft' ? secretPicksLeftFor(room.config.mode, participant.organizationName, participant.draft) : 0
       } : null,
       deadlineAt: room.deadlineAt,
       deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
@@ -643,7 +668,7 @@ export class RoomManager {
         for (const participant of room.participants.values()) {
           const picksCompleted = room.config.mode === 'pro' ? participant.draft.proPickedPlayerIds.length : participant.draft.lineup.length;
           if (picksCompleted < 5) {
-            participant.draft = autocompleteDraft(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
+            participant.draft = autocompleteDraft(room.seed, participant.id, room.config.mode, participant.draft, teams, players, lookupPlayer);
           }
         }
         const everyoneReady = [...room.participants.values()].every((participant) => isDraftComplete(room.config.mode, participant.draft));
@@ -664,7 +689,8 @@ export class RoomManager {
           if (this.advanceSeries(room, runtime, now)) changed = true;
         }
         const round = currentRound(room.engine);
-        if (round && isRoundComplete(round)) {
+        const lingerUntil = Math.max(0, ...[...room.live.values()].map((runtime) => (runtime.finishedAt ?? 0) + lastRoundLinger(room.config)));
+        if (round && isRoundComplete(round) && now >= lingerUntil) {
           completeRound(room.engine);
           room.roundStarted = false;
           if (room.engine.finished) {
@@ -753,7 +779,7 @@ export class RoomManager {
       if (!keep.has(participantId)) room.participants.delete(participantId);
     }
     for (const participant of room.participants.values()) {
-      participant.draft = emptyDraftState();
+      participant.draft = withSecretPlayers(emptyDraftState(), room.config.mode, participant.playerName, participant.organizationName, lookupPlayer);
       participant.watchedSeriesId = null;
     }
     room.seed = randomBytes(24).toString('base64url');
@@ -837,7 +863,15 @@ export class RoomManager {
       const id = `bot-${team.id}`;
       return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, id }, human: false, sourceTeamId: team.id };
     }).filter((organization) => !humanIds.has(organization.id));
-    room.organizations = [...organizations, ...botPool].slice(0, room.config.entryStage === 'stage3' ? 16 : 8);
+    // Humans are spread over the field by the room seed, so friends who joined in sequence do not always meet first.
+    const fieldSize = room.config.entryStage === 'stage3' ? 16 : 8;
+    const humanSeeds = drawHumanSeeds(room.seed, organizations.length, fieldSize);
+    const seedOrder: string[] = Array.from({ length: fieldSize }, () => '');
+    organizations.forEach((organization, index) => { seedOrder[humanSeeds[index] - 1] = organization.id; });
+    const remainingBots = botPool.slice(0, fieldSize - organizations.length);
+    for (let index = 0, bot = 0; index < seedOrder.length; index += 1) if (!seedOrder[index]) seedOrder[index] = remainingBots[bot++]?.id ?? '';
+    const organizationById = new Map([...organizations, ...botPool].map((organization) => [organization.id, organization]));
+    room.organizations = seedOrder.map((id) => organizationById.get(id)).filter((organization): organization is TournamentOrganization => Boolean(organization));
     const strategies: MapSimulationContext['strategies'] = new Map();
     const rosters = new Map<string, Roster>();
     for (const participant of room.participants.values()) {
@@ -856,13 +890,14 @@ export class RoomManager {
       strategies.set(organization.id, { ...createBotMapStrategy(historicalTeam), teamId: organization.id });
       rosters.set(organization.id, { players: players.filter((player) => (historicalTeam.players ?? []).includes(player.id)) });
     }
-    const mapContext: MapSimulationContext = { mode: toPresentationGameMode(room.config.mode), seed: `${room.seed}:online-maps`, strategies, rosters };
+    const mapContext: MapSimulationContext = { mode: room.config.mode, seed: `${room.seed}:online-maps`, strategies, rosters };
     room.engine = createTournamentEngine({
       organizations,
       botPool,
       entryStage: room.config.entryStage,
       seed: room.seed,
       mapContext,
+      seedOrder,
       swissBestOf: 3,
       controllerFor: (organization) => organization.human ? 'human' : 'bot',
       // Only two humans veto by hand; against a bot the veto is settled by the policies, decisions inside the maps stay live.
@@ -878,7 +913,7 @@ export class RoomManager {
   /** Pairs the next tournament round so everybody can see the matchups while the round waits to go live. */
   private prepareRound(room: RoomState) {
     const round = startNextRound(room.engine!);
-    room.live = new Map(round.series.map((series) => [series.config.id, { state: series, nextRoundAt: null, decisionDeadlineAt: null, decisionKey: null }]));
+    room.live = new Map(round.series.map((series) => [series.config.id, { state: series, nextRoundAt: null, decisionDeadlineAt: null, decisionKey: null, finishedAt: null }]));
     room.roundStarted = false;
     room.phase = round.phase === 'swiss' ? 'swiss' : 'playoffs';
   }
@@ -916,7 +951,8 @@ export class RoomManager {
     if (runtime.nextRoundAt === null) runtime.nextRoundAt = now + roundInterval(room.config);
     if (now < runtime.nextRoundAt) return false;
     const outcome = stepSeries(state);
-    runtime.nextRoundAt = outcome === 'finished' ? null : outcome === 'map-complete' ? now + MAP_GAP_MS : now + roundInterval(room.config);
+    runtime.nextRoundAt = outcome === 'finished' ? null : outcome === 'map-complete' ? now + lastRoundLinger(room.config) : now + roundInterval(room.config);
+    if (outcome === 'finished') runtime.finishedAt = now;
     return true;
   }
 

@@ -307,6 +307,10 @@ const pt = {
   ,roundInProgress: 'em andamento'
   ,timeoutsLeft: 'pausa restante'
   ,timeoutCalled: 'Pausa tática acionada'
+  ,timeoutWindow: 'Momento ideal para pausar'
+  ,timeoutEarly: 'Pausa cedo · efeito reduzido'
+  ,timeoutLate: 'Pausa tardia · efeito reduzido'
+  ,timeoutWindowHint: 'Pausar entre 2 e 4 derrotas seguidas dá o efeito máximo'
   ,pickSide: 'Escolha o lado inicial'
   ,pickSideHint: 'Seu adversário escolheu o mapa. Você começa de qual lado?'
   ,pickSideDecider: 'Você venceu a faca. Começa de qual lado?'
@@ -353,7 +357,7 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
-  overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', roundInProgress: 'en curso', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida',
+  overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', roundInProgress: 'en curso', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida', timeoutWindow: 'Momento ideal para pausar', timeoutEarly: 'Pausa temprana · efecto reducido', timeoutLate: 'Pausa tardía · efecto reducido', timeoutWindowHint: 'Pausar entre 2 y 4 derrotas seguidas da el efecto máximo',
   pickSide: 'Elige el lado inicial', pickSideHint: 'Tu rival eligió el mapa. ¿De qué lado empiezas?', pickSideDecider: 'Ganaste el cuchillo. ¿De qué lado empiezas?', sideCt: 'Empezar de CT', sideT: 'Empezar de TR',
   ecoCall: 'Call de economía', ecoCallHint: 'Perdieron el pistol. ¿Cómo jugar la segunda ronda?', ecoCallForce: 'Forzar', ecoCallForceHint: 'Compra lo que alcanza: opción real en la ronda 2, economía en riesgo si pierden.', ecoCallSave: 'Guardar', ecoCallSaveHint: 'Cede la ronda 2 para asegurar un full buy en la ronda 3.', money: 'dinero',
   vetoTitle: 'Veto de mapas', vetoYourTurn: 'Tu turno', vetoWaiting: 'Esperando', vetoBanNow: 'Banea un mapa', vetoPickNow: 'Elige un mapa', vetoBanned: 'Baneado', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Disponible', vetoOpponentTurn: 'El rival está decidiendo…', decisionCountdown: 'Decide en', opponentDeciding: 'Rival decidiendo…', killFeed: 'Feed de kills', topFraggers: 'Frags del mapa', sideLabel: 'Lado',
@@ -786,7 +790,7 @@ Object.assign(dictionaries.en, {
   ban: 'Ban',
   pick: 'Pick',
   decider: 'Decider',
-  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', roundInProgress: 'in progress', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called',
+  pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Comeback', halfTime: 'Half time', tacticalTimeout: 'Tactical timeout', roundInProgress: 'in progress', timeoutsLeft: 'timeout left', timeoutCalled: 'Tactical timeout called', timeoutWindow: 'Ideal moment to pause', timeoutEarly: 'Early pause · reduced effect', timeoutLate: 'Late pause · reduced effect', timeoutWindowHint: 'Pausing after 2 to 4 straight losses gives the full effect',
   pickSide: 'Choose your starting side', pickSideHint: 'Your opponent picked the map. Which side do you start on?', pickSideDecider: 'You won the knife round. Which side do you start on?', sideCt: 'Start CT', sideT: 'Start T',
   ecoCall: 'Economy call', ecoCallHint: 'You lost the pistol. How do you play round two?', ecoCallForce: 'Force buy', ecoCallForceHint: 'Buy what you can now: a real shot at round 2, a broken economy if it fails.', ecoCallSave: 'Save', ecoCallSaveHint: 'Give up round 2 to guarantee a full buy in round 3.', money: 'money',
   vetoTitle: 'Map veto', vetoYourTurn: 'Your turn', vetoWaiting: 'Waiting', vetoBanNow: 'Ban a map', vetoPickNow: 'Pick a map', vetoBanned: 'Banned', vetoPicked: 'Pick', vetoDecider: 'Decider', vetoAvailable: 'Available', vetoOpponentTurn: 'Your opponent is deciding…', decisionCountdown: 'Decide in', opponentDeciding: 'Opponent deciding…', killFeed: 'Kill feed', topFraggers: 'Map frags', sideLabel: 'Side',

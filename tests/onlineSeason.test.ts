@@ -38,7 +38,8 @@ function playRun(manager: RoomManager, code: string, participantIds: string[], n
 
 function createSeasonRoom(startedAt: number) {
   const manager = new RoomManager();
-  const code = manager.createRoom(SEASON_CONFIG, startedAt);
+  // A fixed room seed keeps the human seeds (and therefore the pairings) the same on every run.
+  const code = manager.createRoom(SEASON_CONFIG, startedAt, 'season-room');
   const host = manager.join(code, 'Host player', 'Host org', startedAt);
   const guest = manager.join(code, 'Guest player', 'Guest org', startedAt + 1);
   manager.execute(code, host.participantId, { type: 'start', requestId: requestId('start') }, startedAt + 2);

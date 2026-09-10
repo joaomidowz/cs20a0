@@ -4,8 +4,10 @@ import {
   applyDecision,
   autoDecide as autoDecideMap,
   createMapState,
+  getConsecutiveLosses,
   getCurrentSideA,
   getTimeoutsRemaining,
+  timeoutTiming,
   pendingDecision as pendingMapDecision,
   playNextRound,
   requestTimeout,
@@ -14,7 +16,7 @@ import {
   type MapState
 } from '../rounds';
 import { createSeededRng, getMatchDayPower, type SeededRng } from '../simulation';
-import type { CombatTeam, GameMode, MapId, MapResult, MapSide, MapVetoStep, Roster, SeriesDecision, SeriesResult, TeamSide } from '../types';
+import type { CombatTeam, MapId, MapResult, MapSide, MapVetoStep, OnlineGameMode, Roster, SeriesDecision, SeriesResult, TeamSide, TimeoutTiming } from '../types';
 
 export type { Controller } from '../rounds';
 
@@ -30,7 +32,7 @@ export interface LiveSeriesConfig {
   seed: string;
   /** Drives the automatic veto choices; defaults to `${seed}:veto`. */
   vetoSeed?: string;
-  mode: GameMode;
+  mode: OnlineGameMode;
   /** Without strategies the series is played on numbered maps and has no veto. */
   strategies: { a: MapStrategy; b: MapStrategy } | null;
   rosters?: { a?: Roster; b?: Roster };
@@ -253,6 +255,7 @@ function startMap(state: LiveSeriesState): void {
     rng: createSeededRng(`${state.config.seed}:map:${index}:${mapId ?? 'numbered'}`),
     mapNumber: index + 1,
     mapId,
+    mode: state.config.mode,
     pickedBy,
     sidePickerTeamId,
     rosterA: state.config.rosters?.a,
@@ -328,10 +331,17 @@ export function adoptSeriesResult(state: LiveSeriesState, result: SeriesResult):
   if (state.veto) state.veto = { ...state.veto, available: [], steps: [...(result.veto ?? [])] };
 }
 
-/** Rounds each team has lost in a row in the live map (0 when no map is running). */
+/** Rounds each team has lost in a row in the current half of the live map (0 when no map is running). */
 export function seriesLossStreak(state: LiveSeriesState): { a: number; b: number } {
   if (!state.current) return { a: 0, b: 0 };
-  return { a: state.current.state.teams.a.lossStreak, b: state.current.state.teams.b.lossStreak };
+  return { a: getConsecutiveLosses(state.current.state, state.config.teamA.id), b: getConsecutiveLosses(state.current.state, state.config.teamB.id) };
+}
+
+/** How a timeout called right now would be timed for each team (null when no map is running). */
+export function seriesTimeoutTiming(state: LiveSeriesState): { a: TimeoutTiming; b: TimeoutTiming } | null {
+  if (!state.current) return null;
+  const streaks = seriesLossStreak(state);
+  return { a: timeoutTiming(streaks.a), b: timeoutTiming(streaks.b) };
 }
 
 /** Snapshot of the series so far: the live map (if any) is included with `winnerId` empty. */

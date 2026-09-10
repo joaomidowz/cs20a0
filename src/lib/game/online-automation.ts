@@ -1,7 +1,8 @@
 import { defaultHumanEcoCall, defaultHumanSide, TIMEOUT_LOSS_STREAK } from './bot-policies';
 import type { PublicPendingDecision } from './online/contracts';
 import type { StrategicAutomationPreferences } from './preferences';
-import type { MapId, MapSide, OrgStyle, RoundDetail, TeamSide } from './types';
+import { timeoutTiming } from './rounds';
+import type { MapId, MapSide, OrgStyle, RoundDetail, TeamSide, TimeoutTiming } from './types';
 
 /**
  * The online room is authoritative, so the gear cannot resolve a decision locally: it answers for the player right
@@ -57,6 +58,9 @@ export function currentLossStreak(rounds: RoundDetail[], side: TeamSide): number
   }
   return streak;
 }
+
+/** How a timeout called now would be timed, from the rounds the client already received. */
+export const timeoutTimingFor = (rounds: RoundDetail[], side: TeamSide): TimeoutTiming => timeoutTiming(currentLossStreak(rounds, side));
 
 /** With the pause on automatic the player's team calls it like a bot: four straight lost rounds, once per half. */
 export function shouldCallTimeout(rounds: RoundDetail[], side: TeamSide, timeoutsLeft: number): boolean {

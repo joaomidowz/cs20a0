@@ -68,5 +68,5 @@ export function getStandingsAfterRounds(result: OnlineTournamentResult, revealed
   }
   return standings
     .map(({ opponents: _opponents, ...standing }) => standing)
-    .sort((left, right) => right.wins - left.wins || right.buchholz - left.buchholz || left.losses - right.losses || left.seed - right.seed);
+    .sort((left, right) => right.wins - left.wins || left.losses - right.losses || right.buchholz - left.buchholz || left.seed - right.seed);
 }

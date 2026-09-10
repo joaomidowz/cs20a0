@@ -14,6 +14,10 @@ export type GamePhase =
   | 'stats';
 
 export type GameMode = 'premier' | 'faceit' | 'pro';
+/** Online queues add the two Resenha modes; the engine reads it for mode-dependent rules such as the tactical timeout. */
+export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
+/** When a tactical timeout was called relative to the 2–4 straight-loss window that gives it its full effect. */
+export type TimeoutTiming = 'window' | 'early' | 'late';
 export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
 export type SimSpeed = SimulationSpeed;
 export type SimMode = SimulationMode;
@@ -130,6 +134,8 @@ export interface RoundDetail {
   momentum?: { a: number; b: number };
   /** Team that called a tactical timeout right before this round. */
   timeout?: TeamSide;
+  /** Whether that timeout landed inside the straight-loss window (full effect) or outside it (reduced). */
+  timeoutTiming?: TimeoutTiming;
   tags: RoundTag[];
   /** Ace, multi-kill or clutch worth flashing on screen, when the round had one. */
   highlight?: RoundHighlight;
@@ -145,7 +151,7 @@ export type SeriesDecision =
   | { kind: 'veto'; teamId: string; action: 'ban' | 'pick'; mapId: MapId; auto: boolean }
   | { kind: 'side'; teamId: string; mapIndex: number; side: MapSide; auto: boolean }
   | { kind: 'eco-call'; teamId: string; mapIndex: number; roundNumber: number; call: 'force' | 'eco'; auto: boolean }
-  | { kind: 'timeout'; teamId: string; mapIndex: number; roundNumber: number; auto: boolean };
+  | { kind: 'timeout'; teamId: string; mapIndex: number; roundNumber: number; auto: boolean; timing?: TimeoutTiming };
 
 export interface Player {
   id: string;

@@ -6,7 +6,7 @@
   import { getMapName } from '$lib/game/maps';
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
   import { aggregateKills } from '$lib/game/rounds';
-  import { getCommittedRounds, getVisibleMapScore, shouldCommitInstantly } from '$lib/game/seriesPresentation';
+  import { LAST_ROUND_FEED_FACTOR, getCommittedRounds, getVisibleMapScore, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getSandboxDecidedMaps, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxMajorMatch } from '$lib/game/sandbox/types';
 
@@ -56,10 +56,11 @@
   $: displayFinished = controlled ? controlledFinished : finished;
   $: decidedMaps = getSandboxDecidedMaps(match);
   $: currentMap = match.maps[displayActiveMap];
-  $: currentMapFinished = Boolean(currentMap && currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length && currentMap.rounds.length > 0);
+  // The map only reads as finished once its last round was committed (the feed of that round played out).
+  $: currentMapFinished = Boolean(currentMap && currentMap.winnerId && committedRounds >= currentMap.rounds.length && currentMap.rounds.length > 0);
   $: liveDetail = displayVisibleRounds > 0 ? currentMap?.details?.find((detail) => detail?.number === displayVisibleRounds) ?? null : null;
   // The revealed round stays in progress (score, strip and ending unchanged) until its kill feed resolves it.
-  $: instantCommit = shouldCommitInstantly({ delay, finished: displayFinished, mapFinished: currentMapFinished });
+  $: instantCommit = shouldCommitInstantly({ delay });
   $: committedRounds = getCommittedRounds(displayVisibleRounds, resolved.map === displayActiveMap ? resolved.round : 0, Boolean(liveDetail?.kills.length), instantCommit);
   $: roundInProgress = displayStarted && committedRounds < displayVisibleRounds;
   $: committedDetail = committedRounds > 0 ? currentMap?.details?.find((detail) => detail?.number === committedRounds) ?? null : null;
@@ -148,6 +149,8 @@
         const skipped = await wait(delay);
         if (!skipped) visibleRounds += 1;
       }
+      // Let the last round's kill feed play out before the map closes.
+      if (thisRun === runId && match.maps[mapIndex].details?.length && delay >= 400) await wait(delay * LAST_ROUND_FEED_FACTOR);
       if (thisRun === runId && mapIndex < match.maps.length - 1) await wait(Math.min(900, Math.max(delay, 250)));
     }
     if (thisRun !== runId) return;
@@ -213,7 +216,7 @@
       <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} language="pt-BR" {teamNames} />
       <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : roundInProgress ? `Round ${displayVisibleRounds} · em andamento` : lastRoundWinner ? `Round ${committedRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
       {#if currentMap.details?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} {delay} language="pt-BR" {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
+        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} delay={currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length ? delay * LAST_ROUND_FEED_FACTOR : delay} language="pt-BR" {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}
     </div>
   {/if}

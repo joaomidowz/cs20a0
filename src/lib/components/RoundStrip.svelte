@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { translate } from '$lib/game/i18n';
   import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel } from '$lib/game/roundPresentation';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail, RoundScore } from '$lib/game/types';
@@ -120,7 +121,7 @@
         {#if detail.tags.length || detail.timeout}
           <div class="round-tags">
             {#each detail.tags as tag (tag)}<i>{getRoundTagLabel(language, tag)}</i>{/each}
-            {#if detail.timeout}<i class="timeout-tag">{timeoutLabel} · {teamNames[detail.timeout]}</i>{/if}
+            {#if detail.timeout}<i class="timeout-tag">{timeoutLabel} · {teamNames[detail.timeout]}{#if detail.timeoutTiming} · {translate(language, detail.timeoutTiming === 'window' ? 'timeoutWindow' : detail.timeoutTiming === 'early' ? 'timeoutEarly' : 'timeoutLate')}{/if}</i>{/if}
           </div>
         {/if}
         <div class="round-kills">

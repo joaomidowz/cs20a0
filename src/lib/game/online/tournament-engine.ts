@@ -1,4 +1,5 @@
 import type { MapSimulationContext } from '../map-veto';
+import { createSeededRng } from '../simulation';
 import type { CombatTeam, SeriesResult } from '../types';
 import type { PublicRound, PublicStanding, PublicTournament } from './contracts';
 import {
@@ -52,6 +53,8 @@ export interface TournamentEngineOptions {
   interactiveVeto?: (left: TournamentOrganization, right: TournamentOrganization) => boolean;
   /** Decision kinds human controllers take by hand in every series (see `LiveSeriesConfig.humanDecisions`). */
   humanDecisions?: LiveSeriesConfig['humanDecisions'];
+  /** Initial seed order by organization id; ids left out keep their field order after the listed ones. */
+  seedOrder?: string[];
 }
 
 export interface TournamentRoundState {
@@ -75,20 +78,51 @@ export interface TournamentEngineState {
 
 export const SWISS_ROUNDS = 5;
 
+/**
+ * Seeds (1-based) the humans of an online room take, drawn from the whole field so two friends who joined one after
+ * the other are not forced to meet in the first round. Deterministic for a room seed; the bots fill the other slots.
+ */
+export function drawHumanSeeds(seed: string, humanCount: number, fieldSize: number): number[] {
+  const rng = createSeededRng(`${seed}:human-seeds`);
+  const slots = Array.from({ length: fieldSize }, (_, index) => index + 1);
+  const drawn: number[] = [];
+  for (let index = 0; index < Math.min(humanCount, fieldSize); index += 1) {
+    const target = index + Math.floor(rng() * (slots.length - index));
+    [slots[index], slots[target]] = [slots[target], slots[index]];
+    drawn.push(slots[index]);
+  }
+  return drawn;
+}
+
+/** Record first (3-0 ahead of 3-1 ahead of 3-2), then Buchholz, then the initial seed: the Major's own tiebreak order. */
 export const standingOrder = (left: MutableStanding, right: MutableStanding) =>
   right.wins - left.wins ||
-  right.buchholz - left.buchholz ||
   left.losses - right.losses ||
+  right.buchholz - left.buchholz ||
   left.seed - right.seed ||
   left.organizationId.localeCompare(right.organizationId);
 
-const pairingPreference = (left: MutableStanding, right: MutableStanding) =>
-  Math.abs(left.wins - right.wins) * 1000 +
-  Math.abs(left.losses - right.losses) * 100 +
-  Math.abs(left.seed - right.seed);
-
+/**
+ * Swiss pairing like a real Major: inside each record group the top half meets the bottom half (1v9, 2v10 … in the
+ * first round; best Buchholz against worst later on). The record terms dominate so groups only mix when they must.
+ */
 export function findPairings(active: MutableStanding[]): Array<[MutableStanding, MutableStanding]> {
   const ordered = [...active].sort(standingOrder);
+  const slot = new Map<string, { index: number; size: number }>();
+  const groups = new Map<string, MutableStanding[]>();
+  for (const standing of ordered) {
+    const key = `${standing.wins}-${standing.losses}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(standing);
+  }
+  for (const group of groups.values()) group.forEach((standing, index) => slot.set(standing.organizationId, { index, size: group.length }));
+  const pairingPreference = (left: MutableStanding, right: MutableStanding) => {
+    const leftSlot = slot.get(left.organizationId)!;
+    const rightSlot = slot.get(right.organizationId)!;
+    return Math.abs(left.wins - right.wins) * 1000 +
+      Math.abs(left.losses - right.losses) * 100 +
+      Math.abs(rightSlot.index - (leftSlot.index + Math.ceil(leftSlot.size / 2)));
+  };
   const search = (remaining: MutableStanding[], allowRematch = false): Array<[MutableStanding, MutableStanding]> | null => {
     if (!remaining.length) return [];
     const left = remaining[0];
@@ -147,7 +181,10 @@ export function createTournamentEngine(options: TournamentEngineOptions): Tourna
   const humanIds = new Set(options.organizations.map((organization) => organization.id));
   const bots = options.botPool.filter((organization) => !humanIds.has(organization.id)).slice(0, required - options.organizations.length);
   if (bots.length !== required - options.organizations.length) throw new Error('Not enough bots to complete the tournament field');
-  const field = [...options.organizations, ...bots].map((organization, index) => ({ ...organization, seed: index + 1 }));
+  const rank = new Map((options.seedOrder ?? []).map((id, index) => [id, index]));
+  const field = [...options.organizations, ...bots]
+    .sort((left, right) => (rank.get(left.id) ?? Number.POSITIVE_INFINITY) - (rank.get(right.id) ?? Number.POSITIVE_INFINITY))
+    .map((organization, index) => ({ ...organization, seed: index + 1 }));
   const standings: MutableStanding[] = field.map((organization) => ({
     organizationId: organization.id,
     name: organization.name,

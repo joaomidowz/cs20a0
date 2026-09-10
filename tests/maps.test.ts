@@ -121,5 +121,8 @@ describe('map profiles and selection', () => {
     expect(getSelectedMapPowerBonus('faceit', '++')).toBe(3);
     expect(getSelectedMapPowerBonus('pro', '++')).toBe(3);
     expect(getSelectedMapPowerBonus('pro', '+++')).toBe(4.5);
+    // The Resenha queues use the light Normal bonus.
+    expect(getSelectedMapPowerBonus('fun', '+')).toBe(0.5);
+    expect(getSelectedMapPowerBonus('max_fun', '++')).toBe(1);
   });
 });
