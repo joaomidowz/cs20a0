@@ -1,24 +1,32 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { PROTOCOL_VERSION, clientCommandSchema, roomConfigSchema, type ClientCommand, type ErrorCode, type ServerMessage } from '../src/lib/game/online/contracts';
+import { advanceFeedCursor, initialDelivery, planBroadcast, type DeliveryState } from './broadcast';
 import { ONLINE_DATA_HASH } from './data';
 import { RoomError, RoomManager } from './room-manager';
 
 const MAX_COMMANDS_PER_10_SECONDS = 40;
 const MAX_ROOM_CREATIONS_PER_MINUTE = 10;
 const MAX_PAYLOAD_BYTES = 16 * 1024;
+/** Bytes still queued on a socket above which a live update is skipped: the next tick sends the state of that moment instead. */
+const LIVE_BACKPRESSURE_BYTES = 64 * 1024;
 
 interface Session {
   roomCode: string;
   participantId: string | null;
   commandTimes: number[];
   alive: boolean;
+  /** What this connection already received; decides between a snapshot, a live update or nothing. */
+  delivery: DeliveryState;
 }
 
 export interface OnlineServerOptions {
   allowedOrigins?: string[];
   manager?: RoomManager;
   now?: () => number;
+  liveBackpressureBytes?: number;
+  /** How many bytes a socket still has queued; injectable so tests can simulate a slow connection. */
+  bufferedAmountOf?: (socket: WebSocket) => number;
 }
 
 const json = (response: ServerResponse, status: number, body: unknown, origin?: string) => {
@@ -44,6 +52,8 @@ const readJsonBody = async (request: IncomingMessage): Promise<unknown> => {
 export function createOnlineServer(options: OnlineServerOptions = {}) {
   const manager = options.manager ?? new RoomManager();
   const now = options.now ?? Date.now;
+  const liveBackpressureBytes = options.liveBackpressureBytes ?? LIVE_BACKPRESSURE_BYTES;
+  const bufferedAmountOf = options.bufferedAmountOf ?? ((socket: WebSocket) => socket.bufferedAmount);
   const allowedOrigins = new Set(options.allowedOrigins ?? ['http://localhost:5173', 'https://cs13a0.com', 'https://www.cs13a0.com']);
   const roomCreations = new Map<string, number[]>();
   const sessions = new Map<WebSocket, Session>();
@@ -100,18 +110,45 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
 
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES, perMessageDeflate: false });
 
-  const send = (socket: WebSocket, message: ServerMessage) => {
-    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+  const send = (socket: WebSocket, message: ServerMessage): boolean => {
+    if (socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify(message));
+    return true;
+  };
+
+  /**
+   * Sends one connection what it lacks: a full snapshot when the room state moved (never skipped), a live update when
+   * only the live cursor moved, nothing when it is up to date. The delivery state only advances on a successful send,
+   * so a live update skipped because the socket is backed up is simply replaced by a newer one on a later tick, and
+   * the kill-feed cursor guarantees no round is lost in between.
+   */
+  const deliver = (socket: WebSocket, session: Session) => {
+    if (!session.participantId) return;
+    try {
+      const versions = manager.getVersions(session.roomCode);
+      const plan = planBroadcast(session.delivery, versions, bufferedAmountOf(socket), liveBackpressureBytes);
+      if (plan === 'none' || plan === 'skip') return;
+      if (plan === 'snapshot') {
+        const snapshot = manager.getSnapshot(session.roomCode, session.participantId, now());
+        if (!send(socket, { type: 'snapshot', snapshot })) return;
+        session.delivery = {
+          sentVersion: snapshot.version,
+          sentStateVersion: versions.stateVersion,
+          feedCursor: advanceFeedCursor(session.delivery.feedCursor, snapshot.tournament?.liveCursor?.primarySeries ?? null)
+        };
+        return;
+      }
+      const live = manager.getLiveUpdate(session.roomCode, session.participantId, now(), session.delivery.feedCursor);
+      if (!send(socket, { type: 'live', live })) return;
+      session.delivery = { ...session.delivery, sentVersion: live.version, feedCursor: advanceFeedCursor(session.delivery.feedCursor, live.cursor.primarySeries) };
+    } catch {
+      // The room may have expired between the timer tick and this delivery.
+    }
   };
 
   const broadcastRoom = (roomCode: string) => {
     for (const [socket, session] of sessions) {
-      if (session.roomCode !== roomCode || !session.participantId) continue;
-      try {
-        send(socket, { type: 'snapshot', snapshot: manager.getSnapshot(roomCode, session.participantId, now()) });
-      } catch {
-        // The room may have expired between the timer tick and this broadcast.
-      }
+      if (session.roomCode === roomCode) deliver(socket, session);
     }
   };
 
@@ -121,7 +158,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   };
 
   sockets.on('connection', (socket: WebSocket, request: IncomingMessage, roomCode: string) => {
-    sessions.set(socket, { roomCode, participantId: null, commandTimes: [], alive: true });
+    sessions.set(socket, { roomCode, participantId: null, commandTimes: [], alive: true, delivery: initialDelivery() });
     socket.on('pong', () => {
       const session = sessions.get(socket);
       if (session) session.alive = true;
@@ -164,7 +201,8 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
         if (command.type === 'resync') {
           // A client that suspects it fell out of sync gets the whole room again, on its own socket only.
           send(socket, { type: 'ack', requestId: command.requestId, version: manager.getVersion(roomCode) });
-          send(socket, { type: 'snapshot', snapshot: manager.getSnapshot(roomCode, session.participantId, current) });
+          session.delivery = { ...session.delivery, sentStateVersion: -1 };
+          deliver(socket, session);
           return;
         }
         manager.execute(roomCode, session.participantId, command, current);
@@ -198,7 +236,9 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   });
 
   const tickTimer = setInterval(() => {
-    for (const roomCode of manager.tick(now())) broadcastRoom(roomCode);
+    manager.tick(now());
+    // Every connection, not only the rooms that changed: a live update skipped earlier goes out once the socket drains.
+    for (const [socket, session] of sessions) deliver(socket, session);
   }, 100);
   tickTimer.unref();
   const heartbeatTimer = setInterval(() => {
