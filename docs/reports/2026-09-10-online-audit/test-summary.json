@@ -1,0 +1,72 @@
+{
+  "original": {
+    "numTotalTests": 262,
+    "numPassedTests": 262,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "files": 34,
+    "failures": []
+  },
+  "matrix-first": {
+    "numTotalTests": 16,
+    "numPassedTests": 13,
+    "numFailedTests": 3,
+    "numPendingTests": 0,
+    "files": 1,
+    "failures": [
+      {
+        "test": "extended online audit full tournament {\"count\":4,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      },
+      {
+        "test": "extended online audit full tournament {\"count\":8,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      },
+      {
+        "test": "extended online audit full tournament {\"count\":16,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      }
+    ]
+  },
+  "comparison": {
+    "numTotalTests": 16,
+    "numPassedTests": 6,
+    "numFailedTests": 0,
+    "numPendingTests": 10,
+    "files": 1,
+    "failures": []
+  },
+  "final": {
+    "numTotalTests": 288,
+    "numPassedTests": 285,
+    "numFailedTests": 3,
+    "numPendingTests": 0,
+    "files": 37,
+    "failures": [
+      {
+        "test": "extended online audit full tournament {\"count\":4,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      },
+      {
+        "test": "extended online audit full tournament {\"count\":8,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      },
+      {
+        "test": "extended online audit full tournament {\"count\":16,\"stall\":true}",
+        "messages": [
+          "AssertionError: expected [ { player: +0, …(3) } ] to deeply equal []\n    at /home/itcenterai/worktree/worktree-pessoal/cs20a0/tests/onlineExtendedTraffic.test.ts:172:21\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/itcenterai/worktree/worktree-pessoal/cs20a0/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+        ]
+      }
+    ]
+  }
+}

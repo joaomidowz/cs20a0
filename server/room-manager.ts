@@ -31,7 +31,7 @@ import {
   type RoomPhase,
   type RoomSnapshot
 } from '../src/lib/game/online/contracts';
-import { feedKey, type FeedCursor, type RoomVersions } from './broadcast';
+import { feedOwes, type FeedCursor, type RoomVersions } from './broadcast';
 import {
   autocompleteDraft,
   chooseDraftPlayer,
@@ -239,23 +239,23 @@ const publicHistorySeries = (series: SeriesResult): SeriesResult => ({
 });
 
 /**
- * The viewer's picture of a live series: oriented so `focusId` is team A, hidden ratings zeroed, the kill feed of the
- * live map limited to the rounds this connection has not received yet (`feedCursor`, and only when `includeDetails`).
- * `userMatch` tells whether the viewer's own organization plays in it, whatever the focus. Future results do not exist
- * yet, so they cannot leak.
+ * The viewer's picture of a live series: oriented so `focusId` is team A, hidden ratings zeroed, the kill feed limited
+ * to the rounds this connection has not received yet (`feedCursor`, on every map of the series, and only when
+ * `includeDetails`). `userMatch` tells whether the viewer's own organization plays in it, whatever the focus. Future
+ * results do not exist yet, so they cannot leak.
  */
 function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, viewerId: string | null, includeDetails: boolean, feedCursor: FeedCursor | null): PublicLiveSeries {
   const { state } = runtime;
   const raw = toSeriesResult(state);
   const activeMap = state.current ? state.current.index : Math.max(0, raw.maps.length - 1);
-  const since = feedCursor?.key === feedKey(state.config.id, activeMap) ? feedCursor.round : 0;
-  // Pruned before orienting: only the rounds still owed to this connection get mirrored, never the whole feed.
+  // Pruned before orienting: every map keeps only the rounds still owed to this connection (earlier maps included, so
+  // a client that fell behind across a map change catches up), and only those get mirrored, never the whole feed.
   const pruned: SeriesResult = {
     ...raw,
-    maps: raw.maps.map(({ details, ...map }, index) =>
-      includeDetails && details && index === activeMap
-        ? { ...map, details: details.filter((detail) => detail.number > since).map(publicRoundDetail) }
-        : map)
+    maps: raw.maps.map(({ details, ...map }, index) => {
+      const owed = includeDetails && details ? details.filter((detail) => feedOwes(feedCursor, state.config.id, index, detail.number)) : [];
+      return owed.length ? { ...map, details: owed.map(publicRoundDetail) } : map;
+    })
   };
   const oriented = orientSeriesToTeam(pruned, focusId);
   const flipped = oriented.teamA.id !== state.config.teamA.id;

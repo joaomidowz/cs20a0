@@ -1,0 +1,4 @@
+{"rooms":1,"players":4,"connections":4,"simulatedSeconds":100,"bytes":16948078,"lives":1968,"snapshots":28,"p50Ms":0.12263400000000502,"p95Ms":0.7856580000000122,"p99Ms":1.4488319999999817,"maxMs":3.046246999999994}
+{"rooms":1,"players":16,"connections":16,"simulatedSeconds":100,"bytes":101019097,"lives":12272,"snapshots":96,"p50Ms":0.48095599999999195,"p95Ms":0.7260049999999865,"p99Ms":0.9729769999999007,"maxMs":4.2020559999999705}
+{"rooms":4,"players":16,"connections":64,"simulatedSeconds":100,"bytes":403083081,"lives":48640,"snapshots":384,"p50Ms":1.7810570000001462,"p95Ms":2.5839420000002065,"p99Ms":4.349613999999747,"maxMs":5.470084000000043}
+{"rooms":10,"players":16,"connections":160,"simulatedSeconds":100,"bytes":1001476670,"lives":119504,"snapshots":944,"p50Ms":4.561372000000119,"p95Ms":6.367606000000251,"p99Ms":7.628169999999955,"maxMs":9.938253000000259}

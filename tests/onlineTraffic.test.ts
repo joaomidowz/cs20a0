@@ -20,10 +20,15 @@ interface PlayerTraffic {
 
 /**
  * A whole four-human tournament at ultra speed through the same delivery logic the server uses per connection
- * (`planBroadcast` + `advanceFeedCursor`), counting the JSON bytes each player would receive. With
- * `skipEveryOtherLive` the socket looks backed up on every other tick, as a slow connection would.
+ * (`planBroadcast` + `advanceFeedCursor`), counting the JSON bytes each player would receive. With `slow` the socket
+ * looks backed up on every other tick, as a slow connection would; with `stall` the first player's socket stays backed
+ * up from round 5 of a map until the series moved on to the next map, the case that used to lose the tail of the feed.
  */
-function simulateTournament(skipEveryOtherLive: boolean) {
+function simulateTournament({ slow = false, stall = false }: { slow?: boolean; stall?: boolean }) {
+  const skipEveryOtherLive = slow;
+  let stallKey: string | null = null;
+  let stalled = false;
+  let recovered = false;
   const manager = new RoomManager();
   let now = 1_000_000;
   let requests = 0;
@@ -50,10 +55,14 @@ function simulateTournament(skipEveryOtherLive: boolean) {
     if (message.type === 'snapshot') stats.snapshots += 1;
     else stats.lives += 1;
     if (!primary) return;
-    const key = feedKey(primary.series.id, primary.activeMap);
-    const numbers = stats.feed.get(key) ?? new Set<number>();
-    for (const detail of primary.series.maps[primary.activeMap]?.details ?? []) numbers.add(detail.number);
-    stats.feed.set(key, numbers);
+    // Rounds may belong to any map of the series: a catch-up carries the tail of the previous map too.
+    primary.series.maps.forEach((map, index) => {
+      if (!map.details?.length) return;
+      const key = feedKey(primary.series.id, index);
+      const numbers = stats.feed.get(key) ?? new Set<number>();
+      for (const detail of map.details) numbers.add(detail.number);
+      stats.feed.set(key, numbers);
+    });
   };
   const answerDecision = (id: string) => {
     const live = manager.getLiveUpdate(code, id, now, null);
@@ -74,7 +83,14 @@ function simulateTournament(skipEveryOtherLive: boolean) {
     const versions = manager.getVersions(code);
     for (const id of ids) {
       const state = delivery.get(id)!;
-      const buffered = skipEveryOtherLive && ticks % 2 === 1 ? BACKPRESSURE_LIMIT + 1 : 0;
+      let buffered = skipEveryOtherLive && ticks % 2 === 1 ? BACKPRESSURE_LIMIT + 1 : 0;
+      if (stall && id === ids[0]) {
+        const primary = manager.getLiveUpdate(code, id, now, null).cursor.primarySeries;
+        const key = primary ? feedKey(primary.series.id, primary.activeMap) : '';
+        if (!stalled && primary && primary.visibleRounds >= 5) { stalled = true; stallKey = key; }
+        if (stalled && key !== stallKey) recovered = true;
+        if (stalled && !recovered) buffered = BACKPRESSURE_LIMIT + 1;
+      }
       const plan = planBroadcast(state, versions, buffered, BACKPRESSURE_LIMIT);
       if (plan === 'none') continue;
       if (plan === 'skip') {
@@ -94,13 +110,14 @@ function simulateTournament(skipEveryOtherLive: boolean) {
     }
   }
   expect(manager.getVersions(code).phase).toBe('completed');
+  if (stall) expect(recovered).toBe(true);
   const final = manager.getSnapshot(code, ids[0], now);
   return { ids, traffic, final, ticks };
 }
 
 describe('online traffic per player', () => {
-  it.each([false, true])('stays small for a whole tournament and never loses a kill-feed round (slow connection: %s)', (slow) => {
-    const { ids, traffic, final } = simulateTournament(slow);
+  it.each([{}, { slow: true }, { stall: true }])('stays small for a whole tournament and never loses a kill-feed round (%j)', (options) => {
+    const { ids, traffic, final } = simulateTournament(options);
     const rounds = final.tournament!.rounds;
     expect(rounds.length).toBeGreaterThanOrEqual(8);
     for (const id of ids) {
@@ -109,7 +126,7 @@ describe('online traffic per player', () => {
       expect(stats.largest).toBeLessThan(300 * KB);
       expect(stats.bytes).toBeLessThan(20 * KB * KB);
       expect(stats.lives).toBeGreaterThan(stats.snapshots * 10);
-      if (slow) expect(stats.skipped).toBeGreaterThan(0);
+      if (options.slow || (options.stall && id === ids[0])) expect(stats.skipped).toBeGreaterThan(0);
       // Every round of every map the player played reached them, even when half of the updates were skipped.
       const own = rounds.flatMap((round) => round.series).filter((series) => series.teamA.id === id || series.teamB.id === id);
       expect(own.length).toBeGreaterThanOrEqual(3);

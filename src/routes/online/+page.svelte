@@ -80,8 +80,8 @@
   /** Last automatic tactical pause asked for. */
   let autoPausedHalf: AutomationAttempt | null = null;
   let mySide: 'a' | 'b' | null = null;
-  /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
-  let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
+  /** Kill feed of the live series accumulated per map (indexed by round number) from what this connection received. */
+  let liveDetails: { seriesId: string; maps: RoundDetail[][] } = { seriesId: '', maps: [] };
   /** The "secret player joined" toast fires once per draft. */
   let secretToastShown = false;
   /** Seconds left in the rematch window after a run ends (0 when closed). */
@@ -117,7 +117,9 @@
   /** True while the viewer shows a series the user is not playing (Major overview → watch). */
   $: watchingOther = Boolean(liveSeries && !liveSeries.series.userMatch && myLiveOverview);
   $: mySide = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? 'a' : 'b') : null;
-  $: liveDetailList = liveSeries && liveDetails.key === `${liveSeries.series.id}:${liveSeries.activeMap}` ? liveDetails.rounds : null;
+  $: liveDetailList = liveSeries && liveDetails.seriesId === liveSeries.series.id ? liveDetails.maps[liveSeries.activeMap] ?? null : null;
+  /** The live series with the accumulated feed on every map, so decided maps keep their pistols and headlines. */
+  $: liveSeriesView = liveSeries ? withAccumulatedDetails(liveSeries.series, liveDetails) : null;
   $: answerAutomatedDecision(myDecision, strategicPreferences);
   $: callAutomaticPause(liveDetailList, strategicPreferences);
   $: liveTeamNames = liveSeries ? { [liveSeries.series.teamA.id]: liveSeries.series.teamA.name, [liveSeries.series.teamB.id]: liveSeries.series.teamB.name } as Record<string, string> : {};
@@ -367,14 +369,24 @@
     client.connect();
   }
 
-  /** Keeps every round of the live map: the server only sends the rounds this connection has not received yet. */
+  /**
+   * Keeps every round of every map of the live series: the server only sends the rounds this connection has not
+   * received yet, on whichever map they belong to (a lagging client gets the tail of the previous map along with the new one).
+   */
   function mergeLiveDetails(primary: PublicLiveSeries | null) {
     if (!primary) return;
-    const key = `${primary.series.id}:${primary.activeMap}`;
-    const incoming = primary.series.maps[primary.activeMap]?.details ?? [];
-    const rounds = liveDetails.key === key ? [...liveDetails.rounds] : [];
-    for (const detail of incoming) rounds[detail.number - 1] = detail;
-    liveDetails = { key, rounds };
+    const maps = liveDetails.seriesId === primary.series.id ? liveDetails.maps.map((rounds) => [...rounds]) : [];
+    primary.series.maps.forEach((map, index) => {
+      if (!map.details?.length) return;
+      const rounds = maps[index] ?? (maps[index] = []);
+      for (const detail of map.details) rounds[detail.number - 1] = detail;
+    });
+    liveDetails = { seriesId: primary.series.id, maps };
+  }
+
+  function withAccumulatedDetails(series: SeriesResult, feed: { seriesId: string; maps: RoundDetail[][] }): SeriesResult {
+    if (feed.seriesId !== series.id) return series;
+    return { ...series, maps: series.maps.map((map, index) => feed.maps[index]?.length ? { ...map, details: feed.maps[index].filter(Boolean) } : map) };
   }
 
   /** A rematch brought the room back to the draft: nothing from the previous run may linger on screen. */
@@ -390,7 +402,7 @@
     provisionalMapPreferences = [];
     mapLineupKey = '';
     proLineupKey = '';
-    liveDetails = { key: '', rounds: [] };
+    liveDetails = { seriesId: '', maps: [] };
     live = null;
     expandedTimelineMatch = null;
     detailsPlayer = null;
@@ -408,7 +420,7 @@
 
   /** Switches the live viewer to another series of the round (null returns to the user's own). */
   function watchSeries(seriesId: string | null) {
-    if (seriesId !== (liveSeries?.series.id ?? null)) liveDetails = { key: '', rounds: [] };
+    if (seriesId !== (liveSeries?.series.id ?? null)) liveDetails = { seriesId: '', maps: [] };
     send({ type: 'watch-match', seriesId });
     activeTab = 'current';
   }
@@ -844,7 +856,7 @@
               {/if}
               {#key liveSeries.series.id}
                 <SeriesViewer
-                  series={liveSeries.series}
+                  series={liveSeriesView ?? liveSeries.series}
                   controlled
                   controlledActiveMap={liveSeries.activeMap}
                   controlledVisibleRounds={liveSeries.visibleRounds}

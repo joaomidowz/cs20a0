@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { feedKey } from '../server/broadcast';
 import { players, teams } from '../server/data';
 import { ROUND_GAP_MS, RoomError, RoomManager } from '../server/room-manager';
 import { DEFAULT_ROOM_CONFIG, type LiveUpdate, type PublicPendingDecision } from '../src/lib/game/online/contracts';
@@ -52,10 +51,11 @@ function runUntil(room: ReturnType<typeof createLiveRoom>, predicate: () => bool
   return now;
 }
 
-const detailNumbers = (live: LiveUpdate) => {
+const detailNumbers = (live: LiveUpdate, map?: number) => {
   const primary = live.cursor.primarySeries!;
-  return (primary.series.maps[primary.activeMap]?.details ?? []).map((detail) => detail.number);
+  return (primary.series.maps[map ?? primary.activeMap]?.details ?? []).map((detail) => detail.number);
 };
+const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from + 1) }, (_, index) => from + index);
 
 describe('live updates and the public history', () => {
   it('sends the kill feed of the live map only past the cursor of the connection, in full to a fresh one', () => {
@@ -70,17 +70,18 @@ describe('live updates and the public history', () => {
     expect(detailNumbers(full)).toEqual(Array.from({ length: played }, (_, index) => index + 1));
     expect((primary.series.maps[primary.activeMap]?.details ?? []).every((detail) => detail.momentum === undefined)).toBe(true);
 
-    const key = feedKey(primary.series.id, primary.activeMap);
-    const partial = manager.getLiveUpdate(code, host, now, { key, round: 3 });
-    expect(detailNumbers(partial)).toEqual(Array.from({ length: played - 3 }, (_, index) => index + 4));
+    const seriesId = primary.series.id;
+    const partial = manager.getLiveUpdate(code, host, now, { seriesId, map: primary.activeMap, round: 3 });
+    expect(detailNumbers(partial)).toEqual(range(4, played));
     expect(partial.cursor.primarySeries?.visibleRounds).toBe(played);
     expect(partial.cursor.primarySeries?.series.maps[primary.activeMap]?.rounds).toHaveLength(played);
 
-    const upToDate = manager.getLiveUpdate(code, host, now, { key, round: played });
+    const upToDate = manager.getLiveUpdate(code, host, now, { seriesId, map: primary.activeMap, round: played });
     expect(detailNumbers(upToDate)).toEqual([]);
+    expect(upToDate.cursor.primarySeries?.series.maps[primary.activeMap]?.details).toBeUndefined();
 
-    const otherMap = manager.getLiveUpdate(code, host, now, { key: feedKey(primary.series.id, primary.activeMap + 1), round: 3 });
-    expect(detailNumbers(otherMap)).toHaveLength(played);
+    const otherSeries = manager.getLiveUpdate(code, host, now, { seriesId: 'another-series', map: 4, round: 40 });
+    expect(detailNumbers(otherSeries)).toHaveLength(played);
 
     // A snapshot always carries the whole live map, so a reconnecting client starts complete.
     const snapshot = manager.getSnapshot(code, host, now);
@@ -88,6 +89,35 @@ describe('live updates and the public history', () => {
     expect(snapshotPrimary.series.maps[snapshotPrimary.activeMap]?.details).toHaveLength(played);
     expect(full.pendingDecision).toEqual(snapshot.self?.pendingDecision ?? null);
     expect(full.version).toBe(snapshot.version);
+  });
+
+  it('catches a lagging connection up on the tail of the previous map together with the new one', () => {
+    const room = createLiveRoom();
+    const { manager, code, host } = room;
+    const onSecondMap = () => {
+      const primary = manager.getLiveUpdate(code, host, room.now).cursor.primarySeries;
+      return Boolean(primary && primary.activeMap >= 1 && primary.visibleRounds >= 2);
+    };
+    const now = runUntil(room, onSecondMap);
+    const fresh = manager.getLiveUpdate(code, host, now, null);
+    const primary = fresh.cursor.primarySeries!;
+    const seriesId = primary.series.id;
+    const firstMapRounds = primary.series.maps[0].rounds.length;
+    expect(firstMapRounds).toBeGreaterThanOrEqual(13);
+    // Nothing delivered yet: both maps in full (a reconnecting client starts complete).
+    expect(detailNumbers(fresh, 0)).toEqual(range(1, firstMapRounds));
+    expect(detailNumbers(fresh, 1)).toEqual(range(1, primary.visibleRounds));
+
+    // Stalled since round 5 of the first map: the tail of that map arrives with the whole second map.
+    const stalled = manager.getLiveUpdate(code, host, now, { seriesId, map: 0, round: firstMapRounds - 5 });
+    expect(detailNumbers(stalled, 0)).toEqual(range(firstMapRounds - 4, firstMapRounds));
+    expect(detailNumbers(stalled, 1)).toEqual(range(1, primary.visibleRounds));
+
+    // Up to date on the first map and one round into the second: only the rest of the second map.
+    const partial = manager.getLiveUpdate(code, host, now, { seriesId, map: 1, round: 1 });
+    expect(partial.cursor.primarySeries?.series.maps[0]?.details).toBeUndefined();
+    expect(detailNumbers(partial, 1)).toEqual(range(2, primary.visibleRounds));
+    expect(partial.cursor.primarySeries?.series.teamA.id).toBe(host);
   });
 
   it('keeps the public history free of kill feed, hidden ratings and per-round decisions', () => {
