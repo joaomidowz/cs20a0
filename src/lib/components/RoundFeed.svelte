@@ -3,6 +3,7 @@
   import { aggregateKills } from '$lib/game/rounds';
   import { translate } from '$lib/game/i18n';
   import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel, getVisibleRoundTag } from '$lib/game/roundPresentation';
+  import { KILL_FLAG_ICONS, KILL_FLAG_LABELS, killFlags } from '$lib/game/killfeedIcons';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail } from '$lib/game/types';
 
@@ -37,6 +38,7 @@
   $: buyLabels = BUY_LABELS[language];
   $: sideLabels = SIDE_LABELS[language];
   $: endingLabels = ENDING_LABELS[language];
+  $: flagLabels = KILL_FLAG_LABELS[language];
   $: isMine = (side: 'a' | 'b') => userIsA !== null && (side === 'a') === userIsA;
 
   function clearKillTimers() {
@@ -76,21 +78,24 @@
 {#if currentDetail}
   <div class="round-detail" class:compact>
     <div class="round-economy">
-      <span class="buy {currentDetail.economy.a.buy}" class:mine={isMine('a')} title={`${teamNames.a} · $${currentDetail.economy.a.money}`}><i>{sideLabels[currentDetail.sideA]}</i>{buyLabels[currentDetail.economy.a.buy]}{#if currentDetail.economy.a.awp}<em>AWP</em>{/if}</span>
+      <span class="buy {currentDetail.economy.a.buy}" class:mine={isMine('a')} title={`${teamNames.a} · $${currentDetail.economy.a.money}`}><i>{sideLabels[currentDetail.sideA]}</i>{buyLabels[currentDetail.economy.a.buy]}{#if currentDetail.economy.a.awp || currentDetail.economy.a.awpKept}<em>AWP</em>{/if}</span>
       <div class="round-center">
         <em class="round-number">R{currentDetail.number}</em>
         {#if currentDetail.timeout}<b class="round-tag timeout" class:mine={isMine(currentDetail.timeout)} title={currentDetail.timeoutTiming ? translate(language, currentDetail.timeoutTiming === 'window' ? 'timeoutWindow' : currentDetail.timeoutTiming === 'early' ? 'timeoutEarly' : 'timeoutLate') : undefined}>⏸ {teamNames[currentDetail.timeout]}{#if currentDetail.timeoutTiming && currentDetail.timeoutTiming !== 'window'} · ⅓{/if}</b>{/if}
         {#if tag}<b class="round-tag {tag}" class:mine={resolved && isMine(currentDetail.winner)}>{getRoundTagLabel(language, tag)}</b>{/if}
       </div>
-      <span class="buy right {currentDetail.economy.b.buy}" class:mine={isMine('b')} title={`${teamNames.b} · $${currentDetail.economy.b.money}`}>{#if currentDetail.economy.b.awp}<em>AWP</em>{/if}{buyLabels[currentDetail.economy.b.buy]}<i>{sideLabels[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>
+      <span class="buy right {currentDetail.economy.b.buy}" class:mine={isMine('b')} title={`${teamNames.b} · $${currentDetail.economy.b.money}`}>{#if currentDetail.economy.b.awp || currentDetail.economy.b.awpKept}<em>AWP</em>{/if}{buyLabels[currentDetail.economy.b.buy]}<i>{sideLabels[currentDetail.sideA === 'ct' ? 't' : 'ct']}</i></span>
     </div>
     {#if currentDetail.kills.length && !simple}
       <ul class="kill-feed" aria-label="Kill feed">
         {#each visibleKills as kill, index (`${currentDetail.number}-${index}`)}
           <li class:user={isMine(kill.killerSide)} class:enemy={userIsA !== null && !isMine(kill.killerSide)}>
             <b class="killer">{kill.killerName}</b>
+            {#if kill.assistName}<span class="assist" title={flagLabels.assist}><i class="flag" role="img" aria-label={flagLabels.assist}>{@html KILL_FLAG_ICONS.assist}</i>{kill.assistName}</span>{/if}
+            {#if kill.flashAssistName}<span class="assist" title={flagLabels.flashAssist}><i class="flag" role="img" aria-label={flagLabels.flashAssist}>{@html KILL_FLAG_ICONS.flashAssist}</i>{kill.flashAssistName}</span>{/if}
+            {#each killFlags(kill).filter((flag) => flag === 'airborne' || flag === 'noscope') as flag (flag)}<i class="flag" role="img" aria-label={flagLabels[flag]} title={flagLabels[flag]}>{@html KILL_FLAG_ICONS[flag]}</i>{/each}
             <span class="weapon" role="img" aria-label={WEAPON_LABELS[kill.weapon]} title={WEAPON_LABELS[kill.weapon]}>{@html WEAPON_ICONS[kill.weapon]}</span>
-            {#if kill.headshot}<i class="hs" title="Headshot">HS</i>{/if}
+            {#each killFlags(kill).filter((flag) => flag !== 'airborne' && flag !== 'noscope') as flag (flag)}<i class="flag" class:hs={flag === 'headshot'} role="img" aria-label={flagLabels[flag]} title={flagLabels[flag]}>{@html KILL_FLAG_ICONS[flag]}</i>{/each}
             <b class="victim">{kill.victimName}</b>
             <time>{kill.second}s</time>
           </li>
@@ -126,7 +131,8 @@
   .kill-feed .killer{overflow:hidden;color:var(--text);text-overflow:ellipsis;white-space:nowrap}.kill-feed li.user .killer{color:var(--accent)}
   .kill-feed .victim{overflow:hidden;color:var(--muted);font-weight:600;text-overflow:ellipsis;white-space:nowrap}
   .kill-feed .weapon{display:inline-flex;flex:none;width:46px;height:16px;color:var(--text)}.kill-feed .weapon :global(svg){width:100%;height:100%}
-  .kill-feed .hs{flex:none;padding:1px 4px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-style:normal;font-weight:900}
+  .kill-feed .flag{display:inline-flex;flex:none;width:16px;height:16px;color:var(--text);opacity:.85}.kill-feed .flag :global(svg){width:100%;height:100%}.kill-feed .flag.hs{color:var(--accent-2);opacity:1}
+  .kill-feed .assist{display:inline-flex;align-items:center;gap:3px;min-width:0;color:var(--muted);font-size:.68rem;white-space:nowrap}.kill-feed .assist .flag{width:13px;height:13px;opacity:.7}
   .kill-feed time{flex:none;margin-left:auto;color:var(--muted);font-size:.6rem;font-variant-numeric:tabular-nums}
   .round-ending{min-height:1.2em;color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.round-ending.user{color:var(--accent)}.round-ending.enemy{color:var(--danger)}
   .frag-leaders{display:flex;flex-wrap:wrap;gap:6px 16px;min-height:30px;margin:0;padding:8px 0 0;border-top:1px solid var(--line);list-style:none}

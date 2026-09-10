@@ -123,21 +123,23 @@ export function findPairings(active: MutableStanding[]): Array<[MutableStanding,
       Math.abs(left.losses - right.losses) * 100 +
       Math.abs(rightSlot.index - (leftSlot.index + Math.ceil(leftSlot.size / 2)));
   };
-  const search = (remaining: MutableStanding[], allowRematch = false): Array<[MutableStanding, MutableStanding]> | null => {
+  const sameRecord = (left: MutableStanding, right: MutableStanding) => left.wins === right.wins && left.losses === right.losses;
+  const search = (remaining: MutableStanding[], allowCrossGroup: boolean, allowRematch: boolean): Array<[MutableStanding, MutableStanding]> | null => {
     if (!remaining.length) return [];
     const left = remaining[0];
     const candidates = remaining.slice(1)
-      .filter((right) => allowRematch || !left.opponents.includes(right.organizationId))
+      .filter((right) => (allowRematch || !left.opponents.includes(right.organizationId)) && (allowCrossGroup || sameRecord(left, right)))
       .sort((a, b) => pairingPreference(left, a) - pairingPreference(left, b) || standingOrder(a, b));
     for (const right of candidates) {
       const rest = remaining.filter((standing) => standing !== left && standing !== right);
-      const tail = search(rest, allowRematch);
+      const tail = search(rest, allowCrossGroup, allowRematch);
       if (tail) return [[left, right], ...tail];
     }
     return null;
   };
-  // A rematch-free pairing can be impossible late in the Swiss stage; a rematch beats crashing the whole tournament.
-  const result = search(ordered) ?? search(ordered, true);
+  // Every team meets its own record group first; only when that is impossible do groups mix, and only as a last resort
+  // does a rematch happen (it beats crashing the whole tournament).
+  const result = search(ordered, false, false) ?? search(ordered, true, false) ?? search(ordered, true, true);
   if (!result) throw new Error('Could not create a Swiss round');
   return result;
 }

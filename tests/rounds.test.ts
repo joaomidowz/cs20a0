@@ -331,6 +331,70 @@ describe('kill realism', () => {
   });
 });
 
+describe('economy rules and kill feed events', () => {
+  const rounds = rosterRounds(120, 'economy');
+
+  it('gives the T side the second loss-bonus step after a lost pistol and nothing to time-out survivors', () => {
+    const state = createMapState(team('a', 90), team('b', 90), { rng: createSeededRng('t-pistol'), mapId: 'mirage', sidePickerTeamId: 'a', controllers: { a: 'bot', b: 'bot' } });
+    autoDecide(state);
+    const pistol = playNextRound(state);
+    const loser = pistol.winner === 'a' ? 'b' : 'a';
+    const loserSide = loser === 'a' ? pistol.sideA : pistol.sideA === 'ct' ? 't' : 'ct';
+    const second = playNextRound(state);
+    // Money before the second round = 800 - pistol spend (650) + loss bonus (+ plant / kill money).
+    if (loserSide === 't') expect(second.economy[loser].money).toBeGreaterThanOrEqual(800 - 650 + 1900);
+    else expect(second.economy[loser].money).toBeGreaterThanOrEqual(800 - 650 + 1400);
+  });
+
+  it('keeps a surviving AWP for free and lets a force buy drop a rifle to the star', () => {
+    const kept = rounds.filter((round) => round.economy.a.awpKept || round.economy.b.awpKept);
+    expect(kept.length).toBeGreaterThan(0);
+    for (const round of kept) {
+      for (const side of ['a', 'b'] as TeamSide[]) {
+        if (!round.economy[side].awpKept) continue;
+        // The kept AWP belongs to a player who survived the previous round.
+        const previous = rounds[rounds.indexOf(round) - 1];
+        const holder = round.kills.find((kill) => kill.killerSide === side && kill.weapon === 'awp');
+        if (holder && previous) expect(previous.kills.some((kill) => kill.victimId === holder.killerId)).toBe(false);
+      }
+    }
+    const forceRifles = rounds.flatMap((round) => round.kills.filter((kill) => round.economy[kill.killerSide].buy === 'force' && (kill.weapon === 'ak47' || kill.weapon === 'm4a1')));
+    expect(forceRifles.length).toBeGreaterThan(0);
+    for (const round of rounds) {
+      for (const side of ['a', 'b'] as TeamSide[]) {
+        if (round.economy[side].buy !== 'force') continue;
+        const riflers = new Set(round.kills.filter((kill) => kill.killerSide === side && (kill.weapon === 'ak47' || kill.weapon === 'm4a1')).map((kill) => kill.killerId));
+        expect(riflers.size).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('flags kills like the CS2 feed at plausible rates and credits assists to teammates', () => {
+    const kills = rounds.flatMap((round) => round.kills);
+    const rate = (key: keyof RoundDetail['kills'][number]) => kills.filter((kill) => Boolean(kill[key])).length / kills.length;
+    expect(rate('assistId')).toBeGreaterThan(0.25);
+    expect(rate('assistId')).toBeLessThan(0.5);
+    expect(rate('flashAssistId')).toBeGreaterThan(0.05);
+    expect(rate('flashAssistId')).toBeLessThan(0.2);
+    expect(rate('blind')).toBeLessThan(0.08);
+    expect(rate('wallbang')).toBeLessThan(0.07);
+    expect(rate('smoke')).toBeLessThan(0.09);
+    expect(rate('airborne')).toBeLessThan(0.04);
+    expect(kills.filter((kill) => kill.noscope).every((kill) => kill.weapon === 'awp')).toBe(true);
+    for (const round of rounds) {
+      const roster = (side: TeamSide) => new Set(round.kills.filter((kill) => kill.killerSide === side).map((kill) => kill.killerId));
+      for (const kill of round.kills) {
+        expect(kill.assistId).not.toBe(kill.killerId);
+        expect(kill.flashAssistId).not.toBe(kill.killerId);
+        if (kill.assistId && kill.flashAssistId) expect(kill.assistId).not.toBe(kill.flashAssistId);
+        // Assists never come from the enemy team.
+        expect(round.kills.some((other) => other.killerSide !== kill.killerSide && (other.killerId === kill.assistId || other.killerId === kill.flashAssistId))).toBe(false);
+        void roster;
+      }
+    }
+  });
+});
+
 describe('round highlights', () => {
   const rounds = rosterRounds(400, 'highlights');
 

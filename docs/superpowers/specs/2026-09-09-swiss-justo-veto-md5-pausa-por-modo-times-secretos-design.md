@@ -37,3 +37,10 @@
 - Peso por função no feed (`ROLE_KILL_FACTOR`): entry e lurker acima de rifler; AWP com bônus menor; IGL e suporte abaixo.
 - Rating HLTV 1.0 comprimido em 70% em torno de 1,00 (`RATING_SPREAD`): média 1,00, estrelas 1,10–1,20, MVP ~1,30, 1,40 só em campanhas geracionais.
 - O último round de cada mapa toca o feed 60% mais devagar (`LAST_ROUND_FEED_FACTOR`) antes de o mapa fechar, no cliente e no ritmo do servidor.
+
+## Economia e kill feed no estilo CS2 (`rounds.ts`, `killfeedIcons.ts`)
+
+- Loss bonus 1.400 → 3.400 em degraus de 500, descendo um nível por vitória; TR que perde o pistol começa em 1.900; TR que perde por tempo sem plantar só recebe o bônus pelos jogadores que morreram; o dinheiro de plant só entra quando a bomba foi desarmada.
+- Quem sobrevive segurando a AWP mantém a arma no round seguinte sem pagar (`awpHolderId`, `TeamEconomy.awpKept`), inclusive em eco e forçado; a posse é perdida ao morrer, no intervalo e no início de cada bloco de prorrogação.
+- No forçado, o time dropa o único rifle para a estrela (maior peso de frag) em 60% dos rounds.
+- Cada kill pode carregar `noscope` (só AWP), `blind`, `wallbang`, `smoke`, `airborne`, `assistId/Name` (36%, suportes e IGLs mais prováveis) e `flashAssistId/Name` (11%). `killfeedIcons.ts` desenha os glifos (headshot, sem mira, cego, varado, pela smoke, no ar, assistência, assistência de flash) usados por `RoundFeed` e pelo cartão de round da `RoundStrip`, com o nome de quem assistiu ao lado do autor.

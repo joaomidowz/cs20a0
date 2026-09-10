@@ -66,6 +66,8 @@ interface TeamRuntime {
   plannedBuy: BuyType | null;
   /** After saving on purpose the team buys as soon as it can afford rifles. */
   savedForBuy: boolean;
+  /** Player who survived the last round holding the AWP: the rifle stays with them for free. */
+  awpHolderId: string | null;
 }
 
 export interface MapState {
@@ -225,6 +227,12 @@ function chooseBuy(runtime: TeamRuntime, pistolRound: boolean, rng: SeededRng): 
   const rounded = Math.round(money);
   const hasAwper = runtime.roster ? runtime.awpers.length > 0 : true;
   if (pistolRound) return { buy: 'pistol', awp: false, money: rounded };
+  const economy = chooseBuyWithMoney(runtime, money, rounded, hasAwper, rng);
+  // A saved AWP comes back for free, whatever the team buys around it.
+  return runtime.awpHolderId && !economy.awp ? { ...economy, awpKept: true } : economy;
+}
+
+function chooseBuyWithMoney(runtime: TeamRuntime, money: number, rounded: number, hasAwper: boolean, rng: SeededRng): TeamEconomy {
   if (runtime.plannedBuy) {
     const planned = runtime.plannedBuy;
     runtime.plannedBuy = null;
@@ -252,9 +260,12 @@ function chooseBuy(runtime: TeamRuntime, pistolRound: boolean, rng: SeededRng): 
   return { buy: 'full', awp, money: rounded };
 }
 
-function chooseWeapon(buy: TeamEconomy, side: MapSide, holdsAwp: boolean, rng: SeededRng): Weapon {
+function chooseWeapon(buy: TeamEconomy, side: MapSide, holdsAwp: boolean, rng: SeededRng, star = false): Weapon {
   if (rng() < 0.015) return 'knife';
   const sidePistol: Weapon = side === 'ct' ? 'usp' : 'glock';
+  // On a force buy the team drops the one rifle it can afford to its star, who then carries the round.
+  if (buy.buy === 'force' && star && rng() < 0.6) return side === 'ct' ? 'm4a1' : 'ak47';
+  if (holdsAwp && (buy.buy === 'force' || buy.buy === 'eco')) return pick(rng, [['awp', 80], ['deagle', 20]]);
   switch (buy.buy) {
     case 'pistol':
       return pick(rng, [[sidePistol, 88], ['deagle', 12]]);
@@ -291,7 +302,8 @@ const createRuntime = (team: CombatTeam, roster: Roster | undefined, variation: 
   timeoutsRemaining: 1,
   maxDeficit: 0,
   plannedBuy: null,
-  savedForBuy: false
+  savedForBuy: false,
+  awpHolderId: null
 });
 
 export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: MapStateOptions): MapState {
@@ -442,10 +454,19 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   const loser = other(winner);
   const gap = BUY_RANK[economy[winner].buy] - BUY_RANK[economy[loser].buy];
   const rosters = { a: state.teams.a.roster, b: state.teams.b.roster };
-  const awpHolder: Record<TeamSide, string | null> = {
-    a: economy.a.awp && state.teams.a.awpers.length ? state.teams.a.awpers[Math.floor(rng() * state.teams.a.awpers.length)]?.id ?? null : null,
-    b: economy.b.awp && state.teams.b.awpers.length ? state.teams.b.awpers[Math.floor(rng() * state.teams.b.awpers.length)]?.id ?? null : null
+  const holderFor = (side: TeamSide): string | null => {
+    const runtime = state.teams[side];
+    if (economy[side].awpKept && runtime.awpHolderId) return runtime.awpHolderId;
+    if (!economy[side].awp || !runtime.awpers.length) return null;
+    return runtime.awpHolderId ?? runtime.awpers[Math.floor(rng() * runtime.awpers.length)]?.id ?? null;
   };
+  const awpHolder: Record<TeamSide, string | null> = { a: holderFor('a'), b: holderFor('b') };
+  const starOf = (side: TeamSide): string | null => {
+    const roster = rosters[side];
+    if (!roster) return null;
+    return [...roster.players].sort((left, right) => killerWeight(right, false, roleOf(right, roster)) - killerWeight(left, false, roleOf(left, roster)))[0]?.id ?? null;
+  };
+  const star: Record<TeamSide, string | null> = { a: starOf('a'), b: starOf('b') };
   const weighted = (weights: number[], offset: number) => pick(rng, weights.map((weight, index) => [index + offset, weight] as [number, number]));
   const winnerKills = ending === 'elimination' ? 5 : weighted(WINNER_KILL_WEIGHTS[ending], 1);
   const loserKills = weighted(LOSER_KILL_WEIGHTS[clamp(gap, -2, 2) + 2], 0);
@@ -489,12 +510,15 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
     const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id, roleOf(player, rosters[side])) * hotHand(player, killsBy.get(player.id) ?? 0)] as [Player, number]));
     const victim = pick(rng, alive[enemy].map((player) => [player, victimWeight(player)] as [Player, number]));
     alive[enemy] = alive[enemy].filter((player) => player.id !== victim.id);
-    const weapon = chooseWeapon(economy[side], sides[side], awpHolder[side] === killer.id, rng);
+    const weapon = chooseWeapon(economy[side], sides[side], awpHolder[side] === killer.id, rng, star[side] === killer.id);
     kills.push({
       killerId: killer.id, killerName: playerName(killer), killerSide: side,
       victimId: victim.id, victimName: playerName(victim),
-      weapon, headshot: rng() < HEADSHOT_RATE[weapon], second: Math.round(Math.min(115, second))
+      weapon, headshot: rng() < HEADSHOT_RATE[weapon], second: Math.round(Math.min(115, second)),
+      ...killFlags(weapon, rng),
+      ...assistFor(killer, alive[side], rosters[side], rng)
     });
+    if (awpHolder[enemy] === victim.id) awpHolder[enemy] = null;
     killsBy.set(killer.id, (killsBy.get(killer.id) ?? 0) + 1);
     second += 6 + rng() * 18;
     // The winner is down to its last player while two or more enemies still stand: a clutch is on. From here on
@@ -503,7 +527,49 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
       clutch = { player: alive[winner][0], against: alive[loser].length, kills: 0 };
     } else if (clutch && side === winner) clutch.kills += 1;
   }
+  for (const side of ['a', 'b'] as TeamSide[]) {
+    // The AWP stays with its holder while they survive the round (and the team keeps a use for it).
+    const holder = awpHolder[side];
+    state.teams[side].awpHolderId = holder && alive[side].some((player) => player.id === holder) ? holder : null;
+  }
   return { kills, clutch: clutch !== null, winnerDeaths: loserKills, ...pickHighlight(kills, winner, clutch) };
+}
+
+/** Rates of the CS2 feed events, per kill. Blind and wallbang kills need a gun; no-scopes need the AWP. */
+const KILL_FLAG_RATES = { noscope: 0.05, blind: 0.035, wallbang: 0.03, smoke: 0.045, airborne: 0.012 };
+function killFlags(weapon: Weapon, rng: SeededRng): Pick<RoundKill, 'noscope' | 'blind' | 'wallbang' | 'smoke' | 'airborne'> {
+  const flags: Pick<RoundKill, 'noscope' | 'blind' | 'wallbang' | 'smoke' | 'airborne'> = {};
+  if (weapon === 'awp' && rng() < KILL_FLAG_RATES.noscope) flags.noscope = true;
+  if (weapon !== 'knife' && rng() < KILL_FLAG_RATES.blind) flags.blind = true;
+  if (weapon !== 'knife' && rng() < KILL_FLAG_RATES.wallbang) flags.wallbang = true;
+  if (weapon !== 'knife' && !flags.wallbang && rng() < KILL_FLAG_RATES.smoke) flags.smoke = true;
+  if (rng() < KILL_FLAG_RATES.airborne) flags.airborne = true;
+  return flags;
+}
+
+/** Assists: teammates who traded damage, and the flash that set the kill up. Supports and IGLs do most of the setting up. */
+const ASSIST_RATE = 0.36;
+const FLASH_ASSIST_RATE = 0.11;
+const ASSIST_ROLE_WEIGHT: Record<LineupSlotRole, number> = { support: 1.7, igl: 1.4, rifler: 1, entry: 0.9, lurker: 0.6, awper: 0.7 };
+function assistFor(killer: Player, teammates: Player[], roster: Roster | null, rng: SeededRng): Pick<RoundKill, 'assistId' | 'assistName' | 'flashAssistId' | 'flashAssistName'> {
+  const others = teammates.filter((player) => player.id !== killer.id);
+  if (!others.length) return {};
+  const weight = (player: Player) => ASSIST_ROLE_WEIGHT[roleOf(player, roster)] * (0.5 + number(player.support, 70) / 100);
+  const result: Pick<RoundKill, 'assistId' | 'assistName' | 'flashAssistId' | 'flashAssistName'> = {};
+  if (rng() < ASSIST_RATE) {
+    const helper = pick(rng, others.map((player) => [player, weight(player)] as [Player, number]));
+    result.assistId = helper.id;
+    result.assistName = playerName(helper);
+  }
+  if (rng() < FLASH_ASSIST_RATE) {
+    const candidates = others.filter((player) => player.id !== result.assistId);
+    if (candidates.length) {
+      const flasher = pick(rng, candidates.map((player) => [player, weight(player)] as [Player, number]));
+      result.flashAssistId = flasher.id;
+      result.flashAssistName = playerName(flasher);
+    }
+  }
+  return result;
 }
 
 const HIGHLIGHT_RANK: Record<RoundHighlight['kind'], number> = { ace: 5, quad: 3, triple: 1, clutch: 0 };
@@ -556,6 +622,7 @@ export function playNextRound(state: MapState): RoundDetail {
       runtime.momentum = Math.floor(runtime.momentum / 2);
       runtime.plannedBuy = null;
       runtime.savedForBuy = false;
+      runtime.awpHolderId = null;
     }
     state.halfStart = { a: state.scoreA, b: state.scoreB };
   }
@@ -564,6 +631,8 @@ export function playNextRound(state: MapState): RoundDetail {
     b.money = OVERTIME_MONEY;
     a.lossStreak = 0;
     b.lossStreak = 0;
+    a.awpHolderId = null;
+    b.awpHolderId = null;
   }
 
   const sideA = sideAFor(index, state.aStartsCt ?? true);
@@ -593,15 +662,19 @@ export function playNextRound(state: MapState): RoundDetail {
   state.rounds.push({ a: state.scoreA, b: state.scoreB, overtime });
 
   // Settle the economy for the next round.
-  const spend = (side: TeamSide) => (economy[side].buy === 'eco' && state.teams[side].savedForBuy ? SAVE_COST : BUY_COST[economy[side].buy]) + (economy[side].awp ? AWP_EXTRA_COST : 0);
+  const spend = (side: TeamSide) => (economy[side].buy === 'eco' && state.teams[side].savedForBuy ? SAVE_COST : BUY_COST[economy[side].buy]) + (economy[side].awp && !economy[side].awpKept ? AWP_EXTRA_COST : 0);
   const killIncome = (side: TeamSide) => kills.filter((kill) => kill.killerSide === side).reduce((sum, kill) => sum + KILL_REWARD[kill.weapon], 0) / 5;
   const winnerRuntime = state.teams[winner];
   const loserRuntime = state.teams[loser];
   // Survivors keep their guns: the winner only replaces utility and what its fallen players carried.
   const winnerSpend = spend(winner) * Math.min(1, WINNER_REBUY_BASE + winnerDeaths / 5);
   winnerRuntime.money = Math.min(MAX_MONEY, Math.max(0, winnerRuntime.money - winnerSpend) + WIN_REWARD[ending] + killIncome(winner));
-  const bonus = LOSS_BONUS[Math.min(loserRuntime.lossStreak, LOSS_BONUS.length - 1)];
-  const plantBonus = ending !== 'elimination' && sides[loser] === 't' ? 800 : 0;
+  // The T side losing a pistol round starts on the second loss-bonus step; T survivors of a time-out get nothing.
+  const bonusStep = Math.min(pistolRound && sides[loser] === 't' ? Math.max(1, loserRuntime.lossStreak) : loserRuntime.lossStreak, LOSS_BONUS.length - 1);
+  const loserDeaths = kills.filter((kill) => kill.killerSide === winner).length;
+  const timeOutShare = ending === 'time' && sides[loser] === 't' ? loserDeaths / 5 : 1;
+  const bonus = LOSS_BONUS[bonusStep] * timeOutShare;
+  const plantBonus = ending === 'defuse' && sides[loser] === 't' ? 800 : 0;
   loserRuntime.money = Math.min(MAX_MONEY, Math.max(0, loserRuntime.money - spend(loser)) + bonus + plantBonus + killIncome(loser));
   loserRuntime.lossStreak += 1;
   winnerRuntime.lossStreak = Math.max(0, winnerRuntime.lossStreak - 1);

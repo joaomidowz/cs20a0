@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { players, teams } from '../server/data';
 import { RoomError, RoomManager } from '../server/room-manager';
+import { drawHumanSeeds } from '../src/lib/game/online/tournament-engine';
 import { getDefaultMapSelection, getLineupMapContributors, MAP_POOL } from '../src/lib/game/maps';
 import { DEFAULT_ROOM_CONFIG, PROTOCOL_VERSION, parseClientCommand } from '../src/lib/game/online/contracts';
 import type { MapId, Player } from '../src/lib/game/types';
@@ -24,7 +25,9 @@ describe('online map preferences', () => {
   it('keeps the room in draft until both participants confirm valid familiar maps, then runs authoritative vetoes', () => {
     const manager = new RoomManager();
     const now = 10_000;
-    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60 }, now);
+    // A seed where the two humans land in different quarterfinals: their vetoes run automatically against bots.
+    const seed = Array.from({ length: 200 }, (_, index) => `map-flow-${index}`).find((candidate) => { const [a, b] = drawHumanSeeds(candidate, 2, 8); return a + b !== 9; })!;
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60 }, now, seed);
     const host = manager.join(code, 'Host', 'Host org', now);
     const guest = manager.join(code, 'Guest', 'Guest org', now + 1);
     manager.execute(code, host.participantId, { type: 'start', requestId: 'start-map-flow' }, now + 2);

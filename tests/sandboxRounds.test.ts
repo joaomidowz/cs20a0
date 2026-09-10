@@ -96,9 +96,13 @@ describe('round details produced by the engine', () => {
         for (const kill of round.kills) {
           const buy = round.economy[kill.killerSide].buy;
           if (kill.weapon === 'knife') continue;
-          if (buy === 'pistol' || buy === 'eco') expect(PISTOLS).toContain(kill.weapon);
+          const keptAwp = Boolean(round.economy[kill.killerSide].awpKept) && kill.weapon === 'awp';
+          if (buy === 'pistol') expect(PISTOLS).toContain(kill.weapon);
+          // A saved AWP comes back on eco and force rounds; a force buy also drops one rifle to the team's star.
+          if (buy === 'eco' && !keptAwp) expect(PISTOLS).toContain(kill.weapon);
           if (buy === 'full') expect([...RIFLES, 'deagle', 'usp', 'glock']).toContain(kill.weapon);
-          if (buy !== 'full') expect(RIFLES).not.toContain(kill.weapon);
+          if (buy === 'force' && !keptAwp) expect(kill.weapon).not.toBe('awp');
+          if (buy === 'pistol') expect(RIFLES).not.toContain(kill.weapon);
         }
       }
     }

@@ -103,7 +103,10 @@ export interface RoundHighlight {
 
 export interface TeamEconomy {
   buy: BuyType;
+  /** An AWP was bought this round (full buys only). */
   awp: boolean;
+  /** The AWP holder survived the previous round and kept the rifle without paying for it again. */
+  awpKept?: boolean;
   /** Average money per player before the buy, rounded. */
   money: number;
 }
@@ -118,6 +121,17 @@ export interface RoundKill {
   headshot: boolean;
   /** Seconds into the round. */
   second: number;
+  /** CS2-style kill feed flags. */
+  noscope?: boolean;
+  blind?: boolean;
+  wallbang?: boolean;
+  smoke?: boolean;
+  airborne?: boolean;
+  /** Teammate credited with the assist (damage) or with the flash that set the kill up. */
+  assistId?: string;
+  assistName?: string;
+  flashAssistId?: string;
+  flashAssistName?: string;
 }
 
 /** Everything that happened in one round: produced by the engine while the round is simulated, never derived afterwards. */

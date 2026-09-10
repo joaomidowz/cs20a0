@@ -1,6 +1,7 @@
 <script lang="ts">
   import { translate } from '$lib/game/i18n';
   import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel } from '$lib/game/roundPresentation';
+  import { KILL_FLAG_ICONS, KILL_FLAG_LABELS, killFlags } from '$lib/game/killfeedIcons';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail, RoundScore } from '$lib/game/types';
 
@@ -131,8 +132,10 @@
               {#each detail.kills as kill, index (index)}
                 <li>
                   <b class:mine={isMine(kill.killerSide)}>{kill.killerName}</b>
+                  {#if kill.assistName}<span class="assist" title={KILL_FLAG_LABELS[language].assist}><i class="flag">{@html KILL_FLAG_ICONS.assist}</i>{kill.assistName}</span>{/if}
+                  {#if kill.flashAssistName}<span class="assist" title={KILL_FLAG_LABELS[language].flashAssist}><i class="flag">{@html KILL_FLAG_ICONS.flashAssist}</i>{kill.flashAssistName}</span>{/if}
                   <em class="weapon" role="img" aria-label={WEAPON_LABELS[kill.weapon]} title={WEAPON_LABELS[kill.weapon]}>{@html WEAPON_ICONS[kill.weapon]}</em>
-                  {#if kill.headshot}<span class="hs">HS</span>{/if}
+                  {#each killFlags(kill) as flag (flag)}<i class="flag" class:hs={flag === 'headshot'} role="img" aria-label={KILL_FLAG_LABELS[language][flag]} title={KILL_FLAG_LABELS[language][flag]}>{@html KILL_FLAG_ICONS[flag]}</i>{/each}
                   <span class="victim">{kill.victimName}</span>
                   <small>{kill.second}s</small>
                 </li>
@@ -181,7 +184,8 @@
   .round-kills b{font-weight:800}.round-kills b.mine{color:var(--accent)}
   .round-kills em{display:inline-flex;align-items:center;font-style:normal;opacity:.85}
   .round-kills em :global(svg){width:30px;height:13px}
-  .round-kills .hs{padding:0 4px;border:1px solid var(--danger);color:var(--danger);font-size:.5rem;font-weight:900}
+  .round-kills .flag{display:inline-flex;width:14px;height:14px;color:var(--text);opacity:.85}.round-kills .flag :global(svg){width:100%;height:100%}.round-kills .flag.hs{color:var(--danger);opacity:1}
+  .round-kills .assist{display:inline-flex;align-items:center;gap:3px;color:var(--muted);font-size:.62rem}.round-kills .assist .flag{width:12px;height:12px;opacity:.7}
   .round-kills .victim{color:var(--muted)}
   .round-kills small{margin-left:auto;color:var(--muted);font-size:.58rem;font-variant-numeric:tabular-nums}
   .round-kills p{margin:0;color:var(--muted);font-size:.68rem}
