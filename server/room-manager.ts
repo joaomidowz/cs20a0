@@ -15,6 +15,7 @@ import {
   toPresentationGameMode,
   type ClientCommand,
   type ErrorCode,
+  type LiveUpdate,
   type PublicLiveCursor,
   type PublicLiveSeries,
   type PublicOrganization,
@@ -25,10 +26,12 @@ import {
   type PublicSeason,
   type PublicSeasonRunResult,
   type PublicSeasonStanding,
+  type PublicTournament,
   type RoomConfig,
   type RoomPhase,
   type RoomSnapshot
 } from '../src/lib/game/online/contracts';
+import { feedOwes, type FeedCursor, type RoomVersions } from './broadcast';
 import {
   autocompleteDraft,
   chooseDraftPlayer,
@@ -80,8 +83,8 @@ export const VETO_STEP_DEADLINE_MS = 20_000;
 export const SIDE_PICK_DEADLINE_MS = 12_000;
 export const ECO_CALL_DEADLINE_MS = 8_000;
 const DECISION_DEADLINE_MS: Record<PendingSeriesDecision['kind'], number> = { veto: VETO_STEP_DEADLINE_MS, side: SIDE_PICK_DEADLINE_MS, 'eco-call': ECO_CALL_DEADLINE_MS };
-/** Rounds of kill feed sent per snapshot for the viewer's own series; the client accumulates the rest. */
-const DETAIL_WINDOW = 3;
+/** Commands whose whole effect lives in the live cursor: they never invalidate the snapshot the clients hold. */
+const LIVE_ONLY_COMMANDS: ReadonlySet<ClientCommand['type']> = new Set(['watch-match', 'advance-round', 'veto-action', 'pick-side', 'eco-call', 'call-timeout']);
 const REQUEST_CACHE_SIZE = 200;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -141,12 +144,22 @@ interface RematchState {
   declined: Set<string>;
 }
 
+/** The public tournament minus the live cursor: what every client holds until the next round closes. */
+type PublicHistory = Omit<PublicTournament, 'liveCursor'>;
+
 interface RoomState {
   code: string;
   seed: string;
   config: RoomConfig;
   phase: RoomPhase;
+  /** Bumped on every change (the `ack` and the live updates carry it). */
   version: number;
+  /**
+   * Bumped only when something outside the live cursor changes: participants, host, config, phase, draft, history,
+   * season, rematch. Clients get a full snapshot when it moves and only live updates in between, so every path that
+   * touches one of those must bump it next to `version`.
+   */
+  stateVersion: number;
   createdAt: number;
   deadlineAt: number | null;
   deadlineStage: 'picks' | 'confirmation' | null;
@@ -160,7 +173,8 @@ interface RoomState {
   /** When the next tournament round goes live (automatic mode); null while live or waiting for the host. */
   nextRoundAt: number | null;
   emptySince: number | null;
-  resultCache: { version: number; result: OnlineTournamentResult } | null;
+  resultCache: { stateVersion: number; result: OnlineTournamentResult } | null;
+  historyCache: { stateVersion: number; history: PublicHistory } | null;
   season: SeasonState;
   rematch: RematchState | null;
   /** Awards of the completed run, computed once when the champion is known. */
@@ -200,20 +214,52 @@ const publicDecision = (pending: PendingSeriesDecision, deadlineAt: number | nul
       ? { kind: 'side', teamId: pending.teamId, deadlineAt, mapIndex: pending.mapIndex, mapId: pending.mapId }
       : { kind: 'eco-call', teamId: pending.teamId, deadlineAt, mapIndex: pending.mapIndex, roundNumber: pending.roundNumber, money: pending.money };
 
+/** A finished series as the clients read it: ids, names, scores, rounds and veto. No ratings, kill feed, halves or decisions. */
+const publicHistorySeries = (series: SeriesResult): SeriesResult => ({
+  id: series.id,
+  phase: series.phase,
+  bestOf: series.bestOf,
+  teamA: publicTeam(series.teamA, false),
+  teamB: publicTeam(series.teamB, false),
+  scoreA: series.scoreA,
+  scoreB: series.scoreB,
+  winnerId: series.winnerId,
+  maps: series.maps.map(({ map, mapId, scoreA, scoreB, winnerId, rounds, overtime, pickedBy }) => ({
+    map,
+    ...(mapId ? { mapId } : {}),
+    scoreA,
+    scoreB,
+    winnerId,
+    rounds,
+    overtime,
+    ...(pickedBy === undefined ? {} : { pickedBy })
+  })),
+  ...(series.veto ? { veto: series.veto } : {}),
+  userMatch: false
+});
+
 /**
  * The viewer's picture of a live series: oriented so `focusId` is team A, hidden ratings zeroed, the kill feed limited
- * to the last rounds of the live map (and only when `includeDetails`). `userMatch` tells whether the viewer's own
- * organization plays in it, whatever the focus. Future results do not exist yet, so they cannot leak.
+ * to the rounds this connection has not received yet (`feedCursor`, on every map of the series, and only when
+ * `includeDetails`). `userMatch` tells whether the viewer's own organization plays in it, whatever the focus. Future
+ * results do not exist yet, so they cannot leak.
  */
-function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, viewerId: string | null, includeDetails: boolean): PublicLiveSeries {
+function sanitizeLiveSeries(runtime: LiveSeriesRuntime, focusId: string, viewerId: string | null, includeDetails: boolean, feedCursor: FeedCursor | null): PublicLiveSeries {
   const { state } = runtime;
-  const oriented = orientSeriesToTeam(toSeriesResult(state), focusId);
+  const raw = toSeriesResult(state);
+  const activeMap = state.current ? state.current.index : Math.max(0, raw.maps.length - 1);
+  // Pruned before orienting: every map keeps only the rounds still owed to this connection (earlier maps included, so
+  // a client that fell behind across a map change catches up), and only those get mirrored, never the whole feed.
+  const pruned: SeriesResult = {
+    ...raw,
+    maps: raw.maps.map(({ details, ...map }, index) => {
+      const owed = includeDetails && details ? details.filter((detail) => feedOwes(feedCursor, state.config.id, index, detail.number)) : [];
+      return owed.length ? { ...map, details: owed.map(publicRoundDetail) } : map;
+    })
+  };
+  const oriented = orientSeriesToTeam(pruned, focusId);
   const flipped = oriented.teamA.id !== state.config.teamA.id;
-  const activeMap = state.current ? state.current.index : Math.max(0, oriented.maps.length - 1);
-  const maps = oriented.maps.map(({ details, ...map }, index) => ({
-    ...map,
-    ...(includeDetails && details && index === activeMap ? { details: details.slice(-DETAIL_WINDOW).map(publicRoundDetail) } : {})
-  }));
+  const maps = oriented.maps;
   const pending = pendingSeriesDecision(state);
   const timeouts = seriesTimeouts(state);
   const sideA = seriesSideA(state);
@@ -299,6 +345,7 @@ export class RoomManager {
       config,
       phase: 'lobby',
       version: 1,
+      stateVersion: 1,
       createdAt: now,
       deadlineAt: null,
       deadlineStage: null,
@@ -311,6 +358,7 @@ export class RoomManager {
       nextRoundAt: null,
       emptySince: now,
       resultCache: null,
+      historyCache: null,
       season: emptySeason(1),
       rematch: null,
       awards: null
@@ -349,6 +397,7 @@ export class RoomManager {
     room.hostParticipantId ??= participant.id;
     room.emptySince = null;
     room.version += 1;
+    room.stateVersion += 1;
     return { participantId: participant.id, resumeToken: participant.resumeToken };
   }
 
@@ -363,10 +412,22 @@ export class RoomManager {
     room.hostParticipantId ??= participant.id;
     room.emptySince = null;
     room.version += 1;
+    room.stateVersion += 1;
     return { participantId: participant.id, resumeToken: participant.resumeToken };
   }
 
-  execute(code: string, participantId: string, command: Exclude<ClientCommand, { type: 'join' | 'resume' }>, now = Date.now()): { duplicate: boolean } {
+  /** Current room version: every change bumps it, so an `ack` can report it without building a snapshot. */
+  getVersion(code: string): number {
+    return this.requireRoom(code).version;
+  }
+
+  /** Both versions plus the phase: everything the transport needs to choose between a snapshot and a live update. */
+  getVersions(code: string): RoomVersions {
+    const room = this.requireRoom(code);
+    return { version: room.version, stateVersion: room.stateVersion, phase: room.phase };
+  }
+
+  execute(code: string, participantId: string, command: Exclude<ClientCommand, { type: 'join' | 'resume' | 'resync' }>, now = Date.now()): { duplicate: boolean } {
     const room = this.requireRoom(code);
     const participant = this.requireParticipant(room, participantId);
     if (participant.requestIds.includes(command.requestId)) return { duplicate: true };
@@ -465,6 +526,8 @@ export class RoomManager {
         break;
       }
       case 'watch-match':
+        if (!room.engine) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
+        if (command.seriesId !== null && !room.live.has(command.seriesId)) throw new RoomError('SERIES_MISMATCH', 'That series is not part of the current round');
         participant.watchedSeriesId = command.seriesId;
         break;
       case 'rematch-vote':
@@ -543,6 +606,7 @@ export class RoomManager {
     participant.requestIds.push(command.requestId);
     if (participant.requestIds.length > REQUEST_CACHE_SIZE) participant.requestIds.splice(0, participant.requestIds.length - REQUEST_CACHE_SIZE);
     room.version += 1;
+    if (!LIVE_ONLY_COMMANDS.has(command.type)) room.stateVersion += 1;
     this.startTournamentIfReady(room, now);
     return { duplicate: false };
   }
@@ -560,6 +624,20 @@ export class RoomManager {
     }
     if (![...room.participants.values()].some((candidate) => candidate.connected)) room.emptySince = now;
     room.version += 1;
+    room.stateVersion += 1;
+  }
+
+  /** What changes round by round: the live cursor (feed pruned to what this connection lacks) and the viewer's own decision. */
+  getLiveUpdate(code: string, participantId: string, now = Date.now(), feedCursor: FeedCursor | null = null): LiveUpdate {
+    const room = this.requireRoom(code);
+    if (!room.engine) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
+    return {
+      version: room.version,
+      serverTime: now,
+      phase: room.phase,
+      cursor: this.liveCursor(room, participantId, feedCursor),
+      pendingDecision: this.selfPendingDecision(room, participantId)
+    };
   }
 
   getSnapshot(code: string, participantId: string | null, now = Date.now()): RoomSnapshot {
@@ -590,7 +668,7 @@ export class RoomManager {
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true },
+      capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true, liveUpdates: true },
       season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
@@ -615,7 +693,7 @@ export class RoomManager {
       } : null,
       deadlineAt: room.deadlineAt,
       deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
-      tournament: room.engine ? this.publicTournament(room, participantId) : null,
+      tournament: room.engine ? this.publicTournament(room, participantId, null) : null,
       ...(organizations ? { organizations } : {}),
       ...(participant && room.phase === 'completed' ? { selfResult: this.getSelfResult(room, participant) } : {}),
       serverTime: now
@@ -638,6 +716,7 @@ export class RoomManager {
         room.deadlineStage = null;
         room.nextRoundAt = null;
         room.version += 1;
+        room.stateVersion += 1;
         changed.push(code);
       }
     }
@@ -650,6 +729,7 @@ export class RoomManager {
       if (!participant.connected && participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS) {
         room.participants.delete(participantId);
         room.version += 1;
+        room.stateVersion += 1;
         changed = true;
       }
     }
@@ -676,6 +756,7 @@ export class RoomManager {
         room.deadlineStage = everyoneReady ? null : 'confirmation';
       }
       room.version += 1;
+      room.stateVersion += 1;
       this.startTournamentIfReady(room, now);
       changed = true;
     } else if (room.engine && room.phase !== 'completed') {
@@ -692,6 +773,8 @@ export class RoomManager {
         const lingerUntil = Math.max(0, ...[...room.live.values()].map((runtime) => (runtime.finishedAt ?? 0) + lastRoundLinger(room.config)));
         if (round && isRoundComplete(round) && now >= lingerUntil) {
           completeRound(room.engine);
+          // The round joins the public history: every client needs a snapshot, not a live update.
+          room.stateVersion += 1;
           room.roundStarted = false;
           if (room.engine.finished) {
             room.phase = 'completed';
@@ -717,6 +800,7 @@ export class RoomManager {
     room.deadlineStage = null;
     for (const participant of room.participants.values()) participant.draft = emptyDraftState();
     room.version += 1;
+    room.stateVersion += 1;
   }
 
   /**
@@ -769,6 +853,7 @@ export class RoomManager {
     room.rematch = null;
     if (accepted.length >= 2) this.restartRoom(room, accepted, now);
     room.version += 1;
+    room.stateVersion += 1;
     return true;
   }
 
@@ -787,6 +872,7 @@ export class RoomManager {
     room.organizations = null;
     room.live = new Map();
     room.resultCache = null;
+    room.historyCache = null;
     room.awards = null;
     room.roundStarted = false;
     room.nextRoundAt = null;
@@ -908,6 +994,7 @@ export class RoomManager {
     room.phase = room.config.entryStage === 'stage3' ? 'swiss' : 'playoffs';
     room.nextRoundAt = room.config.simulationMode === 'automatic' ? now + ROUND_GAP_MS : null;
     room.version += 1;
+    room.stateVersion += 1;
   }
 
   /** Pairs the next tournament round so everybody can see the matchups while the round waits to go live. */
@@ -956,18 +1043,29 @@ export class RoomManager {
     return true;
   }
 
+  /** Cached per state version: the revealed rounds, standings and campaigns only move when a round closes. */
   private tournamentResult(room: RoomState): OnlineTournamentResult {
-    if (room.resultCache?.version === room.version) return room.resultCache.result;
+    if (room.resultCache?.stateVersion === room.stateVersion) return room.resultCache.result;
     const result = toResult(room.engine!);
-    room.resultCache = { version: room.version, result };
+    room.resultCache = { stateVersion: room.stateVersion, result };
     return result;
   }
 
-  private publicTournament(room: RoomState, participantId: string | null) {
-    const tournament = revealTournament(this.tournamentResult(room), completedRoundCount(room.engine!));
-    tournament.liveCursor = this.liveCursor(room, participantId);
-    if (room.phase === 'completed') tournament.awards = room.awards;
-    return tournament;
+  /** Completed rounds as the clients read them, sanitized and cached per state version. */
+  private publicHistory(room: RoomState): PublicHistory {
+    if (room.historyCache?.stateVersion === room.stateVersion) return room.historyCache.history;
+    const { liveCursor: _cursor, ...revealed } = revealTournament(this.tournamentResult(room), completedRoundCount(room.engine!));
+    const history: PublicHistory = { ...revealed, rounds: revealed.rounds.map((round) => ({ ...round, series: round.series.map(publicHistorySeries) })) };
+    room.historyCache = { stateVersion: room.stateVersion, history };
+    return history;
+  }
+
+  private publicTournament(room: RoomState, participantId: string | null, feedCursor: FeedCursor | null): PublicTournament {
+    return {
+      ...this.publicHistory(room),
+      liveCursor: this.liveCursor(room, participantId, feedCursor),
+      ...(room.phase === 'completed' ? { awards: room.awards } : {})
+    };
   }
 
   private selfPendingDecision(room: RoomState, participantId: string): NonNullable<RoomSnapshot['self']>['pendingDecision'] {
@@ -979,11 +1077,11 @@ export class RoomManager {
     return null;
   }
 
-  private liveCursor(room: RoomState, participantId: string | null): PublicLiveCursor {
+  private liveCursor(room: RoomState, participantId: string | null, feedCursor: FeedCursor | null): PublicLiveCursor {
     const engine = room.engine!;
     const round = currentRound(engine);
     const runtimes = [...room.live.values()];
-    const standings = revealTournament(this.tournamentResult(room), completedRoundCount(engine)).standings;
+    const standings = this.publicHistory(room).standings;
     const seedById = new Map(standings.map((standing) => [standing.organizationId, standing.seed]));
     const participant = participantId ? room.participants.get(participantId) ?? null : null;
     const plays = (runtime: LiveSeriesRuntime) => Boolean(participantId) && (runtime.state.config.teamA.id === participantId || runtime.state.config.teamB.id === participantId);
@@ -1010,7 +1108,7 @@ export class RoomManager {
       phase: round?.phase ?? engine.rounds.at(-1)?.phase ?? 'final',
       status,
       nextRoundAt: room.nextRoundAt,
-      primarySeries: primary ? sanitizeLiveSeries(primary, focusId, participantId, ownSeries || Boolean(participant?.watchedSeriesId)) : null,
+      primarySeries: primary ? sanitizeLiveSeries(primary, focusId, participantId, ownSeries || Boolean(participant?.watchedSeriesId), feedCursor) : null,
       overviewSeries: runtimes.map((runtime) => overviewSeries(runtime, room.roundStarted))
     };
   }

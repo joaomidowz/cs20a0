@@ -24,7 +24,7 @@ Calibração (2000 seeds): 104 vs 89 → MD1 100%, 95 vs 88 → MD1 85%, 92 vs 9
 
 ## Servidor (`server/room-manager.ts`, protocolo 6)
 
-Cada série da rodada tem seu próprio relógio (`LiveSeriesRuntime`). Uma decisão humana pausa só aquela série e tem prazo (`veto` 20 s, lado 12 s, eco 8 s); ao vencer, o servidor decide com a política de bot. O veto interativo existe apenas entre dois humanos; contra bots o veto é automático, mas lado, pausa e eco continuam nas mãos do humano. A rodada só entra no histórico público quando todas as séries acabam; o feed de kills vai apenas para a série do próprio participante (janela dos três últimos rounds, acumulada no cliente). Comandos novos: `veto-action`, `pick-side`, `call-timeout`, `eco-call`.
+Cada série da rodada tem seu próprio relógio (`LiveSeriesRuntime`). Uma decisão humana pausa só aquela série e tem prazo (`veto` 20 s, lado 12 s, eco 8 s); ao vencer, o servidor decide com a política de bot. O veto interativo existe apenas entre dois humanos; contra bots o veto é automático, mas lado, pausa e eco continuam nas mãos do humano. A rodada só entra no histórico público quando todas as séries acabam; o feed de kills vai apenas para a série do próprio participante (janela dos três últimos rounds, acumulada no cliente; *addendum 2026-09-10: a janela fixa deu lugar a um cursor de feed por conexão e o histórico deixou de ser reenviado a cada mensagem, ver `2026-09-10-protocolo-online-por-deltas-design.md`*). Comandos novos: `veto-action`, `pick-side`, `call-timeout`, `eco-call`.
 
 ## Cliente
 

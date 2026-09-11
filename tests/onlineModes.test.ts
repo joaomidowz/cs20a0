@@ -7,7 +7,7 @@ const onlinePageSource = readFileSync(new URL('../src/routes/online/+page.svelte
 
 describe('online mode presentation', () => {
   it('uses protocol 8 and accepts both online-only modes', () => {
-    expect(PROTOCOL_VERSION).toBe(8);
+    expect(PROTOCOL_VERSION).toBe(9);
     expect(roomConfigSchema.parse({ mode: 'fun', entryStage: 'stage3', capacity: 2, draftDeadlineSeconds: 60, simulationMode: 'automatic', simulationSpeed: 'normal' })).toMatchObject({ mode: 'fun', seasonRuns: 1 });
     expect(roomConfigSchema.parse({ mode: 'max_fun', entryStage: 'stage3', capacity: 16, draftDeadlineSeconds: null, simulationMode: 'manual', simulationSpeed: 'ultra', seasonRuns: 4 })).toMatchObject({ mode: 'max_fun', seasonRuns: 4 });
     for (const seasonRuns of [1, 2, 3, 4] as const) {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { createOnlineServer } from '../server/app';
+import { createOnlineServer, type OnlineServerOptions } from '../server/app';
 import { ONLINE_DATA_HASH, playerById, players, teams } from '../server/data';
 import { CONFIRMATION_GRACE_MS, RESUME_TTL_MS, ROUND_GAP_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS } from '../server/room-manager';
 import { drawHumanSeeds } from '../src/lib/game/online/tournament-engine';
@@ -15,13 +15,15 @@ interface RunningServer {
   wsUrl: string;
   close: () => Promise<void>;
   advance: (milliseconds: number) => void;
+  /** The fake clock the server reads. */
+  now: () => number;
 }
 
 const servers: RunningServer[] = [];
 
-async function startServer(): Promise<RunningServer> {
+async function startServer(options: Partial<OnlineServerOptions> = {}): Promise<RunningServer> {
   let clock = Date.now();
-  const app = createOnlineServer({ allowedOrigins: ['http://localhost:5173'], now: () => clock });
+  const app = createOnlineServer({ allowedOrigins: ['http://localhost:5173'], now: () => clock, ...options });
   await new Promise<void>((resolve, reject) => {
     app.server.once('error', reject);
     app.server.listen(0, '127.0.0.1', () => {
@@ -35,7 +37,8 @@ async function startServer(): Promise<RunningServer> {
     baseUrl: `http://127.0.0.1:${address.port}`,
     wsUrl: `ws://127.0.0.1:${address.port}`,
     close: app.close,
-    advance: (milliseconds: number) => { clock += milliseconds; }
+    advance: (milliseconds: number) => { clock += milliseconds; },
+    now: () => clock
   };
   servers.push(running);
   return running;
@@ -66,6 +69,16 @@ class TestClient {
 
   send(message: unknown) {
     this.socket.send(JSON.stringify(message));
+  }
+
+  /** Everything received so far, in order. */
+  received(): ServerMessage[] {
+    return [...this.messages];
+  }
+
+  /** Resolves after `milliseconds` of real time, so a test can assert that nothing arrived. */
+  static settle(milliseconds: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
   }
 
   async waitFor(predicate: (message: ServerMessage) => boolean, timeout = 12_000): Promise<ServerMessage> {
@@ -391,7 +404,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 8 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 9 && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.capabilities.season === true && snapshot.season === null && snapshot.config.seasonRuns === 1)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
@@ -684,4 +697,109 @@ describe('authoritative online server', () => {
     manager.execute(plain, plainHost.participantId, { type: 'start', requestId: 'start-plain' }, startedAt + 2);
     expect(manager.getSnapshot(plain, plainHost.participantId, startedAt + 3).self?.lineup).toEqual([]);
   });
+});
+
+/** Both humans joined through sockets and the tournament paired: only `resync`, ticks and decisions remain. */
+async function startPairedTournament(options: Partial<OnlineServerOptions>, seed: string) {
+  const manager = new RoomManager();
+  const server = await startServer({ ...options, manager });
+  const startedAt = 5_000;
+  const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60, simulationSpeed: 'ultra' }, startedAt, seed);
+  const host = await TestClient.connect(`${server.wsUrl}/rooms/${code}`);
+  const guest = await TestClient.connect(`${server.wsUrl}/rooms/${code}`);
+  host.send({ type: 'join', requestId: 'join-host-00001', protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, playerName: 'Host player', organizationName: 'Host org' });
+  await host.waitFor((message) => message.type === 'ack' && message.requestId === 'join-host-00001');
+  guest.send({ type: 'join', requestId: 'join-guest-0001', protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, playerName: 'Guest player', organizationName: 'Guest org' });
+  await guest.waitFor((message) => message.type === 'ack' && message.requestId === 'join-guest-0001');
+  host.send({ type: 'start', requestId: 'start-live-00001' });
+  await host.waitFor((message) => message.type === 'ack' && message.requestId === 'start-live-00001');
+  const hostId = (await host.waitFor((message) => message.type === 'snapshot' && message.snapshot.phase === 'draft') as { snapshot: RoomSnapshot }).snapshot.self!.participantId;
+  const guestId = (await guest.waitFor((message) => message.type === 'snapshot' && message.snapshot.phase === 'draft') as { snapshot: RoomSnapshot }).snapshot.self!.participantId;
+  server.advance(61_000);
+  await host.waitFor((message) => message.type === 'snapshot' && message.snapshot.deadlineStage === 'confirmation');
+  confirmManagerMaps(manager, code, [hostId, guestId], server.now());
+  const paired = await host.waitFor((message) => message.type === 'snapshot' && message.snapshot.tournament !== null);
+  await guest.waitFor((message) => message.type === 'snapshot' && message.snapshot.tournament !== null);
+  return { manager, server, code, host, guest, hostId, guestId, paired: paired as { type: 'snapshot'; snapshot: RoomSnapshot } };
+}
+
+const isLive = (message: ServerMessage): message is { type: 'live'; live: import('../src/lib/game/online/contracts').LiveUpdate } => message.type === 'live';
+
+/** Moves the fake clock in steps, letting the real 100 ms tick run between them, until the client saw what it waits for. */
+async function advanceUntil(server: RunningServer, client: TestClient, predicate: (message: ServerMessage) => boolean, stepMs: number, maxSteps = 60): Promise<ServerMessage> {
+  for (let step = 0; step < maxSteps; step += 1) {
+    const match = client.received().find(predicate);
+    if (match) return match;
+    server.advance(stepMs);
+    await TestClient.settle(120);
+  }
+  return client.waitFor(predicate, 1_000);
+}
+
+describe('live updates over the socket', () => {
+  it('streams live updates between snapshots once the tournament runs and answers resync with a snapshot', async () => {
+    const { server, host, guest, paired } = await startPairedTournament({}, seedWhereHumans(8, false));
+    const before = host.received().length;
+    const started = await advanceUntil(server, host, (message) => isLive(message) && message.live.cursor.status === 'live', ROUND_GAP_MS + 100, 5);
+    expect(isLive(started) && started.live.version).toBeGreaterThan(paired.snapshot.version);
+    // Rounds are played at ultra speed (decisions against bots expire on the clock): each one arrives as a live update, never as a snapshot.
+    const played = await advanceUntil(server, host, (message) => isLive(message) && (message.live.cursor.primarySeries?.visibleRounds ?? 0) >= 3, 2_000);
+    const upToPlayed = host.received().slice(before, host.received().indexOf(played) + 1);
+    expect(upToPlayed.filter(isLive).length).toBeGreaterThanOrEqual(2);
+    expect(upToPlayed.filter((message) => message.type === 'snapshot')).toHaveLength(0);
+    const playedPrimary = isLive(played) ? played.live.cursor.primarySeries! : null;
+    expect(playedPrimary?.series.maps[playedPrimary.activeMap]?.details?.length).toBeGreaterThan(0);
+    expect(playedPrimary?.series.teamA.power).toBe(0);
+
+    // The kill feed arrives without gaps across the live updates of the same map.
+    const numbers = new Set<number>();
+    for (const message of upToPlayed) {
+      if (!isLive(message) || !message.live.cursor.primarySeries) continue;
+      const primary = message.live.cursor.primarySeries;
+      if (primary.activeMap !== playedPrimary!.activeMap) continue;
+      for (const detail of primary.series.maps[primary.activeMap]?.details ?? []) numbers.add(detail.number);
+    }
+    const lastRound = playedPrimary!.visibleRounds;
+    expect([...numbers].sort((a, b) => a - b)).toEqual(Array.from({ length: lastRound }, (_, index) => index + 1));
+
+    // A resync brings the whole room back to the one who asked, and nobody else.
+    const guestSnapshots = guest.received().filter((message) => message.type === 'snapshot').length;
+    host.send({ type: 'resync', requestId: 'resync-000001' });
+    const ack = await host.waitFor((message) => message.type === 'ack' && message.requestId === 'resync-000001');
+    const resynced = await host.waitFor((message) => message.type === 'snapshot' && message.snapshot.version >= (ack as { version: number }).version);
+    const resyncedPrimary = resynced.type === 'snapshot' ? resynced.snapshot.tournament?.liveCursor?.primarySeries ?? null : null;
+    expect(resyncedPrimary?.series.maps[resyncedPrimary.activeMap]?.details?.length).toBeGreaterThanOrEqual(1);
+    await TestClient.settle(250);
+    expect(guest.received().filter((message) => message.type === 'snapshot')).toHaveLength(guestSnapshots);
+  }, 20_000);
+
+  it('skips live updates while the socket is backed up, never skips snapshots, and delivers the pending decision once it drains', async () => {
+    let buffered = 0;
+    const { server, host, guest, hostId } = await startPairedTournament({ liveBackpressureBytes: 1_024, bufferedAmountOf: () => buffered }, seedWhereHumans(8, true));
+    buffered = 4_096;
+    const beforeLaunch = host.received().length;
+    server.advance(ROUND_GAP_MS + 100);
+    await TestClient.settle(400);
+    expect(host.received().slice(beforeLaunch).filter(isLive)).toHaveLength(0);
+
+    // A state change still reaches everybody as a snapshot, no matter how backed up the socket is.
+    host.send({ type: 'configure-simulation', requestId: 'speed-fast-0001', simulationSpeed: 'fast' });
+    const snapshot = await host.waitFor((message) => message.type === 'snapshot' && message.snapshot.config.simulationSpeed === 'fast');
+    await guest.waitFor((message) => message.type === 'snapshot' && message.snapshot.config.simulationSpeed === 'fast');
+    expect(snapshot.type === 'snapshot' && snapshot.snapshot.tournament?.liveCursor?.status).toBe('live');
+    expect(snapshot.type === 'snapshot' && snapshot.snapshot.self?.pendingDecision?.kind).toBe('veto');
+    expect(host.received().slice(beforeLaunch).filter(isLive)).toHaveLength(0);
+
+    // Once the socket drains, the next tick delivers the current state including the decision the host owes.
+    host.send({ type: 'veto-action', requestId: 'veto-live-00001', seriesId: snapshot.type === 'snapshot' ? snapshot.snapshot.self!.pendingDecision!.seriesId : '', action: 'ban', mapId: snapshot.type === 'snapshot' ? snapshot.snapshot.tournament!.liveCursor!.primarySeries!.veto!.available[0] : 'mirage' });
+    await host.waitFor((message) => message.type === 'ack' && message.requestId === 'veto-live-00001');
+    await TestClient.settle(300);
+    expect(host.received().slice(beforeLaunch).filter(isLive)).toHaveLength(0);
+    buffered = 0;
+    const drained = await guest.waitFor((message) => isLive(message) && message.live.pendingDecision?.kind === 'veto');
+    expect(isLive(drained) && drained.live.cursor.primarySeries?.veto?.steps).toHaveLength(1);
+    expect(isLive(drained) && drained.live.cursor.primarySeries?.veto?.turnTeamId).not.toBe(hostId);
+    const hostLive = await host.waitFor(isLive);
+    expect(isLive(hostLive) && hostLive.live.pendingDecision).toBeNull();
+  }, 20_000);
 });

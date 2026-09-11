@@ -39,7 +39,7 @@
   import { language, theme } from '$lib/game/pageState';
   import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomClient, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type OnlineClientErrorCode } from '$lib/game/online/client';
-  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
+  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { SEO_BY_ROUTE } from '$lib/seo';
@@ -50,6 +50,10 @@
   let organizationName = '';
   let roomCode = '';
   let snapshot: RoomSnapshot | null = null;
+  /** Round-by-round state of the tournament; null until the first live update after a snapshot. */
+  let live: LiveUpdate | null = null;
+  /** A resync was asked for and the snapshot has not arrived yet, so live updates keep being ignored quietly. */
+  let resyncRequested = false;
   let connection: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
   let errorMessage = '';
   let toast = '';
@@ -76,8 +80,8 @@
   /** Last automatic tactical pause asked for. */
   let autoPausedHalf: AutomationAttempt | null = null;
   let mySide: 'a' | 'b' | null = null;
-  /** Kill feed of the live map, accumulated from the rolling window each snapshot carries. Keyed by series and map. */
-  let liveDetails: { key: string; rounds: RoundDetail[] } = { key: '', rounds: [] };
+  /** Kill feed of the live series accumulated per map (indexed by round number) from what this connection received. */
+  let liveDetails: { seriesId: string; maps: RoundDetail[][] } = { seriesId: '', maps: [] };
   /** The "secret player joined" toast fires once per draft. */
   let secretToastShown = false;
   /** Seconds left in the rematch window after a run ends (0 when closed). */
@@ -101,7 +105,9 @@
     : self.lineup) : [];
   $: completedSeries = snapshot?.tournament?.rounds.flatMap((round) => round.series) ?? [];
   $: ownCompletedSeries = me ? completedSeries.filter((series) => series.teamA.id === me?.id || series.teamB.id === me?.id) : [];
-  $: liveCursor = snapshot?.tournament?.liveCursor ?? null;
+  // `live ? … :` on purpose: a live update is authoritative, and its null pendingDecision means "nothing to decide".
+  $: liveCursor = live ? live.cursor : snapshot?.tournament?.liveCursor ?? null;
+  $: myPendingDecision = live ? live.pendingDecision : snapshot?.self?.pendingDecision ?? null;
   $: liveSeries = liveCursor?.primarySeries ?? null;
   $: myDecision = liveSeries?.decision && liveSeries.decision.teamId === me?.id ? liveSeries.decision : null;
   $: mySeriesId = liveSeries?.series.userMatch && me ? liveSeries.series.id : null;
@@ -111,14 +117,18 @@
   /** True while the viewer shows a series the user is not playing (Major overview → watch). */
   $: watchingOther = Boolean(liveSeries && !liveSeries.series.userMatch && myLiveOverview);
   $: mySide = liveSeries && me ? (liveSeries.series.teamA.id === me.id ? 'a' : 'b') : null;
-  $: liveDetailList = liveSeries && liveDetails.key === `${liveSeries.series.id}:${liveSeries.activeMap}` ? liveDetails.rounds : null;
+  $: liveDetailList = liveSeries && liveDetails.seriesId === liveSeries.series.id ? liveDetails.maps[liveSeries.activeMap] ?? null : null;
+  /** The live series with the accumulated feed on every map, so decided maps keep their pistols and headlines. */
+  $: liveSeriesView = liveSeries ? withAccumulatedDetails(liveSeries.series, liveDetails) : null;
   $: answerAutomatedDecision(myDecision, strategicPreferences);
   $: callAutomaticPause(liveDetailList, strategicPreferences);
   $: liveTeamNames = liveSeries ? { [liveSeries.series.teamA.id]: liveSeries.series.teamA.name, [liveSeries.series.teamB.id]: liveSeries.series.teamB.name } as Record<string, string> : {};
   $: myFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(onlineMapContributors[mapId].length)])) as Record<MapId, number>;
   $: speedDelay = snapshot?.config.simulationSpeed === 'normal' ? 2400 : snapshot?.config.simulationSpeed === 'fast' ? 1200 : 200;
   $: myStanding = snapshot?.tournament?.standings.find((standing) => standing.organizationId === me?.id) ?? null;
-  $: onlineTournament = snapshot?.tournament ? buildOnlineTournamentView(snapshot.tournament) : null;
+  // The history only changes with a snapshot (rare); the live round is layered on top at every update (cheap).
+  $: historyView = snapshot?.tournament ? buildHistoryView(snapshot.tournament) : null;
+  $: onlineTournament = historyView ? overlayLiveRound(historyView, liveCursor, me?.id ?? null) : null;
   $: onlineCursor = {
     liveSeriesId: null,
     liveSeriesIds: liveCursor?.overviewSeries.filter((series) => series.status === 'live').map((series) => series.id) ?? [],
@@ -222,10 +232,12 @@
   }
 
   function updateCountdown() {
-    const decisionDeadline = snapshot?.self?.pendingDecision?.deadlineAt ?? null;
+    const decisionDeadline = myPendingDecision?.deadlineAt ?? null;
     decisionCountdown = decisionDeadline === null ? '' : `${Math.max(0, Math.ceil((decisionDeadline - (Date.now() + serverOffset)) / 1_000))}s`;
     const rematchDeadline = snapshot?.season?.rematch?.deadlineAt ?? null;
     rematchSeconds = rematchDeadline === null ? 0 : Math.max(0, Math.ceil((rematchDeadline - (Date.now() + serverOffset)) / 1_000));
+    // The gear retries a refused answer on this clock: the server no longer repeats the decision in every message.
+    answerAutomatedDecision(myDecision, strategicPreferences);
     if (!snapshot?.deadlineAt || (snapshot.config.mode === 'pro' && snapshot.self?.proPickedPlayerIds.length === 5 && snapshot.deadlineStage !== 'confirmation')) {
       countdown = '';
       return;
@@ -308,10 +320,13 @@
         const previous = snapshot;
         const newRun = isNewOnlineRun(previous, next);
         snapshot = next;
+        // A snapshot is newer than any live update received before it.
+        live = null;
+        resyncRequested = false;
         serverOffset = next.serverTime - Date.now();
         config = next.config;
         if (newRun) startNewRun(next);
-        mergeLiveDetails(next);
+        mergeLiveDetails(next.tournament?.liveCursor?.primarySeries ?? null);
         // A fresh authoritative snapshot confirms that a transient reconnect error no longer applies.
         errorMessage = '';
         if (next.self) {
@@ -333,6 +348,20 @@
         }
         updateCountdown();
       },
+      onLive: (next) => {
+        if (!snapshot) {
+          // A live update without a snapshot on this socket: ask for the whole room once and wait for it.
+          if (!resyncRequested) {
+            resyncRequested = true;
+            client?.resync();
+          }
+          return;
+        }
+        live = next;
+        serverOffset = next.serverTime - Date.now();
+        mergeLiveDetails(next.cursor.primarySeries);
+        updateCountdown();
+      },
       onError: (message, code) => {
         errorMessage = describeError(code, message);
         // A rejected host edit must not linger in the form.
@@ -342,15 +371,24 @@
     client.connect();
   }
 
-  /** Keeps every round of the live map even though each snapshot only carries the last few. */
-  function mergeLiveDetails(next: RoomSnapshot) {
-    const primary = next.tournament?.liveCursor?.primarySeries;
+  /**
+   * Keeps every round of every map of the live series: the server only sends the rounds this connection has not
+   * received yet, on whichever map they belong to (a lagging client gets the tail of the previous map along with the new one).
+   */
+  function mergeLiveDetails(primary: PublicLiveSeries | null) {
     if (!primary) return;
-    const key = `${primary.series.id}:${primary.activeMap}`;
-    const incoming = primary.series.maps[primary.activeMap]?.details ?? [];
-    const rounds = liveDetails.key === key ? [...liveDetails.rounds] : [];
-    for (const detail of incoming) rounds[detail.number - 1] = detail;
-    liveDetails = { key, rounds };
+    const maps = liveDetails.seriesId === primary.series.id ? liveDetails.maps.map((rounds) => [...rounds]) : [];
+    primary.series.maps.forEach((map, index) => {
+      if (!map.details?.length) return;
+      const rounds = maps[index] ?? (maps[index] = []);
+      for (const detail of map.details) rounds[detail.number - 1] = detail;
+    });
+    liveDetails = { seriesId: primary.series.id, maps };
+  }
+
+  function withAccumulatedDetails(series: SeriesResult, feed: { seriesId: string; maps: RoundDetail[][] }): SeriesResult {
+    if (feed.seriesId !== series.id) return series;
+    return { ...series, maps: series.maps.map((map, index) => feed.maps[index]?.length ? { ...map, details: feed.maps[index].filter(Boolean) } : map) };
   }
 
   /** A rematch brought the room back to the draft: nothing from the previous run may linger on screen. */
@@ -366,7 +404,8 @@
     provisionalMapPreferences = [];
     mapLineupKey = '';
     proLineupKey = '';
-    liveDetails = { key: '', rounds: [] };
+    liveDetails = { seriesId: '', maps: [] };
+    live = null;
     expandedTimelineMatch = null;
     detailsPlayer = null;
     selectedOrganizationId = null;
@@ -383,7 +422,7 @@
 
   /** Switches the live viewer to another series of the round (null returns to the user's own). */
   function watchSeries(seriesId: string | null) {
-    if (seriesId !== (liveSeries?.series.id ?? null)) liveDetails = { key: '', rounds: [] };
+    if (seriesId !== (liveSeries?.series.id ?? null)) liveDetails = { seriesId: '', maps: [] };
     send({ type: 'watch-match', seriesId });
     activeTab = 'current';
   }
@@ -467,29 +506,35 @@
 
   const stubTeam = (team: { id: string; name: string }): CombatTeam => ({ id: team.id, name: team.name, power: 0, mental: 0, clutch: 0, experience: 0 });
 
-  /** Completed rounds plus the round in progress (with running scores) in the shape the shared Major overview expects. */
-  function buildOnlineTournamentView(tournament: NonNullable<RoomSnapshot['tournament']>): MajorTournament {
-    const rounds: MajorTournament['rounds'] = tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series }));
-    const cursor = tournament.liveCursor;
-    if (cursor && cursor.overviewSeries.length && !rounds.some((round) => round.number === cursor.tournamentRound)) {
-      rounds.push({
-        number: cursor.tournamentRound,
-        phase: cursor.phase,
-        series: cursor.overviewSeries.map((series): SeriesResult => ({
-          id: series.id,
-          phase: series.phase,
-          bestOf: series.bestOf,
-          teamA: stubTeam(series.teamA),
-          teamB: stubTeam(series.teamB),
-          scoreA: series.scoreA,
-          scoreB: series.scoreB,
-          winnerId: series.status === 'completed' ? (series.scoreA > series.scoreB ? series.teamA.id : series.teamB.id) : '',
-          maps: [],
-          userMatch: series.teamA.id === me?.id || series.teamB.id === me?.id
-        }))
-      });
-    }
-    return { rounds, standings: tournament.standings, championId: tournament.championId };
+  /** Completed rounds in the shape the shared Major overview expects; recomputed only when a snapshot arrives. */
+  function buildHistoryView(tournament: NonNullable<RoomSnapshot['tournament']>): MajorTournament {
+    return {
+      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series })),
+      standings: tournament.standings,
+      championId: tournament.championId
+    };
+  }
+
+  /** Adds the round in progress (running scores from the overview) on top of the completed rounds. */
+  function overlayLiveRound(history: MajorTournament, cursor: PublicLiveCursor | null, myId: string | null): MajorTournament {
+    if (!cursor || !cursor.overviewSeries.length || history.rounds.some((round) => round.number === cursor.tournamentRound)) return history;
+    const liveRound: MajorTournament['rounds'][number] = {
+      number: cursor.tournamentRound,
+      phase: cursor.phase,
+      series: cursor.overviewSeries.map((series): SeriesResult => ({
+        id: series.id,
+        phase: series.phase,
+        bestOf: series.bestOf,
+        teamA: stubTeam(series.teamA),
+        teamB: stubTeam(series.teamB),
+        scoreA: series.scoreA,
+        scoreB: series.scoreB,
+        winnerId: series.status === 'completed' ? (series.scoreA > series.scoreB ? series.teamA.id : series.teamB.id) : '',
+        maps: [],
+        userMatch: series.teamA.id === myId || series.teamB.id === myId
+      }))
+    };
+    return { ...history, rounds: [...history.rounds, liveRound] };
   }
 
   function organizationPlayers(organization: PublicOrganization) {
@@ -774,13 +819,13 @@
             {:else if liveSeries}
               <LiveSeriesSwitcher series={liveCursor?.overviewSeries ?? []} activeId={liveSeries.series.id} myTeamId={me?.id ?? ''} labels={{ title: t('liveMatches'), myMatch: t('myMatch'), live: t('live') }} onSelect={watchSeries} />
               {#if watchingOther}
-                <div class="watch-bar" class:alert={Boolean(self?.pendingDecision)} role={self?.pendingDecision ? 'alert' : 'status'}>
+                <div class="watch-bar" class:alert={Boolean(myPendingDecision)} role={myPendingDecision ? 'alert' : 'status'}>
                   <div>
                     <span class="eyebrow">{t('watching').toUpperCase()}</span>
                     <strong>{liveSeries.series.teamA.name} <em>x</em> {liveSeries.series.teamB.name}</strong>
-                    {#if self?.pendingDecision}<b>{t('decisionPendingElsewhere')}{#if decisionCountdown} · {decisionCountdown}{/if}</b>{/if}
+                    {#if myPendingDecision}<b>{t('decisionPendingElsewhere')}{#if decisionCountdown} · {decisionCountdown}{/if}</b>{/if}
                   </div>
-                  <button class:primary={Boolean(self?.pendingDecision)} class:secondary={!self?.pendingDecision} type="button" on:click={() => watchSeries(null)}>{t('backToMyMatch')}</button>
+                  <button class:primary={Boolean(myPendingDecision)} class:secondary={!myPendingDecision} type="button" on:click={() => watchSeries(null)}>{t('backToMyMatch')}</button>
                 </div>
               {/if}
               {#if liveSeries.phase === 'veto' && liveSeries.veto}
@@ -813,7 +858,7 @@
               {/if}
               {#key liveSeries.series.id}
                 <SeriesViewer
-                  series={liveSeries.series}
+                  series={liveSeriesView ?? liveSeries.series}
                   controlled
                   controlledActiveMap={liveSeries.activeMap}
                   controlledVisibleRounds={liveSeries.visibleRounds}
