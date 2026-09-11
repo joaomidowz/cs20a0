@@ -27,7 +27,8 @@
 
 ## Times secretos (`src/lib/game/online/secret-players.ts`, protocolo 8)
 
-- Apelidos: Raf4Moon (melhor rifler), Th4natos (10º AWPer), Midowz (melhor lurker), Vargas (melhor IGL), MonesyPrime (melhor entry), H1ro (2º AWPer), Caiozera (5º rifler), Gveds (melhor lurker). Clones de `topPlayersByRole` com id `secret-<slug>`, só em `playerById` (dados e hash intactos).
+- Pool do Vargão Academy: Raf4Moon (rifler 98), Th4natos (AWPer 97), Midowz (lurker 98), Vargas (IGL/AWPer 99), MonesyPrime (entry 98), H1ro (AWPer 97), Caiozera (rifler 97), Gveds (lurker 98), Kavzera (AWPer 99), Andi (rifler 96), Potassio (rifler 98) e ntc (IGL 89 com mental 20). Time escondido PolexTV: Polex (AWPer), Caps (rifler), Paulinhho (entry), Nerdzito (suporte) e Breitan (lurker), todos 99. Clones de `topPlayersByRole` com id `secret-<slug>` e sobrescrita de overall/atributos, só em `playerById` (dados e hash intactos).
+- `SECRET_ORGANIZATIONS`: Vargão Academy (`pick`, até 3 do próprio pool) e PolexTV (`team`, a line inteira já vem preenchida no início do draft; só falta escolher os mapas). Cada apelido por nome de jogador continua trazendo o próprio jogador.
 - Só nas filas `fun` e `max_fun`: no `start` (e no rematch) o nome do jogador ou da organização pré-preenche uma vaga. A organização "Vargão Academy" (sem acento também) escolhe até três pelo painel "Time secreto" com o comando `pick-secret`.
 - `self.secretPicksLeft` e `capabilities.secretPlayers` no snapshot; badge SECRET no card e no HUD. Cada apelido tem uma única posição (Vargas joga de IGL ou AWPer) e overall fixo: Vargas 99, Raf4Moon/Midowz/MonesyPrime/Gveds 98, Th4natos/H1ro/Caiozera 97.
 

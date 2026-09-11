@@ -13,6 +13,7 @@ import {
   pickSecretPlayer,
   secretPicksLeftFor,
   secretPlayerId,
+  secretPoolOf,
   withSecretPlayers
 } from '../src/lib/game/online/secret-players';
 import { topPlayersByRole } from '../src/lib/game/playerRankings';
@@ -34,7 +35,7 @@ describe('secret players', () => {
       const clone = secretPlayers.find((player) => player.id === secretPlayerId(entry))!;
       expect(clone).toMatchObject({ nickname: entry.alias, teamId: source.teamId, overall: entry.overall, year: source.year, baseId: clone.id });
       expect(clone.overall).toBe(entry.alias === 'Vargas' ? 99 : clone.overall);
-      expect([97, 98, 99]).toContain(clone.overall);
+      expect([89, 96, 97, 98, 99]).toContain(clone.overall);
       expect(isSecretPlayerId(clone.id)).toBe(true);
     }
     // Every alias plays one position only, except Vargas (IGL and AWPer).
@@ -47,6 +48,27 @@ describe('secret players', () => {
     // The dataset itself (and therefore the online data hash) is untouched.
     expect(players.some((player) => isSecretPlayerId(player.id))).toBe(false);
     expect(ONLINE_DATA_HASH).toHaveLength(16);
+  });
+
+  it('fills the whole PolexTV team, keeps the pools apart and honours attribute overrides', () => {
+    const polex = withSecretPlayers(emptyDraftState(), 'fun', 'Someone', 'PolexTV', lookup);
+    expect(polex.lineup.map((pick) => `${pick.playerId}:${pick.selectedSlotRole}`)).toEqual([
+      'secret-polex:awper', 'secret-caps:rifler', 'secret-paulinhho:entry', 'secret-nerdzito:support', 'secret-breitan:lurker'
+    ]);
+    expect(polex.lineup.every((pick) => lookup(pick.playerId)?.overall === 99)).toBe(true);
+    expect(withSecretPlayers(emptyDraftState(), 'premier', 'Someone', 'PolexTV', lookup).lineup).toEqual([]);
+    expect(secretPicksLeftFor('fun', 'PolexTV', emptyDraftState())).toBe(0);
+    // Polex by player name still works alone; Vargão Academy cannot pick from the PolexTV pool.
+    expect(withSecretPlayers(emptyDraftState(), 'fun', 'polex', 'Org', lookup).lineup.map((pick) => pick.playerId)).toEqual(['secret-polex']);
+    const polexAlias = aliasOf('Polex');
+    expect(() => pickSecretPlayer(emptyDraftState(), 'fun', 'Vargão Academy', polexAlias, lookup(secretPlayerId(polexAlias))!, 'awper', lookup)).toThrow(/another secret team/);
+    expect(secretPoolOf('Vargão Academy').map((entry) => entry.alias)).toEqual(expect.arrayContaining(['Kavzera', 'Andi', 'Potassio', 'ntc']));
+    expect(secretPoolOf('Vargão Academy').some((entry) => entry.alias === 'Polex')).toBe(false);
+    const ntc = lookup('secret-ntc')!;
+    expect(ntc.overall).toBe(89);
+    expect(ntc.mental).toBe(20);
+    expect(getEligibleSlotRoles(ntc)).toEqual(['igl']);
+    expect(lookup('secret-kavzera')?.overall).toBe(99);
   });
 
   it('matches names without accents, case or punctuation', () => {

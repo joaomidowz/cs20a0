@@ -667,6 +667,16 @@ describe('authoritative online server', () => {
     expect(snapshot.selfResult?.stats).toHaveLength(5);
     expect(snapshot.selfResult?.stats.some((stat) => stat.playerId === 'secret-midowz')).toBe(true);
 
+    // PolexTV starts with its whole hidden team and only has to pick maps.
+    const polexRoom = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, mode: 'max_fun', entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60 }, startedAt);
+    const polexHost = manager.join(polexRoom, 'Streamer', 'PolexTV', startedAt);
+    manager.join(polexRoom, 'Guest', 'Org B', startedAt + 1);
+    manager.execute(polexRoom, polexHost.participantId, { type: 'start', requestId: 'start-polex' }, startedAt + 2);
+    const polexSelf = manager.getSnapshot(polexRoom, polexHost.participantId, startedAt + 3).self!;
+    expect(polexSelf.lineup.map((pick) => pick.playerId)).toEqual(['secret-polex', 'secret-caps', 'secret-paulinhho', 'secret-nerdzito', 'secret-breitan']);
+    expect(polexSelf.secretPicksLeft).toBe(0);
+    expect(manager.getSnapshot(polexRoom, polexHost.participantId, startedAt + 3).participants.find((participant) => participant.id === polexHost.participantId)?.picksCompleted).toBe(5);
+
     // Outside the Resenha queues the same names mean nothing.
     const plain = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 2, draftDeadlineSeconds: 60 }, startedAt);
     const plainHost = manager.join(plain, 'Midowz', 'Org A', startedAt);

@@ -28,7 +28,7 @@
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
   import { playerById, secretPlayers, teamById, getTeamPlayers, teams } from '$lib/game/data';
-  import { isSecretPlayerId, SECRET_ORGANIZATION_PICKS } from '$lib/game/online/secret-players';
+  import { findSecretOrganization, isSecretPlayerId, secretPoolOf } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
   import { averageOverall, getLineupStrengths, type OrganizationRosterView } from '$lib/game/organizationPresentation';
@@ -130,7 +130,9 @@
   $: ownPlayers = (self?.lineup ?? []).map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
   $: secretPicksLeft = self?.secretPicksLeft ?? 0;
   $: secretInLineup = Boolean(self?.lineup.some((pick) => isSecretPlayerId(pick.playerId)));
-  $: if (snapshot?.phase === 'draft' && secretInLineup && !secretToastShown) { secretToastShown = true; showToast(t('secretJoined')); }
+  $: secretOrganization = me ? findSecretOrganization(me.organizationName) : null;
+  $: secretPoolPlayers = me ? secretPoolOf(me.organizationName).map((alias) => secretPlayers.find((player) => player.nickname === alias.alias)).filter((player): player is Player => Boolean(player)) : [];
+  $: if (snapshot?.phase === 'draft' && secretInLineup && !secretToastShown) { secretToastShown = true; showToast(t(self && self.lineup.length >= 5 ? 'secretTeamJoined' : 'secretJoined')); }
   $: if (snapshot?.phase !== 'draft') secretToastShown = false;
   $: onlineMapContributors = getLineupMapContributors(ownPlayers, teams);
   $: onlineMapYears = getLineupMapYears(ownPlayers, teams);
@@ -649,10 +651,10 @@
         {:else if !me?.ready}
           {#if secretPicksLeft > 0 && self.lineup.length < 5 && self.style}
             <section class="panel secret-zone">
-              <div class="section-heading"><div><span class="eyebrow">VARGÃO ACADEMY</span><h2>{t('secretTeam')}</h2></div><strong>{secretPicksLeft}/{SECRET_ORGANIZATION_PICKS}</strong></div>
+              <div class="section-heading"><div><span class="eyebrow">{(secretOrganization?.name ?? '').toUpperCase()}</span><h2>{t('secretTeam')}</h2></div><strong>{secretPicksLeft}/{secretOrganization?.picks ?? 0}</strong></div>
               <p class="pick-instruction">{t('secretTeamHint')}</p>
               <div class="player-grid">
-                {#each secretPlayers as player (player.id)}
+                {#each secretPoolPlayers as player (player.id)}
                   {@const validation = cardValidation(player)}
                   <PlayerCard {player} mode={presentationMode} language={$language} blockedReason={validation.ok ? '' : reasonText(validation.reason)} onOpen={(selected) => detailsPlayer = selected} />
                 {/each}
