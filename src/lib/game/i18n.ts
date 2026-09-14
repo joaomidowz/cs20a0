@@ -279,6 +279,36 @@ const pt = {
   ,coachDevelopment: 'Desenvolvimento'
   ,coachNeedsReview: 'Coach de ano vizinho, a confirmar'
   ,coachStaff: 'Comissão técnica'
+  ,dynastyWindow: 'Janela de transferências'
+  ,windowIntro: 'O elenco evoluiu com o Major. Venda, compre, troque o coach e confirme para ir ao próximo Major.'
+  ,windowEvolution: 'Evolução do elenco'
+  ,windowVersion: 'Nova versão'
+  ,windowDrift: 'Rendimento'
+  ,windowStable: 'Estável'
+  ,windowCash: 'Caixa após as trocas'
+  ,windowMovesLeft: 'Trocas restantes'
+  ,windowLineup: 'Elenco'
+  ,windowSell: 'Vender'
+  ,windowSelling: 'Vendendo'
+  ,windowProposals: 'Propostas pelos seus jogadores'
+  ,windowMarket: 'Mercado'
+  ,windowFocus: 'Para a posição mais fraca'
+  ,windowTarget: 'Alvo livre (+25%)'
+  ,windowSearch: 'Buscar jogador pelo nick'
+  ,windowBuy: 'Comprar'
+  ,windowPickSale: 'Escolha primeiro quem sai do elenco'
+  ,windowMoves: 'Trocas feitas'
+  ,windowUndo: 'Desfazer'
+  ,windowCoachKeep: 'Manter coach'
+  ,windowCoachOffers: 'Coaches disponíveis'
+  ,windowHire: 'Contratar'
+  ,windowConfirm: 'Confirmar e ir ao próximo Major'
+  ,windowNoCash: 'Caixa insuficiente para essa troca'
+  ,windowNoMoves: 'Sem trocas restantes nesta janela'
+  ,windowInvalidMove: 'Essa troca não é possível'
+  ,windowFixRoles: 'Ajuste as posições antes de confirmar'
+  ,dynastyEra: 'Era'
+  ,lineageTitle: 'Linhagem'
   ,overviewStage: 'Estágio'
   ,overviewSwissWord: 'Suíço'
   ,overviewMyMatch: 'Minha partida'
@@ -412,6 +442,7 @@ Object.assign(dictionaries.es, {
   dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Títulos', dynastyCash: 'Caja', dynastyPrize: 'Premio', dynastyEntry: 'Entrada',
   dynastyNextMajor: 'Próximo Major', dynastyEnd: 'Cerrar dinastía', dynastyEndConfirm: 'Cerrar la dinastía borra el historial y la caja. ¿Continuar?', dynastyHistory: 'Historial de la dinastía',
   dynastyCoach: 'Coach', coachDraftTitle: 'Elige el coach', coachDraftDesc: 'Tres coaches reales de equipos que no usaste en el draft. El coach influye en la fuerza del equipo, la pausa táctica, el lado T y la química con jugadores de su equipo.', coachReroll: 'Sortear otros coaches', coachPick: 'Contratar', coachTactics: 'Táctica', coachDiscipline: 'Disciplina', coachAggression: 'Agresión', coachDevelopment: 'Desarrollo', coachNeedsReview: 'Coach de un año cercano, por confirmar', coachStaff: 'Cuerpo técnico',
+  dynastyWindow: 'Ventana de fichajes', windowIntro: 'La plantilla evolucionó con el Major. Vende, compra, cambia el coach y confirma para ir al siguiente Major.', windowEvolution: 'Evolución de la plantilla', windowVersion: 'Nueva versión', windowDrift: 'Rendimiento', windowStable: 'Estable', windowCash: 'Caja tras los fichajes', windowMovesLeft: 'Cambios restantes', windowLineup: 'Plantilla', windowSell: 'Vender', windowSelling: 'Vendiendo', windowProposals: 'Ofertas por tus jugadores', windowMarket: 'Mercado', windowFocus: 'Para la posición más débil', windowTarget: 'Objetivo libre (+25%)', windowSearch: 'Buscar jugador por nick', windowBuy: 'Comprar', windowPickSale: 'Elige primero quién sale de la plantilla', windowMoves: 'Cambios hechos', windowUndo: 'Deshacer', windowCoachKeep: 'Mantener coach', windowCoachOffers: 'Coaches disponibles', windowHire: 'Contratar', windowConfirm: 'Confirmar e ir al siguiente Major', windowNoCash: 'Caja insuficiente para ese cambio', windowNoMoves: 'Sin cambios restantes en esta ventana', windowInvalidMove: 'Ese cambio no es posible', windowFixRoles: 'Ajusta las posiciones antes de confirmar', dynastyEra: 'Era', lineageTitle: 'Linaje',
   overviewStage: 'Etapa', overviewSwissWord: 'Suizo',
   proBlindOffer: 'Oferta PRO oculta',
   proBlindOfferDesc: 'Elige sin ver nombre, overall, función, rareza ni premios.',
@@ -520,6 +551,7 @@ Object.assign(dictionaries.en, {
   dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Titles', dynastyCash: 'Cash', dynastyPrize: 'Prize', dynastyEntry: 'Entry',
   dynastyNextMajor: 'Next Major', dynastyEnd: 'End dynasty', dynastyEndConfirm: 'Ending the dynasty erases its history and cash. Continue?', dynastyHistory: 'Dynasty history',
   dynastyCoach: 'Coach', coachDraftTitle: 'Pick your coach', coachDraftDesc: 'Three real coaches from teams you did not draft from. The coach shapes team strength, the tactical timeout, the T side and chemistry with players from their own team.', coachReroll: 'Draw other coaches', coachPick: 'Hire', coachTactics: 'Tactics', coachDiscipline: 'Discipline', coachAggression: 'Aggression', coachDevelopment: 'Development', coachNeedsReview: 'Coach from a nearby year, to be confirmed', coachStaff: 'Coaching staff',
+  dynastyWindow: 'Transfer window', windowIntro: 'The roster evolved with the Major. Sell, buy, swap the coach and confirm to move on to the next Major.', windowEvolution: 'Roster evolution', windowVersion: 'New version', windowDrift: 'Form', windowStable: 'Stable', windowCash: 'Cash after moves', windowMovesLeft: 'Moves left', windowLineup: 'Roster', windowSell: 'Sell', windowSelling: 'Selling', windowProposals: 'Offers for your players', windowMarket: 'Market', windowFocus: 'For the weakest position', windowTarget: 'Free target (+25%)', windowSearch: 'Search player by nick', windowBuy: 'Buy', windowPickSale: 'Pick who leaves the roster first', windowMoves: 'Moves made', windowUndo: 'Undo', windowCoachKeep: 'Keep coach', windowCoachOffers: 'Available coaches', windowHire: 'Hire', windowConfirm: 'Confirm and go to the next Major', windowNoCash: 'Not enough cash for this move', windowNoMoves: 'No moves left in this window', windowInvalidMove: 'This move is not possible', windowFixRoles: 'Fix the positions before confirming', dynastyEra: 'Era', lineageTitle: 'Lineage',
   overviewStage: 'Stage', overviewSwissWord: 'Swiss',
   proBlindOffer: 'Hidden PRO offer',
   proBlindOfferDesc: 'Pick without seeing name, overall, role, rarity, or awards.',
