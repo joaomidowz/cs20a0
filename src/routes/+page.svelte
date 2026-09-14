@@ -1369,7 +1369,7 @@
         <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }, ...(isDynasty ? [{ value: 'team', label: $game.language === 'en' ? 'Team' : $game.language === 'es' ? 'Equipo' : 'Time' }] : [])]} onChange={(value) => majorTab = value === 'all' ? 'all' : value === 'team' ? 'team' : 'current'} /></div>
       {/if}
       {#if isDynasty && $game.dynasty?.major}
-        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} training={$game.dynasty.major.training} language={$game.language} /></div>
+        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} training={$game.dynasty.major.training} language={$game.language} lineup={selectedLineup} history={$game.dynasty.history} {playerById} overrides={$game.dynasty.playerOverrides} teamLabel={coachTeamLabel} /></div>
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
