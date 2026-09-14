@@ -59,6 +59,8 @@ export interface TournamentEngineOptions {
     left: PublicStanding;
     right: PublicStanding;
   }) => 1 | 3;
+  /** Playoff series formats. Defaults to BO3 quarterfinals, BO3 semifinals and a BO5 final (every mode but the Dinastia circuit). */
+  playoffBestOf?: { quarterfinal: 1 | 3; semifinal: 1 | 3; final: 3 | 5 };
   /** Who takes the decisions of an organization. Defaults to humans → 'human', bots → 'bot'. */
   controllerFor?: (organization: TournamentOrganization) => Controller;
   /** Whether a series waits for the two organizations to veto by hand. Defaults to human vs human only. */
@@ -336,10 +338,11 @@ export function startNextRound(state: TournamentEngineState): TournamentRoundSta
   } else {
     if (!state.playoffField) throw new Error('Playoffs cannot start before the Swiss stage resolves');
     const playoffRounds = state.rounds.filter((item) => item.phase !== 'swiss').length;
-    const definitions: Array<{ phase: 'quarterfinal' | 'semifinal' | 'final'; bestOf: 3 | 5 }> = [
-      { phase: 'quarterfinal', bestOf: 3 },
-      { phase: 'semifinal', bestOf: 3 },
-      { phase: 'final', bestOf: 5 }
+    const formats = state.options.playoffBestOf ?? { quarterfinal: 3, semifinal: 3, final: 5 };
+    const definitions: Array<{ phase: 'quarterfinal' | 'semifinal' | 'final'; bestOf: 1 | 3 | 5 }> = [
+      { phase: 'quarterfinal', bestOf: formats.quarterfinal },
+      { phase: 'semifinal', bestOf: formats.semifinal },
+      { phase: 'final', bestOf: formats.final }
     ];
     const definition = definitions[playoffRounds];
     if (!definition) throw new Error('The bracket is already complete');

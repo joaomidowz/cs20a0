@@ -175,4 +175,18 @@ describe('incremental tournament engine', () => {
     expect(engine.rounds.at(-1)!.series[0].config.bestOf).toBe(5);
     expect(toResult(engine).standings).toHaveLength(8);
   });
+
+  it('accepts a custom playoff format and keeps BO3/BO3/BO5 without it', () => {
+    const run = (playoffBestOf?: { quarterfinal: 1 | 3; semifinal: 1 | 3; final: 3 | 5 }) => {
+      const engine = createTournamentEngine({ organizations: [organization(0)], botPool: Array.from({ length: 7 }, (_, index) => organization(index + 40, false)), entryStage: 'playoffs', seed: 'custom-playoffs', controllerFor: () => 'bot', interactiveVeto: () => false, ...(playoffBestOf ? { playoffBestOf } : {}) });
+      while (!engine.finished) {
+        const round = startNextRound(engine);
+        for (const series of round.series) runSeriesToEnd(series);
+        completeRound(engine);
+      }
+      return engine.rounds.map((round) => round.series[0].config.bestOf);
+    };
+    expect(run({ quarterfinal: 3, semifinal: 3, final: 3 })).toEqual([3, 3, 3]);
+    expect(run()).toEqual([3, 3, 5]);
+  });
 });
