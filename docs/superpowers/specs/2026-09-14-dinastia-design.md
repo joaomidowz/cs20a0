@@ -240,6 +240,6 @@ Ideia registrada para depois: **níveis de dinastia**, comparando os títulos em
 Cada uma com plano próprio em `docs/superpowers/plans/`:
 
 1. **Dinastia A** (plano `docs/superpowers/plans/2026-09-14-dinastia-a-modo-e-tres-estagios.md`, implementada): modo novo, cabeçalho, Major de três estágios, colocações e premiação. Jogável com "Próximo Major" mantendo o elenco e aplicando status e entrada.
-2. **Dinastia B**: dataset de coaches no studio, `coach-draft`, efeitos no motor e afinidade. Depende da carga completa dos jogadores no studio.
+2. **Dinastia B** (plano `docs/superpowers/plans/2026-09-14-dinastia-b-coaches.md`, implementada): dataset de coaches no studio, `coach-draft`, efeitos no motor e afinidade. Depende da carga completa dos jogadores no studio.
 3. **Dinastia C**: valor de mercado, janela, evolução, histórico e card de linhagem.
 4. **Rating 3.0, Round Swing e stats**: independente das anteriores; quando entrar, a evolução passa a usar o rating novo.
