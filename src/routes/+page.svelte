@@ -74,7 +74,9 @@
     type ProRoleEvaluation
   } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
-  import { createDynastyState } from '$lib/game/dynasty/state';
+  import DynastyHeader from '$lib/components/DynastyHeader.svelte';
+  import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
+  import { beginNextDynastyMajor, createDynastyState, settleDynastyMajor } from '$lib/game/dynasty/state';
   import {
     MAP_POOL,
     getDefaultMapSelection,
@@ -86,10 +88,13 @@
     isValidLineupMapSelection
   } from '$lib/game/maps';
   import {
+    isMajorStage,
+    MAJOR_STAGES,
     SPEEDS,
     type GameMode,
     type HistoricalTeam,
     type LineupSlotRole,
+    type MajorStage,
     type MapId,
     type MapSide,
     type OrgStyle,
@@ -162,6 +167,8 @@
 
   function getPhaseLabel(phase: SeriesResult['phase']): string {
     const labels: Record<string, string> = {
+      stage1: t('stage1'),
+      stage2: t('stage2'),
       stage3: t('stage3'),
       quarterfinal: t('quarterfinal'),
       semifinal: t('semifinal'),
@@ -172,7 +179,7 @@
 
   function groupMatchesByPhase(matches: SeriesResult[]) {
     const phases: Array<{ phase: string; label: string; matches: SeriesResult[] }> = [];
-    const phaseOrder: SeriesResult['phase'][] = ['stage3', 'quarterfinal', 'semifinal', 'final'];
+    const phaseOrder: SeriesResult['phase'][] = ['stage1', 'stage2', 'stage3', 'quarterfinal', 'semifinal', 'final'];
     for (const phase of phaseOrder) {
       const phaseMatches = matches.filter((match) => match.phase === phase);
       if (phaseMatches.length > 0) {
@@ -204,6 +211,7 @@
   onMount(() => {
     strategicPreferences = loadStrategicPreferences();
     restoreCampaign();
+    settleDynastyIfNeeded();
     campaignChecked = true;
     return game.subscribe((state) => {
       const url = new URL(window.location.href);
@@ -221,6 +229,7 @@
 
   $: t = (key: TranslationKey) => translate($game.language, key);
   $: isProMode = $game.mode === 'pro';
+  $: isDynasty = $game.mode === 'dynasty';
   $: proPickedPlayers = $game.proPickedPlayerIds.map((playerId) => playerById.get(playerId)).filter((player): player is Player => Boolean(player));
   $: proEvaluations = isProMode ? buildProRoleEvaluations(proPickedPlayers, $game.proRoleAssignments, $game.style) : [];
   $: proLineup = buildProLineup(proEvaluations);
@@ -256,8 +265,9 @@
   $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
-  $: stageWins = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId === 'user').length;
-  $: stageLosses = completedMatches.filter((match) => match.phase === 'stage3' && match.winnerId !== 'user').length;
+  $: liveStage = currentSeries && isMajorStage(currentSeries.phase) ? currentSeries.phase : null;
+  $: stageWins = completedMatches.filter((match) => match.phase === (liveStage ?? 'stage3') && match.winnerId === 'user').length;
+  $: stageLosses = completedMatches.filter((match) => match.phase === (liveStage ?? 'stage3') && match.winnerId !== 'user').length;
   $: hasStageRecord = stageWins + stageLosses > 0;
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
@@ -491,7 +501,8 @@
     const runLineup = isProMode ? proLineup : selectedLineup;
     campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
-      mode: $game.mode ?? 'premier'
+      mode: $game.mode ?? 'premier',
+      ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
     });
     const majorRun = campaign.run;
     const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
@@ -528,7 +539,8 @@
       const restored = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
         selectedMaps: $game.selectedMaps,
         mode: $game.mode ?? 'premier',
-        played
+        played,
+        ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
       });
       const expected = Object.keys(played).length;
       const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
@@ -690,9 +702,10 @@
     const next = $game.majorRun?.matches[nextIndex];
     if (!next) {
       update({ completedSeries: nextIndex, phase: 'result' });
+      settleDynastyIfNeeded();
       return;
     }
-    update({ completedSeries: nextIndex, phase: next.phase === 'stage3' ? 'stage3' : 'playoffs' });
+    update({ completedSeries: nextIndex, phase: isMajorStage(next.phase) ? 'stage3' : 'playoffs' });
     await tick();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -719,6 +732,38 @@
     awaitingAdvance = false;
   }
 
+  /** Credits the prize of the finished Major once (also after a reload straight into the result screen). */
+  function settleDynastyIfNeeded(): void {
+    const run = $game.majorRun;
+    if (!isDynasty || !$game.dynasty || !run || $game.phase !== 'result') return;
+    if ($game.dynasty.prizeCreditedFor >= $game.dynasty.majorNumber) return;
+    update({ dynasty: settleDynastyMajor($game.dynasty, run, { seed: $game.seed, lineup: selectedLineup, stats: $game.stats }) });
+  }
+
+  /** Keeps the lineup, opens the next Major of the dynasty and lets the user revisit the map pool before Stage 1/2/3. */
+  function startNextDynastyMajor() {
+    if (!isDynasty || !$game.dynasty || selectedLineup.length !== 5) return;
+    settleDynastyIfNeeded();
+    const dynasty = beginNextDynastyMajor($game.dynasty);
+    resetSupportNudge();
+    closePlayer();
+    closeEnemyTeam();
+    clearAdvanceTimer();
+    stopLiveTick();
+    awaitingAdvance = false;
+    autoPausedHalf = '';
+    campaign = null;
+    resultStatsOpen = false;
+    update({ dynasty, seed: makeSeed(), majorRun: null, playedSeries: {}, stats: [], completedSeries: 0, phase: 'map-selection' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function endDynasty() {
+    if (window.confirm(t('dynastyEndConfirm'))) resetRun(true);
+  }
+
+  const stageEntries = (run: MajorRun) => MAJOR_STAGES.filter((stage) => run.stages?.[stage]).map((stage) => ({ stage, record: run.stages![stage]! }));
+
   /** Keeps the drafted lineup and the map pool, draws a new Major and goes straight to Stage 3. */
   function playAgainWithSameLineup() {
     if (selectedLineup.length !== 5) return;
@@ -738,7 +783,7 @@
   async function copyLink() {
     const url = new URL(window.location.href);
     url.searchParams.set('seed', $game.seed);
-    if (($game.phase === 'result' || $game.phase === 'stats') && $game.majorRun && selectedLineup.length === 5) {
+    if (($game.phase === 'result' || $game.phase === 'stats') && $game.majorRun && selectedLineup.length === 5 && !isDynasty) {
       url.searchParams.set('result', '1');
       url.searchParams.set('mode', $game.mode ?? 'premier');
       url.searchParams.set('style', $game.style);
@@ -789,11 +834,11 @@
   }
 
   function phaseLabel() {
-    if (currentSeries?.phase === 'stage3') return hasStageRecord ? `${t('stage3')} · ${stageWins}-${stageLosses}` : t('stage3');
+    if (currentSeries && isMajorStage(currentSeries.phase)) return hasStageRecord ? `${t(currentSeries.phase)} · ${stageWins}-${stageLosses}` : t(currentSeries.phase);
     if (currentSeries?.phase === 'quarterfinal') return t('quarterfinal');
     if (currentSeries?.phase === 'semifinal') return t('semifinal');
     if (currentSeries?.phase === 'final') return t('final');
-    if ($game.phase === 'stage3') return hasStageRecord ? `${t('stage3')} · ${stageWins}-${stageLosses}` : t('stage3');
+    if ($game.phase === 'stage3') return hasStageRecord ? `${t(liveStage ?? 'stage3')} · ${stageWins}-${stageLosses}` : t(liveStage ?? 'stage3');
     return t('playoffs');
   }
 
@@ -825,6 +870,9 @@
 <main>
   {#if $game.phase !== 'home' && $game.phase !== 'stage3' && $game.phase !== 'playoffs'}
     <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
+  {/if}
+  {#if isDynasty && $game.dynasty && $game.phase !== 'home' && $game.phase !== 'mode-select'}
+    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} /></div>
   {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
@@ -1303,7 +1351,7 @@
       <section class="screen shell result-screen">
         <header class:success={run.champion} class="result-hero"><span class="eyebrow">FINAL REPORT / {$game.seed}</span><h1>{run.champion ? t('champion') : t('eliminated')}</h1><p>{translatePlacement($game.language, run.placement)}</p></header>
         <div class="campaign-grid">
-          <article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article><article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
+          {#if run.stages}{#each stageEntries(run) as entry (entry.stage)}<article><small>{t(entry.stage).toUpperCase()}</small><strong>{entry.record.wins}-{entry.record.losses}</strong></article>{/each}{:else}<article><small>STAGE 3</small><strong>{run.stage3.wins}-{run.stage3.losses}</strong></article>{/if}{#if isDynasty}<article><small>{t('dynastyPrize')}</small><strong>{formatUsd(prizeForPlacement(run.placement) + awardsBonus(run.tournament?.awards, selectedLineup.map((selected) => selected.playerId)), $game.language)}</strong></article>{/if}<article><small>{t('placement')}</small><strong>{translatePlacement($game.language, run.placement)}</strong></article><article><small>{t('seriesWon')}</small><strong>{wonSeries}</strong></article><article><small>{t('seriesLost')}</small><strong>{run.matches.length - wonSeries}</strong></article><article><small>{t('mapsWon')}</small><strong>{summary.mapsWon}</strong></article><article><small>{t('mapsLost')}</small><strong>{summary.mapsLost}</strong></article><article><small>{t('roundsWon')}</small><strong>{summary.roundsWon}</strong></article><article><small>{t('roundsLost')}</small><strong>{summary.roundsLost}</strong></article>
         </div>
         <section class="result-awards">
           <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>{t('majorMvp')}</h2></div></div>
@@ -1353,8 +1401,18 @@
             <MajorOverview tournament={run.tournament} cursor={{ liveSeriesId: null, complete: true }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
           </section>
         {/if}
+        {#if isDynasty && $game.dynasty && $game.dynasty.history.length}
+          <section class="panel dynasty-history">
+            <div class="section-heading"><div><span class="eyebrow">DINASTIA</span><h2>{t('dynastyHistory')}</h2></div></div>
+            <ul>
+              {#each $game.dynasty.history as item (item.majorNumber)}
+                <li><b>{t('dynastyMajorNumber')} #{item.majorNumber}</b> · {t(item.entryStage)} → {translatePlacement($game.language, item.placement)} · {formatUsd(item.prize + item.awardsBonus, $game.language)}</li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
-        <div class="result-actions"><button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button><button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button><button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button><button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button><button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button></div>
+        <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{t('dynastyNextMajor')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}
@@ -1426,4 +1484,5 @@
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}
   .live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   @media (max-width:560px){.live-actions{flex-wrap:wrap}.live-actions small{order:3;flex-basis:100%}}
+  .dynasty-history ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}.dynasty-history li{font-size:.85rem}.dynasty-history b{color:var(--accent)}
 </style>
