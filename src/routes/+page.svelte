@@ -27,7 +27,7 @@
   import TimeoutButton from '$lib/components/live/TimeoutButton.svelte';
   import AutomationGear from '$lib/components/AutomationGear.svelte';
   import { TIMEOUT_LOSS_STREAK } from '$lib/game/bot-policies';
-  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
+  import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, loadTipPreferences, saveStrategicPreferences, saveTipPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
   import {
     advanceCampaignMajor,
     applyCampaignEcoCall,
@@ -81,6 +81,8 @@
   import DynastyHeader from '$lib/components/DynastyHeader.svelte';
   import CoachDraft from '$lib/components/CoachDraft.svelte';
   import DynastyWindow from '$lib/components/DynastyWindow.svelte';
+  import DynastyTip from '$lib/components/DynastyTip.svelte';
+  import { DEFAULT_TIP_STATE, disableTips, markTipSeen, nextTip, type TipContext, type TipState } from '$lib/game/dynasty/tips';
   import DynastySeriesPlan from '$lib/components/DynastySeriesPlan.svelte';
   import DynastyTeamPanel from '$lib/components/DynastyTeamPanel.svelte';
   import DynastyTraining from '$lib/components/DynastyTraining.svelte';
@@ -161,6 +163,16 @@
   let toast = '';
   let awaitingAdvance = false;
   let majorTab: 'current' | 'all' | 'team' = 'current';
+  let tipState: TipState = DEFAULT_TIP_STATE;
+  const tipFor = (context: TipContext, state: TipState) => (isDynasty ? nextTip(context, state) : null);
+  function dismissTip(id: string) {
+    tipState = markTipSeen(tipState, id);
+    saveTipPreferences(tipState);
+  }
+  function turnOffTips() {
+    tipState = disableTips(tipState);
+    saveTipPreferences(tipState);
+  }
   let downloadingImage = false;
   let showSupportNudge = false;
   let supportNudgeShownThisRun = false;
@@ -231,6 +243,7 @@
 
   onMount(() => {
     strategicPreferences = loadStrategicPreferences();
+    tipState = loadTipPreferences();
     restoreCampaign();
     settleDynastyIfNeeded();
     campaignChecked = true;
@@ -1280,11 +1293,14 @@
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">
       <header class="screen-header"><span class="eyebrow">DINASTIA · {t('dynastyMajorNumber')} #{$game.dynasty.majorNumber}</span><h1>{t('dynastyWindow')}</h1><p>{t('windowIntro')}</p></header>
+      {#if tipFor('window', tipState)}{@const tip = tipFor('window', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
+      {#if ($game.dynasty.window.swapOffers?.length ?? 0) > 0 && !tipFor('window', tipState) && tipFor('swap', tipState)}{@const tip = tipFor('swap', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
       <DynastyWindow state={$game.dynasty.window} language={$game.language} {playerById} {coachById} currentCoach={dynastyCoach} catalog={players} history={$game.dynasty.history} teamLabel={coachTeamLabel} onChange={updateTransferWindow} onConfirm={confirmTransferWindow} />
     </section>
   {:else if $game.phase === 'coach-draft'}
     <section class="screen shell">
       <header class="screen-header"><span class="eyebrow">DINASTIA · IDENTIDADE</span><h1>{t('chooseStyle')} + {t('coachDraftTitle')}</h1><p>{t('coachDraftDesc')}</p></header>
+      {#if tipFor('identity', tipState)}{@const tip = tipFor('identity', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
       <section class="style-block panel"><div class="segmented">
         {#each ['aggressive', 'balanced', 'tactical'] as style}
           <button class:active={$game.styleLocked && $game.style === style} type="button" on:click={() => chooseDynastyStyle(style as OrgStyle)}><strong>{style === 'balanced' ? ($game.language === 'en' ? 'Controller' : 'Controlador') : t(style as OrgStyle)}</strong><small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small></button>
@@ -1304,6 +1320,7 @@
         <strong>{$game.selectedMaps.length}/3</strong>
       </div>
       {#if isDynasty && $game.dynasty?.majorRules === 2 && $game.dynasty.major}
+        {#if tipFor('training', tipState)}{@const tip = tipFor('training', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
         <DynastyTraining language={$game.language} value={$game.dynasty.major.training} suggested={dynastyTrainingSuggestion} onChange={chooseTraining} />
       {/if}
       <div class="map-selection-grid">
@@ -1369,11 +1386,12 @@
         <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }, ...(isDynasty ? [{ value: 'team', label: $game.language === 'en' ? 'Team' : $game.language === 'es' ? 'Equipo' : 'Time' }] : [])]} onChange={(value) => majorTab = value === 'all' ? 'all' : value === 'team' ? 'team' : 'current'} /></div>
       {/if}
       {#if isDynasty && $game.dynasty?.major}
-        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} training={$game.dynasty.major.training} language={$game.language} lineup={selectedLineup} history={$game.dynasty.history} {playerById} overrides={$game.dynasty.playerOverrides} teamLabel={coachTeamLabel} /></div>
+        <div hidden={majorTab !== 'team'}>{#if tipFor('team-tab', tipState)}{@const tip = tipFor('team-tab', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}<DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} training={$game.dynasty.major.training} language={$game.language} lineup={selectedLineup} history={$game.dynasty.history} {playerById} overrides={$game.dynasty.playerOverrides} teamLabel={coachTeamLabel} /></div>
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
         {#if isDynasty && $game.dynasty?.major && !dynastySeriesPlanned}
+          {#if tipFor('series-plan', tipState)}{@const tip = tipFor('series-plan', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
           <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name)} studiesLeft={dynastyStudiesLeft} initial={$game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
         {/if}
         {#if campaignView && !campaignView.finished}
