@@ -67,4 +67,11 @@ describe('estado da Dinastia', () => {
     expect(ensureDynastyState({ majorNumber: 2, majorRules: 2, major }).major).toEqual(major);
     expect(ensureDynastyState({ majorNumber: 2, majorRules: 1, major }).major).toBeNull();
   });
+  it('normaliza o circuito salvo e descarta lixo', () => {
+    const circuit = { majorNumber: 2, events: [{ id: 'circuit-2-1', tier: 'open', access: 'signup', index: 1, teamIds: ['a'] }], results: [{ eventId: 'circuit-2-1', tier: 'open', placement: 'semi', prize: 4000 }], skipped: [], brackets: {}, finished: false };
+    expect(ensureDynastyState({ majorNumber: 2, circuit }).circuit).toEqual(circuit);
+    expect(ensureDynastyState({ majorNumber: 2, circuit: { majorNumber: 2, events: 'x' } }).circuit).toBeNull();
+    expect(ensureDynastyState({}).circuit).toBeNull();
+    expect(createDynastyState().circuit).toBeNull();
+  });
 });

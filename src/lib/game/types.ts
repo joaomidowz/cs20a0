@@ -8,6 +8,7 @@ export type GamePhase =
   | 'pro-roles'
   | 'pro-reveal'
   | 'coach-draft'
+  | 'circuit'
   | 'window'
   | 'map-selection'
   | 'stage3'
@@ -538,6 +539,8 @@ export interface DynastyMajorSummary {
   evolution?: EvolutionEntry[];
   /** Temporary focus used during this Major. */
   training?: TrainingFocus | null;
+  /** Circuit events played after this Major. */
+  circuit?: CircuitResult[];
 }
 
 /** Attribute drift a Dinastia player carries over the dataset version (used from delivery C on). */
@@ -614,6 +617,41 @@ export interface WindowState {
   coachChange: { coachId: string; cost: number } | null;
 }
 
+export type CircuitTier = 'elite' | 'open';
+export type CircuitAccess = 'invite' | 'signup';
+export type CircuitPlacement = 'champion' | 'runnerUp' | 'semi' | 'quarter';
+
+/** A smaller event between two Dinastia Majors: eight teams, single elimination. */
+export interface CircuitEvent {
+  id: string;
+  tier: CircuitTier;
+  access: CircuitAccess;
+  /** 1-based number shown in the event name ("Elite Series #1"). */
+  index: number;
+  /** Opponents, as historical team ids. The user's organization is the eighth team. */
+  teamIds: string[];
+  /** Event that must end in champion or runner-up before this one opens (second Open Cup for Challengers). */
+  unlockedBy?: string;
+}
+
+export interface CircuitResult {
+  eventId: string;
+  tier: CircuitTier;
+  placement: CircuitPlacement;
+  /** Whole dollars. */
+  prize: number;
+}
+
+export interface CircuitState {
+  majorNumber: number;
+  events: CircuitEvent[];
+  results: CircuitResult[];
+  skipped: string[];
+  /** Bracket of every played event, without kill feeds. */
+  brackets: Record<string, MajorRound[]>;
+  finished: boolean;
+}
+
 export interface DynastyState {
   majorNumber: number;
   /** Ruleset locked for the Major in progress. Saves without it are legacy v1. */
@@ -632,6 +670,8 @@ export interface DynastyState {
   playerOverrides: Record<string, PlayerOverride>;
   /** Transfer window in progress (delivery C); null outside the window. */
   window: WindowState | null;
+  /** Smaller events between the current Major's result and its transfer window. */
+  circuit?: CircuitState | null;
   /** Last majorNumber whose prize was already credited, so a reload never pays twice. */
   prizeCreditedFor: number;
 }

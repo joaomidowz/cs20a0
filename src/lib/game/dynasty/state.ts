@@ -1,4 +1,4 @@
-import type { DynastyMajorPlan, DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer, SeriesPlan, WindowState } from '../types';
+import type { CircuitState, DynastyMajorPlan, DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer, SeriesPlan, WindowState } from '../types';
 import { awardsBonus, prizeForPlacement } from './prizes';
 
 export const createDynastyState = (): DynastyState => ({
@@ -14,6 +14,7 @@ export const createDynastyState = (): DynastyState => ({
   history: [],
   playerOverrides: {},
   window: null,
+  circuit: null,
   prizeCreditedFor: 0
 });
 
@@ -100,6 +101,14 @@ const isWindowState = (value: unknown): value is WindowState => {
     && Array.isArray(candidate.proposals) && Array.isArray(candidate.evolution) && Array.isArray(candidate.coachOfferIds);
 };
 
+const isCircuitState = (value: unknown): value is CircuitState => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<CircuitState>;
+  return typeof candidate.majorNumber === 'number' && Array.isArray(candidate.events) && Array.isArray(candidate.results)
+    && Array.isArray(candidate.skipped) && typeof candidate.finished === 'boolean'
+    && Boolean(candidate.brackets) && typeof candidate.brackets === 'object';
+};
+
 /** A saved dynasty (possibly from an older build or edited by hand) comes back complete and inside its bounds. */
 export function ensureDynastyState(saved: unknown): DynastyState {
   const base = createDynastyState();
@@ -122,6 +131,7 @@ export function ensureDynastyState(saved: unknown): DynastyState {
     history: Array.isArray(raw.history) ? (raw.history as DynastyMajorSummary[]) : [],
     playerOverrides: raw.playerOverrides && typeof raw.playerOverrides === 'object' ? (raw.playerOverrides as DynastyState['playerOverrides']) : {},
     window: isWindowState(raw.window) ? raw.window : null,
+    circuit: isCircuitState(raw.circuit) ? raw.circuit : null,
     prizeCreditedFor: positiveInt(raw.prizeCreditedFor, 0, 0)
   };
 }
