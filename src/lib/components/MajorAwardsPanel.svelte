@@ -16,6 +16,9 @@
   const multiKills = (award: MajorPlayerAward) => `${award.multiKills.ace} / ${award.multiKills.quad} / ${award.multiKills.triple}`;
   const openTeam = (teamId: string) => onTeam?.(teamId);
   const teamRecord = (team: MajorTeamAward) => `${team.mapsWon}–${team.mapsLost}`;
+  $: isRating3 = awards?.ratingModel === 'v3';
+  $: ratingLabel = isRating3 ? t('rating3') : t('rating');
+  const signed = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
 </script>
 
 <section class="major-awards" aria-label={t('majorMvp')}>
@@ -37,11 +40,14 @@
             {/if}
             <small>{translatePlacement(language, mvp.placement)}</small>
           </div>
-          <div class="award-rating"><small>{t('rating')}</small><b>{mvp.rating.toFixed(2)}</b></div>
+          <div class="award-rating"><small>{ratingLabel}</small><b>{mvp.rating.toFixed(2)}</b></div>
         </div>
         <div class="award-numbers">
           <span><small>K / D</small><b>{mvp.kills} / {mvp.deaths}</b></span>
           <span><small>K/D</small><b>{mvp.kdRatio.toFixed(2)}</b></span>
+          {#if mvp.swing !== undefined}<span><small>{t('statSwing').toUpperCase()}</small><b>{signed(mvp.swing)}</b></span>{/if}
+          {#if mvp.kast !== undefined}<span><small>{t('statKast')}</small><b>{mvp.kast.toFixed(1)}%</b></span>{/if}
+          {#if mvp.adr !== undefined}<span><small>ADR</small><b>{mvp.adr}</b></span>{/if}
           <span><small>CLUTCHES</small><b>{mvp.clutches}</b></span>
           <span><small>ACE / 4K / 3K</small><b>{multiKills(mvp)}</b></span>
           <span><small>OPENINGS</small><b>{mvp.openingKills}</b></span>
@@ -60,7 +66,7 @@
             {/if}
             <small>{translatePlacement(language, team.placement)}</small>
           </div>
-          <div class="award-rating"><small>{t('rating')}</small><b>{team.rating.toFixed(2)}</b></div>
+          <div class="award-rating"><small>{ratingLabel}</small><b>{team.rating.toFixed(2)}</b></div>
           <div class="award-numbers two">
             <span><small>{t('maps')}</small><b>{teamRecord(team)}</b></span>
             <span><small>ROUNDS</small><b>{team.roundsWon}–{team.roundsLost}</b></span>
@@ -97,10 +103,11 @@
         <span class="award-eyebrow">{t('topPlayers')}</span>
         <ol>
           {#each awards.topPlayers as award, index (award.playerId + award.teamId)}
-            <li class:is-user={isUser(award.teamId)} class:is-mvp={index === 0}>
+            <li class:is-user={isUser(award.teamId)} class:is-mvp={index === 0} class:has-swing={award.swing !== undefined}>
               <span class="rank">{index + 1}</span>
               <span class="who"><strong>{award.name}</strong><small>{teamName(award, language)}</small></span>
               <span class="line"><small>K–D</small>{award.kills}–{award.deaths}</span>
+              {#if award.swing !== undefined}<span class="line"><small>{t('statSwing').toUpperCase()}</small>{signed(award.swing)}</span>{/if}
               <b>{award.rating.toFixed(2)}</b>
             </li>
           {/each}
@@ -110,7 +117,7 @@
         <span class="award-eyebrow">{t('teamRatings')}</span>
         <div class="team-table-wrap">
           <table>
-            <thead><tr><th>#</th><th class="left">{t('team')}</th><th>{t('rating')}</th><th>{t('maps')}</th><th class="left">{t('placement')}</th></tr></thead>
+            <thead><tr><th>#</th><th class="left">{t('team')}</th><th>{ratingLabel}</th><th>{t('maps')}</th><th class="left">{t('placement')}</th></tr></thead>
             <tbody>
               {#each awards.teams as team, index (team.teamId)}
                 <tr class:is-user={isUser(team.teamId)}>
@@ -129,10 +136,12 @@
       </article>
     </div>
   {/if}
+  {#if isRating3}<p class="awards-help">{t('rating3Help')}</p>{/if}
 </section>
 
 <style>
   .major-awards{display:grid;gap:12px;margin-bottom:18px;min-width:0}
+  .awards-help{margin:12px 0 0;color:var(--muted);font-size:.72rem;line-height:1.5}
   .awards-empty{margin:0;padding:14px 16px;border:1px solid var(--line);color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
   .award-eyebrow{display:block;color:var(--muted);font-size:.58rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
   .awards-hero{display:grid;gap:12px}
@@ -168,6 +177,7 @@
   .award-list{padding:14px;border:1px solid var(--line);background:var(--surface);min-width:0}
   .award-list ol{display:grid;gap:4px;margin:10px 0 0;padding:0;list-style:none}
   .award-list li{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);background:var(--surface-2)}
+  .award-list li.has-swing{grid-template-columns:auto 1fr auto auto auto}
   .award-list li.is-mvp{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
   .award-list .rank{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--line);color:var(--muted);font:900 .75rem Inter,Arial,sans-serif}
   .award-list li.is-mvp .rank{border-color:var(--accent);color:var(--accent)}

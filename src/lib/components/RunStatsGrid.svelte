@@ -18,6 +18,8 @@
   $: mvpId = ranked[0]?.playerId ?? null;
   $: worstId = stats.length > 1 ? [...stats].sort((a, b) => a.runRating - b.runRating)[0]?.playerId ?? null : null;
   const resolve = (id: string) => override.get(id) ?? playerById.get(id);
+  $: hasRating3 = stats.some((stat) => stat.kast !== undefined);
+  const signed = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
 </script>
 
 <div class="stats-grid run-stats-grid" class:compact>
@@ -28,16 +30,35 @@
         {#if mvpId === player.id}<span class="mvp-badge">{t('runMvp')}</span>{/if}
         {#if worstId === player.id && mvpId !== player.id}<span class="underperformer-badge">{t('worstRating')}</span>{/if}
         <div class="stat-player"><div class="avatar large">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">{getRoleLabel(stat.assignedRole)} · {player.year ?? ''}</span><h2>{player.nickname ?? 'Unknown'}</h2><p>{translateTitle(language, playerTitle(player))}</p></div><strong>{player.overall ?? 70}</strong></div>
-        <div class="rating"><small>RUN RATING</small><b>{stat.runRating.toFixed(2)}</b></div>
-        <div class="stat-numbers"><span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span><span><small>K/D</small><b>{stat.kdRatio.toFixed(2)}</b></span><span><small>ADR</small><b>{stat.adr}</b></span><span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span><span><small>CLUTCHES</small><b>{stat.clutches}</b></span><span><small>OPENINGS</small><b>{stat.openingKills}</b></span><span><small>{t('mapsWon')} / {t('mapsLost')}</small><b>{stat.mapsWon} / {stat.mapsLost}</b></span><span><small>{t('roundsWon')} / {t('roundsLost')}</small><b>{stat.roundsWon} / {stat.roundsLost}</b></span><span><small>CONSISTENCY</small><b>{stat.consistency}</b></span></div>
+        <div class="rating"><small>{stat.kast !== undefined ? t('rating3').toUpperCase() : 'RUN RATING'}</small><b>{stat.runRating.toFixed(2)}</b>{#if stat.swing !== undefined}<i class="swing" class:up={stat.swing > 0} class:down={stat.swing < 0}>{t('statSwing').toUpperCase()} {signed(stat.swing)}</i>{/if}</div>
+        <div class="stat-numbers">
+          {#if stat.assists !== undefined}<span><small>K / D / A</small><b>{stat.kills} / {stat.deaths} / {stat.assists}</b></span>{:else}<span><small>K / D</small><b>{stat.kills} / {stat.deaths}</b></span>{/if}
+          <span><small>K/D</small><b>{stat.kdRatio.toFixed(2)}</b></span>
+          {#if stat.kast !== undefined}<span><small>{t('statKast')}</small><b>{stat.kast.toFixed(1)}%</b></span>{/if}
+          <span><small>ADR</small><b>{stat.adr}</b></span>
+          {#if stat.utilityDamage !== undefined}<span><small>{t('statUtility')}</small><b>{stat.utilityDamage.toFixed(1)}</b></span>{/if}
+          <span><small>IMPACT</small><b>{stat.impact.toFixed(2)}</b></span>
+          {#if stat.openingDeaths !== undefined}<span><small>{t('statOpenings')}</small><b>{stat.openingKills}–{stat.openingDeaths}</b></span>{:else}<span><small>OPENINGS</small><b>{stat.openingKills}</b></span>{/if}
+          {#if stat.tradeKills !== undefined}<span><small>{t('statTrades')}</small><b>{stat.tradeKills}</b></span>{/if}
+          {#if stat.multiKills}<span><small>3K / 4K / ACE</small><b>{stat.multiKills.triple} / {stat.multiKills.quad} / {stat.multiKills.ace}</b></span>{/if}
+          <span><small>CLUTCHES</small><b>{stat.clutches}</b></span>
+          <span><small>{t('mapsWon')} / {t('mapsLost')}</small><b>{stat.mapsWon} / {stat.mapsLost}</b></span>
+          <span><small>{t('roundsWon')} / {t('roundsLost')}</small><b>{stat.roundsWon} / {stat.roundsLost}</b></span>
+          <span><small>CONSISTENCY</small><b>{stat.consistency}</b></span>
+        </div>
         {#if stat.runRating < 0.85}<footer class="below-expected">{t('belowExpected')}</footer>{/if}
       </article>
     {/if}
   {/each}
 </div>
+{#if hasRating3}<p class="rating-help">{t('rating3Help')}</p>{/if}
 
 <style>
   .run-stats-grid{min-width:0}
   .stat-card.is-mvp{border-color:var(--accent)}
   .compact .stat-card{padding:14px}
+  .rating .swing{display:block;margin-top:4px;font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+  .rating .swing.up{color:var(--accent)}
+  .rating .swing.down{color:var(--danger)}
+  .rating-help{margin:-6px 0 18px;color:var(--muted);font-size:.72rem;line-height:1.5}
 </style>
