@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildBracket, buildSwissGraph, computeStandings, countCompletedRounds, revealRounds } from '../src/lib/game/majorOverview';
-import { players, teams } from '../src/lib/game/data';
+import { buildBracket, buildSwissGraph, computeStandings, countCompletedRounds, revealRounds, swissRoundsOf } from '../src/lib/game/majorOverview';
+import { getTeamPlayers, players, teams } from '../src/lib/game/data';
 import { buildMajorRun } from '../src/lib/game/simulation';
+import { getDefaultMapSelection } from '../src/lib/game/maps';
+import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
+import { createCampaignMajor } from '../src/lib/game/campaign-major';
 import type { MajorTournament } from '../src/lib/game/types';
 
 const picked = teams.slice(0, 5).map((team) => players.find((player) => player.teamId === team.id)!).filter(Boolean);
@@ -116,5 +119,28 @@ describe('Major overview series cards', () => {
     expect(layout).toContain('in:fly');
     expect(layout).toContain('out:fade');
     expect(layout).toContain("matchMedia('(prefers-reduced-motion: reduce)')");
+  });
+});
+
+describe('visão geral com três estágios', () => {
+  const roster = getTeamPlayers(teams[0]).slice(0, 5);
+  const lineup = roster.map((player) => ({ playerId: player.id, selectedSlotRole: getEligibleSlotRoles(player)[0] ?? 'rifler' as const }));
+  const staged = createCampaignMajor(roster, 'balanced', teams, players, 'overview-estagios', lineup, { selectedMaps: getDefaultMapSelection(roster, teams), mode: 'dynasty', dynastyEntryStage: 'stage3' }).run.tournament as MajorTournament;
+
+  it('filtra as rodadas suíças por estágio e mantém os playoffs', () => {
+    const revealed = revealRounds(staged.rounds, { liveSeriesId: null, complete: true });
+    expect(swissRoundsOf(revealed, 'stage1').filter((round) => round.phase === 'swiss')).toHaveLength(5);
+    expect(swissRoundsOf(revealed, 'stage1').every((round) => round.phase !== 'swiss' || round.stage === 'stage1')).toBe(true);
+    expect(swissRoundsOf(revealed, null)).toEqual(revealed);
+  });
+
+  it('classifica um estágio só com os 16 times dele', () => {
+    const revealed = revealRounds(staged.rounds, { liveSeriesId: null, complete: true });
+    const stage1 = computeStandings(staged, countCompletedRounds(revealed), 'stage1');
+    expect(stage1).toHaveLength(16);
+    expect(stage1.filter((standing) => standing.status === 'eliminated')).toHaveLength(8);
+    expect(stage1.some((standing) => standing.organizationId === 'user')).toBe(false);
+    const stage3 = computeStandings(staged, countCompletedRounds(revealed), 'stage3');
+    expect(stage3.some((standing) => standing.organizationId === 'user')).toBe(true);
   });
 });

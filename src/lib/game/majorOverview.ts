@@ -1,4 +1,4 @@
-import type { MajorRound, MajorStanding, MajorTournament, SeriesResult } from './types';
+import type { MajorRound, MajorStage, MajorStanding, MajorTournament, SeriesResult } from './types';
 
 export type OverviewStatus = 'completed' | 'live' | 'pending';
 
@@ -10,6 +10,7 @@ export interface OverviewSeries {
 export interface OverviewRound {
   number: number;
   phase: MajorRound['phase'];
+  stage?: MajorStage;
   series: OverviewSeries[];
 }
 
@@ -29,7 +30,7 @@ export interface RevealCursor {
  * Later rounds are omitted entirely so future pairings never leak.
  */
 export function revealRounds(rounds: MajorRound[], cursor: RevealCursor): OverviewRound[] {
-  if (cursor.complete) return rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => ({ series, status: 'completed' as const })) }));
+  if (cursor.complete) return rounds.map((round) => ({ number: round.number, phase: round.phase, ...(round.stage ? { stage: round.stage } : {}), series: round.series.map((series) => ({ series, status: 'completed' as const })) }));
   const liveIds = new Set<string>(cursor.liveSeriesIds ?? []);
   if (cursor.liveSeriesId) liveIds.add(cursor.liveSeriesId);
   const liveRoundIndex = liveIds.size ? rounds.findIndex((round) => round.series.some((series) => liveIds.has(series.id))) : -1;
@@ -43,11 +44,15 @@ export function revealRounds(rounds: MajorRound[], cursor: RevealCursor): Overvi
       if (cursor.isResolved) return { series: item, status: cursor.isResolved(item.id) ? 'completed' : 'pending' };
       return { series: item, status: isLiveRound ? 'pending' : 'completed' };
     });
-    revealed.push({ number: round.number, phase: round.phase, series });
+    revealed.push({ number: round.number, phase: round.phase, ...(round.stage ? { stage: round.stage } : {}), series });
     if (liveRoundIndex < 0 && !cursor.isResolved) break;
   }
   return revealed;
 }
+
+/** Swiss rounds of one stage plus every playoff round; with `null` returns the rounds untouched (single-stage Majors). */
+export const swissRoundsOf = (rounds: OverviewRound[], stage: MajorStage | null): OverviewRound[] =>
+  stage ? rounds.filter((round) => round.phase !== 'swiss' || round.stage === stage) : rounds;
 
 export interface SwissTeamRef {
   id: string;
@@ -188,8 +193,10 @@ export function buildBracket(rounds: OverviewRound[], options: { liveScores?: bo
 }
 
 /** Standings after the given number of fully revealed rounds (never leaks later results). */
-export function computeStandings(tournament: MajorTournament, revealedRounds: number): MajorStanding[] {
-  const standings = tournament.standings.map((standing): MajorStanding & { opponents: string[] } => ({
+export function computeStandings(tournament: MajorTournament, revealedRounds: number, stage: MajorStage | null = null): MajorStanding[] {
+  const base = (stage ? tournament.stages?.find((item) => item.stage === stage)?.standings : null) ?? tournament.standings;
+  const lastStage = tournament.stages?.at(-1)?.stage ?? null;
+  const standings = base.map((standing): MajorStanding & { opponents: string[] } => ({
     ...standing,
     wins: 0,
     losses: 0,
@@ -200,6 +207,8 @@ export function computeStandings(tournament: MajorTournament, revealedRounds: nu
   }));
   const byId = new Map(standings.map((standing) => [standing.organizationId, standing]));
   for (const round of tournament.rounds.slice(0, Math.max(0, revealedRounds))) {
+    if (stage && round.phase === 'swiss' && round.stage !== stage) continue;
+    if (stage && round.phase !== 'swiss' && stage !== lastStage) continue;
     for (const series of round.series) {
       const left = byId.get(series.teamA.id);
       const right = byId.get(series.teamB.id);
