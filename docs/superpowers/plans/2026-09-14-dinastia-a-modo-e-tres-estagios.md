@@ -112,6 +112,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Modify: `src/lib/game/types.ts` (linhas 16, 207–232, 281–283, 323–327, 377–392, 415–438)
 - Modify: `src/lib/game/online/contracts.ts` (linhas 2, 133–138, 199–207)
 - Modify: `src/lib/game/i18n.ts` (bloco `pt` perto da linha 246; blocos `es` e `en`)
+- Modify: `src/lib/game/rounds.ts` (`TIMEOUT_BONUS_BY_MODE` ganha `dynasty: 0.03`, igual ao Normal)
+- Modify: `src/lib/game/online/i18n.ts` (`modePresentation` ganha `dynasty` nos três idiomas copiando `premier`; o schema zod das salas não aceita o modo, então nunca aparece online)
+- Modify: `src/lib/game/sandbox/presentation.ts` (`SANDBOX_PHASE_LABELS` ganha `stage1: 'STAGE 1'` e `stage2: 'STAGE 2'`; `SANDBOX_PHASES` não muda)
 
 **Interfaces:**
 - Produces: `GameMode = 'premier' | 'faceit' | 'pro' | 'dynasty'`; `MajorStage`; `MAJOR_STAGES`; `STAGE_PLACEMENT`; `SeriesResult['phase']` com `stage1`/`stage2`; `MajorRound.stage?`; `MajorStageStandings`; `MajorTournament.stages?`; `MajorRun.stages?`/`entryStage?`; `DynastyStatus`, `DynastyMajorSummary`, `PlayerOverride`, `DynastyState`; `GameState.dynasty?`; `HistoricalTeam.tier?`; `PublicRound.stage?`; `PublicStageStandings`; `PublicTournament.stages?`; chaves i18n listadas abaixo.
