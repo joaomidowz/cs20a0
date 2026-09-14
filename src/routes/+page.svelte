@@ -74,6 +74,7 @@
     type ProRoleEvaluation
   } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
+  import { createDynastyState } from '$lib/game/dynasty/state';
   import {
     MAP_POOL,
     getDefaultMapSelection,
@@ -230,7 +231,7 @@
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
-  $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
+  $: rerollsMax = $game.mode === 'premier' || $game.mode === 'dynasty' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
   $: mapContributors = getLineupMapContributors(selectedPlayers, teams);
@@ -314,7 +315,8 @@
       selectedMaps: [],
       majorRun: null,
       completedSeries: 0,
-      stats: []
+      stats: [],
+      dynasty: mode === 'dynasty' ? createDynastyState() : null,
     });
   }
 
@@ -870,6 +872,9 @@
         </button>
         <button class="mode-card pro" type="button" on:click={() => chooseMode('pro')}>
           <span class="mode-number">03</span><span class="mode-icon">P</span><h2>{t('pro')}</h2><p>{t('proDesc')}</p><b>PROTOCOL LOCKED →</b>
+        </button>
+        <button class="mode-card dynasty" type="button" on:click={() => chooseMode('dynasty')}>
+          <span class="mode-number">04</span><span class="mode-icon">D</span><h2>{t('dynasty')}</h2><p>{t('dynastyDesc')}</p><b>LEGACY RUN →</b>
         </button>
       </div>
     </section>

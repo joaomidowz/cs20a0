@@ -32,7 +32,7 @@
     player: players.find((player) => player.id === selected.playerId)
   }));
   $: translatedPlacement = translatePlacement(language, currentReport?.placement ?? '—');
-  $: modeFlag = mode === 'pro' ? 'PRO MODE' : mode === 'faceit' ? 'RANKED' : '';
+  $: modeFlag = mode === 'pro' ? 'PRO MODE' : mode === 'faceit' ? 'RANKED' : mode === 'dynasty' ? 'DINASTIA' : '';
 </script>
 
 <section id="share-card" class:champion={currentReport?.champion} class="share-card" aria-label="cs13a0 run card">

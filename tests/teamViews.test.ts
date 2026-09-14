@@ -9,6 +9,7 @@ import {
 import {
   playerAwardLabels,
   shouldShowPlayerAwards,
+  showsFullIntel,
   sortTeamsByPlacement,
   teamAverageOverall
 } from '../src/lib/game/teamViews';
@@ -50,6 +51,14 @@ describe('team view helpers', () => {
   it('calculates roster average from the five player versions', () => {
     const team: HistoricalTeam = { id: 'vitality-2024', teamPowerPreview: 40 };
     expect(teamAverageOverall(team)).toBeGreaterThan(80);
+  });
+
+  it('a Dinastia mostra atributos como o Normal', () => {
+    expect(showsFullIntel('premier')).toBe(true);
+    expect(showsFullIntel('dynasty')).toBe(true);
+    expect(showsFullIntel('faceit')).toBe(false);
+    expect(showsFullIntel('pro')).toBe(false);
+    expect(showsFullIntel(null)).toBe(false);
   });
 });
 

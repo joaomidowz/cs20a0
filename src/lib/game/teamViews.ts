@@ -8,8 +8,11 @@ type PlayerWithAwards = Player & {
 
 const YEAR_PATTERN = /(20\d{2})/g;
 
+/** Normal and Dinastia show numbers, rarity and awards during the draft; Ranked and PRO hide them until the reveal. */
+export const showsFullIntel = (mode: GameMode | null | undefined) => mode === 'premier' || mode === 'dynasty';
+
 export const shouldShowPlayerAwards = (mode: GameMode | null | undefined, context: 'game' | 'teams' = 'game') =>
-  context === 'teams' || mode === 'premier';
+  context === 'teams' || showsFullIntel(mode);
 
 export const teamPlayers = (team: HistoricalTeam | null) => getTeamPlayers(team);
 

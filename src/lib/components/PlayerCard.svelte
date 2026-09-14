@@ -1,6 +1,7 @@
 <script lang="ts">
   import { playerTitle } from '$lib/game/data';
   import { translateTitle } from '$lib/game/i18n';
+  import { showsFullIntel } from '$lib/game/teamViews';
   import type { GameMode, Language, Player } from '$lib/game/types';
 
   export let player: Player;
@@ -12,9 +13,9 @@
   export let onOpen: (player: Player) => void = () => {};
 
   const initials = (player.nickname ?? '?').slice(0, 2).toUpperCase();
-  $: showNumbers = mode === 'premier' || revealed;
+  $: showNumbers = showsFullIntel(mode) || revealed;
   $: rarity = (player.rarity ?? 'common').toLowerCase();
-  $: showRarity = mode === 'premier' || revealed;
+  $: showRarity = showsFullIntel(mode) || revealed;
 
   function openCard() {
     if (!blockedReason || window.matchMedia('(max-width: 679px)').matches) onOpen(player);

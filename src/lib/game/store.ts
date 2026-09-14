@@ -7,6 +7,7 @@ import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
 import { createRunStats } from './runStats';
 import { buildMajorRun } from './simulation';
 import { isValidLineupMapSelection, isValidMapSelection } from './maps';
+import { ensureDynastyState } from './dynasty/state';
 import type { GameMode, GameState, LineupSlotRole, MapId, OrgStyle } from './types';
 
 const storageKey = 'cs13a0-run-v1';
@@ -42,11 +43,12 @@ export const defaultState = (seed = ''): GameState => ({
   majorRun: null,
   playedSeries: {},
   completedSeries: 0,
-  stats: []
+  stats: [],
+  dynasty: null
 });
 
 const slotRoles = new Set<LineupSlotRole>(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
-const gameModes = new Set<GameMode>(['premier', 'faceit', 'pro']);
+const gameModes = new Set<GameMode>(['premier', 'faceit', 'pro', 'dynasty']);
 const orgStyles = new Set<OrgStyle>(['aggressive', 'balanced', 'tactical']);
 
 const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameState, 'simMode' | 'simSpeed'>): GameState | null => {
@@ -72,7 +74,7 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const styleParam = params.get('style') as OrgStyle | null;
   const modeParam = params.get('mode') as GameMode | null;
   const style = styleParam && orgStyles.has(styleParam) ? styleParam : 'balanced';
-  const mode = modeParam && gameModes.has(modeParam) ? modeParam : 'premier';
+  const mode = modeParam && gameModes.has(modeParam) && modeParam !== 'dynasty' ? modeParam : 'premier';
   const mapParams = (params.get('maps') ?? '').split(',').filter(Boolean);
   const selectedMaps = isValidMapSelection(mapParams) ? [...mapParams] as MapId[] : [];
   const proRoleAssignments = selectedPlayers.reduce<Record<string, LineupSlotRole>>((assignments, selected) => ({
@@ -167,6 +169,8 @@ const loadState = (): GameState => {
         ...preferredSimulation
       };
     }
+    if (parsed.mode && !gameModes.has(parsed.mode)) parsed.mode = 'premier';
+    parsed.dynasty = parsed.mode === 'dynasty' ? ensureDynastyState(parsed.dynasty) : null;
     return {
       ...defaultState(querySeed ?? parsed.seed ?? ''),
       ...parsed,

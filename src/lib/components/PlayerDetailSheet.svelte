@@ -5,6 +5,7 @@
   import { getPickReasonText } from '$lib/game/pickPresentation';
   import { getPlayerPlaystyle } from '$lib/game/playstyle';
   import { getEligibleSlotRoles, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
+  import { showsFullIntel } from '$lib/game/teamViews';
   import type { GameMode, Language, LineupSlotRole, Player, SelectedPlayer } from '$lib/game/types';
 
   export let player: Player;
@@ -23,7 +24,7 @@
   $: dualRoleOptions = allowDualRole && eligibleRoles.length >= 2 && eligibleRoles.length <= 4
     ? eligibleRoles.flatMap((first, index) => eligibleRoles.slice(index + 1).map((second) => [first, second] as [LineupSlotRole, LineupSlotRole]))
     : [];
-  $: showFullIntel = mode === 'premier' || draftComplete;
+  $: showFullIntel = showsFullIntel(mode) || draftComplete;
   $: rarity = (player.rarity ?? 'common').toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
   let closeButton: HTMLButtonElement | null = null;
