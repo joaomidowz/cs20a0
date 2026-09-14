@@ -11,11 +11,14 @@
   export let revealed = false;
   export let label = 'HUD da organização';
   export let onOpen: (player: Player) => void = () => {};
+  export let offlineEffects = false;
+  export let recentPickId: string | null = null;
+  export let celebrate = false;
 
   $: lineup = selectedPlayers.map((selected) => ({ selected, player: playerById.get(selected.playerId) }));
 </script>
 
-<section class="hud panel">
+<section class="hud panel" class:offline-hud-complete={offlineEffects && celebrate && selectedPlayers.length === 5}>
   <div class="section-heading">
     <div>
       <span class="eyebrow">LINEUP / 05</span>
@@ -32,7 +35,7 @@
   <div class="slots">
     {#each Array(5) as _, index}
       {@const item = lineup[index]}
-      <button class:filled={Boolean(item?.player)} class="slot" type="button" disabled={!item?.player} on:click={() => item?.player && onOpen(item.player)}>
+      <button style={`--lineup-delay:${index * 85}ms`} class:filled={Boolean(item?.player)} class:offline-slot-arrival={offlineEffects && item?.player?.id === recentPickId} data-draft-slot={offlineEffects ? index : undefined} class="slot" type="button" disabled={!item?.player} on:click={() => item?.player && onOpen(item.player)}>
         {#if item?.player}
           {@const team = item.player.teamId ? teamById.get(item.player.teamId) : null}
           <span class="slot-index">0{index + 1}</span>

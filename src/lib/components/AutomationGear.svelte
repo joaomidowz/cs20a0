@@ -6,6 +6,10 @@
   export let value: StrategicAutomationPreferences;
   export let onChange: (value: StrategicAutomationPreferences) => void;
   export let language: Language = 'pt-BR';
+  export let soundEnabled: boolean | undefined = undefined;
+  export let onSoundChange: (enabled: boolean) => void = () => {};
+  $: soundLabel = language === 'pt-BR' ? 'Som dos efeitos' : language === 'es' ? 'Sonido de efectos' : 'Sound effects';
+  $: soundHint = language === 'pt-BR' ? 'Roleta, escolhas e destaques da partida' : language === 'es' ? 'Ruleta, elecciones y jugadas destacadas' : 'Roulette, picks and match highlights';
 
   const controls = [
     { key: 'autoMapPicksAndVetos', label: 'gearPicksBans', hint: 'gearPicksBansHint' },
@@ -87,6 +91,14 @@
             </button>
           </div>
         {/each}
+        {#if soundEnabled !== undefined}
+          <div class="gear-row">
+            <div class="gear-copy"><strong>{soundLabel}</strong><small>{soundHint}</small></div>
+            <button class="switch" type="button" role="switch" aria-checked={soundEnabled} aria-label={soundLabel} on:click={() => onSoundChange(!soundEnabled)}>
+              <em>{soundEnabled ? 'ON' : 'OFF'}</em><i><span></span></i>
+            </button>
+          </div>
+        {/if}
       </div>
     </div>
   {/if}

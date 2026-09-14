@@ -6,6 +6,9 @@
   import Navbar from '$lib/components/Navbar.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
+  import DraftRoulette from '$lib/components/DraftRoulette.svelte';
+  import FlyingPick from '$lib/components/FlyingPick.svelte';
+  import { playOfflineSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import HeroLive from '$lib/components/HeroLive.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
@@ -97,6 +100,39 @@
   import '../app.css';
 
   let detailsPlayer: Player | null = null;
+  let rouletteSpinning = false;
+  let rouletteCandidates: HistoricalTeam[] = [];
+  let freshOffer = false;
+  let recentPickId: string | null = null;
+  let celebrateLineup = false;
+  let flight: { id: number; name: string; source: DOMRect; slot: number } | null = null;
+  let flightId = 0;
+  $: if ($game.phase !== 'draft' || !$game.rolledTeamId) rouletteSpinning = false;
+  $: if ($game.phase === 'home' || $game.phase === 'mode-select' || $game.phase === 'map-selection') {
+    flight = null;
+    celebrateLineup = false;
+    recentPickId = null;
+  }
+
+  function pickFeedback(player: Player, slot: number) {
+    unlockOfflineAudio();
+    const card = document.querySelector(`[data-offline-player="${CSS.escape(player.id)}"]`);
+    const source = card?.getBoundingClientRect();
+    recentPickId = player.id;
+    if (source && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      flight = { id: ++flightId, name: player.nickname ?? '?', source, slot };
+    }
+    if (slot === 4) { celebrateLineup = true; playOfflineSound('lineup'); }
+    else playOfflineSound('pick');
+  }
+
+  function beginRoulette(team: HistoricalTeam, excludedIds: string[], rerollsUsed = $game.rerollsUsed) {
+    unlockOfflineAudio();
+    freshOffer = false;
+    rouletteCandidates = teams.filter(candidate => !excludedIds.includes(candidate.id));
+    rouletteSpinning = true;
+    update({ rolledTeamId: team.id, rerollsUsed });
+  }
   let toast = '';
   let awaitingAdvance = false;
   let majorTab: 'current' | 'all' = 'current';
@@ -148,6 +184,21 @@
   function getOrgStrengths() {
     return getLineupStrengths(selectedPlayers);
   }
+
+  onMount(() => {
+    loadOfflineSound();
+    const unlock = () => { if ($game.phase !== 'home') unlockOfflineAudio(); };
+    const visibility = () => { if (document.hidden) stopOfflineSounds(); };
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', unlock);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('visibilitychange', visibility);
+      disposeOfflineAudio();
+    };
+  });
 
   onMount(() => {
     strategicPreferences = loadStrategicPreferences();
@@ -231,6 +282,7 @@
   }
 
   function goHome() {
+    stopOfflineSounds();
     resetSupportNudge();
     closePlayer();
     closeEnemyTeam();
@@ -243,6 +295,9 @@
   }
 
   function chooseMode(mode: GameMode) {
+    freshOffer = false;
+    recentPickId = null;
+    celebrateLineup = false;
     update({
       seed: $game.seed || makeSeed(),
       mode,
@@ -264,14 +319,16 @@
   }
 
   function rollTeam() {
+    if (rouletteSpinning || draftComplete || rolledTeam) return;
     if (!$game.styleLocked && !isProMode) return;
     const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
     const rng = createSeededRng(`${$game.seed}:draft:${pickCount}:${$game.usedTeamIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
-    if (team) update({ rolledTeamId: team.id });
+    if (team) beginRoulette(team, $game.usedTeamIds);
   }
 
   function rerollTeam() {
+    if (rouletteSpinning) return;
     if ((!$game.styleLocked && !isProMode) || !rolledTeam || draftComplete || !rerollsLeft) return;
     const rerollsUsed = ($game.rerollsUsed ?? 0) + 1;
     const excludedIds = [...$game.usedTeamIds, rolledTeam.id];
@@ -282,8 +339,7 @@
       showToast(t('noRerollTeams'));
       return;
     }
-    update({ rolledTeamId: team.id, rerollsUsed });
-    showToast(isProMode ? t('proRerollUsed') : `${t('teamRerolled')} · ${team.name ?? 'Time'} ${team.year ?? ''}`);
+    beginRoulette(team, excludedIds, rerollsUsed);
   }
 
   function openPlayer(player: Player) {
@@ -343,12 +399,14 @@
   }
 
   function confirmPlayerPick(player: Player, selectedSlotRole: LineupSlotRole) {
+    if (rouletteSpinning) return;
     if (!rolledTeam || draftComplete || !$game.mode || !$game.styleLocked) return;
     const validation = validatePlayerPick(player, selectedLineup, selectedSlotRole, lookupPlayer);
     if (!validation.ok) {
       showToast(reasonText(validation.reason));
       return;
     }
+    pickFeedback(player, selectedLineup.length);
     update({
       selectedPlayers: [...selectedLineup, { playerId: player.id, selectedSlotRole }],
       usedTeamIds: [...$game.usedTeamIds, rolledTeam.id],
@@ -359,6 +417,7 @@
   }
 
   function confirmProBlindPick(player: Player) {
+    if (rouletteSpinning) return;
     if (!isProMode || !rolledTeam || draftComplete) return;
     const alreadyPicked = $game.proPickedPlayerIds.some((pickedId) => {
       const picked = playerById.get(pickedId);
@@ -368,6 +427,7 @@
       showToast(t('samePlayerPicked'));
       return;
     }
+    pickFeedback(player, $game.proPickedPlayerIds.length);
     const nextPickedIds = [...$game.proPickedPlayerIds, player.id];
     const nextAssignments = { ...$game.proRoleAssignments, [player.id]: null };
     update({
@@ -391,6 +451,8 @@
 
   function confirmProRoles() {
     if (!isProMode || !proAssignmentStatus.complete) return;
+    celebrateLineup = true;
+    playOfflineSound('lineup');
     update({
       selectedPlayers: proLineup,
       proRevealed: true,
@@ -759,6 +821,9 @@
 />
 
 <main>
+  {#if $game.phase !== 'home' && $game.phase !== 'stage3' && $game.phase !== 'playoffs'}
+    <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
+  {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
       <div class="hero-copy">
@@ -847,15 +912,17 @@
               <p>{isProMode ? t('proBlindOfferDesc') : t('noRepeat')}</p>
               <button class="primary" type="button" on:click={rollTeam}>{t('rollTeam')} <span>↻</span></button>
             </div>
+          {:else if rouletteSpinning && rolledTeam}
+            <DraftRoulette candidates={rouletteCandidates} result={rolledTeam} anonymous={isProMode} language={$game.language} onComplete={() => { rouletteSpinning = false; freshOffer = true; }} />
           {:else}
             {#if isProMode}
-              <div class="team-banner blind-banner">
+              <div class="team-banner blind-banner" class:roulette-impact={freshOffer} role="status">
                 <div class="team-avatar">?</div>
                 <div><span class="eyebrow">PRO BLIND OFFER</span><h2>{t('proBlindOffer')}</h2><p>{t('proBlindOfferDesc')}</p></div>
                 <span class="team-power">?</span>
               </div>
             {:else}
-              <div class="team-banner">
+              <div class="team-banner" class:roulette-impact={freshOffer} role="status">
                 <div class="team-avatar">{(rolledTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div>
                 <div><span class="eyebrow">ROLLED TEAM</span><h2>{rolledTeam.name ?? 'Time'} <b>{rolledTeam.year ?? ''}</b></h2><p>{rolledTeam.game ?? 'CS'} · RANK #{rolledTeam.sourceRank ?? rolledTeam.rank ?? '—'} · {rolledTeam.rarity ?? 'standard'}</p></div>
                 <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ?? '—'}</span>
@@ -866,8 +933,9 @@
               <button class="secondary" type="button" disabled={!rerollsLeft} on:click={rerollTeam}>{t('rerollTeam')} <span>↻</span></button>
             </div>
             <p class="pick-instruction">{isProMode ? t('proBlindOfferDesc') : t('pickOne')}</p>
-            <div class:pro-offer-grid={isProMode} class="player-grid">
-              {#each rolledPlayers as player (player.id)}
+            <div class:pro-offer-grid={isProMode} class:is-fresh={freshOffer} class="player-grid roulette-reveal">
+              {#each rolledPlayers as player, index (player.id)}
+                <div class="roulette-player" data-offline-player={player.id} style={`--reveal-delay: ${index * 80}ms`}>
                 {#if isProMode}
                   <button class="player-card pro-blind-card" type="button" on:click={() => confirmProBlindPick(player)}>
                     <div class="pro-name-only">{player.nickname ?? t('proHiddenPlayer')}</div>
@@ -883,6 +951,7 @@
                     onOpen={openPlayer}
                   />
                 {/if}
+                </div>
               {/each}
             </div>
           {/if}
@@ -894,12 +963,15 @@
           <div><span class="eyebrow">PRO LINEUP / {proPickedPlayers.length}/5</span><h2>{t('proBlindDraft')}</h2></div>
           <div class="pro-hidden-slots">
             {#each Array(5) as _, index}
-              <span class:filled={index < proPickedPlayers.length}>{proPickedPlayers[index]?.nickname ?? '?'}</span>
+              <span data-draft-slot={index} class:offline-slot-arrival={Boolean(recentPickId && proPickedPlayers[index]?.id === recentPickId)} class:filled={index < proPickedPlayers.length}>{proPickedPlayers[index]?.nickname ?? '?'}</span>
             {/each}
           </div>
         </section>
       {:else}
         <DraftHud
+          offlineEffects={true}
+          {recentPickId}
+          celebrate={celebrateLineup}
           selectedPlayers={selectedLineup}
           style={$game.style}
           styleLocked={$game.styleLocked}
@@ -937,10 +1009,10 @@
           {/each}
         </div>
       </section>
-      <section class="hud panel pro-hud">
+      <section class="hud panel pro-hud" class:offline-hud-complete={celebrateLineup}>
         <div><span class="eyebrow">PRO LINEUP / 5/5</span><h2>{t('proBlindDraft')}</h2></div>
         <div class="pro-hidden-slots">
-          {#each Array(5) as _}<span class="filled">?</span>{/each}
+          {#each Array(5) as _, index}<span class="filled" data-draft-slot={index} style={`--lineup-delay:${index * 85}ms`}>?</span>{/each}
         </div>
       </section>
     </section>
@@ -982,10 +1054,10 @@
         <h1>{t('proRevealTitle')}</h1>
         <p>{t('proRevealDesc')}</p>
       </header>
-      <section class="panel pro-reveal-panel">
+      <section class="panel pro-reveal-panel" class:offline-hud-complete={celebrateLineup}>
         <div class="pro-reveal-grid">
-          {#each proEvaluations as evaluation (evaluation.player.id)}
-            <article class="pro-reveal-card fit-{evaluation.fit}">
+          {#each proEvaluations as evaluation, index (evaluation.player.id)}
+            <article class="pro-reveal-card fit-{evaluation.fit}" style={`--lineup-delay:${index * 85}ms`}>
               <div class="player-topline">
                 <div class="avatar">{(evaluation.player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
                 <span class="rarity-label">{evaluation.player.rarity ?? 'common'}</span>
@@ -1080,7 +1152,7 @@
               options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
               onChange={changeSimulationSpeed}
             />
-            <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} />
+            <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
           </div>
         </div>
       </div>
@@ -1124,6 +1196,7 @@
         {/if}
         {#key currentSeries.id}
           <SeriesViewer
+            offlineEffects={true}
             series={currentSeries}
             delay={SPEEDS[$game.simSpeed]}
             auto={campaignChecked && !campaignView && $game.simMode === 'auto'}
@@ -1294,6 +1367,12 @@
   {/if}
 </main>
 
+{#if flight}
+  {#key flight.id}
+    <FlyingPick name={flight.name} source={flight.source} slot={flight.slot} onComplete={() => { flight = null; }} />
+  {/key}
+{/if}
+
 {#if $game.phase === 'home'}
   <Footer
     labels={{
@@ -1338,6 +1417,7 @@
 {#if toast}<div class="toast">{toast}</div>{/if}
 
 <style>
+  .offline-settings { display: flex; justify-content: flex-end; padding-top: 12px; }
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}
   .live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   @media (max-width:560px){.live-actions{flex-wrap:wrap}.live-actions small{order:3;flex-basis:100%}}

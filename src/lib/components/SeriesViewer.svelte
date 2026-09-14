@@ -3,6 +3,7 @@
   import RoundFeed from '$lib/components/RoundFeed.svelte';
   import RoundStrip from '$lib/components/RoundStrip.svelte';
   import RoundFlash from '$lib/components/live/RoundFlash.svelte';
+  import OfflineRoundMoment from '$lib/components/OfflineRoundMoment.svelte';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
   import { LAST_ROUND_FEED_FACTOR, getCommittedRounds, getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '$lib/game/seriesPresentation';
@@ -22,6 +23,8 @@
   export let liveDetails: RoundDetail[] | null = null;
   /** Simple mode: the round strip and the result stay, the kill feed goes away. */
   export let simpleFeed = false;
+  /** Opt-in from the offline campaign only. Online/Sandbox retain their existing presentation. */
+  export let offlineEffects = false;
   /** Kill feed pacing in controlled mode (ms per round). */
   export let controlledDelay = 1500;
   export let interactiveTeamId: string | null = null;
@@ -251,12 +254,16 @@
     <div class="live-map">
       <div class="live-map-score">
         <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name)}</span>
-        {#key currentMapScore.a}<b class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
+        {#key currentMapScore.a}<b class:offline-score={offlineEffects && lastRoundWinner === 'a'} class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
         <i>:</i>
-        {#key currentMapScore.b}<b class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>{/key}
+        {#key currentMapScore.b}<b class:offline-score={offlineEffects && lastRoundWinner === 'b'} class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>{/key}
         <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name)}</span>
       </div>
-      <RoundFlash detail={committedDetail} cursor={`${series.id}:${displayActiveMap}:${committedRounds}`} {language} {userIsA} />
+      {#if offlineEffects}
+        <OfflineRoundMoment seriesId={series.id} map={displayActiveMap} round={committedRounds} detail={committedDetail} {language} {userIsA} />
+      {:else}
+        <RoundFlash detail={committedDetail} cursor={`${series.id}:${displayActiveMap}:${committedRounds}`} {language} {userIsA} />
+      {/if}
       {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
       <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} {language} {teamNames} />
@@ -321,6 +328,9 @@
 </section>
 
 <style>
+  .live-map-score b.offline-score { animation: offline-score-lock .42s cubic-bezier(.16,1,.3,1); }
+  @keyframes offline-score-lock { from { transform: translateY(-6px) scale(1.16); color: var(--accent); } to { transform: none; } }
+  @media (prefers-reduced-motion:reduce) { .live-map-score b.offline-score { animation:none; } }
   .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}

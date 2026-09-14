@@ -12,6 +12,7 @@
   --accent: #c8ff32;
   --accent-2: #ff7134;
   --danger: #ff4f4f;
+  --z-offline-flight: 110;
   --shadow: 0 22px 70px rgb(0 0 0 / 35%);
 }
 
@@ -27,6 +28,28 @@
   --accent: #5c7900;
   --accent-2: #d94e12;
   --shadow: 0 22px 70px rgb(35 44 38 / 12%);
+}
+
+.roulette-player { position: relative; min-width: 0; }
+.roulette-player > .player-card { width: 100%; height: 100%; }
+.roulette-reveal { align-items: stretch; }
+.roulette-reveal.is-fresh { perspective: 1100px; }
+.roulette-reveal.is-fresh .roulette-player { transform-style: preserve-3d; animation: roulette-card-turn 440ms cubic-bezier(.16,1,.3,1) backwards; animation-delay: var(--reveal-delay, 0ms); }
+.roulette-reveal.is-fresh .roulette-player > .player-card { backface-visibility: hidden; }
+.roulette-reveal.is-fresh .roulette-player::before { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--accent); color: var(--accent); font: 900 3rem Inter,Arial,sans-serif; transform: rotateY(180deg); backface-visibility: hidden; pointer-events: none; }
+.roulette-impact { position: relative; animation: roulette-impact 360ms ease-out; }
+.offline-slot-arrival { animation: offline-slot-dock 700ms ease-out; }
+.offline-hud-complete { animation: offline-hud-lock .8s ease-out; }
+.offline-hud-complete .slot, .offline-hud-complete .pro-hidden-slots > span, .offline-hud-complete .pro-reveal-card { animation: offline-lineup-in 550ms cubic-bezier(.16,1,.3,1) backwards; animation-delay: var(--lineup-delay,0ms); }
+@keyframes offline-lineup-in { from { transform: translateY(24px) scale(.94); opacity: .2; } }
+@keyframes offline-hud-lock { from { border-color: var(--accent); } to { border-color: var(--line); } }
+@keyframes roulette-card-turn { from { transform: rotateY(180deg); } to { transform: rotateY(0); } }
+@keyframes roulette-impact { from { transform: translateY(4px) scale(.99); background-color: color-mix(in srgb,var(--accent) 18%,transparent); } to { transform: none; background-color: transparent; } }
+@keyframes offline-slot-dock { 0%,55% { transform: scale(.97); } 75% { background-color: color-mix(in srgb,var(--accent) 18%,var(--surface)); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .roulette-reveal.is-fresh .roulette-player, .roulette-impact, .offline-slot-arrival { animation: none; }
+  .offline-hud-complete, .offline-hud-complete .slot, .offline-hud-complete .pro-hidden-slots > span, .offline-hud-complete .pro-reveal-card { animation: none; }
+  .roulette-reveal.is-fresh .roulette-player::before { display: none; }
 }
 
 * { box-sizing: border-box; }
