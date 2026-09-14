@@ -82,6 +82,9 @@
   import CoachDraft from '$lib/components/CoachDraft.svelte';
   import DynastyWindow from '$lib/components/DynastyWindow.svelte';
   import DynastyTip from '$lib/components/DynastyTip.svelte';
+  import DynastyCircuit from '$lib/components/DynastyCircuit.svelte';
+  import { createCircuit, finishCircuit, settleCircuitEvent, skipCircuitEvent } from '$lib/game/dynasty/circuit';
+  import { playCircuitEvent } from '$lib/game/dynasty/circuitPlay';
   import { DEFAULT_TIP_STATE, disableTips, markTipSeen, nextTip, type TipContext, type TipState } from '$lib/game/dynasty/tips';
   import DynastySeriesPlan from '$lib/components/DynastySeriesPlan.svelte';
   import DynastyTeamPanel from '$lib/components/DynastyTeamPanel.svelte';
@@ -876,13 +879,23 @@
   }
 
   /** Credits the Major and opens the transfer window: evolution, proposals, market and coach before the next Major. */
-  function startNextDynastyMajor() {
-    if (!isDynasty || !$game.dynasty || selectedLineup.length !== 5) return;
-    settleDynastyIfNeeded();
+  let circuitPlaying: string | null = null;
+
+  /** Opens (or reopens) the transfer window of the current Major. */
+  function openTransferWindow() {
     const dynasty = $game.dynasty;
+    if (!dynasty) return;
     const transferWindow = dynasty.window?.majorNumber === dynasty.majorNumber
       ? dynasty.window
       : createWindow({ dynasty, lineup: selectedLineup, stats: $game.stats, seed: $game.seed, catalog: players, playerById, coaches, coachById });
+    update({ dynasty: { ...dynasty, window: transferWindow }, phase: 'window' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Credits the Major, then runs the smaller-event circuit before the transfer window. Saves already in the window skip it. */
+  function startNextDynastyMajor() {
+    if (!isDynasty || !$game.dynasty || selectedLineup.length !== 5) return;
+    settleDynastyIfNeeded();
     resetSupportNudge();
     closePlayer();
     closeEnemyTeam();
@@ -891,8 +904,44 @@
     awaitingAdvance = false;
     autoPausedHalf = '';
     resultStatsOpen = false;
-    update({ dynasty: { ...dynasty, window: transferWindow }, phase: 'window' });
+    const dynasty = $game.dynasty;
+    if (dynasty.window?.majorNumber === dynasty.majorNumber) { openTransferWindow(); return; }
+    if (dynasty.circuit?.majorNumber === dynasty.majorNumber && dynasty.circuit.finished) { openTransferWindow(); return; }
+    const circuit = dynasty.circuit?.majorNumber === dynasty.majorNumber ? dynasty.circuit : createCircuit({ dynasty, teams, seed: $game.seed });
+    update({ dynasty: { ...dynasty, circuit }, phase: 'circuit' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function playCircuit(eventId: string) {
+    const dynasty = $game.dynasty;
+    const event = dynasty?.circuit?.events.find((item) => item.id === eventId);
+    if (!dynasty?.circuit || !event || circuitPlaying) return;
+    circuitPlaying = eventId;
+    await tick();
+    try {
+      // Base plan, no study and no temporary training: the circuit never touches the Major's choices or evolution.
+      const circuitPlayers = selectedLineup.flatMap((selected) => {
+        const base = playerById.get(selected.playerId);
+        return base ? [resolveDynastyPlayer(base, dynasty.playerOverrides[base.id])] : [];
+      });
+      const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
+      const userTeam = buildDynastyUserTeam({ players: circuitPlayers, lineup: selectedLineup, seed: `${$game.seed}:circuit`, coach: dynastyCoach, teams, plan: { ...basePlan, study: false } });
+      const { result, rounds } = playCircuitEvent({ event, userTeam, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps });
+      update({ dynasty: settleCircuitEvent($game.dynasty!, result, rounds) });
+    } finally {
+      circuitPlaying = null;
+    }
+  }
+
+  function skipCircuit(eventId: string) {
+    if (!$game.dynasty || circuitPlaying) return;
+    update({ dynasty: skipCircuitEvent($game.dynasty, eventId) });
+  }
+
+  function continueFromCircuit() {
+    if (!$game.dynasty?.circuit || circuitPlaying) return;
+    update({ dynasty: finishCircuit($game.dynasty) });
+    openTransferWindow();
   }
 
   function updateTransferWindow(next: WindowState) {
@@ -1290,6 +1339,10 @@
       </section>
       <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>
     </section>
+  {:else if $game.phase === 'circuit' && $game.dynasty?.circuit}
+    <section class="screen shell">
+      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
+    </section>
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">
       <header class="screen-header"><span class="eyebrow">DINASTIA · {t('dynastyMajorNumber')} #{$game.dynasty.majorNumber}</span><h1>{t('dynastyWindow')}</h1><p>{t('windowIntro')}</p></header>
@@ -1593,7 +1646,7 @@
           </section>
         {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} lineage={isDynasty && $game.dynasty ? buildDynastyLineage($game.dynasty.history, playerById) : []} lineageLabel={t('lineageTitle')} eraLabel={isDynasty && $game.dynasty && $game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} />
-        <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{t('dynastyWindow')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
+        <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{$game.dynasty?.window?.majorNumber === $game.dynasty?.majorNumber || $game.dynasty?.circuit?.finished ? t('dynastyWindow') : ($game.language === 'en' ? 'Circuit' : $game.language === 'es' ? 'Circuito' : 'Circuito')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}

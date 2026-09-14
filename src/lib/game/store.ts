@@ -173,6 +173,7 @@ const loadState = (): GameState => {
     parsed.dynasty = parsed.mode === 'dynasty' ? ensureDynastyState(parsed.dynasty) : null;
     if ((parsed.phase as string) === 'coach-draft' && parsed.mode !== 'dynasty') parsed.phase = 'draft';
     if ((parsed.phase as string) === 'window' && (parsed.mode !== 'dynasty' || !parsed.dynasty?.window)) parsed.phase = parsed.mode === 'dynasty' ? 'result' : 'draft';
+    if ((parsed.phase as string) === 'circuit' && (parsed.mode !== 'dynasty' || !parsed.dynasty?.circuit)) parsed.phase = parsed.mode === 'dynasty' ? 'result' : 'draft';
     return {
       ...defaultState(querySeed ?? parsed.seed ?? ''),
       ...parsed,
