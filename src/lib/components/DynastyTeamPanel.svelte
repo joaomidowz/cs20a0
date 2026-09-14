@@ -7,12 +7,17 @@
   export let studiesLeft = 0;
   export let language: Language = 'pt-BR';
   export let training: TrainingFocus | null = null;
-  $: labels = language === 'en' ? { title: 'Team analysis', power: 'Effective power', coach: 'Coach', studies: 'Studies left' } : language === 'es' ? { title: 'Análisis del equipo', power: 'Poder efectivo', coach: 'Coach', studies: 'Estudios restantes' } : { title: 'Análise do time', power: 'Poder efetivo', coach: 'Coach', studies: 'Estudos restantes' };
+  const copy = {
+    'pt-BR': { title: 'Análise do time', power: 'Poder efetivo', coach: 'Coach', studies: 'Estudos restantes', plan: 'Plano', training: 'Treino', aggressive: 'Agressivo', balanced: 'Controlador', tactical: 'Tático', standard: 'Padrão', pressure: 'Pressão', control: 'Controle', antistrat: 'Anti-strat', aim: 'Mira', utility: 'Utilitária', clutch: 'Clutch', opening: 'Abertura', recovery: 'Recuperação' },
+    es: { title: 'Análisis del equipo', power: 'Poder efectivo', coach: 'Coach', studies: 'Estudios restantes', plan: 'Plan', training: 'Entrenamiento', aggressive: 'Agresivo', balanced: 'Controlador', tactical: 'Táctico', standard: 'Estándar', pressure: 'Presión', control: 'Control', antistrat: 'Anti-strat', aim: 'Puntería', utility: 'Utilidad', clutch: 'Clutch', opening: 'Apertura', recovery: 'Recuperación' },
+    en: { title: 'Team analysis', power: 'Effective power', coach: 'Coach', studies: 'Studies left', plan: 'Plan', training: 'Training', aggressive: 'Aggressive', balanced: 'Controller', tactical: 'Tactical', standard: 'Standard', pressure: 'Pressure', control: 'Control', antistrat: 'Anti-strat', aim: 'Aim', utility: 'Utility', clutch: 'Clutch', opening: 'Opening', recovery: 'Recovery' }
+  } as const;
+  $: labels = copy[language];
 </script>
 
 <section class="team-panel panel">
   <header><div><span class="eyebrow">DINASTIA</span><h2>{labels.title}</h2></div><strong>{power.toFixed(1)}</strong></header>
-  <div class="metrics"><span>{labels.power} <b>{power.toFixed(1)}</b></span><span>{labels.coach} <b>{coach?.name ?? '—'}</b></span><span>{labels.studies} <b>{studiesLeft}</b></span><span>{plan.style} · {plan.tactic}</span>{#if training}<span class="training">TRAINING · <b>{training}</b></span>{/if}</div>
+  <div class="metrics"><span>{labels.power} <b>{power.toFixed(1)}</b></span><span>{labels.coach} <b>{coach?.name ?? '—'}</b></span><span>{labels.studies} <b>{studiesLeft}</b></span><span>{labels.plan} <b>{labels[plan.style]} · {labels[plan.tactic]}</b></span>{#if training}<span class="training">{labels.training} <b>{labels[training]}</b></span>{/if}</div>
   <div class="roster">{#each players as player}<article><b>{player.nickname}</b><span>OVR {player.overall ?? '—'}</span><small>{player.role}</small></article>{/each}</div>
 </section>
 

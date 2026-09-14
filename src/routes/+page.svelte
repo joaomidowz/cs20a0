@@ -853,7 +853,12 @@
     const run = $game.majorRun;
     if (!isDynasty || !$game.dynasty || !run || $game.phase !== 'result') return;
     if ($game.dynasty.prizeCreditedFor >= $game.dynasty.majorNumber) return;
-    const overalls = Object.fromEntries(selectedPlayers.flatMap((player) => typeof player.overall === 'number' ? [[player.id, player.overall]] : []));
+    // History keeps the evolved overall, without the temporary pre-Major training bonus.
+    const overalls = Object.fromEntries(selectedLineup.flatMap((selected) => {
+      const base = playerById.get(selected.playerId);
+      const resolved = base ? resolveDynastyPlayer(base, $game.dynasty?.playerOverrides[base.id]) : null;
+      return resolved && typeof resolved.overall === 'number' ? [[resolved.id, resolved.overall]] : [];
+    }));
     update({ dynasty: settleDynastyMajor($game.dynasty, run, { seed: $game.seed, lineup: selectedLineup, stats: $game.stats, overalls }) });
   }
 
