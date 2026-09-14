@@ -241,5 +241,5 @@ Cada uma com plano próprio em `docs/superpowers/plans/`:
 
 1. **Dinastia A** (plano `docs/superpowers/plans/2026-09-14-dinastia-a-modo-e-tres-estagios.md`, implementada): modo novo, cabeçalho, Major de três estágios, colocações e premiação. Jogável com "Próximo Major" mantendo o elenco e aplicando status e entrada.
 2. **Dinastia B** (plano `docs/superpowers/plans/2026-09-14-dinastia-b-coaches.md`, implementada): dataset de coaches no studio, `coach-draft`, efeitos no motor e afinidade. Depende da carga completa dos jogadores no studio.
-3. **Dinastia C**: valor de mercado, janela, evolução, histórico e card de linhagem.
+3. **Dinastia C** (plano `docs/superpowers/plans/2026-09-14-dinastia-c-mercado-janela-evolucao.md`, implementada): valor de mercado, janela, evolução, histórico e card de linhagem.
 4. **Rating 3.0, Round Swing e stats** (plano `docs/superpowers/plans/2026-09-14-dinastia-d-rating3-swing-stats.md`, implementada; prêmios da campanha offline calculados só com o campeão definido e análise de rounds memorizada, para o Major ao vivo não ficar lento): independente das anteriores; quando entrar, a evolução passa a usar o rating novo.
