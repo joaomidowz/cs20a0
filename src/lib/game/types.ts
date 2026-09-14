@@ -484,6 +484,15 @@ export interface PlayerRunStats {
   mapsLost: number;
   roundsWon: number;
   roundsLost: number;
+  /** Rating 3.0 kill-feed stats only (absent in HLTV 1.0 and in the synthetic fallback). */
+  assists?: number;
+  flashAssists?: number;
+  kast?: number;
+  swing?: number;
+  utilityDamage?: number;
+  openingDeaths?: number;
+  tradeKills?: number;
+  multiKills?: { triple: number; quad: number; ace: number };
 }
 
 

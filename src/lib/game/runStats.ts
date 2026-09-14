@@ -1,7 +1,7 @@
-import { aggregatePlayerLines } from './majorAwards';
+import { aggregatePlayerLines, fieldRatingBaseline } from './majorAwards';
 import { getEligibleSlotRoles, getSelectedRoles } from './roleRules';
 import { createSeededRng } from './simulation';
-import type { LineupSlotRole, MajorPlayerAward, MajorRun, Player, PlayerRunStats, SelectedPlayer, SeriesResult } from './types';
+import type { LineupSlotRole, MajorPlayerAward, MajorRun, Player, PlayerRunStats, RatingModel, SelectedPlayer, SeriesResult } from './types';
 
 type ResultProfile = 'dominant-win' | 'close-win' | 'close-loss' | 'heavy-loss';
 
@@ -144,13 +144,13 @@ const standardDeviation = (values: number[]) => {
  * from the feed (old saved runs, shared links without details), so the caller can fall back to the synthetic model.
  *
  * Formulas (per player, over every round of the user's series):
- *   runRating   = HLTV Rating 1.0 (see majorAwards.ratingOf), rounded to 2 decimals
+ *   runRating   = Rating 3.0 approximation against the Major field (see rating.ts), or HLTV 1.0 with model 'hltv1'
  *   kills/deaths/clutches/openingKills = straight sums from the kill feed
  *   kdRatio     = kills / max(1, deaths)
  *   mvpCount    = maps the team won where the player had the best rating of the lineup
  *   consistency = 100 − 90 · stddev(rating per map), clamped to 45–99 (a single map counts as perfectly steady)
- *   adr         = kills / rounds · 105 + seeded noise in ±4, clamped to 40–115
- *   impact      = 0.3 + 2 · openingKills/rounds + 0.8 · kills/rounds + 4 · (0.25·3K + 0.5·4K + 1·ace)/rounds, clamped to 0.5–1.6
+ *   adr         = v3: (kill + assist + utility damage) / rounds; hltv1: kills / rounds · 105 + seeded noise in ±4, clamped to 40–115
+ *   impact      = v3: 2.13·KPR + 0.42·APR − 0.41; hltv1: 0.3 + 2 · openingKills/rounds + 0.8 · kills/rounds + multi-kill weight, clamped to 0.5–1.6
  */
 function createKillFeedRunStats(
   players: Player[],
@@ -158,11 +158,18 @@ function createKillFeedRunStats(
   seed: string,
   roleByPlayer: Map<string, SelectedPlayer>,
   userTeamId: string,
-  summary: RunSummary
+  summary: RunSummary,
+  model: RatingModel
 ): PlayerRunStats[] | null {
   if (!hasCompleteKillFeed(run.matches)) return null;
   const lineupIds = new Set(players.map((player) => player.id));
-  const totals = new Map(aggregatePlayerLines(run.matches, { model: 'hltv1' })
+  // The Major's awards were computed on the whole field before the other series lost their kill feeds: that is the baseline.
+  const awards = run.tournament?.awards;
+  const baseline = model === 'v3'
+    ? (awards?.ratingModel === 'v3' && awards.ratingBaseline ? awards.ratingBaseline : fieldRatingBaseline(run.matches))
+    : undefined;
+  const scoring = { model, baseline };
+  const totals = new Map(aggregatePlayerLines(run.matches, scoring)
     .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId))
     .map((line) => [line.playerId, line] as const));
   if (players.some((player) => (totals.get(player.id)?.rounds ?? 0) <= 0)) return null;
@@ -173,7 +180,7 @@ function createKillFeedRunStats(
   for (const match of run.matches) {
     for (const map of match.maps) {
       if (!(map.details ?? []).some((detail) => detail.kills.length > 0)) continue;
-      const lines = aggregatePlayerLines([{ ...match, maps: [map] }], { model: 'hltv1' })
+      const lines = aggregatePlayerLines([{ ...match, maps: [map] }], scoring)
         .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId));
       let best: MajorPlayerAward | null = null;
       for (const line of lines) {
@@ -192,13 +199,20 @@ function createKillFeedRunStats(
     const selected = roleByPlayer.get(player.id);
     const role = selected?.selectedSlotRole ?? getEligibleSlotRoles(player)[0] ?? 'rifler';
     const line = totals.get(player.id)!;
-    const rng = createSeededRng(`${seed}:stats-feed:${player.id}:${run.placement}`);
     const rounds = Math.max(1, line.rounds);
     const killsPerRound = line.kills / rounds;
-    const multiWeight = (line.multiKills.triple * 0.25 + line.multiKills.quad * 0.5 + line.multiKills.ace) / rounds * 4;
-    const adr = Math.round(clamp(killsPerRound * 105 + (rng() - 0.5) * 8, 40, 115));
-    const impact = Number(clamp(0.3 + (line.openingKills / rounds) * 2 + killsPerRound * 0.8 + multiWeight, 0.5, 1.6).toFixed(2));
     const consistency = Math.round(clamp(100 - standardDeviation(perMap.get(player.id) ?? []) * 90, 45, 99));
+    let adr: number;
+    let impact: number;
+    if (model === 'v3') {
+      adr = line.adr ?? 0;
+      impact = line.impact ?? 0;
+    } else {
+      const rng = createSeededRng(`${seed}:stats-feed:${player.id}:${run.placement}`);
+      const multiWeight = (line.multiKills.triple * 0.25 + line.multiKills.quad * 0.5 + line.multiKills.ace) / rounds * 4;
+      adr = Math.round(clamp(killsPerRound * 105 + (rng() - 0.5) * 8, 40, 115));
+      impact = Number(clamp(0.3 + (line.openingKills / rounds) * 2 + killsPerRound * 0.8 + multiWeight, 0.5, 1.6).toFixed(2));
+    }
     return {
       playerId: player.id,
       assignedRole: role,
@@ -216,7 +230,19 @@ function createKillFeedRunStats(
       mapsWon: summary.mapsWon,
       mapsLost: summary.mapsLost,
       roundsWon: summary.roundsWon,
-      roundsLost: summary.roundsLost
+      roundsLost: summary.roundsLost,
+      ...(model === 'v3'
+        ? {
+          assists: line.assists ?? 0,
+          flashAssists: line.flashAssists ?? 0,
+          kast: line.kast ?? 0,
+          swing: line.swing ?? 0,
+          utilityDamage: line.utilityDamage ?? 0,
+          openingDeaths: line.openingDeaths ?? 0,
+          tradeKills: line.tradeKills ?? 0,
+          multiKills: { ...line.multiKills }
+        }
+        : {})
     };
   });
 }
@@ -230,11 +256,12 @@ export function createRunStats(
   run: MajorRun,
   seed: string,
   lineup: SelectedPlayer[] = [],
-  userTeamId = 'user'
+  userTeamId = 'user',
+  options: { model?: RatingModel } = {}
 ): PlayerRunStats[] {
   const summary = getRunSummary(run, userTeamId);
   const roleByPlayer = new Map(lineup.map((selected) => [selected.playerId, selected] as const));
-  const real = createKillFeedRunStats(players, run, seed, roleByPlayer, userTeamId, summary);
+  const real = createKillFeedRunStats(players, run, seed, roleByPlayer, userTeamId, summary, options.model ?? 'v3');
   if (real) return real;
   const ranked = players
     .map((player) => {

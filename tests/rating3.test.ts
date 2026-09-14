@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // tests/rating3.test.ts
 import { describe, expect, it } from 'vitest';
 import {
@@ -136,5 +137,12 @@ describe('fórmulas do Rating 3.0', () => {
     const baseline = ratingBaseline([line, weaker, { ...line, rounds: 0 }]);
     expect(baseline).toBeCloseTo((rawRating3(line) + rawRating3(weaker)) / 2, 10);
     expect((rating3(rawRating3(line), baseline) + rating3(rawRating3(weaker), baseline)) / 2).toBeCloseTo(1, 1);
+  });
+});
+
+describe('servidor online', () => {
+  it('pede HLTV 1.0 para prêmios e stats', () => {
+    const server = readFileSync('server/room-manager.ts', 'utf8');
+    expect(server.match(/\{ model: 'hltv1' \}/g)).toHaveLength(2);
   });
 });

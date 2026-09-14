@@ -1162,7 +1162,7 @@ export class RoomManager {
       : selected;
     return {
       campaign,
-      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id)
+      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id, { model: 'hltv1' })
     };
   }
 
