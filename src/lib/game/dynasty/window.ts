@@ -1,9 +1,10 @@
 // src/lib/game/dynasty/window.ts
 import { getEligibleSlotRoles, getPlayerBaseId, ROLE_LIMITS } from '../roleRules';
 import { createSeededRng, type SeededRng } from '../simulation';
-import type { Coach, DynastyState, LineupSlotRole, Player, PlayerRunStats, SelectedPlayer, WindowOffer, WindowProposal, WindowState } from '../types';
+import type { Coach, DynastyState, LineupSlotRole, Player, PlayerRunStats, SelectedPlayer, WindowOffer, WindowProposal, WindowState, WindowSwapOffer } from '../types';
 import { offerCoaches } from './coachOffer';
 import { evolveLineup } from './evolution';
+import { offRolePlayerIds } from './position';
 import { resolveDynastyPlayer } from './resolve';
 import { coachMarketValue, playerMarketValue, roundToStep } from './value';
 
@@ -13,6 +14,10 @@ export const PROPOSALS = 2;
 export const TARGET_MARKUP = 1.25;
 export const SALE_WITHOUT_PROPOSAL = 0.7;
 export const OVERALL_BAND = 8;
+export const SWAP_OFFERS = 2;
+export const SWAP_OVERALL_BAND = 5;
+/** Below this value difference a direct swap is even. */
+export const SWAP_EVEN_BELOW = 5_000;
 
 export interface CreateWindowInput {
   /** Dynasty already settled for the Major that just ended. */
@@ -28,14 +33,20 @@ export interface CreateWindowInput {
   coachById: Map<string, Coach>;
 }
 
-export interface IncomingPlayer {
-  kind: 'offer' | 'target';
-  playerId: string;
-}
+export type IncomingPlayer =
+  | { kind: 'offer' | 'target'; playerId: string }
+  | { kind: 'swap'; playerId: string; offerId: string };
 
 export type MoveProblem = 'no-moves' | 'not-in-lineup' | 'already-sold' | 'unknown-player' | 'duplicate-player' | 'not-offered' | 'offer-used' | 'target-used' | 'no-cash';
 
 const pickIndex = (rng: SeededRng, length: number) => Math.floor(rng() * length);
+
+/** Cash the user receives (+) or pays (−) to swap their player for another organization's. */
+export function swapCashDelta(theirValue: number, yourValue: number): number {
+  const difference = theirValue - yourValue;
+  if (Math.abs(difference) < SWAP_EVEN_BELOW) return 0;
+  return difference > 0 ? -roundToStep(difference * 1.1) : roundToStep(-difference * 0.9);
+}
 
 export function createWindow(input: CreateWindowInput): WindowState {
   const { dynasty } = input;
@@ -83,6 +94,31 @@ export function createWindow(input: CreateWindowInput): WindowState {
     .filter((item) => item.baseId !== coach?.baseId)
     .map((item) => item.id);
 
+  // Own generator, drawn after everything else, so proposals, market and coaches stay identical for the same seed.
+  const swapRng = createSeededRng(`${input.seed}:window:${dynasty.majorNumber}:swap`);
+  const swapOffers: WindowSwapOffer[] = [];
+  const takenBaseIds = new Set([...lineupBaseIds, ...offered]);
+  const swapPool = [...resolved];
+  while (swapOffers.length < SWAP_OFFERS && swapPool.length) {
+    const [mine] = swapPool.splice(pickIndex(swapRng, swapPool.length), 1);
+    const role = mine.selected.selectedSlotRole;
+    const mineOverall = mine.player.overall ?? 70;
+    const matches = input.catalog.filter((player) => Boolean(player.teamId)
+      && !takenBaseIds.has(getPlayerBaseId(player))
+      && Math.abs((player.overall ?? 70) - mineOverall) <= SWAP_OVERALL_BAND
+      && getEligibleSlotRoles(player).includes(role));
+    if (!matches.length) continue;
+    const theirs = matches[pickIndex(swapRng, matches.length)];
+    takenBaseIds.add(getPlayerBaseId(theirs));
+    swapOffers.push({
+      id: `swap-${dynasty.majorNumber}-${swapOffers.length + 1}`,
+      fromTeamId: theirs.teamId ?? '',
+      theirPlayerId: theirs.id,
+      forPlayerId: mine.selected.playerId,
+      cashDelta: swapCashDelta(playerMarketValue(theirs), playerMarketValue(mine.player))
+    });
+  }
+
   return {
     majorNumber: dynasty.majorNumber,
     seed: input.seed,
@@ -93,6 +129,7 @@ export function createWindow(input: CreateWindowInput): WindowState {
     overrides: evolved.overrides,
     proposals,
     offers,
+    swapOffers,
     coachOfferIds,
     moves: [],
     roleAssignments: {},
@@ -125,10 +162,25 @@ export function salePriceFor(state: WindowState, playerId: string, playerById: M
   return player ? roundToStep(playerMarketValue(resolveDynastyPlayer(player, state.overrides[playerId])) * SALE_WITHOUT_PROPOSAL) : 0;
 }
 
+export const swapOfferFor = (state: WindowState, offerId: string): WindowSwapOffer | null =>
+  (state.swapOffers ?? []).find((offer) => offer.id === offerId) ?? null;
+
 export function buyPriceFor(state: WindowState, incoming: IncomingPlayer, playerById: Map<string, Player>): number | null {
+  if (incoming.kind === 'swap') {
+    const offer = swapOfferFor(state, incoming.offerId);
+    return offer ? Math.max(0, -offer.cashDelta) : null;
+  }
   if (incoming.kind === 'offer') return state.offers.find((offer) => offer.playerId === incoming.playerId)?.price ?? null;
   const player = playerById.get(incoming.playerId);
   return player ? roundToStep(playerMarketValue(player) * TARGET_MARKUP) : null;
+}
+
+function movePrices(state: WindowState, outPlayerId: string, incoming: IncomingPlayer, playerById: Map<string, Player>) {
+  if (incoming.kind === 'swap') {
+    const delta = swapOfferFor(state, incoming.offerId)?.cashDelta ?? 0;
+    return { salePrice: Math.max(0, delta), buyPrice: Math.max(0, -delta) };
+  }
+  return { salePrice: salePriceFor(state, outPlayerId, playerById), buyPrice: buyPriceFor(state, incoming, playerById) ?? 0 };
 }
 
 export function checkMove(state: WindowState, outPlayerId: string, incoming: IncomingPlayer, playerById: Map<string, Player>): MoveProblem | null {
@@ -142,30 +194,26 @@ export function checkMove(state: WindowState, outPlayerId: string, incoming: Inc
     return current ? [getPlayerBaseId(current)] : [];
   }));
   if (lineupBaseIds.has(getPlayerBaseId(player))) return 'duplicate-player';
-  if (incoming.kind === 'offer') {
+  if (incoming.kind === 'swap') {
+    const offer = swapOfferFor(state, incoming.offerId);
+    if (!offer || offer.theirPlayerId !== incoming.playerId || offer.forPlayerId !== outPlayerId) return 'not-offered';
+    if (state.moves.some((move) => move.kind === 'swap' && move.inPlayerId === incoming.playerId)) return 'offer-used';
+  } else if (incoming.kind === 'offer') {
     if (!state.offers.some((offer) => offer.playerId === incoming.playerId)) return 'not-offered';
     if (state.moves.some((move) => move.inPlayerId === incoming.playerId)) return 'offer-used';
   } else if (state.moves.some((move) => move.kind === 'target')) {
     return 'target-used';
   }
-  const price = buyPriceFor(state, incoming, playerById) ?? 0;
-  if (windowCash(state) + salePriceFor(state, outPlayerId, playerById) - price < 0) return 'no-cash';
+  const { salePrice, buyPrice } = movePrices(state, outPlayerId, incoming, playerById);
+  if (windowCash(state) + salePrice - buyPrice < 0) return 'no-cash';
   return null;
 }
 
 export function makeMove(state: WindowState, outPlayerId: string, incoming: IncomingPlayer, playerById: Map<string, Player>): WindowState {
   const problem = checkMove(state, outPlayerId, incoming, playerById);
   if (problem) throw new Error(`Troca inválida: ${problem}`);
-  return {
-    ...state,
-    moves: [...state.moves, {
-      outPlayerId,
-      inPlayerId: incoming.playerId,
-      salePrice: salePriceFor(state, outPlayerId, playerById),
-      buyPrice: buyPriceFor(state, incoming, playerById) ?? 0,
-      kind: incoming.kind
-    }]
-  };
+  const { salePrice, buyPrice } = movePrices(state, outPlayerId, incoming, playerById);
+  return { ...state, moves: [...state.moves, { outPlayerId, inPlayerId: incoming.playerId, salePrice, buyPrice, kind: incoming.kind }] };
 }
 
 export function undoMove(state: WindowState, index: number): WindowState {
@@ -175,21 +223,33 @@ export function undoMove(state: WindowState, index: number): WindowState {
   return { ...state, moves: state.moves.filter((_, position) => position !== index), roleAssignments };
 }
 
-export const setRole = (state: WindowState, playerId: string, role: LineupSlotRole): WindowState =>
-  ({ ...state, roleAssignments: { ...state.roleAssignments, [playerId]: role } });
-
-/** `<playerId>:ineligible` for a position the player cannot take, `role:<role>` for a position over its limit. */
-export function lineupProblems(state: WindowState, playerById: Map<string, Player>): string[] {
+/** Moves a player to a position. A full position hands its last holder the vacated one, so the window never blocks. */
+export function assignRole(state: WindowState, playerId: string, role: LineupSlotRole): WindowState {
   const lineup = windowLineup(state);
-  const problems: string[] = [];
-  for (const selected of lineup) {
+  const current = lineup.find((selected) => selected.playerId === playerId);
+  if (!current || current.selectedSlotRole === role) return state;
+  const holders = lineup.filter((selected) => selected.playerId !== playerId && selected.selectedSlotRole === role);
+  const roleAssignments = { ...state.roleAssignments, [playerId]: role };
+  if (holders.length >= ROLE_LIMITS[role]) roleAssignments[holders[holders.length - 1].playerId] = current.selectedSlotRole;
+  return { ...state, roleAssignments };
+}
+
+/** `role:<role>` for a position over its limit. Playing out of position is allowed and costs strength (see `windowOffRolePlayerIds`). */
+export function lineupProblems(state: WindowState, _playerById?: Map<string, Player>): string[] {
+  const lineup = windowLineup(state);
+  return (Object.keys(ROLE_LIMITS) as LineupSlotRole[])
+    .filter((role) => lineup.filter((selected) => selected.selectedSlotRole === role).length > ROLE_LIMITS[role])
+    .map((role) => `role:${role}`);
+}
+
+/** Lineup players currently outside their eligible positions, read with the window's evolution. */
+export function windowOffRolePlayerIds(state: WindowState, playerById: Map<string, Player>): string[] {
+  const lineup = windowLineup(state);
+  const players = lineup.flatMap((selected) => {
     const player = playerById.get(selected.playerId);
-    if (!player || !getEligibleSlotRoles(player).includes(selected.selectedSlotRole)) problems.push(`${selected.playerId}:ineligible`);
-  }
-  for (const role of Object.keys(ROLE_LIMITS) as LineupSlotRole[]) {
-    if (lineup.filter((selected) => selected.selectedSlotRole === role).length > ROLE_LIMITS[role]) problems.push(`role:${role}`);
-  }
-  return problems;
+    return player ? [resolveDynastyPlayer(player, state.overrides[selected.playerId])] : [];
+  });
+  return offRolePlayerIds(players, lineup);
 }
 
 export function chooseCoach(state: WindowState, coachId: string | null, coachById: Map<string, Coach>): WindowState {
@@ -199,12 +259,12 @@ export function chooseCoach(state: WindowState, coachId: string | null, coachByI
   return { ...state, coachChange: { coachId, cost: coachMarketValue(coach) } };
 }
 
-export const canConfirmWindow = (state: WindowState, playerById: Map<string, Player>) =>
-  windowCash(state) >= 0 && windowLineup(state).length === 5 && lineupProblems(state, playerById).length === 0;
+export const canConfirmWindow = (state: WindowState, _playerById?: Map<string, Player>) =>
+  windowCash(state) >= 0 && windowLineup(state).length === 5 && lineupProblems(state).length === 0;
 
 /** Applies the window to the dynasty. The caller then opens the next Major with `beginNextDynastyMajor`. */
 export function confirmWindow(dynasty: DynastyState, state: WindowState, playerById: Map<string, Player>): { dynasty: DynastyState; lineup: SelectedPlayer[] } {
-  if (!canConfirmWindow(state, playerById)) throw new Error('A janela ainda tem caixa negativo ou posições inválidas');
+  if (!canConfirmWindow(state, playerById)) throw new Error('A janela ainda tem caixa negativo ou posição acima do limite');
   const lineup = windowLineup(state);
   const kept = new Set(lineup.map((selected) => selected.playerId));
   const playerOverrides = Object.fromEntries(Object.entries(state.overrides).filter(([playerId]) => kept.has(playerId)));

@@ -573,12 +573,23 @@ export interface WindowProposal {
   price: number;
 }
 
+export interface WindowSwapOffer {
+  id: string;
+  /** Team-year of the player another organization offers. */
+  fromTeamId: string;
+  theirPlayerId: string;
+  /** Lineup player they want in return. */
+  forPlayerId: string;
+  /** Whole dollars: positive the user receives, negative the user pays. */
+  cashDelta: number;
+}
+
 export interface WindowMove {
   outPlayerId: string;
   inPlayerId: string;
   salePrice: number;
   buyPrice: number;
-  kind: 'offer' | 'target';
+  kind: 'offer' | 'target' | 'swap';
 }
 
 /** Transfer window between two Dinastia Majors. Everything the screen shows derives from this object, so a reload reproduces it. */
@@ -594,6 +605,8 @@ export interface WindowState {
   overrides: Record<string, PlayerOverride>;
   proposals: WindowProposal[];
   offers: WindowOffer[];
+  /** Direct player-for-player offers. Missing in windows saved before they existed. */
+  swapOffers?: WindowSwapOffer[];
   coachOfferIds: string[];
   moves: WindowMove[];
   /** Positions the user reassigned in the window, keyed by player id. */

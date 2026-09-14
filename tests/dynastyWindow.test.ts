@@ -5,8 +5,8 @@ import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import { createDynastyState } from '../src/lib/game/dynasty/state';
 import { coachMarketValue, playerMarketValue, roundToStep } from '../src/lib/game/dynasty/value';
 import {
-  canConfirmWindow, checkMove, chooseCoach, confirmWindow, createWindow, FOCUS_OFFERS, lineupProblems, makeMove, MARKET_SIZE,
-  movesLeft, salePriceFor, setRole, undoMove, windowCash, windowLineup
+  assignRole, canConfirmWindow, checkMove, chooseCoach, confirmWindow, createWindow, FOCUS_OFFERS, lineupProblems, makeMove, MARKET_SIZE,
+  movesLeft, salePriceFor, SWAP_OFFERS, SWAP_OVERALL_BAND, swapCashDelta, undoMove, windowCash, windowLineup, windowOffRolePlayerIds
 } from '../src/lib/game/dynasty/window';
 import type { DynastyMajorSummary, DynastyState, LineupSlotRole, Player, PlayerRunStats, SelectedPlayer } from '../src/lib/game/types';
 
@@ -95,15 +95,26 @@ describe('trocas', () => {
     expect(() => makeMove(twoMoves, 'l2', { kind: 'offer', playerId: offer.playerId }, playerById)).toThrow(/no-moves/);
   });
 
-  it('posição herdada inválida exige reatribuir antes de confirmar', () => {
+  it('posição herdada fora das elegíveis confirma e só custa força', () => {
     const state = makeMove(open(dynastyWith(5_000_000)), 'l0', { kind: 'target', playerId: rifler.id }, playerById);
     expect(windowLineup(state)[0]).toEqual({ playerId: rifler.id, selectedSlotRole: 'awper' });
-    expect(lineupProblems(state, playerById)).toEqual([`${rifler.id}:ineligible`]);
-    expect(canConfirmWindow(state, playerById)).toBe(false);
-    const fixed = setRole(state, rifler.id, 'rifler');
-    expect(lineupProblems(fixed, playerById)).toEqual([]);
-    expect(canConfirmWindow(fixed, playerById)).toBe(true);
+    expect(lineupProblems(state, playerById)).toEqual([]);
+    expect(windowOffRolePlayerIds(state, playerById)).toEqual([rifler.id]);
+    expect(canConfirmWindow(state, playerById)).toBe(true);
+    const fixed = assignRole(state, rifler.id, 'rifler');
+    expect(windowOffRolePlayerIds(fixed, playerById)).toEqual([]);
     expect(undoMove(fixed, 0).roleAssignments).toEqual({});
+  });
+
+  it('assignRole troca com quem ocupa uma posição cheia e nunca estoura o limite', () => {
+    const state = open(dynastyWith(0));
+    const swapped = assignRole(state, 'l1', 'awper');
+    const roles = Object.fromEntries(windowLineup(swapped).map((selected) => [selected.playerId, selected.selectedSlotRole]));
+    expect(roles.l1).toBe('awper');
+    expect(roles.l0).toBe('igl');
+    expect(lineupProblems(swapped, playerById)).toEqual([]);
+    expect(assignRole(state, 'l1', 'igl')).toBe(state);
+    expect(assignRole(state, 'inexistente', 'awper')).toBe(state);
   });
 });
 
@@ -118,8 +129,8 @@ describe('coach e confirmação', () => {
     expect(chooseCoach(withCoach, null, coachById).coachChange).toBeNull();
     expect(() => chooseCoach(base, 'coach-inexistente', coachById)).toThrow();
     const moved = makeMove(withCoach, 'l0', { kind: 'target', playerId: rifler.id }, playerById);
-    expect(() => confirmWindow(dynasty, moved, playerById)).toThrow();
-    const { dynasty: next, lineup: nextLineup } = confirmWindow(dynasty, setRole(moved, rifler.id, 'rifler'), playerById);
+    expect(confirmWindow(dynasty, moved, playerById).lineup[0]).toEqual({ playerId: rifler.id, selectedSlotRole: 'awper' });
+    const { dynasty: next, lineup: nextLineup } = confirmWindow(dynasty, assignRole(moved, rifler.id, 'rifler'), playerById);
     expect(nextLineup.map((selected) => selected.playerId)).toEqual([rifler.id, 'l1', 'l2', 'l3', 'l4']);
     expect(next.cash).toBe(windowCash(moved));
     expect(next.coachId).toBe(coach.id);
@@ -128,5 +139,53 @@ describe('coach e confirmação', () => {
     expect(next.history.at(-1)?.evolution).toEqual(moved.evolution);
     expect(Object.keys(next.playerOverrides).sort()).toEqual(['l1', 'l2', 'l3', 'l4']);
     expect(next.playerOverrides.l2.drift.overall).toBe(-4);
+  });
+});
+
+describe('trocas diretas', () => {
+  it('traz 2 ofertas determinísticas, elegíveis, na faixa de overall e fora do mercado', () => {
+    const state = open(dynastyWith(0));
+    expect(state.swapOffers).toHaveLength(SWAP_OFFERS);
+    expect(open(dynastyWith(0)).swapOffers).toEqual(state.swapOffers);
+    expect(new Set(state.swapOffers!.map((offer) => offer.forPlayerId)).size).toBe(SWAP_OFFERS);
+    for (const offer of state.swapOffers!) {
+      const theirs = playerById.get(offer.theirPlayerId)!;
+      const mine = windowLineup(state).find((selected) => selected.playerId === offer.forPlayerId)!;
+      const mineOverall = state.evolution.find((entry) => entry.toPlayerId === offer.forPlayerId)!.overallAfter;
+      expect(Math.abs((theirs.overall ?? 70) - mineOverall)).toBeLessThanOrEqual(SWAP_OVERALL_BAND);
+      expect(getEligibleSlotRoles(theirs)).toContain(mine.selectedSlotRole);
+      expect(state.offers.some((item) => item.playerId === offer.theirPlayerId)).toBe(false);
+      expect(Math.abs(offer.cashDelta) % 5_000).toBe(0);
+    }
+  });
+
+  it('diferença em dinheiro: paga 110%, recebe 90% e empata abaixo de 5 mil', () => {
+    expect(swapCashDelta(300_000, 200_000)).toBe(-110_000);
+    expect(swapCashDelta(200_000, 300_000)).toBe(90_000);
+    expect(swapCashDelta(204_000, 200_000)).toBe(0);
+    expect(swapCashDelta(250_000, 250_000)).toBe(0);
+  });
+
+  it('aceitar conta como 1 troca, move o caixa pela diferença e não se repete', () => {
+    const state = open(dynastyWith(5_000_000));
+    const offer = state.swapOffers![0];
+    const incoming = { kind: 'swap' as const, playerId: offer.theirPlayerId, offerId: offer.id };
+    const otherLineupPlayer = windowLineup(state).find((selected) => selected.playerId !== offer.forPlayerId)!.playerId;
+    expect(checkMove(state, otherLineupPlayer, incoming, playerById)).toBe('not-offered');
+    const moved = makeMove(state, offer.forPlayerId, incoming, playerById);
+    expect(movesLeft(moved)).toBe(state.maxMoves - 1);
+    expect(windowCash(moved)).toBe(5_000_000 + offer.cashDelta);
+    expect(moved.moves[0]).toMatchObject({ kind: 'swap', outPlayerId: offer.forPlayerId, inPlayerId: offer.theirPlayerId });
+    expect(windowLineup(moved).some((selected) => selected.playerId === offer.theirPlayerId)).toBe(true);
+    expect(checkMove(moved, offer.forPlayerId, incoming, playerById)).toBe('already-sold');
+  });
+
+  it('troca que custa dinheiro respeita o caixa e janela antiga sem trocas continua válida', () => {
+    const state = open(dynastyWith(0));
+    const paying = { ...state, swapOffers: [{ id: 'swap-teste', fromTeamId: 'x-team', theirPlayerId: rifler.id, forPlayerId: 'l4', cashDelta: -50_000 }] };
+    expect(checkMove(paying, 'l4', { kind: 'swap', playerId: rifler.id, offerId: 'swap-teste' }, playerById)).toBe('no-cash');
+    const legacy = { ...state, swapOffers: undefined };
+    expect(checkMove(legacy, 'l4', { kind: 'swap', playerId: rifler.id, offerId: 'swap-teste' }, playerById)).toBe('not-offered');
+    expect(canConfirmWindow(legacy, playerById)).toBe(true);
   });
 });

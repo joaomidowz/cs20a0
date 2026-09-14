@@ -3,7 +3,7 @@
   import { resolveDynastyPlayer } from '$lib/game/dynasty/resolve';
   import { coachMarketValue } from '$lib/game/dynasty/value';
   import {
-    buyPriceFor, canConfirmWindow, checkMove, chooseCoach, lineupProblems, makeMove, movesLeft, salePriceFor, setRole,
+    buyPriceFor, canConfirmWindow, checkMove, chooseCoach, lineupProblems, makeMove, movesLeft, salePriceFor, assignRole,
     undoMove, windowCash, windowLineup, type IncomingPlayer, type MoveProblem
   } from '$lib/game/dynasty/window';
   import { translate } from '$lib/game/i18n';
@@ -55,7 +55,7 @@
   }
 
   function pickRole(playerId: string, event: Event) {
-    onChange(setRole(state, playerId, (event.currentTarget as HTMLSelectElement).value as LineupSlotRole));
+    onChange(assignRole(state, playerId, (event.currentTarget as HTMLSelectElement).value as LineupSlotRole));
   }
 
   function pickCoach(coachId: string | null) {
