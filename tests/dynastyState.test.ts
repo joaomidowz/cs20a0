@@ -31,6 +31,12 @@ describe('estado da Dinastia', () => {
     expect(settleDynastyMajor(settled, run('placementChampion', true), input)).toBe(settled);
   });
 
+  it('registra o foco de treino no resumo do Major', () => {
+    const dynasty = createDynastyState();
+    dynasty.major = { majorNumber: 1, rules: 2, training: 'aim', basePlan: { style: 'balanced', tactic: 'standard', study: false }, plans: {}, confirmed: true };
+    expect(settleDynastyMajor(dynasty, run('placementStage1'), input).history[0].training).toBe('aim');
+  });
+
   it('abre o próximo Major só depois de creditar o atual', () => {
     const fresh = createDynastyState();
     expect(() => beginNextDynastyMajor(fresh)).toThrow(/Settle/);

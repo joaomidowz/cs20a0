@@ -54,6 +54,15 @@ describe('abertura da janela', () => {
     }
   });
 
+  it('leva o treino confirmado ao ganho permanente da janela', () => {
+    const dynasty = dynastyWith(0);
+    dynasty.major = { majorNumber: 1, rules: 2, training: 'aim', basePlan: { style: 'balanced', tactic: 'standard', study: false }, plans: {}, confirmed: true };
+    const trainedStats = stats.map((item) => ({ ...item, mapsPlayed: 3 }));
+    const state = createWindow({ dynasty, lineup, stats: trainedStats, seed: 'treino-janela', catalog, playerById, coaches, coachById });
+    expect(state.overrides.l1.training?.firepower).toBe(1);
+    expect(state.evolution.find((entry) => entry.fromPlayerId === 'l1')?.training).toEqual({ attribute: 'firepower', delta: 1 });
+  });
+
   it('traz duas propostas por jogadores distintos, três coaches e é determinística', () => {
     const state = open(dynastyWith(0));
     expect(state.proposals).toHaveLength(2);

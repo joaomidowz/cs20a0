@@ -73,6 +73,7 @@
           <b>{nick(entry.fromPlayerId)}</b>
           {#if entry.kind === 'version'}<span>{t('windowVersion')} · {playerById.get(entry.toPlayerId)?.year ?? ''}</span>{:else}<span>{entry.kind === 'drift' ? t('windowDrift') : t('windowStable')}</span>{/if}
           <em>{entry.overallBefore} → {entry.overallAfter}</em>
+          {#if entry.training}<small class="training-gain">+{entry.training.delta} {entry.training.attribute}</small>{/if}
         </li>
       {/each}
     </ul>
@@ -188,6 +189,7 @@
   .window ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .window-evolution li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; font-size: .82rem; }
   .window-evolution li.version em, .window-evolution li.drift em { color: var(--accent); }
+  .training-gain { color: var(--accent); font-weight: 900; text-transform: uppercase; }
   .window-status { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: .85rem; }
   .window-status b { color: var(--accent); }
   .window-status b.negative { color: var(--danger); }

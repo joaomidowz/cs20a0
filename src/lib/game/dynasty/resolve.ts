@@ -15,5 +15,9 @@ export function resolveDynastyPlayer(player: Player, override: PlayerOverride | 
     if (!delta) continue;
     resolved[key] = clampAttribute((player[key] ?? 70) + delta);
   }
+  for (const [key, delta] of Object.entries(override.training ?? {}) as Array<[keyof NonNullable<PlayerOverride['training']>, number | undefined]>) {
+    if (!delta) continue;
+    resolved[key] = clampAttribute((resolved[key] ?? 70) + delta);
+  }
   return resolved;
 }

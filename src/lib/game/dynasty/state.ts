@@ -48,6 +48,7 @@ export function settleDynastyMajor(dynasty: DynastyState, run: MajorRun, input: 
     movesMade: 0,
     stats: input.stats,
     rules: dynasty.majorRules,
+    training: dynasty.major?.training ?? null,
     ...(input.overalls ? { overalls: input.overalls } : {})
   };
   const next = entryForPlacement(run.placement);
@@ -73,6 +74,7 @@ export function beginNextDynastyMajor(dynasty: DynastyState): DynastyState {
 const isStage = (value: unknown): value is MajorStage => value === 'stage1' || value === 'stage2' || value === 'stage3';
 const isStyle = (value: unknown): value is SeriesPlan['style'] => value === 'aggressive' || value === 'balanced' || value === 'tactical';
 const isTactic = (value: unknown): value is SeriesPlan['tactic'] => value === 'standard' || value === 'pressure' || value === 'control' || value === 'antistrat';
+const isTraining = (value: unknown): value is NonNullable<DynastyMajorPlan['training']> => value === 'aim' || value === 'utility' || value === 'clutch' || value === 'opening' || value === 'recovery';
 const normalizeSeriesPlan = (value: unknown): SeriesPlan | null => {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Partial<SeriesPlan>;
@@ -85,7 +87,7 @@ const normalizeMajorPlan = (value: unknown, majorNumber: number): DynastyMajorPl
   if (!basePlan || raw.rules !== 2 || raw.majorNumber !== majorNumber) return null;
   const plans = Object.fromEntries(Object.entries(raw.plans && typeof raw.plans === 'object' ? raw.plans : {})
     .flatMap(([seriesId, plan]) => { const normalized = normalizeSeriesPlan(plan); return normalized ? [[seriesId, normalized]] : []; }));
-  return { majorNumber, rules: 2, training: null, basePlan, plans, confirmed: raw.confirmed !== false };
+  return { majorNumber, rules: 2, training: isTraining(raw.training) ? raw.training : null, basePlan, plans, confirmed: raw.confirmed !== false };
 };
 const positiveInt = (value: unknown, fallback: number, minimum: number) =>
   typeof value === 'number' && Number.isInteger(value) && value >= minimum ? value : fallback;

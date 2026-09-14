@@ -91,4 +91,23 @@ describe('evolução do elenco', () => {
     expect(star.overall).toBe(90);
     expect(capped.firepower).toBe(80);
   });
+
+  it('torna permanente +1 após 3 mapas, limitado a +4 e separado da deriva', () => {
+    const trained = evolveLineup({ lineup: [{ playerId: 'q-2020', selectedSlotRole: 'support' }], overrides: { 'q-2020': { drift: {}, training: { firepower: 4 }, driftTotal: 0, versionsSince: [] } }, stats: [{ ...stat('q-2020', 1), mapsPlayed: 3 }], coach: null, catalog, playerById, training: 'aim' });
+    expect(trained.overrides['q-2020'].training).toEqual({ firepower: 4 });
+    const noMaps = evolveLineup({ lineup: [{ playerId: 'q-2020', selectedSlotRole: 'support' }], overrides: {}, stats: [{ ...stat('q-2020', 1), mapsPlayed: 2 }], coach: null, catalog, playerById, training: 'aim' });
+    expect(noMaps.overrides['q-2020'].training).toEqual({});
+  });
+
+  it('recovery amortece queda em 1 sem virar ganho', () => {
+    const recovered = evolveLineup({ lineup: [{ playerId: 'q-2020', selectedSlotRole: 'support' }], overrides: {}, stats: [{ ...stat('q-2020', 0.8), mapsPlayed: 3 }], coach: null, catalog, playerById, training: 'recovery' });
+    expect(recovered.overrides['q-2020'].driftTotal).toBe(-1);
+    const neutral = evolveLineup({ lineup: [{ playerId: 'q-2020', selectedSlotRole: 'support' }], overrides: {}, stats: [{ ...stat('q-2020', 0.96), mapsPlayed: 3 }], coach: null, catalog, playerById, training: 'recovery' });
+    expect(neutral.overrides['q-2020'].driftTotal).toBe(0);
+  });
+
+  it('zera treino permanente quando troca de versão', () => {
+    const changed = evolveLineup({ lineup: [{ playerId: 'v-2020', selectedSlotRole: 'rifler' }], overrides: { 'v-2020': { drift: {}, training: { firepower: 3 }, driftTotal: 0, versionsSince: [] } }, stats: [{ ...stat('v-2020', 1.4), mapsPlayed: 4 }], coach: null, catalog, playerById, training: 'aim' });
+    expect(changed.overrides['v-2021'].training).toEqual({});
+  });
 });

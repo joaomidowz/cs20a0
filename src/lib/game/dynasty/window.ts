@@ -40,7 +40,7 @@ const pickIndex = (rng: SeededRng, length: number) => Math.floor(rng() * length)
 export function createWindow(input: CreateWindowInput): WindowState {
   const { dynasty } = input;
   const coach = dynasty.coachId ? input.coachById.get(dynasty.coachId) ?? null : null;
-  const evolved = evolveLineup({ lineup: input.lineup, overrides: dynasty.playerOverrides, stats: input.stats, coach, catalog: input.catalog, playerById: input.playerById });
+  const evolved = evolveLineup({ lineup: input.lineup, overrides: dynasty.playerOverrides, stats: input.stats, coach, catalog: input.catalog, playerById: input.playerById, training: dynasty.major?.training });
   const rng = createSeededRng(`${input.seed}:window:${dynasty.majorNumber}`);
   const resolved = evolved.lineup.flatMap((selected) => {
     const player = input.playerById.get(selected.playerId);

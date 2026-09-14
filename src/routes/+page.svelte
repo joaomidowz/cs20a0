@@ -83,6 +83,7 @@
   import DynastyWindow from '$lib/components/DynastyWindow.svelte';
   import DynastySeriesPlan from '$lib/components/DynastySeriesPlan.svelte';
   import DynastyTeamPanel from '$lib/components/DynastyTeamPanel.svelte';
+  import DynastyTraining from '$lib/components/DynastyTraining.svelte';
   import { applyCoachToTeam, coachAffinity, COACH_REROLLS } from '$lib/game/dynasty/coach';
   import { offerCoaches } from '$lib/game/dynasty/coachOffer';
   import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
@@ -90,6 +91,7 @@
   import { resolveDynastyPlayer } from '$lib/game/dynasty/resolve';
   import { confirmWindow, createWindow } from '$lib/game/dynasty/window';
   import { buildDynastyUserTeam, confirmSeriesPlan, createDynastyMajorPlan, studiesLeft } from '$lib/game/dynasty/seriesPlan';
+  import { applyTraining, suggestTraining } from '$lib/game/dynasty/training';
   import {
     MAP_POOL,
     getDefaultMapSelection,
@@ -115,6 +117,7 @@
     type Player,
     type SeriesResult,
     type SeriesPlan,
+    type TrainingFocus,
     type SimMode,
     type SimSpeed,
     type WindowState
@@ -260,7 +263,8 @@
       .map((selected) => playerById.get(selected.playerId))
       .filter((player): player is Player => Boolean(player))
       // Dinastia: strength, cards, HUD, stats and the Major all read the player with the dynasty's drift.
-      .map((player) => (isDynasty ? resolveDynastyPlayer(player, $game.dynasty?.playerOverrides[player.id]) : player));
+      .map((player) => (isDynasty ? resolveDynastyPlayer(player, $game.dynasty?.playerOverrides[player.id]) : player))
+      .map((player) => isDynasty && $game.dynasty?.major?.training && $game.phase !== 'window' ? applyTraining(player, $game.dynasty.major.training) : player);
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
@@ -290,6 +294,10 @@
   $: currentSeries = $game.majorRun ? currentUserSeries($game.majorRun.matches, confirmedSeriesIds) : null;
   $: dynastySeriesPlanned = !isDynasty || $game.dynasty?.majorRules !== 2 || Boolean(currentSeries && $game.dynasty?.major?.plans[currentSeries.id]);
   $: dynastyStudiesLeft = $game.dynasty?.major ? studiesLeft($game.dynasty.major, dynastyCoach) : 0;
+  $: dynastyTrainingSuggestion = suggestTraining(selectedLineup.flatMap((selected) => {
+    const player = playerById.get(selected.playerId);
+    return player ? [resolveDynastyPlayer(player, $game.dynasty?.playerOverrides[player.id])] : [];
+  }));
   $: if (campaign && currentSeries && $game.simMode === 'auto' && !dynastySeriesPlanned && dynastyPlanTimer === null) {
     dynastyPlanTimer = window.setTimeout(() => { dynastyPlanTimer = null; if ($game.dynasty?.major) confirmDynastyPlan({ ...$game.dynasty.major.basePlan, study: false }); }, 0);
   }
@@ -560,6 +568,11 @@
     if (mapContributors[mapId].length > 0 && selected.length < 3) update({ selectedMaps: [...selected, mapId] });
   }
 
+  function chooseTraining(focus: TrainingFocus) {
+    if (!$game.dynasty?.major || $game.dynasty.majorRules !== 2) return;
+    update({ dynasty: { ...$game.dynasty, major: { ...$game.dynasty.major, training: focus } } });
+  }
+
   function autoSelectMaps() {
     update({ selectedMaps: getDefaultMapSelection(selectedPlayers, teams) });
   }
@@ -569,7 +582,7 @@
   }
 
   function launchMajor() {
-    if (!draftComplete || (isProMode && !$game.proRevealed) || !isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)) return;
+    if (!draftComplete || (isProMode && !$game.proRevealed) || (isDynasty && $game.dynasty?.majorRules === 2 && !$game.dynasty.major?.training) || !isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)) return;
     resetSupportNudge();
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
@@ -1285,6 +1298,9 @@
         <span>{t('mapsSelected')}</span>
         <strong>{$game.selectedMaps.length}/3</strong>
       </div>
+      {#if isDynasty && $game.dynasty?.majorRules === 2 && $game.dynasty.major}
+        <DynastyTraining language={$game.language} value={$game.dynasty.major.training} suggested={dynastyTrainingSuggestion} onChange={chooseTraining} />
+      {/if}
       <div class="map-selection-grid">
         {#each MAP_POOL as mapId}
           {@const contributors = mapContributors[mapId]}
@@ -1315,7 +1331,7 @@
       <div class="map-selection-actions">
         <button class="secondary" type="button" on:click={returnToLineup}>{t('backToLineup')}</button>
         <button class="secondary" type="button" on:click={autoSelectMaps}>{t('autoSelectMaps')}</button>
-        <button class="primary" type="button" disabled={!isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams)} on:click={launchMajor}>{t('confirmMaps')} →</button>
+        <button class="primary" type="button" disabled={!isValidLineupMapSelection($game.selectedMaps, selectedPlayers, teams) || (isDynasty && $game.dynasty?.majorRules === 2 && !$game.dynasty.major?.training)} on:click={launchMajor}>{t('confirmMaps')} →</button>
       </div>
     </section>
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
@@ -1348,7 +1364,7 @@
         <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }, ...(isDynasty ? [{ value: 'team', label: $game.language === 'en' ? 'Team' : $game.language === 'es' ? 'Equipo' : 'Time' }] : [])]} onChange={(value) => majorTab = value === 'all' ? 'all' : value === 'team' ? 'team' : 'current'} /></div>
       {/if}
       {#if isDynasty && $game.dynasty?.major}
-        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} language={$game.language} /></div>
+        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} training={$game.dynasty.major.training} language={$game.language} /></div>
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}

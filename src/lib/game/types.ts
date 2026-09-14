@@ -499,6 +499,8 @@ export interface PlayerRunStats {
 
 export type DynastyStatus = 'challenger' | 'legend';
 export type CoachTactic = 'standard' | 'pressure' | 'control' | 'antistrat';
+export type TrainingFocus = 'aim' | 'utility' | 'clutch' | 'opening' | 'recovery';
+export type TrainingAttribute = 'firepower' | 'support' | 'clutch' | 'entry';
 
 export interface SeriesPlan {
   style: OrgStyle;
@@ -509,8 +511,7 @@ export interface SeriesPlan {
 export interface DynastyMajorPlan {
   majorNumber: number;
   rules: 2;
-  /** Reserved for the training delivery; null until a focus is selected. */
-  training: null;
+  training: TrainingFocus | null;
   basePlan: SeriesPlan;
   plans: Record<string, SeriesPlan>;
   confirmed: boolean;
@@ -535,11 +536,15 @@ export interface DynastyMajorSummary {
   overalls?: Record<string, number>;
   /** Evolution applied after this Major, once its transfer window is confirmed. */
   evolution?: EvolutionEntry[];
+  /** Temporary focus used during this Major. */
+  training?: TrainingFocus | null;
 }
 
 /** Attribute drift a Dinastia player carries over the dataset version (used from delivery C on). */
 export interface PlayerOverride {
   drift: Partial<Record<'firepower' | 'clutch' | 'entry' | 'awp' | 'support' | 'consistency' | 'mental' | 'overall' | 'experience', number>>;
+  /** Permanent training, separate from drift and limited independently. */
+  training?: Partial<Record<TrainingAttribute, number>>;
   driftTotal: number;
   versionsSince: string[];
 }
@@ -551,6 +556,7 @@ export interface EvolutionEntry {
   kind: 'version' | 'drift' | 'stable';
   overallBefore: number;
   overallAfter: number;
+  training?: { attribute: TrainingAttribute; delta: number };
 }
 
 export interface WindowOffer {
