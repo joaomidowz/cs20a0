@@ -1,7 +1,7 @@
 import type { MapSimulationContext } from '../map-veto';
 import { createSeededRng } from '../simulation';
-import type { CombatTeam, SeriesResult } from '../types';
-import type { PublicRound, PublicStanding, PublicTournament } from './contracts';
+import { STAGE_PLACEMENT, type CombatTeam, type MajorStage, type SeriesResult } from '../types';
+import type { PublicRound, PublicStageStandings, PublicStanding, PublicTournament } from './contracts';
 import {
   createLiveSeries,
   runSeriesToEnd,
@@ -42,7 +42,12 @@ export interface MutableStanding extends PublicStanding {
 export interface TournamentEngineOptions {
   organizations: TournamentOrganization[];
   botPool: TournamentOrganization[];
-  entryStage: 'stage3' | 'playoffs';
+  entryStage: MajorStage | 'playoffs';
+  /**
+   * Dinastia: the three Swiss stages. `stage1` holds the 16 openers, `stage2` and `stage3` the 8 newcomers that join the
+   * 8 qualified from the stage before. Humans must already sit in the stage they enter. Absent in every other mode.
+   */
+  stageFields?: Record<MajorStage, TournamentOrganization[]>;
   seed: string;
   mapContext?: MapSimulationContext;
   /** Format of every Swiss series. Defaults to BO3 (the Major's advancement/elimination format for every round). */
@@ -60,6 +65,8 @@ export interface TournamentEngineOptions {
 export interface TournamentRoundState {
   number: number;
   phase: PublicRound['phase'];
+  /** Swiss stage of the round (always set for Swiss rounds; playoffs carry none). */
+  stage?: MajorStage;
   series: LiveSeriesState[];
   complete: boolean;
 }
@@ -74,6 +81,12 @@ export interface TournamentEngineState {
   bracketWinners: TournamentOrganization[];
   championId: string | null;
   finished: boolean;
+  /** Swiss stage in progress; null once the bracket field is set or when the tournament started in the playoffs. */
+  stage: MajorStage | null;
+  /** Final table of every Swiss stage already resolved. */
+  stageResults: PublicStageStandings[];
+  /** Every organization that takes part, across stages (equals `field` when there is a single stage). */
+  participants: TournamentOrganization[];
 }
 
 export const SWISS_ROUNDS = 5;
@@ -164,12 +177,13 @@ export const calculateCampaigns = (organizations: TournamentOrganization[], roun
     const roundsWon = matches.reduce((sum, series) => sum + series.maps.reduce((mapSum, map) => mapSum + (series.teamA.id === organization.id ? map.scoreA : map.scoreB), 0), 0);
     const roundsLost = matches.reduce((sum, series) => sum + series.maps.reduce((mapSum, map) => mapSum + (series.teamA.id === organization.id ? map.scoreB : map.scoreA), 0), 0);
     const last = matches.at(-1);
+    const stagePlacement = last && (last.phase in STAGE_PLACEMENT) ? STAGE_PLACEMENT[last.phase as MajorStage] : 'placementStage3';
     const placement = championId === organization.id
       ? 'placementChampion'
       : last?.phase === 'final' ? 'placementRunnerUp'
         : last?.phase === 'semifinal' ? 'placement3to4'
           : last?.phase === 'quarterfinal' ? 'placement5to8'
-            : 'placementStage3';
+            : stagePlacement;
     return { organizationId: organization.id, seriesWon, seriesLost: matches.length - seriesWon, mapsWon, mapsLost, roundsWon, roundsLost, placement };
   });
 };
@@ -177,7 +191,51 @@ export const calculateCampaigns = (organizations: TournamentOrganization[], roun
 const defaultController = (organization: TournamentOrganization): Controller => (organization.human ? 'human' : 'bot');
 const defaultInteractiveVeto = (left: TournamentOrganization, right: TournamentOrganization) => left.human && right.human;
 
+const freshStandings = (field: TournamentOrganization[], status: MutableStanding['status']): MutableStanding[] =>
+  field.map((organization) => ({
+    organizationId: organization.id,
+    name: organization.name,
+    seed: organization.seed,
+    wins: 0,
+    losses: 0,
+    buchholz: 0,
+    status,
+    opponents: []
+  }));
+
+const STAGE_SIZES: Readonly<Record<MajorStage, number>> = { stage1: 16, stage2: 8, stage3: 8 };
+const nextStage = (stage: MajorStage): MajorStage | null => (stage === 'stage1' ? 'stage2' : stage === 'stage2' ? 'stage3' : null);
+
+function createStagedEngine(options: TournamentEngineOptions, stageFields: Record<MajorStage, TournamentOrganization[]>): TournamentEngineState {
+  for (const stage of ['stage1', 'stage2', 'stage3'] as const) {
+    if (stageFields[stage].length !== STAGE_SIZES[stage]) throw new Error(`${stage} needs exactly ${STAGE_SIZES[stage]} organizations`);
+  }
+  const participants = [...stageFields.stage1, ...stageFields.stage2, ...stageFields.stage3];
+  if (new Set(participants.map((organization) => organization.id)).size !== participants.length) throw new Error('An organization cannot appear twice in the Major');
+  const entry: MajorStage = options.entryStage === 'playoffs' ? 'stage3' : options.entryStage;
+  for (const human of options.organizations) {
+    if (!stageFields[entry].some((organization) => organization.id === human.id)) throw new Error(`Human organization ${human.id} must be placed in ${entry}`);
+  }
+  const field = stageFields.stage1.map((organization, index) => ({ ...organization, seed: index + 1 }));
+  return {
+    options,
+    field,
+    byId: new Map(participants.map((organization) => [organization.id, organization])),
+    standings: freshStandings(field, 'active'),
+    rounds: [],
+    playoffField: null,
+    bracketWinners: [],
+    championId: null,
+    finished: false,
+    stage: 'stage1',
+    stageResults: [],
+    participants
+  };
+}
+
 export function createTournamentEngine(options: TournamentEngineOptions): TournamentEngineState {
+  if (options.stageFields) return createStagedEngine(options, options.stageFields);
+  if (options.entryStage === 'stage1' || options.entryStage === 'stage2') throw new Error('Stage 1 and Stage 2 entries require stageFields');
   const required = options.entryStage === 'stage3' ? 16 : 8;
   if (options.organizations.length < 1 || options.organizations.length > required) throw new Error(`Tournament requires 1-${required} organizations`);
   const humanIds = new Set(options.organizations.map((organization) => organization.id));
@@ -187,26 +245,19 @@ export function createTournamentEngine(options: TournamentEngineOptions): Tourna
   const field = [...options.organizations, ...bots]
     .sort((left, right) => (rank.get(left.id) ?? Number.POSITIVE_INFINITY) - (rank.get(right.id) ?? Number.POSITIVE_INFINITY))
     .map((organization, index) => ({ ...organization, seed: index + 1 }));
-  const standings: MutableStanding[] = field.map((organization) => ({
-    organizationId: organization.id,
-    name: organization.name,
-    seed: organization.seed,
-    wins: 0,
-    losses: 0,
-    buchholz: 0,
-    status: options.entryStage === 'stage3' ? 'active' : 'qualified',
-    opponents: []
-  }));
   return {
     options,
     field,
     byId: new Map(field.map((organization) => [organization.id, organization])),
-    standings,
+    standings: freshStandings(field, options.entryStage === 'stage3' ? 'active' : 'qualified'),
     rounds: [],
     playoffField: options.entryStage === 'playoffs' ? field : null,
     bracketWinners: [],
     championId: null,
-    finished: false
+    finished: false,
+    stage: options.entryStage === 'stage3' ? 'stage3' : null,
+    stageResults: [],
+    participants: field
   };
 }
 
@@ -245,7 +296,18 @@ function createSeries(state: TournamentEngineState, left: TournamentOrganization
   return createLiveSeries(config);
 }
 
-const swissRoundCount = (state: TournamentEngineState) => state.rounds.filter((round) => round.phase === 'swiss').length;
+const swissRoundCount = (state: TournamentEngineState) =>
+  state.rounds.filter((round) => round.phase === 'swiss' && round.stage === state.stage).length;
+
+/** With three stages the ids and seeds carry the stage; the single-stage Major keeps the historical `swiss-` prefix untouched. */
+const swissSeriesKeys = (state: TournamentEngineState, roundNumber: number, index: number, leftId: string, rightId: string) => {
+  const staged = Boolean(state.options.stageFields);
+  const prefix = staged ? state.stage! : 'swiss';
+  return {
+    id: `${prefix}-r${roundNumber}-m${index + 1}-${leftId}-${rightId}`,
+    seed: `${state.options.seed}:${prefix}:${roundNumber}:${leftId}:${rightId}`
+  };
+};
 
 /** Pairs the next round (Swiss or bracket). Throws while the current round is still running. */
 export function startNextRound(state: TournamentEngineState): TournamentRoundState {
@@ -253,22 +315,17 @@ export function startNextRound(state: TournamentEngineState): TournamentRoundSta
   const number = state.rounds.length + 1;
   const { seed } = state.options;
   let round: TournamentRoundState;
-  if (state.options.entryStage === 'stage3' && swissRoundCount(state) < SWISS_ROUNDS) {
+  if (!state.playoffField) {
+    if (!state.stage) throw new Error('No Swiss stage to play');
     const active = state.standings.filter((standing) => standing.status === 'active');
     const roundNumber = swissRoundCount(state) + 1;
+    const stage = state.stage;
     const series = findPairings(active).map(([left, right], index) => {
       const bestOf: 1 | 3 = state.options.swissBestOf ?? 3;
-      return createSeries(
-        state,
-        state.byId.get(left.organizationId)!,
-        state.byId.get(right.organizationId)!,
-        bestOf,
-        'stage3',
-        `swiss-r${roundNumber}-m${index + 1}-${left.organizationId}-${right.organizationId}`,
-        `${seed}:swiss:${roundNumber}:${left.organizationId}:${right.organizationId}`
-      );
+      const keys = swissSeriesKeys(state, roundNumber, index, left.organizationId, right.organizationId);
+      return createSeries(state, state.byId.get(left.organizationId)!, state.byId.get(right.organizationId)!, bestOf, stage, keys.id, keys.seed);
     });
-    round = { number, phase: 'swiss', series, complete: false };
+    round = { number, phase: 'swiss', stage, series, complete: false };
   } else {
     if (!state.playoffField) throw new Error('Playoffs cannot start before the Swiss stage resolves');
     const playoffRounds = state.rounds.filter((item) => item.phase !== 'swiss').length;
@@ -329,7 +386,19 @@ export function completeRound(state: TournamentEngineState): void {
       if (qualified.length !== 8 || state.standings.filter((standing) => standing.status === 'eliminated').length !== 8) {
         throw new Error('Swiss stage did not resolve to eight qualified and eight eliminated organizations');
       }
-      state.playoffField = qualified.map((standing, index) => ({ ...state.byId.get(standing.organizationId)!, seed: index + 1 }));
+      state.stageResults.push({ stage: state.stage!, standings: [...state.standings].sort(standingOrder).map(({ opponents: _opponents, ...standing }) => standing) });
+      const following = state.options.stageFields ? nextStage(state.stage!) : null;
+      if (following) {
+        // Newcomers are the stronger group and take seeds 1–8; the qualified carry 9–16, so round one pairs legend against challenger.
+        const newcomers = state.options.stageFields![following].map((organization, index) => ({ ...organization, seed: index + 1 }));
+        const advancing = qualified.map((standing, index) => ({ ...state.byId.get(standing.organizationId)!, seed: newcomers.length + index + 1 }));
+        const field = [...newcomers, ...advancing];
+        for (const organization of field) state.byId.set(organization.id, organization);
+        state.standings = freshStandings(field, 'active');
+        state.stage = following;
+      } else {
+        state.playoffField = qualified.map((standing, index) => ({ ...state.byId.get(standing.organizationId)!, seed: index + 1 }));
+      }
     }
   } else {
     const winners: TournamentOrganization[] = [];
@@ -355,20 +424,27 @@ export const findSeries = (state: TournamentEngineState, seriesId: string): Live
 export const seriesFor = (round: TournamentRoundState, organizationId: string): LiveSeriesState | undefined =>
   round.series.find((series) => series.config.teamA.id === organizationId || series.config.teamB.id === organizationId);
 
-const toPublicRound = (round: TournamentRoundState): PublicRound =>
-  ({ number: round.number, phase: round.phase, series: round.series.map(toSeriesResult), revealed: true });
+const toPublicRound = (round: TournamentRoundState, staged: boolean): PublicRound =>
+  ({ number: round.number, phase: round.phase, ...(staged && round.stage ? { stage: round.stage } : {}), series: round.series.map(toSeriesResult), revealed: true });
 
 /** Everything simulated so far, including the round in progress (its unfinished series carry `winnerId: ''`). */
 export function toResult(state: TournamentEngineState): OnlineTournamentResult {
-  const rounds = state.rounds.map(toPublicRound);
+  const staged = Boolean(state.options.stageFields);
+  const rounds = state.rounds.map((round) => toPublicRound(round, staged));
   const completedRounds = rounds.filter((_, index) => state.rounds[index].complete);
+  const current = [...state.standings].sort(standingOrder).map(({ opponents: _opponents, ...standing }) => standing);
+  const stages: PublicStageStandings[] = [
+    ...state.stageResults,
+    ...(state.stage && !state.stageResults.some((result) => result.stage === state.stage) ? [{ stage: state.stage, standings: current }] : [])
+  ];
   return {
     rounds,
-    standings: [...state.standings].sort(standingOrder).map(({ opponents: _opponents, ...standing }) => standing),
+    standings: current,
     championId: state.championId,
     currentRound: rounds.length,
     liveCursor: null,
-    campaigns: calculateCampaigns(state.field, completedRounds, state.championId)
+    campaigns: calculateCampaigns(state.participants, completedRounds, state.championId),
+    ...(staged ? { stages } : {})
   };
 }
 
