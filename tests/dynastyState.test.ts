@@ -45,4 +45,10 @@ describe('estado da Dinastia', () => {
     expect(ensureDynastyState({ cash: -5, entryStage: 'stage9', status: 'x', majorNumber: 0, history: 'nope' })).toMatchObject({ cash: 0, entryStage: 'stage1', status: 'challenger', majorNumber: 1, history: [] });
     expect(ensureDynastyState({ cash: 20_000, entryStage: 'stage3', status: 'legend', majorNumber: 3, titles: 2, prizeCreditedFor: 2 })).toMatchObject({ cash: 20_000, entryStage: 'stage3', status: 'legend', majorNumber: 3, titles: 2, prizeCreditedFor: 2 });
   });
+
+  it('mantém uma janela válida ao carregar e descarta lixo', () => {
+    const saved = { majorNumber: 1, seed: 's', cashAtOpen: 0, maxMoves: 2, evolution: [], baseLineup: [], overrides: {}, proposals: [], offers: [], coachOfferIds: [], moves: [], roleAssignments: {}, coachChange: null };
+    expect(ensureDynastyState({ window: saved }).window).toEqual(saved);
+    expect(ensureDynastyState({ window: { moves: 'x' } }).window).toBeNull();
+  });
 });

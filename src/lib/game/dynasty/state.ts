@@ -1,4 +1,4 @@
-import type { DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer } from '../types';
+import type { DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer, WindowState } from '../types';
 import { awardsBonus, prizeForPlacement } from './prizes';
 
 export const createDynastyState = (): DynastyState => ({
@@ -67,6 +67,14 @@ const isStage = (value: unknown): value is MajorStage => value === 'stage1' || v
 const positiveInt = (value: unknown, fallback: number, minimum: number) =>
   typeof value === 'number' && Number.isInteger(value) && value >= minimum ? value : fallback;
 
+const isWindowState = (value: unknown): value is WindowState => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<WindowState>;
+  return typeof candidate.majorNumber === 'number' && typeof candidate.cashAtOpen === 'number' && typeof candidate.maxMoves === 'number'
+    && Array.isArray(candidate.baseLineup) && Array.isArray(candidate.moves) && Array.isArray(candidate.offers)
+    && Array.isArray(candidate.proposals) && Array.isArray(candidate.evolution) && Array.isArray(candidate.coachOfferIds);
+};
+
 /** A saved dynasty (possibly from an older build or edited by hand) comes back complete and inside its bounds. */
 export function ensureDynastyState(saved: unknown): DynastyState {
   const base = createDynastyState();
@@ -83,7 +91,7 @@ export function ensureDynastyState(saved: unknown): DynastyState {
     titles: positiveInt(raw.titles, 0, 0),
     history: Array.isArray(raw.history) ? (raw.history as DynastyMajorSummary[]) : [],
     playerOverrides: raw.playerOverrides && typeof raw.playerOverrides === 'object' ? (raw.playerOverrides as DynastyState['playerOverrides']) : {},
-    window: null,
+    window: isWindowState(raw.window) ? raw.window : null,
     prizeCreditedFor: positiveInt(raw.prizeCreditedFor, 0, 0)
   };
 }
