@@ -174,13 +174,14 @@ Por jogador e série: kills, deaths, assistências, flash assists, opening kill 
 
 **Um coach para cada um dos 286 times.** O vínculo é por `teamId`: o coach de `astralis-2018` é quem comandou aquele elenco naquele ano. A mesma pessoa em anos ou times diferentes compartilha o `baseId` (slug do nome).
 
-Fonte: os templates `{{TeamCard}}` das páginas de Major na Liquipedia, campo `c` (ou `coach`), lidos do cache do importador experimental do studio e completados com as páginas que o cache buscou com título errado (`ELEAGUE/2017/Major`, `ELEAGUE/2018/Major`, `FACEIT/2018/Major`). Medição de 2026-09-14 sobre os 286 times:
+Fonte: as páginas de Major na Liquipedia, lidas pelo cliente do studio (cache + rede com 2 s entre requisições). O extrator lê os dois formatos que a Liquipedia usa: o antigo `{{TeamCard|team=...|c=...}}` e o novo `{{Opponent|Time|players={{Persons|...{{Person|role=coach|nome}}}}}}`, que a página do IEM Cologne 2026 adotou. Resultado gerado em 2026-09-14 (`data/reports/coaches-report.json` no studio):
 
 | Origem do coach | Times | `confidence` |
 |---|---|---|
-| Card do próprio ano | 262 | `high` (um Major no ano ou mesmo coach nos dois) ou `medium` (coach trocou entre os dois Majors do ano: vale o do Major mais tardio, mais próximo do ranking de dezembro que definiu o elenco) |
-| Card da mesma organização em ano vizinho (±1) | 19 | `low`, `needsReview: true` (inclui os 5 times de 2020, ano sem Major) |
-| Nenhum registro | 5 (`optic-2016`, `penta-2017`, `evil-geniuses-2019`, `forze-2019`, `monte-2023`) | `placeholder`, `needsReview: true` |
+| Card do próprio ano, mesmo coach nos Majors do ano | 243 | `high` |
+| Card do próprio ano, coach trocou entre os dois Majors (vale o do Major mais tardio, mais próximo do ranking de dezembro que definiu o elenco), ou correção com fonte | 21 | `medium` |
+| Card da mesma organização em ano vizinho (±1) | 18 | `low`, `needsReview: true` (inclui os 5 times de 2020, ano sem Major) |
+| Nenhum registro | 4 (`optic-2016`, `penta-2017`, `forze-2019`, `monte-2023`) | `placeholder`, `needsReview: true` |
 
 `data/config/coach-overrides.json` corrige nome e origem quando houver fonte (ex.: a EG de 2019 herdou o elenco e o coach da NRG). Coach `placeholder` se chama "Comissão técnica" / "Coaching staff" / "Cuerpo técnico", nunca entra nas ofertas do draft e existe só para o time ter o campo preenchido.
 
