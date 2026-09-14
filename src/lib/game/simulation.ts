@@ -1,22 +1,26 @@
 import { computeMajorAwards } from './majorAwards';
 import { runOnlineTournament } from './online/tournament';
 import type { OnlineTournamentResult } from './online/tournament-engine';
-import type {
-  CombatTeam,
-  GameMode,
-  OnlineGameMode,
-  HistoricalTeam,
-  MajorRun,
-  MapId,
-  MapResult,
-  OrgStyle,
-  Player,
-  SelectedPlayer,
-  PlayoffsResult,
-  Roster,
-  SeriesDecision,
-  SeriesResult,
-  Stage3Result
+import {
+  MAJOR_STAGES,
+  STAGE_PLACEMENT,
+  isMajorStage,
+  type CombatTeam,
+  type GameMode,
+  type OnlineGameMode,
+  type HistoricalTeam,
+  type MajorRun,
+  type MajorStage,
+  type MapId,
+  type MapResult,
+  type OrgStyle,
+  type Player,
+  type SelectedPlayer,
+  type PlayoffsResult,
+  type Roster,
+  type SeriesDecision,
+  type SeriesResult,
+  type Stage3Result
 } from './types';
 import { createMapState, flipMapResult, playMapToEnd } from './rounds';
 import {
@@ -487,34 +491,46 @@ export function createMajorField(
 /** Turns a finished tournament into the campaign run the offline screens read. */
 export function toMajorRun(tournament: OnlineTournamentResult, userId: string): MajorRun {
   const userSeries = tournament.rounds.flatMap((round) => round.series).filter((series) => series.userMatch).map((series) => orientSeriesToTeam(series, userId));
-  const stage3Matches = userSeries.filter((series) => series.phase === 'stage3');
-  const wins = stage3Matches.filter((series) => series.winnerId === userId).length;
-  const losses = stage3Matches.length - wins;
-  const qualified = wins === 3;
+  const stageRecord = (stage: MajorStage): Stage3Result => {
+    const matches = userSeries.filter((series) => series.phase === stage);
+    const wins = matches.filter((series) => series.winnerId === userId).length;
+    return { wins, losses: matches.length - wins, qualified: wins === 3, matches };
+  };
+  const staged = Boolean(tournament.stages);
+  const playedStages = MAJOR_STAGES.filter((stage) => userSeries.some((series) => series.phase === stage));
+  const entryStage = playedStages[0];
+  const stage3 = stageRecord('stage3');
+  const qualified = stage3.qualified;
   const champion = tournament.championId === userId;
-  const placement = tournament.campaigns.find((campaign) => campaign.organizationId === userId)?.placement ?? 'placementStage3';
+  // The engine only ranks completed rounds, so until the user closes a series the placement is the entry stage.
+  const campaign = tournament.campaigns.find((campaign) => campaign.organizationId === userId);
+  const hasCampaignResult = (campaign?.seriesWon ?? 0) + (campaign?.seriesLost ?? 0) > 0;
+  const placement = (hasCampaignResult ? campaign?.placement : undefined)
+    ?? (entryStage ? STAGE_PLACEMENT[entryStage] : 'placementStage3');
   // Awards look at the whole field, so they are computed before the non-user kill feeds are stripped below.
   const awards = computeMajorAwards(tournament.rounds, tournament.championId);
   const playoffs: PlayoffsResult | undefined = qualified
     ? {
       championId: tournament.championId ?? '',
       placement,
-      userMatches: userSeries.filter((series) => series.phase !== 'stage3'),
+      userMatches: userSeries.filter((series) => !isMajorStage(series.phase)),
       allMatches: tournament.rounds.filter((round) => round.phase !== 'swiss').flatMap((round) => round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)))
     }
     : undefined;
   return {
-    stage3: { wins, losses, qualified, matches: stage3Matches },
+    stage3,
     playoffs,
     matches: userSeries,
     champion,
     placement,
+    ...(staged ? { stages: Object.fromEntries(playedStages.map((stage) => [stage, stageRecord(stage)])) as Partial<Record<MajorStage, Stage3Result>>, entryStage } : {}),
     tournament: {
       // Only the user's matches keep their kill feeds: the whole field would not fit comfortably in localStorage.
-      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, series: round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)) })),
+      rounds: tournament.rounds.map((round) => ({ number: round.number, phase: round.phase, ...(round.stage ? { stage: round.stage } : {}), series: round.series.map((series) => series.userMatch ? series : stripSeriesDetails(series)) })),
       standings: tournament.standings,
       championId: tournament.championId,
-      awards
+      awards,
+      ...(tournament.stages ? { stages: tournament.stages } : {})
     }
   };
 }

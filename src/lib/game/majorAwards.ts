@@ -1,4 +1,4 @@
-import type { MajorAwards, MajorPlayerAward, MajorTeamAward, MapResult, RoundDetail, SeriesResult, TeamSide } from './types';
+import { STAGE_PLACEMENT, type MajorAwards, type MajorPlayerAward, type MajorStage, type MajorTeamAward, type MapResult, type RoundDetail, type SeriesResult, type TeamSide } from './types';
 
 /**
  * Tournament-wide awards derived from the kill feed of every map that carried one.
@@ -62,8 +62,11 @@ export function placementsOf(rounds: AwardsRound[], championId: string | null): 
   for (const round of rounds) {
     for (const series of round.series) {
       if (!series.winnerId) continue;
+      // Rounds come in order, so a team that climbs from Stage 1 to Stage 2 ends up with the later stage.
+      const stagePlacement = series.phase in STAGE_PLACEMENT ? STAGE_PLACEMENT[series.phase as MajorStage] : null;
       for (const team of [series.teamA, series.teamB]) {
-        if (!placements.has(team.id)) placements.set(team.id, 'placementStage3');
+        if (stagePlacement) placements.set(team.id, stagePlacement);
+        else if (!placements.has(team.id)) placements.set(team.id, 'placementStage3');
       }
       const loserId = series.winnerId === series.teamA.id ? series.teamB.id : series.teamA.id;
       if (series.phase === 'quarterfinal') placements.set(loserId, 'placement5to8');

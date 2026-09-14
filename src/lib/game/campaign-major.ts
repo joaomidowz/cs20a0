@@ -24,8 +24,9 @@ import {
   toResult,
   type TournamentEngineState
 } from './online/tournament-engine';
+import { buildDynastyStageFields } from './dynasty/field';
 import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
-import type { GameMode, HistoricalTeam, MajorRun, MapId, MapSide, OrgStyle, Player, SelectedPlayer, SeriesResult, TimeoutTiming } from './types';
+import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming } from './types';
 
 /**
  * The campaign Major played round by round: the user's series stop for the veto, the side, the economy call and the
@@ -64,6 +65,8 @@ export interface CampaignMajorOptions {
   mode?: GameMode;
   /** Series already played in a saved campaign, restored instead of simulated again. */
   played?: Record<string, SeriesResult>;
+  /** Dinastia: the Major runs three Swiss stages with fields by tier and the user enters at this stage. */
+  dynastyEntryStage?: MajorStage;
 }
 
 export function createCampaignMajor(
@@ -76,10 +79,15 @@ export function createCampaignMajor(
   options: CampaignMajorOptions = {}
 ): CampaignMajorState {
   const { user, field, mapContext, tournamentSeed } = createMajorField(players, style, teams, allPlayers, seed, lineup, options);
+  const userOrganization = { id: user.id, name: user.name, seed: 1, team: user, human: true };
+  const stageFields = options.dynastyEntryStage
+    ? buildDynastyStageFields({ teams, allPlayers, user: userOrganization, entryStage: options.dynastyEntryStage, seed: tournamentSeed })
+    : undefined;
   const engine = createTournamentEngine({
-    organizations: [{ id: user.id, name: user.name, seed: 1, team: user, human: true }],
+    organizations: [userOrganization],
     botPool: field,
-    entryStage: 'stage3',
+    entryStage: options.dynastyEntryStage ?? 'stage3',
+    ...(stageFields ? { stageFields } : {}),
     seed: tournamentSeed,
     mapContext,
     // 13a0: every offline series is BO3 except the BO5 final.
@@ -88,11 +96,18 @@ export function createCampaignMajor(
     interactiveVeto: (left, right) => left.human || right.human
   });
   const played = options.played ?? {};
+  const emptyStage = { wins: 0, losses: 0, qualified: false, matches: [] };
   const state: CampaignMajorState = {
     userTeamId: user.id,
     engine,
     confirmedSeriesIds: Object.keys(played),
-    run: { stage3: { wins: 0, losses: 0, qualified: false, matches: [] }, matches: [], champion: false, placement: 'placementStage3' },
+    run: {
+      stage3: emptyStage,
+      matches: [],
+      champion: false,
+      placement: options.dynastyEntryStage ? STAGE_PLACEMENT[options.dynastyEntryStage] : 'placementStage3',
+      ...(options.dynastyEntryStage ? { stages: {}, entryStage: options.dynastyEntryStage } : {})
+    },
     restoredSeriesIds: [],
     finished: false
   };
