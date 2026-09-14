@@ -2,7 +2,7 @@
   import { getSelectedRoleLabel } from '$lib/game/roleRules';
   import { translatePlacement } from '$lib/game/i18n';
   import { getRunMvpScore } from '$lib/game/runStats';
-  import { buildOfflineRunCardReport, type RunCardReport } from '$lib/game/runCard';
+  import { buildOfflineRunCardReport, type LineageEntry, type RunCardReport } from '$lib/game/runCard';
   import type { GameMode, Language, MajorRun, Player, PlayerRunStats, SelectedPlayer } from '$lib/game/types';
 
   export let seed: string;
@@ -14,6 +14,9 @@
   export let mode: GameMode | null = null;
   export let contextTags: string[] = [];
   export let seedLabel = 'SEED';
+  export let lineage: LineageEntry[] = [];
+  export let lineageLabel = 'LINEAGE';
+  export let eraLabel: string | null = null;
   export let language: Language = 'en';
   export let labels: {
     champion: string;
@@ -70,6 +73,15 @@
     {/each}
   </div>
 
+  {#if lineage.length}
+    <div class="share-lineage">
+      <small>{lineageLabel}{#if eraLabel} · {eraLabel}{/if}</small>
+      {#each lineage.slice(-5) as entry (entry.majorNumber)}
+        <p class:champion={entry.champion}><b>#{entry.majorNumber}</b><span>{translatePlacement(language, entry.placement)}</span><em>{entry.lineup.join(' · ')}</em></p>
+      {/each}
+    </div>
+  {/if}
+
   <footer>
     <div><small>{labels.mvp}</small><strong>{mvpPlayer?.nickname ?? '—'}</strong></div>
     <div><small>RUN RATING</small><strong>{mvpStat?.runRating.toFixed(2) ?? '—'}</strong></div>
@@ -79,7 +91,8 @@
 <style>
   .share-card{position:relative;width:min(540px,100%);min-height:675px;margin:24px auto;padding:24px;overflow:hidden;border:1px solid #2d383d;color:#edf2f3;background:radial-gradient(circle at 100% 0,rgba(200,255,50,.13),transparent 34%),linear-gradient(145deg,#0e1316,#050708 72%);box-shadow:0 28px 90px rgba(0,0,0,.45);font-family:Arial,sans-serif}.share-card.champion{border-color:#88a92d;box-shadow:0 28px 90px rgba(0,0,0,.45),0 0 40px rgba(200,255,50,.08)}
   .share-card::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(to bottom,#000,transparent 88%)}
-  header,.share-result,.share-lineup,footer{position:relative;z-index:1}
+  header,.share-result,.share-lineup,.share-lineage,footer{position:relative;z-index:1}
+  .share-lineage{display:grid;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid #283139}.share-lineage small{color:#89939a;font-size:.5rem;letter-spacing:.18em}.share-lineage p{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px;margin:0;font-size:.62rem;align-items:baseline}.share-lineage p.champion b,.share-lineage p.champion span{color:#c8ff32}.share-lineage em{overflow:hidden;color:#89939a;text-overflow:ellipsis;white-space:nowrap;font-style:normal}
   header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid #283139}
   .share-brand{display:flex;align-items:center;gap:9px}.share-brand>span{display:grid;place-items:center;width:42px;height:34px;color:#091006;background:#c8ff32;font-size:.75rem;font-weight:900;clip-path:polygon(0 0,100% 0,84% 100%,0 100%)}.share-brand strong{font-size:1.45rem;text-transform:uppercase}
   .share-seed{text-align:right}.share-seed small,.share-seed b{display:block}.share-seed small{color:#89939a;font-size:.48rem;letter-spacing:.18em}.share-seed b{margin-top:3px;color:#c8ff32;font-size:.8rem;letter-spacing:.12em}
