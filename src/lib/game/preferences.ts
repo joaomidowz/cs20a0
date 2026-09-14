@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { DEFAULT_TIP_STATE, parseTipState, serializeTipState, type TipState } from './dynasty/tips';
 
 export type SimulationMode = 'manual' | 'auto';
 export type SimulationSpeed = 'normal' | 'fast' | 'ultra';
@@ -69,4 +70,33 @@ export function loadStrategicPreferences(): StrategicAutomationPreferences {
 export function saveStrategicPreferences(preferences: StrategicAutomationPreferences) {
   if (!browser) return;
   for (const key of STRATEGIC_KEYS) localStorage.setItem(`cs13a0:strategy:${key}`, String(preferences[key]));
+}
+
+export const TIP_STORAGE_KEY = 'cs13a0-dynasty-tips-v1';
+
+const browserStorage = (): Storage | null => {
+  try {
+    return browser ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Dicas vistas da Dinastia. Storage ausente, bloqueado ou corrompido nunca quebra o jogo. */
+export function loadTipPreferences(storage: Pick<Storage, 'getItem'> | null = browserStorage()): TipState {
+  if (!storage) return DEFAULT_TIP_STATE;
+  try {
+    return parseTipState(storage.getItem(TIP_STORAGE_KEY));
+  } catch {
+    return DEFAULT_TIP_STATE;
+  }
+}
+
+export function saveTipPreferences(state: TipState, storage: Pick<Storage, 'setItem'> | null = browserStorage()): void {
+  if (!storage) return;
+  try {
+    storage.setItem(TIP_STORAGE_KEY, serializeTipState(state));
+  } catch {
+    /* storage cheio ou bloqueado: a dica só volta a aparecer na próxima sessão */
+  }
 }
