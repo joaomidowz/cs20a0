@@ -1,6 +1,7 @@
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { Coach, CombatTeam, DynastyMajorPlan, HistoricalTeam, Player, SelectedPlayer, SeriesPlan } from '../types';
 import { applyCoachToTeam, coachAffinity } from './coach';
+import { offRolePlayerIds, positionMultiplier } from './position';
 
 export const createDynastyMajorPlan = (majorNumber: number, style: SeriesPlan['style']): DynastyMajorPlan => ({
   majorNumber,
@@ -60,5 +61,8 @@ export function buildDynastyUserTeam({ players, lineup, seed, coach, teams, plan
   if (coach) team = applyCoachToTeam(team, coach, coachAffinity(coach, players, teams));
   team = applyCoachTactic(team, coach, plan);
   if (plan.study) team = { ...team, power: team.power * 1.015 };
+  // Playing out of position never blocks the lineup; it costs strength instead.
+  const offRole = offRolePlayerIds(players, lineup).length;
+  if (offRole) team = { ...team, power: team.power * positionMultiplier(offRole) };
   return team;
 }
