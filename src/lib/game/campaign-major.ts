@@ -26,7 +26,7 @@ import {
 } from './online/tournament-engine';
 import { buildDynastyStageFields } from './dynasty/field';
 import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
-import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming } from './types';
+import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming, type Coach } from './types';
 
 /**
  * The campaign Major played round by round: the user's series stop for the veto, the side, the economy call and the
@@ -67,6 +67,8 @@ export interface CampaignMajorOptions {
   played?: Record<string, SeriesResult>;
   /** Dinastia: the Major runs three Swiss stages with fields by tier and the user enters at this stage. */
   dynastyEntryStage?: MajorStage;
+  /** Dinastia: coach of the user's organization. */
+  coach?: Coach;
 }
 
 export function createCampaignMajor(

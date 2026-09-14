@@ -5,6 +5,7 @@ import {
   MAJOR_STAGES,
   STAGE_PLACEMENT,
   isMajorStage,
+  type Coach,
   type CombatTeam,
   type GameMode,
   type OnlineGameMode,
@@ -23,6 +24,7 @@ import {
   type Stage3Result
 } from './types';
 import { createMapState, flipMapResult, playMapToEnd } from './rounds';
+import { applyCoachToTeam, coachAffinity } from './dynasty/coach';
 import {
   createBotMapStrategy,
   createUserMapStrategy,
@@ -460,10 +462,12 @@ export function createMajorField(
   allPlayers: Player[],
   seed: string,
   lineup: SelectedPlayer[] = [],
-  options: { selectedMaps?: MapId[]; mode?: GameMode } = {}
+  options: { selectedMaps?: MapId[]; mode?: GameMode; coach?: Coach } = {}
 ) {
   const lineupKey = players.map((player) => player.id).join('|');
-  const user = calculateUserTeamPower(players, style, lineup, seed);
+  const baseUser = calculateUserTeamPower(players, style, lineup, seed);
+  // Dinastia only: the coach is passed explicitly, so every other mode keeps exactly the same user team.
+  const user = options.coach ? applyCoachToTeam(baseUser, options.coach, coachAffinity(options.coach, players, teams)) : baseUser;
   let mapContext: MapSimulationContext | undefined;
   const selectedMaps = options.selectedMaps ?? [];
   if (isValidLineupMapSelection(selectedMaps, players, teams)) {

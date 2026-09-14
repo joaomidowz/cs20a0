@@ -417,7 +417,7 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
   const timing = timeoutTiming(state.teams[side].consecutiveLosses);
   state.teams[side].timeoutsRemaining -= 1;
   state.pendingTimeout = side;
-  state.pendingTimeoutBonus = timeoutBonus(state.mode, timing);
+  state.pendingTimeoutBonus = timeoutBonus(state.mode, timing) * (state.teams[side].team.timeoutFactor ?? 1);
   state.pendingTimeoutTiming = timing;
   state.decisions.push({ kind: 'timeout', teamId, mapIndex: state.mapNumber - 1, roundNumber: state.rounds.length + 1, auto, timing });
   return true;
@@ -429,7 +429,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   const pistolRound = roundIndex === 0 || roundIndex === HALF_ROUNDS;
   const overtime = roundIndex >= REGULATION_ROUNDS;
   // Whoever is CT gets the map's CT tilt; each team's style adds its own preference for the side it is playing.
-  const sideBias = (sideA === 'ct' ? 1 : -1) * ((state.mapId ? MAP_SIDE_BIAS[state.mapId] : 0) + styleSidePreference(a.team.style) + styleSidePreference(b.team.style));
+  const sideBias = (sideA === 'ct' ? 1 : -1) * ((state.mapId ? MAP_SIDE_BIAS[state.mapId] : 0) + styleSidePreference(a.team.style) + styleSidePreference(b.team.style) + (a.team.coachSidePreference ?? 0) + (b.team.coachSidePreference ?? 0));
   let probability: number;
   if (pistolRound) {
     const pistolSkill = (rosterAverage(a.roster, ['firepower', 'entry'], 80) - rosterAverage(b.roster, ['firepower', 'entry'], 80)) * 0.004;
