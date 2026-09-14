@@ -512,6 +512,12 @@ export interface DynastyMajorSummary {
   coachId: string | null;
   movesMade: number;
   stats: PlayerRunStats[];
+  /** Ruleset used by this Major. Missing in legacy summaries. */
+  rules?: 1 | 2;
+  /** Overall at the start of the Major, keyed by player id. */
+  overalls?: Record<string, number>;
+  /** Evolution applied after this Major, once its transfer window is confirmed. */
+  evolution?: EvolutionEntry[];
 }
 
 /** Attribute drift a Dinastia player carries over the dataset version (used from delivery C on). */
@@ -574,6 +580,8 @@ export interface WindowState {
 
 export interface DynastyState {
   majorNumber: number;
+  /** Ruleset locked for the Major in progress. Saves without it are legacy v1. */
+  majorRules: 1 | 2;
   /** Whole dollars. */
   cash: number;
   coachId: string | null;

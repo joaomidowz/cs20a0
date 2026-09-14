@@ -29,6 +29,8 @@
   export let controlledDelay = 1500;
   export let interactiveTeamId: string | null = null;
   export let interactiveTeamIds: string[] = [];
+  /** Optional campaign label such as "Stage 2 · MD1". Other consumers retain the historical phase label. */
+  export let phaseLabel: string | null = null;
   export let labels: {
     start: string;
     skip: string;
@@ -204,7 +206,7 @@
 <section class="series panel">
   <div class="series-header">
     <div>
-      <span class="eyebrow">{series.phase.toUpperCase()} · MD{series.bestOf}</span>
+      <span class="eyebrow">{phaseLabel ?? `${series.phase.toUpperCase()} · MD${series.bestOf}`}</span>
       <h2 class="series-teams">
         <button
           type="button"

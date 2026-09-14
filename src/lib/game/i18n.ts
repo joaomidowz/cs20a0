@@ -164,6 +164,7 @@ const pt = {
   ,autoDesc: 'O Major avança sozinho.'
   ,manualDesc: 'Controle série por série.'
   ,waitingResult: 'Aguardando primeiro resultado...'
+  ,campaignRestoreFailed: 'Não foi possível restaurar esta campanha. O progresso salvo foi mantido.'
   ,statsSeed: 'Dados fictícios, coerentes e reproduzíveis pela seed.'
   ,map: 'Mapa'
   ,final: 'FINAL'
@@ -424,6 +425,7 @@ const dictionaries: Record<Language, Record<TranslationKey, string>> = {
 };
 
 Object.assign(dictionaries.es, {
+  campaignRestoreFailed: 'No se pudo restaurar esta campaña. El progreso guardado se mantuvo.',
   overviewInPlayoffs: 'En los playoffs', pistolRound: 'Pistol', pistols: 'Pistols', comeback: 'Remontada', halfTime: 'Descanso', tacticalTimeout: 'Pausa táctica', roundInProgress: 'en curso', timeoutsLeft: 'pausa restante', timeoutCalled: 'Pausa táctica pedida', timeoutWindow: 'Momento ideal para pausar', timeoutEarly: 'Pausa temprana · efecto reducido', timeoutLate: 'Pausa tardía · efecto reducido', timeoutWindowHint: 'Pausar entre 2 y 4 derrotas seguidas da el efecto máximo',
   pickSide: 'Elige el lado inicial', pickSideHint: 'Tu rival eligió el mapa. ¿De qué lado empiezas?', pickSideDecider: 'Ganaste el cuchillo. ¿De qué lado empiezas?', sideCt: 'Empezar de CT', sideT: 'Empezar de TR',
   ecoCall: 'Call de economía', ecoCallHint: 'Perdieron el pistol. ¿Cómo jugar la segunda ronda?', ecoCallForce: 'Forzar', ecoCallForceHint: 'Compra lo que alcanza: opción real en la ronda 2, economía en riesgo si pierden.', ecoCallSave: 'Guardar', ecoCallSaveHint: 'Cede la ronda 2 para asegurar un full buy en la ronda 3.', money: 'dinero',
@@ -537,6 +539,7 @@ Object.assign(dictionaries.es, {
 });
 
 Object.assign(dictionaries.en, {
+  campaignRestoreFailed: 'This campaign could not be restored. Your saved progress was kept.',
   playOnline: 'Play online',
   quarterfinal: 'Quarterfinals',
   semifinal: 'Semifinal',

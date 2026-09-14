@@ -44,6 +44,7 @@
     type CampaignLiveView,
     type CampaignMajorState
   } from '$lib/game/campaign-major';
+  import { advanceCursor, currentUserSeries, stageRecord } from '$lib/game/campaignProgress';
   import type { PendingSeriesDecision } from '$lib/game/online/live-series';
   import type { MajorRun } from '$lib/game/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
@@ -165,6 +166,7 @@
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
   let campaign: CampaignMajorState | null = null;
+  let advancing = false;
   let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
   let liveTimer: number | null = null;
   let liveRunning = false;
@@ -255,7 +257,7 @@
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
-  $: rerollsMax = $game.mode === 'premier' || $game.mode === 'dynasty' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
+  $: rerollsMax = $game.mode === 'premier' ? 3 : $game.mode === 'dynasty' || $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: dynastyCoach = isDynasty && $game.dynasty?.coachId ? coachById.get($game.dynasty.coachId) ?? null : null;
   $: baseUserTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
@@ -274,7 +276,8 @@
     stats: getOrgStrengths()
   } : null;
   $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
-  $: currentSeries = $game.majorRun?.matches[$game.completedSeries] ?? null;
+  $: confirmedSeriesIds = campaign?.confirmedSeriesIds ?? $game.majorRun?.matches.slice(0, $game.completedSeries).map((match) => match.id) ?? [];
+  $: currentSeries = $game.majorRun ? currentUserSeries($game.majorRun.matches, confirmedSeriesIds) : null;
   $: campaignView = campaign ? getCampaignLiveView(campaign) : null;
   $: campaignPending = campaign ? pendingCampaignDecision(campaign) : null;
   $: queueAutomation(campaignPending, campaignView, strategicPreferences);
@@ -282,10 +285,11 @@
   $: if (liveRunning && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
   $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
-  $: completedMatches = $game.majorRun?.matches.slice(0, $game.completedSeries) ?? [];
+  $: completedMatches = $game.majorRun?.matches.filter((match) => confirmedSeriesIds.includes(match.id)) ?? [];
   $: liveStage = currentSeries && isMajorStage(currentSeries.phase) ? currentSeries.phase : null;
-  $: stageWins = completedMatches.filter((match) => match.phase === (liveStage ?? 'stage3') && match.winnerId === 'user').length;
-  $: stageLosses = completedMatches.filter((match) => match.phase === (liveStage ?? 'stage3') && match.winnerId !== 'user').length;
+  $: liveStageRecord = stageRecord($game.majorRun?.matches ?? [], liveStage ?? 'stage3', confirmedSeriesIds, 'user');
+  $: stageWins = liveStageRecord.wins;
+  $: stageLosses = liveStageRecord.losses;
   $: hasStageRecord = stageWins + stageLosses > 0;
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
@@ -537,10 +541,11 @@
     resetSupportNudge();
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
+    const dynastyRules = isDynasty && $game.dynasty ? (!$game.majorRun ? 2 : $game.dynasty.majorRules) : undefined;
     campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier',
-      ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
+      ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules } : {}),
       ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
     });
     const majorRun = campaign.run;
@@ -548,7 +553,7 @@
     awaitingAdvance = false;
     autoPausedHalf = '';
     liveRunning = false;
-    update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3' });
+    update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3', ...(isDynasty && $game.dynasty && dynastyRules ? { dynasty: { ...$game.dynasty, majorRules: dynastyRules } } : {}) });
     scheduleSupportNudge();
   }
 
@@ -579,15 +584,15 @@
         selectedMaps: $game.selectedMaps,
         mode: $game.mode ?? 'premier',
         played,
-        ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
+        ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules: $game.dynasty.majorRules } : {}),
         ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
       });
       const expected = Object.keys(played).length;
       const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
-      if (restored.restoredSeriesIds.length !== expected || wonBack < expected) return;
+      if (restored.restoredSeriesIds.length !== expected || wonBack < expected) { showToast(t('campaignRestoreFailed')); return; }
       campaign = restored;
       update({ majorRun: restored.run, playedSeries: campaignPlayedSeries(restored) });
-    } catch { /* a run from an older version keeps the Major it already had */ }
+    } catch { showToast(t('campaignRestoreFailed')); }
   }
 
   function setStrategicPreferences(value: StrategicAutomationPreferences) {
@@ -732,22 +737,39 @@
   }
 
   async function advanceSeries() {
+    if (advancing) return;
+    advancing = true;
     clearAdvanceTimer();
     awaitingAdvance = false;
     stopLiveTick();
     autoPausedHalf = '';
-    if (campaign) commitCampaign(advanceCampaignMajor(campaign));
-    if (!$game.majorRun) return;
-    const nextIndex = $game.completedSeries + 1;
-    const next = $game.majorRun?.matches[nextIndex];
-    if (!next) {
-      update({ completedSeries: nextIndex, phase: 'result' });
-      settleDynastyIfNeeded();
+    if (campaign) {
+      const nextCampaign = advanceCampaignMajor(campaign);
+      commitCampaign(nextCampaign);
+      const cursor = advanceCursor(nextCampaign.run.matches, nextCampaign.confirmedSeriesIds, nextCampaign.finished);
+      update(cursor);
+      if (cursor.phase === 'result') {
+        advancing = false;
+        settleDynastyIfNeeded();
+        return;
+      }
+    } else if ($game.majorRun) {
+      const nextIndex = $game.completedSeries + 1;
+      const next = $game.majorRun.matches[nextIndex];
+      if (!next) {
+        update({ completedSeries: nextIndex, phase: 'result' });
+        advancing = false;
+        settleDynastyIfNeeded();
+        return;
+      }
+      update({ completedSeries: nextIndex, phase: isMajorStage(next.phase) ? 'stage3' : 'playoffs' });
+    } else {
+      advancing = false;
       return;
     }
-    update({ completedSeries: nextIndex, phase: isMajorStage(next.phase) ? 'stage3' : 'playoffs' });
     await tick();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    advancing = false;
   }
 
   function compositionWarnings() {
@@ -777,7 +799,8 @@
     const run = $game.majorRun;
     if (!isDynasty || !$game.dynasty || !run || $game.phase !== 'result') return;
     if ($game.dynasty.prizeCreditedFor >= $game.dynasty.majorNumber) return;
-    update({ dynasty: settleDynastyMajor($game.dynasty, run, { seed: $game.seed, lineup: selectedLineup, stats: $game.stats }) });
+    const overalls = Object.fromEntries(selectedPlayers.flatMap((player) => typeof player.overall === 'number' ? [[player.id, player.overall]] : []));
+    update({ dynasty: settleDynastyMajor($game.dynasty, run, { seed: $game.seed, lineup: selectedLineup, stats: $game.stats, overalls }) });
   }
 
   /** Credits the Major and opens the transfer window: evolution, proposals, market and coach before the next Major. */
@@ -928,7 +951,7 @@
     <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
   {/if}
   {#if isDynasty && $game.dynasty && $game.phase !== 'home' && $game.phase !== 'mode-select'}
-    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} eraName={$game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} /></div>
+    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} eraName={$game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} liveStage={liveStage ? `${t(liveStage)} · ${stageWins}-${stageLosses}` : null} /></div>
   {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
@@ -1317,6 +1340,7 @@
           <SeriesViewer
             offlineEffects={true}
             series={currentSeries}
+            phaseLabel={`${getPhaseLabel(currentSeries.phase)} · MD${currentSeries.bestOf}`}
             delay={SPEEDS[$game.simSpeed]}
             auto={campaignChecked && !campaignView && $game.simMode === 'auto'}
             controlled={Boolean(campaignView)}

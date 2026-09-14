@@ -52,6 +52,13 @@ export interface TournamentEngineOptions {
   mapContext?: MapSimulationContext;
   /** Format of every Swiss series. Defaults to BO3 (the Major's advancement/elimination format for every round). */
   swissBestOf?: 1 | 3;
+  /** Per-pairing Swiss format. When set, takes precedence over `swissBestOf`. */
+  swissBestOfFor?: (context: {
+    stage: MajorStage;
+    roundNumber: number;
+    left: PublicStanding;
+    right: PublicStanding;
+  }) => 1 | 3;
   /** Who takes the decisions of an organization. Defaults to humans → 'human', bots → 'bot'. */
   controllerFor?: (organization: TournamentOrganization) => Controller;
   /** Whether a series waits for the two organizations to veto by hand. Defaults to human vs human only. */
@@ -321,7 +328,7 @@ export function startNextRound(state: TournamentEngineState): TournamentRoundSta
     const roundNumber = swissRoundCount(state) + 1;
     const stage = state.stage;
     const series = findPairings(active).map(([left, right], index) => {
-      const bestOf: 1 | 3 = state.options.swissBestOf ?? 3;
+      const bestOf: 1 | 3 = state.options.swissBestOfFor?.({ stage, roundNumber, left, right }) ?? state.options.swissBestOf ?? 3;
       const keys = swissSeriesKeys(state, roundNumber, index, left.organizationId, right.organizationId);
       return createSeries(state, state.byId.get(left.organizationId)!, state.byId.get(right.organizationId)!, bestOf, stage, keys.id, keys.seed);
     });

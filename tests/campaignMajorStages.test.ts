@@ -17,8 +17,8 @@ import type { MajorStage, SelectedPlayer } from '../src/lib/game/types';
 const roster = getTeamPlayers(teams[0]).slice(0, 5);
 const lineup: SelectedPlayer[] = roster.map((player) => ({ playerId: player.id, selectedSlotRole: getEligibleSlotRoles(player)[0] ?? 'rifler' }));
 const selectedMaps = getDefaultMapSelection(roster, teams);
-const create = (seed: string, dynastyEntryStage: MajorStage, played = {}) =>
-  createCampaignMajor(roster, 'balanced', teams, players, seed, lineup, { selectedMaps, mode: 'dynasty', dynastyEntryStage, played });
+const create = (seed: string, dynastyEntryStage: MajorStage, played = {}, dynastyRules: 1 | 2 = 2) =>
+  createCampaignMajor(roster, 'balanced', teams, players, seed, lineup, { selectedMaps, mode: 'dynasty', dynastyEntryStage, dynastyRules, played });
 
 const resolveAll = (state: CampaignMajorState, guard = 40) => {
   let next = state;
@@ -44,6 +44,12 @@ describe('campanha da Dinastia em três estágios', () => {
     expect(major.run.placement).toBe('placementStage1');
     expect(major.run.tournament?.stages?.[0]).toMatchObject({ stage: 'stage1' });
     expect(major.run.tournament?.rounds[0]).toMatchObject({ phase: 'swiss', stage: 'stage1' });
+    expect(major.run.tournament?.rounds[0].series.every((series) => series.bestOf === 1)).toBe(true);
+  });
+
+  it('preserva MD3 em saves v1 e usa MD3 no Stage 3 v2', () => {
+    expect(create('dinastia-v1', 'stage1', {}, 1).run.tournament?.rounds[0].series.every((series) => series.bestOf === 3)).toBe(true);
+    expect(create('dinastia-v2-stage3', 'stage3').run.tournament?.rounds.at(-1)?.series.every((series) => series.bestOf === 3)).toBe(true);
   });
 
   it('joga até o fim com registro por estágio e colocação válida', () => {

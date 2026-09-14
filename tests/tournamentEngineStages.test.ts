@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTournamentEngine, type TournamentOrganization } from '../src/lib/game/online/tournament-engine';
 import { runOnlineTournament } from '../src/lib/game/online/tournament';
+import { dynastySwissBestOf } from '../src/lib/game/dynasty/format';
 import type { CombatTeam, MajorStage } from '../src/lib/game/types';
 
 const organization = (id: string, power: number, human = false): TournamentOrganization => {
@@ -88,5 +89,18 @@ describe('motor com três estágios', () => {
     expect('stages' in legacy).toBe(false);
     expect('stage' in legacy.rounds[0]).toBe(false);
     expect(legacy.rounds[0].series[0].id).toMatch(/^swiss-r1-m1-/);
+  });
+
+  it('permite formato por record sem alterar o padrão do motor', () => {
+    const result = runOnlineTournament({ organizations: [user], botPool: [], entryStage: 'stage1', stageFields: fields('stage1'), seed: 'formato-v2', swissBestOfFor: dynastySwissBestOf });
+    const stage1 = result.rounds.filter((round) => round.stage === 'stage1');
+    expect(stage1[0].series.every((series) => series.bestOf === 1)).toBe(true);
+    expect(stage1[2].series.some((series) => series.bestOf === 1)).toBe(true);
+    expect(stage1[2].series.some((series) => series.bestOf === 3)).toBe(true);
+    expect(stage1.slice(3).every((round) => round.series.every((series) => series.bestOf === 3))).toBe(true);
+    expect(result.rounds.filter((round) => round.stage === 'stage3').every((round) => round.series.every((series) => series.bestOf === 3))).toBe(true);
+
+    const legacy = runOnlineTournament({ organizations: [user], botPool: [], entryStage: 'stage1', stageFields: fields('stage1'), seed: 'formato-v1' });
+    expect(legacy.rounds.filter((round) => round.phase === 'swiss').every((round) => round.series.every((series) => series.bestOf === 3))).toBe(true);
   });
 });

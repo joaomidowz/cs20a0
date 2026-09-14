@@ -116,6 +116,7 @@ describe('coach e confirmação', () => {
     expect(next.coachId).toBe(coach.id);
     expect(next.window).toBeNull();
     expect(next.history.at(-1)?.movesMade).toBe(1);
+    expect(next.history.at(-1)?.evolution).toEqual(moved.evolution);
     expect(Object.keys(next.playerOverrides).sort()).toEqual(['l1', 'l2', 'l3', 'l4']);
     expect(next.playerOverrides.l2.drift.overall).toBe(-4);
   });

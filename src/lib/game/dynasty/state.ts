@@ -3,6 +3,7 @@ import { awardsBonus, prizeForPlacement } from './prizes';
 
 export const createDynastyState = (): DynastyState => ({
   majorNumber: 1,
+  majorRules: 2,
   cash: 0,
   coachId: null,
   coachRerollsUsed: 0,
@@ -26,6 +27,7 @@ export interface SettleInput {
   seed: string;
   lineup: SelectedPlayer[];
   stats: PlayerRunStats[];
+  overalls?: Record<string, number>;
 }
 
 /** Credits prize and bonus once, records the Major and decides the next entry. A second call for the same Major returns the same state. */
@@ -43,7 +45,9 @@ export function settleDynastyMajor(dynasty: DynastyState, run: MajorRun, input: 
     lineup: input.lineup,
     coachId: dynasty.coachId,
     movesMade: 0,
-    stats: input.stats
+    stats: input.stats,
+    rules: dynasty.majorRules,
+    ...(input.overalls ? { overalls: input.overalls } : {})
   };
   const next = entryForPlacement(run.placement);
   return {
@@ -60,7 +64,7 @@ export function settleDynastyMajor(dynasty: DynastyState, run: MajorRun, input: 
 /** Opens the next Major of the dynasty. Only valid once the current one was settled. */
 export function beginNextDynastyMajor(dynasty: DynastyState): DynastyState {
   if (dynasty.prizeCreditedFor < dynasty.majorNumber) throw new Error('Settle the current Major before starting the next one');
-  return { ...dynasty, majorNumber: dynasty.majorNumber + 1, window: null };
+  return { ...dynasty, majorNumber: dynasty.majorNumber + 1, majorRules: 2, window: null };
 }
 
 const isStage = (value: unknown): value is MajorStage => value === 'stage1' || value === 'stage2' || value === 'stage3';
@@ -82,6 +86,7 @@ export function ensureDynastyState(saved: unknown): DynastyState {
   const raw = saved as Partial<Record<keyof DynastyState, unknown>>;
   return {
     ...base,
+    majorRules: raw.majorRules === 2 ? 2 : 1,
     majorNumber: positiveInt(raw.majorNumber, 1, 1),
     cash: typeof raw.cash === 'number' && Number.isFinite(raw.cash) ? Math.max(0, Math.round(raw.cash)) : 0,
     coachId: typeof raw.coachId === 'string' ? raw.coachId : null,

@@ -25,6 +25,7 @@ import {
   type TournamentEngineState
 } from './online/tournament-engine';
 import { buildDynastyStageFields } from './dynasty/field';
+import { dynastySwissBestOf } from './dynasty/format';
 import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
 import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming, type Coach } from './types';
 
@@ -67,6 +68,8 @@ export interface CampaignMajorOptions {
   played?: Record<string, SeriesResult>;
   /** Dinastia: the Major runs three Swiss stages with fields by tier and the user enters at this stage. */
   dynastyEntryStage?: MajorStage;
+  /** Version locked by the Dinastia save. Missing/1 keeps the legacy all-MD3 Swiss. */
+  dynastyRules?: 1 | 2;
   /** Dinastia: coach of the user's organization. */
   coach?: Coach;
 }
@@ -94,6 +97,7 @@ export function createCampaignMajor(
     mapContext,
     // 13a0: every offline series is BO3 except the BO5 final.
     swissBestOf: 3,
+    ...(options.dynastyRules === 2 ? { swissBestOfFor: dynastySwissBestOf } : {}),
     controllerFor: (organization) => (organization.human ? 'human' : 'bot'),
     interactiveVeto: (left, right) => left.human || right.human
   });

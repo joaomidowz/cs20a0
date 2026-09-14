@@ -208,7 +208,7 @@ export function confirmWindow(dynasty: DynastyState, state: WindowState, playerB
   const lineup = windowLineup(state);
   const kept = new Set(lineup.map((selected) => selected.playerId));
   const playerOverrides = Object.fromEntries(Object.entries(state.overrides).filter(([playerId]) => kept.has(playerId)));
-  const history = dynasty.history.map((item, index) => (index === dynasty.history.length - 1 ? { ...item, movesMade: state.moves.length } : item));
+  const history = dynasty.history.map((item, index) => (index === dynasty.history.length - 1 ? { ...item, movesMade: state.moves.length, evolution: state.evolution } : item));
   return {
     dynasty: { ...dynasty, cash: windowCash(state), coachId: state.coachChange?.coachId ?? dynasty.coachId, playerOverrides, history, window: null },
     lineup

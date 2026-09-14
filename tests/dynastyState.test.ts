@@ -8,7 +8,7 @@ const input = { seed: 'abc123', lineup: [], stats: [] };
 
 describe('estado da Dinastia', () => {
   it('começa no Stage 1 como Challenger, sem caixa', () => {
-    expect(createDynastyState()).toMatchObject({ majorNumber: 1, cash: 0, status: 'challenger', entryStage: 'stage1', titles: 0, history: [], prizeCreditedFor: 0, coachRerollsUsed: 0 });
+    expect(createDynastyState()).toMatchObject({ majorNumber: 1, majorRules: 2, cash: 0, status: 'challenger', entryStage: 'stage1', titles: 0, history: [], prizeCreditedFor: 0, coachRerollsUsed: 0 });
   });
 
   it('decide a entrada do próximo Major pela colocação', () => {
@@ -36,6 +36,7 @@ describe('estado da Dinastia', () => {
     expect(() => beginNextDynastyMajor(fresh)).toThrow(/Settle/);
     const next = beginNextDynastyMajor(settleDynastyMajor(fresh, run('placementStage2'), input));
     expect(next.majorNumber).toBe(2);
+    expect(next.majorRules).toBe(2);
     expect(next.entryStage).toBe('stage1');
     expect(next.cash).toBe(10_000);
   });
@@ -44,6 +45,8 @@ describe('estado da Dinastia', () => {
     expect(ensureDynastyState(null)).toEqual(createDynastyState());
     expect(ensureDynastyState({ cash: -5, entryStage: 'stage9', status: 'x', majorNumber: 0, history: 'nope' })).toMatchObject({ cash: 0, entryStage: 'stage1', status: 'challenger', majorNumber: 1, history: [] });
     expect(ensureDynastyState({ cash: 20_000, entryStage: 'stage3', status: 'legend', majorNumber: 3, titles: 2, prizeCreditedFor: 2 })).toMatchObject({ cash: 20_000, entryStage: 'stage3', status: 'legend', majorNumber: 3, titles: 2, prizeCreditedFor: 2 });
+    expect(ensureDynastyState({ majorNumber: 3 }).majorRules).toBe(1);
+    expect(ensureDynastyState({ majorNumber: 3, majorRules: 2 }).majorRules).toBe(2);
   });
 
   it('mantém uma janela válida ao carregar e descarta lixo', () => {
