@@ -1,4 +1,5 @@
-import { STAGE_PLACEMENT, type MajorAwards, type MajorPlayerAward, type MajorStage, type MajorTeamAward, type MapResult, type RoundDetail, type SeriesResult, type TeamSide } from './types';
+import { adrOf, analyzeRound, contributionKey, impactOf, kastPercent, rating3, ratingBaseline, rawRating3, swingPerRound, type RoundContribution } from './rating';
+import { STAGE_PLACEMENT, type MajorAwards, type MajorPlayerAward, type MajorStage, type MajorTeamAward, type MapResult, type RatingModel, type RoundDetail, type SeriesResult, type TeamSide } from './types';
 
 /**
  * Tournament-wide awards derived from the kill feed of every map that carried one.
@@ -27,6 +28,15 @@ interface PlayerLine {
   clutches: number;
   openingKills: number;
   multi: { one: number; two: number; triple: number; quad: number; ace: number };
+  assists: number;
+  flashAssists: number;
+  kastRounds: number;
+  damage: number;
+  utilityDamage: number;
+  swing: number;
+  openingDeaths: number;
+  tradeKills: number;
+  tradedDeaths: number;
 }
 
 interface TeamLine {
@@ -78,6 +88,9 @@ export function placementsOf(rounds: AwardsRound[], championId: string | null): 
   return placements;
 }
 
+/** Round analyses reused across calls: the same RoundDetail objects come back on every step of a live Major. */
+const analysisCache = new WeakMap<RoundDetail, { key: string; value: Map<string, RoundContribution> }>();
+
 const PLACEMENT_BONUS: Record<string, number> = {
   placementChampion: 0.12,
   placementRunnerUp: 0.07,
@@ -85,7 +98,7 @@ const PLACEMENT_BONUS: Record<string, number> = {
   placement5to8: 0.02
 };
 
-function accountMap(map: MapResult, series: SeriesResult, players: Map<string, PlayerLine>, teams: Map<string, TeamLine>) {
+function accountMap(map: MapResult, series: SeriesResult, players: Map<string, PlayerLine>, teams: Map<string, TeamLine>, model: RatingModel) {
   const details = map.details ?? [];
   if (!details.length) return;
   const teamOf = (side: TeamSide) => (side === 'a' ? series.teamA : series.teamB);
@@ -95,12 +108,45 @@ function accountMap(map: MapResult, series: SeriesResult, players: Map<string, P
     const key = playerKey(team.id, id);
     let line = players.get(key);
     if (!line) {
-      line = { playerId: id, name, teamId: team.id, teamName: team.name, kills: 0, deaths: 0, headshots: 0, rounds: 0, maps: new Set(), clutches: 0, openingKills: 0, multi: { one: 0, two: 0, triple: 0, quad: 0, ace: 0 } };
+      line = { playerId: id, name, teamId: team.id, teamName: team.name, kills: 0, deaths: 0, headshots: 0, rounds: 0, maps: new Set(), clutches: 0, openingKills: 0, multi: { one: 0, two: 0, triple: 0, quad: 0, ace: 0 }, assists: 0, flashAssists: 0, kastRounds: 0, damage: 0, utilityDamage: 0, swing: 0, openingDeaths: 0, tradeKills: 0, tradedDeaths: 0 };
       players.set(key, line);
     }
     return line;
   };
   const seen = new Set<string>();
+  // Rating 3.0 only: who played the map, their names and how much they set teammates up (assists weigh utility credit).
+  const roster: Record<TeamSide, Set<string>> = { a: new Set(), b: new Set() };
+  const names = new Map<string, string>();
+  const setUp = new Map<string, number>();
+  if (model === 'v3') {
+    for (const detail of details) {
+      for (const kill of detail.kills) {
+        const victimSide: TeamSide = kill.killerSide === 'a' ? 'b' : 'a';
+        roster[kill.killerSide].add(kill.killerId);
+        roster[victimSide].add(kill.victimId);
+        names.set(contributionKey(kill.killerSide, kill.killerId), kill.killerName);
+        names.set(contributionKey(victimSide, kill.victimId), kill.victimName);
+        if (kill.assistId) {
+          roster[kill.killerSide].add(kill.assistId);
+          names.set(contributionKey(kill.killerSide, kill.assistId), kill.assistName ?? kill.assistId);
+          setUp.set(contributionKey(kill.killerSide, kill.assistId), (setUp.get(contributionKey(kill.killerSide, kill.assistId)) ?? 0) + 1);
+        }
+        if (kill.flashAssistId) {
+          roster[kill.killerSide].add(kill.flashAssistId);
+          names.set(contributionKey(kill.killerSide, kill.flashAssistId), kill.flashAssistName ?? kill.flashAssistId);
+          setUp.set(contributionKey(kill.killerSide, kill.flashAssistId), (setUp.get(contributionKey(kill.killerSide, kill.flashAssistId)) ?? 0) + 2);
+        }
+      }
+    }
+  }
+  // While a map is live its roster and utility weights still change; the signature makes the cache recompute then.
+  const mapSignature = model === 'v3'
+    ? [
+      [...roster.a].sort().join(','),
+      [...roster.b].sort().join(','),
+      [...setUp].map(([key, weight]) => `${key}=${weight}`).sort().join(',')
+    ].join('|')
+    : '';
   for (const detail of details) {
     const roundKills = new Map<string, number>();
     detail.kills.forEach((kill, index) => {
@@ -134,6 +180,37 @@ function accountMap(map: MapResult, series: SeriesResult, players: Map<string, P
       const last = [...detail.kills].reverse().find((kill) => kill.killerSide === detail.winner);
       if (last) ensurePlayer(last.killerId, last.killerName, last.killerSide).clutches += 1;
     }
+    if (model === 'v3') {
+      const seed = `${series.id}:${map.map}:${detail.number}`;
+      const cacheKey = `${seed}|${mapSignature}`;
+      const cached = analysisCache.get(detail);
+      let contributions: Map<string, RoundContribution>;
+      if (cached?.key === cacheKey) {
+        contributions = cached.value;
+      } else {
+        contributions = analyzeRound(detail, {
+          roster: { a: [...roster.a], b: [...roster.b] },
+          mapId: map.mapId,
+          seed,
+          utilityWeight: (side, playerId) => 1 + (setUp.get(contributionKey(side, playerId)) ?? 0)
+        });
+        analysisCache.set(detail, { key: cacheKey, value: contributions });
+      }
+      for (const [key, contribution] of contributions) {
+        const playerId = key.slice(2);
+        const line = ensurePlayer(playerId, names.get(key) ?? playerId, contribution.side);
+        line.assists += contribution.assists;
+        line.flashAssists += contribution.flashAssists;
+        if (contribution.kast) line.kastRounds += 1;
+        line.damage += contribution.damage;
+        line.utilityDamage += contribution.utilityDamage;
+        line.swing += contribution.swing;
+        if (contribution.openingDeath) line.openingDeaths += 1;
+        line.tradeKills += contribution.tradeKills;
+        if (contribution.tradedDeath) line.tradedDeaths += 1;
+        seen.add(playerKey(teamOf(contribution.side).id, playerId));
+      }
+    }
   }
   // Every player that appeared on the map played all of its rounds.
   for (const playerId of seen) {
@@ -158,12 +235,34 @@ function accountMap(map: MapResult, series: SeriesResult, players: Map<string, P
   }
 }
 
-const toPlayerAward = (line: PlayerLine, placement: string): MajorPlayerAward => ({
+interface Scoring {
+  model: RatingModel;
+  /** Field baseline for Rating 3.0. */
+  baseline: number;
+}
+
+const ratingFor = (line: PlayerLine, scoring: Scoring) =>
+  scoring.model === 'v3' ? rating3(rawRating3(line), scoring.baseline) : ratingOf(line);
+
+const rating3Fields = (line: PlayerLine) => ({
+  assists: line.assists,
+  flashAssists: line.flashAssists,
+  kast: Number(kastPercent(line).toFixed(1)),
+  adr: Math.round(adrOf(line)),
+  utilityDamage: Number((line.utilityDamage / Math.max(1, line.rounds)).toFixed(1)),
+  swing: Number(swingPerRound(line).toFixed(2)),
+  impact: Number(impactOf(line).toFixed(2)),
+  openingDeaths: line.openingDeaths,
+  tradeKills: line.tradeKills,
+  tradedDeaths: line.tradedDeaths
+});
+
+const toPlayerAward = (line: PlayerLine, placement: string, scoring: Scoring): MajorPlayerAward => ({
   playerId: line.playerId,
   name: line.name,
   teamId: line.teamId,
   teamName: line.teamName,
-  rating: ratingOf(line),
+  rating: ratingFor(line, scoring),
   kills: line.kills,
   deaths: line.deaths,
   kdRatio: round2(line.kills / Math.max(1, line.deaths)),
@@ -173,7 +272,8 @@ const toPlayerAward = (line: PlayerLine, placement: string): MajorPlayerAward =>
   clutches: line.clutches,
   openingKills: line.openingKills,
   multiKills: { triple: line.multi.triple, quad: line.multi.quad, ace: line.multi.ace },
-  placement
+  placement,
+  ...(scoring.model === 'v3' ? rating3Fields(line) : {})
 });
 
 /**
@@ -181,22 +281,25 @@ const toPlayerAward = (line: PlayerLine, placement: string): MajorPlayerAward =>
  * whatever the caller kept (the whole field on the server and in the incremental engines, only the user's series in a
  * stripped saved run). Returns null when no series carried a kill feed.
  */
-export function computeMajorAwards(rounds: AwardsRound[], championId: string | null): MajorAwards | null {
+export function computeMajorAwards(rounds: AwardsRound[], championId: string | null, options: { model?: RatingModel } = {}): MajorAwards | null {
+  const model = options.model ?? 'v3';
   const players = new Map<string, PlayerLine>();
   const teams = new Map<string, TeamLine>();
   for (const round of rounds) {
     for (const series of round.series) {
-      for (const map of series.maps) accountMap(map, series, players, teams);
+      for (const map of series.maps) accountMap(map, series, players, teams, model);
     }
   }
   if (!players.size) return null;
+  const scoring: Scoring = { model, baseline: model === 'v3' ? ratingBaseline([...players.values()]) : 0 };
   const placements = placementsOf(rounds, championId);
   const placementOf = (teamId: string) => placements.get(teamId) ?? 'placementStage3';
   const maxRounds = Math.max(...[...players.values()].map((line) => line.rounds));
   // A player who left early cannot be MVP on a hot map: at least a third of the deepest run is required.
   const eligible = [...players.values()].filter((line) => line.rounds >= Math.max(24, maxRounds / 3));
-  const awards = (eligible.length ? eligible : [...players.values()]).map((line) => toPlayerAward(line, placementOf(line.teamId)));
-  const mvpScore = (award: MajorPlayerAward) => award.rating + (PLACEMENT_BONUS[award.placement] ?? 0);
+  const awards = (eligible.length ? eligible : [...players.values()]).map((line) => toPlayerAward(line, placementOf(line.teamId), scoring));
+  // Rating 3.0 also rewards the rounds a player swung: one percentage point per round is worth 0.01 of MVP score.
+  const mvpScore = (award: MajorPlayerAward) => award.rating + (PLACEMENT_BONUS[award.placement] ?? 0) + (model === 'v3' ? (award.swing ?? 0) / 100 : 0);
   const comparePlayers = (left: MajorPlayerAward, right: MajorPlayerAward) =>
     mvpScore(right) - mvpScore(left)
     || right.kills - left.kills
@@ -208,7 +311,7 @@ export function computeMajorAwards(rounds: AwardsRound[], championId: string | n
   const teamAwards: MajorTeamAward[] = [...teams.values()].map((line) => {
     const lineup = [...line.players].map((id) => players.get(id)!);
     const weight = lineup.reduce((sum, player) => sum + player.rounds, 0);
-    const rating = weight ? lineup.reduce((sum, player) => sum + ratingOf(player) * player.rounds, 0) / weight : 0;
+    const rating = weight ? lineup.reduce((sum, player) => sum + ratingFor(player, scoring) * player.rounds, 0) / weight : 0;
     return { teamId: line.teamId, name: line.name, rating: round2(rating), mapsWon: line.mapsWon, mapsLost: line.mapsLost, roundsWon: line.roundsWon, roundsLost: line.roundsLost, placement: placementOf(line.teamId) };
   }).sort((left, right) =>
     right.rating - left.rating
@@ -216,7 +319,7 @@ export function computeMajorAwards(rounds: AwardsRound[], championId: string | n
     || (right.roundsWon - right.roundsLost) - (left.roundsWon - left.roundsLost)
     || compareText(left.name, right.name)
     || compareText(left.teamId, right.teamId));
-  const all = [...players.values()].map((line) => toPlayerAward(line, placementOf(line.teamId)));
+  const all = [...players.values()].map((line) => toPlayerAward(line, placementOf(line.teamId), scoring));
   const clutchKing = [...all].sort((left, right) =>
     right.clutches - left.clutches
     || right.rating - left.rating
@@ -237,16 +340,30 @@ export function computeMajorAwards(rounds: AwardsRound[], championId: string | n
     topTeam: teamAwards[0] ?? null,
     teams: teamAwards,
     clutchKing: clutchKing && clutchKing.clutches > 0 ? clutchKing : null,
-    highlightReel: reel
+    highlightReel: reel,
+    ...(model === 'v3' ? { ratingModel: 'v3' as const, ratingBaseline: scoring.baseline } : {})
   };
 }
 
-/** Per-player line of one team across the given series (for run statistics based on the real kill feed). */
-export function aggregatePlayerLines(series: SeriesResult[]): MajorPlayerAward[] {
+const collectLines = (series: SeriesResult[], model: RatingModel) => {
   const players = new Map<string, PlayerLine>();
   const teams = new Map<string, TeamLine>();
-  for (const item of series) for (const map of item.maps) accountMap(map, item, players, teams);
-  return [...players.values()].map((line) => toPlayerAward(line, 'placementStage3'));
+  for (const item of series) for (const map of item.maps) accountMap(map, item, players, teams, model);
+  return [...players.values()];
+};
+
+/** Mean raw Rating 3.0 of every player in the given series. */
+export const fieldRatingBaseline = (series: SeriesResult[]): number => ratingBaseline(collectLines(series, 'v3'));
+
+/**
+ * Per-player line of one team across the given series (for run statistics based on the real kill feed). With Rating 3.0,
+ * pass the Major's `ratingBaseline` so a single map or a single team is rated against the whole field.
+ */
+export function aggregatePlayerLines(series: SeriesResult[], options: { model?: RatingModel; baseline?: number } = {}): MajorPlayerAward[] {
+  const model = options.model ?? 'v3';
+  const lines = collectLines(series, model);
+  const scoring: Scoring = { model, baseline: model === 'v3' ? options.baseline ?? ratingBaseline(lines) : 0 };
+  return lines.map((line) => toPlayerAward(line, 'placementStage3', scoring));
 }
 
 export type { RoundDetail as AwardsRoundDetail };

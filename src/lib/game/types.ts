@@ -368,6 +368,9 @@ export interface MajorRound {
   series: SeriesResult[];
 }
 
+/** Rating of awards and run statistics: HLTV 1.0 (online server, legacy) or the Rating 3.0 approximation (offline, Sandbox). */
+export type RatingModel = 'hltv1' | 'v3';
+
 /** Tournament-wide line of one player, derived from the kill feed of every map they played (HLTV Rating 1.0). */
 export interface MajorPlayerAward {
   playerId: string;
@@ -387,6 +390,21 @@ export interface MajorPlayerAward {
   multiKills: { triple: number; quad: number; ace: number };
   /** Final placement key of the player's team (placementChampion, placementRunnerUp, ...). */
   placement: string;
+  /** Rating 3.0 model only; absent in HLTV 1.0 awards (the online server). */
+  assists?: number;
+  flashAssists?: number;
+  /** Rounds with a kill, assist, survival or traded death, in percent (one decimal). */
+  kast?: number;
+  /** Damage per round: kills, damage assists and utility. */
+  adr?: number;
+  /** Utility damage per round (one decimal). */
+  utilityDamage?: number;
+  /** Round Swing in percentage points per round (two decimals). */
+  swing?: number;
+  impact?: number;
+  openingDeaths?: number;
+  tradeKills?: number;
+  tradedDeaths?: number;
 }
 
 export interface MajorTeamAward {
@@ -413,6 +431,10 @@ export interface MajorAwards {
   clutchKing: MajorPlayerAward | null;
   /** Player with the most aces (and quads as tiebreak), when anyone got one. */
   highlightReel: MajorPlayerAward | null;
+  /** Present when `rating` fields use the Rating 3.0 approximation. */
+  ratingModel?: 'v3';
+  /** Mean raw Rating 3.0 of the field, the divisor that makes the average 1.00 (v3 only). */
+  ratingBaseline?: number;
 }
 
 export interface MajorStageStandings {

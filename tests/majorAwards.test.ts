@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { players, teams } from '../src/lib/game/data';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
-import { aggregatePlayerLines, computeMajorAwards, placementsOf } from '../src/lib/game/majorAwards';
+import { aggregatePlayerLines, computeMajorAwards, fieldRatingBaseline, placementsOf } from '../src/lib/game/majorAwards';
+import { readFileSync } from 'node:fs';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import { buildMajorRun, stripSeriesDetails } from '../src/lib/game/simulation';
 import type { CombatTeam, Player, RoundDetail, SelectedPlayer, SeriesResult } from '../src/lib/game/types';
@@ -43,8 +44,9 @@ describe('Major awards', () => {
     expect(awards.mvp!.placement).toBe(placements.get(awards.mvp!.teamId));
   });
 
-  it('favours the champion when raw ratings are close', () => {
-    const awards = computeMajorAwards(tournament.rounds, tournament.championId)!;
+  it('favours the champion when raw ratings are close (HLTV 1.0)', () => {
+    // HLTV 1.0 (the online server) keeps the original rule: rating plus placement bonus.
+    const awards = computeMajorAwards(tournament.rounds, tournament.championId, { model: 'hltv1' })!;
     const bonus: Record<string, number> = { placementChampion: 0.12, placementRunnerUp: 0.07, placement3to4: 0.04, placement5to8: 0.02 };
     const score = (award: { rating: number; placement: string }) => award.rating + (bonus[award.placement] ?? 0);
     const byRating = [...awards.topPlayers].sort((left, right) => right.rating - left.rating);
@@ -101,5 +103,69 @@ describe('Major awards', () => {
     const awards = computeMajorAwards([{ series: [series] }], 'org-a')!;
     expect(awards.teams.map((team) => team.teamId).sort()).toEqual(['org-a', 'org-b']);
     expect(awards.topPlayers.filter((line) => line.playerId === 'shared-player')).toHaveLength(2);
+  });
+});
+
+const LEGACY_AWARD_KEYS = ['clutches', 'deaths', 'headshots', 'kdRatio', 'kills', 'mapsPlayed', 'multiKills', 'name', 'openingKills', 'placement', 'playerId', 'rating', 'rounds', 'teamId', 'teamName'];
+
+describe('Major awards with Rating 3.0', () => {
+  it('uses Rating 3.0 by default and records the model and the field baseline', () => {
+    const awards = computeMajorAwards(tournament.rounds, tournament.championId)!;
+    expect(awards.ratingModel).toBe('v3');
+    expect(awards.ratingBaseline).toBeGreaterThan(0);
+    const mvp = awards.mvp!;
+    expect(mvp.kast).toBeGreaterThanOrEqual(0);
+    expect(mvp.kast).toBeLessThanOrEqual(100);
+    expect(mvp.adr).toBeGreaterThan(0);
+    expect(Number.isFinite(mvp.swing)).toBe(true);
+    expect(mvp.assists).toBeGreaterThanOrEqual(0);
+    expect(awards.ratingBaseline).toBeCloseTo(fieldRatingBaseline(tournament.rounds.flatMap((round) => round.series)), 10);
+  });
+
+  it('makes the field average 1.00', () => {
+    const awards = computeMajorAwards(tournament.rounds, tournament.championId)!;
+    const lines = aggregatePlayerLines(tournament.rounds.flatMap((round) => round.series), { baseline: awards.ratingBaseline });
+    const mean = lines.reduce((sum, line) => sum + line.rating, 0) / lines.length;
+    expect(Math.abs(mean - 1)).toBeLessThan(0.01);
+  });
+
+  it('keeps Round Swing zero-sum across both teams of a series', () => {
+    const series = run.matches.find((match) => match.maps.some((map) => map.details?.length))!;
+    const lines = aggregatePlayerLines([series]);
+    const total = lines.reduce((sum, line) => sum + (line.swing ?? 0) * line.rounds / 100, 0);
+    // Each player's swing is rounded to 2 decimals; the rounding error across ten players stays well under 0.1.
+    expect(Math.abs(total)).toBeLessThan(0.1);
+  });
+
+  it('picks the MVP by rating, placement bonus and swing', () => {
+    const awards = computeMajorAwards(tournament.rounds, tournament.championId)!;
+    const bonus: Record<string, number> = { placementChampion: 0.12, placementRunnerUp: 0.07, placement3to4: 0.04, placement5to8: 0.02 };
+    const score = (award: { rating: number; placement: string; swing?: number }) => award.rating + (bonus[award.placement] ?? 0) + (award.swing ?? 0) / 100;
+    expect(awards.topPlayers.every((award) => score(awards.mvp!) >= score(award))).toBe(true);
+  });
+
+  it('keeps the HLTV 1.0 shape untouched for the online server', () => {
+    const legacy = computeMajorAwards(tournament.rounds, tournament.championId, { model: 'hltv1' })!;
+    expect('ratingModel' in legacy).toBe(false);
+    expect('ratingBaseline' in legacy).toBe(false);
+    expect(Object.keys(legacy.mvp!).sort()).toEqual(LEGACY_AWARD_KEYS);
+    expect(legacy.teams.every((team) => Object.keys(team).length === 8)).toBe(true);
+  });
+
+  it('returns the same awards when called twice with the same rounds (memoized round analysis)', () => {
+    const first = computeMajorAwards(tournament.rounds, tournament.championId);
+    const second = computeMajorAwards(tournament.rounds, tournament.championId);
+    expect(second).toEqual(first);
+  });
+
+  it('memoization does not change numbers: cached result equals the result over cloned rounds', () => {
+    const cached = computeMajorAwards(tournament.rounds, tournament.championId);
+    const fresh = computeMajorAwards(structuredClone(tournament.rounds), tournament.championId);
+    expect(cached).toEqual(fresh);
+  });
+
+  it('asks the online server for HLTV 1.0 explicitly', () => {
+    const server = readFileSync('server/room-manager.ts', 'utf8');
+    expect(server).toMatch(/computeMajorAwards\([^)]*\{ model: 'hltv1' \}\)/);
   });
 });

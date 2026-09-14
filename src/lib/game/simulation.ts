@@ -512,7 +512,8 @@ export function toMajorRun(tournament: OnlineTournamentResult, userId: string): 
   const placement = (hasCampaignResult ? campaign?.placement : undefined)
     ?? (entryStage ? STAGE_PLACEMENT[entryStage] : 'placementStage3');
   // Awards look at the whole field, so they are computed before the non-user kill feeds are stripped below.
-  const awards = computeMajorAwards(tournament.rounds, tournament.championId);
+  // Awards only exist once the champion is known; recomputing them on every live step made the Major 3x slower with Rating 3.0.
+  const awards = tournament.championId ? computeMajorAwards(tournament.rounds, tournament.championId) : null;
   const playoffs: PlayoffsResult | undefined = qualified
     ? {
       championId: tournament.championId ?? '',

@@ -162,7 +162,7 @@ function createKillFeedRunStats(
 ): PlayerRunStats[] | null {
   if (!hasCompleteKillFeed(run.matches)) return null;
   const lineupIds = new Set(players.map((player) => player.id));
-  const totals = new Map(aggregatePlayerLines(run.matches)
+  const totals = new Map(aggregatePlayerLines(run.matches, { model: 'hltv1' })
     .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId))
     .map((line) => [line.playerId, line] as const));
   if (players.some((player) => (totals.get(player.id)?.rounds ?? 0) <= 0)) return null;
@@ -173,7 +173,7 @@ function createKillFeedRunStats(
   for (const match of run.matches) {
     for (const map of match.maps) {
       if (!(map.details ?? []).some((detail) => detail.kills.length > 0)) continue;
-      const lines = aggregatePlayerLines([{ ...match, maps: [map] }])
+      const lines = aggregatePlayerLines([{ ...match, maps: [map] }], { model: 'hltv1' })
         .filter((line) => line.teamId === userTeamId && lineupIds.has(line.playerId));
       let best: MajorPlayerAward | null = null;
       for (const line of lines) {

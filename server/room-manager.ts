@@ -809,7 +809,8 @@ export class RoomManager {
    */
   private completeRun(room: RoomState, now: number) {
     const result = toResult(room.engine!);
-    room.awards = computeMajorAwards(result.rounds, result.championId);
+    // Online rooms stay on HLTV 1.0: live clients never receive the kill feed of other series (protocol 9).
+    room.awards = computeMajorAwards(result.rounds, result.championId, { model: 'hltv1' });
     const season = room.season;
     const runNumber = season.run + 1;
     for (const participant of [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)) {
