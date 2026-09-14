@@ -9,6 +9,7 @@ import {
   seriesSideA,
   seriesTimeoutTiming,
   seriesTimeouts,
+  retuneSeriesTeam,
   stepSeries,
   type LiveSeriesState,
   type PendingSeriesDecision,
@@ -26,8 +27,9 @@ import {
 } from './online/tournament-engine';
 import { buildDynastyStageFields } from './dynasty/field';
 import { dynastySwissBestOf } from './dynasty/format';
+import { buildDynastyUserTeam } from './dynasty/seriesPlan';
 import { createMajorField, orientSeriesToTeam, toMajorRun } from './simulation';
-import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming, type Coach } from './types';
+import { STAGE_PLACEMENT, type GameMode, type HistoricalTeam, type MajorRun, type MajorStage, type MapId, type MapSide, type OrgStyle, type Player, type SelectedPlayer, type SeriesResult, type TimeoutTiming, type Coach, type SeriesPlan, type CombatTeam } from './types';
 
 /**
  * The campaign Major played round by round: the user's series stop for the veto, the side, the economy call and the
@@ -72,6 +74,8 @@ export interface CampaignMajorOptions {
   dynastyRules?: 1 | 2;
   /** Dinastia: coach of the user's organization. */
   coach?: Coach;
+  /** Dinastia v2 plan used for the initial team; later series can be retuned before veto. */
+  dynastyPlan?: SeriesPlan;
 }
 
 export function createCampaignMajor(
@@ -83,7 +87,14 @@ export function createCampaignMajor(
   lineup: SelectedPlayer[] = [],
   options: CampaignMajorOptions = {}
 ): CampaignMajorState {
-  const { user, field, mapContext, tournamentSeed } = createMajorField(players, style, teams, allPlayers, seed, lineup, options);
+  const userTeam = options.dynastyRules === 2 && options.dynastyPlan
+    ? buildDynastyUserTeam({ players, lineup, seed, coach: options.coach ?? null, teams, plan: options.dynastyPlan })
+    : undefined;
+  const { user, field, mapContext, tournamentSeed } = createMajorField(players, style, teams, allPlayers, seed, lineup, {
+    ...options,
+    ...(userTeam ? { userTeam, coach: undefined } : {}),
+    seedsWithoutStyle: options.dynastyRules === 2
+  });
   const userOrganization = { id: user.id, name: user.name, seed: 1, team: user, human: true };
   const stageFields = options.dynastyEntryStage
     ? buildDynastyStageFields({ teams, allPlayers, user: userOrganization, entryStage: options.dynastyEntryStage, seed: tournamentSeed })
@@ -177,6 +188,19 @@ export function applyCampaignDecision(state: CampaignMajorState, decision: Serie
   const live = currentCampaignSeries(state);
   if (!live) return state;
   applySeriesDecision(live, decision);
+  return syncFromEngine(state);
+}
+
+/** Applies the confirmed tactical plan to the current series and future pairings without changing tournament seeds. */
+export function setCampaignSeriesPlan(state: CampaignMajorState, team: CombatTeam): CampaignMajorState {
+  const organization = state.engine.byId.get(state.userTeamId);
+  if (!organization) throw new Error('Organização da campanha não encontrada');
+  const live = currentCampaignSeries(state);
+  if (live) {
+    const side = live.config.teamA.id === state.userTeamId ? 'a' : 'b';
+    retuneSeriesTeam(live, side, { ...team, id: state.userTeamId, name: organization.name, isUser: true, organizationId: state.userTeamId });
+  }
+  organization.team = team;
   return syncFromEngine(state);
 }
 

@@ -498,6 +498,23 @@ export interface PlayerRunStats {
 
 
 export type DynastyStatus = 'challenger' | 'legend';
+export type CoachTactic = 'standard' | 'pressure' | 'control' | 'antistrat';
+
+export interface SeriesPlan {
+  style: OrgStyle;
+  tactic: CoachTactic;
+  study: boolean;
+}
+
+export interface DynastyMajorPlan {
+  majorNumber: number;
+  rules: 2;
+  /** Reserved for the training delivery; null until a focus is selected. */
+  training: null;
+  basePlan: SeriesPlan;
+  plans: Record<string, SeriesPlan>;
+  confirmed: boolean;
+}
 
 export interface DynastyMajorSummary {
   majorNumber: number;
@@ -582,6 +599,8 @@ export interface DynastyState {
   majorNumber: number;
   /** Ruleset locked for the Major in progress. Saves without it are legacy v1. */
   majorRules: 1 | 2;
+  /** Tactical identity and per-series choices for a v2 Major. */
+  major?: DynastyMajorPlan | null;
   /** Whole dollars. */
   cash: number;
   coachId: string | null;

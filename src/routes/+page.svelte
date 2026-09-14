@@ -41,10 +41,12 @@
     skipCampaignMap,
     stepCampaignSeries,
     callCampaignTimeout,
+    setCampaignSeriesPlan,
     type CampaignLiveView,
     type CampaignMajorState
   } from '$lib/game/campaign-major';
   import { advanceCursor, currentUserSeries, stageRecord } from '$lib/game/campaignProgress';
+  import { needsStyleBeforeDraft } from '$lib/game/draftFlow';
   import type { PendingSeriesDecision } from '$lib/game/online/live-series';
   import type { MajorRun } from '$lib/game/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
@@ -79,12 +81,15 @@
   import DynastyHeader from '$lib/components/DynastyHeader.svelte';
   import CoachDraft from '$lib/components/CoachDraft.svelte';
   import DynastyWindow from '$lib/components/DynastyWindow.svelte';
+  import DynastySeriesPlan from '$lib/components/DynastySeriesPlan.svelte';
+  import DynastyTeamPanel from '$lib/components/DynastyTeamPanel.svelte';
   import { applyCoachToTeam, coachAffinity, COACH_REROLLS } from '$lib/game/dynasty/coach';
   import { offerCoaches } from '$lib/game/dynasty/coachOffer';
   import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
   import { beginNextDynastyMajor, createDynastyState, settleDynastyMajor } from '$lib/game/dynasty/state';
   import { resolveDynastyPlayer } from '$lib/game/dynasty/resolve';
   import { confirmWindow, createWindow } from '$lib/game/dynasty/window';
+  import { buildDynastyUserTeam, confirmSeriesPlan, createDynastyMajorPlan, studiesLeft } from '$lib/game/dynasty/seriesPlan';
   import {
     MAP_POOL,
     getDefaultMapSelection,
@@ -109,6 +114,7 @@
     type OrgStyle,
     type Player,
     type SeriesResult,
+    type SeriesPlan,
     type SimMode,
     type SimSpeed,
     type WindowState
@@ -151,7 +157,7 @@
   }
   let toast = '';
   let awaitingAdvance = false;
-  let majorTab: 'current' | 'all' = 'current';
+  let majorTab: 'current' | 'all' | 'team' = 'current';
   let downloadingImage = false;
   let showSupportNudge = false;
   let supportNudgeShownThisRun = false;
@@ -171,6 +177,7 @@
   let liveTimer: number | null = null;
   let liveRunning = false;
   let automationTimer: number | null = null;
+  let dynastyPlanTimer: number | null = null;
   /** The saved campaign was already looked at: before that the old viewer must not start playing on its own. */
   let campaignChecked = false;
   /** Half already covered by an automatic tactical pause. */
@@ -261,7 +268,10 @@
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
   $: dynastyCoach = isDynasty && $game.dynasty?.coachId ? coachById.get($game.dynasty.coachId) ?? null : null;
   $: baseUserTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
-  $: userTeam = dynastyCoach ? applyCoachToTeam(baseUserTeam, dynastyCoach, coachAffinity(dynastyCoach, selectedPlayers, teams)) : baseUserTeam;
+  $: activeDynastyPlan = ($game.dynasty?.major?.plans[currentSeries?.id ?? ''] ?? $game.dynasty?.major?.basePlan ?? { style: $game.style, tactic: 'standard', study: false }) as SeriesPlan;
+  $: userTeam = isDynasty && $game.dynasty?.majorRules === 2
+    ? buildDynastyUserTeam({ players: selectedPlayers, lineup: selectedLineup, seed: $game.seed, coach: dynastyCoach, teams, plan: activeDynastyPlan })
+    : dynastyCoach ? applyCoachToTeam(baseUserTeam, dynastyCoach, coachAffinity(dynastyCoach, selectedPlayers, teams)) : baseUserTeam;
   $: coachOffer = $game.phase === 'coach-draft' && $game.dynasty ? offerCoaches(coaches, $game.seed, $game.usedTeamIds, $game.dynasty.coachRerollsUsed) : [];
   $: mapContributors = getLineupMapContributors(selectedPlayers, teams);
   $: mapYears = getLineupMapYears(selectedPlayers, teams);
@@ -278,6 +288,11 @@
   $: proAssignmentStatus = validateProAssignments($game.proRoleAssignments, $game.proPickedPlayerIds);
   $: confirmedSeriesIds = campaign?.confirmedSeriesIds ?? $game.majorRun?.matches.slice(0, $game.completedSeries).map((match) => match.id) ?? [];
   $: currentSeries = $game.majorRun ? currentUserSeries($game.majorRun.matches, confirmedSeriesIds) : null;
+  $: dynastySeriesPlanned = !isDynasty || $game.dynasty?.majorRules !== 2 || Boolean(currentSeries && $game.dynasty?.major?.plans[currentSeries.id]);
+  $: dynastyStudiesLeft = $game.dynasty?.major ? studiesLeft($game.dynasty.major, dynastyCoach) : 0;
+  $: if (campaign && currentSeries && $game.simMode === 'auto' && !dynastySeriesPlanned && dynastyPlanTimer === null) {
+    dynastyPlanTimer = window.setTimeout(() => { dynastyPlanTimer = null; if ($game.dynasty?.major) confirmDynastyPlan({ ...$game.dynasty.major.basePlan, study: false }); }, 0);
+  }
   $: campaignView = campaign ? getCampaignLiveView(campaign) : null;
   $: campaignPending = campaign ? pendingCampaignDecision(campaign) : null;
   $: queueAutomation(campaignPending, campaignView, strategicPreferences);
@@ -306,6 +321,7 @@
     clearAdvanceTimer();
     stopLiveTick();
     if (automationTimer !== null) window.clearTimeout(automationTimer);
+    if (dynastyPlanTimer !== null) window.clearTimeout(dynastyPlanTimer);
     if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
@@ -354,7 +370,7 @@
 
   function rollTeam() {
     if (rouletteSpinning || draftComplete || rolledTeam) return;
-    if (!$game.styleLocked && !isProMode) return;
+    if (!$game.styleLocked && needsStyleBeforeDraft($game.mode)) return;
     const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
     const rng = createSeededRng(`${$game.seed}:draft:${pickCount}:${$game.usedTeamIds.join('|')}`);
     const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
@@ -363,7 +379,7 @@
 
   function rerollTeam() {
     if (rouletteSpinning) return;
-    if ((!$game.styleLocked && !isProMode) || !rolledTeam || draftComplete || !rerollsLeft) return;
+    if ((!$game.styleLocked && needsStyleBeforeDraft($game.mode)) || !rolledTeam || draftComplete || !rerollsLeft) return;
     const rerollsUsed = ($game.rerollsUsed ?? 0) + 1;
     const excludedIds = [...$game.usedTeamIds, rolledTeam.id];
     const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
@@ -434,7 +450,7 @@
 
   function confirmPlayerPick(player: Player, selectedSlotRole: LineupSlotRole) {
     if (rouletteSpinning) return;
-    if (!rolledTeam || draftComplete || !$game.mode || !$game.styleLocked) return;
+    if (!rolledTeam || draftComplete || !$game.mode || (!$game.styleLocked && needsStyleBeforeDraft($game.mode))) return;
     const validation = validatePlayerPick(player, selectedLineup, selectedSlotRole, lookupPlayer);
     if (!validation.ok) {
       showToast(reasonText(validation.reason));
@@ -496,7 +512,7 @@
 
   function beginMapSelection() {
     if (!draftComplete || (isProMode && !$game.proRevealed)) return;
-    if (isDynasty && $game.dynasty && !$game.dynasty.coachId) {
+    if (isDynasty && $game.dynasty && (!$game.dynasty.coachId || !$game.styleLocked)) {
       update({ phase: 'coach-draft' });
       return;
     }
@@ -505,8 +521,24 @@
 
   function pickCoach(coach: Coach) {
     if (!$game.dynasty) return;
-    update({ dynasty: { ...$game.dynasty, coachId: coach.id }, phase: 'map-selection', selectedMaps: [] });
+    const major = createDynastyMajorPlan($game.dynasty.majorNumber, $game.style);
+    update({ dynasty: { ...$game.dynasty, coachId: coach.id, major }, phase: 'map-selection', selectedMaps: [] });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function chooseDynastyStyle(style: OrgStyle) {
+    if (!isDynasty) return;
+    update({ style, styleLocked: true });
+  }
+
+  function confirmDynastyPlan(plan: SeriesPlan) {
+    if (!campaign || !currentSeries || !$game.dynasty?.major) return;
+    try {
+      const major = confirmSeriesPlan($game.dynasty.major, currentSeries.id, plan, dynastyCoach);
+      const team = buildDynastyUserTeam({ players: selectedPlayers, lineup: selectedLineup, seed: $game.seed, coach: dynastyCoach, teams, plan });
+      commitCampaign(setCampaignSeriesPlan(campaign, team));
+      update({ dynasty: { ...$game.dynasty, major }, style: plan.style });
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
 
   function rerollCoaches() {
@@ -542,10 +574,12 @@
     const runPlayers = isProMode ? proAdjustedPlayers : selectedPlayers;
     const runLineup = isProMode ? proLineup : selectedLineup;
     const dynastyRules = isDynasty && $game.dynasty ? (!$game.majorRun ? 2 : $game.dynasty.majorRules) : undefined;
+    const dynastyMajor = isDynasty && $game.dynasty && dynastyRules === 2 ? ($game.dynasty.major ?? createDynastyMajorPlan($game.dynasty.majorNumber, $game.style)) : null;
+    const dynastyPlan = dynastyMajor?.basePlan;
     campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier',
-      ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules } : {}),
+      ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules, dynastyPlan } : {}),
       ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
     });
     const majorRun = campaign.run;
@@ -553,7 +587,7 @@
     awaitingAdvance = false;
     autoPausedHalf = '';
     liveRunning = false;
-    update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3', ...(isDynasty && $game.dynasty && dynastyRules ? { dynasty: { ...$game.dynasty, majorRules: dynastyRules } } : {}) });
+    update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3', ...(isDynasty && $game.dynasty && dynastyRules ? { dynasty: { ...$game.dynasty, majorRules: dynastyRules, major: dynastyMajor } } : {}) });
     scheduleSupportNudge();
   }
 
@@ -584,14 +618,20 @@
         selectedMaps: $game.selectedMaps,
         mode: $game.mode ?? 'premier',
         played,
-        ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules: $game.dynasty.majorRules } : {}),
+        ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules: $game.dynasty.majorRules, dynastyPlan: $game.dynasty.major?.basePlan } : {}),
         ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
       });
       const expected = Object.keys(played).length;
       const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
       if (restored.restoredSeriesIds.length !== expected || wonBack < expected) { showToast(t('campaignRestoreFailed')); return; }
       campaign = restored;
-      update({ majorRun: restored.run, playedSeries: campaignPlayedSeries(restored) });
+      const restoredCurrent = currentUserSeries(restored.run.matches, restored.confirmedSeriesIds);
+      const restoredPlan = restoredCurrent ? $game.dynasty?.major?.plans[restoredCurrent.id] : null;
+      if (restoredPlan) {
+        const team = buildDynastyUserTeam({ players: runPlayers, lineup: runLineup, seed: $game.seed, coach: dynastyCoach, teams, plan: restoredPlan });
+        campaign = setCampaignSeriesPlan(restored, team);
+      }
+      update({ majorRun: campaign.run, playedSeries: campaignPlayedSeries(campaign) });
     } catch { showToast(t('campaignRestoreFailed')); }
   }
 
@@ -612,6 +652,7 @@
   /** Queues the automation: writing the campaign from inside a reactive block would not restart the cycle. */
   function queueAutomation(pending: PendingSeriesDecision | null, view: CampaignLiveView | null, preferences: StrategicAutomationPreferences) {
     if (!campaign || automationTimer !== null) return;
+    if (!dynastySeriesPlanned) return;
     const decides = Boolean(pending && isAutomated(pending, preferences));
     if (!decides && !(!pending && wantsAutomaticPause(view, preferences))) return;
     automationTimer = window.setTimeout(runAutomation, 0);
@@ -1012,7 +1053,7 @@
         <button class="seed-button" type="button" on:click={copyLink}>SEED / {$game.seed}</button>
       </header>
 
-      {#if !$game.styleLocked && !isProMode}
+      {#if !$game.styleLocked && needsStyleBeforeDraft($game.mode)}
         <section class="style-block panel">
           <div class="section-heading"><div><span class="eyebrow">TACTICAL IDENTITY</span><h2>{t('chooseStyle')}</h2></div></div>
           <p class="style-required">{t('chooseStyleBeforeRoll')}</p>
@@ -1029,7 +1070,7 @@
 
       {#if !draftComplete}
         <section class="roll-zone panel">
-          {#if !$game.styleLocked && !isProMode}
+          {#if !$game.styleLocked && needsStyleBeforeDraft($game.mode)}
             <div class="roll-empty locked-roll">
               <div class="scanner"><span></span></div>
               <span class="eyebrow">TEAM LOTTERY / {selectedPlayers.length + 1} OF 5</span>
@@ -1225,8 +1266,13 @@
     </section>
   {:else if $game.phase === 'coach-draft'}
     <section class="screen shell">
-      <header class="screen-header"><span class="eyebrow">DINASTIA · COACH</span><h1>{t('coachDraftTitle')}</h1><p>{t('coachDraftDesc')}</p></header>
-      <CoachDraft offer={coachOffer} language={$game.language} rerollsLeft={COACH_REROLLS - ($game.dynasty?.coachRerollsUsed ?? 0)} teamLabel={coachTeamLabel} onPick={pickCoach} onReroll={rerollCoaches} />
+      <header class="screen-header"><span class="eyebrow">DINASTIA · IDENTIDADE</span><h1>{t('chooseStyle')} + {t('coachDraftTitle')}</h1><p>{t('coachDraftDesc')}</p></header>
+      <section class="style-block panel"><div class="segmented">
+        {#each ['aggressive', 'balanced', 'tactical'] as style}
+          <button class:active={$game.styleLocked && $game.style === style} type="button" on:click={() => chooseDynastyStyle(style as OrgStyle)}><strong>{style === 'balanced' ? ($game.language === 'en' ? 'Controller' : 'Controlador') : t(style as OrgStyle)}</strong><small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small></button>
+        {/each}
+      </div></section>
+      {#if $game.styleLocked}<CoachDraft offer={coachOffer} language={$game.language} rerollsLeft={COACH_REROLLS - ($game.dynasty?.coachRerollsUsed ?? 0)} teamLabel={coachTeamLabel} onPick={pickCoach} onReroll={rerollCoaches} />{/if}
     </section>
   {:else if $game.phase === 'map-selection'}
     <section class="screen shell map-selection-screen">
@@ -1299,12 +1345,18 @@
         </div>
       </div>
       {#if $game.majorRun?.tournament}
-        <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }]} onChange={(value) => majorTab = value === 'all' ? 'all' : 'current'} /></div>
+        <div class="major-tabs"><SegmentedControl value={majorTab} label={t('overviewMajor')} options={[{ value: 'current', label: t('overviewMyMatch') }, { value: 'all', label: t('overviewMajor') }, ...(isDynasty ? [{ value: 'team', label: $game.language === 'en' ? 'Team' : $game.language === 'es' ? 'Equipo' : 'Time' }] : [])]} onChange={(value) => majorTab = value === 'all' ? 'all' : value === 'team' ? 'team' : 'current'} /></div>
+      {/if}
+      {#if isDynasty && $game.dynasty?.major}
+        <div hidden={majorTab !== 'team'}><DynastyTeamPanel players={selectedPlayers} coach={dynastyCoach} plan={activeDynastyPlan} power={userTeam.power} studiesLeft={dynastyStudiesLeft} language={$game.language} /></div>
       {/if}
       <div hidden={majorTab !== 'current'}>
       {#if currentSeries}
+        {#if isDynasty && $game.dynasty?.major && !dynastySeriesPlanned}
+          <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name)} studiesLeft={dynastyStudiesLeft} initial={$game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
+        {/if}
         {#if campaignView && !campaignView.finished}
-          {#if campaignView.phase === 'veto' && campaignView.veto}
+          {#if dynastySeriesPlanned && campaignView.phase === 'veto' && campaignView.veto}
             <VetoBoard
               available={campaignView.veto.available}
               steps={campaignView.veto.steps}
@@ -1317,12 +1369,12 @@
               onAction={decideVeto}
             />
           {/if}
-          {#if campaignPending?.kind === 'side'}
+          {#if dynastySeriesPlanned && campaignPending?.kind === 'side'}
             <SidePickPrompt mapId={campaignPending.mapId} decider={currentSeries.maps[campaignPending.mapIndex]?.pickedBy === null} language={$game.language} onPick={decideSide} />
           {:else if campaignPending?.kind === 'eco-call'}
             <EcoCallPrompt roundNumber={campaignPending.roundNumber} money={campaignPending.money} language={$game.language} onCall={decideEco} />
           {/if}
-          {#if campaignView.phase !== 'veto' && !campaignPending}
+          {#if dynastySeriesPlanned && campaignView.phase !== 'veto' && !campaignPending}
             <div class="live-actions">
               <div class="live-buttons">
                 {#if !strategicPreferences.autoPause && campaignView.phase === 'live'}<TimeoutButton remaining={campaignView.timeoutsLeft} timing={campaignView.timeoutTiming} disabled={Boolean(campaignPending)} language={$game.language} onCall={requestCampaignTimeout} />{/if}

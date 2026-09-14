@@ -72,7 +72,7 @@ export function pickRandomTeam(
 
 export function calculatePlayerPower(
   player: Player,
-  style: OrgStyle,
+  style: OrgStyle | undefined,
   _mode: GameMode = 'premier'
 ): number {
   const stats = {
@@ -109,9 +109,9 @@ export function calculatePlayerPower(
 
 const hasRole = (player: Player, role: string) => (player.role ?? '').toLowerCase().includes(role);
 
-export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
+function calculateUserTeamPowerInternal(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = '', legacyStyle = true): CombatTeam {
   if (!players.length) return { id: 'user', name: 'yourOrg', power: 50, mental: 50, clutch: 50, experience: 50, isUser: true };
-  const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, style), 0) / players.length;
+  const average = players.reduce((sum, player) => sum + calculatePlayerPower(player, legacyStyle ? style : undefined), 0) / players.length;
   const avg = (key: keyof Player) => players.reduce((sum, player) => sum + number(player[key] as number, 65), 0) / players.length;
   const assignedRoles = lineup.flatMap((selected) => getSelectedRoles(selected));
   const awpers = assignedRoles.length ? assignedRoles.filter((role) => role === 'awper').length : players.filter((player) => hasRole(player, 'awp')).length;
@@ -132,8 +132,8 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
   const elitePlayers = players.filter((player) => number(player.overall) >= 98).length;
   const eliteCoreBonus = Math.min(4.5, elitePlayers * 0.9 + Math.max(0, avg('overall') - 92) * 0.35);
   const highFirepowerPlayers = players.filter((player) => number(player.firepower) >= 90).length;
-  const aggressiveBoost = style === 'aggressive' && highFirepowerPlayers >= 3 ? 1.08 : 1;
-  const styleMultiplier = (style === 'tactical' ? 1.1 : style === 'balanced' ? 1.05 : 1) * aggressiveBoost;
+  const aggressiveBoost = legacyStyle && style === 'aggressive' && highFirepowerPlayers >= 3 ? 1.08 : 1;
+  const styleMultiplier = legacyStyle ? (style === 'tactical' ? 1.1 : style === 'balanced' ? 1.05 : 1) * aggressiveBoost : 1;
   return {
     id: 'user',
     name: 'yourOrg',
@@ -147,6 +147,15 @@ export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineu
     aggressionPercentage,
     isUser: true
   };
+}
+
+export function calculateUserTeamPower(players: Player[], style: OrgStyle, lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
+  return calculateUserTeamPowerInternal(players, style, lineup, seed, true);
+}
+
+/** Composition and player quality without the legacy organization-style weights. Dinastia v2 applies its style later. */
+export function calculateDynastyBaseTeamPower(players: Player[], lineup: SelectedPlayer[] = [], seed = ''): CombatTeam {
+  return calculateUserTeamPowerInternal(players, 'balanced', lineup, seed, false);
 }
 
 /** Upper bound of a lineup's power: stars are allowed to push a team past the old 99 ceiling. */
@@ -462,10 +471,10 @@ export function createMajorField(
   allPlayers: Player[],
   seed: string,
   lineup: SelectedPlayer[] = [],
-  options: { selectedMaps?: MapId[]; mode?: GameMode; coach?: Coach } = {}
+  options: { selectedMaps?: MapId[]; mode?: GameMode; coach?: Coach; userTeam?: CombatTeam; seedsWithoutStyle?: boolean } = {}
 ) {
   const lineupKey = players.map((player) => player.id).join('|');
-  const baseUser = calculateUserTeamPower(players, style, lineup, seed);
+  const baseUser = options.userTeam ?? calculateUserTeamPower(players, style, lineup, seed);
   // Dinastia only: the coach is passed explicitly, so every other mode keeps exactly the same user team.
   const user = options.coach ? applyCoachToTeam(baseUser, options.coach, coachAffinity(options.coach, players, teams)) : baseUser;
   let mapContext: MapSimulationContext | undefined;
@@ -480,7 +489,8 @@ export function createMajorField(
   rosters.set(user.id, { players, roles: new Map(lineup.map((selected) => [selected.playerId, selected.selectedSlotRole])) });
   for (const team of teams) rosters.set(team.id, { players: allPlayers.filter((player) => (team.players ?? []).includes(player.id)) });
   if (mapContext) mapContext.rosters = rosters;
-  const fieldRng = createSeededRng(`${seed}:major-field:${lineupKey}:${style}`);
+  const seedStyle = options.seedsWithoutStyle ? '' : `:${style}`;
+  const fieldRng = createSeededRng(`${seed}:major-field:${lineupKey}${seedStyle}`);
   const field = teams.map((team) => {
     const combat = calculateHistoricalTeamPower(team, allPlayers);
     return { id: team.id, name: combat.name, seed: 0, team: combat, human: false, sourceTeamId: team.id };
@@ -489,7 +499,7 @@ export function createMajorField(
     const target = Math.floor(fieldRng() * (index + 1));
     [field[index], field[target]] = [field[target], field[index]];
   }
-  return { user, field, mapContext, tournamentSeed: `${seed}:major:${lineupKey}:${style}` };
+  return { user, field, mapContext, tournamentSeed: `${seed}:major:${lineupKey}${seedStyle}` };
 }
 
 /** Turns a finished tournament into the campaign run the offline screens read. */

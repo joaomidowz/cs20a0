@@ -126,6 +126,21 @@ export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
   return state;
 }
 
+/** Replaces one team before the veto starts and rebuilds both matchday rolls from the original seed. */
+export function retuneSeriesTeam(state: LiveSeriesState, side: TeamSide, team: CombatTeam): LiveSeriesState {
+  if (state.phase !== 'veto' || !state.veto || state.veto.cursor !== 0 || state.veto.steps.length > 0 || state.maps.length > 0 || state.current) {
+    throw new LiveSeriesError('SERIES_FINISHED', 'A série só pode ser ajustada antes do veto');
+  }
+  if (side === 'a') state.config.teamA = team;
+  else state.config.teamB = team;
+  const matchDay = createSeededRng(`${state.config.seed}:matchday`);
+  const pressureA = state.config.phase === 'final' ? (state.config.teamA.experience + state.config.teamA.mental) / 180 : 1;
+  const pressureB = state.config.phase === 'final' ? (state.config.teamB.experience + state.config.teamB.mental) / 180 : 1;
+  state.adjustedA = { ...state.config.teamA, power: getMatchDayPower(state.config.teamA, matchDay) + pressureA };
+  state.adjustedB = { ...state.config.teamB, power: getMatchDayPower(state.config.teamB, matchDay) + pressureB };
+  return state;
+}
+
 /** Bots never wait: any decision that falls to a bot (or to a human who delegated that kind) is taken immediately. */
 function settleBots(state: LiveSeriesState): void {
   for (;;) {

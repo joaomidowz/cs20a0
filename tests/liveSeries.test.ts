@@ -6,6 +6,7 @@ import {
   applySeriesDecision,
   autoDecide,
   createLiveSeries,
+  retuneSeriesTeam,
   pendingSeriesDecision,
   requestSeriesTimeout,
   runSeriesToEnd,
@@ -175,5 +176,16 @@ describe('live series', () => {
     expect(result.veto).toBeUndefined();
     expect(result.maps.every((map) => map.mapId === undefined)).toBe(true);
     expect(result.maps.length).toBeLessThanOrEqual(3);
+  });
+
+  it('retunes a team before the first veto action with the same matchday seed', () => {
+    const original = createLiveSeries(config());
+    const retuned = createLiveSeries(config());
+    retuneSeriesTeam(retuned, 'a', { ...team('a', 93), mental: 91 });
+    expect(retuned.config.teamA.power).toBe(93);
+    expect(retuned.adjustedB).toEqual(original.adjustedB);
+    expect(retuned.adjustedA.power).not.toBe(original.adjustedA.power);
+    applySeriesDecision(retuned, { kind: 'veto', teamId: pendingSeriesDecision(retuned)!.teamId, action: 'ban', mapId: (pendingSeriesDecision(retuned) as Extract<ReturnType<typeof pendingSeriesDecision>, { kind: 'veto' }>).available[0] });
+    expect(() => retuneSeriesTeam(retuned, 'a', team('a', 90))).toThrow(/veto/);
   });
 });

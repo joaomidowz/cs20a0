@@ -37,6 +37,7 @@ describe('estado da Dinastia', () => {
     const next = beginNextDynastyMajor(settleDynastyMajor(fresh, run('placementStage2'), input));
     expect(next.majorNumber).toBe(2);
     expect(next.majorRules).toBe(2);
+    expect(next.major?.majorNumber ?? 2).toBe(2);
     expect(next.entryStage).toBe('stage1');
     expect(next.cash).toBe(10_000);
   });
@@ -53,5 +54,11 @@ describe('estado da Dinastia', () => {
     const saved = { majorNumber: 1, seed: 's', cashAtOpen: 0, maxMoves: 2, evolution: [], baseLineup: [], overrides: {}, proposals: [], offers: [], coachOfferIds: [], moves: [], roleAssignments: {}, coachChange: null };
     expect(ensureDynastyState({ window: saved }).window).toEqual(saved);
     expect(ensureDynastyState({ window: { moves: 'x' } }).window).toBeNull();
+  });
+
+  it('restaura o plano do Major v2 e não o aplica a saves v1', () => {
+    const major = { majorNumber: 2, rules: 2 as const, training: null, basePlan: { style: 'balanced' as const, tactic: 'standard' as const, study: false }, plans: {}, confirmed: true };
+    expect(ensureDynastyState({ majorNumber: 2, majorRules: 2, major }).major).toEqual(major);
+    expect(ensureDynastyState({ majorNumber: 2, majorRules: 1, major }).major).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
-import type { DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer, WindowState } from '../types';
+import type { DynastyMajorPlan, DynastyMajorSummary, DynastyState, DynastyStatus, MajorRun, MajorStage, PlayerRunStats, SelectedPlayer, SeriesPlan, WindowState } from '../types';
 import { awardsBonus, prizeForPlacement } from './prizes';
 
 export const createDynastyState = (): DynastyState => ({
   majorNumber: 1,
   majorRules: 2,
+  major: null,
   cash: 0,
   coachId: null,
   coachRerollsUsed: 0,
@@ -64,10 +65,28 @@ export function settleDynastyMajor(dynasty: DynastyState, run: MajorRun, input: 
 /** Opens the next Major of the dynasty. Only valid once the current one was settled. */
 export function beginNextDynastyMajor(dynasty: DynastyState): DynastyState {
   if (dynasty.prizeCreditedFor < dynasty.majorNumber) throw new Error('Settle the current Major before starting the next one');
-  return { ...dynasty, majorNumber: dynasty.majorNumber + 1, majorRules: 2, window: null };
+  const majorNumber = dynasty.majorNumber + 1;
+  const major = dynasty.major ? { ...dynasty.major, majorNumber, plans: {}, confirmed: true as const, training: null } : null;
+  return { ...dynasty, majorNumber, majorRules: 2, major, window: null };
 }
 
 const isStage = (value: unknown): value is MajorStage => value === 'stage1' || value === 'stage2' || value === 'stage3';
+const isStyle = (value: unknown): value is SeriesPlan['style'] => value === 'aggressive' || value === 'balanced' || value === 'tactical';
+const isTactic = (value: unknown): value is SeriesPlan['tactic'] => value === 'standard' || value === 'pressure' || value === 'control' || value === 'antistrat';
+const normalizeSeriesPlan = (value: unknown): SeriesPlan | null => {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<SeriesPlan>;
+  return isStyle(raw.style) && isTactic(raw.tactic) ? { style: raw.style, tactic: raw.tactic, study: raw.study === true } : null;
+};
+const normalizeMajorPlan = (value: unknown, majorNumber: number): DynastyMajorPlan | null => {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<DynastyMajorPlan>;
+  const basePlan = normalizeSeriesPlan(raw.basePlan);
+  if (!basePlan || raw.rules !== 2 || raw.majorNumber !== majorNumber) return null;
+  const plans = Object.fromEntries(Object.entries(raw.plans && typeof raw.plans === 'object' ? raw.plans : {})
+    .flatMap(([seriesId, plan]) => { const normalized = normalizeSeriesPlan(plan); return normalized ? [[seriesId, normalized]] : []; }));
+  return { majorNumber, rules: 2, training: null, basePlan, plans, confirmed: raw.confirmed !== false };
+};
 const positiveInt = (value: unknown, fallback: number, minimum: number) =>
   typeof value === 'number' && Number.isInteger(value) && value >= minimum ? value : fallback;
 
@@ -84,10 +103,14 @@ export function ensureDynastyState(saved: unknown): DynastyState {
   const base = createDynastyState();
   if (!saved || typeof saved !== 'object') return base;
   const raw = saved as Partial<Record<keyof DynastyState, unknown>>;
+  const majorNumber = positiveInt(raw.majorNumber, 1, 1);
+  const majorRules = raw.majorRules === 2 ? 2 : 1;
+  const major = majorRules === 2 ? normalizeMajorPlan(raw.major, majorNumber) : null;
   return {
     ...base,
-    majorRules: raw.majorRules === 2 ? 2 : 1,
-    majorNumber: positiveInt(raw.majorNumber, 1, 1),
+    majorRules,
+    major,
+    majorNumber,
     cash: typeof raw.cash === 'number' && Number.isFinite(raw.cash) ? Math.max(0, Math.round(raw.cash)) : 0,
     coachId: typeof raw.coachId === 'string' ? raw.coachId : null,
     coachRerollsUsed: positiveInt(raw.coachRerollsUsed, 0, 0),

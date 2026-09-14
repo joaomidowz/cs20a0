@@ -38,4 +38,12 @@ describe('coach no motor', () => {
     const botTeams = series.flatMap((item) => [item.config.teamA, item.config.teamB]).filter((item) => item.id !== 'user');
     expect(botTeams.every((item) => item.coachId === undefined && item.timeoutFactor === undefined)).toBe(true);
   });
+
+  it('a seed v2 do campo não depende do estilo', () => {
+    const balanced = createMajorField(roster, 'balanced', teams, players, 'seed-sem-estilo', lineup, { seedsWithoutStyle: true });
+    const aggressive = createMajorField(roster, 'aggressive', teams, players, 'seed-sem-estilo', lineup, { seedsWithoutStyle: true });
+    expect(aggressive.tournamentSeed).toBe(balanced.tournamentSeed);
+    expect(aggressive.field.map((team) => team.id)).toEqual(balanced.field.map((team) => team.id));
+    expect(createMajorField(roster, 'balanced', teams, players, 'seed-legada', lineup).tournamentSeed).not.toBe(createMajorField(roster, 'aggressive', teams, players, 'seed-legada', lineup).tournamentSeed);
+  });
 });
