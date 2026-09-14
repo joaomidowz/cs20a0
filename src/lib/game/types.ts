@@ -7,6 +7,7 @@ export type GamePhase =
   | 'pro-style'
   | 'pro-roles'
   | 'pro-reveal'
+  | 'coach-draft'
   | 'map-selection'
   | 'stage3'
   | 'playoffs'

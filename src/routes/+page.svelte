@@ -52,7 +52,7 @@
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { HOME_SEO_COPY, HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
-  import { getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
+  import { coachById, coaches, getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
   import { getPlayerBaseId, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import {
@@ -75,6 +75,9 @@
   } from '$lib/game/proMode';
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import DynastyHeader from '$lib/components/DynastyHeader.svelte';
+  import CoachDraft from '$lib/components/CoachDraft.svelte';
+  import { applyCoachToTeam, coachAffinity, COACH_REROLLS } from '$lib/game/dynasty/coach';
+  import { offerCoaches } from '$lib/game/dynasty/coachOffer';
   import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
   import { beginNextDynastyMajor, createDynastyState, settleDynastyMajor } from '$lib/game/dynasty/state';
   import {
@@ -91,6 +94,7 @@
     isMajorStage,
     MAJOR_STAGES,
     SPEEDS,
+    type Coach,
     type GameMode,
     type HistoricalTeam,
     type LineupSlotRole,
@@ -242,7 +246,10 @@
   $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
   $: rerollsMax = $game.mode === 'premier' || $game.mode === 'dynasty' ? 3 : $game.mode === 'faceit' ? 1 : $game.mode === 'pro' ? PRO_REROLLS_MAX : 0;
   $: rerollsLeft = Math.max(0, rerollsMax - ($game.rerollsUsed ?? 0));
-  $: userTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
+  $: dynastyCoach = isDynasty && $game.dynasty?.coachId ? coachById.get($game.dynasty.coachId) ?? null : null;
+  $: baseUserTeam = calculateUserTeamPower(selectedPlayers, $game.style, selectedLineup, $game.seed);
+  $: userTeam = dynastyCoach ? applyCoachToTeam(baseUserTeam, dynastyCoach, coachAffinity(dynastyCoach, selectedPlayers, teams)) : baseUserTeam;
+  $: coachOffer = $game.phase === 'coach-draft' && $game.dynasty ? offerCoaches(coaches, $game.seed, $game.usedTeamIds, $game.dynasty.coachRerollsUsed) : [];
   $: mapContributors = getLineupMapContributors(selectedPlayers, teams);
   $: mapYears = getLineupMapYears(selectedPlayers, teams);
   $: ownOrganizationView = selectedPlayers.length ? {
@@ -474,8 +481,28 @@
 
   function beginMapSelection() {
     if (!draftComplete || (isProMode && !$game.proRevealed)) return;
+    if (isDynasty && $game.dynasty && !$game.dynasty.coachId) {
+      update({ phase: 'coach-draft' });
+      return;
+    }
     update({ phase: 'map-selection', selectedMaps: [] });
   }
+
+  function pickCoach(coach: Coach) {
+    if (!$game.dynasty) return;
+    update({ dynasty: { ...$game.dynasty, coachId: coach.id }, phase: 'map-selection', selectedMaps: [] });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function rerollCoaches() {
+    if (!$game.dynasty || $game.dynasty.coachRerollsUsed >= COACH_REROLLS) return;
+    update({ dynasty: { ...$game.dynasty, coachRerollsUsed: $game.dynasty.coachRerollsUsed + 1 } });
+  }
+
+  const coachTeamLabel = (teamId: string) => {
+    const team = teamById.get(teamId);
+    return team ? `${translateTeamName($game.language, team.name ?? teamId)} ${team.year ?? ''}`.trim() : teamId;
+  };
 
   function toggleMap(mapId: MapId) {
     const selected = $game.selectedMaps;
@@ -503,6 +530,7 @@
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier',
       ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
+      ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
     });
     const majorRun = campaign.run;
     const stats = createRunStats(runPlayers, majorRun, $game.seed, runLineup);
@@ -541,6 +569,7 @@
         mode: $game.mode ?? 'premier',
         played,
         ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage } : {}),
+        ...(isDynasty && dynastyCoach ? { coach: dynastyCoach } : {}),
       });
       const expected = Object.keys(played).length;
       const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
@@ -872,7 +901,7 @@
     <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
   {/if}
   {#if isDynasty && $game.dynasty && $game.phase !== 'home' && $game.phase !== 'mode-select'}
-    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} /></div>
+    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} /></div>
   {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
@@ -1138,6 +1167,11 @@
         <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
       </section>
       <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>
+    </section>
+  {:else if $game.phase === 'coach-draft'}
+    <section class="screen shell">
+      <header class="screen-header"><span class="eyebrow">DINASTIA · COACH</span><h1>{t('coachDraftTitle')}</h1><p>{t('coachDraftDesc')}</p></header>
+      <CoachDraft offer={coachOffer} language={$game.language} rerollsLeft={COACH_REROLLS - ($game.dynasty?.coachRerollsUsed ?? 0)} teamLabel={coachTeamLabel} onPick={pickCoach} onReroll={rerollCoaches} />
     </section>
   {:else if $game.phase === 'map-selection'}
     <section class="screen shell map-selection-screen">

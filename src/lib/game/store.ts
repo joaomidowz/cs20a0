@@ -171,6 +171,7 @@ const loadState = (): GameState => {
     }
     if (parsed.mode && !gameModes.has(parsed.mode)) parsed.mode = 'premier';
     parsed.dynasty = parsed.mode === 'dynasty' ? ensureDynastyState(parsed.dynasty) : null;
+    if ((parsed.phase as string) === 'coach-draft' && parsed.mode !== 'dynasty') parsed.phase = 'draft';
     return {
       ...defaultState(querySeed ?? parsed.seed ?? ''),
       ...parsed,

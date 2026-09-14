@@ -261,6 +261,17 @@ const pt = {
   ,dynastyEnd: 'Encerrar dinastia'
   ,dynastyEndConfirm: 'Encerrar a dinastia apaga o histórico e o caixa. Continuar?'
   ,dynastyHistory: 'Histórico da dinastia'
+  ,dynastyCoach: 'Coach'
+  ,coachDraftTitle: 'Escolha o coach'
+  ,coachDraftDesc: 'Três coaches reais de times que você não usou no draft. O coach pesa na força do time, na pausa tática, no lado TR e na química com jogadores do time dele.'
+  ,coachReroll: 'Sortear outros coaches'
+  ,coachPick: 'Contratar'
+  ,coachTactics: 'Tática'
+  ,coachDiscipline: 'Disciplina'
+  ,coachAggression: 'Agressão'
+  ,coachDevelopment: 'Desenvolvimento'
+  ,coachNeedsReview: 'Coach de ano vizinho, a confirmar'
+  ,coachStaff: 'Comissão técnica'
   ,overviewStage: 'Estágio'
   ,overviewSwissWord: 'Suíço'
   ,overviewMyMatch: 'Minha partida'
@@ -393,6 +404,7 @@ Object.assign(dictionaries.es, {
   dynasty: 'Dinastía', dynastyDesc: 'Atributos visibles como en Normal. Empieza en el Stage 1, gana premios, conviértete en Legend y sigue con la misma organización durante varios Majors.',
   dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Títulos', dynastyCash: 'Caja', dynastyPrize: 'Premio', dynastyEntry: 'Entrada',
   dynastyNextMajor: 'Próximo Major', dynastyEnd: 'Cerrar dinastía', dynastyEndConfirm: 'Cerrar la dinastía borra el historial y la caja. ¿Continuar?', dynastyHistory: 'Historial de la dinastía',
+  dynastyCoach: 'Coach', coachDraftTitle: 'Elige el coach', coachDraftDesc: 'Tres coaches reales de equipos que no usaste en el draft. El coach influye en la fuerza del equipo, la pausa táctica, el lado T y la química con jugadores de su equipo.', coachReroll: 'Sortear otros coaches', coachPick: 'Contratar', coachTactics: 'Táctica', coachDiscipline: 'Disciplina', coachAggression: 'Agresión', coachDevelopment: 'Desarrollo', coachNeedsReview: 'Coach de un año cercano, por confirmar', coachStaff: 'Cuerpo técnico',
   overviewStage: 'Etapa', overviewSwissWord: 'Suizo',
   proBlindOffer: 'Oferta PRO oculta',
   proBlindOfferDesc: 'Elige sin ver nombre, overall, función, rareza ni premios.',
@@ -493,6 +505,7 @@ Object.assign(dictionaries.en, {
   dynasty: 'Dynasty', dynastyDesc: 'Attributes visible like Normal. Start in Stage 1, earn prize money, become a Legend and keep the same organization across Majors.',
   dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Titles', dynastyCash: 'Cash', dynastyPrize: 'Prize', dynastyEntry: 'Entry',
   dynastyNextMajor: 'Next Major', dynastyEnd: 'End dynasty', dynastyEndConfirm: 'Ending the dynasty erases its history and cash. Continue?', dynastyHistory: 'Dynasty history',
+  dynastyCoach: 'Coach', coachDraftTitle: 'Pick your coach', coachDraftDesc: 'Three real coaches from teams you did not draft from. The coach shapes team strength, the tactical timeout, the T side and chemistry with players from their own team.', coachReroll: 'Draw other coaches', coachPick: 'Hire', coachTactics: 'Tactics', coachDiscipline: 'Discipline', coachAggression: 'Aggression', coachDevelopment: 'Development', coachNeedsReview: 'Coach from a nearby year, to be confirmed', coachStaff: 'Coaching staff',
   overviewStage: 'Stage', overviewSwissWord: 'Swiss',
   proBlindOffer: 'Hidden PRO offer',
   proBlindOfferDesc: 'Pick without seeing name, overall, role, rarity, or awards.',
