@@ -1280,7 +1280,7 @@
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">
       <header class="screen-header"><span class="eyebrow">DINASTIA · {t('dynastyMajorNumber')} #{$game.dynasty.majorNumber}</span><h1>{t('dynastyWindow')}</h1><p>{t('windowIntro')}</p></header>
-      <DynastyWindow state={$game.dynasty.window} language={$game.language} {playerById} {coachById} currentCoach={dynastyCoach} catalog={players} teamLabel={coachTeamLabel} onChange={updateTransferWindow} onConfirm={confirmTransferWindow} />
+      <DynastyWindow state={$game.dynasty.window} language={$game.language} {playerById} {coachById} currentCoach={dynastyCoach} catalog={players} history={$game.dynasty.history} teamLabel={coachTeamLabel} onChange={updateTransferWindow} onConfirm={confirmTransferWindow} />
     </section>
   {:else if $game.phase === 'coach-draft'}
     <section class="screen shell">
