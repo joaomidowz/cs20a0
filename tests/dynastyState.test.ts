@@ -8,7 +8,7 @@ const input = { seed: 'abc123', lineup: [], stats: [] };
 
 describe('estado da Dinastia', () => {
   it('começa no Stage 1 como Challenger, sem caixa', () => {
-    expect(createDynastyState()).toMatchObject({ majorNumber: 1, cash: 0, status: 'challenger', entryStage: 'stage1', titles: 0, history: [], prizeCreditedFor: 0 });
+    expect(createDynastyState()).toMatchObject({ majorNumber: 1, cash: 0, status: 'challenger', entryStage: 'stage1', titles: 0, history: [], prizeCreditedFor: 0, coachRerollsUsed: 0 });
   });
 
   it('decide a entrada do próximo Major pela colocação', () => {

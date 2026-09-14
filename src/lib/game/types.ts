@@ -280,6 +280,12 @@ export interface CombatTeam {
   lineup?: SelectedPlayer[];
   /** Average consistency of the lineup (0-100); steadier teams swing less between maps and match days. */
   consistency?: number;
+  /** Dinastia: coach of the user's organization. Absent everywhere else. */
+  coachId?: string;
+  /** CT preference the coach adds to the side bias (negative favours the T side). */
+  coachSidePreference?: number;
+  /** Multiplier of this team's tactical timeout edge. */
+  timeoutFactor?: number;
 }
 
 export interface RoundScore {
@@ -487,6 +493,8 @@ export interface DynastyState {
   /** Whole dollars. */
   cash: number;
   coachId: string | null;
+  /** Coach offers redrawn in the current coach draft (one allowed). */
+  coachRerollsUsed: number;
   status: DynastyStatus;
   entryStage: MajorStage;
   titles: number;
