@@ -163,7 +163,7 @@ const ROLE_KILL_FACTOR: Record<LineupSlotRole, number> = { entry: 1.06, lurker: 
 const MOMENTUM_STEP = 0.01;
 const MAX_MOMENTUM = 5;
 /** Round-win edge of a well-timed tactical timeout, by queue: barely felt in Normal/Ranked, decisive in PRO and Resenha. */
-export const TIMEOUT_BONUS_BY_MODE: Record<OnlineGameMode, number> = { premier: 0.03, faceit: 0.03, pro: 0.08, fun: 0.1, max_fun: 0.1 };
+export const TIMEOUT_BONUS_BY_MODE: Record<OnlineGameMode, number> = { premier: 0.03, faceit: 0.03, pro: 0.08, fun: 0.1, max_fun: 0.1, dynasty: 0.03 };
 /** Straight losses in the half during which a timeout has its full effect; earlier or later it keeps a third of it. */
 export const TIMEOUT_WINDOW = { from: 2, to: 4 } as const;
 export const TIMEOUT_OFF_WINDOW_FACTOR = 1 / 3;

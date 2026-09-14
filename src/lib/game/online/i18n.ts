@@ -19,6 +19,7 @@ export const translateOnline = (language: Language, key: OnlineTranslationKey) =
 const modePresentation: Record<Language, Record<OnlineGameMode, { name: string; description: string }>> = {
   'pt-BR': {
     premier: { name: 'Normal', description: 'Atributos visíveis e até três rerolls. Funções livres e posição dupla.' },
+    dynasty: { name: 'Normal', description: 'Atributos visíveis e até três rerolls. Funções livres e posição dupla.' },
     faceit: { name: 'Ranked', description: 'Atributos ocultos durante o draft e um reroll. Funções livres e posição dupla.' },
     pro: { name: 'PRO', description: 'Ofertas cegas, funções únicas e um reroll.' },
     fun: { name: 'Resenha', description: 'Somente lines históricas com média 82 ou maior; um reroll. Funções livres e posição dupla.' },
@@ -26,6 +27,7 @@ const modePresentation: Record<Language, Record<OnlineGameMode, { name: string; 
   },
   en: {
     premier: { name: 'Normal', description: 'Visible attributes and up to three rerolls. Free roles and dual positions.' },
+    dynasty: { name: 'Normal', description: 'Visible attributes and up to three rerolls. Free roles and dual positions.' },
     faceit: { name: 'Ranked', description: 'Hidden attributes during the draft and one reroll. Free roles and dual positions.' },
     pro: { name: 'PRO', description: 'Blind offers, unique roles, and one reroll.' },
     fun: { name: '4FUN', description: 'Historical lineups with an 82 or higher average only; one reroll. Free roles and dual positions.' },
@@ -33,6 +35,7 @@ const modePresentation: Record<Language, Record<OnlineGameMode, { name: string; 
   },
   es: {
     premier: { name: 'Normal', description: 'Atributos visibles y hasta tres rerolls. Funciones libres y posición doble.' },
+    dynasty: { name: 'Normal', description: 'Atributos visibles y hasta tres rerolls. Funciones libres y posición doble.' },
     faceit: { name: 'Ranked', description: 'Atributos ocultos durante el draft y un reroll. Funciones libres y posición doble.' },
     pro: { name: 'PRO', description: 'Ofertas a ciegas, funciones únicas y un reroll.' },
     fun: { name: 'De Chill', description: 'Solo alineaciones históricas con media 82 o superior; un reroll. Funciones libres y posición doble.' },

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { GameMode, LineupSlotRole, MajorAwards, MapId, MapSide, MapVetoStep, OnlineGameMode, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
+import type { GameMode, LineupSlotRole, MajorAwards, MajorStage, MapId, MapSide, MapVetoStep, OnlineGameMode, OrgStyle, PlayerRunStats, RoundDetail, SelectedPlayer, SeriesResult } from '../types';
 
 export type { OnlineGameMode } from '../types';
 
@@ -133,8 +133,15 @@ export interface PublicStanding {
 export interface PublicRound {
   number: number;
   phase: 'swiss' | 'quarterfinal' | 'semifinal' | 'final';
+  /** Swiss stage of the round; only sent by Majors with three stages (never by online rooms today). */
+  stage?: MajorStage;
   series: SeriesResult[];
   revealed: boolean;
+}
+
+export interface PublicStageStandings {
+  stage: MajorStage;
+  standings: PublicStanding[];
 }
 
 export interface PublicOverviewSeries {
@@ -202,6 +209,8 @@ export interface PublicTournament {
   championId: string | null;
   currentRound: number;
   liveCursor: PublicLiveCursor | null;
+  /** Table of every Swiss stage; only present in Majors with three stages. */
+  stages?: PublicStageStandings[];
   /** MVP, best lineup and top players of the whole Major; only sent once the room is completed. */
   awards?: MajorAwards | null;
   campaigns?: Array<{

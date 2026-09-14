@@ -10,6 +10,8 @@ export const getSandboxDecidedMaps = (match: SandboxMajorMatch): SandboxDecidedM
 export const SANDBOX_PHASES: SeriesResult['phase'][] = ['stage3', 'quarterfinal', 'semifinal', 'final'];
 
 export const SANDBOX_PHASE_LABELS: Record<SeriesResult['phase'], string> = {
+  stage1: 'STAGE 1',
+  stage2: 'STAGE 2',
   stage3: 'STAGE 3',
   quarterfinal: 'QUARTAS DE FINAL',
   semifinal: 'SEMIFINAIS',

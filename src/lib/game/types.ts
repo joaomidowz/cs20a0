@@ -13,7 +13,17 @@ export type GamePhase =
   | 'result'
   | 'stats';
 
-export type GameMode = 'premier' | 'faceit' | 'pro';
+export type GameMode = 'premier' | 'faceit' | 'pro' | 'dynasty';
+/** Swiss stages of a Major. Every mode but Dinastia plays only `stage3`. */
+export type MajorStage = 'stage1' | 'stage2' | 'stage3';
+export const MAJOR_STAGES: readonly MajorStage[] = ['stage1', 'stage2', 'stage3'];
+/** Placement key of a team knocked out in each Swiss stage. */
+export const STAGE_PLACEMENT: Readonly<Record<MajorStage, string>> = {
+  stage1: 'placementStage1',
+  stage2: 'placementStage2',
+  stage3: 'placementStage3'
+};
+export const isMajorStage = (phase: string): phase is MajorStage => phase === 'stage1' || phase === 'stage2' || phase === 'stage3';
 /** Online queues add the two Resenha modes; the engine reads it for mode-dependent rules such as the tactical timeout. */
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
 /** When a tactical timeout was called relative to the 2–4 straight-loss window that gives it its full effect. */
@@ -215,6 +225,8 @@ export interface HistoricalTeam {
   power?: number | null;
   teamPowerPreview?: number | null;
   rarity?: string | null;
+  /** Strength tier from the dataset: underdog, dangerous-underdog, playoff-team, contender, finalist, champion, S, S+. */
+  tier?: string | null;
   teamStats?: Record<string, number> | null;
   style?: OrgStyle | string | null;
   badges?: string[] | null;
@@ -280,7 +292,7 @@ export interface MapResult {
 
 export interface SeriesResult {
   id: string;
-  phase: 'stage3' | 'quarterfinal' | 'semifinal' | 'final';
+  phase: MajorStage | 'quarterfinal' | 'semifinal' | 'final';
   bestOf: 1 | 3 | 5;
   teamA: CombatTeam;
   teamB: CombatTeam;
@@ -323,6 +335,8 @@ export interface MajorStanding {
 export interface MajorRound {
   number: number;
   phase: 'swiss' | 'quarterfinal' | 'semifinal' | 'final';
+  /** Swiss stage this round belongs to; only present in Majors with three stages (Dinastia). */
+  stage?: MajorStage;
   series: SeriesResult[];
 }
 
@@ -373,11 +387,18 @@ export interface MajorAwards {
   highlightReel: MajorPlayerAward | null;
 }
 
+export interface MajorStageStandings {
+  stage: MajorStage;
+  standings: MajorStanding[];
+}
+
 /** The whole field's results, so the Major overview can show every other team, standings and the bracket. */
 export interface MajorTournament {
   rounds: MajorRound[];
   standings: MajorStanding[];
   championId: string | null;
+  /** Final (or current) table of every Swiss stage; only present in Majors with three stages. */
+  stages?: MajorStageStandings[];
   /** MVP, best team and top players of the whole event (present once the champion is known). */
   awards?: MajorAwards | null;
 }
@@ -389,6 +410,10 @@ export interface MajorRun {
   champion: boolean;
   placement: string;
   tournament?: MajorTournament;
+  /** Record of every Swiss stage the user played; only in Majors with three stages. */
+  stages?: Partial<Record<MajorStage, Stage3Result>>;
+  /** Stage the user's organization entered; only in Majors with three stages. */
+  entryStage?: MajorStage;
 }
 
 export interface PlayerRunStats {
@@ -411,6 +436,46 @@ export interface PlayerRunStats {
   roundsLost: number;
 }
 
+
+export type DynastyStatus = 'challenger' | 'legend';
+
+export interface DynastyMajorSummary {
+  majorNumber: number;
+  seed: string;
+  entryStage: MajorStage;
+  placement: string;
+  /** Prize by placement, in whole dollars. */
+  prize: number;
+  /** MVP and individual award bonus, in whole dollars. */
+  awardsBonus: number;
+  lineup: SelectedPlayer[];
+  coachId: string | null;
+  movesMade: number;
+  stats: PlayerRunStats[];
+}
+
+/** Attribute drift a Dinastia player carries over the dataset version (used from delivery C on). */
+export interface PlayerOverride {
+  drift: Partial<Record<'firepower' | 'clutch' | 'entry' | 'awp' | 'support' | 'consistency' | 'mental' | 'overall', number>>;
+  driftTotal: number;
+  versionsSince: string[];
+}
+
+export interface DynastyState {
+  majorNumber: number;
+  /** Whole dollars. */
+  cash: number;
+  coachId: string | null;
+  status: DynastyStatus;
+  entryStage: MajorStage;
+  titles: number;
+  history: DynastyMajorSummary[];
+  playerOverrides: Record<string, PlayerOverride>;
+  /** Transfer window in progress (delivery C); null outside the window. */
+  window: unknown | null;
+  /** Last majorNumber whose prize was already credited, so a reload never pays twice. */
+  prizeCreditedFor: number;
+}
 
 export interface GameState {
   phase: GamePhase;
@@ -435,6 +500,8 @@ export interface GameState {
   playedSeries?: Record<string, SeriesResult>;
   completedSeries: number;
   stats: PlayerRunStats[];
+  /** Present only while the mode is 'dynasty'. */
+  dynasty?: DynastyState | null;
 }
 
 export const SPEEDS: Record<SimSpeed, number> = {

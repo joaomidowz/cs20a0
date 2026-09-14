@@ -244,6 +244,25 @@ const pt = {
   ,placement3to4: '3º–4º'
   ,placement5to8: '5º–8º'
   ,placementStage3: 'Eliminado no Stage 3'
+  ,placementStage1: 'Eliminado no Stage 1'
+  ,placementStage2: 'Eliminado no Stage 2'
+  ,stage1: 'Stage 1'
+  ,stage2: 'Stage 2'
+  ,dynasty: 'Dinastia'
+  ,dynastyDesc: 'Atributos visíveis como no Normal. Comece no Stage 1, ganhe prêmios, vire Legend e siga com a mesma organização por vários Majors.'
+  ,dynastyMajorNumber: 'Major'
+  ,dynastyChallenger: 'Challenger'
+  ,dynastyLegend: 'Legend'
+  ,dynastyTitles: 'Títulos'
+  ,dynastyCash: 'Caixa'
+  ,dynastyPrize: 'Premiação'
+  ,dynastyEntry: 'Entrada'
+  ,dynastyNextMajor: 'Próximo Major'
+  ,dynastyEnd: 'Encerrar dinastia'
+  ,dynastyEndConfirm: 'Encerrar a dinastia apaga o histórico e o caixa. Continuar?'
+  ,dynastyHistory: 'Histórico da dinastia'
+  ,overviewStage: 'Estágio'
+  ,overviewSwissWord: 'Suíço'
   ,overviewMyMatch: 'Minha partida'
   ,overviewMajor: 'Visão do Major'
   ,overviewStandings: 'Tabela'
@@ -370,6 +389,11 @@ Object.assign(dictionaries.es, {
   faceitDesc: 'En Ranked eliges por intuición. Los números aparecen después.',
   pro: 'PRO',
   proDesc: 'Draft totalmente ciego, 1 reroll total y posiciones manuales antes del reveal.',
+  placementStage1: 'Eliminado en el Stage 1', placementStage2: 'Eliminado en el Stage 2', stage1: 'Stage 1', stage2: 'Stage 2',
+  dynasty: 'Dinastía', dynastyDesc: 'Atributos visibles como en Normal. Empieza en el Stage 1, gana premios, conviértete en Legend y sigue con la misma organización durante varios Majors.',
+  dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Títulos', dynastyCash: 'Caja', dynastyPrize: 'Premio', dynastyEntry: 'Entrada',
+  dynastyNextMajor: 'Próximo Major', dynastyEnd: 'Cerrar dinastía', dynastyEndConfirm: 'Cerrar la dinastía borra el historial y la caja. ¿Continuar?', dynastyHistory: 'Historial de la dinastía',
+  overviewStage: 'Etapa', overviewSwissWord: 'Suizo',
   proBlindOffer: 'Oferta PRO oculta',
   proBlindOfferDesc: 'Elige sin ver nombre, overall, función, rareza ni premios.',
   proHiddenPlayer: 'Jugador oculto',
@@ -465,6 +489,11 @@ Object.assign(dictionaries.en, {
   faceitDesc: 'In Ranked you pick by feel. The numbers appear later.',
   pro: 'PRO',
   proDesc: 'Fully blind draft, 1 total reroll, and manual positions before reveal.',
+  placementStage1: 'Eliminated in Stage 1', placementStage2: 'Eliminated in Stage 2', stage1: 'Stage 1', stage2: 'Stage 2',
+  dynasty: 'Dynasty', dynastyDesc: 'Attributes visible like Normal. Start in Stage 1, earn prize money, become a Legend and keep the same organization across Majors.',
+  dynastyMajorNumber: 'Major', dynastyChallenger: 'Challenger', dynastyLegend: 'Legend', dynastyTitles: 'Titles', dynastyCash: 'Cash', dynastyPrize: 'Prize', dynastyEntry: 'Entry',
+  dynastyNextMajor: 'Next Major', dynastyEnd: 'End dynasty', dynastyEndConfirm: 'Ending the dynasty erases its history and cash. Continue?', dynastyHistory: 'Dynasty history',
+  overviewStage: 'Stage', overviewSwissWord: 'Swiss',
   proBlindOffer: 'Hidden PRO offer',
   proBlindOfferDesc: 'Pick without seeing name, overall, role, rarity, or awards.',
   proHiddenPlayer: 'Hidden player',
