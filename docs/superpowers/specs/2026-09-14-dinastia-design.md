@@ -26,7 +26,7 @@ A referência de mercado (Road to Major, `roadtomajor.com.br`) tem coach, janela
 Fluxo de um Major na Dinastia:
 
 1. **Draft** igual ao Normal: cinco oportunidades, um jogador por time sorteado, estilo da organização.
-2. **Coach** (entrega B): fase nova `coach-draft` depois da 5ª escolha. A roleta oferece 3 coaches sorteados com a seed `${seed}:coach:${usedTeamIds}`, com pelo menos um de overall 80 ou mais; 1 ressorteio troca os 3. O card mostra nome, time e ano, os quatro atributos, overall e raridade. Antes da entrega B o Dinastia joga sem coach.
+2. **Coach** (entrega B): fase nova `coach-draft` depois da 5ª escolha. A roleta oferece 3 coaches sorteados com a seed `${seed}:coach:${usedTeamIds}`, só entre coaches não `placeholder` e de times ainda não usados no draft, com pelo menos um de overall 80 ou mais; 1 ressorteio troca os 3. O card mostra nome, time e ano, os quatro atributos, overall e raridade. Antes da entrega B o Dinastia joga sem coach.
 3. **Seleção de mapas** como hoje.
 4. **Major** em três estágios e playoffs (seção própria).
 5. **Resultado**: o prêmio e os bônus entram no caixa uma única vez por Major (`prizeCreditedFor`). O botão "Mesmo time, novo Major" vira "Janela de transferências". Até a entrega C ele se chama "Próximo Major", mantém o elenco e só aplica status e estágio de entrada. "Tentar de novo" encerra a dinastia e pede confirmação, porque apaga o histórico.
@@ -170,18 +170,48 @@ Por jogador e série: kills, deaths, assistências, flash assists, opening kill 
 - Colunas da tela de stats: Rating 3.0, Swing, K, D, A, KAST, ADR, dano de utilitário, duelos de abertura (V-D), trocas, 3K/4K/ACE, clutches. `runRating` passa a ser o rating 3.0; a evolução da Dinastia usa esse valor.
 - Cobre offline e Sandbox. O online usa a mesma função no servidor em etapa posterior, porque o protocolo ao vivo não envia o kill feed das séries alheias.
 
-## Dataset de coaches (studio `cs13a0-management`, `scripts/liquipedia-historical.mjs`, `data/workspace/coaches.game.json`)
+## Dataset de coaches (studio `cs13a0-management`, branch `feat/coaches-dataset`, `data/workspace/coaches.game.json`)
 
-O coletor já lê os templates `{{TeamCard}}` das páginas de Major na Liquipedia; o campo de coach do template gera um registro por coach e ano, ligado ao `teamId` do time daquele ano. Atributos derivados, reproduzíveis no studio:
+**Um coach para cada um dos 286 times.** O vínculo é por `teamId`: o coach de `astralis-2018` é quem comandou aquele elenco naquele ano. A mesma pessoa em anos ou times diferentes compartilha o `baseId` (slug do nome).
+
+Fonte: os templates `{{TeamCard}}` das páginas de Major na Liquipedia, campo `c` (ou `coach`), lidos do cache do importador experimental do studio e completados com as páginas que o cache buscou com título errado (`ELEAGUE/2017/Major`, `ELEAGUE/2018/Major`, `FACEIT/2018/Major`). Medição de 2026-09-14 sobre os 286 times:
+
+| Origem do coach | Times | `confidence` |
+|---|---|---|
+| Card do próprio ano | 262 | `high` (um Major no ano ou mesmo coach nos dois) ou `medium` (coach trocou entre os dois Majors do ano: vale o do Major mais tardio, mais próximo do ranking de dezembro que definiu o elenco) |
+| Card da mesma organização em ano vizinho (±1) | 19 | `low`, `needsReview: true` (inclui os 5 times de 2020, ano sem Major) |
+| Nenhum registro | 5 (`optic-2016`, `penta-2017`, `evil-geniuses-2019`, `forze-2019`, `monte-2023`) | `placeholder`, `needsReview: true` |
+
+`data/config/coach-overrides.json` corrige nome e origem quando houver fonte (ex.: a EG de 2019 herdou o elenco e o coach da NRG). Coach `placeholder` se chama "Comissão técnica" / "Coaching staff" / "Cuerpo técnico", nunca entra nas ofertas do draft e existe só para o time ter o campo preenchido.
+
+```ts
+interface Coach {
+  id: string;            // `coach-${teamId}`
+  baseId: string;        // slug do nome; 'staff' no placeholder
+  name: string;
+  teamId: string; year: number; game: string;
+  tactics: number; discipline: number; aggression: number; development: number; // 40–99
+  overall: number; rarity: string;
+  confidence: 'high' | 'medium' | 'low' | 'placeholder';
+  needsReview: boolean;
+  source: { page: string | null; url: string | null; year: number | null; note: string };
+}
+```
+
+Atributos derivados, reproduzíveis no studio:
 
 - Tática: média de `teamStats.tactics` e `teamStats.mapPool` do time.
 - Disciplina: média de `teamStats.mental` e `teamStats.consistency`.
 - Agressão: média de `entry` e `firepower` do elenco daquele ano.
-- Desenvolvimento: variação média do overall dos jogadores do elenco na versão do ano seguinte, mapeada de −6..+6 para 50..99; sem dado, 70.
-- Overall: média dos quatro. Raridade: `legend` se o time tem título de Major no `majorSummary`, `elite` se chegou a final ou semi, `rare` se chegou a playoffs, `common` nos demais.
-- `data/config/coach-overrides.json` corrige nome e atributos dos coaches conhecidos. Sem foto. Coach sem registro na Liquipedia não entra no pool.
+- Desenvolvimento: variação média do overall dos jogadores do elenco na versão do ano seguinte (mesmo `baseId`, `year + 1`), mapeada de −6..+6 para 50..99; sem dado, 70.
+- Todos limitados a 40..99 e arredondados. Overall: média dos quatro. Raridade pelo `majorSummary` do time: `legend` com título, `elite` com final ou semi, `rare` com playoffs, `common` nos demais.
+- Sem foto. Nenhum dado de pessoa além do nome público de coach.
 
-`data:pull` passa a copiar também `coaches.game.json`. A coleta roda depois que os 1430 jogadores estiverem carregados no studio.
+O jogo recebe o arquivo pelo `data:pull` (caminho corrigido para o studio real) em `src/lib/data/cs/coaches.game.json`.
+
+## Validação do dataset (`tests/datasetIntegrity.test.ts` no jogo)
+
+Um teste de integridade roda no gate e cobre jogadores, times e coaches: ids únicos; elenco de 5 jogadores existentes e com `baseId` distintos; `teamId` e ano do jogador batendo com o time; atributos inteiros em 1..99; raridade, tier e posições válidos; um coach por time com `teamId` existente, atributos em 40..99 e `confidence` válida; coaches `placeholder` sempre com `needsReview`. Achados da auditoria de 2026-09-14 que não são erro: 42 funções compostas (`awper-igl`, `lurker-support`), que `roleRules` já converte; 54 jogadores com duas versões no mesmo ano, porque 2016–2019 tiveram dois Majors por ano. Achado para revisão manual no studio: `bntet-2019` com overall 74 e IGL 30 com função IGL.
 
 ## Fora de escopo
 
