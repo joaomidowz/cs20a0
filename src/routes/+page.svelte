@@ -76,10 +76,13 @@
   import { defaultState, game, makeSeed } from '$lib/game/store';
   import DynastyHeader from '$lib/components/DynastyHeader.svelte';
   import CoachDraft from '$lib/components/CoachDraft.svelte';
+  import DynastyWindow from '$lib/components/DynastyWindow.svelte';
   import { applyCoachToTeam, coachAffinity, COACH_REROLLS } from '$lib/game/dynasty/coach';
   import { offerCoaches } from '$lib/game/dynasty/coachOffer';
   import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
   import { beginNextDynastyMajor, createDynastyState, settleDynastyMajor } from '$lib/game/dynasty/state';
+  import { resolveDynastyPlayer } from '$lib/game/dynasty/resolve';
+  import { confirmWindow, createWindow } from '$lib/game/dynasty/window';
   import {
     MAP_POOL,
     getDefaultMapSelection,
@@ -105,7 +108,8 @@
     type Player,
     type SeriesResult,
     type SimMode,
-    type SimSpeed
+    type SimSpeed,
+    type WindowState
   } from '$lib/game/types';
   import '../app.css';
 
@@ -240,7 +244,13 @@
   $: proAdjustedPlayers = proEvaluations.map((evaluation) => evaluation.adjustedPlayer);
   $: proAdjustedPlayerById = new Map(proAdjustedPlayers.map((player) => [player.id, player]));
   $: selectedLineup = isProMode && $game.proRevealed ? proLineup : $game.selectedPlayers;
-  $: selectedPlayers = isProMode ? ($game.proRevealed ? proAdjustedPlayers : proPickedPlayers) : selectedLineup.map((selected) => playerById.get(selected.playerId)).filter((player): player is Player => Boolean(player));
+  $: selectedPlayers = isProMode
+    ? ($game.proRevealed ? proAdjustedPlayers : proPickedPlayers)
+    : selectedLineup
+      .map((selected) => playerById.get(selected.playerId))
+      .filter((player): player is Player => Boolean(player))
+      // Dinastia: strength, cards, HUD, stats and the Major all read the player with the dynasty's drift.
+      .map((player) => (isDynasty ? resolveDynastyPlayer(player, $game.dynasty?.playerOverrides[player.id]) : player));
   $: rolledTeam = $game.rolledTeamId ? teamById.get($game.rolledTeamId) ?? null : null;
   $: rolledPlayers = getTeamPlayers(rolledTeam);
   $: draftComplete = isProMode ? proPickedPlayers.length === 5 : selectedPlayers.length === 5;
@@ -769,11 +779,14 @@
     update({ dynasty: settleDynastyMajor($game.dynasty, run, { seed: $game.seed, lineup: selectedLineup, stats: $game.stats }) });
   }
 
-  /** Keeps the lineup, opens the next Major of the dynasty and lets the user revisit the map pool before Stage 1/2/3. */
+  /** Credits the Major and opens the transfer window: evolution, proposals, market and coach before the next Major. */
   function startNextDynastyMajor() {
     if (!isDynasty || !$game.dynasty || selectedLineup.length !== 5) return;
     settleDynastyIfNeeded();
-    const dynasty = beginNextDynastyMajor($game.dynasty);
+    const dynasty = $game.dynasty;
+    const transferWindow = dynasty.window?.majorNumber === dynasty.majorNumber
+      ? dynasty.window
+      : createWindow({ dynasty, lineup: selectedLineup, stats: $game.stats, seed: $game.seed, catalog: players, playerById, coaches, coachById });
     resetSupportNudge();
     closePlayer();
     closeEnemyTeam();
@@ -781,9 +794,22 @@
     stopLiveTick();
     awaitingAdvance = false;
     autoPausedHalf = '';
-    campaign = null;
     resultStatsOpen = false;
-    update({ dynasty, seed: makeSeed(), majorRun: null, playedSeries: {}, stats: [], completedSeries: 0, phase: 'map-selection' });
+    update({ dynasty: { ...dynasty, window: transferWindow }, phase: 'window' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateTransferWindow(next: WindowState) {
+    if (!$game.dynasty) return;
+    update({ dynasty: { ...$game.dynasty, window: next } });
+  }
+
+  /** Applies the window (lineup, cash, coach, drift) and opens the next Major at the map selection. */
+  function confirmTransferWindow() {
+    if (!isDynasty || !$game.dynasty?.window) return;
+    const { dynasty, lineup } = confirmWindow($game.dynasty, $game.dynasty.window, playerById);
+    campaign = null;
+    update({ dynasty: beginNextDynastyMajor(dynasty), selectedPlayers: lineup, seed: makeSeed(), majorRun: null, playedSeries: {}, stats: [], completedSeries: 0, phase: 'map-selection' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -901,7 +927,7 @@
     <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
   {/if}
   {#if isDynasty && $game.dynasty && $game.phase !== 'home' && $game.phase !== 'mode-select'}
-    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} /></div>
+    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} eraName={$game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} /></div>
   {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
@@ -1167,6 +1193,11 @@
         <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
       </section>
       <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>
+    </section>
+  {:else if $game.phase === 'window' && $game.dynasty?.window}
+    <section class="screen shell">
+      <header class="screen-header"><span class="eyebrow">DINASTIA · {t('dynastyMajorNumber')} #{$game.dynasty.majorNumber}</span><h1>{t('dynastyWindow')}</h1><p>{t('windowIntro')}</p></header>
+      <DynastyWindow state={$game.dynasty.window} language={$game.language} {playerById} {coachById} currentCoach={dynastyCoach} catalog={players} teamLabel={coachTeamLabel} onChange={updateTransferWindow} onConfirm={confirmTransferWindow} />
     </section>
   {:else if $game.phase === 'coach-draft'}
     <section class="screen shell">
@@ -1446,7 +1477,7 @@
           </section>
         {/if}
         <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} />
-        <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{t('dynastyNextMajor')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
+        <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{t('dynastyWindow')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
       </section>
     {/if}
   {:else if $game.phase === 'stats'}

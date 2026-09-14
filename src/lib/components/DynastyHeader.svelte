@@ -7,12 +7,14 @@
   export let dynasty: DynastyState;
   export let language: Language = 'pt-BR';
   export let coachName: string | null = null;
+  export let eraName: string | null = null;
 
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 </script>
 
 <div class="dynasty-bar" role="status">
   <span class="eyebrow">DINASTIA</span>
+  {#if eraName}<span class="pill legend">{eraName}</span>{/if}
   <strong>{t('dynastyMajorNumber')} #{dynasty.majorNumber}</strong>
   <span class="pill" class:legend={dynasty.status === 'legend'}>{dynasty.status === 'legend' ? t('dynastyLegend') : t('dynastyChallenger')} · {t('dynastyEntry')} {t(dynasty.entryStage)}</span>
   <span>{t('dynastyTitles')} <b>{dynasty.titles}</b></span>
