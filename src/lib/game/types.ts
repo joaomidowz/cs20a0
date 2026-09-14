@@ -8,6 +8,7 @@ export type GamePhase =
   | 'pro-roles'
   | 'pro-reveal'
   | 'coach-draft'
+  | 'window'
   | 'map-selection'
   | 'stage3'
   | 'playoffs'
@@ -515,9 +516,60 @@ export interface DynastyMajorSummary {
 
 /** Attribute drift a Dinastia player carries over the dataset version (used from delivery C on). */
 export interface PlayerOverride {
-  drift: Partial<Record<'firepower' | 'clutch' | 'entry' | 'awp' | 'support' | 'consistency' | 'mental' | 'overall', number>>;
+  drift: Partial<Record<'firepower' | 'clutch' | 'entry' | 'awp' | 'support' | 'consistency' | 'mental' | 'overall' | 'experience', number>>;
   driftTotal: number;
   versionsSince: string[];
+}
+
+/** What happened to one lineup player at the start of the transfer window. */
+export interface EvolutionEntry {
+  fromPlayerId: string;
+  toPlayerId: string;
+  kind: 'version' | 'drift' | 'stable';
+  overallBefore: number;
+  overallAfter: number;
+}
+
+export interface WindowOffer {
+  playerId: string;
+  /** Whole dollars. */
+  price: number;
+  /** Set on the offers drawn for the lineup's weakest position. */
+  focusRole: LineupSlotRole | null;
+}
+
+export interface WindowProposal {
+  playerId: string;
+  /** Whole dollars another organization pays for this lineup player. */
+  price: number;
+}
+
+export interface WindowMove {
+  outPlayerId: string;
+  inPlayerId: string;
+  salePrice: number;
+  buyPrice: number;
+  kind: 'offer' | 'target';
+}
+
+/** Transfer window between two Dinastia Majors. Everything the screen shows derives from this object, so a reload reproduces it. */
+export interface WindowState {
+  majorNumber: number;
+  seed: string;
+  cashAtOpen: number;
+  maxMoves: number;
+  evolution: EvolutionEntry[];
+  /** Lineup after the evolution, before any move. */
+  baseLineup: SelectedPlayer[];
+  /** Overrides after the evolution, keyed by player id. */
+  overrides: Record<string, PlayerOverride>;
+  proposals: WindowProposal[];
+  offers: WindowOffer[];
+  coachOfferIds: string[];
+  moves: WindowMove[];
+  /** Positions the user reassigned in the window, keyed by player id. */
+  roleAssignments: Record<string, LineupSlotRole>;
+  coachChange: { coachId: string; cost: number } | null;
 }
 
 export interface DynastyState {
@@ -533,7 +585,7 @@ export interface DynastyState {
   history: DynastyMajorSummary[];
   playerOverrides: Record<string, PlayerOverride>;
   /** Transfer window in progress (delivery C); null outside the window. */
-  window: unknown | null;
+  window: WindowState | null;
   /** Last majorNumber whose prize was already credited, so a reload never pays twice. */
   prizeCreditedFor: number;
 }
