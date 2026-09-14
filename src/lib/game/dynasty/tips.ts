@@ -1,4 +1,4 @@
-export type TipContext = 'identity' | 'series-plan' | 'team-tab' | 'training' | 'window' | 'swap';
+export type TipContext = 'identity' | 'series-plan' | 'team-tab' | 'training' | 'circuit' | 'window' | 'swap';
 
 export interface DynastyTip {
   id: string;
@@ -11,6 +11,7 @@ export const DYNASTY_TIPS: readonly DynastyTip[] = [
   { id: 'tip-series-plan', context: 'series-plan' },
   { id: 'tip-team-tab', context: 'team-tab' },
   { id: 'tip-training', context: 'training' },
+  { id: 'tip-circuit', context: 'circuit' },
   { id: 'tip-window', context: 'window' },
   { id: 'tip-swap', context: 'swap' }
 ];

@@ -5,7 +5,7 @@ import { TIP_STORAGE_KEY, loadTipPreferences, saveTipPreferences } from '../src/
 
 describe('dicas da Dinastia', () => {
   it('tem exatamente uma dica por contexto, na ordem do fluxo', () => {
-    expect(DYNASTY_TIPS.map((tip) => tip.context)).toEqual(['identity', 'series-plan', 'team-tab', 'training', 'window', 'swap']);
+    expect(DYNASTY_TIPS.map((tip) => tip.context)).toEqual(['identity', 'series-plan', 'team-tab', 'training', 'circuit', 'window', 'swap']);
     expect(new Set(DYNASTY_TIPS.map((tip) => tip.id)).size).toBe(DYNASTY_TIPS.length);
   });
 

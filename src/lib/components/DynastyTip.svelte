@@ -14,6 +14,7 @@
       'tip-series-plan': 'Antes de cada série, ajuste estilo e tática. Estudar o adversário dá força extra, mas o saldo de estudos é curto.',
       'tip-team-tab': 'A aba Time mostra o poder efetivo: elenco, coach, plano da série e treino já somados.',
       'tip-training': 'O treino vale para todo o Major. Quem joga 3 mapas ou mais ganha +1 permanente no atributo treinado.',
+      'tip-circuit': 'Entre os Majors há campeonatos menores. Aceite ou pule cada evento: o prêmio entra no caixa antes da janela.',
       'tip-window': 'Na janela você vende, compra e troca o coach. Jogador fora de posição não bloqueia, só custa 1,5% de força.',
       'tip-swap': 'Troca direta entrega um jogador seu por um deles, com diferença em dinheiro. Conta como uma troca.'
     },
@@ -23,6 +24,7 @@
       'tip-series-plan': 'Antes de cada serie, ajusta estilo y táctica. Estudiar al rival da fuerza extra, pero hay pocos estudios.',
       'tip-team-tab': 'La pestaña Equipo muestra el poder efectivo: plantilla, coach, plan de la serie y entrenamiento sumados.',
       'tip-training': 'El entrenamiento dura todo el Major. Quien juega 3 mapas o más gana +1 permanente en el atributo entrenado.',
+      'tip-circuit': 'Entre Majors hay torneos menores. Acepta u omite cada evento: el premio entra en la caja antes de la ventana.',
       'tip-window': 'En la ventana vendes, compras y cambias de coach. Un jugador fuera de posición no bloquea, solo cuesta 1,5% de fuerza.',
       'tip-swap': 'El intercambio directo da un jugador tuyo por uno de ellos, con diferencia en dinero. Cuenta como un movimiento.'
     },
@@ -32,6 +34,7 @@
       'tip-series-plan': 'Before each series, set style and tactic. Studying the opponent adds strength, but studies are limited.',
       'tip-team-tab': 'The Team tab shows effective power: roster, coach, series plan and training combined.',
       'tip-training': 'Training lasts the whole Major. Players with 3+ maps get a permanent +1 in the trained attribute.',
+      'tip-circuit': 'Smaller events run between Majors. Accept or skip each one: the prize reaches your cash before the window.',
       'tip-window': 'In the window you sell, buy and swap the coach. An off-role player does not block, it only costs 1.5% strength.',
       'tip-swap': 'A direct swap trades one of your players for one of theirs, with a cash difference. It counts as one move.'
     }

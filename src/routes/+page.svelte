@@ -1341,6 +1341,7 @@
     </section>
   {:else if $game.phase === 'circuit' && $game.dynasty?.circuit}
     <section class="screen shell">
+      {#if tipFor('circuit', tipState)}{@const tip = tipFor('circuit', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
       <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
     </section>
   {:else if $game.phase === 'window' && $game.dynasty?.window}
