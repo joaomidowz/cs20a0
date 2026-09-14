@@ -1,4 +1,4 @@
-import { getAllPlayers, getAllTeams, getPlayerById, getPlayersByTeam, getTeamById } from '$lib/data/csData';
+import { getAllCoaches, getAllPlayers, getAllTeams, getPlayerById, getPlayersByTeam, getTeamById } from '$lib/data/csData';
 import { buildSecretPlayers } from './online/secret-players';
 import type { HistoricalTeam, Player } from './types';
 
@@ -8,6 +8,9 @@ export const teams = getAllTeams();
 export const secretPlayers = buildSecretPlayers(players);
 export const playerById = new Map([...players, ...secretPlayers].map((player) => [player.id, player]));
 export const teamById = new Map(teams.map((team) => [team.id, team]));
+export const coaches = getAllCoaches();
+export const coachById = new Map(coaches.map((coach) => [coach.id, coach]));
+export const coachByTeamId = new Map(coaches.map((coach) => [coach.teamId, coach]));
 
 export const getTeamPlayers = (team: HistoricalTeam | null) =>
   team ? getPlayersByTeam(team.id).filter((player): player is Player => Boolean(player)) : [];

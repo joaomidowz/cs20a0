@@ -1,6 +1,7 @@
+import coaches from '$lib/data/cs/coaches.game.json';
 import players from '$lib/data/cs/players.game.json';
 import teams from '$lib/data/cs/teams.game.json';
-import type { HistoricalTeam, Player } from '$lib/game/types';
+import type { Coach, HistoricalTeam, Player } from '$lib/game/types';
 
 const allPlayers = players as Player[];
 const allTeams = teams as HistoricalTeam[];
@@ -29,4 +30,15 @@ export function getPlayerById(id: string) {
 
 export function getTeamById(id: string) {
   return teamById.get(id);
+}
+
+const allCoaches = coaches as Coach[];
+const coachByTeamId = new Map(allCoaches.map((coach) => [coach.teamId, coach]));
+
+export function getAllCoaches() {
+  return allCoaches;
+}
+
+export function getCoachByTeamId(teamId: string) {
+  return coachByTeamId.get(teamId);
 }

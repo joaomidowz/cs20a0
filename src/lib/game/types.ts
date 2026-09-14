@@ -244,6 +244,27 @@ export interface HistoricalTeam {
   mapProfile?: TeamMapProfile | null;
 }
 
+export type CoachConfidence = 'high' | 'medium' | 'low' | 'placeholder';
+
+/** Head coach of one historical team-year (one per team). `placeholder` fills teams with no known coach and is never offered in the draft. */
+export interface Coach {
+  id: string;
+  baseId: string;
+  name: string;
+  teamId: string;
+  year: number;
+  game: string | null;
+  tactics: number;
+  discipline: number;
+  aggression: number;
+  development: number;
+  overall: number;
+  rarity: string;
+  confidence: CoachConfidence;
+  needsReview: boolean;
+  source: { page: string | null; url: string | null; year: number | null; note: string };
+}
+
 export interface CombatTeam {
   id: string;
   name: string;
