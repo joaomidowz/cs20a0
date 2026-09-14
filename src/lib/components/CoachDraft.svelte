@@ -1,9 +1,14 @@
 <!-- src/lib/components/CoachDraft.svelte -->
 <script lang="ts">
   import { translate } from '$lib/game/i18n';
+  import { coaches } from '$lib/game/data';
+  import { isDraftableCoach } from '$lib/game/dynasty/coach';
   import type { Coach, Language } from '$lib/game/types';
+  import DynastyCoachCard from './DynastyCoachCard.svelte';
+  import Roulette, { type RouletteEntry } from './Roulette.svelte';
 
   export let offer: Coach[] = [];
+  export let candidates: Coach[] = [];
   export let language: Language = 'pt-BR';
   export let rerollsLeft = 0;
   export let teamLabel: (teamId: string) => string = (teamId) => teamId;
@@ -11,44 +16,65 @@
   export let onReroll: () => void = () => {};
 
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
-  const attributes = ['tactics', 'discipline', 'aggression', 'development'] as const;
-  const labelKey = { tactics: 'coachTactics', discipline: 'coachDiscipline', aggression: 'coachAggression', development: 'coachDevelopment' } as const;
+  $: labels = language === 'pt-BR'
+    ? { spinning: 'Sorteando coaches…', skip: 'Pular animação', hidden: 'Coach' }
+    : language === 'es'
+      ? { spinning: 'Sorteando coaches…', skip: 'Saltar animación', hidden: 'Coach' }
+      : { spinning: 'Drawing coaches…', skip: 'Skip animation', hidden: 'Coach' };
+
+  const toEntry = (coach: Coach): RouletteEntry => ({
+    id: coach.id,
+    avatar: String(coach.overall),
+    title: coach.name,
+    subtitle: teamLabel(coach.teamId)
+  });
+
+  // The offer is seeded (offerCoaches). Only the reel is decorative; a new offer (open or reroll) spins again.
+  $: offerKey = offer.map((coach) => coach.id).join('|');
+  let spunKey = '';
+  let spinning = false;
+  let revealed = false;
+  $: if (offerKey && offerKey !== spunKey) {
+    spunKey = offerKey;
+    spinning = true;
+    revealed = false;
+  }
+  // Without explicit candidates, the reel falls back to the full catalog (decoration only).
+  $: reel = (candidates.length ? candidates : coaches).filter(isDraftableCoach).map(toEntry);
+
+  function spinDone() {
+    spinning = false;
+    revealed = true;
+  }
 </script>
 
 <section class="coach-draft">
-  <div class="coach-grid">
-    {#each offer as coach (coach.id)}
-      <article class="coach-card panel rarity-{coach.rarity}">
-        <header>
-          <span class="coach-avatar" aria-hidden="true">{coach.name.slice(0, 2).toUpperCase()}</span>
-          <div><h2>{coach.name}</h2><small>{teamLabel(coach.teamId)}</small></div>
-          <b class="coach-overall">{coach.overall}</b>
-        </header>
-        <dl>
-          {#each attributes as key}
-            <div><dt>{t(labelKey[key])}</dt><dd><span style={`width:${coach[key]}%`}></span><b>{coach[key]}</b></dd></div>
-          {/each}
-        </dl>
-        {#if coach.needsReview}<p class="coach-review">{t('coachNeedsReview')}</p>{/if}
-        <button class="primary" type="button" on:click={() => onPick(coach)}>{t('coachPick')}</button>
-      </article>
-    {/each}
-  </div>
-  <button class="secondary" type="button" disabled={rerollsLeft <= 0} on:click={onReroll}>{t('coachReroll')} ({rerollsLeft})</button>
+  {#if spinning && offer[0]}
+    {#key spunKey}
+      <Roulette entries={reel} result={toEntry(offer[0])} {labels} onComplete={spinDone} />
+    {/key}
+  {:else}
+    <div class="coach-grid" class:revealed>
+      {#each offer as coach, index (coach.id)}
+        <div class="coach-slot" style={`--reveal-delay:${index * 90}ms`}>
+          <DynastyCoachCard {coach} teamLabel={teamLabel(coach.teamId)} {language}>
+            {#if coach.needsReview}<small class="coach-review">{t('coachNeedsReview')}</small>{/if}
+            <button class="primary pick" type="button" on:click={() => onPick(coach)}>{t('coachPick')}</button>
+          </DynastyCoachCard>
+        </div>
+      {/each}
+    </div>
+    <button class="secondary" type="button" disabled={rerollsLeft <= 0} on:click={onReroll}>{t('coachReroll')} ({rerollsLeft})</button>
+  {/if}
 </section>
 
 <style>
-  .coach-draft { display: grid; gap: 16px; justify-items: start; }
-  .coach-grid { display: grid; gap: 14px; width: 100%; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .coach-card { display: grid; gap: 14px; padding: 18px; }
-  .coach-card header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
-  .coach-card h2 { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
-  .coach-card small { color: var(--muted); }
-  .coach-avatar { display: grid; place-items: center; width: 44px; height: 44px; background: var(--surface-2); color: var(--accent); font-weight: 900; }
-  .coach-overall { font-size: 1.6rem; color: var(--accent); }
-  .coach-card dl { display: grid; gap: 8px; margin: 0; }
-  .coach-card dl div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; align-items: center; font-size: .78rem; }
-  .coach-card dd { position: relative; display: flex; align-items: center; gap: 8px; margin: 0; }
-  .coach-card dd span { display: block; height: 6px; background: var(--accent); }
-  .coach-review { margin: 0; color: var(--accent-2); font-size: .72rem; }
+  .coach-draft { display: grid; gap: 16px; justify-items: start; min-width: 0; }
+  .coach-grid { display: grid; gap: 14px; width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); perspective: 1100px; }
+  .coach-slot { min-width: 0; }
+  .coach-grid.revealed .coach-slot { animation: coach-flip 460ms cubic-bezier(.16, 1, .3, 1) backwards; animation-delay: var(--reveal-delay, 0ms); transform-style: preserve-3d; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+  @keyframes coach-flip { from { transform: rotateY(90deg); opacity: .2; } to { transform: rotateY(0); opacity: 1; } }
+  .pick { width: 100%; min-height: 40px; }
+  .coach-review { flex-basis: 100%; color: var(--accent-2); font-size: .68rem; }
+  @media (prefers-reduced-motion: reduce) { .coach-grid.revealed .coach-slot { animation: none; } }
 </style>
