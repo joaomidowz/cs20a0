@@ -15,6 +15,9 @@
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import AutomationGear from '$lib/components/AutomationGear.svelte';
+  import DraftRoulette from '$lib/components/DraftRoulette.svelte';
+  import FlyingPick from '$lib/components/FlyingPick.svelte';
+  import { playOfflineSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
   import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, timeoutTimingFor, type AutomationAttempt } from '$lib/game/online-automation';
   import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
   import VetoBoard from '$lib/components/live/VetoBoard.svelte';
@@ -87,6 +90,17 @@
   /** Seconds left in the rematch window after a run ends (0 when closed). */
   let rematchSeconds = 0;
   const onlineModes: RoomConfig['mode'][] = ['premier', 'faceit', 'pro', 'fun', 'max_fun'];
+  // Presentation only: none of these touch the protocol, the server RNG or the draft timers.
+  let rouletteSpinning = false;
+  let freshOffer = false;
+  /** undefined until the first snapshot, so reconnecting to an offer never replays the spin. */
+  let lastOfferId: string | null | undefined = undefined;
+  let lastPickIds: string[] | undefined = undefined;
+  let pendingPickSource: { rect: DOMRect; at: number } | null = null;
+  let recentPickId: string | null = null;
+  let celebrateLineup = false;
+  let flight: { id: number; name: string; source: DOMRect; slot: number } | null = null;
+  let flightId = 0;
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
@@ -153,6 +167,44 @@
     ? buildOnlineRunCardReport(snapshot.selfResult, snapshot.tournament?.championId ?? null, me.id)
     : null;
   $: selectedOrganizationView = selectedOrganizationId ? buildOrganizationView(selectedOrganizationId) : null;
+  $: observeOffer(snapshot?.phase === 'draft' ? self?.rolledTeamId ?? null : null);
+  $: observePicks(snapshot?.phase === 'draft' && self ? (snapshot.config.mode === 'pro' ? self.proPickedPlayerIds : self.lineup.map((pick) => pick.playerId)) : null);
+  $: if (!offeredTeam) rouletteSpinning = false;
+
+  const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** Spins only when a new offer arrives for this player; the offer itself is already decided by the server. */
+  function observeOffer(offerId: string | null) {
+    const previous = lastOfferId;
+    lastOfferId = offerId;
+    if (previous === undefined || offerId === previous) return;
+    freshOffer = false;
+    rouletteSpinning = Boolean(offerId) && !reducedMotion();
+    if (offerId && !rouletteSpinning) freshOffer = true;
+  }
+
+  /** Flies the card the user clicked once the server confirms the pick. */
+  function observePicks(ids: string[] | null) {
+    const previous = lastPickIds;
+    lastPickIds = ids ?? undefined;
+    if (!ids) { celebrateLineup = false; recentPickId = null; pendingPickSource = null; return; }
+    if (!previous || ids.length !== previous.length + 1) { if (ids.length < 5) celebrateLineup = false; return; }
+    const slot = ids.length - 1;
+    const playerId = ids[slot];
+    recentPickId = playerId;
+    const source = pendingPickSource && Date.now() - pendingPickSource.at < 10_000 ? pendingPickSource.rect : null;
+    pendingPickSource = null;
+    if (reducedMotion()) return;
+    if (source) flight = { id: ++flightId, name: playerById.get(playerId)?.nickname ?? '?', source, slot };
+    if (slot === 4) { celebrateLineup = true; playOfflineSound('lineup'); }
+    else playOfflineSound('pick');
+  }
+
+  function capturePickSource(player: Player) {
+    unlockOfflineAudio();
+    const card = document.querySelector(`[data-offline-player="${CSS.escape(player.id)}"]`);
+    pendingPickSource = card ? { rect: card.getBoundingClientRect(), at: Date.now() } : null;
+  }
 
 
   function setStrategicPreferences(value: StrategicAutomationPreferences) {
@@ -199,6 +251,18 @@
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
     if (roomCode && hasOnlineResumeToken(roomCode)) connect();
+    loadOfflineSound();
+    const unlock = () => { if (snapshot) unlockOfflineAudio(); };
+    const visibility = () => { if (document.hidden) stopOfflineSounds(); };
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', unlock);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('visibilitychange', visibility);
+      disposeOfflineAudio();
+    };
   });
 
   onDestroy(() => {
@@ -414,6 +478,14 @@
     decisionCountdown = '';
     rematchSeconds = 0;
     downloadingImage = false;
+    rouletteSpinning = false;
+    freshOffer = false;
+    lastOfferId = undefined;
+    lastPickIds = undefined;
+    pendingPickSource = null;
+    recentPickId = null;
+    celebrateLineup = false;
+    flight = null;
   }
 
   function voteRematch(accept: boolean) {
@@ -441,6 +513,7 @@
   }
 
   function choosePlayer(player: Player, role?: LineupSlotRole, secondaryRole?: LineupSlotRole) {
+    capturePickSource(player);
     if (isSecretPlayerId(player.id) && role) send({ type: 'pick-secret', alias: player.nickname ?? '', role, ...(secondaryRole ? { secondaryRole } : {}) });
     else send({ type: 'pick-player', playerId: player.id, ...(role ? { role } : {}), ...(secondaryRole ? { secondaryRole } : {}) });
     detailsPlayer = null;
@@ -707,18 +780,24 @@
             </section>
           {/if}
           <section class="roll-zone panel">
-            {#if offeredTeam}
+            {#if offeredTeam && rouletteSpinning}
+              {#key offeredTeam.id}
+                <DraftRoulette candidates={teams} result={offeredTeam} anonymous={snapshot.config.mode === 'pro'} language={$language} onComplete={() => { rouletteSpinning = false; freshOffer = true; }} />
+              {/key}
+            {:else if offeredTeam}
               {#if snapshot.config.mode === 'pro'}
-                <div class="team-banner blind-banner"><div class="team-avatar">?</div><div><span class="eyebrow">PRO BLIND OFFER</span><h2>{gameT('proBlindOffer')}</h2><p>{gameT('proBlindOfferDesc')}</p></div><span class="team-power">?</span></div>
+                <div class="team-banner blind-banner" class:roulette-impact={freshOffer}><div class="team-avatar">?</div><div><span class="eyebrow">PRO BLIND OFFER</span><h2>{gameT('proBlindOffer')}</h2><p>{gameT('proBlindOfferDesc')}</p></div><span class="team-power">?</span></div>
               {:else}
-                <div class="team-banner"><div class="team-avatar">{(offeredTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">ROLLED TEAM</span><h2>{offeredTeam.name ?? 'Time'} <b>{offeredTeam.year ?? ''}</b></h2><p>{offeredTeam.game ?? 'CS'} · RANK #{offeredTeam.sourceRank ?? offeredTeam.rank ?? '—'} · {offeredTeam.rarity ?? 'standard'}</p></div><span class="team-power">{snapshot.config.mode === 'fun' || snapshot.config.mode === 'max_fun' ? `AVG ${offeredTeamAverage?.toFixed(1) ?? '—'}` : `PWR ${offeredTeam.teamPowerPreview ?? offeredTeam.power ?? '—'}`}</span></div>
+                <div class="team-banner" class:roulette-impact={freshOffer}><div class="team-avatar">{(offeredTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div><div><span class="eyebrow">ROLLED TEAM</span><h2>{offeredTeam.name ?? 'Time'} <b>{offeredTeam.year ?? ''}</b></h2><p>{offeredTeam.game ?? 'CS'} · RANK #{offeredTeam.sourceRank ?? offeredTeam.rank ?? '—'} · {offeredTeam.rarity ?? 'standard'}</p></div><span class="team-power">{snapshot.config.mode === 'fun' || snapshot.config.mode === 'max_fun' ? `AVG ${offeredTeamAverage?.toFixed(1) ?? '—'}` : `PWR ${offeredTeam.teamPowerPreview ?? offeredTeam.power ?? '—'}`}</span></div>
               {/if}
               <div class="reroll-bar"><div><span class="eyebrow">{gameT('teamReroll')}</span><strong>{self.rerollsMax - self.rerollsUsed}/{self.rerollsMax}</strong></div><button class="secondary" type="button" disabled={self.rerollsUsed >= self.rerollsMax} on:click={() => send({ type: 'reroll-team' })}>{gameT('rerollTeam')} <span>↻</span></button></div>
               <p class="pick-instruction">{snapshot.config.mode === 'pro' ? gameT('proBlindOfferDesc') : gameT('pickOne')}</p>
-              <div class:pro-offer-grid={snapshot.config.mode === 'pro'} class="player-grid">
-                {#each offeredPlayers as player}
+              <div class:pro-offer-grid={snapshot.config.mode === 'pro'} class:is-fresh={freshOffer} class="player-grid roulette-reveal">
+                {#each offeredPlayers as player, index}
                   {@const validation = cardValidation(player)}
+                  <div class="roulette-player" data-offline-player={player.id} style={`--reveal-delay: ${index * 80}ms`}>
                   {#if snapshot.config.mode === 'pro'}<button class="player-card pro-blind-card" type="button" on:click={() => choosePlayer(player)}><div class="pro-name-only">{player.nickname ?? gameT('proHiddenPlayer')}</div></button>{:else}<PlayerCard {player} mode={presentationMode} language={$language} blockedReason={validation.ok ? '' : reasonText(validation.reason)} onOpen={(selected) => detailsPlayer = selected} />{/if}
+                  </div>
                 {/each}
               </div>
             {:else}
@@ -727,9 +806,9 @@
           </section>
         {:else}<section class="panel waiting-panel"><div class="scanner"><span></span></div><h2>{t('waiting')}</h2></section>{/if}
         {#if snapshot.config.mode === 'pro' && !me?.ready}
-          <section class="hud panel pro-hud"><div><span class="eyebrow">PRO LINEUP / {self.proPickedPlayerIds.length}/5</span><h2>{gameT('proBlindDraft')}</h2></div><div class="pro-hidden-slots">{#each Array(5) as _, index}<span class:filled={index < self.proPickedPlayerIds.length}>{self.proPickedPlayerIds[index] ? playerById.get(self.proPickedPlayerIds[index])?.nickname ?? '?' : '?'}</span>{/each}</div></section>
+          <section class="hud panel pro-hud" class:offline-hud-complete={celebrateLineup}><div><span class="eyebrow">PRO LINEUP / {self.proPickedPlayerIds.length}/5</span><h2>{gameT('proBlindDraft')}</h2></div><div class="pro-hidden-slots">{#each Array(5) as _, index}<span data-draft-slot={index} class:offline-slot-arrival={Boolean(recentPickId && self.proPickedPlayerIds[index] === recentPickId)} class:filled={index < self.proPickedPlayerIds.length}>{self.proPickedPlayerIds[index] ? playerById.get(self.proPickedPlayerIds[index])?.nickname ?? '?' : '?'}</span>{/each}</div></section>
         {:else}
-          <DraftHud selectedPlayers={displayLineup as SelectedPlayer[]} style={self.style ?? 'balanced'} styleLocked={Boolean(self.style)} styleLabel={gameT((self.style ?? 'balanced') as OrgStyle)} mode={presentationMode} revealed={me?.ready ?? false} label={gameT('orgHud')} onOpen={(player) => detailsPlayer = player} />
+          <DraftHud offlineEffects={true} {recentPickId} celebrate={celebrateLineup} selectedPlayers={displayLineup as SelectedPlayer[]} style={self.style ?? 'balanced'} styleLocked={Boolean(self.style)} styleLabel={gameT((self.style ?? 'balanced') as OrgStyle)} mode={presentationMode} revealed={me?.ready ?? false} label={gameT('orgHud')} onOpen={(player) => detailsPlayer = player} />
         {/if}
         <section class="online-progress"><h2>{t('participants')}</h2>{#each snapshot.participants as participant}<article><span>{participant.organizationName}</span><b>{participant.picksCompleted}/5 · {participant.mapsConfirmed ? '3/3' : '0/3'} {t('mapsConfirmed').toUpperCase()}</b><i role="progressbar" aria-label={participant.organizationName} aria-valuemin="0" aria-valuemax="100" aria-valuenow={participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + (participant.mapsConfirmed ? 20 : 0))}><em style={`width:${participant.ready ? 100 : Math.min(90, participant.picksCompleted * 14 + (participant.mapsConfirmed ? 20 : 0))}%`}></em></i></article>{/each}</section>
       {:else if snapshot.tournament}
@@ -761,7 +840,7 @@
                     options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
                     onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
                   />
-                  <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} />
+                  <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
                 </div>
               </div>
             </div>
@@ -860,6 +939,7 @@
                 <SeriesViewer
                   series={liveSeriesView ?? liveSeries.series}
                   controlled
+                  offlineEffects={Boolean(mySeriesId)}
                   controlledActiveMap={liveSeries.activeMap}
                   controlledVisibleRounds={liveSeries.visibleRounds}
                   controlledStarted={liveSeries.started}
@@ -915,6 +995,12 @@
     </section>
   {/if}
 </PageLayout>
+
+{#if flight}
+  {#key flight.id}
+    <FlyingPick name={flight.name} source={flight.source} slot={flight.slot} onComplete={() => { flight = null; }} />
+  {/key}
+{/if}
 
 {#if detailsPlayer && snapshot && snapshot.config.mode !== 'pro'}
   <PlayerDetailSheet
