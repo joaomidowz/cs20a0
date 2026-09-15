@@ -18,6 +18,8 @@
   export let onComplete: () => void;
   /** Spin length in ms; the online draft uses a shorter spin because its pick timer keeps running. */
   export let duration = 2800;
+  /** When set, the window shows exactly this many tickets and the reel cycles entries in order. */
+  export let visible: number | null = null;
 
   let track: HTMLDivElement;
   let animation: Animation | undefined;
@@ -27,8 +29,13 @@
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   const winnerIndex = 32;
   // Decorative randomness never touches the game's seeded generator.
+  const resultOffset = Math.max(0, entries.findIndex((entry) => entry.id === result.id));
   const tickets = Array.from({ length: 36 }, (_, index) =>
-    index === winnerIndex ? result : entries[Math.floor(Math.random() * entries.length)] ?? result
+    index === winnerIndex
+      ? result
+      : visible && entries.length
+        ? entries[(((resultOffset + index - winnerIndex) % entries.length) + entries.length) % entries.length]
+        : entries[Math.floor(Math.random() * entries.length)] ?? result
   );
 
   function finish() {
@@ -80,8 +87,8 @@
   });
 </script>
 
-<div class="roulette" class:settled aria-busy={!settled}>
-  <div class="viewport" aria-hidden="true">
+<div class="roulette" class:settled class:windowed={visible} aria-busy={!settled}>
+  <div class="viewport" class:windowed={visible} style={visible ? `max-width: min(100%, ${visible * 172 - 12}px)` : undefined} aria-hidden="true">
     <div class="marker"></div>
     <div class="track" bind:this={track}>
       {#each tickets as entry, index}
@@ -99,6 +106,8 @@
 <style>
   .roulette { padding: 20px 0; min-width: 0; }
   .viewport { position: relative; overflow: hidden; padding: 18px 0; background: var(--bg); mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); }
+  .roulette.windowed { width: 100%; }
+  .viewport.windowed { margin-inline: auto; }
   .track { display: flex; gap: 12px; position: relative; left: 50%; width: max-content; will-change: transform; }
   .ticket { width: 160px; height: 160px; flex: 0 0 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); text-align: center; }
   .ticket strong { font-size: 1rem; overflow-wrap: anywhere; }

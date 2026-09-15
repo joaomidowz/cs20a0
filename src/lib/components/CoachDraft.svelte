@@ -48,7 +48,7 @@
 <section class="coach-draft">
   {#if spinning && offer[0]}
     {#key spunKey}
-      <Roulette entries={reel} result={toEntry(offer[0])} {labels} onComplete={spinDone} />
+      <Roulette entries={reel} result={toEntry(offer[0])} {labels} visible={3} onComplete={spinDone} />
     {/key}
   {:else}
     <div class="coach-grid" class:revealed>
