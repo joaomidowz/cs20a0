@@ -76,6 +76,8 @@ export interface CampaignMajorOptions {
   coach?: Coach;
   /** Dinastia v2 plan used for the initial team; later series can be retuned before veto. */
   dynastyPlan?: SeriesPlan;
+  /** Skips the Swiss and starts straight at an eight-team playoff bracket (circuit events). */
+  playoffEntry?: { quarterfinal: 1 | 3; semifinal: 1 | 3; final: 3 | 5 };
 }
 
 export function createCampaignMajor(
@@ -102,7 +104,8 @@ export function createCampaignMajor(
   const engine = createTournamentEngine({
     organizations: [userOrganization],
     botPool: field,
-    entryStage: options.dynastyEntryStage ?? 'stage3',
+    entryStage: options.playoffEntry ? 'playoffs' : options.dynastyEntryStage ?? 'stage3',
+    ...(options.playoffEntry ? { playoffBestOf: options.playoffEntry } : {}),
     ...(stageFields ? { stageFields } : {}),
     seed: tournamentSeed,
     mapContext,

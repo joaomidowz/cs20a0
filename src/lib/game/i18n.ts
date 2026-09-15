@@ -173,6 +173,9 @@ const pt = {
   ,inProgress: 'Em andamento'
   ,mapInProgress: 'Mapa em progresso'
   ,live: 'Ao vivo'
+  ,tbd: 'A definir'
+  ,watchPause: 'Pausar'
+  ,watchResume: 'Retomar'
   ,veryAggressive: 'muito agressivo'
   ,greatClutch: 'ótimo clutch'
   ,mainAwper: 'AWPer principal'
@@ -474,6 +477,9 @@ Object.assign(dictionaries.es, {
   inProgress: 'En curso',
   mapInProgress: 'Mapa en curso',
   live: 'En vivo',
+  tbd: 'Por definir',
+  watchPause: 'Pausar',
+  watchResume: 'Reanudar',
   downloadRunImage: 'Descargar imagen de la partida',
   shareImage: 'Compartir imagen',
   copyRunLink: 'Copiar enlace de la partida',
@@ -584,6 +590,9 @@ Object.assign(dictionaries.en, {
   inProgress: 'In progress',
   mapInProgress: 'Map in progress',
   live: 'Live',
+  tbd: 'TBD',
+  watchPause: 'Pause',
+  watchResume: 'Resume',
   downloadRunImage: 'Download run image',
   shareImage: 'Share image',
   copyRunLink: 'Copy run link',

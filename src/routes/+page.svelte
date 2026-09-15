@@ -84,7 +84,9 @@
   import DynastyTip from '$lib/components/DynastyTip.svelte';
   import DynastyCircuit from '$lib/components/DynastyCircuit.svelte';
   import { createCircuit, finishCircuit, settleCircuitEvent, skipCircuitEvent } from '$lib/game/dynasty/circuit';
-  import { playCircuitEvent } from '$lib/game/dynasty/circuitPlay';
+  import { circuitResultFrom, circuitRounds, createCircuitCampaign, stepCircuitCampaign } from '$lib/game/dynasty/circuitLive';
+  import PlayoffBracket from '$lib/components/PlayoffBracket.svelte';
+  import { buildBracket, revealRounds } from '$lib/game/majorOverview';
   import { DEFAULT_TIP_STATE, disableTips, markTipSeen, nextTip, type TipContext, type TipState } from '$lib/game/dynasty/tips';
   import DynastySeriesPlan from '$lib/components/DynastySeriesPlan.svelte';
   import DynastyTeamPanel from '$lib/components/DynastyTeamPanel.svelte';
@@ -320,6 +322,12 @@
   $: if (campaignView && !campaignView.finished && !liveRunning && $game.simMode === 'auto') liveRunning = true;
   $: if (liveRunning && dynastySeriesPlanned && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
   $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
+  $: circuitView = circuitCampaign ? getCampaignLiveView(circuitCampaign) : null;
+  $: circuitSeries = circuitCampaign ? currentUserSeries(circuitCampaign.run.matches, circuitCampaign.confirmedSeriesIds) : null;
+  $: circuitEnemyTeamId = circuitSeries ? (circuitSeries.teamA.id === 'user' ? circuitSeries.teamB.id : circuitSeries.teamA.id) : null;
+  $: circuitBracket = circuitCampaign ? buildBracket(revealRounds(circuitRounds(circuitCampaign), { liveSeriesId: circuitSeries?.id ?? null }), { liveScores: true }) : [];
+  $: if (circuitCampaign && !circuitCampaign.finished && circuitLiveRunning) scheduleCircuitTick();
+  $: if (circuitCampaign?.finished) settleFinishedCircuit();
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.filter((match) => confirmedSeriesIds.includes(match.id)) ?? [];
   $: liveStage = currentSeries && isMajorStage(currentSeries.phase) ? currentSeries.phase : null;
@@ -341,6 +349,7 @@
     clearEnemyHoverTimer();
     clearAdvanceTimer();
     stopLiveTick();
+    stopCircuitTick();
     if (automationTimer !== null) window.clearTimeout(automationTimer);
     if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
@@ -367,6 +376,7 @@
     freshOffer = false;
     recentPickId = null;
     celebrateLineup = false;
+    stopCircuitTick();
     update({
       seed: $game.seed || makeSeed(),
       mode,
@@ -852,6 +862,7 @@
   function resetRun(newSeed = false) {
     resetSupportNudge();
     resultStatsOpen = false;
+    stopCircuitTick();
     const preserved = { language: $game.language, theme: $game.theme, simMode: $game.simMode, simSpeed: $game.simSpeed };
     game.set({ ...defaultState(newSeed ? '' : $game.seed), ...preserved, phase: 'mode-select' });
     closePlayer();
@@ -876,6 +887,18 @@
 
   /** Credits the Major and opens the transfer window: evolution, proposals, market and coach before the next Major. */
   let circuitPlaying: string | null = null;
+  // The live circuit campaign is transient: a reload mid-event simply offers the event again (deterministic seed).
+  let circuitCampaign: CampaignMajorState | null = null;
+  let circuitLiveRunning = false;
+  let circuitTimer: number | null = null;
+
+  function stopCircuitTick() {
+    if (circuitTimer !== null) window.clearTimeout(circuitTimer);
+    circuitTimer = null;
+    circuitLiveRunning = false;
+    circuitCampaign = null;
+    circuitPlaying = null;
+  }
 
   /** Opens (or reopens) the transfer window of the current Major. */
   function openTransferWindow() {
@@ -908,25 +931,45 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  async function playCircuit(eventId: string) {
+  function playCircuit(eventId: string) {
     const dynasty = $game.dynasty;
     const event = dynasty?.circuit?.events.find((item) => item.id === eventId);
-    if (!dynasty?.circuit || !event || circuitPlaying) return;
+    if (!dynasty?.circuit || !event || circuitPlaying || circuitCampaign) return;
     circuitPlaying = eventId;
-    await tick();
-    try {
-      // Base plan, no study and no temporary training: the circuit never touches the Major's choices or evolution.
-      const circuitPlayers = selectedLineup.flatMap((selected) => {
-        const base = playerById.get(selected.playerId);
-        return base ? [resolveDynastyPlayer(base, dynasty.playerOverrides[base.id])] : [];
-      });
-      const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
-      const userTeam = buildDynastyUserTeam({ players: circuitPlayers, lineup: selectedLineup, seed: `${$game.seed}:circuit`, coach: dynastyCoach, teams, plan: { ...basePlan, study: false } });
-      const { result, rounds } = playCircuitEvent({ event, userTeam, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps });
-      update({ dynasty: settleCircuitEvent($game.dynasty!, result, rounds) });
-    } finally {
-      circuitPlaying = null;
-    }
+    // Base plan, no study and no temporary training: the circuit never touches the Major's choices or evolution.
+    const circuitPlayers = selectedLineup.flatMap((selected) => {
+      const base = playerById.get(selected.playerId);
+      return base ? [resolveDynastyPlayer(base, dynasty.playerOverrides[base.id])] : [];
+    });
+    const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
+    circuitCampaign = createCircuitCampaign({ event, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps, coach: dynastyCoach, plan: { ...basePlan, study: false } });
+    circuitLiveRunning = true;
+  }
+
+  function toggleCircuitLive() {
+    circuitLiveRunning = !circuitLiveRunning;
+  }
+
+  function scheduleCircuitTick() {
+    if (circuitTimer !== null || !circuitCampaign || !circuitLiveRunning || circuitCampaign.finished) return;
+    circuitTimer = window.setTimeout(() => {
+      circuitTimer = null;
+      if (!circuitCampaign || !circuitLiveRunning) return;
+      circuitCampaign = stepCircuitCampaign(circuitCampaign);
+    }, Math.max(120, SPEEDS[$game.simSpeed]));
+  }
+
+  /** Settles the finished event into the dynasty: prize, cash and the bracket with every series. */
+  function settleFinishedCircuit() {
+    const state = circuitCampaign;
+    const event = state ? $game.dynasty?.circuit?.events.find((item) => item.id === circuitPlaying) ?? null : null;
+    if (circuitTimer !== null) window.clearTimeout(circuitTimer);
+    circuitTimer = null;
+    circuitLiveRunning = false;
+    circuitCampaign = null;
+    circuitPlaying = null;
+    if (!state || !event || !$game.dynasty) return;
+    update({ dynasty: settleCircuitEvent($game.dynasty, circuitResultFrom(state, event), circuitRounds(state)) });
   }
 
   function skipCircuit(eventId: string) {
@@ -1338,7 +1381,46 @@
   {:else if $game.phase === 'circuit' && $game.dynasty?.circuit}
     <section class="screen shell">
       {#if tipFor('circuit', tipState)}{@const tip = tipFor('circuit', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
-      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
+      {#snippet circuitLiveView()}
+        <div class="circuit-live-view">
+          <div class="circuit-live-controls panel">
+            <button class="secondary" type="button" on:click={toggleCircuitLive}>{circuitLiveRunning ? t('watchPause') : t('watchResume')}</button>
+            <div class="control-group">
+              <span>{t('speed')}</span>
+              <SegmentedControl
+                value={$game.simSpeed}
+                label={t('speed')}
+                options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
+                onChange={changeSimulationSpeed}
+              />
+            </div>
+          </div>
+          {#if circuitSeries && circuitView}
+            {#key circuitSeries.id}
+              <SeriesViewer
+                offlineEffects={true}
+                series={circuitSeries}
+                phaseLabel={`${getPhaseLabel(circuitSeries.phase)} · MD${circuitSeries.bestOf}`}
+                delay={SPEEDS[$game.simSpeed]}
+                controlled={true}
+                controlledActiveMap={circuitView.activeMap}
+                controlledVisibleRounds={circuitView.visibleRounds}
+                controlledStarted={circuitView.started || circuitView.phase === 'side-pick' || circuitView.phase === 'live'}
+                controlledFinished={circuitView.finished}
+                controlledDelay={SPEEDS[$game.simSpeed]}
+                simpleFeed={strategicPreferences.simpleFeed}
+                language={$game.language}
+                interactiveTeamId={circuitEnemyTeamId}
+                labels={{ start: t('startSeries'), skip: t('skipMap'), round: t('round'), live: t('live'), map: t('map'), final: t('final'), waiting: t('waiting'), pending: t('pending'), inProgress: t('inProgress'), mapInProgress: t('mapInProgress'), veto: t('veto'), ban: t('ban'), pick: t('pick'), decider: t('decider'), notPlayed: t('mapNotPlayed'), mapStart: t('mapStart') }}
+              />
+            {/key}
+          {/if}
+          <div class="circuit-live-bracket panel">
+            <PlayoffBracket columns={circuitBracket} userTeamId="user" championId={null} labels={{ quarterfinal: t('quarterfinal'), semifinal: t('semifinal'), final: t('final'), tbd: t('tbd'), live: t('live'), pending: t('pending') }} />
+          </div>
+        </div>
+      {/snippet}
+      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} live={circuitCampaign ? circuitLiveView : null} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
     </section>
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">
@@ -1716,4 +1798,9 @@
   .live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   @media (max-width:560px){.live-actions{flex-wrap:wrap}.live-actions small{order:3;flex-basis:100%}}
   .dynasty-history ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}.dynasty-history li{font-size:.85rem}.dynasty-history b{color:var(--accent)}
+  .circuit-live-view{display:grid;gap:14px;min-width:0}
+  .circuit-live-controls{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:12px}
+  .circuit-live-controls .secondary{min-height:42px}
+  .circuit-live-controls .control-group{min-width:200px}
+  .circuit-live-bracket{padding:14px;overflow-x:auto}
 </style>

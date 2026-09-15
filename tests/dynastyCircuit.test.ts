@@ -2,9 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { getTeamPlayers, players, teams } from '../src/lib/game/data';
 import { CIRCUIT_PRIZES, CIRCUIT_TEAMS, circuitPlacementFrom, createCircuit, finishCircuit, isEventAvailable, isEventDone, settleCircuitEvent, skipCircuitEvent } from '../src/lib/game/dynasty/circuit';
-import { playCircuitEvent } from '../src/lib/game/dynasty/circuitPlay';
+import { circuitResultFrom, circuitRounds, createCircuitCampaign, stepCircuitCampaign } from '../src/lib/game/dynasty/circuitLive';
 import { stageOfTier } from '../src/lib/game/dynasty/field';
-import { buildDynastyUserTeam } from '../src/lib/game/dynasty/seriesPlan';
 import { createDynastyState } from '../src/lib/game/dynasty/state';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
@@ -91,26 +90,39 @@ describe('prêmios e crédito', () => {
   });
 });
 
-describe('simulação de um evento do circuito', () => {
+describe('evento do circuito ao vivo', () => {
   const roster = getTeamPlayers(teams[0]).slice(0, 5);
   const lineup = roster.map((player) => ({ playerId: player.id, selectedSlotRole: getEligibleSlotRoles(player)[0] ?? 'rifler' as const }));
-  const userTeam = buildDynastyUserTeam({ players: roster, lineup, seed: 'circuito', coach: null, teams, plan: { style: 'balanced', tactic: 'standard', study: false } });
   const circuit = createCircuit({ dynasty: settled('placementStage3'), teams, seed: 'circuito' });
-  const input = (event = circuit.events[0]) => ({ event, userTeam, players: roster, lineup, teams, allPlayers: players, seed: 'circuito', selectedMaps: getDefaultMapSelection(roster, teams) });
+  const start = (event = circuit.events[0]) => createCircuitCampaign({ event, players: roster, lineup, teams, allPlayers: players, seed: 'circuito', selectedMaps: getDefaultMapSelection(roster, teams), coach: null, plan: { style: 'balanced', tactic: 'standard', study: false } });
+  const runToEnd = (state: ReturnType<typeof start>) => {
+    let next = state;
+    for (let guard = 0; guard < 20_000 && !next.finished; guard += 1) next = stepCircuitCampaign(next);
+    return next;
+  };
 
   it('joga 8 times em MD3 até a final e paga pela colocação do usuário', () => {
-    const started = performance.now();
-    const { result, rounds } = playCircuitEvent(input());
-    const elapsed = performance.now() - started;
-    console.info(`circuit event simulated in ${elapsed.toFixed(0)} ms`);
+    const finished = runToEnd(start());
+    expect(finished.finished).toBe(true);
+    const rounds = circuitRounds(finished);
     expect(rounds.map((round) => round.phase)).toEqual(['quarterfinal', 'semifinal', 'final']);
     expect(rounds.every((round) => round.series.every((series) => series.bestOf === 3))).toBe(true);
     expect(rounds.flatMap((round) => round.series).every((series) => series.maps.every((map) => !map.details))).toBe(true);
+    const result = circuitResultFrom(finished, circuit.events[0]);
     expect(result.eventId).toBe(circuit.events[0].id);
     expect(result.prize).toBe(CIRCUIT_PRIZES[result.tier][result.placement]);
   });
 
   it('é determinístico pela seed', () => {
-    expect(playCircuitEvent(input()).result).toEqual(playCircuitEvent(input()).result);
+    expect(circuitResultFrom(runToEnd(start()), circuit.events[0])).toEqual(circuitResultFrom(runToEnd(start()), circuit.events[0]));
+  });
+
+  it('expõe a série do usuário no bracket desde as quartas', () => {
+    let state = start();
+    for (let guard = 0; guard < 50; guard += 1) state = stepCircuitCampaign(state);
+    const quarter = circuitRounds(state).find((round) => round.phase === 'quarterfinal');
+    expect(quarter).toBeTruthy();
+    expect(quarter!.series).toHaveLength(4);
+    expect(quarter!.series.some((series) => series.teamA.id === 'user' || series.teamB.id === 'user')).toBe(true);
   });
 });
