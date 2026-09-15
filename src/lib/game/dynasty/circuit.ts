@@ -1,6 +1,31 @@
 import { createSeededRng } from '../simulation';
 import type { CircuitEvent, CircuitPlacement, CircuitResult, CircuitState, CircuitTier, DynastyState, HistoricalTeam, MajorRound, MajorStage } from '../types';
+import circuitEventsJson from '../../data/cs/circuit-events.game.json';
 import { stageOfTier } from './field';
+
+export interface RealCircuitEvent {
+  id: string;
+  year: number;
+  name: string;
+  organizer: string;
+  tier: CircuitTier;
+  teams: number;
+  format?: string;
+  prizePool: number;
+  location: string;
+  liquipediaUrl: string;
+  needsReview?: boolean;
+}
+
+export const REAL_CIRCUIT_EVENTS = circuitEventsJson as RealCircuitEvent[];
+export const CIRCUIT_YEAR_MIN = 2016;
+export const CIRCUIT_YEAR_MAX = 2026;
+
+export function drawCircuitYear(seed: string, majorNumber: number): number {
+  const rng = createSeededRng(`${seed}:circuit-year:${majorNumber}`);
+  return CIRCUIT_YEAR_MIN + Math.floor(rng() * (CIRCUIT_YEAR_MAX - CIRCUIT_YEAR_MIN + 1));
+}
+
 
 export const CIRCUIT_TEAMS = 7;
 
@@ -48,13 +73,25 @@ export function createCircuit(input: { dynasty: DynastyState; teams: HistoricalT
     : placement === 'placementStage3'
       ? [{ tier: 'elite', access: 'invite', index: 1 }, { tier: 'open', access: 'signup', index: 1 }]
       : [{ tier: 'open', access: 'signup', index: 1 }, { tier: 'open', access: 'signup', index: 2, unlockedByPrevious: true }];
+  const year = drawCircuitYear(input.seed, dynasty.majorNumber);
+  const pickRng = createSeededRng(`${input.seed}:circuit-events:${dynasty.majorNumber}`);
+  const pools: Record<CircuitTier, RealCircuitEvent[]> = {
+    elite: REAL_CIRCUIT_EVENTS.filter((real) => real.year === year && real.tier === 'elite').sort((a, b) => a.id.localeCompare(b.id)),
+    open: REAL_CIRCUIT_EVENTS.filter((real) => real.year === year && real.tier === 'open').sort((a, b) => a.id.localeCompare(b.id))
+  };
+  const pickReal = (tier: CircuitTier): Partial<CircuitEvent> => {
+    const pool = pools[tier];
+    if (!pool.length) return {};
+    const real = pool.splice(Math.floor(pickRng() * pool.length), 1)[0];
+    return { sourceId: real.id, name: real.name, year: real.year, realPrizePool: real.prizePool, location: real.location, organizer: real.organizer };
+  };
   const events: CircuitEvent[] = [];
   plan.forEach((item, position) => {
     const id = `circuit-${dynasty.majorNumber}-${position + 1}`;
     const teamIds = drawOpponents(item.tier, input.teams, `${input.seed}:circuit:${dynasty.majorNumber}:${position + 1}`);
-    events.push({ id, tier: item.tier, access: item.access, index: item.index, teamIds, ...(item.unlockedByPrevious ? { unlockedBy: events[position - 1].id } : {}) });
+    events.push({ ...pickReal(item.tier), id, tier: item.tier, access: item.access, index: item.index, teamIds, ...(item.unlockedByPrevious ? { unlockedBy: events[position - 1].id } : {}) });
   });
-  return { majorNumber: dynasty.majorNumber, events, results: [], skipped: [], brackets: {}, finished: false };
+  return { majorNumber: dynasty.majorNumber, year, events, results: [], skipped: [], brackets: {}, finished: false };
 }
 
 export const isEventDone = (circuit: CircuitState, eventId: string): boolean =>

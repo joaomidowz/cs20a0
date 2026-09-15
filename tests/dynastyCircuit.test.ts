@@ -1,10 +1,10 @@
 // tests/dynastyCircuit.test.ts
 import { describe, expect, it } from 'vitest';
 import { getTeamPlayers, players, teams } from '../src/lib/game/data';
-import { CIRCUIT_PRIZES, CIRCUIT_TEAMS, circuitPlacementFrom, createCircuit, finishCircuit, isEventAvailable, isEventDone, settleCircuitEvent, skipCircuitEvent } from '../src/lib/game/dynasty/circuit';
+import { CIRCUIT_PRIZES, CIRCUIT_TEAMS, REAL_CIRCUIT_EVENTS, drawCircuitYear, circuitPlacementFrom, createCircuit, finishCircuit, isEventAvailable, isEventDone, settleCircuitEvent, skipCircuitEvent } from '../src/lib/game/dynasty/circuit';
 import { circuitResultFrom, circuitRounds, createCircuitCampaign, stepCircuitCampaign } from '../src/lib/game/dynasty/circuitLive';
 import { stageOfTier } from '../src/lib/game/dynasty/field';
-import { createDynastyState } from '../src/lib/game/dynasty/state';
+import { createDynastyState, ensureDynastyState } from '../src/lib/game/dynasty/state';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import type { DynastyMajorSummary, DynastyState } from '../src/lib/game/types';
@@ -53,6 +53,45 @@ describe('convites do circuito', () => {
     const ids = (seed: string) => createCircuit({ dynasty: settled('placementStage3'), teams, seed }).events.map((event) => event.teamIds);
     expect(ids('igual')).toEqual(ids('igual'));
     expect(ids('igual')).not.toEqual(ids('outra'));
+  });
+});
+
+describe('campeonatos reais do circuito', () => {
+  const realById = new Map(REAL_CIRCUIT_EVENTS.map((real) => [real.id, real]));
+
+  it('mesma seed sorteia o mesmo ano e os mesmos campeonatos', () => {
+    const make = () => createCircuit({ dynasty: settled('placementStage3'), teams, seed: 'ano-real' });
+    const first = make();
+    expect(first.year).toBe(drawCircuitYear('ano-real', 1));
+    expect(first.year).toBeGreaterThanOrEqual(2016);
+    expect(first.year).toBeLessThanOrEqual(2026);
+    expect(make()).toEqual(first);
+  });
+
+  it('cada evento usa um campeonato do ano e do mesmo tier, sem repetir', () => {
+    for (let index = 0; index < 30; index += 1) {
+      const circuit = createCircuit({ dynasty: settled(['placementChampion', 'placementStage3', 'placementStage1'][index % 3]), teams, seed: `real-${index}` });
+      const sources = circuit.events.map((event) => event.sourceId);
+      expect(new Set(sources).size).toBe(sources.length);
+      for (const event of circuit.events) {
+        const real = realById.get(event.sourceId!)!;
+        expect(real).toBeTruthy();
+        expect(real.tier).toBe(event.tier);
+        expect(real.year).toBe(circuit.year);
+        expect(event).toMatchObject({ name: real.name, year: real.year, realPrizePool: real.prizePool, location: real.location, organizer: real.organizer });
+      }
+    }
+  });
+
+  it('save antigo sem ano nem sourceId continua válido', () => {
+    const circuit = createCircuit({ dynasty: settled('placement5to8'), teams, seed: 'antigo' });
+    const legacy = {
+      majorNumber: circuit.majorNumber,
+      events: circuit.events.map(({ id, tier, access, index, teamIds }) => ({ id, tier, access, index, teamIds })),
+      results: [], skipped: [], brackets: {}, finished: false
+    };
+    const loaded = ensureDynastyState({ ...settled('placement5to8'), circuit: legacy });
+    expect(loaded.circuit).toEqual(legacy);
   });
 });
 

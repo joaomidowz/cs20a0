@@ -632,6 +632,20 @@ export interface CircuitEvent {
   teamIds: string[];
   /** Event that must end in champion or runner-up before this one opens (second Open Cup for Challengers). */
   unlockedBy?: string;
+  /** Real championship this event stands in for (circuit-events dataset). Absent in older saves. */
+  sourceId?: string;
+  name?: string;
+  year?: number;
+  /** Real prize pool in whole dollars — informational only; the in-game prize is CIRCUIT_PRIZES. */
+  realPrizePool?: number;
+  location?: string;
+  organizer?: string;
+}
+
+/** Stats of the user's series in one circuit event (details stripped). */
+export interface CircuitEventStats {
+  series: SeriesResult[];
+  players: PlayerRunStats[];
 }
 
 export interface CircuitResult {
@@ -650,6 +664,10 @@ export interface CircuitState {
   /** Bracket of every played event, without kill feeds. */
   brackets: Record<string, MajorRound[]>;
   finished: boolean;
+  /** Year drawn for the real championships of this circuit. Absent in older saves. */
+  year?: number;
+  /** User's series and lineup stats per played event. Absent in older saves. */
+  stats?: Record<string, CircuitEventStats>;
 }
 
 export interface DynastyState {
