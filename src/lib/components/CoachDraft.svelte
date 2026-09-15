@@ -1,14 +1,11 @@
 <!-- src/lib/components/CoachDraft.svelte -->
 <script lang="ts">
   import { translate } from '$lib/game/i18n';
-  import { coaches } from '$lib/game/data';
-  import { isDraftableCoach } from '$lib/game/dynasty/coach';
   import type { Coach, Language } from '$lib/game/types';
   import DynastyCoachCard from './DynastyCoachCard.svelte';
   import Roulette, { type RouletteEntry } from './Roulette.svelte';
 
   export let offer: Coach[] = [];
-  export let candidates: Coach[] = [];
   export let language: Language = 'pt-BR';
   export let rerollsLeft = 0;
   export let teamLabel: (teamId: string) => string = (teamId) => teamId;
@@ -39,8 +36,8 @@
     spinning = true;
     revealed = false;
   }
-  // Without explicit candidates, the reel falls back to the full catalog (decoration only).
-  $: reel = (candidates.length ? candidates : coaches).filter(isDraftableCoach).map(toEntry);
+  // The reel only cycles the three offered coaches.
+  $: reel = offer.map(toEntry);
 
   function spinDone() {
     spinning = false;
