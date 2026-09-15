@@ -176,6 +176,9 @@ const pt = {
   ,tbd: 'A definir'
   ,watchPause: 'Pausar'
   ,watchResume: 'Retomar'
+  ,simPause: 'Pausar simulação'
+  ,simResume: 'Retomar simulação'
+  ,simPaused: 'Pausado'
   ,veryAggressive: 'muito agressivo'
   ,greatClutch: 'ótimo clutch'
   ,mainAwper: 'AWPer principal'
@@ -480,6 +483,9 @@ Object.assign(dictionaries.es, {
   tbd: 'Por definir',
   watchPause: 'Pausar',
   watchResume: 'Reanudar',
+  simPause: 'Pausar simulación',
+  simResume: 'Reanudar simulación',
+  simPaused: 'En pausa',
   downloadRunImage: 'Descargar imagen de la partida',
   shareImage: 'Compartir imagen',
   copyRunLink: 'Copiar enlace de la partida',
@@ -593,6 +599,9 @@ Object.assign(dictionaries.en, {
   tbd: 'TBD',
   watchPause: 'Pause',
   watchResume: 'Resume',
+  simPause: 'Pause simulation',
+  simResume: 'Resume simulation',
+  simPaused: 'Paused',
   downloadRunImage: 'Download run image',
   shareImage: 'Share image',
   copyRunLink: 'Copy run link',

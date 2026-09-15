@@ -196,6 +196,9 @@
   let advancing = false;
   let strategicPreferences: StrategicAutomationPreferences = { ...DEFAULT_STRATEGIC_AUTOMATION };
   let liveTimer: number | null = null;
+  // Session-only pause of everything that advances the offline campaign on its own.
+  let simPaused = false;
+  let advanceHeldByPause = false;
   let liveRunning = false;
   let automationTimer: number | null = null;
   /** The saved campaign was already looked at: before that the old viewer must not start playing on its own. */
@@ -329,15 +332,15 @@
   $: dynastyPlanInitial = $game.dynasty?.major ? { ...(Object.values($game.dynasty.major.plans).at(-1) ?? $game.dynasty.major.basePlan), study: false } as SeriesPlan : null;
   $: campaignView = campaign ? getCampaignLiveView(campaign) : null;
   $: campaignPending = campaign ? pendingCampaignDecision(campaign) : null;
-  $: queueAutomation(campaignPending, campaignView, strategicPreferences);
+  $: queueAutomation(campaignPending, campaignView, strategicPreferences, simPaused);
   $: if (campaignView && !campaignView.finished && !liveRunning && $game.simMode === 'auto') liveRunning = true;
-  $: if (liveRunning && dynastySeriesPlanned && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
+  $: if (!simPaused && liveRunning && dynastySeriesPlanned && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
   $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
   $: circuitView = circuitCampaign ? getCampaignLiveView(circuitCampaign) : null;
   $: circuitSeries = circuitCampaign ? currentUserSeries(circuitCampaign.run.matches, circuitCampaign.confirmedSeriesIds) : null;
   $: circuitEnemyTeamId = circuitSeries ? (circuitSeries.teamA.id === 'user' ? circuitSeries.teamB.id : circuitSeries.teamA.id) : null;
   $: circuitBracket = circuitCampaign ? buildBracket(revealRounds(circuitRounds(circuitCampaign), { liveSeriesId: circuitSeries?.id ?? null }), { liveScores: true }) : [];
-  $: if (circuitCampaign && !circuitCampaign.finished && circuitLiveRunning) scheduleCircuitTick();
+  $: if (!simPaused && circuitCampaign && !circuitCampaign.finished && circuitLiveRunning) scheduleCircuitTick();
   $: if (circuitCampaign?.finished) settleFinishedCircuit();
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.filter((match) => confirmedSeriesIds.includes(match.id)) ?? [];
@@ -633,6 +636,8 @@
     awaitingAdvance = false;
     autoPausedHalf = '';
     liveRunning = false;
+    simPaused = false;
+    advanceHeldByPause = false;
     update({ majorRun, stats, playedSeries: {}, selectedPlayers: runLineup, completedSeries: 0, phase: 'stage3', ...(isDynasty && $game.dynasty && dynastyRules ? { dynasty: { ...$game.dynasty, majorRules: dynastyRules, major: dynastyMajor } } : {}) });
     scheduleSupportNudge();
   }
@@ -696,8 +701,8 @@
       && view.timeoutsLeft > 0 && view.lossStreak >= TIMEOUT_LOSS_STREAK && autoPausedHalf !== pauseKey(view));
 
   /** Queues the automation: writing the campaign from inside a reactive block would not restart the cycle. */
-  function queueAutomation(pending: PendingSeriesDecision | null, view: CampaignLiveView | null, preferences: StrategicAutomationPreferences) {
-    if (!campaign || automationTimer !== null) return;
+  function queueAutomation(pending: PendingSeriesDecision | null, view: CampaignLiveView | null, preferences: StrategicAutomationPreferences, paused: boolean) {
+    if (paused || !campaign || automationTimer !== null) return;
     if (!dynastySeriesPlanned) return;
     const decides = Boolean(pending && isAutomated(pending, preferences));
     if (!decides && !(!pending && wantsAutomaticPause(view, preferences))) return;
@@ -707,7 +712,7 @@
   /** Takes every decision the player left on automatic, then the tactical pause when it is on. */
   function runAutomation() {
     automationTimer = null;
-    if (!campaign) return;
+    if (!campaign || simPaused) return;
     let next = campaign;
     for (let guard = 0; guard < 40; guard += 1) {
       const pending = pendingCampaignDecision(next);
@@ -735,9 +740,26 @@
     if (liveTimer !== null) return;
     liveTimer = window.setTimeout(() => {
       liveTimer = null;
-      if (!campaign || !liveRunning || !dynastySeriesPlanned) return;
+      if (!campaign || !liveRunning || !dynastySeriesPlanned || simPaused) return;
       commitCampaign(stepCampaignSeries(campaign));
     }, Math.max(120, SPEEDS[$game.simSpeed]));
+  }
+
+  /** Freezes (or releases) every automatic step of the offline campaign; state stays untouched. */
+  function toggleSimPause() {
+    simPaused = !simPaused;
+    if (simPaused) {
+      if (liveTimer !== null) window.clearTimeout(liveTimer);
+      liveTimer = null;
+      if (circuitTimer !== null) window.clearTimeout(circuitTimer);
+      circuitTimer = null;
+      if (automationTimer !== null) window.clearTimeout(automationTimer);
+      automationTimer = null;
+      if (advanceTimer !== null) { clearAdvanceTimer(); advanceHeldByPause = true; }
+    } else if (advanceHeldByPause) {
+      advanceHeldByPause = false;
+      if (campaignView?.finished && !awaitingAdvance) seriesCompleted();
+    }
   }
 
   function stopLiveTick() {
@@ -817,6 +839,7 @@
   function seriesCompleted() {
     if ($game.simMode === 'auto') {
       clearAdvanceTimer();
+      if (simPaused) { advanceHeldByPause = true; return; }
       advanceTimer = window.setTimeout(() => { advanceTimer = null; void advanceSeries(); }, 900);
     } else {
       awaitingAdvance = true;
@@ -957,6 +980,8 @@
     const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
     circuitStatsInput = { event, players: circuitPlayers, lineup: selectedLineup, seed: $game.seed };
     circuitCampaign = createCircuitCampaign({ event, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps, coach: dynastyCoach, plan: { ...basePlan, study: false } });
+    // The circuit screen has its own pause; a leftover Major pause must not freeze it invisibly.
+    simPaused = false;
     circuitLiveRunning = true;
   }
 
@@ -968,7 +993,7 @@
     if (circuitTimer !== null || !circuitCampaign || !circuitLiveRunning || circuitCampaign.finished) return;
     circuitTimer = window.setTimeout(() => {
       circuitTimer = null;
-      if (!circuitCampaign || !circuitLiveRunning) return;
+      if (!circuitCampaign || !circuitLiveRunning || simPaused) return;
       circuitCampaign = stepCircuitCampaign(circuitCampaign);
     }, Math.max(120, SPEEDS[$game.simSpeed]));
   }
@@ -1542,8 +1567,18 @@
               options={[{ value: 'normal', label: t('normal') }, { value: 'fast', label: t('fast') }, { value: 'ultra', label: t('ultra') }]}
               onChange={changeSimulationSpeed}
             />
-            <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
+            <div class="sim-tools">
+              <button class="sim-pause-button" type="button" aria-pressed={simPaused} aria-label={simPaused ? t('simResume') : t('simPause')} title={simPaused ? t('simResume') : t('simPause')} on:click={toggleSimPause}>
+                {#if simPaused}
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+                {:else}
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="6.5" y="5" width="4" height="14" rx="1" /><rect x="13.5" y="5" width="4" height="14" rx="1" /></svg>
+                {/if}
+              </button>
+              <AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
+            </div>
           </div>
+          {#if simPaused}<small class="sim-paused-indicator" role="status">{t('simPaused')}</small>{/if}
         </div>
       </div>
       {#if $game.majorRun?.tournament}
@@ -1844,4 +1879,9 @@
   .org-name-field input:focus-visible{border-color:var(--accent)}
   .org-name-locked{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:0}
   .org-name-locked strong{font:800 1.1rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+  .sim-tools{display:flex;gap:8px;align-items:stretch}
+  .sim-pause-button{display:inline-flex;align-items:center;justify-content:center;height:100%;min-height:var(--gear-size,48px);aspect-ratio:1/1;padding:0;border:1px solid var(--line);border-radius:2px;color:var(--muted);background:var(--surface-2);cursor:pointer;transition:color .18s ease,border-color .18s ease}
+  .sim-pause-button:hover,.sim-pause-button:focus-visible,.sim-pause-button[aria-pressed="true"]{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .sim-pause-button svg{width:18px;height:18px}
+  .sim-paused-indicator{color:var(--accent);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 </style>
