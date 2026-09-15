@@ -782,7 +782,7 @@
           <section class="roll-zone panel">
             {#if offeredTeam && rouletteSpinning}
               {#key offeredTeam.id}
-                <DraftRoulette candidates={teams} result={offeredTeam} anonymous={snapshot.config.mode === 'pro'} language={$language} onComplete={() => { rouletteSpinning = false; freshOffer = true; }} />
+                <DraftRoulette candidates={teams} result={offeredTeam} anonymous={snapshot.config.mode === 'pro'} language={$language} duration={1500} onComplete={() => { rouletteSpinning = false; freshOffer = true; }} />
               {/key}
             {:else if offeredTeam}
               {#if snapshot.config.mode === 'pro'}

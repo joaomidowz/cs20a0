@@ -7,6 +7,7 @@
   export let anonymous = false;
   export let language: Language = 'en';
   export let onComplete: () => void;
+  export let duration = 2800;
 
   const toEntry = (team: HistoricalTeam): RouletteEntry => ({
     id: team.id,
@@ -24,4 +25,4 @@
       : { spinning: 'Drawing team…', skip: 'Skip animation', hidden: 'Hidden offer' };
 </script>
 
-<Roulette {entries} result={winner} {anonymous} {labels} {onComplete} />
+<Roulette {entries} result={winner} {anonymous} {labels} {onComplete} {duration} />

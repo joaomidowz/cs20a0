@@ -16,6 +16,8 @@
   export let anonymous = false;
   export let labels: { spinning: string; skip: string; hidden: string };
   export let onComplete: () => void;
+  /** Spin length in ms; the online draft uses a shorter spin because its pick timer keeps running. */
+  export let duration = 2800;
 
   let track: HTMLDivElement;
   let animation: Animation | undefined;
@@ -47,7 +49,7 @@
     }
     animation = track.animate(
       [{ transform: 'translateX(-80px)' }, { transform: `translateX(-${winnerIndex * 172 + 80}px)` }],
-      { duration: 2800, easing: 'cubic-bezier(0.12, 0.7, 0.12, 1)', fill: 'forwards' }
+      { duration, easing: 'cubic-bezier(0.12, 0.7, 0.12, 1)', fill: 'forwards' }
     );
     animation.onfinish = () => {
       settled = true;
@@ -64,7 +66,7 @@
     };
     frame = requestAnimationFrame(followMarker);
     // Background tabs must not leave the screen locked awaiting an animation event.
-    const timer = window.setTimeout(finish, 3400);
+    const timer = window.setTimeout(finish, duration + 600);
     const reduce = () => { if (preference.matches) finish(); };
     preference.addEventListener('change', reduce);
     return () => {
