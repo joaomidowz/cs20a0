@@ -1,5 +1,5 @@
 import { createSeededRng } from '../simulation';
-import type { CircuitEvent, CircuitPlacement, CircuitResult, CircuitState, CircuitTier, DynastyState, HistoricalTeam, MajorRound, MajorStage } from '../types';
+import type { CircuitEventStats, CircuitEvent, CircuitPlacement, CircuitResult, CircuitState, CircuitTier, DynastyState, HistoricalTeam, MajorRound, MajorStage } from '../types';
 import circuitEventsJson from '../../data/cs/circuit-events.game.json';
 import { stageOfTier } from './field';
 
@@ -105,13 +105,18 @@ export function isEventAvailable(circuit: CircuitState, event: CircuitEvent): bo
 }
 
 /** Credits one event once; a second call for the same event returns the same state. */
-export function settleCircuitEvent(dynasty: DynastyState, result: CircuitResult, rounds: MajorRound[]): DynastyState {
+export function settleCircuitEvent(dynasty: DynastyState, result: CircuitResult, rounds: MajorRound[], stats?: CircuitEventStats): DynastyState {
   const circuit = dynasty.circuit;
   if (!circuit || isEventDone(circuit, result.eventId)) return dynasty;
   return {
     ...dynasty,
     cash: dynasty.cash + Math.round(result.prize),
-    circuit: { ...circuit, results: [...circuit.results, result], brackets: { ...circuit.brackets, [result.eventId]: rounds } }
+    circuit: {
+      ...circuit,
+      results: [...circuit.results, result],
+      brackets: { ...circuit.brackets, [result.eventId]: rounds },
+      ...(stats ? { stats: { ...(circuit.stats ?? {}), [result.eventId]: stats } } : {})
+    }
   };
 }
 

@@ -115,7 +115,8 @@ const isCircuitState = (value: unknown): value is CircuitState => {
   const candidate = value as Partial<CircuitState>;
   return typeof candidate.majorNumber === 'number' && Array.isArray(candidate.events) && Array.isArray(candidate.results)
     && Array.isArray(candidate.skipped) && typeof candidate.finished === 'boolean'
-    && Boolean(candidate.brackets) && typeof candidate.brackets === 'object';
+    && Boolean(candidate.brackets) && typeof candidate.brackets === 'object'
+    && (candidate.stats === undefined || (Boolean(candidate.stats) && typeof candidate.stats === 'object'));
 };
 
 /** A saved dynasty (possibly from an older build or edited by hand) comes back complete and inside its bounds. */

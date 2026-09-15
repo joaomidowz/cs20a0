@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { getTeamPlayers, players, teams } from '../src/lib/game/data';
 import { CIRCUIT_PRIZES, CIRCUIT_TEAMS, REAL_CIRCUIT_EVENTS, drawCircuitYear, circuitPlacementFrom, createCircuit, finishCircuit, isEventAvailable, isEventDone, settleCircuitEvent, skipCircuitEvent } from '../src/lib/game/dynasty/circuit';
-import { circuitResultFrom, circuitRounds, createCircuitCampaign, stepCircuitCampaign } from '../src/lib/game/dynasty/circuitLive';
+import { circuitResultFrom, circuitRounds, circuitStatsFrom, createCircuitCampaign, stepCircuitCampaign } from '../src/lib/game/dynasty/circuitLive';
 import { stageOfTier } from '../src/lib/game/dynasty/field';
 import { createDynastyState, ensureDynastyState } from '../src/lib/game/dynasty/state';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -150,6 +150,32 @@ describe('evento do circuito ao vivo', () => {
     const result = circuitResultFrom(finished, circuit.events[0]);
     expect(result.eventId).toBe(circuit.events[0].id);
     expect(result.prize).toBe(CIRCUIT_PRIZES[result.tier][result.placement]);
+  });
+
+  it('guarda séries do usuário sem detalhes e stats Rating 3.0 com KAST', () => {
+    const finished = runToEnd(start());
+    const stats = circuitStatsFrom(finished, { event: circuit.events[0], players: roster, lineup, seed: 'circuito' });
+    expect(stats.series.length).toBeGreaterThan(0);
+    expect(stats.series.every((series) => series.teamA.id === 'user' || series.teamB.id === 'user')).toBe(true);
+    expect(stats.series.every((series) => series.maps.every((map) => !map.details))).toBe(true);
+    expect(stats.players.map((player) => player.playerId).sort()).toEqual(roster.map((player) => player.id).sort());
+    expect(stats.players.every((player) => typeof player.kast === 'number')).toBe(true);
+
+    const dynasty: DynastyState = { ...settled('placementStage3'), cash: 0, circuit };
+    const result = circuitResultFrom(finished, circuit.events[0]);
+    expect(result).toMatchObject({ name: circuit.events[0].name, year: circuit.events[0].year });
+    const once = settleCircuitEvent(dynasty, result, circuitRounds(finished), stats);
+    expect(once.circuit!.stats![circuit.events[0].id]).toEqual(stats);
+    expect(settleCircuitEvent(once, result, circuitRounds(finished), stats)).toBe(once);
+    expect(once.cash).toBe(result.prize);
+    expect(finishCircuit(once).history.at(-1)!.circuit![0]).toMatchObject({ name: result.name, year: result.year, placement: result.placement });
+    const reloaded = ensureDynastyState(JSON.parse(JSON.stringify(once)));
+    expect(reloaded.circuit!.stats![circuit.events[0].id].players[0].kast).toBeTypeOf('number');
+  });
+
+  it('circuito antigo sem stats carrega', () => {
+    const { stats: _stats, ...legacy } = { ...circuit, stats: undefined };
+    expect(ensureDynastyState({ ...settled('placementStage3'), circuit: legacy }).circuit).toEqual(legacy);
   });
 
   it('é determinístico pela seed', () => {

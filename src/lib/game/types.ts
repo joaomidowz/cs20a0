@@ -654,6 +654,9 @@ export interface CircuitResult {
   placement: CircuitPlacement;
   /** Whole dollars. */
   prize: number;
+  /** Real championship name and year, when the event had one. */
+  name?: string;
+  year?: number;
 }
 
 export interface CircuitState {

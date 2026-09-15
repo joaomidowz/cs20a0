@@ -7,8 +7,9 @@ import {
   stepCampaignSeries,
   type CampaignMajorState
 } from '../campaign-major';
+import { createRunStats } from '../runStats';
 import { stripSeriesDetails } from '../simulation';
-import type { CircuitEvent, CircuitResult, Coach, HistoricalTeam, MajorRound, MapId, Player, SelectedPlayer, SeriesPlan, SeriesResult } from '../types';
+import type { CircuitEvent, CircuitEventStats, CircuitResult, Coach, HistoricalTeam, MajorRound, MapId, Player, SelectedPlayer, SeriesPlan, SeriesResult } from '../types';
 import type { LiveSeriesState } from '../online/live-series';
 import { CIRCUIT_PRIZES, circuitPlacementFrom } from './circuit';
 
@@ -83,5 +84,19 @@ export function circuitRounds(state: CampaignMajorState): MajorRound[] {
 /** Prize by the placement the campaign ended on, ready to settle into the dynasty. */
 export function circuitResultFrom(state: CampaignMajorState, event: CircuitEvent): CircuitResult {
   const placement = circuitPlacementFrom(state.run.placement);
-  return { eventId: event.id, tier: event.tier, placement, prize: CIRCUIT_PRIZES[event.tier][placement] };
+  return {
+    eventId: event.id,
+    tier: event.tier,
+    placement,
+    prize: CIRCUIT_PRIZES[event.tier][placement],
+    ...(event.name ? { name: event.name } : {}),
+    ...(event.year ? { year: event.year } : {})
+  };
+}
+
+/** The user's series (without kill feeds) and the lineup's stats, computed from the kill feed before it is stripped. */
+export function circuitStatsFrom(state: CampaignMajorState, input: Pick<CircuitCampaignInput, 'event' | 'players' | 'lineup' | 'seed'>): CircuitEventStats {
+  const userSeries = state.run.matches.filter((series) => series.teamA.id === 'user' || series.teamB.id === 'user');
+  const players = createRunStats(input.players, { ...state.run, matches: userSeries }, `${input.seed}:${input.event.id}`, input.lineup);
+  return { series: userSeries.map(stripSeriesDetails), players };
 }

@@ -84,7 +84,7 @@
   import DynastyTip from '$lib/components/DynastyTip.svelte';
   import DynastyCircuit from '$lib/components/DynastyCircuit.svelte';
   import { createCircuit, finishCircuit, settleCircuitEvent, skipCircuitEvent } from '$lib/game/dynasty/circuit';
-  import { circuitResultFrom, circuitRounds, createCircuitCampaign, stepCircuitCampaign } from '$lib/game/dynasty/circuitLive';
+  import { circuitResultFrom, circuitRounds, circuitStatsFrom, createCircuitCampaign, stepCircuitCampaign, type CircuitCampaignInput } from '$lib/game/dynasty/circuitLive';
   import PlayoffBracket from '$lib/components/PlayoffBracket.svelte';
   import { buildBracket, revealRounds } from '$lib/game/majorOverview';
   import { DEFAULT_TIP_STATE, disableTips, markTipSeen, nextTip, type TipContext, type TipState } from '$lib/game/dynasty/tips';
@@ -901,6 +901,8 @@
   // The live circuit campaign is transient: a reload mid-event simply offers the event again (deterministic seed).
   let circuitCampaign: CampaignMajorState | null = null;
   let circuitLiveRunning = false;
+  /** What the stats of the event being played are computed from once it ends. */
+  let circuitStatsInput: Pick<CircuitCampaignInput, 'event' | 'players' | 'lineup' | 'seed'> | null = null;
   let circuitTimer: number | null = null;
 
   function stopCircuitTick() {
@@ -953,6 +955,7 @@
       return base ? [resolveDynastyPlayer(base, dynasty.playerOverrides[base.id])] : [];
     });
     const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
+    circuitStatsInput = { event, players: circuitPlayers, lineup: selectedLineup, seed: $game.seed };
     circuitCampaign = createCircuitCampaign({ event, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps, coach: dynastyCoach, plan: { ...basePlan, study: false } });
     circuitLiveRunning = true;
   }
@@ -979,8 +982,11 @@
     circuitLiveRunning = false;
     circuitCampaign = null;
     circuitPlaying = null;
+    const statsInput = circuitStatsInput?.event.id === event?.id ? circuitStatsInput : null;
+    circuitStatsInput = null;
     if (!state || !event || !$game.dynasty) return;
-    update({ dynasty: settleCircuitEvent($game.dynasty, circuitResultFrom(state, event), circuitRounds(state)) });
+    const stats = statsInput ? circuitStatsFrom(state, statsInput) : undefined;
+    update({ dynasty: settleCircuitEvent($game.dynasty, circuitResultFrom(state, event), circuitRounds(state), stats) });
   }
 
   function skipCircuit(eventId: string) {
@@ -1446,7 +1452,7 @@
           </div>
         </div>
       {/snippet}
-      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} live={circuitCampaign ? circuitLiveView : null} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
+      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} userTeamName={dynastyTeamName} live={circuitCampaign ? circuitLiveView : null} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
     </section>
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">

@@ -1,16 +1,21 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import PlayoffBracket from './PlayoffBracket.svelte';
+  import RunStatsGrid from './RunStatsGrid.svelte';
+  import SeriesViewer from './SeriesViewer.svelte';
+  import { translate, translateTeamName } from '$lib/game/i18n';
   import { CIRCUIT_PRIZES, isEventAvailable, isEventDone } from '$lib/game/dynasty/circuit';
   import { formatUsd } from '$lib/game/dynasty/prizes';
   import { buildBracket, revealRounds } from '$lib/game/majorOverview';
-  import type { CircuitEvent, CircuitPlacement, CircuitState, HistoricalTeam, Language } from '$lib/game/types';
+  import type { CircuitEvent, CircuitPlacement, CircuitState, HistoricalTeam, Language, SeriesResult } from '$lib/game/types';
 
   export let circuit: CircuitState;
   export let language: Language = 'pt-BR';
   export let cash = 0;
   export let playing: string | null = null;
   export let teamById: Map<string, HistoricalTeam> = new Map();
+  /** Custom name of the user's organization; undefined keeps the translated default. */
+  export let userTeamName: string | undefined = undefined;
   /** Live view of the event being played (bracket + series), rendered in place of the event cards. */
   export let live: Snippet | null = null;
   export let onPlay: (eventId: string) => void = () => {};
@@ -18,9 +23,9 @@
   export let onContinue: () => void = () => {};
 
   const copy = {
-    'pt-BR': { title: 'Circuito entre Majors', intro: 'Campeonatos menores valem prêmio e já entram no caixa antes da janela.', cash: 'Caixa', elite: 'Elite Series', open: 'Open Cup', invite: 'Convite', signup: 'Inscrição', play: 'Aceitar e jogar', signupPlay: 'Inscrever e jogar', skip: 'Pular', skipped: 'Pulado', locked: 'Libera com final no Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Adversários', prizes: 'Prêmios', champion: 'Campeão', runnerUp: 'Vice', semi: 'Semifinal', quarter: 'Quartas', earned: 'Prêmio', continue: 'Seguir para a janela', quarterfinal: 'Quartas', semifinal: 'Semifinal', final: 'Final', tbd: 'A definir', live: 'Ao vivo', pending: 'Aguardando', realPool: 'Premiação real', organizer: 'Organização', location: 'Local', year: 'Ano' },
-    es: { title: 'Circuito entre Majors', intro: 'Los torneos menores dan premio y entran en la caja antes de la ventana.', cash: 'Caja', elite: 'Elite Series', open: 'Open Cup', invite: 'Invitación', signup: 'Inscripción', play: 'Aceptar y jugar', signupPlay: 'Inscribirse y jugar', skip: 'Saltar', skipped: 'Saltado', locked: 'Se abre con final en el Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Rivales', prizes: 'Premios', champion: 'Campeón', runnerUp: 'Subcampeón', semi: 'Semifinal', quarter: 'Cuartos', earned: 'Premio', continue: 'Ir a la ventana', quarterfinal: 'Cuartos', semifinal: 'Semifinal', final: 'Final', tbd: 'Por definir', live: 'En vivo', pending: 'Pendiente', realPool: 'Premio real', organizer: 'Organizador', location: 'Sede', year: 'Año' },
-    en: { title: 'Circuit between Majors', intro: 'Smaller events pay prize money that reaches your cash before the window.', cash: 'Cash', elite: 'Elite Series', open: 'Open Cup', invite: 'Invite', signup: 'Sign-up', play: 'Accept and play', signupPlay: 'Sign up and play', skip: 'Skip', skipped: 'Skipped', locked: 'Unlocks with a final at Open Cup #1', lockedShort: 'Locked', simulating: 'Simulating…', opponents: 'Opponents', prizes: 'Prizes', champion: 'Champion', runnerUp: 'Runner-up', semi: 'Semifinal', quarter: 'Quarterfinal', earned: 'Prize', continue: 'Go to the window', quarterfinal: 'Quarterfinal', semifinal: 'Semifinal', final: 'Final', tbd: 'TBD', live: 'Live', pending: 'Pending', realPool: 'Real prize pool', organizer: 'Organizer', location: 'Location', year: 'Year' }
+    'pt-BR': { title: 'Circuito entre Majors', intro: 'Campeonatos menores valem prêmio e já entram no caixa antes da janela.', cash: 'Caixa', elite: 'Elite Series', open: 'Open Cup', invite: 'Convite', signup: 'Inscrição', play: 'Aceitar e jogar', signupPlay: 'Inscrever e jogar', skip: 'Pular', skipped: 'Pulado', locked: 'Libera com final no Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Adversários', prizes: 'Prêmios', champion: 'Campeão', runnerUp: 'Vice', semi: 'Semifinal', quarter: 'Quartas', earned: 'Prêmio', continue: 'Seguir para a janela', quarterfinal: 'Quartas', semifinal: 'Semifinal', final: 'Final', tbd: 'A definir', live: 'Ao vivo', pending: 'Aguardando', realPool: 'Premiação real', organizer: 'Organização', location: 'Local', year: 'Ano', details: 'Ver resultado', hideDetails: 'Fechar resultado', result: 'Resultado', placement: 'Colocação', gamePrize: 'Prêmio no jogo', record: 'Séries V-D', series: 'Séries do time', stats: 'Stats do evento', bracket: 'Chave', noStats: 'Evento jogado antes das stats do circuito: só a chave ficou salva.', closeSeries: 'Fechar série', win: 'Vitória', loss: 'Derrota' },
+    es: { title: 'Circuito entre Majors', intro: 'Los torneos menores dan premio y entran en la caja antes de la ventana.', cash: 'Caja', elite: 'Elite Series', open: 'Open Cup', invite: 'Invitación', signup: 'Inscripción', play: 'Aceptar y jugar', signupPlay: 'Inscribirse y jugar', skip: 'Saltar', skipped: 'Saltado', locked: 'Se abre con final en el Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Rivales', prizes: 'Premios', champion: 'Campeón', runnerUp: 'Subcampeón', semi: 'Semifinal', quarter: 'Cuartos', earned: 'Premio', continue: 'Ir a la ventana', quarterfinal: 'Cuartos', semifinal: 'Semifinal', final: 'Final', tbd: 'Por definir', live: 'En vivo', pending: 'Pendiente', realPool: 'Premio real', organizer: 'Organizador', location: 'Sede', year: 'Año', details: 'Ver resultado', hideDetails: 'Cerrar resultado', result: 'Resultado', placement: 'Posición', gamePrize: 'Premio en el juego', record: 'Series V-D', series: 'Series del equipo', stats: 'Stats del torneo', bracket: 'Cuadro', noStats: 'Torneo jugado antes de las stats del circuito: solo se guardó el cuadro.', closeSeries: 'Cerrar serie', win: 'Victoria', loss: 'Derrota' },
+    en: { title: 'Circuit between Majors', intro: 'Smaller events pay prize money that reaches your cash before the window.', cash: 'Cash', elite: 'Elite Series', open: 'Open Cup', invite: 'Invite', signup: 'Sign-up', play: 'Accept and play', signupPlay: 'Sign up and play', skip: 'Skip', skipped: 'Skipped', locked: 'Unlocks with a final at Open Cup #1', lockedShort: 'Locked', simulating: 'Simulating…', opponents: 'Opponents', prizes: 'Prizes', champion: 'Champion', runnerUp: 'Runner-up', semi: 'Semifinal', quarter: 'Quarterfinal', earned: 'Prize', continue: 'Go to the window', quarterfinal: 'Quarterfinal', semifinal: 'Semifinal', final: 'Final', tbd: 'TBD', live: 'Live', pending: 'Pending', realPool: 'Real prize pool', organizer: 'Organizer', location: 'Location', year: 'Year', details: 'View result', hideDetails: 'Close result', result: 'Result', placement: 'Placement', gamePrize: 'In-game prize', record: 'Series W-L', series: 'Team series', stats: 'Event stats', bracket: 'Bracket', noStats: 'Event played before circuit stats existed: only the bracket was saved.', closeSeries: 'Close series', win: 'Win', loss: 'Loss' }
   } as const;
   const placements: readonly CircuitPlacement[] = ['champion', 'runnerUp', 'semi', 'quarter'];
 
@@ -31,6 +36,27 @@
   const championOf = (event: CircuitEvent) => (circuit.brackets[event.id] ?? []).find((round) => round.phase === 'final')?.series[0]?.winnerId ?? null;
   const eventTitle = (event: CircuitEvent) => event.name ?? `${c[event.tier]} #${event.index}`;
   const teamName = (id: string) => teamById.get(id)?.name ?? id;
+
+  let openEventId: string | null = null;
+  let openSeriesId: string | null = null;
+  let seenResults = circuit.results.length;
+  // A freshly settled event opens its result right away.
+  $: if (circuit.results.length > seenResults) {
+    seenResults = circuit.results.length;
+    openEventId = circuit.results.at(-1)?.eventId ?? null;
+    openSeriesId = null;
+  }
+  $: openEvent = circuit.events.find((event) => event.id === openEventId) ?? null;
+  $: openResult = openEvent ? resultOf(openEvent) : null;
+  $: openStats = openEvent ? circuit.stats?.[openEvent.id] ?? null : null;
+  $: openSeries = openStats?.series.find((series) => series.id === openSeriesId) ?? null;
+  $: record = openStats ? { wins: openStats.series.filter((series) => series.winnerId === 'user').length, losses: openStats.series.filter((series) => series.winnerId !== 'user').length } : null;
+  const toggleDetails = (eventId: string) => { openEventId = openEventId === eventId ? null : eventId; openSeriesId = null; };
+  const opponentOf = (series: SeriesResult) => (series.teamA.id === 'user' ? series.teamB : series.teamA);
+  const userScore = (series: SeriesResult) => (series.teamA.id === 'user' ? `${series.scoreA}-${series.scoreB}` : `${series.scoreB}-${series.scoreA}`);
+  $: tr = (key: Parameters<typeof translate>[1]) => translate(language, key);
+  $: viewerLabels = { start: tr('startSeries'), skip: tr('skipMap'), round: tr('round'), live: tr('live'), map: tr('map'), final: tr('final'), waiting: tr('waiting'), pending: tr('pending'), inProgress: tr('inProgress'), mapInProgress: tr('mapInProgress'), veto: tr('veto'), ban: tr('ban'), pick: tr('pick'), decider: tr('decider'), notPlayed: tr('mapNotPlayed'), mapStart: tr('mapStart') };
+  $: phaseName = (phase: string) => (phase === 'quarterfinal' ? c.quarterfinal : phase === 'semifinal' ? c.semifinal : phase === 'final' ? c.final : phase);
 </script>
 
 <section class="circuit">
@@ -98,8 +124,8 @@
         <p class="opponents"><span>{c.opponents}</span> {event.teamIds.map(teamName).join(' · ')}</p>
         {#if result}
           <p class="sr-only">{c[result.placement]} · {c.earned} {formatUsd(result.prize, language)}</p>
-          <div class="bracket"><PlayoffBracket columns={columnsOf(event)} userTeamId="user" championId={championOf(event)} labels={{ quarterfinal: c.quarterfinal, semifinal: c.semifinal, final: c.final, tbd: c.tbd, live: c.live, pending: c.pending }} /></div>
-          <div class="action-bar result" aria-hidden="true"><span>{c[result.placement]} · {formatUsd(result.prize, language)}</span></div>
+          <div class="result-strip place-{result.placement}" aria-hidden="true"><span>{c[result.placement]}</span><b>{formatUsd(result.prize, language)}</b></div>
+          <button class="details-toggle place-{result.placement}" type="button" aria-expanded={openEventId === event.id} aria-controls="circuit-result" on:click={() => toggleDetails(event.id)}>{openEventId === event.id ? c.hideDetails : c.details}</button>
         {:else if skipped}
           <div class="action-bar state" aria-hidden="true"><span>{c.skipped}</span></div>
         {:else if locked}
@@ -113,6 +139,62 @@
       </article>
     {/each}
   </div>
+
+  {#if openEvent && openResult}
+    <section id="circuit-result" class="result-panel place-{openResult.placement}" aria-label={c.result}>
+      <header class="result-head">
+        <div>
+          <span class="eyebrow">{c.result}{openEvent.year ? ` · ${openEvent.year}` : ''}</span>
+          <h3>{eventTitle(openEvent)}</h3>
+        </div>
+        <strong class="place">{c[openResult.placement]}</strong>
+      </header>
+      <dl class="summary">
+        <div><dt>{c.placement}</dt><dd>{c[openResult.placement]}</dd></div>
+        <div><dt>{c.gamePrize}</dt><dd>{formatUsd(openResult.prize, language)}</dd></div>
+        {#if openEvent.realPrizePool !== undefined}<div><dt>{c.realPool}</dt><dd>{formatUsd(openEvent.realPrizePool, language)}</dd></div>{/if}
+        {#if record}<div><dt>{c.record}</dt><dd>{record.wins}-{record.losses}</dd></div>{/if}
+      </dl>
+
+      {#if openStats}
+        <div class="block">
+          <h4>{c.series}</h4>
+          <ul class="series-list">
+            {#each openStats.series as series (series.id)}
+              {@const won = series.winnerId === 'user'}
+              <li>
+                <button type="button" class="series-row" class:won class:active={openSeriesId === series.id} aria-expanded={openSeriesId === series.id} on:click={() => (openSeriesId = openSeriesId === series.id ? null : series.id)}>
+                  <span class="phase">{phaseName(series.phase)}</span>
+                  <span class="vs">{translateTeamName(language, opponentOf(series).name, userTeamName)}</span>
+                  <b>{userScore(series)}</b>
+                  <span class="outcome">{won ? c.win : c.loss}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+          {#if openSeries}
+            <div class="viewer">
+              {#key openSeries.id}
+                <SeriesViewer series={openSeries} language={language} {userTeamName} controlled={true} controlledStarted={true} controlledFinished={true} controlledActiveMap={Math.max(0, openSeries.maps.length - 1)} controlledVisibleRounds={openSeries.maps.at(-1)?.rounds.length ?? 0} simpleFeed={true} phaseLabel={`${phaseName(openSeries.phase)} · MD${openSeries.bestOf}`} labels={viewerLabels} />
+              {/key}
+              <button class="secondary close-series" type="button" on:click={() => (openSeriesId = null)}>{c.closeSeries}</button>
+            </div>
+          {/if}
+        </div>
+        <div class="block">
+          <h4>{c.stats}</h4>
+          <RunStatsGrid stats={openStats.players} {language} compact={true} />
+        </div>
+      {:else}
+        <p class="note">{c.noStats}</p>
+      {/if}
+
+      <div class="block">
+        <h4>{c.bracket}</h4>
+        <div class="bracket"><PlayoffBracket columns={columnsOf(openEvent)} userTeamId="user" {userTeamName} championId={championOf(openEvent)} labels={{ quarterfinal: c.quarterfinal, semifinal: c.semifinal, final: c.final, tbd: c.tbd, live: c.live, pending: c.pending }} /></div>
+      </div>
+    </section>
+  {/if}
   {/if}
 
   {#if !live}
@@ -175,13 +257,47 @@
   .bracket { overflow-x: auto; max-width: 100%; margin-top: 2px; }
 
   .action-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: auto; min-height: 44px; padding: 0 12px; border: 0; background: var(--accent); color: #0a0d08; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  .action-bar.result { border: 1px solid #d9a441; background: color-mix(in srgb, #d9a441 12%, var(--surface)); color: #d9a441; }
+  .event, .result-panel { --place: var(--muted); }
+  .place-champion { --place: #d9a441; }
+  .place-runnerUp { --place: #c9d1d9; }
+  .place-semi { --place: #c07a45; }
+  .place-quarter { --place: #7d8a99; }
+  .result-strip { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding: 9px 12px; border-left: 4px solid var(--place); background: color-mix(in srgb, var(--place) 12%, var(--surface)); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--place); }
+  .result-strip b { font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; color: var(--text); }
+  .details-toggle { min-height: 44px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--place) 55%, var(--line)); color: var(--text); background: var(--surface-2); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: border-color .18s ease, background-color .18s ease; }
+  .details-toggle:hover, .details-toggle[aria-expanded='true'] { border-color: var(--place); background: color-mix(in srgb, var(--place) 10%, var(--surface-2)); }
+  .details-toggle:focus-visible, .series-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .result-panel { display: grid; gap: 16px; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--place) 45%, var(--line)); border-top: 4px solid var(--place); background: linear-gradient(160deg, color-mix(in srgb, var(--place) 7%, var(--surface)), var(--surface)); }
+  .result-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 8px 16px; }
+  .result-head h3 { margin: 6px 0 0; font: 900 clamp(1.2rem, 3vw, 1.6rem)/1.1 'Arial Narrow', Impact, sans-serif; overflow-wrap: anywhere; }
+  .result-head .place { color: var(--place); font: 900 1.4rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; margin: 0; }
+  .summary div { display: grid; gap: 4px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); background: var(--surface-2); }
+  .summary dt { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .summary dd { margin: 0; font: 900 1.1rem/1 'Arial Narrow', Impact, sans-serif; overflow-wrap: anywhere; }
+  .block { display: grid; gap: 10px; min-width: 0; }
+  .block h4 { margin: 0; color: var(--muted); font-size: .64rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .series-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .series-row { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto auto; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid #d65a5a; color: var(--text); background: var(--surface-2); text-align: left; cursor: pointer; transition: border-color .18s ease, background-color .18s ease; }
+  .series-row.won { border-left-color: var(--accent); }
+  .series-row:hover, .series-row.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
+  .series-row .phase, .series-row .outcome { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .series-row .vs { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+  .series-row b { font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; }
+  .viewer { display: grid; gap: 8px; min-width: 0; overflow-x: auto; }
+  .close-series { justify-self: end; min-height: 40px; }
+  @media (max-width: 480px) {
+    .series-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .series-row .phase { grid-column: 1 / -1; }
+  }
   .action-bar.state { border: 1px dashed var(--line); background: var(--surface-2); color: var(--muted); }
   .action-bar.live { border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); color: var(--accent); }
   .action-bar.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: circuitPulse 1.1s ease-in-out infinite; }
   @keyframes circuitPulse { 50% { opacity: .35; } }
 
   .continue { margin-top: 4px; }
-  @media (prefers-reduced-motion: no-preference) { .event.done { animation: settle .35s ease-out; } }
+  @media (prefers-reduced-motion: no-preference) { .event.done, .result-panel { animation: settle .35s ease-out; } }
+  @media (prefers-reduced-motion: reduce) { .event.actionable, .details-toggle, .series-row { transition: none; } .event.actionable:hover { transform: none; } }
   @keyframes settle { from { transform: translateY(6px); opacity: .5; } }
 </style>
