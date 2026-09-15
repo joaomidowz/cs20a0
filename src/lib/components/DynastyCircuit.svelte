@@ -118,11 +118,20 @@
         {/if}
         <ul class="prizes" aria-label={c.prizes}>
           {#each placements as placement}
-            <li class:hit={result?.placement === placement}><span>{c[placement]}</span><b>{formatUsd(CIRCUIT_PRIZES[event.tier][placement], language)}</b></li>
+            <li class:earned={result?.placement === placement}><span>{c[placement]}</span><b>{formatUsd(CIRCUIT_PRIZES[event.tier][placement], language)}</b></li>
           {/each}
         </ul>
         <p class="opponents"><span>{c.opponents}</span> {event.teamIds.map(teamName).join(' · ')}</p>
         {#if result}
+          {@const path = circuit.stats?.[event.id]?.series ?? []}
+          {#if path.length}
+            <ol class="path">
+              {#each path as series (series.id)}
+                {@const won = series.winnerId === 'user'}
+                <li class:won><span>{phaseName(series.phase)}</span><em>{translateTeamName(language, opponentOf(series).name, userTeamName)}</em><b>{userScore(series)}</b></li>
+              {/each}
+            </ol>
+          {/if}
           <p class="sr-only">{c[result.placement]} · {c.earned} {formatUsd(result.prize, language)}</p>
           <div class="result-strip place-{result.placement}" aria-hidden="true"><span>{c[result.placement]}</span><b>{formatUsd(result.prize, language)}</b></div>
           <button class="details-toggle place-{result.placement}" type="button" aria-expanded={openEventId === event.id} aria-controls="circuit-result" on:click={() => toggleDetails(event.id)}>{openEventId === event.id ? c.hideDetails : c.details}</button>
@@ -241,8 +250,8 @@
   .prizes span { color: var(--muted); }
   .prizes b { color: var(--accent); font-weight: 800; white-space: nowrap; }
   .prizes li:first-child span { color: #d9a441; }
-  .prizes li.hit { border-color: #d9a441; background: color-mix(in srgb, #d9a441 10%, var(--surface)); }
-  .prizes li.hit span { color: #d9a441; font-weight: 800; }
+  .prizes li.earned { border-color: #d9a441; background: color-mix(in srgb, #d9a441 10%, var(--surface)); }
+  .prizes li.earned span { color: #d9a441; font-weight: 800; }
 
   .real { display: grid; gap: 6px; min-width: 0; }
   .real strong { font: 900 1.05rem/1.15 'Arial Narrow', Impact, sans-serif; letter-spacing: .02em; overflow-wrap: anywhere; }
@@ -250,6 +259,12 @@
   .real dl div { display: flex; gap: 5px; min-width: 0; }
   .real dt { font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
   .real dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .path { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .path li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 9px; border-left: 3px solid #d65a5a; background: var(--surface-2); font-size: .72rem; }
+  .path li.won { border-left-color: var(--accent); }
+  .path span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .path em { overflow: hidden; font-style: normal; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+  .path b { font: 900 .95rem/1 'Arial Narrow', Impact, sans-serif; }
   .opponents { margin: 0; font-size: .74rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
   .opponents span { color: var(--text); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
