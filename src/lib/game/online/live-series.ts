@@ -128,7 +128,10 @@ export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
 
 /** Replaces one team before the veto starts and rebuilds both matchday rolls from the original seed. */
 export function retuneSeriesTeam(state: LiveSeriesState, side: TeamSide, team: CombatTeam): LiveSeriesState {
-  if (state.phase !== 'veto' || !state.veto || state.veto.cursor !== 0 || state.veto.steps.length > 0 || state.maps.length > 0 || state.current) {
+  // Bots veto instantly, so the opponent may already have banned; only the retuned side's own veto locks the plan.
+  const teamId = side === 'a' ? state.config.teamA.id : state.config.teamB.id;
+  const ownVeto = state.veto?.steps.some((step) => step.teamId === teamId) ?? false;
+  if (state.phase !== 'veto' || !state.veto || ownVeto || state.maps.length > 0 || state.current) {
     throw new LiveSeriesError('SERIES_FINISHED', 'A série só pode ser ajustada antes do veto');
   }
   if (side === 'a') state.config.teamA = team;

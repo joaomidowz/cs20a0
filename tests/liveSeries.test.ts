@@ -188,4 +188,14 @@ describe('live series', () => {
     applySeriesDecision(retuned, { kind: 'veto', teamId: pendingSeriesDecision(retuned)!.teamId, action: 'ban', mapId: (pendingSeriesDecision(retuned) as Extract<ReturnType<typeof pendingSeriesDecision>, { kind: 'veto' }>).available[0] });
     expect(() => retuneSeriesTeam(retuned, 'a', team('a', 90))).toThrow(/veto/);
   });
+
+  it('retunes a team after the bot opponent already vetoed', () => {
+    const state = createLiveSeries(config());
+    const pending = pendingSeriesDecision(state) as Extract<ReturnType<typeof pendingSeriesDecision>, { kind: 'veto' }>;
+    const other = pending.teamId === state.config.teamA.id ? 'b' : 'a';
+    const own = other === 'a' ? 'b' : 'a';
+    applySeriesDecision(state, { kind: 'veto', teamId: pending.teamId, action: 'ban', mapId: pending.available[0] });
+    expect(() => retuneSeriesTeam(state, other, team(other, 91))).not.toThrow();
+    expect(() => retuneSeriesTeam(state, own, team(own, 91))).toThrow(/veto/);
+  });
 });
