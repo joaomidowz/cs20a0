@@ -31,6 +31,8 @@
   export let interactiveTeamIds: string[] = [];
   /** Optional campaign label such as "Stage 2 · MD1". Other consumers retain the historical phase label. */
   export let phaseLabel: string | null = null;
+  /** Custom name for the user's org (Dinastia); undefined keeps the translated default. */
+  export let userTeamName: string | undefined = undefined;
   export let labels: {
     start: string;
     skip: string;
@@ -111,7 +113,7 @@
   });
   $: lastRoundWinner = roundTicks.length ? roundTicks[roundTicks.length - 1] : null;
   $: userIsA = series.teamA.isUser ? true : series.teamB.isUser ? false : null;
-  $: teamNames = { a: translateTeamName(language, series.teamA.name), b: translateTeamName(language, series.teamB.name) };
+  $: teamNames = { a: translateTeamName(language, series.teamA.name, userTeamName), b: translateTeamName(language, series.teamB.name, userTeamName) };
   $: headline = currentMap && currentMapFinished ? getMapHeadline({ ...currentMap, details: currentDetails ?? currentMap.details }, teamNames, language) : null;
   $: inOvertime = Boolean(displayStarted && !displayFinished && !currentMapFinished && currentMapScore && (currentRound?.overtime || (currentMapScore.a >= 12 && currentMapScore.b >= 12)));
   $: mapStates = decidedMaps.map((decided) => {
@@ -191,8 +193,8 @@
   }
 
   function vetoTeamName(teamId: string | null) {
-    if (teamId === series.teamA.id) return translateTeamName(language, series.teamA.name);
-    if (teamId === series.teamB.id) return translateTeamName(language, series.teamB.name);
+    if (teamId === series.teamA.id) return translateTeamName(language, series.teamA.name, userTeamName);
+    if (teamId === series.teamB.id) return translateTeamName(language, series.teamB.name, userTeamName);
     return labels.decider ?? 'Decider';
   }
 
@@ -216,7 +218,7 @@
           on:mouseleave={onTeamHoverEnd}
           on:click={() => activateTeam(series.teamA.id, series.teamA.isUser)}
         >
-          {translateTeamName(language, series.teamA.name)}
+          {translateTeamName(language, series.teamA.name, userTeamName)}
         </button>
         <span>vs</span>
         <button
@@ -227,7 +229,7 @@
           on:mouseleave={onTeamHoverEnd}
           on:click={() => activateTeam(series.teamB.id, series.teamB.isUser)}
         >
-          {translateTeamName(language, series.teamB.name)}
+          {translateTeamName(language, series.teamB.name, userTeamName)}
         </button>
       </h2>
       {#if displayStarted && !displayFinished}
@@ -255,11 +257,11 @@
   {#if displayStarted && !displayFinished && currentMap && currentMapScore}
     <div class="live-map">
       <div class="live-map-score">
-        <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name)}</span>
+        <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name, userTeamName)}</span>
         {#key currentMapScore.a}<b class:offline-score={offlineEffects && lastRoundWinner === 'a'} class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
         <i>:</i>
         {#key currentMapScore.b}<b class:offline-score={offlineEffects && lastRoundWinner === 'b'} class:leading={currentMapScore.b > currentMapScore.a}>{currentMapScore.b}</b>{/key}
-        <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name)}</span>
+        <span class:mine={series.teamB.isUser}>{translateTeamName(language, series.teamB.name, userTeamName)}</span>
       </div>
       {#if offlineEffects}
         <OfflineRoundMoment seriesId={series.id} map={displayActiveMap} round={committedRounds} detail={committedDetail} {language} {userIsA} />
@@ -269,7 +271,7 @@
       {#if inOvertime}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
       <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} {language} {teamNames} />
-      <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
+      <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name, userTeamName)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
       {#if currentDetails?.length && displayVisibleRounds > 0}
         <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={roundFeedDelay} {language} {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}

@@ -90,6 +90,15 @@ const normalizeMajorPlan = (value: unknown, majorNumber: number): DynastyMajorPl
     .flatMap(([seriesId, plan]) => { const normalized = normalizeSeriesPlan(plan); return normalized ? [[seriesId, normalized]] : []; }));
   return { majorNumber, rules: 2, training: isTraining(raw.training) ? raw.training : null, basePlan, plans, confirmed: raw.confirmed !== false };
 };
+export const TEAM_NAME_MAX = 24;
+
+/** Player-typed organization name: trimmed, inner spaces collapsed, capped; blank or non-string is absent. */
+export function normalizeTeamName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const clean = value.replace(/\s+/g, ' ').trim().slice(0, TEAM_NAME_MAX).trim();
+  return clean || undefined;
+}
+
 const positiveInt = (value: unknown, fallback: number, minimum: number) =>
   typeof value === 'number' && Number.isInteger(value) && value >= minimum ? value : fallback;
 
@@ -132,6 +141,7 @@ export function ensureDynastyState(saved: unknown): DynastyState {
     playerOverrides: raw.playerOverrides && typeof raw.playerOverrides === 'object' ? (raw.playerOverrides as DynastyState['playerOverrides']) : {},
     window: isWindowState(raw.window) ? raw.window : null,
     circuit: isCircuitState(raw.circuit) ? raw.circuit : null,
-    prizeCreditedFor: positiveInt(raw.prizeCreditedFor, 0, 0)
+    prizeCreditedFor: positiveInt(raw.prizeCreditedFor, 0, 0),
+    ...(normalizeTeamName(raw.teamName) ? { teamName: normalizeTeamName(raw.teamName) } : {})
   };
 }

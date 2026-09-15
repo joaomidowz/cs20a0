@@ -75,3 +75,26 @@ describe('estado da Dinastia', () => {
     expect(createDynastyState().circuit).toBeNull();
   });
 });
+
+describe('nome da organização na Dinastia', () => {
+  it('normaliza espaços, corta em 24 caracteres e descarta vazio ou não-string', async () => {
+    const { normalizeTeamName } = await import('../src/lib/game/dynasty/state');
+    expect(normalizeTeamName('  Center   Ark  ')).toBe('Center Ark');
+    expect(normalizeTeamName('A'.repeat(40))).toBe('A'.repeat(24));
+    expect(normalizeTeamName('   ')).toBeUndefined();
+    expect(normalizeTeamName('')).toBeUndefined();
+    expect(normalizeTeamName(42)).toBeUndefined();
+    expect(normalizeTeamName(null)).toBeUndefined();
+  });
+
+  it('save antigo sem nome continua válido e usa o nome padrão traduzido', async () => {
+    const { userTeamLabel } = await import('../src/lib/game/dynasty/teamLabel');
+    const { teamName: _omit, ...legacy } = createDynastyState();
+    const restored = ensureDynastyState(legacy);
+    expect(restored.teamName).toBeUndefined();
+    expect(restored.majorNumber).toBe(1);
+    expect(userTeamLabel('en', restored)).toBe('Your Org');
+    expect(ensureDynastyState({ ...legacy, teamName: '  Minha   Org ' }).teamName).toBe('Minha Org');
+    expect(userTeamLabel('pt-BR', ensureDynastyState({ ...legacy, teamName: 'Minha Org' }))).toBe('Minha Org');
+  });
+});

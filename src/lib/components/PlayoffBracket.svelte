@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { slotName } from '$lib/game/dynasty/teamLabel';
   import TeamBadge from './TeamBadge.svelte';
   import type { BracketColumn } from '$lib/game/majorOverview';
 
   export let columns: BracketColumn[] = [];
   export let userTeamId = '';
+  export let userTeamName: string | undefined = undefined;
   export let championId: string | null = null;
   export let labels: { quarterfinal: string; semifinal: string; final: string; tbd: string; live: string; pending: string };
   export let onTeam: (teamId: string) => void = () => {};
@@ -26,11 +28,11 @@
       <div class="bracket-matches">
         {#each column.matches as match, index (match.id ?? `${column.phase}-${index}`)}
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-          <article class="bracket-match" class:live={match.status === 'live'} class:tbd={match.status === 'tbd'} class:mine={match.a.id === userTeamId || match.b.id === userTeamId} class:watchable={watchable(match)} role={watchable(match) ? 'button' : undefined} tabindex={watchable(match) ? 0 : undefined} aria-label={watchable(match) ? `${match.a.name ?? labels.tbd} x ${match.b.name ?? labels.tbd}` : undefined} on:click={() => watchable(match) && openSeries(match)} on:keydown={(event) => watchable(match) && onSeriesKey(event, match)}>
+          <article class="bracket-match" class:live={match.status === 'live'} class:tbd={match.status === 'tbd'} class:mine={match.a.id === userTeamId || match.b.id === userTeamId} class:watchable={watchable(match)} role={watchable(match) ? 'button' : undefined} tabindex={watchable(match) ? 0 : undefined} aria-label={watchable(match) ? `${match.a.name ? slotName(match.a.id, match.a.name, userTeamId, userTeamName) : labels.tbd} x ${match.b.name ? slotName(match.b.id, match.b.name, userTeamId, userTeamName) : labels.tbd}` : undefined} on:click={() => watchable(match) && openSeries(match)} on:keydown={(event) => watchable(match) && onSeriesKey(event, match)}>
             {#each [match.a, match.b] as slot, slotIndex}
               {#if slot.id}
                 <button type="button" class="bracket-slot" class:winner={slot.winner} class:loser={match.status === 'completed' && !slot.winner} class:user={slot.id === userTeamId} class:champion={column.phase === 'final' && slot.id === championId} disabled={slot.id === userTeamId} on:click|stopPropagation={() => slot.id && onTeam(slot.id)}>
-                  <TeamBadge id={slot.id} name={slot.name ?? ''} highlight={slot.id === userTeamId} /><span>{slot.name}</span>{#if slot.score !== null}<b>{slot.score}</b>{/if}
+                  <TeamBadge id={slot.id} name={slot.name ?? ''} highlight={slot.id === userTeamId} /><span>{slot.name ? slotName(slot.id, slot.name, userTeamId, userTeamName) : slot.name}</span>{#if slot.score !== null}<b>{slot.score}</b>{/if}
                 </button>
               {:else}
                 <div class="bracket-slot empty"><i></i><span>{labels.tbd}</span></div>

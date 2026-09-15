@@ -674,6 +674,8 @@ export interface DynastyState {
   circuit?: CircuitState | null;
   /** Last majorNumber whose prize was already credited, so a reload never pays twice. */
   prizeCreditedFor: number;
+  /** Organization name picked by the player; absent means the translated default. */
+  teamName?: string;
 }
 
 export interface GameState {

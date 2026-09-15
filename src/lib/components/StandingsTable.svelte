@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { slotName } from '$lib/game/dynasty/teamLabel';
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
@@ -8,6 +9,7 @@
 
   export let standings: MajorStanding[] = [];
   export let userTeamId = '';
+  export let userTeamName: string | undefined = undefined;
   export let labels: { record: string; buchholz: string; active: string; qualified: string; eliminated: string; champion: string; runnerUp?: string; third?: string; fifth?: string; playoffs?: string };
   export let onTeam: (teamId: string) => void = () => {};
 
@@ -44,7 +46,7 @@
       in:fly={{ y: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 160, delay: reducedMotion ? 0 : Math.min(index, 7) * 18, easing: cubicOut }}
       out:fade={{ duration: reducedMotion ? 0 : 90 }}
     >
-      <button type="button" class="standings-team" disabled={standing.organizationId === userTeamId} on:click={() => onTeam(standing.organizationId)}><span class="standings-rank">{rankLabel(standing, index)}</span><TeamBadge id={standing.organizationId} name={standing.name} highlight={standing.organizationId === userTeamId} /><span class="standings-name">{standing.name}</span></button>
+      <button type="button" class="standings-team" disabled={standing.organizationId === userTeamId} on:click={() => onTeam(standing.organizationId)}><span class="standings-rank">{rankLabel(standing, index)}</span><TeamBadge id={standing.organizationId} name={standing.name} highlight={standing.organizationId === userTeamId} /><span class="standings-name">{slotName(standing.organizationId, standing.name, userTeamId, userTeamName)}</span></button>
       <b>{standing.wins}–{standing.losses}</b>
       <small>{standing.buchholz}</small>
       <em>{statusLabel(standing)}</em>

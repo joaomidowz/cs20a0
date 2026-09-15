@@ -943,7 +943,9 @@ export function translateTitle(language: Language, title: string): string {
   return title;
 }
 
-export function translateTeamName(language: Language, name: string): string {
+/** `userName` replaces the user's placeholder org (`yourOrg`) when the player named it (Dinastia). */
+export function translateTeamName(language: Language, name: string, userName?: string): string {
+  if (userName && name === 'yourOrg') return userName;
   const key = name as TranslationKey;
   if (key in dictionaries['pt-BR']) return translate(language, key);
   return name;

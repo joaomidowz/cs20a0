@@ -2,6 +2,7 @@
 <script lang="ts">
   import { formatUsd } from '$lib/game/dynasty/prizes';
   import { translate } from '$lib/game/i18n';
+  import { userTeamLabel } from '$lib/game/dynasty/teamLabel';
   import type { DynastyState, Language } from '$lib/game/types';
 
   export let dynasty: DynastyState;
@@ -15,6 +16,7 @@
 
 <div class="dynasty-bar" role="status">
   <span class="eyebrow">DINASTIA</span>
+  <strong class="org-name">{userTeamLabel(language, dynasty)}</strong>
   {#if eraName}<span class="pill legend">{eraName}</span>{/if}
   <strong>{t('dynastyMajorNumber')} #{dynasty.majorNumber}</strong>
   {#if liveStage}<span class="pill live-stage">{liveStage}</span>{/if}

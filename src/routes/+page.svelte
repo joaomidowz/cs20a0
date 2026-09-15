@@ -94,7 +94,8 @@
   import { applyCoachToTeam, coachAffinity, COACH_REROLLS } from '$lib/game/dynasty/coach';
   import { offerCoaches } from '$lib/game/dynasty/coachOffer';
   import { awardsBonus, formatUsd, prizeForPlacement } from '$lib/game/dynasty/prizes';
-  import { beginNextDynastyMajor, createDynastyState, settleDynastyMajor } from '$lib/game/dynasty/state';
+  import { beginNextDynastyMajor, createDynastyState, normalizeTeamName, settleDynastyMajor, TEAM_NAME_MAX } from '$lib/game/dynasty/state';
+  import { userTeamLabel } from '$lib/game/dynasty/teamLabel';
   import { resolveDynastyPlayer } from '$lib/game/dynasty/resolve';
   import { confirmWindow, createWindow } from '$lib/game/dynasty/window';
   import { buildDynastyUserTeam, confirmSeriesPlan, createDynastyMajorPlan, studiesLeft } from '$lib/game/dynasty/seriesPlan';
@@ -268,6 +269,16 @@
   $: t = (key: TranslationKey) => translate($game.language, key);
   $: isProMode = $game.mode === 'pro';
   $: isDynasty = $game.mode === 'dynasty';
+  /** Dinastia custom org name; undefined everywhere else so other modes keep the translated default. */
+  $: dynastyTeamName = isDynasty ? $game.dynasty?.teamName : undefined;
+  $: userOrgLabel = isDynasty ? userTeamLabel($game.language, $game.dynasty) : t('yourOrg');
+  $: teamNameLabel = $game.language === 'en' ? 'Organization name' : $game.language === 'es' ? 'Nombre de la organización' : 'Nome da organização';
+
+  function setDynastyTeamName(value: string, commit = false) {
+    if (!$game.dynasty) return;
+    const next = commit ? normalizeTeamName(value) : value.slice(0, TEAM_NAME_MAX) || undefined;
+    update({ dynasty: { ...$game.dynasty, teamName: next } });
+  }
   $: proPickedPlayers = $game.proPickedPlayerIds.map((playerId) => playerById.get(playerId)).filter((player): player is Player => Boolean(player));
   $: proEvaluations = isProMode ? buildProRoleEvaluations(proPickedPlayers, $game.proRoleAssignments, $game.style) : [];
   $: proLineup = buildProLineup(proEvaluations);
@@ -338,7 +349,7 @@
   $: runAggregate = $game.majorRun ? aggregateRunStats($game.majorRun, $game.stats) : null;
   $: maybeShowSupportNudge($game.phase, $game.completedSeries);
   $: userFamiliarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, getMapFamiliarity(mapContributors[mapId].length)])) as Record<MapId, number>;
-  $: liveTeamNames = currentSeries ? { [currentSeries.teamA.id]: translateTeamName($game.language, currentSeries.teamA.name), [currentSeries.teamB.id]: translateTeamName($game.language, currentSeries.teamB.name) } as Record<string, string> : {};
+  $: liveTeamNames = currentSeries ? { [currentSeries.teamA.id]: translateTeamName($game.language, currentSeries.teamA.name, dynastyTeamName), [currentSeries.teamB.id]: translateTeamName($game.language, currentSeries.teamB.name, dynastyTeamName) } as Record<string, string> : {};
 
   const update = (patch: Partial<typeof $game>) => game.update((state) => ({ ...state, ...patch }));
   const lookupPlayer = (id: string) => playerById.get(id);
@@ -1111,7 +1122,7 @@
     <div class="offline-settings shell"><AutomationGear value={strategicPreferences} language={$game.language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} /></div>
   {/if}
   {#if isDynasty && $game.dynasty && $game.phase !== 'home' && $game.phase !== 'mode-select'}
-    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} eraName={$game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} liveStage={liveStage ? `${t(liveStage)} · ${stageWins}-${stageLosses}` : null} /></div>
+    <div class="shell"><DynastyHeader dynasty={$game.dynasty} language={$game.language} coachName={dynastyCoach ? (dynastyCoach.confidence === 'placeholder' ? t('coachStaff') : dynastyCoach.name) : null} eraName={$game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${userOrgLabel}` : null} liveStage={liveStage ? `${t(liveStage)} · ${stageWins}-${stageLosses}` : null} /></div>
   {/if}
   {#if $game.phase === 'home'}
     <section class="hero shell">
@@ -1184,6 +1195,20 @@
               </button>
             {/each}
           </div>
+        </section>
+      {/if}
+
+      {#if isDynasty && $game.dynasty}
+        <section class="org-name-block panel">
+          <span class="eyebrow">ORGANIZATION</span>
+          {#if selectedPlayers.length === 0}
+            <label class="org-name-field">
+              <span>{teamNameLabel}</span>
+              <input type="text" maxlength={TEAM_NAME_MAX} autocomplete="off" spellcheck="false" placeholder={t('yourOrg')} value={$game.dynasty.teamName ?? ''} on:input={(event) => setDynastyTeamName(event.currentTarget.value)} on:change={(event) => setDynastyTeamName(event.currentTarget.value, true)} />
+            </label>
+          {:else}
+            <p class="org-name-locked"><span>{teamNameLabel}</span><strong>{userOrgLabel}</strong></p>
+          {/if}
         </section>
       {/if}
 
@@ -1398,6 +1423,7 @@
           {#if circuitSeries && circuitView}
             {#key circuitSeries.id}
               <SeriesViewer
+                userTeamName={dynastyTeamName}
                 offlineEffects={true}
                 series={circuitSeries}
                 phaseLabel={`${getPhaseLabel(circuitSeries.phase)} · MD${circuitSeries.bestOf}`}
@@ -1416,7 +1442,7 @@
             {/key}
           {/if}
           <div class="circuit-live-bracket panel">
-            <PlayoffBracket columns={circuitBracket} userTeamId="user" championId={null} labels={{ quarterfinal: t('quarterfinal'), semifinal: t('semifinal'), final: t('final'), tbd: t('tbd'), live: t('live'), pending: t('pending') }} />
+            <PlayoffBracket columns={circuitBracket} userTeamId="user" userTeamName={dynastyTeamName} championId={null} labels={{ quarterfinal: t('quarterfinal'), semifinal: t('semifinal'), final: t('final'), tbd: t('tbd'), live: t('live'), pending: t('pending') }} />
           </div>
         </div>
       {/snippet}
@@ -1524,7 +1550,7 @@
       {#if currentSeries}
         {#if isDynasty && $game.dynasty?.major && !dynastySeriesPlanned}
           {#if tipFor('series-plan', tipState)}{@const tip = tipFor('series-plan', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
-          <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name)} studiesLeft={dynastyStudiesLeft} initial={dynastyPlanInitial ?? $game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
+          <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name, dynastyTeamName)} studiesLeft={dynastyStudiesLeft} initial={dynastyPlanInitial ?? $game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
         {/if}
         {#if campaignView && !campaignView.finished}
           {#if dynastySeriesPlanned && campaignView.phase === 'veto' && campaignView.veto}
@@ -1561,6 +1587,7 @@
         {/if}
         {#key currentSeries.id}
           <SeriesViewer
+                userTeamName={dynastyTeamName}
             offlineEffects={true}
             series={currentSeries}
             phaseLabel={`${getPhaseLabel(currentSeries.phase)} · MD${currentSeries.bestOf}`}
@@ -1600,9 +1627,9 @@
                   {@const userTeam = match.teamA.isUser ? match.teamA : match.teamB}
                   {@const enemyTeam = match.teamA.isUser ? match.teamB : match.teamA}
                   <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
-                    <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name)}</span>
+                    <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name, dynastyTeamName)}</span>
                     <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
-                    <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name)}</span>
+                    <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name, dynastyTeamName)}</span>
                   </button>
                   {#if expandedTimelineMatch === match.id}
                     <div class="timeline-maps">
@@ -1616,11 +1643,11 @@
                   {@const liveUserTeam = currentSeries.teamA.isUser ? currentSeries.teamA : currentSeries.teamB}
                   {@const liveEnemyTeam = currentSeries.teamA.isUser ? currentSeries.teamB : currentSeries.teamA}
                   <div class="timeline-match timeline-live">
-                    <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name)}</span>
+                    <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name, dynastyTeamName)}</span>
                     <div class="timeline-live-center">
                       <span class="timeline-live-badge">AO VIVO</span>
                     </div>
-                    <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name)}</span>
+                    <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name, dynastyTeamName)}</span>
                   </div>
                 {/if}
               </div>
@@ -1635,11 +1662,11 @@
               </div>
               <div class="timeline-phase-content">
                 <div class="timeline-match timeline-live">
-                  <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name)}</span>
+                  <span class="timeline-team-left">{translateTeamName($game.language, liveUserTeam.name, dynastyTeamName)}</span>
                   <div class="timeline-live-center">
                     <span class="timeline-live-badge">AO VIVO</span>
                   </div>
-                  <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name)}</span>
+                  <span class="timeline-team-right">{translateTeamName($game.language, liveEnemyTeam.name, dynastyTeamName)}</span>
                 </div>
               </div>
             </div>
@@ -1652,7 +1679,7 @@
       </div>
       {#if $game.majorRun?.tournament}
         <div hidden={majorTab !== 'all'}>
-          <MajorOverview tournament={$game.majorRun.tournament} cursor={{ liveSeriesId: currentSeries?.id ?? null }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
+          <MajorOverview userTeamName={dynastyTeamName} tournament={$game.majorRun.tournament} cursor={{ liveSeriesId: currentSeries?.id ?? null }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
         </div>
       {/if}
     </section>
@@ -1668,7 +1695,7 @@
         </div>
         <section class="result-awards">
           <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>{t('majorMvp')}</h2></div></div>
-          <MajorAwardsPanel awards={run.tournament?.awards ?? null} language={$game.language} userTeamId="user" onTeam={openOverviewTeam} />
+          <MajorAwardsPanel userTeamName={dynastyTeamName} awards={run.tournament?.awards ?? null} language={$game.language} userTeamId="user" onTeam={openOverviewTeam} />
         </section>
         <CollapsibleStats id="run-stats" eyebrow="POST-MAJOR ANALYTICS" title={t('stats')} language={$game.language} bind:open={resultStatsOpen}>
           {#if runAggregate}
@@ -1691,9 +1718,9 @@
                     {@const userTeam = match.teamA.isUser ? match.teamA : match.teamB}
                     {@const enemyTeam = match.teamA.isUser ? match.teamB : match.teamA}
                     <button class="timeline-match" type="button" class:user-win={match.winnerId === 'user'} class:user-loss={match.winnerId !== 'user'} on:click={() => expandedTimelineMatch = expandedTimelineMatch === match.id ? null : match.id}>
-                      <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name)}</span>
+                      <span class="timeline-team-left">{translateTeamName($game.language, userTeam.name, dynastyTeamName)}</span>
                       <b class="timeline-score">{match.scoreA} : {match.scoreB}</b>
-                      <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name)}</span>
+                      <span class="timeline-team-right">{translateTeamName($game.language, enemyTeam.name, dynastyTeamName)}</span>
                     </button>
                     {#if expandedTimelineMatch === match.id}
                       <div class="timeline-maps">
@@ -1711,7 +1738,7 @@
         {#if run.tournament}
           <section class="result-overview">
             <div class="section-heading"><div><span class="eyebrow">MAJOR</span><h2>{t('overviewMajor')}</h2></div></div>
-            <MajorOverview tournament={run.tournament} cursor={{ liveSeriesId: null, complete: true }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
+            <MajorOverview userTeamName={dynastyTeamName} tournament={run.tournament} cursor={{ liveSeriesId: null, complete: true }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
           </section>
         {/if}
         {#if isDynasty && $game.dynasty && $game.dynasty.history.length}
@@ -1724,7 +1751,7 @@
             </ul>
           </section>
         {/if}
-        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} lineage={isDynasty && $game.dynasty ? buildDynastyLineage($game.dynasty.history, playerById) : []} lineageLabel={t('lineageTitle')} eraLabel={isDynasty && $game.dynasty && $game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${t('yourOrg')}` : null} />
+        <ShareRunCard seed={$game.seed} {run} players={selectedPlayers} lineup={selectedLineup} stats={$game.stats} mode={$game.mode} language={$game.language} labels={{ champion: t('champion'), eliminated: t('eliminated'), placement: t('placement'), record: t('record'), maps: t('maps'), mvp: t('runMvp') }} lineage={isDynasty && $game.dynasty ? buildDynastyLineage($game.dynasty.history, playerById) : []} lineageLabel={t('lineageTitle')} eraLabel={isDynasty && $game.dynasty && $game.dynasty.titles >= 2 ? `${t('dynastyEra')} ${userOrgLabel}` : null} />
         <div class="result-actions">{#if isDynasty}<button class="primary" type="button" disabled={selectedLineup.length !== 5} on:click={startNextDynastyMajor}>{$game.dynasty?.window?.majorNumber === $game.dynasty?.majorNumber || $game.dynasty?.circuit?.finished ? t('dynastyWindow') : ($game.language === 'en' ? 'Circuit' : $game.language === 'es' ? 'Circuito' : 'Circuito')}</button>{:else}<button class="primary" type="button" on:click={() => resetRun(true)}>{t('tryAgain')}</button>{/if}<button class="secondary" type="button" aria-expanded={resultStatsOpen} aria-controls="run-stats" on:click={() => { resultStatsOpen = !resultStatsOpen; if (resultStatsOpen) tick().then(() => document.getElementById('run-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{resultStatsOpen ? t('hideStats') : t('seeStats')}</button>{#if !isDynasty}<button class="secondary" type="button" on:click={copyLink}>{t('copyRunLink')}</button>{/if}<button class="secondary" type="button" disabled={downloadingImage} on:click={downloadRunImage}>{t('downloadRunImage')}</button>{#if isDynasty}<button class="ghost" type="button" on:click={endDynasty}>{t('dynastyEnd')}</button>{:else}<button class="secondary" type="button" disabled={selectedLineup.length !== 5} on:click={playAgainWithSameLineup}>{t('sameLineupNewMajor')}</button><button class="ghost" type="button" on:click={() => resetRun(false)}>{t('playSameSeed')}</button>{/if}</div>
       </section>
     {/if}
@@ -1803,4 +1830,12 @@
   .circuit-live-controls .secondary{min-height:42px}
   .circuit-live-controls .control-group{min-width:200px}
   .circuit-live-bracket{padding:14px;overflow-x:auto}
+  .org-name-block{display:grid;gap:10px;padding:16px 20px;margin-bottom:18px}
+  .org-name-field{display:grid;gap:6px}
+  .org-name-field span,.org-name-locked span{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+  .org-name-field input{width:100%;max-width:420px;padding:12px 14px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font:800 1.1rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.04em;text-transform:uppercase;outline:none;transition:border-color .15s ease}
+  .org-name-field input::placeholder{color:var(--muted);opacity:.7}
+  .org-name-field input:focus-visible{border-color:var(--accent)}
+  .org-name-locked{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:0}
+  .org-name-locked strong{font:800 1.1rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
 </style>

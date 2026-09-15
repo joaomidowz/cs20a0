@@ -7,12 +7,13 @@
   export let language: Language = 'pt-BR';
   /** Team of the viewer, highlighted with the accent colour wherever it appears. */
   export let userTeamId: string | null = null;
+  export let userTeamName: string | undefined = undefined;
   export let onTeam: ((teamId: string) => void) | null = null;
 
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   const initials = (name: string) => (name || '?').slice(0, 2).toUpperCase();
   const isUser = (teamId: string) => userTeamId !== null && teamId === userTeamId;
-  const teamName = (award: { teamName?: string; name?: string }, lang: Language) => translateTeamName(lang, award.teamName ?? award.name ?? '');
+  const teamName = (award: { teamName?: string; name?: string }, lang: Language) => translateTeamName(lang, award.teamName ?? award.name ?? '', userTeamName);
   const multiKills = (award: MajorPlayerAward) => `${award.multiKills.ace} / ${award.multiKills.quad} / ${award.multiKills.triple}`;
   const openTeam = (teamId: string) => onTeam?.(teamId);
   const teamRecord = (team: MajorTeamAward) => `${team.mapsWon}–${team.mapsLost}`;
