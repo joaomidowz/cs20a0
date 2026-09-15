@@ -6,6 +6,9 @@
   export let language: Language = 'pt-BR';
   export let selected = false;
   export let onOpen: (() => void) | null = null;
+  /** 'strip' renders a full-width horizontal band (header, attributes in a row, actions). */
+  export let layout: 'card' | 'strip' = 'card';
+  export let label = '';
 
   const copy = {
     'pt-BR': { tactics: 'Tática', discipline: 'Disciplina', aggression: 'Agressão', development: 'Desenvolvimento', history: 'Histórico' },
@@ -17,10 +20,10 @@
   $: rarity = (coach.rarity ?? 'common').toLowerCase();
 </script>
 
-<article class="coach-card rarity-{rarity}" class:selected>
+<article class="coach-card rarity-{rarity}" class:strip={layout === 'strip'} class:selected>
   <header>
     <span class="ovr">{coach.overall}</span>
-    <div><strong>{coach.name}</strong><small>{teamLabel}</small></div>
+    <div>{#if label}<span class="label">{label}</span>{/if}<strong>{coach.name}</strong><small>{teamLabel}</small></div>
   </header>
   <ul>
     {#each ATTRIBUTES as key}
@@ -53,4 +56,12 @@
   .card-action { min-height: 30px; padding: 0 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 800 .62rem/1 Inter, Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
   .card-action:hover { color: var(--text); }
   .card-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .label { display: block; color: var(--accent-2); font-size: .56rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+  .strip { grid-template-columns: minmax(0, 1fr); align-items: center; }
+  @container (min-width: 760px) {
+    .strip { grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto; gap: 18px; padding: 10px 14px; }
+    .strip ul { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .strip li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .strip li i { grid-column: 1 / -1; grid-row: 2; }
+  }
 </style>
