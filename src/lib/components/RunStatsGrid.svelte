@@ -56,7 +56,19 @@
 <style>
   .run-stats-grid{min-width:0}
   .stat-card.is-mvp{border-color:var(--accent)}
-  .compact .stat-card{padding:14px}
+  .compact .stat-card{padding:12px}
+  .compact :global(.stat-player){gap:10px}
+  .compact :global(.avatar.large){width:40px;height:40px;font-size:1rem}
+  .compact :global(.stat-player h2){margin-top:2px;font-size:1.35rem}
+  .compact :global(.stat-player p){font-size:.64rem}
+  .compact :global(.stat-player>strong){font-size:1.5rem}
+  .compact :global(.rating){margin:10px 0 8px;padding:8px 10px}
+  .compact :global(.rating b){font-size:1.8rem}
+  .compact :global(.stat-numbers){grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .compact :global(.stat-numbers span){padding:6px 6px}
+  .compact :global(.stat-numbers small){font-size:.5rem}
+  .compact :global(.stat-numbers b){margin-top:2px;font-size:.8rem}
+  @media (max-width:520px){.compact :global(.stat-numbers){grid-template-columns:repeat(3,minmax(0,1fr))}}
   .rating .swing{display:block;margin-top:4px;font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.06em;color:var(--muted)}
   .rating .swing.up{color:var(--accent)}
   .rating .swing.down{color:var(--danger)}
