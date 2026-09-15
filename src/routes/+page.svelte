@@ -195,7 +195,6 @@
   let liveTimer: number | null = null;
   let liveRunning = false;
   let automationTimer: number | null = null;
-  let dynastyPlanTimer: number | null = null;
   /** The saved campaign was already looked at: before that the old viewer must not start playing on its own. */
   let campaignChecked = false;
   /** Half already covered by an automatic tactical pause. */
@@ -314,14 +313,12 @@
     const player = playerById.get(selected.playerId);
     return player ? [resolveDynastyPlayer(player, $game.dynasty?.playerOverrides[player.id])] : [];
   }));
-  $: if (campaign && currentSeries && $game.simMode === 'auto' && !dynastySeriesPlanned && dynastyPlanTimer === null) {
-    dynastyPlanTimer = window.setTimeout(() => { dynastyPlanTimer = null; if ($game.dynasty?.major) confirmDynastyPlan({ ...$game.dynasty.major.basePlan, study: false }); }, 0);
-  }
+  $: dynastyPlanInitial = $game.dynasty?.major ? { ...(Object.values($game.dynasty.major.plans).at(-1) ?? $game.dynasty.major.basePlan), study: false } as SeriesPlan : null;
   $: campaignView = campaign ? getCampaignLiveView(campaign) : null;
   $: campaignPending = campaign ? pendingCampaignDecision(campaign) : null;
   $: queueAutomation(campaignPending, campaignView, strategicPreferences);
   $: if (campaignView && !campaignView.finished && !liveRunning && $game.simMode === 'auto') liveRunning = true;
-  $: if (liveRunning && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
+  $: if (liveRunning && dynastySeriesPlanned && campaignView && !campaignView.finished && !campaignPending && liveTimer === null) scheduleLiveTick();
   $: if (campaignView?.finished && !awaitingAdvance) { stopLiveTick(); seriesCompleted(); }
   $: enemyTeamId = currentSeries ? (currentSeries.teamA.id === 'user' ? currentSeries.teamB.id : currentSeries.teamA.id) : null;
   $: completedMatches = $game.majorRun?.matches.filter((match) => confirmedSeriesIds.includes(match.id)) ?? [];
@@ -345,7 +342,6 @@
     clearAdvanceTimer();
     stopLiveTick();
     if (automationTimer !== null) window.clearTimeout(automationTimer);
-    if (dynastyPlanTimer !== null) window.clearTimeout(dynastyPlanTimer);
     if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
@@ -718,7 +714,7 @@
     if (liveTimer !== null) return;
     liveTimer = window.setTimeout(() => {
       liveTimer = null;
-      if (!campaign || !liveRunning) return;
+      if (!campaign || !liveRunning || !dynastySeriesPlanned) return;
       commitCampaign(stepCampaignSeries(campaign));
     }, Math.max(120, SPEEDS[$game.simSpeed]));
   }
@@ -1446,7 +1442,7 @@
       {#if currentSeries}
         {#if isDynasty && $game.dynasty?.major && !dynastySeriesPlanned}
           {#if tipFor('series-plan', tipState)}{@const tip = tipFor('series-plan', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
-          <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name)} studiesLeft={dynastyStudiesLeft} initial={$game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
+          <DynastySeriesPlan language={$game.language} opponent={translateTeamName($game.language, currentSeries.teamB.name)} studiesLeft={dynastyStudiesLeft} initial={dynastyPlanInitial ?? $game.dynasty.major.basePlan} onConfirm={confirmDynastyPlan} />
         {/if}
         {#if campaignView && !campaignView.finished}
           {#if dynastySeriesPlanned && campaignView.phase === 'veto' && campaignView.veto}
