@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import SegmentedControl from './SegmentedControl.svelte';
-  import { players, teamById } from '$lib/game/data';
+  import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
   import { getEligibleSlotRoles, getRoleLabel } from '$lib/game/roleRules';
   import { chooseSandboxSlotRole, previewSandboxLineupPower } from '$lib/game/sandbox/lineup';
   import type { LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
@@ -22,6 +22,8 @@
     { value: 'name', label: 'Nome' }
   ];
   const RESULT_LIMIT = 60;
+  // The Sandbox always plays on the current catalog (same as sandbox/lineup.ts).
+  const { players, teamById } = getCatalog(CURRENT_CATALOG_VERSION);
 
   let search = '';
   let roleFilter: LineupSlotRole | '' = '';

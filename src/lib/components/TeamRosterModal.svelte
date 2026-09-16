@@ -1,10 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import {
     teamAverageOverall,
     teamPlacementLabel,
-    teamPlayers,
     teamStyle,
     teamTags
   } from '$lib/game/teamViews';
@@ -21,7 +21,9 @@
   let closeButton: HTMLButtonElement;
   let wasOpen = false;
 
-  $: roster = teamPlayers(team);
+  // Rosters resolve on the page's catalog (core when no page set one, e.g. /online).
+  const catalog = getCatalogContext();
+  $: roster = $catalog.getTeamPlayers(team);
   $: average = teamAverageOverall(team, roster);
   $: tags = teamTags(team);
   $: style = teamStyle(team, roster);

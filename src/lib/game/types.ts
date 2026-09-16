@@ -32,6 +32,19 @@ export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
 /** When a tactical timeout was called relative to the 2–4 straight-loss window that gives it its full effect. */
 export type TimeoutTiming = 'window' | 'early' | 'late';
 export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
+/**
+ * Historical catalog a run was drafted on. `core` is the v1 dataset (Majors 2016–2026) the online mode is frozen on;
+ * `x1` is core followed by the expansion. Runs, saves and shared links carry it so results stay reproducible as the
+ * catalog grows; anything without a stamp replays on `core`.
+ */
+export type CatalogVersion = 'core' | 'x1';
+/** Whether a historical team-year comes from a Major main event or from an official qualifier. Absent means main event. */
+export type EventLevel = 'main' | 'qualifier';
+/** Marks attributes produced by the rating model of the expansion instead of set by hand. Absent means hand-set. */
+export interface RatingModelRef {
+  version: string;
+  source: 'RATING_MODELADO';
+}
 export type SimSpeed = SimulationSpeed;
 export type SimMode = SimulationMode;
 export type SeriesType = 'bo3' | 'bo5';
@@ -208,6 +221,10 @@ export interface Player {
   consistency?: number | null;
   mental?: number | null;
   source?: unknown;
+  /** Expansion card rejected after publication: still resolvable by id, never sampled again. Absent means active. */
+  retired?: boolean;
+  /** Present when the attributes come from the expansion rating model. Absent means hand-set. */
+  ratingModel?: RatingModelRef;
 }
 
 export interface SelectedPlayer {
@@ -245,6 +262,12 @@ export interface HistoricalTeam {
   sourceUrl?: string | null;
   source?: unknown;
   mapProfile?: TeamMapProfile | null;
+  /** Main event or official qualifier. Absent means main event; only main-event team-years enter the draft and the bot field. */
+  eventLevel?: EventLevel;
+  /** Expansion team-year rejected after publication: still resolvable by id, never drafted nor used as an opponent. */
+  retired?: boolean;
+  /** Present when the team numbers come from the expansion rating model. Absent means hand-set. */
+  ratingModel?: RatingModelRef;
 }
 
 export type CoachConfidence = 'high' | 'medium' | 'low' | 'placeholder';
@@ -724,6 +747,10 @@ export interface GameState {
   stats: PlayerRunStats[];
   /** Present only while the mode is 'dynasty'. */
   dynasty?: DynastyState | null;
+  /** Dynasty save schema; absent means legacy v0. Migrations run centrally (dynasty/migrations) before validation. */
+  dynastySchemaVersion?: number;
+  /** Catalog the run drafts from and replays on. Absent (saves from before the expansion) means `core`. */
+  catalogVersion?: CatalogVersion;
 }
 
 export const SPEEDS: Record<SimSpeed, number> = {

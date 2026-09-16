@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { translateTeamName } from '$lib/game/i18n';
   import {
     teamAverageOverall,
     teamPlacementLabel,
-    teamPlayers,
     teamStyle,
     teamTags
   } from '$lib/game/teamViews';
@@ -13,7 +13,9 @@
   export let language: Language = 'en';
   export let onOpen: (team: HistoricalTeam) => void = () => {};
 
-  $: roster = teamPlayers(team);
+  // Rosters resolve on the page's catalog (core when no page set one).
+  const catalog = getCatalogContext();
+  $: roster = $catalog.getTeamPlayers(team);
   $: average = teamAverageOverall(team, roster);
   $: tags = teamTags(team);
   $: placement = teamPlacementLabel(team);

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { getTeamPlayers, teams } from '$lib/game/data';
+  import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
   import { MAP_NAMES, getActiveDutyMapsForYear } from '$lib/game/maps';
   import type { HistoricalTeam, Language, MapId } from '$lib/game/types';
 
@@ -11,6 +11,8 @@
   interface TickerItem { id: number; text: string }
 
   const MR = 12;
+  // Decorative showcase: always the current catalog, whatever version the visitor's saved run is on.
+  const { teams, getTeamPlayers } = getCatalog(CURRENT_CATALOG_VERSION);
   const pool = teams.filter((team) => (team.teamPowerPreview ?? team.power ?? 0) >= 80);
   const label = (team: HistoricalTeam) => `${team.name ?? 'Time'} ${team.year ?? ''}`.trim();
   const pick = () => pool[Math.floor(Math.random() * pool.length)] ?? teams[0];

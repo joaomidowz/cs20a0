@@ -1,4 +1,4 @@
-import { getTeamPlayers, playerById, players, teams } from '../data';
+import { CURRENT_CATALOG_VERSION, getCatalog } from '../catalog';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../map-veto';
 import {
   applySeriesDecision,
@@ -34,6 +34,8 @@ import { buildSandboxCombatTeam } from './lineup';
 import type { SandboxLineupSelection, SandboxMajorMatch, SandboxMajorState } from './types';
 
 const USER_TEAM_ID = 'sandbox-user';
+// The Sandbox plays on the current catalog; opponents follow the bot-field rule (main-event, non-retired team-years).
+const { botTeams, getTeamPlayers, playerById, players, teamById, teams } = getCatalog(CURRENT_CATALOG_VERSION);
 
 export interface SandboxMajorOptions {
   /** When true the user's series wait for their veto, side, eco call and timeout decisions. */
@@ -42,7 +44,7 @@ export interface SandboxMajorOptions {
 
 const shuffledOpponents = (selection: SandboxLineupSelection, seed: string): TournamentOrganization[] => {
   const rng = createSeededRng(`${seed}:sandbox-opponents`);
-  const candidates = teams.filter((team) => team.id !== selection.organizationId).map((team) => ({
+  const candidates = botTeams.filter((team) => team.id !== selection.organizationId).map((team) => ({
     id: team.id,
     name: `${team.name ?? 'Time'} ${team.year ?? ''}`.trim(),
     seed: 0,
@@ -76,7 +78,6 @@ const toSandboxMatch = (match: SeriesResult, roundNumber: number, resolved: bool
 });
 
 function buildMapContext(selection: SandboxLineupSelection, seed: string, opponents: TournamentOrganization[]): MapSimulationContext {
-  const teamById = new Map(teams.map((team) => [team.id, team]));
   const selectedPlayers = selection.players.map((selected) => playerById.get(selected.playerId)).filter((player) => player !== undefined);
   const userRoles = new Map<string, LineupSlotRole>(selection.players.map((selected) => [selected.playerId, selected.selectedSlotRole]));
   const rosters = new Map<string, Roster>();

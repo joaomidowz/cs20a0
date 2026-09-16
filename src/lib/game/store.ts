@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-import { playerById, players, teams } from './data';
+import { CURRENT_CATALOG_VERSION, getCatalog, parseCatalogVersion } from './catalog';
 import { loadSimulationPreferences, saveSimulationPreferences } from './preferences';
 import { buildProLineup, buildProRoleEvaluations } from './proMode';
 import { getEligibleSlotRoles, validatePlayerPick } from './roleRules';
@@ -44,7 +44,9 @@ export const defaultState = (seed = ''): GameState => ({
   playedSeries: {},
   completedSeries: 0,
   stats: [],
-  dynasty: null
+  dynasty: null,
+  // Every new run drafts from the current catalog; loaded saves and links without the stamp replay on core (loadState).
+  catalogVersion: CURRENT_CATALOG_VERSION
 });
 
 const slotRoles = new Set<LineupSlotRole>(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
@@ -56,6 +58,9 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const seed = params.get('seed') ?? '';
   const picks = params.get('picks') ?? '';
   if (!seed || !picks) return null;
+  // The link replays on the catalog it was drafted on (`cat`); links from before the expansion have none and use core.
+  const catalog = getCatalog(parseCatalogVersion(params.get('cat')));
+  const { playerById, teams } = catalog;
 
   const selectedPlayers = picks.split(',').reduce<GameState['selectedPlayers']>((selected, item) => {
     const [playerId, rawRole] = item.split(':');
@@ -87,7 +92,7 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   const validSelectedMaps = isValidLineupMapSelection(selectedMaps, runPlayers, teams) ? selectedMaps : [];
   // Shared links replay the batch simulation (every decision by the bot policies). When the owner took decisions by
   // hand during their run (veto, side, eco call, timeouts) the shared result can differ from what they actually played.
-  const majorRun = buildMajorRun(runPlayers, style, teams, players, seed, runLineup, {
+  const majorRun = buildMajorRun(runPlayers, style, catalog.botTeams, catalog.players, seed, runLineup, {
     ...(isValidMapSelection(validSelectedMaps) ? { selectedMaps: validSelectedMaps } : {}),
     mode
   });
@@ -96,6 +101,7 @@ const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameS
   return {
     ...defaultState(seed),
     ...preferredSimulation,
+    catalogVersion: catalog.version,
     seed,
     mode,
     style,
@@ -133,6 +139,9 @@ const loadState = (): GameState => {
   try {
     const saved = localStorage.getItem(storageKey);
     const parsed = saved ? (JSON.parse(saved) as Partial<GameState> & { selectedPlayerIds?: string[] }) : {};
+    // A save from before the expansion has no stamp and keeps replaying on core; it never migrates to a newer catalog.
+    const catalog = getCatalog(parseCatalogVersion(parsed.catalogVersion));
+    const { playerById } = catalog;
     if (!parsed.selectedPlayers && parsed.selectedPlayerIds?.length) {
       parsed.selectedPlayers = parsed.selectedPlayerIds.reduce<GameState['selectedPlayers']>((selected, playerId) => {
         const player = playerById.get(playerId);
@@ -178,7 +187,8 @@ const loadState = (): GameState => {
       ...defaultState(querySeed ?? parsed.seed ?? ''),
       ...parsed,
       ...preferredSimulation,
-      seed: querySeed ?? parsed.seed ?? ''
+      seed: querySeed ?? parsed.seed ?? '',
+      catalogVersion: catalog.version
     };
   } catch {
     return { ...defaultState(querySeed ?? ''), ...preferredSimulation };

@@ -5,8 +5,10 @@
 // tem que falhar aqui, em vez de derrubar o online em produção.
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { getCatalog } from '../src/lib/game/catalog';
+import { coachById, coaches, playerById, players, teamById, teams } from '../src/lib/game/data';
 import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
 
 /** Só muda no deploy coordenado do online v2 (cliente e servidor publicados juntos). */
@@ -25,8 +27,11 @@ const ONLINE_BOUNDARY_DIRS = ['src/routes/online', 'src/lib/game/online', 'serve
 /** Os únicos arquivos de dados que o online pode ler; qualquer outro JSON muda o hash ou o pool sem o servidor saber. */
 const ONLINE_DATASET_FILES = ['players.game.json', 'teams.game.json'];
 
-/** Módulos que ainda não existem, mas que a expansão vai criar: o online não pode passar a importá-los. */
+/** Módulos do catálogo expandido (W1): o online não pode passar a importá-los. */
 const FORBIDDEN_SPECIFIER_PATTERNS = [/catalog/i, /\.expansion\./, /expansion\.game/, /identities\.game/, /catalog-manifest/];
+
+/** Módulos core: o online importa `$lib/game/data` (rota) e ambos alimentam o hash, então só podem ler os três JSON v1. */
+const CORE_ONLY_MODULES = ['src/lib/data/csData.ts', join('src/lib/game', 'data.ts')];
 
 const sha256 = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
@@ -45,6 +50,49 @@ const importSpecifiers = (source: string): string[] => [
 ];
 
 const boundaryFiles = ONLINE_BOUNDARY_DIRS.flatMap((dir) => readSourceFiles(dir));
+
+/** Arquivos da expansão que o online nunca pode alcançar, nem por componente compartilhado (o bundle cresceria com dados que ele não usa). */
+const isExpansionFile = (file: string) =>
+  file === join('src/lib/game', 'catalog.ts') ||
+  /\.expansion\.game\.json$/.test(file) ||
+  basename(file) === 'identities.game.json' ||
+  basename(file) === 'catalog-manifest.json';
+
+/** `import type … from` e `export type … from` somem na compilação: não entram no grafo. */
+const stripTypeOnlyImports = (source: string) =>
+  source.replace(/\b(?:import|export)\s+type\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s*from\s+['"][^'"]+['"]/g, '');
+
+/** Resolve `$lib/…` e caminhos relativos para um arquivo do repo; pacotes, `$app/*` e `$env/*` ficam de fora. */
+const resolveSpecifier = (from: string, specifier: string): string | null => {
+  const base = specifier.startsWith('$lib/')
+    ? join('src/lib', specifier.slice('$lib/'.length))
+    : specifier.startsWith('.')
+      ? join(dirname(from), specifier)
+      : null;
+  if (!base) return null;
+  for (const candidate of [base, `${base}.ts`, `${base}.svelte`, join(base, 'index.ts')]) {
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+  }
+  return null;
+};
+
+/** Todo arquivo do repo alcançável a partir do online, seguindo imports de valor de `.ts` e `.svelte`. */
+const reachableFromOnline = (): string[] => {
+  const queue = boundaryFiles.map(([path]) => path);
+  const seen = new Set(queue);
+  while (queue.length) {
+    const file = queue.shift()!;
+    if (!file.endsWith('.ts') && !file.endsWith('.svelte')) continue;
+    for (const specifier of importSpecifiers(stripTypeOnlyImports(readFileSync(file, 'utf8')))) {
+      const resolved = resolveSpecifier(file, specifier);
+      if (resolved && !seen.has(resolved)) {
+        seen.add(resolved);
+        queue.push(resolved);
+      }
+    }
+  }
+  return [...seen];
+};
 
 describe('hash online congelado', () => {
   it('ONLINE_DATA_HASH continua o mesmo do servidor publicado', () => {
@@ -98,5 +146,65 @@ describe('fronteira de import do online', () => {
         .sort();
       expect(datasetImports, file).toEqual([...ONLINE_DATASET_FILES].sort());
     }
+  });
+
+  it('src/routes/online/+page.svelte nunca importa o catálogo', () => {
+    const specifiers = importSpecifiers(readFileSync(join('src/routes/online', '+page.svelte'), 'utf8'));
+    expect(specifiers).toContain('$lib/game/data');
+    for (const specifier of specifiers) {
+      for (const pattern of FORBIDDEN_SPECIFIER_PATTERNS) {
+        expect(specifier, `online/+page.svelte importa '${specifier}'`).not.toMatch(pattern);
+      }
+    }
+  });
+});
+
+describe('grafo transitivo de imports do online', () => {
+  const reachable = reachableFromOnline();
+
+  it('a varredura atravessa os componentes compartilhados até o contexto do catálogo', () => {
+    expect(reachable).toContain(join('src/routes/online', '+page.svelte'));
+    expect(reachable).toContain(join('src/lib/components', 'DraftHud.svelte'));
+    expect(reachable).toContain(join('src/lib/game', 'catalogContext.ts'));
+    expect(reachable).toContain(join('src/lib/game', 'catalogCore.ts'));
+    expect(reachable).toContain(join('src/lib/data/cs', 'players.game.json'));
+  });
+
+  it('nenhum arquivo alcançável pelo online é o catálogo expandido nem um arquivo da expansão', () => {
+    expect(reachable.filter(isExpansionFile)).toEqual([]);
+  });
+});
+
+describe('módulos core continuam só com o v1', () => {
+  it('csData.ts importa exatamente os três JSON v1 e data.ts nenhum outro JSON', () => {
+    const v1Files = Object.keys(FROZEN_V1_FILES).map((file) => basename(file)).sort();
+    const jsonImportsOf = (file: string) =>
+      importSpecifiers(readFileSync(file, 'utf8')).filter((specifier) => specifier.endsWith('.json')).map((specifier) => basename(specifier)).sort();
+    expect(jsonImportsOf('src/lib/data/csData.ts')).toEqual(v1Files);
+    expect(jsonImportsOf(join('src/lib/game', 'data.ts'))).toEqual([]);
+  });
+
+  it('csData.ts e data.ts não importam nada do catálogo nem da expansão', () => {
+    for (const file of CORE_ONLY_MODULES) {
+      for (const specifier of importSpecifiers(readFileSync(file, 'utf8'))) {
+        for (const pattern of FORBIDDEN_SPECIFIER_PATTERNS) {
+          expect(specifier, `${file} importa '${specifier}'`).not.toMatch(pattern);
+        }
+      }
+    }
+  });
+
+  it("getCatalog('core') devolve as mesmas referências de data.ts", () => {
+    const core = getCatalog('core');
+    expect(core.version).toBe('core');
+    expect(core.teams).toBe(teams);
+    expect(core.players).toBe(players);
+    expect(core.coaches).toBe(coaches);
+    expect(core.teamById).toBe(teamById);
+    expect(core.playerById).toBe(playerById);
+    expect(core.coachById).toBe(coachById);
+    // Todo time do v1 é de evento principal com cinco jogadores: o pool de draft e de bots é o dataset inteiro, na mesma ordem.
+    expect(core.draftTeams.map((team) => team.id)).toEqual(teams.map((team) => team.id));
+    expect(core.botTeams.map((team) => team.id)).toEqual(teams.map((team) => team.id));
   });
 });

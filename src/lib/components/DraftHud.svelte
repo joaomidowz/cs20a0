@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { playerById, teamById } from '$lib/game/data';
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { getSelectedRoleLabel } from '$lib/game/roleRules';
   import { showsFullIntel } from '$lib/game/teamViews';
   import type { GameMode, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
@@ -16,6 +16,10 @@
   export let recentPickId: string | null = null;
   export let celebrate = false;
 
+  // The offline page sets the run's catalog; without one (/online) this is core, exactly the dataset of today.
+  const catalog = getCatalogContext();
+  $: playerById = $catalog.playerById;
+  $: teamById = $catalog.teamById;
   $: lineup = selectedPlayers.map((selected) => ({ selected, player: playerById.get(selected.playerId) }));
 </script>
 

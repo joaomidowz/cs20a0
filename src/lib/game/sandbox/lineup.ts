@@ -1,9 +1,12 @@
-import { playerById, players as allPlayers, teamById, teams } from '../data';
+import { CURRENT_CATALOG_VERSION, getCatalog } from '../catalog';
 import { isValidLineupMapSelection, getDefaultMapSelection } from '../maps';
 import { getEligibleSlotRoles, ROLE_LIMITS } from '../roleRules';
 import { calculateUserTeamPower, createSeededRng } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 import type { SandboxLineupSelection, SandboxLineupValidation } from './types';
+
+// The Sandbox is not a stamped run: it always plays on the current catalog (every team-year, qualifiers included).
+const { playerById, players: allPlayers, teamById, teams } = getCatalog(CURRENT_CATALOG_VERSION);
 
 export function validateSandboxLineup(selection: SandboxLineupSelection): SandboxLineupValidation {
   const errors: Record<string, string> = {};

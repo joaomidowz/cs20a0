@@ -1,7 +1,7 @@
 <script lang="ts">
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
-  import { players, teamById } from '$lib/game/data';
+  import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
   import {
@@ -11,6 +11,9 @@
   import { getRoleLabel } from '$lib/game/roleRules';
   import type { Player } from '$lib/game/types';
   import { SEO_BY_ROUTE } from '$lib/seo';
+
+  // Rankings over the whole current catalog.
+  const { players, teamById } = getCatalog(CURRENT_CATALOG_VERSION);
 
   $: t = (key: Parameters<typeof translate>[1]) => translate($language, key);
 
