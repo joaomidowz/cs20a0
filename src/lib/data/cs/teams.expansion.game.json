@@ -1,1 +1,4802 @@
-[]
+[
+  {
+    "id": "astana-dragons-2013",
+    "name": "Astana Dragons",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ange1-2013",
+      "dosia-2013",
+      "adren-2013",
+      "markeloff-2013",
+      "kucher-2013"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "clan-mystik-2013",
+    "name": "Clan-Mystik",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "harts-2013",
+      "iorek-2013",
+      "kioshima-2013",
+      "kqly-2013",
+      "apex-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "complexity-gaming-2013",
+    "name": "compLexity Gaming",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "hiko-2013",
+      "seang-res-2013",
+      "semphis-2013",
+      "swag-2013",
+      "n0thing-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "copenhagen-wolves-2013",
+    "name": "Copenhagen Wolves",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "fetish-2013",
+      "dupreeh-2013",
+      "xyp9x-2013",
+      "device-2013",
+      "nico-2013"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "fnatic-2013",
+    "name": "Fnatic",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "jw-2013",
+      "flusha-2013",
+      "schneider-2013",
+      "devilwalk-2013",
+      "pronax-2013"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "champion",
+    "style": "balanced",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "lgb-esports-2013",
+    "name": "LGB eSports",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "skytten-2013",
+      "eksem-2013",
+      "krimz-2013",
+      "dennis-2013",
+      "olofm-2013"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "n-faculty-2013",
+    "name": "n!faculty",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "gla1ve-2013",
+      "karrigan-2013",
+      "cajunb-2013",
+      "pimp-2013",
+      "raalz-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "natus-vincere-2013",
+    "name": "Natus Vincere",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "zeus-2013",
+      "starix-2013",
+      "ceh9-2013",
+      "seized-2013",
+      "kibaken-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "tactical",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "ninjas-in-pyjamas-2013",
+    "name": "Ninjas in Pyjamas",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "f0rest-2013",
+      "get-right-2013",
+      "xizt-2013",
+      "fifflaren-2013",
+      "friberg-2013"
+    ],
+    "power": 88,
+    "teamPowerPreview": 88,
+    "teamStats": {
+      "chemistry": 88,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 88,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 88
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "finalist",
+    "style": "balanced",
+    "styleRating": 88,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "final",
+      "titles": 0,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "reason-gaming-2013",
+    "name": "Reason Gaming",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "msl-2013",
+      "colon-2013",
+      "smf-2013",
+      "exr-2013",
+      "lomme-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "recursive-esports-2013",
+    "name": "Recursive eSports",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "happy-2013",
+      "gmx-2013",
+      "kennys-2013",
+      "uzzziii-2013",
+      "maniac-2013"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "sk-gaming-2013",
+    "name": "SK Gaming",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "pita-2013",
+      "twist-2013",
+      "xelos-2013",
+      "delpan-2013",
+      "moddii-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-ibuypower-2013",
+    "name": "Team iBUYPOWER",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "anger-2013",
+      "skadoodle-2013",
+      "adren-team-ibuypower-2013",
+      "azk-2013",
+      "dazed-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "universal-soldiers-2013",
+    "name": "Universal Soldiers",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "taz-2013",
+      "neo-2013",
+      "pashabiceps-2013",
+      "snax-2013",
+      "byali-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "verygames-2013",
+    "name": "VeryGames",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ex6tenz-2013",
+      "nbk-2013",
+      "smithzz-2013",
+      "scream-2013",
+      "shox-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "xapso-2013",
+    "name": "Xapso",
+    "year": 2013,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ultra-2013",
+      "centeks-2013",
+      "cadian-2013",
+      "aizy-2013",
+      "robiin-2013"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "dreamhack-winter-2013"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 1,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "3dmax-2014",
+    "name": "3DMAX",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "gla1ve-2014",
+      "pimp-2014",
+      "raalz-2014",
+      "msl-2014",
+      "aizy-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "bravado-gaming-2014",
+    "name": "Bravado Gaming",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "cent-2014",
+      "detrony-2014",
+      "racno-2014",
+      "blackpoison-2014",
+      "deviant-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "clan-mystik-2014",
+    "name": "Clan-Mystik",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "harts-2014",
+      "kioshima-clan-mystik-2014",
+      "sf-2014",
+      "gmx-2014",
+      "kennys-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "cloud9-2014",
+    "name": "Cloud9",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "hiko-cloud9-2014",
+      "semphis-cloud9-2014",
+      "seang-res-cloud9-2014",
+      "n0thing-cloud9-2014",
+      "shroud-2014"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "complexity-gaming-2014",
+    "name": "compLexity Gaming",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "hiko-2014",
+      "semphis-2014",
+      "seang-res-2014",
+      "swag-2014",
+      "n0thing-2014"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "copenhagen-wolves-2014",
+    "name": "Copenhagen Wolves",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "gla1ve-copenhagen-wolves-2014",
+      "pimp-copenhagen-wolves-2014",
+      "tenzki-2014",
+      "kjaerbye-2014",
+      "cadian-copenhagen-wolves-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "dat-team-2014",
+    "name": "dAT Team",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "b1ad3-2014",
+      "worldedit-2014",
+      "bondik-2014",
+      "ub1que-2014",
+      "flamie-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "epsilon-esports-2014",
+    "name": "Epsilon eSports",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "kioshima-epsilon-esports-2014",
+      "sf-epsilon-esports-2014",
+      "gmx-epsilon-esports-2014",
+      "shox-epsilon-esports-2014",
+      "fxy0-2014"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "esc-gaming-2014",
+    "name": "ESC Gaming",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "innocent-2014",
+      "szpero-2014",
+      "mouz-2014",
+      "minise-2014",
+      "rallen-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "flipsid3-tactics-2014",
+    "name": "FlipSid3 Tactics",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "twist-flipsid3-tactics-2014",
+      "berg-2014",
+      "zende-2014",
+      "bendji-2014",
+      "dumas-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "fnatic-2014",
+    "name": "Fnatic",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "jw-2014",
+      "flusha-2014",
+      "schneider-2014",
+      "devilwalk-2014",
+      "pronax-2014"
+    ],
+    "power": 88,
+    "teamPowerPreview": 88,
+    "teamStats": {
+      "chemistry": 88,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 88,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 88
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "finalist",
+    "style": "balanced",
+    "styleRating": 88,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "final",
+      "titles": 0,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "hellraisers-2014",
+    "name": "HellRaisers",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ange1-2014",
+      "dosia-2014",
+      "adren-2014",
+      "markeloff-2014",
+      "kucher-2014"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "lgb-esports-2014",
+    "name": "LGB eSports",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "krimz-2014",
+      "dennis-2014",
+      "olofm-2014",
+      "twist-2014",
+      "cype-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "london-conspiracy-2014",
+    "name": "London Conspiracy",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "polly-2014",
+      "skurk-2014",
+      "rubino-2014",
+      "rain-2014",
+      "prb-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "mousesports-2014",
+    "name": "mousesports",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "chrisj-2014",
+      "legija-2014",
+      "tizian-2014",
+      "cadian-2014",
+      "tabsen-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "myxmg-2014",
+    "name": "myXMG",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "msl-myxmg-2014",
+      "hunden-2014",
+      "acilion-2014",
+      "friis-myxmg-2014",
+      "smf-myxmg-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "natus-vincere-2014",
+    "name": "Natus Vincere",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "zeus-2014",
+      "starix-2014",
+      "seized-2014",
+      "edward-2014",
+      "guardian-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 82,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "contender",
+    "style": "tactical",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "ninjas-in-pyjamas-2014",
+    "name": "Ninjas in Pyjamas",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "f0rest-2014",
+      "get-right-2014",
+      "xizt-2014",
+      "fifflaren-2014",
+      "friberg-2014"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "champion",
+    "style": "balanced",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "penta-sports-2014",
+    "name": "PENTA Sports",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "fel1x-2014",
+      "krystal-2014",
+      "r0bs3n-2014",
+      "denis-2014",
+      "spiidi-2014"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "planetkey-dynamics-2014",
+    "name": "Planetkey Dynamics",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "strux1-2014",
+      "stavros-2014",
+      "alexrr-2014",
+      "troubley-2014",
+      "nex-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "reason-gaming-2014",
+    "name": "Reason Gaming",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "exr-2014",
+      "lomme-2014",
+      "friis-2014",
+      "karrigan-2014",
+      "smf-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "team-dignitas-2014",
+    "name": "Team Dignitas",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "fetish-2014",
+      "dupreeh-2014",
+      "xyp9x-2014",
+      "device-2014",
+      "cajunb-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "team-ibuypower-2014",
+    "name": "Team iBUYPOWER",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "skadoodle-2014",
+      "azk-2014",
+      "dazed-2014",
+      "steel-2014",
+      "swag-team-ibuypower-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "team-ldlc-com-2014",
+    "name": "Team LDLC.com",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "nbk-team-ldlc-com-2014",
+      "smithzz-team-ldlc-com-2014",
+      "kioshima-2014",
+      "shox-team-ldlc-com-2014",
+      "happy-2014"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "champion",
+    "style": "balanced",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "team-wolf-2014",
+    "name": "Team Wolf",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ritz-2014",
+      "rix-2014",
+      "astarr-2014",
+      "ace-2014",
+      "mithilf-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "titan-2014",
+    "name": "Titan",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ex6tenz-2014",
+      "nbk-2014",
+      "smithzz-2014",
+      "scream-2014",
+      "shox-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "virtus-pro-2014",
+    "name": "Virtus.pro",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "taz-2014",
+      "neo-2014",
+      "pashabiceps-2014",
+      "snax-2014",
+      "byali-2014"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 92,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "champion",
+    "style": "tactical",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "vox-eminor-2014",
+    "name": "Vox Eminor",
+    "year": 2014,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "spunj-2014",
+      "azr-2014",
+      "havoc-2014",
+      "snyper-2014",
+      "topgun-2014"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "ems-katowice-2014",
+        "esl-cologne-2014",
+        "dreamhack-winter-2014"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "3dmax-2015",
+    "name": "3DMAX",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "disturbed-2015",
+      "natu-2015",
+      "khrn-2015",
+      "stonde-2015",
+      "xarte-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "cloud9-2015",
+    "name": "Cloud9",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "n0thing-2015",
+      "sgares-2015",
+      "semphis-2015",
+      "shroud-2015",
+      "shahzam-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "counter-logic-gaming-2015",
+    "name": "Counter Logic Gaming",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "reltuc-2015",
+      "hazed-2015",
+      "tarik-2015",
+      "ptr-2015",
+      "fns-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "flipsid3-tactics-2015",
+    "name": "FlipSid3 Tactics",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "b1ad3-2015",
+      "worldedit-2015",
+      "bondik-2015",
+      "markeloff-2015",
+      "davcost-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "fnatic-2015",
+    "name": "Fnatic",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "jw-2015",
+      "flusha-2015",
+      "pronax-2015",
+      "olofmeister-2015",
+      "krimz-2015"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "champion",
+    "style": "balanced",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "g2-esports-2015",
+    "name": "G2 Esports",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "maikelele-g2-esports-2015",
+      "fox-g2-esports-2015",
+      "rain-g2-esports-2015",
+      "dennis-g2-esports-2015",
+      "jkaem-g2-esports-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "hellraisers-2015",
+    "name": "HellRaisers",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ange1-2015",
+      "kucher-2015",
+      "dosia-2015",
+      "adren-2015",
+      "flamie-hellraisers-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "keyd-stars-2015",
+    "name": "Keyd Stars",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "fallen-2015",
+      "fer-2015",
+      "steel-2015",
+      "zqk-2015",
+      "boltz-2015"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "lgb-esports-2015",
+    "name": "LGB eSports",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "rubino-2015",
+      "rain-2015",
+      "jkaem-2015",
+      "zeves-2015",
+      "polly-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "luminosity-gaming-2015",
+    "name": "Luminosity Gaming",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "fallen-luminosity-gaming-2015",
+      "fer-luminosity-gaming-2015",
+      "steel-luminosity-gaming-2015",
+      "boltz-luminosity-gaming-2015",
+      "coldzera-2015"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "mousesports-2015",
+    "name": "mousesports",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "chrisj-2015",
+      "gob-b-2015",
+      "niko-2015",
+      "nex-mousesports-2015",
+      "denis-mousesports-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "natus-vincere-2015",
+    "name": "Natus Vincere",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "zeus-2015",
+      "seized-2015",
+      "edward-2015",
+      "guardian-2015",
+      "flamie-2015"
+    ],
+    "power": 88,
+    "teamPowerPreview": 88,
+    "teamStats": {
+      "chemistry": 88,
+      "tactics": 88,
+      "mapPool": 72,
+      "mental": 88,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 88
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "finalist",
+    "style": "tactical",
+    "styleRating": 88,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "final",
+      "titles": 0,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "ninjas-in-pyjamas-2015",
+    "name": "Ninjas in Pyjamas",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "f0rest-2015",
+      "get-right-2015",
+      "xizt-2015",
+      "friberg-2015",
+      "allu-2015"
+    ],
+    "power": 88,
+    "teamPowerPreview": 88,
+    "teamStats": {
+      "chemistry": 88,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 88,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 88
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "finalist",
+    "style": "balanced",
+    "styleRating": 88,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "final",
+      "titles": 0,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "penta-sports-2015",
+    "name": "PENTA Sports",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "troubley-2015",
+      "krystal-2015",
+      "nex-2015",
+      "denis-2015",
+      "spiidi-2015"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "renegades-2015",
+    "name": "Renegades",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "spunj-renegades-2015",
+      "azr-renegades-2015",
+      "havoc-renegades-2015",
+      "jks-renegades-2015",
+      "yam-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-dignitas-2015",
+    "name": "Team Dignitas",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "aizy-2015",
+      "kjaerbye-2015",
+      "pimp-2015",
+      "msl-2015",
+      "tenzki-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-ebettle-2015",
+    "name": "Team eBettle",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "furlan-2015",
+      "hyper-2015",
+      "gruby-2015",
+      "peet-2015",
+      "rallen-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-envyus-2015",
+    "name": "Team EnVyUs",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "happy-2015",
+      "nbk-2015",
+      "kioshima-2015",
+      "kennys-2015",
+      "apex-2015"
+    ],
+    "power": 92,
+    "teamPowerPreview": 92,
+    "teamStats": {
+      "chemistry": 92,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 92,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 92
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "champion",
+    "style": "balanced",
+    "styleRating": 92,
+    "upsetRating": 72,
+    "stompRating": 84,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist",
+      "major-finalist",
+      "major-champion"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "title",
+      "titles": 1,
+      "finals": 1,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-immunity-2015",
+    "name": "Team Immunity",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "snyper-2015",
+      "rickeh-2015",
+      "james-2015",
+      "emagine-2015",
+      "ustilo-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-kinguin-2015",
+    "name": "Team Kinguin",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "scream-team-kinguin-2015",
+      "maikelele-2015",
+      "rain-team-kinguin-2015",
+      "fox-2015",
+      "dennis-2015"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-liquid-2015",
+    "name": "Team Liquid",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "adren-team-liquid-2015",
+      "nitr0-2015",
+      "fugly-2015",
+      "elige-2015",
+      "hiko-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "team-solomid-2015",
+    "name": "Team SoloMid",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "device-2015",
+      "dupreeh-2015",
+      "xyp9x-2015",
+      "cajunb-2015",
+      "karrigan-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "contender",
+    "style": "balanced",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "titan-2015",
+    "name": "Titan",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ex6tenz-2015",
+      "rpk-2015",
+      "shox-2015",
+      "smithzz-2015",
+      "scream-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "vexed-gaming-2015",
+    "name": "Vexed Gaming",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "furlan-vexed-gaming-2015",
+      "hyper-vexed-gaming-2015",
+      "gruby-vexed-gaming-2015",
+      "peet-vexed-gaming-2015",
+      "rallen-vexed-gaming-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "virtus-pro-2015",
+    "name": "Virtus.pro",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "taz-2015",
+      "neo-2015",
+      "pashabiceps-2015",
+      "snax-2015",
+      "byali-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 82,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "contender",
+    "style": "tactical",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "semifinal",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 1,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "vox-eminor-2015",
+    "name": "Vox Eminor",
+    "year": 2015,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "azr-2015",
+      "havoc-2015",
+      "jks-2015",
+      "spunj-2015",
+      "topgun-2015"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "esl-katowice-2015",
+        "esl-cologne-2015",
+        "dreamhack-cluj-napoca-2015"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 3,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "avangar-2018",
+    "name": "AVANGAR",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "avangar-review-igl-1-2018",
+      "avangar-review-awper-2-2018",
+      "avangar-review-entry-3-2018",
+      "avangar-review-lurker-4-2018",
+      "avangar-review-support-5-2018"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "eleague-boston-2018",
+        "faceit-london-2018"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "renegades-2018",
+    "name": "Renegades",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "renegades-review-igl-1-2018",
+      "renegades-review-awper-2-2018",
+      "renegades-review-entry-3-2018",
+      "renegades-review-lurker-4-2018",
+      "renegades-review-support-5-2018"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "eleague-boston-2018",
+        "faceit-london-2018"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "spirit-2018",
+    "name": "Spirit",
+    "year": 2018,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "spirit-review-igl-1-2018",
+      "spirit-review-awper-2-2018",
+      "spirit-review-entry-3-2018",
+      "spirit-review-lurker-4-2018",
+      "spirit-review-support-5-2018"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "eleague-boston-2018",
+        "faceit-london-2018"
+      ]
+    },
+    "tier": "underdog",
+    "style": "aggressive",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 72,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "vici-2019",
+    "name": "ViCi",
+    "year": 2019,
+    "game": "CSGO",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "vici-review-igl-1-2019",
+      "vici-review-awper-2-2019",
+      "vici-review-entry-3-2019",
+      "vici-review-lurker-4-2019",
+      "vici-review-support-5-2019"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-katowice-2019",
+        "starladder-berlin-2019"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": false
+  },
+  {
+    "id": "bestia-2025",
+    "name": "BESTIA",
+    "year": 2025,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "bestia-review-igl-1-2025",
+      "bestia-review-awper-2-2025",
+      "bestia-review-entry-3-2025",
+      "bestia-review-lurker-4-2025",
+      "bestia-review-support-5-2025"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "blast-austin-2025",
+        "starladder-budapest-2025"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "marsborne-2025",
+    "name": "Marsborne",
+    "year": 2025,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "marsborne-review-igl-1-2025",
+      "marsborne-review-awper-2-2025",
+      "marsborne-review-entry-3-2025",
+      "marsborne-review-lurker-4-2025",
+      "marsborne-review-support-5-2025"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "blast-austin-2025",
+        "starladder-budapest-2025"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "complexity-2026",
+    "name": "Complexity",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "complexity-review-igl-1-2026",
+      "complexity-review-awper-2-2026",
+      "complexity-review-entry-3-2026",
+      "complexity-review-lurker-4-2026",
+      "complexity-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "ence-2026",
+    "name": "ENCE",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "ence-review-igl-1-2026",
+      "ence-review-awper-2-2026",
+      "ence-review-entry-3-2026",
+      "ence-review-lurker-4-2026",
+      "ence-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "faze-2026",
+    "name": "FaZe",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "karrigan-faze-2026",
+      "rain-2026",
+      "frozen-2026",
+      "broky-2026",
+      "elige-faze-2026"
+    ],
+    "power": 82,
+    "teamPowerPreview": 82,
+    "teamStats": {
+      "chemistry": 82,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 82,
+      "experience": 72,
+      "clutch": 72,
+      "consistency": 82
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "playoff-team",
+    "style": "aggressive",
+    "styleRating": 82,
+    "upsetRating": 72,
+    "stompRating": 82,
+    "badges": [
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "top8",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 1,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "imperial-2026",
+    "name": "Imperial",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "imperial-review-igl-1-2026",
+      "imperial-review-awper-2-2026",
+      "imperial-review-entry-3-2026",
+      "imperial-review-lurker-4-2026",
+      "imperial-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "og-2026",
+    "name": "OG",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "og-review-igl-1-2026",
+      "og-review-awper-2-2026",
+      "og-review-entry-3-2026",
+      "og-review-lurker-4-2026",
+      "og-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "saw-2026",
+    "name": "SAW",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "saw-review-igl-1-2026",
+      "saw-review-awper-2-2026",
+      "saw-review-entry-3-2026",
+      "saw-review-lurker-4-2026",
+      "saw-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "virtus-pro-2026",
+    "name": "Virtus.pro",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "virtus-pro-review-igl-1-2026",
+      "virtus-pro-review-awper-2-2026",
+      "virtus-pro-review-entry-3-2026",
+      "virtus-pro-review-lurker-4-2026",
+      "virtus-pro-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "tactical",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  },
+  {
+    "id": "wildcard-2026",
+    "name": "Wildcard",
+    "year": 2026,
+    "game": "CS2",
+    "rank": null,
+    "sourceRank": null,
+    "players": [
+      "wildcard-review-igl-1-2026",
+      "wildcard-review-awper-2-2026",
+      "wildcard-review-entry-3-2026",
+      "wildcard-review-lurker-4-2026",
+      "wildcard-review-support-5-2026"
+    ],
+    "power": 72,
+    "teamPowerPreview": 72,
+    "teamStats": {
+      "chemistry": 72,
+      "tactics": 72,
+      "mapPool": 72,
+      "mental": 72,
+      "experience": 72,
+      "clutch": 64,
+      "consistency": 72
+    },
+    "source": {
+      "note": "Added by Data Studio Major expansion seed.",
+      "majorSources": [
+        "iem-cologne-2026"
+      ]
+    },
+    "tier": "underdog",
+    "style": "balanced",
+    "styleRating": 72,
+    "upsetRating": 64,
+    "stompRating": 68,
+    "badges": [
+      "major-participant",
+      "major-stage3"
+    ],
+    "majorSummary": {
+      "eventsPlayed": 2,
+      "bestPlacement": "stage3",
+      "titles": 0,
+      "finals": 0,
+      "semifinals": 0,
+      "top8": 0,
+      "stage3Runs": 1,
+      "notes": "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    },
+    "historicalNotes": [
+      "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required."
+    ],
+    "needsReview": true
+  }
+]

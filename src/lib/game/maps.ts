@@ -17,11 +17,18 @@ export const ACTIVE_DUTY_MAPS: readonly MapId[] = [
 ];
 
 // Static yearly unions derived from Valve's published pool changes:
-// 2016 https://blog.counter-strike.net/2016/04/14014/ · 2017 https://blog.counter-strike.net/2017/02/17867/
+// 2013 baseline (DreamHack Winter 2013, no primary Valve source enumerating the pool — secondary source only,
+//   see data/research/map-pools-2013-2015.json in cs13a0-management for the confidence caveat) · 2014-07-01
+//   https://blog.counter-strike.net/2014/07/9819/ (Active Duty group created) · 2015-03-31 Train back in, Nuke out
+//   (see the same research file) · 2016 https://blog.counter-strike.net/2016/04/14014/
+// 2017 https://blog.counter-strike.net/2017/02/17867/
 // 2018 https://blog.counter-strike.net/2018/04/20344/ · 2019 https://blog.counter-strike.net/2019/03/23717/
 // 2021 https://blog.counter-strike.net/2021/05/34057/ · 2022 https://blog.counter-strike.net/2022/11/40368/
 // 2025 https://www.counter-strike.net/newsentry/529852487375519749 · 2026 https://www.counter-strike.net/newsentry/511855214544814590
 export const ACTIVE_DUTY_POOLS_BY_YEAR: Readonly<Record<number, readonly MapId[]>> = {
+  2013: ['dust2', 'inferno', 'mirage', 'nuke', 'train'],
+  2014: ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'],
+  2015: ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'],
   2016: ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'],
   2017: ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'],
   2018: ['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train'],

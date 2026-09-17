@@ -17,11 +17,12 @@ import {
 import type { HistoricalTeam, Player } from '../src/lib/game/types';
 
 describe('map profiles and selection', () => {
-  it('defines all eleven historical Active Duty maps and the pools from 2016 through 2026', () => {
+  it('defines all eleven historical Active Duty maps and the pools from 2013 through 2026', () => {
     expect(ACTIVE_DUTY_MAPS).toEqual([
       'ancient', 'anubis', 'cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train', 'vertigo'
     ]);
-    expect(Object.keys(ACTIVE_DUTY_POOLS_BY_YEAR).map(Number)).toEqual([2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+    expect(Object.keys(ACTIVE_DUTY_POOLS_BY_YEAR).map(Number)).toEqual([2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+    expect(getActiveDutyMapsForYear(2013)).toEqual(['dust2', 'inferno', 'mirage', 'nuke', 'train']);
     expect(getActiveDutyMapsForYear(2016)).toEqual(['cache', 'cobblestone', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train']);
     expect(getActiveDutyMapsForYear(2023)).toEqual(['ancient', 'anubis', 'inferno', 'mirage', 'nuke', 'overpass', 'vertigo']);
     expect(getActiveDutyMapsForYear(2026)).toEqual(['ancient', 'anubis', 'cache', 'dust2', 'inferno', 'mirage', 'nuke', 'overpass', 'train']);
