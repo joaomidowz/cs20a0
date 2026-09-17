@@ -67,7 +67,7 @@ describe('licensed-images.json', () => {
 
 describe('licensedImageFor', () => {
   it('responde null para chaves ausentes e resolve cada entrada registrada', () => {
-    expect(licensedImageFor('org', 'astralis')).toBeNull();
+    expect(licensedImageFor('org', 'chave-inexistente-nao-registrada')).toBeNull();
     expect(licensedImageFor('player', null)).toBeNull();
     expect(licensedImageFor('team', '')).toBeNull();
     for (const entry of raw.entries) expect(licensedImageFor(entry.kind, entry.key)).toEqual(entry);
