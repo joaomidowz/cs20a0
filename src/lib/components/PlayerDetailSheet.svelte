@@ -24,7 +24,7 @@
 
   // Country comes from the page's catalog; career world cards never resolve, so the career sheet shows no flag.
   const catalog = getCatalogContext();
-  $: country = mode === 'career' ? null : $catalog.playerCountry(player);
+  $: country = $catalog.playerCountry(player);
   $: eligibleRoles = getEligibleSlotRoles(player);
   $: detailsValidation = validatePlayerPick(player, lineup, undefined, playerLookup, { unlimitedRoles });
   $: dualRoleOptions = allowDualRole && eligibleRoles.length >= 2 && eligibleRoles.length <= 4

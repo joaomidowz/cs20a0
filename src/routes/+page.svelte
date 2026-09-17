@@ -1848,6 +1848,7 @@
       privacy: t('privacy'),
       terms: t('terms'),
       contactPage: t('contact'),
+      credits: t('credits'),
       footerNav: t('footerNav')
     }}
   />

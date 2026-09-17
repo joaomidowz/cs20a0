@@ -17,7 +17,7 @@
 
   // Country comes from the page's catalog (core on /online: never a flag there); career world cards never resolve.
   const catalog = getCatalogContext();
-  $: country = mode === 'career' ? null : $catalog.playerCountry(player);
+  $: country = $catalog.playerCountry(player);
   $: showNumbers = showsFullIntel(mode) || revealed;
   $: rarity = (player.rarity ?? 'common').toLowerCase();
   $: showRarity = showsFullIntel(mode) || revealed;
