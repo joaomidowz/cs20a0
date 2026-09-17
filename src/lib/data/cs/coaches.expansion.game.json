@@ -1,1 +1,477 @@
-[]
+[
+  {
+    "id": "coach-copenhagen-wolves-2013",
+    "baseId": "3k2",
+    "name": "3k2",
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-fnatic-2013",
+    "baseId": "carn",
+    "name": "cArn",
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-fnatic-2014",
+    "baseId": "carn",
+    "name": "cArn",
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-hellraisers-2014",
+    "baseId": "b1ad3",
+    "name": "B1ad3",
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-ninjas-in-pyjamas-2014",
+    "baseId": "pita",
+    "name": "pita",
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-dignitas-2014",
+    "baseId": "3k2",
+    "name": "3k2",
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-ibuypower-2014",
+    "baseId": "irukandji",
+    "name": "Irukandji",
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-ldlc-com-2014",
+    "baseId": "moman",
+    "name": "MoMaN",
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-wolf-2014",
+    "baseId": "kassad",
+    "name": "kassad",
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-cloud9-2015",
+    "baseId": "stunna",
+    "name": "stunna",
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-flipsid3-tactics-2015",
+    "baseId": "johnta",
+    "name": "Johnta",
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-fnatic-2015",
+    "baseId": "vuggo",
+    "name": "vuggo",
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-g2-esports-2015",
+    "baseId": "zbm",
+    "name": "zbM",
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-luminosity-gaming-2015",
+    "baseId": "nak",
+    "name": "nak",
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-mousesports-2015",
+    "baseId": "psycho",
+    "name": "PsYcHo",
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-natus-vincere-2015",
+    "baseId": "starix",
+    "name": "starix",
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-ninjas-in-pyjamas-2015",
+    "baseId": "natu",
+    "name": "natu",
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-penta-sports-2015",
+    "baseId": "mooze",
+    "name": "MooZE",
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-dignitas-2015",
+    "baseId": "zonic",
+    "name": "zonic",
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-envyus-2015",
+    "baseId": "next",
+    "name": "Next",
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-kinguin-2015",
+    "baseId": "legija",
+    "name": "LEGIJA",
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-liquid-2015",
+    "baseId": "gbjame-s",
+    "name": "GBJame^s",
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-team-solomid-2015",
+    "baseId": "realition",
+    "name": "realition",
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-titan-2015",
+    "baseId": "niak",
+    "name": "NiaK",
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  },
+  {
+    "id": "coach-virtus-pro-2015",
+    "baseId": "kuben",
+    "name": "kuben",
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "tactics": 72,
+    "discipline": 72,
+    "aggression": 72,
+    "development": 70,
+    "overall": 71,
+    "rarity": "common",
+    "confidence": "medium",
+    "needsReview": true,
+    "source": {
+      "note": "Coach nick extraído do card do time na Liquipedia (data/research/candidates/majors/*.json, cs13a0-management); atributos são baseline genérico, não pesquisados individualmente."
+    }
+  }
+]
