@@ -22,7 +22,7 @@ export interface LicensedImageLicense {
 
 export interface LicensedImageEntry {
   kind: LicensedImageKind;
-  /** `team`: team-year id (`astralis-2016`); `org`: crest key or org id (`astralis`); `player`: base id (`device`). */
+  /** `team`: team-year id (`astralis-2016`); `org`: crest key or org id (`astralis`); `player`: base id (`device`) or, for one year only, the player-year id (`device-2016`), which wins over the base id. */
   key: string;
   /** Path under `static/`, always inside `licensed/` (e.g. `licensed/orgs/astralis.svg`). Never a URL. */
   file: string;

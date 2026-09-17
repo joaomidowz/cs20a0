@@ -6513,6 +6513,19 @@
         "evidence": "player-photos-fair-use-basis.md"
       },
       "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "device-2016",
+      "file": "licensed/players/device-2016.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-17",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento · arquivo Dev1ce at ESL Barcelona 16.jpg"
     }
   ]
 }

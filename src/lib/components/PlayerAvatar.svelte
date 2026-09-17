@@ -9,10 +9,11 @@
   /** Without the `.avatar` frame, for containers that bring their own box (share card). */
   export let bare = false;
 
-  // Generated silhouette by default; a licensed photo only when `licensed-images.json` registers one for the base id.
+  // Generated silhouette by default; a licensed photo when `licensed-images.json` registers one for this player-year
+  // (e.g. "device-2016"), else the one for the base id (same photo in every year).
   $: avatar = avatarFor(player);
   $: parts = avatarParts(avatar);
-  $: licensed = licensedImageFor('player', player.baseId ?? player.id);
+  $: licensed = licensedImageFor('player', player.id) ?? licensedImageFor('player', player.baseId ?? null);
 </script>
 
 <span class="player-avatar {variant === 'default' ? '' : variant}" class:avatar={!bare} class:bare aria-hidden="true">
