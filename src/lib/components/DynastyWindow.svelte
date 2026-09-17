@@ -28,9 +28,9 @@
   export let onConfirm: () => void = () => {};
 
   const copy = {
-    'pt-BR': { swaps: 'Trocas diretas', gives: 'Você entrega', gets: 'Você recebe', pay: 'Você paga', receive: 'Você recebe', even: 'Sem diferença', accept: 'Aceitar troca', offRole: 'fora de posição', strength: 'força', empty: 'Sem Majors registrados ainda', major: 'Major', placement: 'Colocação', rating: 'Rating', overall: 'OVR', training: 'Treino', evolution: 'Evolução', ready: 'Pronto para confirmar', notReady: 'Ajuste caixa ou posições', from: 'de', aim: 'Mira', utility: 'Utilitária', clutch: 'Clutch', opening: 'Abertura', recovery: 'Recuperação' },
-    es: { swaps: 'Intercambios directos', gives: 'Entregas', gets: 'Recibes', pay: 'Pagas', receive: 'Recibes', even: 'Sin diferencia', accept: 'Aceptar intercambio', offRole: 'fuera de posición', strength: 'fuerza', empty: 'Aún sin Majors registrados', major: 'Major', placement: 'Posición', rating: 'Rating', overall: 'OVR', training: 'Entreno', evolution: 'Evolución', ready: 'Listo para confirmar', notReady: 'Ajusta caja o posiciones', from: 'de', aim: 'Puntería', utility: 'Utilidad', clutch: 'Clutch', opening: 'Apertura', recovery: 'Recuperación' },
-    en: { swaps: 'Direct swaps', gives: 'You give', gets: 'You get', pay: 'You pay', receive: 'You receive', even: 'Even swap', accept: 'Accept swap', offRole: 'out of position', strength: 'strength', empty: 'No Majors recorded yet', major: 'Major', placement: 'Placement', rating: 'Rating', overall: 'OVR', training: 'Training', evolution: 'Evolution', ready: 'Ready to confirm', notReady: 'Fix cash or positions', from: 'from', aim: 'Aim', utility: 'Utility', clutch: 'Clutch', opening: 'Opening', recovery: 'Recovery' }
+    'pt-BR': { swaps: 'Trocas diretas', gives: 'Você entrega', gets: 'Você recebe', pay: 'Você paga', receive: 'Você recebe', even: 'Sem diferença', accept: 'Aceitar troca', offRole: 'fora de posição', strength: 'força', empty: 'Sem Majors registrados ainda', major: 'Major', placement: 'Colocação', rating: 'Rating', overall: 'OVR', training: 'Treino', evolution: 'Evolução', ready: 'Pronto para confirmar', notReady: 'Ajuste caixa ou posições', from: 'de', short: 'falta', pickFirst: 'Escolha quem sai', noMoves: 'Sem trocas', negativeHint: 'Caixa negativo: desfaça uma troca ou venda alguém antes de confirmar.', aim: 'Mira', utility: 'Utilitária', clutch: 'Clutch', opening: 'Abertura', recovery: 'Recuperação' },
+    es: { swaps: 'Intercambios directos', gives: 'Entregas', gets: 'Recibes', pay: 'Pagas', receive: 'Recibes', even: 'Sin diferencia', accept: 'Aceptar intercambio', offRole: 'fuera de posición', strength: 'fuerza', empty: 'Aún sin Majors registrados', major: 'Major', placement: 'Posición', rating: 'Rating', overall: 'OVR', training: 'Entreno', evolution: 'Evolución', ready: 'Listo para confirmar', notReady: 'Ajusta caja o posiciones', from: 'de', short: 'faltan', pickFirst: 'Elige quién sale', noMoves: 'Sin cambios', negativeHint: 'Caja negativa: deshaz un cambio o vende a alguien antes de confirmar.', aim: 'Puntería', utility: 'Utilidad', clutch: 'Clutch', opening: 'Apertura', recovery: 'Recuperación' },
+    en: { swaps: 'Direct swaps', gives: 'You give', gets: 'You get', pay: 'You pay', receive: 'You receive', even: 'Even swap', accept: 'Accept swap', offRole: 'out of position', strength: 'strength', empty: 'No Majors recorded yet', major: 'Major', placement: 'Placement', rating: 'Rating', overall: 'OVR', training: 'Training', evolution: 'Evolution', ready: 'Ready to confirm', notReady: 'Fix cash or positions', from: 'from', short: 'short', pickFirst: 'Pick who leaves', noMoves: 'No moves', negativeHint: 'Negative cash: undo a move or sell someone before confirming.', aim: 'Aim', utility: 'Utility', clutch: 'Clutch', opening: 'Opening', recovery: 'Recovery' }
   } as const;
 
   let selectedOut: string | null = null;
@@ -66,6 +66,19 @@
   const nick = (playerId: string) => playerById.get(playerId)?.nickname ?? playerId;
   const problemMessage = (problem: MoveProblem) => (problem === 'no-cash' ? t('windowNoCash') : problem === 'no-moves' ? t('windowNoMoves') : t('windowInvalidMove'));
   const signedUsd = (value: number) => (value === 0 ? c.even : value > 0 ? `${c.receive} ${formatUsd(value, language)}` : `${c.pay} ${formatUsd(-value, language)}`);
+  /** Cash missing for a deal after the selected sale (0 when it fits, or when no outgoing player is picked yet). */
+  const shortfall = (outPlayerId: string | null, incoming: IncomingPlayer): number => {
+    const buy = buyPriceFor(state, incoming, playerById) ?? 0;
+    const sale = incoming.kind === 'swap' ? Math.max(0, swapOffers.find((offer) => offer.id === incoming.offerId)?.cashDelta ?? 0) : outPlayerId ? salePriceFor(state, outPlayerId, playerById) : 0;
+    return Math.max(0, buy - sale - cash);
+  };
+  /** Why a buy button is blocked right now, or null when the deal can go through. */
+  const blockedReason = (outPlayerId: string | null, incoming: IncomingPlayer): string | null => {
+    if (left <= 0) return c.noMoves;
+    if (!outPlayerId && incoming.kind !== 'swap') return c.pickFirst;
+    const missing = shortfall(outPlayerId, incoming);
+    return missing > 0 ? `${c.short} ${formatUsd(missing, language)}` : null;
+  };
 
   function tryMove(outPlayerId: string | null, incoming: IncomingPlayer) {
     error = '';
@@ -120,6 +133,8 @@
       <span class="warn">{offRole.length} {c.offRole} · −{(OFF_ROLE_PENALTY * 100 * offRole.length).toLocaleString(language, { maximumFractionDigits: 1 })}% {c.strength} (×{positionMultiplier(offRole.length).toFixed(3)})</span>
     {/if}
     <span class="readiness" class:ok={ready}>{ready ? c.ready : c.notReady}</span>
+    {#if cash < 0}<p class="status-note" role="alert">{c.negativeHint}</p>{/if}
+    {#if error}<p class="status-note" role="alert">{error}</p>{/if}
   </section>
 
   <section class="block">
@@ -180,11 +195,13 @@
             {@const theirs = playerById.get(offer.theirPlayerId)}
             {@const used = state.moves.some((move) => move.kind === 'swap' && move.inPlayerId === offer.theirPlayerId)}
             {#if theirs}
+              {@const reason = used || soldIds.has(offer.forPlayerId) ? null : blockedReason(offer.forPlayerId, { kind: 'swap', playerId: offer.theirPlayerId, offerId: offer.id })}
               <article class="swap" class:used>
                 <div><small>{c.gives}</small><b>{nick(offer.forPlayerId)}</b><span>{view(offer.forPlayerId)?.overall ?? '—'}</span></div>
                 <div><small>{c.gets} · {c.from} {teamLabel(offer.fromTeamId)}</small><b>{theirs.nickname}</b><span>{theirs.overall ?? '—'}</span></div>
                 <p>{signedUsd(offer.cashDelta)}</p>
-                <button class="primary" type="button" disabled={used || left <= 0 || soldIds.has(offer.forPlayerId)} on:click={() => tryMove(offer.forPlayerId, { kind: 'swap', playerId: offer.theirPlayerId, offerId: offer.id })}>{c.accept}</button>
+                <button class="primary" type="button" disabled={used || soldIds.has(offer.forPlayerId) || Boolean(reason)} title={reason ?? undefined} on:click={() => tryMove(offer.forPlayerId, { kind: 'swap', playerId: offer.theirPlayerId, offerId: offer.id })}>{c.accept}</button>
+                {#if reason}<small class="blocked">{reason}</small>{/if}
               </article>
             {/if}
           {/each}
@@ -199,10 +216,12 @@
       {#each state.offers as offer, index (offer.playerId)}
         {@const player = playerById.get(offer.playerId)}
         {#if player}
+          {@const reason = boughtIds.has(offer.playerId) ? null : blockedReason(selectedOut, { kind: 'offer', playerId: offer.playerId })}
           <div class="deal" style={`--reveal-delay:${index * 60}ms`}>
             <DynastyPlayerCard {player} teamLabel={teamLabel(player.teamId ?? '')} {language} onOpen={null}>
               {#if offer.focusRole}<small class="focus">{t('windowFocus')} · {getRoleLabel(offer.focusRole)}</small>{/if}
-              <button class="primary" type="button" disabled={boughtIds.has(offer.playerId) || left <= 0} on:click={() => tryMove(selectedOut, { kind: 'offer', playerId: offer.playerId })}>{t('windowBuy')} · {formatUsd(offer.price, language)}</button>
+              <button class="primary" type="button" disabled={boughtIds.has(offer.playerId) || Boolean(reason)} title={reason ?? undefined} on:click={() => tryMove(selectedOut, { kind: 'offer', playerId: offer.playerId })}>{t('windowBuy')} · {formatUsd(offer.price, language)}</button>
+              {#if reason}<small class="blocked">{reason}</small>{/if}
             </DynastyPlayerCard>
           </div>
         {/if}
@@ -219,7 +238,8 @@
     {#if !targetUsed && searchResults.length}
       <ul class="deals">
         {#each searchResults as player (player.id)}
-          <li><b>{player.nickname} {player.year ?? ''}</b><span class="ovr">{player.overall ?? 70}</span><button class="secondary" type="button" disabled={left <= 0} on:click={() => tryMove(selectedOut, { kind: 'target', playerId: player.id })}>{t('windowBuy')} · {formatUsd(buyPriceFor(state, { kind: 'target', playerId: player.id }, playerById) ?? 0, language)}</button></li>
+          {@const reason = blockedReason(selectedOut, { kind: 'target', playerId: player.id })}
+          <li><b>{player.nickname} {player.year ?? ''}</b><span class="ovr">{player.overall ?? 70}</span><button class="secondary" type="button" disabled={Boolean(reason)} title={reason ?? undefined} on:click={() => tryMove(selectedOut, { kind: 'target', playerId: player.id })}>{t('windowBuy')} · {formatUsd(buyPriceFor(state, { kind: 'target', playerId: player.id }, playerById) ?? 0, language)}</button>{#if reason}<small class="blocked">{reason}</small>{/if}</li>
         {/each}
       </ul>
     {/if}
@@ -248,7 +268,9 @@
         {@const coach = coachById.get(coachId)}
         {#if coach}
           <DynastyCoachCard {coach} teamLabel={teamLabel(coach.teamId)} {language} selected={state.coachChange?.coachId === coachId} onOpen={() => openCoach(coach)}>
-            <button class="primary" type="button" disabled={state.coachChange?.coachId === coachId} on:click={() => pickCoach(coachId)}>{t('windowHire')} · {formatUsd(coachMarketValue(coach), language)}</button>
+            {@const coachShort = state.coachChange?.coachId === coachId ? 0 : Math.max(0, coachMarketValue(coach) - (cash + (state.coachChange?.cost ?? 0)))}
+            <button class="primary" type="button" disabled={state.coachChange?.coachId === coachId || coachShort > 0} title={coachShort > 0 ? `${c.short} ${formatUsd(coachShort, language)}` : undefined} on:click={() => pickCoach(coachId)}>{t('windowHire')} · {formatUsd(coachMarketValue(coach), language)}</button>
+            {#if coachShort > 0}<small class="blocked">{c.short} {formatUsd(coachShort, language)}</small>{/if}
           </DynastyCoachCard>
         {/if}
       {/each}
@@ -279,6 +301,8 @@
   .sell { min-height: 36px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 800 .66rem/1 Inter, Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
   .sell.active { border-color: var(--accent); color: var(--accent); }
   .warning { margin: 0; color: var(--accent-2); font-size: .78rem; }
+  .status-note { flex-basis: 100%; margin: 0; color: var(--danger); font-size: .74rem; font-weight: 700; }
+  .blocked { color: var(--danger); font-size: .62rem; font-weight: 800; text-transform: uppercase; }
   .deals { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .deals li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
   .deals b { overflow-wrap: anywhere; }

@@ -29,9 +29,11 @@
   let animation: Animation | undefined;
   let completed = false;
   let settled = false;
+  let tense = false;
   let frame = 0;
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   const winnerIndex = 32;
+  const STEP = 172;
   // Decorative randomness never touches the game's seeded generator.
   const resultOffset = Math.max(0, entries.findIndex((entry) => entry.id === result.id));
   const tickets = Array.from({ length: 36 }, (_, index) =>
@@ -41,6 +43,11 @@
         ? entries[(((resultOffset + index - winnerIndex) % entries.length) + entries.length) % entries.length]
         : entries[Math.floor(Math.random() * entries.length)] ?? result
   );
+  const finalX = winnerIndex * STEP + 80;
+  // The reel overshoots to the edge of a neighbour (either side, never quite crossing) and then creeps back onto the winner.
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const overshoot = Math.round(STEP * (0.36 + Math.random() * 0.12)) * side;
+  const settleMs = Math.round(Math.max(700, Math.min(1400, duration * 0.42)));
 
   function finish() {
     if (completed) return;
@@ -52,36 +59,58 @@
     onComplete();
   }
 
+  const currentX = () => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(track).transform);
+    return -matrix.m41;
+  };
+
   onMount(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (preference.matches) {
       finish();
       return;
     }
-    animation = track.animate(
-      [{ transform: 'translateX(-80px)' }, { transform: `translateX(-${winnerIndex * 172 + 80}px)` }],
-      { duration, easing: 'cubic-bezier(0.12, 0.7, 0.12, 1)', fill: 'forwards' }
+    const spin = track.animate(
+      [{ transform: 'translateX(-80px)' }, { transform: `translateX(-${finalX + overshoot}px)` }],
+      { duration, easing: 'cubic-bezier(0.1, 0.75, 0.15, 1)', fill: 'forwards' }
     );
-    animation.onfinish = () => {
-      settled = true;
-      cancelAnimationFrame(frame);
-      playOfflineSound('land');
-      settleTimer = setTimeout(finish, 320);
+    animation = spin;
+    spin.onfinish = () => {
+      if (completed) return;
+      tense = true;
+      // Creep back with one hesitation halfway: the marker sits on the border, then the winner slides in.
+      const back = track.animate(
+        [
+          { transform: `translateX(-${finalX + overshoot}px)`, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
+          { transform: `translateX(-${finalX + overshoot * 0.55}px)`, offset: 0.45, easing: 'cubic-bezier(0.2, 0, 0.1, 1)' },
+          { transform: `translateX(-${finalX + overshoot * 0.42}px)`, offset: 0.62, easing: 'cubic-bezier(0.3, 0, 0.2, 1)' },
+          { transform: `translateX(-${finalX}px)` }
+        ],
+        { duration: settleMs, fill: 'forwards' }
+      );
+      animation = back;
+      back.onfinish = () => {
+        tense = false;
+        settled = true;
+        cancelAnimationFrame(frame);
+        playOfflineSound('land');
+        settleTimer = setTimeout(finish, 360);
+      };
     };
     let lastIndex = 0;
     const followMarker = () => {
-      const progress = Number(animation?.effect?.getComputedTiming().progress ?? 0);
-      const index = Math.round(progress * winnerIndex);
+      const index = Math.round((currentX() - 80) / STEP);
       if (index !== lastIndex) { lastIndex = index; playOfflineSound('tick'); }
       if (!completed && !settled) frame = requestAnimationFrame(followMarker);
     };
     frame = requestAnimationFrame(followMarker);
     // Background tabs must not leave the screen locked awaiting an animation event.
-    const timer = window.setTimeout(finish, duration + 600);
+    const timer = window.setTimeout(finish, duration + settleMs + 800);
     const reduce = () => { if (preference.matches) finish(); };
     preference.addEventListener('change', reduce);
     return () => {
       completed = true;
+      spin.cancel();
       animation?.cancel();
       cancelAnimationFrame(frame);
       clearTimeout(settleTimer);
@@ -91,12 +120,12 @@
   });
 </script>
 
-<div class="roulette" class:settled class:windowed={visible} aria-busy={!settled}>
+<div class="roulette" class:settled class:tense class:windowed={visible} aria-busy={!settled}>
   <div class="viewport" class:windowed={visible} style={visible ? `max-width: min(100%, ${visible * 172 - 12}px)` : undefined} aria-hidden="true">
     <div class="marker"></div>
     <div class="track" bind:this={track}>
       {#each tickets as entry, index}
-        <div class="ticket" class:winner={settled && index === winnerIndex}>
+        <div class="ticket" class:winner={settled && index === winnerIndex} class:edge={tense && Math.abs(index - winnerIndex) <= 1}>
           <span class="avatar">
             {#if anonymous}?{:else if entry.badge}<TeamBadge id={entry.badge.id} name={entry.badge.name} orgId={entry.badge.orgId ?? null} size="lg" />{:else}{entry.avatar}{/if}
           </span>
@@ -119,6 +148,10 @@
   .ticket strong { font-size: 1rem; overflow-wrap: anywhere; }
   .ticket.winner { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); animation: winner-lock .32s ease-out; }
   .settled .marker { opacity: .35; }
+  .tense .marker { animation: marker-tense .55s ease-in-out infinite; }
+  .tense .marker::before { border-top-color: var(--accent-2); }
+  .ticket.edge { border-color: color-mix(in srgb, var(--accent-2) 70%, var(--line)); box-shadow: 0 0 14px color-mix(in srgb, var(--accent-2) 22%, transparent); }
+  @keyframes marker-tense { 50% { transform: scaleX(2.4); opacity: .55; } }
   @keyframes winner-lock { from { transform: scale(.95); } to { transform: scale(1); } }
   .ticket small { color: var(--muted); }
   .avatar { display: grid; place-items: center; width: 48px; height: 48px; background: var(--surface); color: var(--accent); font-weight: 900; font-size: 1.4rem; }
@@ -127,5 +160,5 @@
   .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 12px 0; }
   .controls span { color: var(--text); font-size: .85rem; }
   .controls button { font-size: .7rem; }
-  @media (prefers-reduced-motion: reduce) { .track { will-change: auto; } .ticket.winner { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .track { will-change: auto; } .ticket.winner { animation: none; } .tense .marker { animation: none; } }
 </style>

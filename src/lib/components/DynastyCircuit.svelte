@@ -4,7 +4,8 @@
   import RunStatsGrid from './RunStatsGrid.svelte';
   import SeriesViewer from './SeriesViewer.svelte';
   import { translate, translateTeamName } from '$lib/game/i18n';
-  import { CIRCUIT_PRIZES, isEventAvailable, isEventDone } from '$lib/game/dynasty/circuit';
+  import { CIRCUIT_PRIZES, hasGroupStage, isEventAvailable, isEventDone } from '$lib/game/dynasty/circuit';
+  import TeamBadge from './TeamBadge.svelte';
   import { formatUsd } from '$lib/game/dynasty/prizes';
   import { buildBracket, revealRounds } from '$lib/game/majorOverview';
   import type { CircuitEvent, CircuitPlacement, CircuitState, HistoricalTeam, Language, SeriesResult } from '$lib/game/types';
@@ -21,13 +22,15 @@
   export let onPlay: (eventId: string) => void = () => {};
   export let onSkip: (eventId: string) => void = () => {};
   export let onContinue: () => void = () => {};
+  /** Opens a team's roster (historical team id). */
+  export let onTeam: ((teamId: string) => void) | null = null;
 
   const copy = {
-    'pt-BR': { title: 'Circuito entre Majors', intro: 'Campeonatos menores valem prêmio e já entram no caixa antes da janela.', cash: 'Caixa', elite: 'Elite Series', open: 'Open Cup', invite: 'Convite', signup: 'Inscrição', play: 'Aceitar e jogar', signupPlay: 'Inscrever e jogar', skip: 'Pular', skipped: 'Pulado', locked: 'Libera com final no Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Adversários', prizes: 'Prêmios', champion: 'Campeão', runnerUp: 'Vice', semi: 'Semifinal', quarter: 'Quartas', earned: 'Prêmio', continue: 'Seguir para a janela', quarterfinal: 'Quartas', semifinal: 'Semifinal', final: 'Final', tbd: 'A definir', live: 'Ao vivo', pending: 'Aguardando', realPool: 'Premiação real', organizer: 'Organização', location: 'Local', year: 'Ano', details: 'Ver resultado', hideDetails: 'Fechar resultado', result: 'Resultado', placement: 'Colocação', gamePrize: 'Prêmio no jogo', record: 'Séries V-D', series: 'Séries do time', stats: 'Stats do evento', bracket: 'Chave', noStats: 'Evento jogado antes das stats do circuito: só a chave ficou salva.', closeSeries: 'Fechar série', win: 'Vitória', loss: 'Derrota' },
-    es: { title: 'Circuito entre Majors', intro: 'Los torneos menores dan premio y entran en la caja antes de la ventana.', cash: 'Caja', elite: 'Elite Series', open: 'Open Cup', invite: 'Invitación', signup: 'Inscripción', play: 'Aceptar y jugar', signupPlay: 'Inscribirse y jugar', skip: 'Saltar', skipped: 'Saltado', locked: 'Se abre con final en el Open Cup #1', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Rivales', prizes: 'Premios', champion: 'Campeón', runnerUp: 'Subcampeón', semi: 'Semifinal', quarter: 'Cuartos', earned: 'Premio', continue: 'Ir a la ventana', quarterfinal: 'Cuartos', semifinal: 'Semifinal', final: 'Final', tbd: 'Por definir', live: 'En vivo', pending: 'Pendiente', realPool: 'Premio real', organizer: 'Organizador', location: 'Sede', year: 'Año', details: 'Ver resultado', hideDetails: 'Cerrar resultado', result: 'Resultado', placement: 'Posición', gamePrize: 'Premio en el juego', record: 'Series V-D', series: 'Series del equipo', stats: 'Stats del torneo', bracket: 'Cuadro', noStats: 'Torneo jugado antes de las stats del circuito: solo se guardó el cuadro.', closeSeries: 'Cerrar serie', win: 'Victoria', loss: 'Derrota' },
-    en: { title: 'Circuit between Majors', intro: 'Smaller events pay prize money that reaches your cash before the window.', cash: 'Cash', elite: 'Elite Series', open: 'Open Cup', invite: 'Invite', signup: 'Sign-up', play: 'Accept and play', signupPlay: 'Sign up and play', skip: 'Skip', skipped: 'Skipped', locked: 'Unlocks with a final at Open Cup #1', lockedShort: 'Locked', simulating: 'Simulating…', opponents: 'Opponents', prizes: 'Prizes', champion: 'Champion', runnerUp: 'Runner-up', semi: 'Semifinal', quarter: 'Quarterfinal', earned: 'Prize', continue: 'Go to the window', quarterfinal: 'Quarterfinal', semifinal: 'Semifinal', final: 'Final', tbd: 'TBD', live: 'Live', pending: 'Pending', realPool: 'Real prize pool', organizer: 'Organizer', location: 'Location', year: 'Year', details: 'View result', hideDetails: 'Close result', result: 'Result', placement: 'Placement', gamePrize: 'In-game prize', record: 'Series W-L', series: 'Team series', stats: 'Event stats', bracket: 'Bracket', noStats: 'Event played before circuit stats existed: only the bracket was saved.', closeSeries: 'Close series', win: 'Win', loss: 'Loss' }
+    'pt-BR': { title: 'Circuito entre Majors', intro: 'Campeonatos menores valem prêmio e já entram no caixa antes da janela.', cash: 'Caixa', elite: 'Elite Series', open: 'Open Cup', invite: 'Convite', signup: 'Inscrição', play: 'Aceitar e jogar', signupPlay: 'Inscrever e jogar', skip: 'Pular', skipped: 'Pulado', locked: 'Libera com final no Open Cup anterior', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Adversários', prizes: 'Prêmios', champion: 'Campeão', runnerUp: 'Vice', semi: 'Semifinal', quarter: 'Quartas', groups: 'Fase de grupos', swiss: 'Grupos', format: '16 times · Suíço + playoffs', formatLegacy: '8 times · playoffs', earned: 'Prêmio', continue: 'Seguir para a janela', quarterfinal: 'Quartas', semifinal: 'Semifinal', final: 'Final', tbd: 'A definir', live: 'Ao vivo', pending: 'Aguardando', realPool: 'Premiação real', organizer: 'Organização', location: 'Local', year: 'Ano', details: 'Ver resultado', hideDetails: 'Fechar resultado', result: 'Resultado', placement: 'Colocação', gamePrize: 'Prêmio no jogo', record: 'Séries V-D', series: 'Séries do time', stats: 'Stats do evento', bracket: 'Chave', noStats: 'Evento jogado antes das stats do circuito: só a chave ficou salva.', closeSeries: 'Fechar série', win: 'Vitória', loss: 'Derrota' },
+    es: { title: 'Circuito entre Majors', intro: 'Los torneos menores dan premio y entran en la caja antes de la ventana.', cash: 'Caja', elite: 'Elite Series', open: 'Open Cup', invite: 'Invitación', signup: 'Inscripción', play: 'Aceptar y jugar', signupPlay: 'Inscribirse y jugar', skip: 'Saltar', skipped: 'Saltado', locked: 'Se abre con final en el Open Cup anterior', lockedShort: 'Bloqueado', simulating: 'Simulando…', opponents: 'Rivales', prizes: 'Premios', champion: 'Campeón', runnerUp: 'Subcampeón', semi: 'Semifinal', quarter: 'Cuartos', groups: 'Fase de grupos', swiss: 'Grupos', format: '16 equipos · Suizo + playoffs', formatLegacy: '8 equipos · playoffs', earned: 'Premio', continue: 'Ir a la ventana', quarterfinal: 'Cuartos', semifinal: 'Semifinal', final: 'Final', tbd: 'Por definir', live: 'En vivo', pending: 'Pendiente', realPool: 'Premio real', organizer: 'Organizador', location: 'Sede', year: 'Año', details: 'Ver resultado', hideDetails: 'Cerrar resultado', result: 'Resultado', placement: 'Posición', gamePrize: 'Premio en el juego', record: 'Series V-D', series: 'Series del equipo', stats: 'Stats del torneo', bracket: 'Cuadro', noStats: 'Torneo jugado antes de las stats del circuito: solo se guardó el cuadro.', closeSeries: 'Cerrar serie', win: 'Victoria', loss: 'Derrota' },
+    en: { title: 'Circuit between Majors', intro: 'Smaller events pay prize money that reaches your cash before the window.', cash: 'Cash', elite: 'Elite Series', open: 'Open Cup', invite: 'Invite', signup: 'Sign-up', play: 'Accept and play', signupPlay: 'Sign up and play', skip: 'Skip', skipped: 'Skipped', locked: 'Unlocks with a final at the previous Open Cup', lockedShort: 'Locked', simulating: 'Simulating…', opponents: 'Opponents', prizes: 'Prizes', champion: 'Champion', runnerUp: 'Runner-up', semi: 'Semifinal', quarter: 'Quarterfinal', groups: 'Group stage', swiss: 'Groups', format: '16 teams · Swiss + playoffs', formatLegacy: '8 teams · playoffs', earned: 'Prize', continue: 'Go to the window', quarterfinal: 'Quarterfinal', semifinal: 'Semifinal', final: 'Final', tbd: 'TBD', live: 'Live', pending: 'Pending', realPool: 'Real prize pool', organizer: 'Organizer', location: 'Location', year: 'Year', details: 'View result', hideDetails: 'Close result', result: 'Result', placement: 'Placement', gamePrize: 'In-game prize', record: 'Series W-L', series: 'Team series', stats: 'Event stats', bracket: 'Bracket', noStats: 'Event played before circuit stats existed: only the bracket was saved.', closeSeries: 'Close series', win: 'Win', loss: 'Loss' }
   } as const;
-  const placements: readonly CircuitPlacement[] = ['champion', 'runnerUp', 'semi', 'quarter'];
+  const placements: readonly CircuitPlacement[] = ['champion', 'runnerUp', 'semi', 'quarter', 'groups'];
 
   $: c = copy[language];
   $: allDone = circuit.events.every((event) => isEventDone(circuit, event.id) || !isEventAvailable(circuit, event));
@@ -56,7 +59,7 @@
   const userScore = (series: SeriesResult) => (series.teamA.id === 'user' ? `${series.scoreA}-${series.scoreB}` : `${series.scoreB}-${series.scoreA}`);
   $: tr = (key: Parameters<typeof translate>[1]) => translate(language, key);
   $: viewerLabels = { start: tr('startSeries'), skip: tr('skipMap'), round: tr('round'), live: tr('live'), map: tr('map'), final: tr('final'), waiting: tr('waiting'), pending: tr('pending'), inProgress: tr('inProgress'), mapInProgress: tr('mapInProgress'), veto: tr('veto'), ban: tr('ban'), pick: tr('pick'), decider: tr('decider'), notPlayed: tr('mapNotPlayed'), mapStart: tr('mapStart') };
-  $: phaseName = (phase: string) => (phase === 'quarterfinal' ? c.quarterfinal : phase === 'semifinal' ? c.semifinal : phase === 'final' ? c.final : phase);
+  $: phaseName = (phase: string) => (phase === 'quarterfinal' ? c.quarterfinal : phase === 'semifinal' ? c.semifinal : phase === 'final' ? c.final : phase === 'swiss' ? c.swiss : phase);
 </script>
 
 <section class="circuit">
@@ -118,10 +121,27 @@
         {/if}
         <ul class="prizes" aria-label={c.prizes}>
           {#each placements as placement}
-            <li class:earned={result?.placement === placement}><span>{c[placement]}</span><b>{formatUsd(CIRCUIT_PRIZES[event.tier][placement], language)}</b></li>
+            {#if placement !== 'groups' || hasGroupStage(event)}
+              <li class:earned={result?.placement === placement}><span>{c[placement]}</span><b>{formatUsd(CIRCUIT_PRIZES[event.tier][placement], language)}</b></li>
+            {/if}
           {/each}
         </ul>
-        <p class="opponents"><span>{c.opponents}</span> {event.teamIds.map(teamName).join(' · ')}</p>
+        <p class="format">{hasGroupStage(event) ? c.format : c.formatLegacy}</p>
+        <div class="opponents">
+          <span>{c.opponents}</span>
+          <ul class="opponent-list">
+            {#each event.teamIds as teamId (teamId)}
+              {@const team = teamById.get(teamId)}
+              <li>
+                {#if onTeam}
+                  <button class="opponent" type="button" on:click={() => onTeam?.(teamId)}><TeamBadge id={teamId} name={team?.name ?? teamId} size="sm" /><span>{teamName(teamId)}</span></button>
+                {:else}
+                  <span class="opponent static"><TeamBadge id={teamId} name={team?.name ?? teamId} size="sm" /><span>{teamName(teamId)}</span></span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
         {#if result}
           {@const path = circuit.stats?.[event.id]?.series ?? []}
           {#if path.length}
@@ -265,8 +285,15 @@
   .path span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .path em { overflow: hidden; font-style: normal; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
   .path b { font: 900 .95rem/1 'Arial Narrow', Impact, sans-serif; }
-  .opponents { margin: 0; font-size: .74rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
-  .opponents span { color: var(--text); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+  .format { margin: 0; color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .opponents { position: relative; z-index: 2; display: grid; gap: 6px; margin: 0; font-size: .74rem; color: var(--muted); }
+  .opponents > span { color: var(--text); font-size: .6rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+  .opponent-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .opponent { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 2px 8px 2px 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text); font: 700 .68rem/1 Inter, Arial, sans-serif; cursor: pointer; transition: border-color .18s ease, color .18s ease; }
+  .opponent.static { cursor: default; }
+  .opponent > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button.opponent:hover { border-color: var(--accent); color: var(--accent); }
+  button.opponent:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
 
   .bracket { overflow-x: auto; max-width: 100%; margin-top: 2px; }
@@ -277,6 +304,7 @@
   .place-runnerUp { --place: #c9d1d9; }
   .place-semi { --place: #c07a45; }
   .place-quarter { --place: #7d8a99; }
+  .place-groups { --place: #6b7683; }
   .result-strip { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding: 9px 12px; border-left: 4px solid var(--place); background: color-mix(in srgb, var(--place) 12%, var(--surface)); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--place); }
   .result-strip b { font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; color: var(--text); }
   .details-toggle { min-height: 44px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--place) 55%, var(--line)); color: var(--text); background: var(--surface-2); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: border-color .18s ease, background-color .18s ease; }

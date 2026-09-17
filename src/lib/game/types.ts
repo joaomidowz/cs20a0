@@ -642,7 +642,7 @@ export interface WindowState {
 
 export type CircuitTier = 'elite' | 'open';
 export type CircuitAccess = 'invite' | 'signup';
-export type CircuitPlacement = 'champion' | 'runnerUp' | 'semi' | 'quarter';
+export type CircuitPlacement = 'champion' | 'runnerUp' | 'semi' | 'quarter' | 'groups';
 
 /** A smaller event between two Dinastia Majors: eight teams, single elimination. */
 export interface CircuitEvent {

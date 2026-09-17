@@ -589,6 +589,7 @@
 
 <SandboxPlayerPicker
   open={editingSlot !== null}
+  language={$language}
   slotIndex={editingSlot ?? 0}
   currentRole={editingSlot !== null ? selection.players[editingSlot]?.selectedSlotRole ?? null : null}
   picks={selection.players}

@@ -2,11 +2,13 @@
   import { onDestroy, tick } from 'svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
+  import { translate } from '$lib/game/i18n';
   import { getEligibleSlotRoles, getRoleLabel } from '$lib/game/roleRules';
   import { chooseSandboxSlotRole, previewSandboxLineupPower } from '$lib/game/sandbox/lineup';
-  import type { LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
+  import type { Language, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
 
   export let open = false;
+  export let language: Language = 'en';
   export let slotIndex = 0;
   export let currentRole: LineupSlotRole | null = null;
   export let picks: SelectedPlayer[] = [];
@@ -87,7 +89,7 @@
       <header>
         <div><span class="eyebrow">SANDBOX · SLOT {slotIndex + 1}{currentRole ? ` · ${getRoleLabel(currentRole).toUpperCase()}` : ''}</span><h2 id="sandbox-picker-title">Trocar jogador</h2></div>
         <div class="picker-power"><small>PODER ATUAL</small><b>{currentPower.toFixed(1)}</b></div>
-        <button class="close" type="button" on:click={onClose} aria-label="Fechar">×</button>
+        <button class="close" type="button" on:click={onClose} aria-label={translate(language, 'close')}>×</button>
       </header>
 
       <div class="picker-tools">

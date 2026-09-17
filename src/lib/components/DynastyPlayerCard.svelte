@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { getRoleLabel } from '$lib/game/roleRules';
   import type { EvolutionEntry, Language, LineupSlotRole, Player, PlayerOverride } from '$lib/game/types';
+  import CountryFlag from './CountryFlag.svelte';
+  import PlayerAvatar from './PlayerAvatar.svelte';
 
   export let player: Player;
   export let role: LineupSlotRole | null = null;
@@ -22,6 +25,9 @@
   } as const;
 
   let flipped = false;
+  // Country from the page's catalog; the card never shows a flag where the catalog has no identities (e.g. core).
+  const catalog = getCatalogContext();
+  $: country = $catalog.playerCountry(player);
   $: c = copy[language];
   $: rarity = (player.rarity ?? 'common').toLowerCase();
   $: delta = evolution ? evolution.overallAfter - evolution.overallBefore : 0;
@@ -34,10 +40,11 @@
     <div class="face front" aria-hidden={flipped}>
       <header>
         <span class="ovr">{player.overall ?? 70}</span>
+        <span class="portrait"><PlayerAvatar {player} bare /></span>
         <span class="rarity">{rarity}</span>
       </header>
-      <strong class="name">{player.nickname ?? player.id}</strong>
-      <small class="team">{teamLabel}{player.year ? ` · ${player.year}` : ''}</small>
+      <strong class="name"><CountryFlag code={country} {language} /> {player.nickname ?? player.id}</strong>
+      <small class="team">{teamLabel}{player.year ? ` · ${player.year}` : ''}{player.role ? ` · ${getRoleLabel(player.role as LineupSlotRole)}` : ''}</small>
       {#if compact}
         <dl class="key-attrs">
           {#each keyAttributes as key}<div><dt>{c[key]}</dt><dd>{player[key] ?? '—'}</dd></div>{/each}
@@ -79,7 +86,9 @@
   .flipped .card-inner { transform: rotateY(180deg); }
   .face { position: absolute; inset: 0; display: grid; align-content: start; gap: 6px; padding: 12px; border-radius: 6px; overflow: hidden; background: linear-gradient(160deg, color-mix(in srgb, var(--rarity) 12%, var(--surface-2)), var(--surface)); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .back { transform: rotateY(180deg); }
-  header { display: flex; justify-content: space-between; align-items: start; }
+  header { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+  .portrait { display: block; flex: 0 0 auto; width: 52px; height: 52px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); border-radius: 6px; background: var(--surface-2); }
+  .name { display: flex; align-items: center; gap: 6px; }
   .ovr { font: 900 2.2rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
   .rarity { font-size: .56rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--rarity) 70%, var(--muted)); }
   .name { font-size: 1.15rem; overflow-wrap: anywhere; }
@@ -101,6 +110,7 @@
   .compact .card-inner { display: grid; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
   .compact .face { position: relative; inset: auto; grid-area: 1 / 1; gap: 4px; padding: 10px; border-radius: 0; }
   .compact .ovr { font-size: 1.8rem; }
+  .compact .portrait { width: 40px; height: 40px; }
   .compact .name { font-size: 1rem; line-height: 1.15; }
   .compact .team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .compact .tags { margin-top: 2px; }

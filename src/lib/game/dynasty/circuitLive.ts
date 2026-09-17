@@ -11,7 +11,7 @@ import { createRunStats } from '../runStats';
 import { stripSeriesDetails } from '../simulation';
 import type { CircuitEvent, CircuitEventStats, CircuitResult, Coach, HistoricalTeam, MajorRound, MapId, Player, SelectedPlayer, SeriesPlan, SeriesResult } from '../types';
 import type { LiveSeriesState } from '../online/live-series';
-import { CIRCUIT_PRIZES, circuitPlacementFrom } from './circuit';
+import { CIRCUIT_PRIZES, circuitPlacementFrom, hasGroupStage } from './circuit';
 
 export interface CircuitCampaignInput {
   event: CircuitEvent;
@@ -27,8 +27,9 @@ export interface CircuitCampaignInput {
 }
 
 /**
- * A circuit event played live on the Major's own engine: eight teams, single elimination, the user's series
- * step by step (every decision on the bot policies) while the bracket fills in round by round.
+ * A circuit event played live on the Major's own engine: sixteen teams, a Swiss stage into an eight-team bracket
+ * (legacy eight-team events go straight to the bracket), the user's series step by step (every decision on the bot
+ * policies) while the table and the bracket fill in round by round.
  */
 export function createCircuitCampaign(input: CircuitCampaignInput): CampaignMajorState {
   const byId = new Map(input.teams.map((team) => [team.id, team]));
@@ -36,7 +37,7 @@ export function createCircuitCampaign(input: CircuitCampaignInput): CampaignMajo
   return createCampaignMajor(input.players, 'balanced', eventTeams, input.allPlayers, `${input.seed}:${input.event.id}`, input.lineup, {
     mode: 'dynasty',
     selectedMaps: input.selectedMaps,
-    playoffEntry: { quarterfinal: 3, semifinal: 3, final: 3 },
+    ...(hasGroupStage(input.event) ? {} : { playoffEntry: { quarterfinal: 3, semifinal: 3, final: 3 } }),
     dynastyRules: 2,
     dynastyPlan: input.plan,
     coach: input.coach ?? undefined
