@@ -1,0 +1,4435 @@
+[
+  {
+    "id": "device-2013",
+    "baseId": "device",
+    "nickname": "device",
+    "title": null,
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "devilwalk-2013",
+    "baseId": "devilwalk",
+    "nickname": "Devilwalk",
+    "title": null,
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 89,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dupreeh-2013",
+    "baseId": "dupreeh",
+    "nickname": "dupreeh",
+    "title": null,
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 87,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2013,
+      "rank": 18
+    }
+  },
+  {
+    "id": "fetish-2013",
+    "baseId": "fetish",
+    "nickname": "FeTiSh",
+    "title": null,
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 88,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "flusha-2013",
+    "baseId": "flusha",
+    "nickname": "flusha",
+    "title": null,
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 89,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2013,
+      "rank": 13
+    }
+  },
+  {
+    "id": "jw-2013",
+    "baseId": "jw",
+    "nickname": "JW",
+    "title": null,
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 86,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 94,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "nico-2013",
+    "baseId": "nico",
+    "nickname": "Nico",
+    "title": null,
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "pronax-2013",
+    "baseId": "pronax",
+    "nickname": "pronax",
+    "title": null,
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 20,
+    "support": 92,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "schneider-2013",
+    "baseId": "schneider",
+    "nickname": "schneider",
+    "title": null,
+    "teamId": "fnatic-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 85,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 92,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "xyp9x-2013",
+    "baseId": "xyp9x",
+    "nickname": "Xyp9x",
+    "title": null,
+    "teamId": "copenhagen-wolves-2013",
+    "year": 2013,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support",
+      "lurker"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 74,
+    "awp": 20,
+    "support": 87,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2013,
+      "rank": 20
+    }
+  },
+  {
+    "id": "ace-2014",
+    "baseId": "ace",
+    "nickname": "Ace",
+    "title": null,
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "adren-2014",
+    "baseId": "adren",
+    "nickname": "AdreN",
+    "title": null,
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 79,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 86,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "ange1-2014",
+    "baseId": "ange1",
+    "nickname": "ANGE1",
+    "title": null,
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 88,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "astarr-2014",
+    "baseId": "astarr",
+    "nickname": "astaRR",
+    "title": null,
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "azk-2014",
+    "baseId": "azk",
+    "nickname": "AZK",
+    "title": null,
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "cajunb-2014",
+    "baseId": "cajunb",
+    "nickname": "cajunb",
+    "title": null,
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dazed-2014",
+    "baseId": "dazed",
+    "nickname": "DaZeD",
+    "title": null,
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "device-2014",
+    "baseId": "device",
+    "nickname": "device",
+    "title": null,
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 68,
+    "awp": 87,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 20
+    }
+  },
+  {
+    "id": "devilwalk-2014",
+    "baseId": "devilwalk",
+    "nickname": "Devilwalk",
+    "title": null,
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 86,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dosia-2014",
+    "baseId": "dosia",
+    "nickname": "Dosia",
+    "title": null,
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dupreeh-2014",
+    "baseId": "dupreeh",
+    "nickname": "dupreeh",
+    "title": null,
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 87,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 16
+    }
+  },
+  {
+    "id": "f0rest-2014",
+    "baseId": "f0rest",
+    "nickname": "f0rest",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "awper"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 7
+    }
+  },
+  {
+    "id": "fetish-2014",
+    "baseId": "fetish",
+    "nickname": "FeTiSh",
+    "title": null,
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "fifflaren-2014",
+    "baseId": "fifflaren",
+    "nickname": "Fifflaren",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 89,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "flusha-2014",
+    "baseId": "flusha",
+    "nickname": "flusha",
+    "title": "Top 5 Player",
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "superstar",
+    "traits": [],
+    "overall": 96,
+    "firepower": 95,
+    "clutch": 90,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 94,
+    "mental": 92,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 2
+    }
+  },
+  {
+    "id": "friberg-2014",
+    "baseId": "friberg",
+    "nickname": "friberg",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 20,
+    "support": 92,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "get-right-2014",
+    "baseId": "get-right",
+    "nickname": "GeT_RiGhT",
+    "title": "Player of the Year",
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "awper"
+    ],
+    "rarity": "legend",
+    "traits": [],
+    "overall": 98,
+    "firepower": 97,
+    "clutch": 92,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 90,
+    "consistency": 96,
+    "mental": 94,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 1
+    }
+  },
+  {
+    "id": "happy-2014",
+    "baseId": "happy",
+    "nickname": "Happy",
+    "title": null,
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 80,
+    "awp": 20,
+    "support": 92,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 10
+    }
+  },
+  {
+    "id": "jw-2014",
+    "baseId": "jw",
+    "nickname": "JW",
+    "title": null,
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 83,
+    "firepower": 86,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 91,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "kioshima-2014",
+    "baseId": "kioshima",
+    "nickname": "kioShiMa",
+    "title": null,
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 92,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 19
+    }
+  },
+  {
+    "id": "kucher-2014",
+    "baseId": "kucher",
+    "nickname": "kUcheR",
+    "title": null,
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "markeloff-2014",
+    "baseId": "markeloff",
+    "nickname": "markeloff",
+    "title": null,
+    "teamId": "hellraisers-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "mithilf-2014",
+    "baseId": "mithilf",
+    "nickname": "MithilF",
+    "title": null,
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "nbk-team-ldlc-com-2014",
+    "baseId": "nbk",
+    "nickname": "NBK-",
+    "title": null,
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "entry"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because nbk-2014 already belongs to titan-2014. Confirm exact team-ldlc-com-2014 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 17
+    }
+  },
+  {
+    "id": "pronax-2014",
+    "baseId": "pronax",
+    "nickname": "pronax",
+    "title": null,
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 20,
+    "support": 89,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "ritz-2014",
+    "baseId": "ritz",
+    "nickname": "RiTz",
+    "title": null,
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "rix-2014",
+    "baseId": "rix",
+    "nickname": "RiX",
+    "title": null,
+    "teamId": "team-wolf-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "schneider-2014",
+    "baseId": "schneider",
+    "nickname": "schneider",
+    "title": null,
+    "teamId": "fnatic-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 82,
+    "firepower": 86,
+    "clutch": 81,
+    "entry": 89,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "shox-team-ldlc-com-2014",
+    "baseId": "shox",
+    "nickname": "shox",
+    "title": null,
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because shox-2014 already belongs to titan-2014. Confirm exact team-ldlc-com-2014 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 8
+    }
+  },
+  {
+    "id": "skadoodle-2014",
+    "baseId": "skadoodle",
+    "nickname": "Skadoodle",
+    "title": null,
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl",
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "smithzz-team-ldlc-com-2014",
+    "baseId": "smithzz",
+    "nickname": "SmithZz",
+    "title": null,
+    "teamId": "team-ldlc-com-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because smithzz-2014 already belongs to titan-2014. Confirm exact team-ldlc-com-2014 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "steel-2014",
+    "baseId": "steel",
+    "nickname": "steel",
+    "title": null,
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "swag-team-ibuypower-2014",
+    "baseId": "swag",
+    "nickname": "swag",
+    "title": null,
+    "teamId": "team-ibuypower-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 83,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because swag-2014 already belongs to complexity-gaming-2014. Confirm exact team-ibuypower-2014 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2014,
+      "rank": 18
+    }
+  },
+  {
+    "id": "xizt-2014",
+    "baseId": "xizt",
+    "nickname": "Xizt",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 85,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 92,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "xyp9x-2014",
+    "baseId": "xyp9x",
+    "nickname": "Xyp9x",
+    "title": null,
+    "teamId": "team-dignitas-2014",
+    "year": 2014,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support",
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "adren-team-liquid-2015",
+    "baseId": "adren",
+    "nickname": "AdreN",
+    "title": null,
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because adren-2015 already belongs to hellraisers-2015. Confirm exact team-liquid-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "aizy-2015",
+    "baseId": "aizy",
+    "nickname": "aizy",
+    "title": null,
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "allu-2015",
+    "baseId": "allu",
+    "nickname": "allu",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 20,
+    "support": 89,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "apex-2015",
+    "baseId": "apex",
+    "nickname": "apEX",
+    "title": null,
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 94,
+    "experience": 84,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 18
+    }
+  },
+  {
+    "id": "b1ad3-2015",
+    "baseId": "b1ad3",
+    "nickname": "B1ad3",
+    "title": null,
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "boltz-luminosity-gaming-2015",
+    "baseId": "boltz",
+    "nickname": "boltz",
+    "title": null,
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because boltz-2015 already belongs to keyd-stars-2015. Confirm exact luminosity-gaming-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "bondik-2015",
+    "baseId": "bondik",
+    "nickname": "bondik",
+    "title": null,
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "byali-2015",
+    "baseId": "byali",
+    "nickname": "byali",
+    "title": null,
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "cajunb-2015",
+    "baseId": "cajunb",
+    "nickname": "cajunb",
+    "title": null,
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 89,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 68,
+    "awp": 20,
+    "support": 87,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 15
+    }
+  },
+  {
+    "id": "chrisj-2015",
+    "baseId": "chrisj",
+    "nickname": "chrisJ",
+    "title": null,
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl",
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "coldzera-2015",
+    "baseId": "coldzera",
+    "nickname": "coldzera",
+    "title": null,
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "davcost-2015",
+    "baseId": "davcost",
+    "nickname": "DavCost",
+    "title": null,
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "denis-2015",
+    "baseId": "denis",
+    "nickname": "denis",
+    "title": null,
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 83,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "denis-mousesports-2015",
+    "baseId": "denis",
+    "nickname": "denis",
+    "title": null,
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 83,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because denis-2015 already belongs to penta-sports-2015. Confirm exact mousesports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dennis-2015",
+    "baseId": "dennis",
+    "nickname": "dennis",
+    "title": null,
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "dennis-g2-esports-2015",
+    "baseId": "dennis",
+    "nickname": "dennis",
+    "title": null,
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because dennis-2015 already belongs to team-kinguin-2015. Confirm exact g2-esports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "device-2015",
+    "baseId": "device",
+    "nickname": "device",
+    "title": "Top 5 Player",
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "superstar",
+    "traits": [],
+    "overall": 96,
+    "firepower": 95,
+    "clutch": 90,
+    "entry": 68,
+    "awp": 94,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 94,
+    "mental": 92,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 3
+    }
+  },
+  {
+    "id": "dupreeh-2015",
+    "baseId": "dupreeh",
+    "nickname": "dupreeh",
+    "title": null,
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 89,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 87,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 12
+    }
+  },
+  {
+    "id": "edward-2015",
+    "baseId": "edward",
+    "nickname": "Edward",
+    "title": null,
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 82,
+    "firepower": 86,
+    "clutch": 81,
+    "entry": 89,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "elige-2015",
+    "baseId": "elige",
+    "nickname": "EliGE",
+    "title": null,
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "ex6tenz-2015",
+    "baseId": "ex6tenz",
+    "nickname": "Ex6TenZ",
+    "title": null,
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "f0rest-2015",
+    "baseId": "f0rest",
+    "nickname": "f0rest",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "awper"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 16
+    }
+  },
+  {
+    "id": "fallen-luminosity-gaming-2015",
+    "baseId": "fallen",
+    "nickname": "FalleN",
+    "title": null,
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl",
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 88,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because fallen-2015 already belongs to keyd-stars-2015. Confirm exact luminosity-gaming-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "fer-luminosity-gaming-2015",
+    "baseId": "fer",
+    "nickname": "fer",
+    "title": null,
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because fer-2015 already belongs to keyd-stars-2015. Confirm exact luminosity-gaming-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "flamie-2015",
+    "baseId": "flamie",
+    "nickname": "flamie",
+    "title": null,
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 20,
+    "support": 89,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "flusha-2015",
+    "baseId": "flusha",
+    "nickname": "flusha",
+    "title": "Top 5 Player",
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "superstar",
+    "traits": [],
+    "overall": 94,
+    "firepower": 93,
+    "clutch": 88,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 92,
+    "mental": 90,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 5
+    }
+  },
+  {
+    "id": "fox-2015",
+    "baseId": "fox",
+    "nickname": "fox",
+    "title": null,
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 83,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "fox-g2-esports-2015",
+    "baseId": "fox",
+    "nickname": "fox",
+    "title": null,
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 83,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because fox-2015 already belongs to team-kinguin-2015. Confirm exact g2-esports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "friberg-2015",
+    "baseId": "friberg",
+    "nickname": "friberg",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 86,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "fugly-2015",
+    "baseId": "fugly",
+    "nickname": "FugLy",
+    "title": null,
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "get-right-2015",
+    "baseId": "get-right",
+    "nickname": "GeT_RiGhT",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "awper"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 89,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 11
+    }
+  },
+  {
+    "id": "gob-b-2015",
+    "baseId": "gob-b",
+    "nickname": "gob b",
+    "title": null,
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "guardian-2015",
+    "baseId": "guardian",
+    "nickname": "GuardiaN",
+    "title": "Top 5 Player",
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "superstar",
+    "traits": [],
+    "overall": 96,
+    "firepower": 95,
+    "clutch": 90,
+    "entry": 77,
+    "awp": 94,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 94,
+    "mental": 92,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 2
+    }
+  },
+  {
+    "id": "happy-2015",
+    "baseId": "happy",
+    "nickname": "Happy",
+    "title": null,
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl",
+      "support"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 94,
+    "experience": 84,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 8
+    }
+  },
+  {
+    "id": "hiko-2015",
+    "baseId": "hiko",
+    "nickname": "Hiko",
+    "title": null,
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "jkaem-g2-esports-2015",
+    "baseId": "jkaem",
+    "nickname": "jkaem",
+    "title": null,
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because jkaem-2015 already belongs to lgb-esports-2015. Confirm exact g2-esports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "jw-2015",
+    "baseId": "jw",
+    "nickname": "JW",
+    "title": null,
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 86,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 94,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "karrigan-2015",
+    "baseId": "karrigan",
+    "nickname": "karrigan",
+    "title": null,
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "kennys-2015",
+    "baseId": "kennys",
+    "nickname": "kennyS",
+    "title": null,
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 80,
+    "awp": 94,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 6
+    }
+  },
+  {
+    "id": "kioshima-2015",
+    "baseId": "kioshima",
+    "nickname": "kioShiMa",
+    "title": null,
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 85,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 92,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "kjaerbye-2015",
+    "baseId": "kjaerbye",
+    "nickname": "Kjaerbye",
+    "title": null,
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "krimz-2015",
+    "baseId": "krimz",
+    "nickname": "KRIMZ",
+    "title": null,
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 84,
+    "firepower": 84,
+    "clutch": 84,
+    "entry": 80,
+    "awp": 20,
+    "support": 92,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "krystal-2015",
+    "baseId": "krystal",
+    "nickname": "kRYSTAL",
+    "title": null,
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "maikelele-2015",
+    "baseId": "maikelele",
+    "nickname": "Maikelele",
+    "title": null,
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "maikelele-g2-esports-2015",
+    "baseId": "maikelele",
+    "nickname": "Maikelele",
+    "title": null,
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 80,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 88,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because maikelele-2015 already belongs to team-kinguin-2015. Confirm exact g2-esports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "markeloff-2015",
+    "baseId": "markeloff",
+    "nickname": "markeloff",
+    "title": null,
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "msl-2015",
+    "baseId": "msl",
+    "nickname": "MSL",
+    "title": null,
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "n0thing-2015",
+    "baseId": "n0thing",
+    "nickname": "n0thing",
+    "title": null,
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "nbk-2015",
+    "baseId": "nbk",
+    "nickname": "NBK-",
+    "title": null,
+    "teamId": "team-envyus-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "entry"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 91,
+    "firepower": 90,
+    "clutch": 85,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 89,
+    "mental": 87,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 9
+    }
+  },
+  {
+    "id": "neo-2015",
+    "baseId": "neo",
+    "nickname": "NEO",
+    "title": null,
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "igl"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 87,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 17
+    }
+  },
+  {
+    "id": "nex-2015",
+    "baseId": "nex",
+    "nickname": "nex",
+    "title": null,
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 79,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 86,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "nex-mousesports-2015",
+    "baseId": "nex",
+    "nickname": "nex",
+    "title": null,
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 79,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 86,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because nex-2015 already belongs to penta-sports-2015. Confirm exact mousesports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "niko-2015",
+    "baseId": "niko",
+    "nickname": "NiKo",
+    "title": null,
+    "teamId": "mousesports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "nitr0-2015",
+    "baseId": "nitr0",
+    "nickname": "nitr0",
+    "title": null,
+    "teamId": "team-liquid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "olofmeister-2015",
+    "baseId": "olofmeister",
+    "nickname": "olofmeister",
+    "title": "Player of the Year",
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "entry"
+    ],
+    "rarity": "legend",
+    "traits": [],
+    "overall": 98,
+    "firepower": 97,
+    "clutch": 92,
+    "entry": 80,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 90,
+    "consistency": 96,
+    "mental": 94,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 1
+    }
+  },
+  {
+    "id": "pashabiceps-2015",
+    "baseId": "pashabiceps",
+    "nickname": "pashaBiceps",
+    "title": null,
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "pimp-2015",
+    "baseId": "pimp",
+    "nickname": "Pimp",
+    "title": null,
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "pronax-2015",
+    "baseId": "pronax",
+    "nickname": "pronax",
+    "title": null,
+    "teamId": "fnatic-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 85,
+    "firepower": 89,
+    "clutch": 84,
+    "entry": 92,
+    "awp": 20,
+    "support": 82,
+    "igl": 30,
+    "experience": 84,
+    "consistency": 84,
+    "mental": 84,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "rain-g2-esports-2015",
+    "baseId": "rain",
+    "nickname": "rain",
+    "title": null,
+    "teamId": "g2-esports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because rain-2015 already belongs to lgb-esports-2015. Confirm exact g2-esports-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "rain-team-kinguin-2015",
+    "baseId": "rain",
+    "nickname": "rain",
+    "title": null,
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry",
+      "rifler"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because rain-2015 already belongs to lgb-esports-2015. Confirm exact team-kinguin-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "rpk-2015",
+    "baseId": "rpk",
+    "nickname": "RpK",
+    "title": null,
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "scream-2015",
+    "baseId": "scream",
+    "nickname": "ScreaM",
+    "title": null,
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "scream-team-kinguin-2015",
+    "baseId": "scream",
+    "nickname": "ScreaM",
+    "title": null,
+    "teamId": "team-kinguin-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because scream-2015 already belongs to titan-2015. Confirm exact team-kinguin-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "seized-2015",
+    "baseId": "seized",
+    "nickname": "seized",
+    "title": null,
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 83,
+    "firepower": 86,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 91,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "semphis-2015",
+    "baseId": "semphis",
+    "nickname": "SEMPHIS",
+    "title": null,
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 80,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "sgares-2015",
+    "baseId": "sgares",
+    "nickname": "sgares",
+    "title": null,
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "shahzam-2015",
+    "baseId": "shahzam",
+    "nickname": "ShahZaM",
+    "title": null,
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "shox-2015",
+    "baseId": "shox",
+    "nickname": "shox",
+    "title": null,
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler"
+    ],
+    "rarity": "elite",
+    "traits": [],
+    "overall": 89,
+    "firepower": 87,
+    "clutch": 82,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 86,
+    "mental": 84,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 13
+    }
+  },
+  {
+    "id": "shroud-2015",
+    "baseId": "shroud",
+    "nickname": "shroud",
+    "title": null,
+    "teamId": "cloud9-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "smithzz-2015",
+    "baseId": "smithzz",
+    "nickname": "SmithZz",
+    "title": null,
+    "teamId": "titan-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "lurker",
+    "eligibleSlotRoles": [
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 77,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "snax-2015",
+    "baseId": "snax",
+    "nickname": "Snax",
+    "title": "Top 5 Player",
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "rifler",
+    "eligibleSlotRoles": [
+      "rifler",
+      "igl"
+    ],
+    "rarity": "superstar",
+    "traits": [],
+    "overall": 94,
+    "firepower": 93,
+    "clutch": 88,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 92,
+    "mental": 90,
+    "badges": [
+      "major-participant",
+      "hltv-top20"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    },
+    "hltvTop20": {
+      "year": 2015,
+      "rank": 4
+    }
+  },
+  {
+    "id": "spiidi-2015",
+    "baseId": "spiidi",
+    "nickname": "Spiidi",
+    "title": null,
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 86,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "steel-luminosity-gaming-2015",
+    "baseId": "steel",
+    "nickname": "steel",
+    "title": null,
+    "teamId": "luminosity-gaming-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 79,
+    "firepower": 83,
+    "clutch": 78,
+    "entry": 86,
+    "awp": 20,
+    "support": 76,
+    "igl": 30,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": true,
+    "roleConfidence": "medium",
+    "reviewReason": "Team-specific clone created because steel-2015 already belongs to keyd-stars-2015. Confirm exact luminosity-gaming-2015 lineup before production merge.",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "taz-2015",
+    "baseId": "taz",
+    "nickname": "TaZ",
+    "title": null,
+    "teamId": "virtus-pro-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 70,
+    "igl": 82,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "tenzki-2015",
+    "baseId": "tenzki",
+    "nickname": "tenzki",
+    "title": null,
+    "teamId": "team-dignitas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 72,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "troubley-2015",
+    "baseId": "troubley",
+    "nickname": "Troubley",
+    "title": null,
+    "teamId": "penta-sports-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 78,
+    "firepower": 78,
+    "clutch": 78,
+    "entry": 74,
+    "awp": 20,
+    "support": 76,
+    "igl": 88,
+    "experience": 78,
+    "consistency": 78,
+    "mental": 78,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "worldedit-2015",
+    "baseId": "worldedit",
+    "nickname": "WorldEdit",
+    "title": null,
+    "teamId": "flipsid3-tactics-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "awper",
+    "eligibleSlotRoles": [
+      "awper"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 74,
+    "firepower": 77,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 82,
+    "support": 70,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "xizt-2015",
+    "baseId": "xizt",
+    "nickname": "Xizt",
+    "title": null,
+    "teamId": "ninjas-in-pyjamas-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "entry",
+    "eligibleSlotRoles": [
+      "entry"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 82,
+    "firepower": 86,
+    "clutch": 81,
+    "entry": 89,
+    "awp": 20,
+    "support": 79,
+    "igl": 30,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "xyp9x-2015",
+    "baseId": "xyp9x",
+    "nickname": "Xyp9x",
+    "title": null,
+    "teamId": "team-solomid-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "support",
+    "eligibleSlotRoles": [
+      "support",
+      "lurker"
+    ],
+    "rarity": "common",
+    "traits": [],
+    "overall": 73,
+    "firepower": 72,
+    "clutch": 72,
+    "entry": 68,
+    "awp": 20,
+    "support": 80,
+    "igl": 30,
+    "experience": 72,
+    "consistency": 72,
+    "mental": 72,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  },
+  {
+    "id": "zeus-2015",
+    "baseId": "zeus",
+    "nickname": "Zeus",
+    "title": null,
+    "teamId": "natus-vincere-2015",
+    "year": 2015,
+    "game": "CSGO",
+    "role": "igl",
+    "eligibleSlotRoles": [
+      "igl"
+    ],
+    "rarity": "rare",
+    "traits": [],
+    "overall": 81,
+    "firepower": 81,
+    "clutch": 81,
+    "entry": 77,
+    "awp": 20,
+    "support": 79,
+    "igl": 91,
+    "experience": 81,
+    "consistency": 81,
+    "mental": 81,
+    "badges": [
+      "major-participant"
+    ],
+    "awardBadges": [],
+    "needsReview": false,
+    "roleConfidence": "medium",
+    "source": {
+      "note": "Roster imported from curated Major seed."
+    }
+  }
+]

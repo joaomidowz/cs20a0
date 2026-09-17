@@ -3,12 +3,19 @@
   import SeoHead from '$lib/components/SeoHead.svelte';
   import TeamCard from '$lib/components/TeamCard.svelte';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
-  import { teams } from '$lib/game/data';
+  import { readable } from 'svelte/store';
+  import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
+  import { setCatalogContext } from '$lib/game/catalogContext';
   import { translate } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
   import { sortTeamsByPlacement } from '$lib/game/teamViews';
   import type { HistoricalTeam } from '$lib/game/types';
   import { SEO_BY_ROUTE } from '$lib/seo';
+
+  // The whole current catalog (qualifier team-years included, once the expansion lands); cards and the modal resolve rosters on it.
+  const catalog = getCatalog(CURRENT_CATALOG_VERSION);
+  setCatalogContext(readable(catalog));
+  const { teams } = catalog;
 
   let selectedTeam: HistoricalTeam | null = null;
 

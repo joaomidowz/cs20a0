@@ -8,6 +8,7 @@
     privacy: string;
     terms: string;
     contactPage: string;
+    credits: string;
     footerNav: string;
   };
 
@@ -26,6 +27,7 @@
       <a href="/privacy">{labels.privacy}</a>
       <a href="/terms">{labels.terms}</a>
       <a href="/contact">{labels.contactPage}</a>
+      <a href="/credits">{labels.credits}</a>
     </nav>
 
     <div class="footer-actions">

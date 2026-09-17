@@ -18,8 +18,10 @@
   import CollapsibleStats from '$lib/components/CollapsibleStats.svelte';
   import RunHighlights from '$lib/components/RunHighlights.svelte';
   import { createRunStats } from '$lib/game/runStats';
+  import { readable } from 'svelte/store';
   import { orientSeriesToTeam } from '$lib/game/simulation';
-  import { getTeamPlayers, playerById, teamById, teams } from '$lib/game/data';
+  import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
+  import { setCatalogContext } from '$lib/game/catalogContext';
   import { getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, MAP_POOL } from '$lib/game/maps';
   import { language, theme } from '$lib/game/pageState';
   import { getEligibleSlotRoles, getRoleLabel } from '$lib/game/roleRules';
@@ -31,6 +33,11 @@
   import type { MajorRun, PlayerRunStats } from '$lib/game/types';
   import type { HistoricalTeam, LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
   import '../../app.css';
+
+  // The Sandbox always plays on the current catalog (not a stamped run); the roster modal and stats grid read it from context.
+  const catalog = getCatalog(CURRENT_CATALOG_VERSION);
+  setCatalogContext(readable(catalog));
+  const { getTeamPlayers, playerById, teamById, teams } = catalog;
 
   const roles: LineupSlotRole[] = ['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'];
   const SELECTION_KEY = 'cs13a0:sandboxSelection';

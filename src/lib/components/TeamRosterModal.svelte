@@ -1,15 +1,17 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { translate, translateTeamName } from '$lib/game/i18n';
   import {
     teamAverageOverall,
     teamPlacementLabel,
-    teamPlayers,
     teamStyle,
     teamTags
   } from '$lib/game/teamViews';
   import type { HistoricalTeam, Language } from '$lib/game/types';
+  import CountryFlag from './CountryFlag.svelte';
   import PlayerMiniCard from './PlayerMiniCard.svelte';
+  import TeamBadge from './TeamBadge.svelte';
 
   export let team: HistoricalTeam | null = null;
   export let isOpen = false;
@@ -21,11 +23,15 @@
   let closeButton: HTMLButtonElement;
   let wasOpen = false;
 
-  $: roster = teamPlayers(team);
+  // Rosters resolve on the page's catalog (core when no page set one, e.g. /online).
+  const catalog = getCatalogContext();
+  $: roster = $catalog.getTeamPlayers(team);
   $: average = teamAverageOverall(team, roster);
   $: tags = teamTags(team);
   $: style = teamStyle(team, roster);
   $: placement = teamPlacementLabel(team);
+  $: orgId = $catalog.teamOrgId(team);
+  $: country = $catalog.teamCountry(team);
   $: if (isOpen && !wasOpen) {
     wasOpen = true;
     void focusDialog();
@@ -76,9 +82,9 @@
     >
       <button bind:this={closeButton} class="sheet-close" type="button" aria-label={translate(language, 'close')} on:click={onClose}>×</button>
       <header class="team-modal-header">
-        <div class="team-avatar">{(team.name ?? 'T').slice(0, 2).toUpperCase()}</div>
+        <TeamBadge id={team.id} name={team.name ?? ''} size="xl" {orgId} />
         <div>
-          <span class="eyebrow">{team.game ?? 'CS'} · {team.year ?? '—'} · {placement}</span>
+          <span class="eyebrow"><CountryFlag code={country} {language} /> {team.game ?? 'CS'} · {team.year ?? '—'} · {placement}</span>
           <h2>{translateTeamName(language, team.name ?? team.id)}</h2>
           <p>{style} · OVR {average}</p>
         </div>

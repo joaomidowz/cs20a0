@@ -3572,7 +3572,11 @@
       "major-champion",
       "hltv-team-top30",
       "hltv-team-top30-2018",
-      "hltv-team-rank-14-2018"
+      "hltv-team-rank-14-2018",
+      "major-participant",
+      "major-stage3",
+      "major-playoff-team",
+      "major-semifinalist"
     ],
     "majorSummary": {
       "eventsPlayed": 2,
@@ -16934,7 +16938,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -17027,7 +17031,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -17432,7 +17436,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -18180,8 +18184,8 @@
       "lux-2025",
       "saadzin-2025"
     ],
-    "power": 79,
-    "teamPowerPreview": 79,
+    "power": 88,
+    "teamPowerPreview": 88,
     "teamStats": {
       "chemistry": 73,
       "tactics": 73,
@@ -18208,7 +18212,7 @@
     },
     "tier": "underdog",
     "style": "balanced",
-    "styleRating": 73,
+    "styleRating": 88,
     "upsetRating": 65,
     "stompRating": 69,
     "badges": [
@@ -18216,7 +18220,8 @@
       "major-stage3",
       "hltv-team-top30",
       "hltv-team-top30-2025",
-      "hltv-team-rank-17-2025"
+      "hltv-team-rank-17-2025",
+      "big-event-champion"
     ],
     "majorSummary": {
       "eventsPlayed": 2,
@@ -18232,7 +18237,8 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
-      "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
+      "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
+      "Campeão: CS Asia Championships 2025 (A-Tier, $400k) (fora do circuito de Major, mas Tier A/S)."
     ],
     "needsReview": true,
     "reviewReason": "Roster confirmed from manual 2025 Major copy; roles need review.",
@@ -18327,7 +18333,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -18987,7 +18993,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19136,7 +19142,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19229,7 +19235,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19418,7 +19424,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19499,7 +19505,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19577,7 +19583,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19652,7 +19658,8 @@
       "major-champion",
       "hltv-team-top30",
       "hltv-team-top30-2025",
-      "hltv-team-rank-1-2025"
+      "hltv-team-rank-1-2025",
+      "double-major-year"
     ],
     "majorSummary": {
       "eventsPlayed": 2,
@@ -19670,7 +19677,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19752,7 +19759,7 @@
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign.",
       "Roster imported from manual HLTV event copy for BLAST Austin 2025 and StarLadder Budapest 2025; line selected by best 2025 Major campaign."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "events": [
@@ -19865,7 +19872,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -19937,7 +19945,8 @@
       "major-participant",
       "major-semifinalist",
       "major-playoff-team",
-      "dangerous-underdog"
+      "dangerous-underdog",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -19953,7 +19962,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20077,7 +20086,8 @@
     "badges": [
       "major-participant",
       "major-playoff-team",
-      "dangerous-underdog"
+      "dangerous-underdog",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20093,7 +20103,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20141,13 +20151,14 @@
     "style": "balanced",
     "styleRating": 92,
     "upsetRating": 74,
-    "stompRating": 68,
+    "stompRating": 84,
     "badges": [
       "major-participant",
       "major-champion",
       "major-finalist",
       "major-semifinalist",
-      "major-playoff-team"
+      "major-playoff-team",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20163,7 +20174,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20217,7 +20228,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20251,7 +20263,7 @@
     "game": "CS2",
     "sourceRank": 5,
     "hltvPoints": 393,
-    "tier": "playoff-team",
+    "tier": "finalist",
     "rarity": "elite",
     "players": [
       "fallen-2026",
@@ -20280,14 +20292,15 @@
       }
     },
     "style": "aggressive",
-    "styleRating": 82,
+    "styleRating": 88,
     "upsetRating": 72,
-    "stompRating": 82,
+    "stompRating": 88,
     "badges": [
       "major-participant",
       "major-finalist",
       "major-semifinalist",
-      "major-playoff-team"
+      "major-playoff-team",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20303,7 +20316,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20357,7 +20370,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-playoff-team"
+      "major-playoff-team",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20373,7 +20387,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20426,7 +20440,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20496,7 +20511,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage1"
+      "major-stage1",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20537,8 +20553,8 @@
       "n1ssim-2026",
       "saadzin-2026"
     ],
-    "power": 77,
-    "teamPowerPreview": 77,
+    "power": 88,
+    "teamPowerPreview": 88,
     "teamStats": {
       "chemistry": 72,
       "tactics": 72,
@@ -20561,12 +20577,13 @@
     },
     "tier": "underdog",
     "style": "balanced",
-    "styleRating": 72,
+    "styleRating": 88,
     "upsetRating": 64,
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage3"
+      "major-stage3",
+      "big-event-champion"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20580,7 +20597,9 @@
     },
     "historicalNotes": [
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
-      "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
+      "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached.",
+      "Campeão: CS Asia Championships 2026 (S-Tier, $1M) (fora do circuito de Major, mas Tier A/S).",
+      "Campeão: FISSURE Playground 3 (2026-09-13) (fora do circuito de Major, mas Tier A/S)."
     ],
     "needsReview": true,
     "rosterSource": {
@@ -20636,7 +20655,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage1"
+      "major-stage1",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20652,7 +20672,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",
@@ -20705,7 +20725,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage1"
+      "major-stage1",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20775,7 +20796,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20845,7 +20867,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage3"
+      "major-stage3",
+      "major-playoff-team"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -20913,7 +20936,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage3"
+      "major-stage3",
+      "major-playoff-team"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -21044,7 +21068,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -21233,7 +21258,8 @@
     "badges": [
       "major-participant",
       "major-semifinalist",
-      "major-playoff-team"
+      "major-playoff-team",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -21375,7 +21401,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-stage2"
+      "major-stage2",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -21443,7 +21470,8 @@
     "stompRating": 68,
     "badges": [
       "major-participant",
-      "major-playoff-team"
+      "major-playoff-team",
+      "major-stage3"
     ],
     "majorSummary": {
       "eventsPlayed": 1,
@@ -21459,7 +21487,7 @@
       "Aggregated yearly Major version based on broad participant and placement research. Fine roster/role review may still be required.",
       "Roster imported from manual HLTV event copy for IEM Cologne Major 2026; line selected by furthest stage reached."
     ],
-    "needsReview": false,
+    "needsReview": true,
     "rosterSource": {
       "type": "hltv-event/manual-copy",
       "event": "IEM Cologne Major 2026",

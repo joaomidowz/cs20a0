@@ -56,7 +56,8 @@
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { HOME_SEO_COPY, HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
-  import { coachById, coaches, getTeamPlayers, playerById, playerTitle, teamById, teams, players } from '$lib/game/data';
+  import { catalogStoreOf, CURRENT_CATALOG_VERSION, playerTitle } from '$lib/game/catalog';
+  import { setCatalogContext } from '$lib/game/catalogContext';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
   import { getPlayerBaseId, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import {
@@ -132,6 +133,18 @@
   } from '$lib/game/types';
   import '../app.css';
 
+  // The catalog stamped on the run: every lookup here and the shared components (HUD, stats, rosters) resolve on it,
+  // so a save from before the expansion keeps replaying on core while a new run drafts from the current catalog.
+  const catalogStore = setCatalogContext(catalogStoreOf(game));
+  $: catalog = $catalogStore;
+  $: teams = catalog.teams;
+  $: players = catalog.players;
+  $: coaches = catalog.coaches;
+  $: playerById = catalog.playerById;
+  $: teamById = catalog.teamById;
+  $: coachById = catalog.coachById;
+  $: getTeamPlayers = catalog.getTeamPlayers;
+
   let detailsPlayer: Player | null = null;
   let rouletteSpinning = false;
   let rouletteCandidates: HistoricalTeam[] = [];
@@ -162,7 +175,7 @@
   function beginRoulette(team: HistoricalTeam, excludedIds: string[], rerollsUsed = $game.rerollsUsed) {
     unlockOfflineAudio();
     freshOffer = false;
-    rouletteCandidates = teams.filter(candidate => !excludedIds.includes(candidate.id));
+    rouletteCandidates = catalog.draftTeams.filter(candidate => !excludedIds.includes(candidate.id));
     rouletteSpinning = true;
     update({ rolledTeamId: team.id, rerollsUsed });
   }
@@ -393,6 +406,8 @@
     stopCircuitTick();
     update({
       seed: $game.seed || makeSeed(),
+      // A new run always drafts from the current catalog, even when the previous save was stamped on an older one.
+      catalogVersion: CURRENT_CATALOG_VERSION,
       mode,
       phase: 'draft',
       style: 'balanced',
@@ -417,7 +432,7 @@
     if (!$game.styleLocked && needsStyleBeforeDraft($game.mode)) return;
     const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
     const rng = createSeededRng(`${$game.seed}:draft:${pickCount}:${$game.usedTeamIds.join('|')}`);
-    const team = pickRandomTeam(teams, rng, $game.usedTeamIds);
+    const team = pickRandomTeam(catalog.draftTeams, rng, $game.usedTeamIds);
     if (team) beginRoulette(team, $game.usedTeamIds);
   }
 
@@ -428,7 +443,7 @@
     const excludedIds = [...$game.usedTeamIds, rolledTeam.id];
     const pickCount = isProMode ? proPickedPlayers.length : selectedPlayers.length;
     const rng = createSeededRng(`${$game.seed}:draft-reroll:${pickCount}:${rerollsUsed}:${excludedIds.join('|')}`);
-    const team = pickRandomTeam(teams, rng, excludedIds);
+    const team = pickRandomTeam(catalog.draftTeams, rng, excludedIds);
     if (!team) {
       showToast(t('noRerollTeams'));
       return;
@@ -625,7 +640,8 @@
     const dynastyRules = isDynasty && $game.dynasty ? (!$game.majorRun ? 2 : $game.dynasty.majorRules) : undefined;
     const dynastyMajor = isDynasty && $game.dynasty && dynastyRules === 2 ? ($game.dynasty.major ?? createDynastyMajorPlan($game.dynasty.majorNumber, $game.style)) : null;
     const dynastyPlan = dynastyMajor?.basePlan;
-    campaign = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+    // Opponents come only from the main-event, non-retired team-years of the run's catalog.
+    campaign = createCampaignMajor(runPlayers, $game.style, catalog.botTeams, catalog.players, $game.seed, runLineup, {
       selectedMaps: $game.selectedMaps,
       mode: $game.mode ?? 'premier',
       ...(isDynasty && $game.dynasty ? { dynastyEntryStage: $game.dynasty.entryStage, dynastyRules, dynastyPlan } : {}),
@@ -665,7 +681,7 @@
     const saved = $game.playedSeries;
     const played = saved && Object.keys(saved).length > 0 ? saved : playedFromSavedRun($game.majorRun, $game.completedSeries);
     try {
-      const restored = createCampaignMajor(runPlayers, $game.style, teams, players, $game.seed, runLineup, {
+      const restored = createCampaignMajor(runPlayers, $game.style, catalog.botTeams, catalog.players, $game.seed, runLineup, {
         selectedMaps: $game.selectedMaps,
         mode: $game.mode ?? 'premier',
         played,
@@ -962,7 +978,7 @@
     const dynasty = $game.dynasty;
     if (dynasty.window?.majorNumber === dynasty.majorNumber) { openTransferWindow(); return; }
     if (dynasty.circuit?.majorNumber === dynasty.majorNumber && dynasty.circuit.finished) { openTransferWindow(); return; }
-    const circuit = dynasty.circuit?.majorNumber === dynasty.majorNumber ? dynasty.circuit : createCircuit({ dynasty, teams, seed: $game.seed });
+    const circuit = dynasty.circuit?.majorNumber === dynasty.majorNumber ? dynasty.circuit : createCircuit({ dynasty, teams: catalog.botTeams, seed: $game.seed });
     update({ dynasty: { ...dynasty, circuit }, phase: 'circuit' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -979,7 +995,8 @@
     });
     const basePlan = dynasty.major?.basePlan ?? { style: $game.style, tactic: 'standard' as const, study: false };
     circuitStatsInput = { event, players: circuitPlayers, lineup: selectedLineup, seed: $game.seed };
-    circuitCampaign = createCircuitCampaign({ event, players: circuitPlayers, lineup: selectedLineup, teams, allPlayers: players, seed: $game.seed, selectedMaps: $game.selectedMaps, coach: dynastyCoach, plan: { ...basePlan, study: false } });
+    // `teams` only resolves the event's saved teamIds (drawn from botTeams when the circuit was created).
+    circuitCampaign = createCircuitCampaign({ event, players: circuitPlayers, lineup: selectedLineup, teams: catalog.teams, allPlayers: catalog.players, seed: $game.seed, selectedMaps: $game.selectedMaps, coach: dynastyCoach, plan: { ...basePlan, study: false } });
     // The circuit screen has its own pause; a leftover Major pause must not freeze it invisibly.
     simPaused = false;
     circuitLiveRunning = true;
@@ -1070,12 +1087,15 @@
       url.searchParams.set('style', $game.style);
       url.searchParams.set('picks', selectedLineup.map((selected) => `${selected.playerId}:${selected.selectedSlotRole}`).join(','));
       url.searchParams.set('maps', $game.selectedMaps.join(','));
+      // The visitor replays the run on the same catalog; links without it (before the expansion) replay on core.
+      url.searchParams.set('cat', $game.catalogVersion ?? 'core');
     } else {
       url.searchParams.delete('result');
       url.searchParams.delete('mode');
       url.searchParams.delete('style');
       url.searchParams.delete('picks');
       url.searchParams.delete('maps');
+      url.searchParams.delete('cat');
     }
     try {
       await navigator.clipboard.writeText(url.toString());
@@ -1828,6 +1848,7 @@
       privacy: t('privacy'),
       terms: t('terms'),
       contactPage: t('contact'),
+      credits: t('credits'),
       footerNav: t('footerNav')
     }}
   />

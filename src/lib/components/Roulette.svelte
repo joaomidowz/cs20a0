@@ -1,15 +1,19 @@
 <script context="module" lang="ts">
   export interface RouletteEntry {
     id: string;
+    /** Text fallback of the ticket picture (initials). */
     avatar: string;
     title: string;
     subtitle: string;
+    /** When set, the ticket draws the generated crest of this team instead of `avatar`. */
+    badge?: { id: string; name: string; orgId?: string | null } | null;
   }
 </script>
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import { playOfflineSound } from '$lib/game/offlineAudio';
+  import TeamBadge from './TeamBadge.svelte';
 
   export let entries: RouletteEntry[];
   export let result: RouletteEntry;
@@ -93,7 +97,9 @@
     <div class="track" bind:this={track}>
       {#each tickets as entry, index}
         <div class="ticket" class:winner={settled && index === winnerIndex}>
-          <span class="avatar">{anonymous ? '?' : entry.avatar}</span>
+          <span class="avatar">
+            {#if anonymous}?{:else if entry.badge}<TeamBadge id={entry.badge.id} name={entry.badge.name} orgId={entry.badge.orgId ?? null} size="lg" />{:else}{entry.avatar}{/if}
+          </span>
           <strong>{anonymous ? labels.hidden : entry.title}</strong>
           <small>{anonymous ? '••••' : entry.subtitle}</small>
         </div>

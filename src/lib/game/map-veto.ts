@@ -71,10 +71,16 @@ export function chooseMap(
 
 export const VETO_POOL_SIZE = 7;
 
+/** Absolute floor: a BO3/BO5 decider needs at least this many maps (2 picks + 1 decider) to make sense. */
+const MIN_VETO_POOL_SIZE = 3;
+
 /**
- * The seven maps a veto is played on, like the active-duty pool of a real Major. Maps both lineups know come first,
- * the most familiar ones when more than seven are shared; a map only one side has ever played is added only when it
- * is needed to reach seven, so nobody ends up on a decider they have never touched when there is an alternative.
+ * The maps a veto is played on, like the active-duty pool of a real Major — normally seven, like the pool from 2016
+ * on. Eras with a smaller real map pool (2013 had only five confirmed Active-Duty-equivalent maps — no Active Duty
+ * group existed yet; see data/research/map-pools-2013-2015.json in cs13a0-management) play the veto on whatever
+ * fewer maps both/either lineup actually knows, instead of padding with maps nobody from that year ever touched;
+ * `buildVetoPlan` shrinks its ban sequence to match. Maps both lineups know come first, the most familiar ones when
+ * more than seven are shared; a map only one side has ever played is added only when it is needed to reach seven.
  */
 export function getVetoAvailableMaps(teamA: MapStrategy, teamB: MapStrategy): MapId[] {
   const combined = (mapId: MapId) => teamA.familiarity[mapId] + teamB.familiarity[mapId];
@@ -86,7 +92,7 @@ export function getVetoAvailableMaps(teamA: MapStrategy, teamB: MapStrategy): Ma
   const available = shared.length >= VETO_POOL_SIZE
     ? [...shared].sort(byFamiliarity).slice(0, VETO_POOL_SIZE)
     : [...shared, ...oneSided.slice(0, VETO_POOL_SIZE - shared.length)];
-  if (available.length < VETO_POOL_SIZE) throw new Error('A map veto requires at least seven maps known by one of the lineups');
+  if (available.length < MIN_VETO_POOL_SIZE) throw new Error(`A map veto requires at least ${MIN_VETO_POOL_SIZE} maps known by one of the lineups`);
   return MAP_POOL.filter((mapId) => available.includes(mapId));
 }
 
@@ -97,8 +103,11 @@ export interface VetoPlanStep {
 
 /**
  * The official sequence for the format on a seven-map pool: BO1 six alternating bans, BO3 ban/ban/pick/pick/ban/ban,
- * BO5 ban/ban/pick/pick/pick/pick; the last map is always the decider. Pools larger than seven (never produced by
- * `getVetoAvailableMaps`) get alternating preliminary bans first, keeping the turn order continuous.
+ * BO5 ban/ban/pick/pick/pick/pick; the last map is always the decider. Pools larger than seven get alternating
+ * preliminary bans first, keeping the turn order continuous. Pools smaller than seven (early eras with a thinner
+ * real map pool — see `getVetoAvailableMaps`) drop bans from the end of the sequence first, one at a time, never
+ * touching a pick: a BO3 on five maps plays ban/ban/pick/pick/[decider] instead of inventing two bans nobody has a
+ * map left to make.
  */
 export function buildVetoPlan(bestOf: 1 | 3 | 5, availableCount: number): VetoPlanStep[] {
   const plan: VetoPlanStep[] = [];
@@ -109,7 +118,14 @@ export function buildVetoPlan(bestOf: 1 | 3 | 5, availableCount: number): VetoPl
     : bestOf === 3
       ? ['ban', 'ban', 'pick', 'pick', 'ban', 'ban']
       : ['ban', 'ban', 'pick', 'pick', 'pick', 'pick'];
-  sequence.forEach(push);
+  const shrinkBy = Math.max(0, VETO_POOL_SIZE - availableCount);
+  const trimmed = [...sequence];
+  for (let removed = 0; removed < shrinkBy; removed += 1) {
+    const lastBanIndex = trimmed.lastIndexOf('ban');
+    if (lastBanIndex === -1) break; // no bans left to drop; the picks + decider already fit availableCount
+    trimmed.splice(lastBanIndex, 1);
+  }
+  trimmed.forEach(push);
   return plan;
 }
 

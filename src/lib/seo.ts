@@ -8,7 +8,8 @@ export const PUBLIC_ROUTES = [
   '/about',
   '/contact',
   '/privacy',
-  '/terms'
+  '/terms',
+  '/credits'
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
@@ -51,6 +52,10 @@ const ROUTE_COPY: Record<PublicRoute, Omit<SeoMetadata, 'canonical'>> = {
   '/terms': {
     title: 'Termos de Uso · cs13a0',
     description: 'Consulte os termos de uso, avisos de marcas, regras de conduta e condições do projeto independente cs13a0.'
+  },
+  '/credits': {
+    title: 'Créditos e licenças · cs13a0',
+    description: 'Fontes dos dados históricos (Liquipedia, CC BY-SA 3.0), bandeiras do flag-icons (MIT), escudos e avatares gerados e avisos de não afiliação do cs13a0.'
   }
 };
 

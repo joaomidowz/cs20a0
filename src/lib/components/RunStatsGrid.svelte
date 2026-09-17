@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { playerById, playerTitle } from '$lib/game/data';
+  import { getCatalogContext } from '$lib/game/catalogContext';
+  import { playerTitle } from '$lib/game/data';
   import { translate, translateTitle } from '$lib/game/i18n';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { getRunMvpScore } from '$lib/game/runStats';
@@ -12,6 +13,9 @@
   export let showRarity = true;
   export let compact = false;
 
+  // The offline page sets the run's catalog; without one (/online) this is core, exactly the dataset of today.
+  const catalog = getCatalogContext();
+  $: playerById = $catalog.playerById;
   $: t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   $: override = new Map(players.map((player) => [player.id, player]));
   $: ranked = [...stats].sort((a, b) => getRunMvpScore(b) - getRunMvpScore(a));

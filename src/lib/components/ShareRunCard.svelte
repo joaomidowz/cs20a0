@@ -4,6 +4,7 @@
   import { getRunMvpScore } from '$lib/game/runStats';
   import { buildOfflineRunCardReport, type LineageEntry, type RunCardReport } from '$lib/game/runCard';
   import type { GameMode, Language, MajorRun, Player, PlayerRunStats, SelectedPlayer } from '$lib/game/types';
+  import PlayerAvatar from './PlayerAvatar.svelte';
 
   export let seed: string;
   export let run: MajorRun | null = null;
@@ -65,7 +66,7 @@
       {#if item.player}
         <article>
           <span class="share-index">0{index + 1}</span>
-          <div class="share-avatar">{(item.player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
+          <div class="share-avatar"><PlayerAvatar player={item.player} bare /></div>
           <div><strong>{item.player.nickname ?? 'Unknown'}</strong><small>{getSelectedRoleLabel(item.selected)} · {item.player.year ?? ''}</small></div>
           <b>{item.player.overall ?? 70}</b>
         </article>
@@ -97,6 +98,6 @@
   .share-brand{display:flex;align-items:center;gap:9px}.share-brand>span{display:grid;place-items:center;width:42px;height:34px;color:#091006;background:#c8ff32;font-size:.75rem;font-weight:900;clip-path:polygon(0 0,100% 0,84% 100%,0 100%)}.share-brand strong{font-size:1.45rem;text-transform:uppercase}
   .share-seed{text-align:right}.share-seed small,.share-seed b{display:block}.share-seed small{color:#89939a;font-size:.48rem;letter-spacing:.18em}.share-seed b{margin-top:3px;color:#c8ff32;font-size:.8rem;letter-spacing:.12em}
   .share-result{padding:17px 0 15px}.share-result>small{color:#c8ff32;font-size:.5rem;font-weight:800;letter-spacing:.18em}.share-result h2{max-width:430px;margin:7px 0 3px;font-size:2.5rem;line-height:.88;text-transform:uppercase}.share-result>p{margin:0;color:#ff7134;font-size:.83rem;font-weight:800;text-transform:uppercase}.share-result>div:not(.share-flags){display:grid;grid-template-columns:92px 92px 1fr;gap:7px;margin-top:13px}.share-result>div:not(.share-flags) span{min-width:0;padding:8px;border:1px solid #283139;background:#11171a}.share-result>div:not(.share-flags) small,.share-result>div:not(.share-flags) b{display:block}.share-result>div:not(.share-flags) small{color:#89939a;font-size:.45rem;text-transform:uppercase}.share-result>div:not(.share-flags) b{overflow:hidden;margin-top:4px;font-size:.82rem;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}.share-flags{position:absolute;right:0;top:14px;display:flex;align-items:flex-end;flex-direction:column;gap:5px}.mode-flag{padding:6px 9px;color:#fff;background:#c72424;border:1px solid rgba(255,255,255,.18);font-size:.5rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 22px rgba(199,36,36,.28)}.multiplayer-flag{color:#091006;background:#c8ff32;box-shadow:0 0 22px rgba(200,255,50,.18)}.champion-badge{padding:5px 7px;color:#091006;background:#c8ff32;font-size:.48rem;font-weight:900}
-  .share-lineup{display:grid;gap:5px}.share-lineup article{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;min-height:55px;padding:7px 10px 7px 46px;border:1px solid #283139;background:linear-gradient(90deg,#151c20,#0c1114)}.share-avatar{display:grid;place-items:center;width:36px;height:36px;border:1px solid #39464c;color:#c8ff32;background:#0b0f11;font-size:.74rem;font-weight:900}.share-lineup article strong,.share-lineup article small{display:block}.share-lineup article strong{font-size:1rem}.share-lineup article small{margin-top:2px;color:#89939a;font-size:.5rem;font-weight:700;text-transform:uppercase}.share-lineup article>b{font-size:1.4rem}.share-index{position:absolute;left:9px;color:#334046;font-size:1.25rem;font-weight:900}
+  .share-lineup{display:grid;gap:5px}.share-lineup article{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;min-height:55px;padding:7px 10px 7px 46px;border:1px solid #283139;background:linear-gradient(90deg,#151c20,#0c1114)}.share-avatar{display:grid;place-items:center;width:36px;height:36px;border:1px solid #39464c;color:#c8ff32;background:#0b0f11;font-size:.74rem;font-weight:900;overflow:hidden}.share-lineup article strong,.share-lineup article small{display:block}.share-lineup article strong{font-size:1rem}.share-lineup article small{margin-top:2px;color:#89939a;font-size:.5rem;font-weight:700;text-transform:uppercase}.share-lineup article>b{font-size:1.4rem}.share-index{position:absolute;left:9px;color:#334046;font-size:1.25rem;font-weight:900}
   footer{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid #283139}footer>div{padding-left:9px;border-left:2px solid #c8ff32}footer small,footer strong{display:block}footer small{color:#89939a;font-size:.46rem;letter-spacing:.1em}footer strong{margin-top:3px;font-size:1rem}
 </style>
