@@ -52,6 +52,13 @@
 <style>
   .team-badge{display:inline-grid;flex:0 0 auto;place-items:center;width:26px;height:26px;border-radius:3px}
   .team-badge.md{width:34px;height:34px}.team-badge.lg{width:44px;height:44px}.team-badge.xl{width:64px;height:64px}
-  .team-badge svg,.team-badge img{display:block;width:100%;height:100%;object-fit:contain}
+  .team-badge svg{display:block;width:100%;height:100%;object-fit:contain}
+  /*
+   * Real logos come from Liquipedia in every combination of transparent/white/dark background and light or dark
+   * artwork (allmode/lightmode/darkmode exports). A fixed near-white plate behind the image is the only backing
+   * that keeps all of them legible regardless of our own dark theme; the generated crest above needs none of this
+   * because it always paints its own opaque silhouette.
+   */
+  .team-badge img{display:block;width:100%;height:100%;object-fit:contain;background:#f4f2ec;border-radius:inherit;padding:12%;box-sizing:border-box}
   .team-badge.highlight{box-shadow:0 0 0 2px var(--accent)}
 </style>
