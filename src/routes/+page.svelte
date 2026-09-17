@@ -1493,11 +1493,15 @@
             {/key}
           {/if}
           <div class="circuit-live-bracket panel">
-            <PlayoffBracket columns={circuitBracket} userTeamId="user" userTeamName={dynastyTeamName} championId={null} labels={{ quarterfinal: t('quarterfinal'), semifinal: t('semifinal'), final: t('final'), tbd: t('tbd'), live: t('live'), pending: t('pending') }} />
+            {#if circuitCampaign?.run.tournament}
+              <MajorOverview userTeamName={dynastyTeamName} tournament={circuitCampaign.run.tournament} cursor={{ liveSeriesId: circuitSeries?.id ?? null }} userTeamId="user" language={$game.language} onTeam={openOverviewTeam} />
+            {:else}
+              <PlayoffBracket columns={circuitBracket} userTeamId="user" userTeamName={dynastyTeamName} championId={null} labels={{ quarterfinal: t('quarterfinal'), semifinal: t('semifinal'), final: t('final'), tbd: t('tbd'), live: t('live'), pending: t('pending') }} />
+            {/if}
           </div>
         </div>
       {/snippet}
-      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} userTeamName={dynastyTeamName} live={circuitCampaign ? circuitLiveView : null} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} />
+      <DynastyCircuit circuit={$game.dynasty.circuit} language={$game.language} cash={$game.dynasty.cash} playing={circuitPlaying} {teamById} userTeamName={dynastyTeamName} live={circuitCampaign ? circuitLiveView : null} onPlay={playCircuit} onSkip={skipCircuit} onContinue={continueFromCircuit} onTeam={pinEnemyTeam} />
     </section>
   {:else if $game.phase === 'window' && $game.dynasty?.window}
     <section class="screen shell">

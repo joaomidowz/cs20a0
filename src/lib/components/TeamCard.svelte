@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getCatalogContext } from '$lib/game/catalogContext';
-  import { translateTeamName } from '$lib/game/i18n';
+  import { translate, translateTeamName } from '$lib/game/i18n';
   import {
     teamAverageOverall,
     teamPlacementLabel,
@@ -26,7 +26,7 @@
   $: country = $catalog.teamCountry(team);
 </script>
 
-<button class="team-card" type="button" aria-label={`Abrir ${team.name ?? team.id} ${team.year ?? ''}`} on:click={() => onOpen(team)}>
+<button class="team-card" type="button" aria-label={`${translate(language, 'openTeam')}: ${team.name ?? team.id} ${team.year ?? ''}`} on:click={() => onOpen(team)}>
   <header>
     <TeamBadge id={team.id} name={team.name ?? ''} size="xl" {orgId} />
     <div>

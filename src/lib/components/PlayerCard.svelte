@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getCatalogContext } from '$lib/game/catalogContext';
   import { playerTitle } from '$lib/game/data';
-  import { translateTitle } from '$lib/game/i18n';
+  import { translate, translateTitle } from '$lib/game/i18n';
   import { showsFullIntel } from '$lib/game/teamViews';
   import type { GameMode, Language, Player } from '$lib/game/types';
   import CountryFlag from './CountryFlag.svelte';
@@ -34,7 +34,7 @@
   class="player-card {showRarity ? `rarity-${rarity}` : 'rarity-hidden'}"
   on:click={openCard}
   aria-disabled={Boolean(blockedReason)}
-  aria-label={`Abrir detalhes de ${player.nickname ?? 'jogador'}`}
+  aria-label={`${translate(language, 'openPlayerDetails')}: ${player.nickname ?? player.id}`}
 >
   <span class="player-topline">
     <PlayerAvatar {player} />
