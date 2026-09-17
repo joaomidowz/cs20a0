@@ -916,10 +916,12 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false
+    "roleConfidence": "medium",
+    "needsReview": true,
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "rubino-2016",
@@ -2320,7 +2322,8 @@
     "role": "entry",
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -2339,7 +2342,7 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
@@ -2351,7 +2354,8 @@
       }
     },
     "sourceMatchUrl": "https://www.hltv.org/matches/2301826/astralis-vs-gambit-mlg-columbus-2016",
-    "sourceEvent": "MLG Columbus 2016"
+    "sourceEvent": "MLG Columbus 2016",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "hooch-2016",
@@ -2488,7 +2492,7 @@
     "id": "s1mple-2016",
     "baseId": "s1mple",
     "nickname": "s1mple",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "liquid-2016",
     "year": 2016,
     "game": "CSGO",
@@ -2507,7 +2511,7 @@
     "support": 79,
     "igl": 30,
     "experience": 91,
-    "consistency": 91,
+    "consistency": 92,
     "mental": 91,
     "badges": [
       "major-participant",
@@ -2632,7 +2636,8 @@
     "role": "igl",
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -2651,7 +2656,7 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
@@ -2663,7 +2668,8 @@
       }
     },
     "sourceMatchUrl": "https://www.hltv.org/matches/2301845/liquid-vs-fnatic-mlg-columbus-2016",
-    "sourceEvent": "MLG Columbus 2016"
+    "sourceEvent": "MLG Columbus 2016",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "hiko-2016",
@@ -2948,10 +2954,13 @@
     "badges": [
       "hltv-top20",
       "hltv-top20-2016",
-      "hltv-top20-rank-1-2016"
+      "hltv-top20-rank-1-2016",
+      "major-mvp"
     ],
     "awardBadges": [
-      "HLTV Top 20 2016 #1"
+      "HLTV Top 20 2016 #1",
+      "MLG Columbus 2016 MVP",
+      "ESL Cologne 2016 MVP"
     ],
     "needsReview": false,
     "roleConfidence": "high",
@@ -6550,7 +6559,7 @@
     "year": 2017,
     "game": "CSGO",
     "role": "rifler",
-    "overall": 95,
+    "overall": 96,
     "rarity": "goat",
     "traits": [
       "rifleGod",
@@ -6765,7 +6774,8 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "entry",
+      "support"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -6784,8 +6794,8 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/8918/electroNic?csVersion=CSGO&startDate=2018-01-01&endDate=2018-12-31",
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
@@ -6795,7 +6805,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "PGL Major Krakow 2017"
+    "sourceEvent": "PGL Major Krakow 2017",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "waylander-2017",
@@ -7483,7 +7494,8 @@
     "role": "entry",
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "legend",
     "traits": [],
@@ -7507,7 +7519,7 @@
     "awardBadges": [
       "HLTV Top 20 2017 #11"
     ],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/8528/HObbit?csVersion=CSGO&startDate=2021-01-01&endDate=2021-12-31",
@@ -7547,7 +7559,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "adren-2017",
@@ -7563,7 +7576,7 @@
     ],
     "rarity": "elite",
     "traits": [],
-    "overall": 86,
+    "overall": 88,
     "firepower": 87,
     "clutch": 87,
     "entry": 82,
@@ -7572,16 +7585,18 @@
     "igl": 30,
     "experience": 87,
     "consistency": 87,
-    "mental": 87,
+    "mental": 88,
     "badges": [
       "major-participant",
       "needs-roster-review",
       "hltv-top20",
       "hltv-top20-2017",
-      "hltv-top20-rank-17-2017"
+      "hltv-top20-rank-17-2017",
+      "major-mvp"
     ],
     "awardBadges": [
-      "HLTV Top 20 2017 #17"
+      "HLTV Top 20 2017 #17",
+      "PGL Krakow 2017 MVP"
     ],
     "needsReview": false,
     "roleConfidence": "high",
@@ -8885,7 +8900,8 @@
     "mental": 96,
     "badges": [
       "major-participant",
-      "needs-roster-review"
+      "needs-roster-review",
+      "hltv-top20"
     ],
     "awardBadges": [],
     "needsReview": false,
@@ -8913,6 +8929,10 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
+    },
+    "hltvTop20": {
+      "year": 2017,
+      "rank": 20
     }
   },
   {
@@ -9448,10 +9468,12 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false
+    "roleConfidence": "medium",
+    "needsReview": true,
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "valde-2017",
@@ -10174,7 +10196,7 @@
     "year": 2017,
     "game": "CSGO",
     "role": "lurker",
-    "overall": 95,
+    "overall": 96,
     "rarity": "goat",
     "traits": [
       "aggressionKing",
@@ -13620,7 +13642,7 @@
     "year": 2018,
     "game": "CSGO",
     "role": "lurker-support",
-    "overall": 85,
+    "overall": 87,
     "rarity": "elite",
     "traits": [
       "aggressiveLurker",
@@ -13741,7 +13763,7 @@
     "year": 2018,
     "game": "CSGO",
     "role": "rifler",
-    "overall": 86,
+    "overall": 88,
     "rarity": "elite",
     "traits": [
       "rifler",
@@ -14611,7 +14633,8 @@
     "role": "lurker",
     "eligibleSlotRoles": [
       "lurker",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -14630,8 +14653,8 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -14640,7 +14663,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "FACEIT Major London 2018"
+    "sourceEvent": "FACEIT Major London 2018",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "dennis-2018",
@@ -15550,7 +15574,8 @@
     "mental": 96,
     "badges": [
       "major-participant",
-      "needs-roster-review"
+      "needs-roster-review",
+      "hltv-top20"
     ],
     "awardBadges": [],
     "needsReview": false,
@@ -15578,6 +15603,10 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
+    },
+    "hltvTop20": {
+      "year": 2018,
+      "rank": 20
     }
   },
   {
@@ -16912,7 +16941,8 @@
     "badges": [
       "major-participant",
       "needs-roster-review",
-      "major-mvp"
+      "major-mvp",
+      "hltv-top20"
     ],
     "awardBadges": [],
     "needsReview": false,
@@ -16940,6 +16970,10 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
+    },
+    "hltvTop20": {
+      "year": 2019,
+      "rank": 15
     }
   },
   {
@@ -18881,7 +18915,7 @@
     "year": 2019,
     "game": "CSGO",
     "role": "rifler",
-    "overall": 86,
+    "overall": 87,
     "rarity": "elite",
     "traits": [],
     "firepower": 90,
@@ -20119,7 +20153,8 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "lurker"
+      "lurker",
+      "support"
     ],
     "rarity": "elite",
     "traits": [],
@@ -20138,7 +20173,7 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "statsUrl": "https://www.hltv.org/stats/players/8528/HObbit?csVersion=CSGO&startDate=2021-01-01&endDate=2021-12-31",
@@ -20149,7 +20184,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "IEM Katowice Major 2019"
+    "sourceEvent": "IEM Katowice Major 2019",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "issaa-2019",
@@ -21116,7 +21152,8 @@
     "game": "CSGO",
     "role": "igl",
     "eligibleSlotRoles": [
-      "igl"
+      "igl",
+      "support"
     ],
     "rarity": "superstar",
     "traits": [
@@ -21138,8 +21175,8 @@
       "hltv-team-rank-player-boost-2019"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "label": "IEM Cologne Major 2026 roster table",
       "url": "https://en.wikipedia.org/wiki/IEM_Cologne_Major_2026#Teams",
@@ -21172,7 +21209,8 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "ropz-mousesports-2019",
@@ -21575,7 +21613,7 @@
     "id": "s1mple-2019",
     "baseId": "s1mple",
     "nickname": "s1mple",
-    "title": "",
+    "title": "Top 5 Player",
     "teamId": "natus-vincere-2019",
     "year": 2019,
     "game": "CSGO",
@@ -22051,7 +22089,8 @@
     "role": "lurker",
     "eligibleSlotRoles": [
       "lurker",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -22070,8 +22109,8 @@
       "needs-roster-review"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -22080,7 +22119,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "StarLadder Major Berlin 2019"
+    "sourceEvent": "StarLadder Major Berlin 2019",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "golden-ninjas-in-pyjamas-2019",
@@ -22830,7 +22870,7 @@
     "rarity": "superstar",
     "traits": [],
     "overall": 88,
-    "firepower": 85,
+    "firepower": 87,
     "clutch": 97,
     "entry": 74,
     "awp": 20,
@@ -23558,7 +23598,7 @@
     "id": "zywoo-2019",
     "baseId": "zywoo",
     "nickname": "ZywOo",
-    "title": "",
+    "title": "Player of the Year",
     "teamId": "vitality-2019",
     "year": 2019,
     "game": "CSGO",
@@ -23696,7 +23736,7 @@
   {
     "id": "device-2020",
     "nickname": "device",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 7592,
     "teamId": "astralis-2020",
     "year": 2020,
@@ -24192,10 +24232,11 @@
     "eligibleSlotRoles": [
       "igl",
       "rifler",
-      "entry"
+      "entry",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "hltvTeamRankingBoost": {
       "year": 2020,
       "teamRank": 4,
@@ -24213,7 +24254,8 @@
         "entry"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "tizian-2020",
@@ -24342,7 +24384,7 @@
     "year": 2020,
     "game": "CSGO",
     "role": "lurker",
-    "overall": 85,
+    "overall": 89,
     "rarity": "elite",
     "traits": [],
     "firepower": 90,
@@ -24534,13 +24576,13 @@
   {
     "id": "niko-2020",
     "nickname": "NiKo",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 3741,
     "teamId": "g2-2020",
     "year": 2020,
     "game": "CSGO",
     "role": "rifle-support",
-    "overall": 93,
+    "overall": 94,
     "rarity": "legend",
     "traits": [],
     "firepower": 97,
@@ -24673,7 +24715,7 @@
   {
     "id": "electronic-2020",
     "nickname": "electroNic",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 8918,
     "teamId": "natus-vincere-2020",
     "year": 2020,
@@ -26593,7 +26635,8 @@
     "role": "entry",
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -26611,7 +26654,7 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
@@ -26635,7 +26678,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "stanislaw-2021",
@@ -27573,10 +27617,11 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "sourceEvent": "PGL Major Stockholm 2021",
     "hltvTeamRankingBoost": {
       "year": 2021,
@@ -27594,7 +27639,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "nexa-2021",
@@ -28329,10 +28375,10 @@
     "teamId": "godsent-2021",
     "year": 2021,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "awper"
     ],
     "rarity": "common",
     "traits": [],
@@ -28351,7 +28397,7 @@
     ],
     "awardBadges": [],
     "needsReview": false,
-    "roleConfidence": "medium",
+    "roleConfidence": "high",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -29619,7 +29665,7 @@
     },
     "rookie": {
       "year": 2021,
-      "label": "Breakout rookie"
+      "label": "Rookie of the Year (Esports Awards)"
     },
     "needsReview": false,
     "sourceEvent": "PGL Major Stockholm 2021",
@@ -32394,10 +32440,10 @@
     "teamId": "00nation-2022",
     "year": 2022,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "awper"
     ],
     "rarity": "common",
     "traits": [],
@@ -32416,7 +32462,7 @@
     ],
     "awardBadges": [],
     "needsReview": false,
-    "roleConfidence": "medium",
+    "roleConfidence": "high",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -33624,7 +33670,7 @@
     "id": "ax1le-2022",
     "baseId": "ax1le",
     "nickname": "Ax1Le",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "cloud9-2022",
     "year": 2022,
     "game": "CSGO",
@@ -33702,7 +33748,7 @@
     "id": "sh1ro-2022",
     "baseId": "sh1ro",
     "nickname": "sh1ro",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "cloud9-2022",
     "year": 2022,
     "game": "CSGO",
@@ -34557,7 +34603,8 @@
     "role": "igl",
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -34575,8 +34622,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -34588,7 +34635,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "PGL Major Antwerp 2022 / IEM Rio Major 2022"
+    "sourceEvent": "PGL Major Antwerp 2022 / IEM Rio Major 2022",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "hades-2022",
@@ -35468,7 +35516,8 @@
       "major-mvp-antwerp-2022",
       "hltv-top20",
       "hltv-top20-2022",
-      "hltv-top20-rank-13-2022"
+      "hltv-top20-rank-13-2022",
+      "major-mvp"
     ],
     "awardBadges": [
       "PGL Antwerp 2022 MVP",
@@ -38510,10 +38559,11 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "sourceEvent": "PGL Major Antwerp 2022 / IEM Rio Major 2022",
     "hltvTeamRankingBoost": {
       "year": 2022,
@@ -38531,7 +38581,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "osee-2022",
@@ -39253,7 +39304,7 @@
     "id": "s1mple-2022",
     "baseId": "s1mple",
     "nickname": "s1mple",
-    "title": null,
+    "title": "Player of the Year",
     "teamId": "natus-vincere-2022",
     "year": 2022,
     "game": "CSGO",
@@ -40308,7 +40359,8 @@
       "major-mvp-rio-2022",
       "hltv-top20",
       "hltv-top20-2022",
-      "hltv-top20-rank-20-2022"
+      "hltv-top20-rank-20-2022",
+      "major-mvp"
     ],
     "awardBadges": [
       "IEM Rio 2022 MVP",
@@ -41490,7 +41542,7 @@
     "id": "zywoo-2022",
     "baseId": "zywoo",
     "nickname": "ZywOo",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "vitality-2022",
     "year": 2022,
     "game": "CSGO",
@@ -42978,7 +43030,7 @@
   {
     "id": "ropz-faze-2023",
     "nickname": "ropz",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 18053,
     "teamId": "faze-2023",
     "year": 2023,
@@ -43398,7 +43450,8 @@
     "role": "entry",
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -43416,8 +43469,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -43440,7 +43493,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "wood7-2023",
@@ -44394,7 +44448,7 @@
     "id": "niko-2023",
     "baseId": "niko",
     "nickname": "NiKo",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "g2-2023",
     "year": 2023,
     "game": "CSGO",
@@ -44469,7 +44523,7 @@
     "id": "m0nesy-2023",
     "baseId": "m0nesy",
     "nickname": "m0NESY",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "g2-2023",
     "year": 2023,
     "game": "CSGO",
@@ -45970,7 +46024,8 @@
     "role": "igl",
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -45988,8 +46043,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -45998,7 +46053,8 @@
         "confidence": "high"
       }
     },
-    "sourceEvent": "BLAST.tv Paris Major 2023"
+    "sourceEvent": "BLAST.tv Paris Major 2023",
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "naf-2023",
@@ -47109,7 +47165,8 @@
     "role": "entry",
     "eligibleSlotRoles": [
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -47127,8 +47184,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -47151,7 +47208,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "aleksib-2023",
@@ -47416,7 +47474,7 @@
     "id": "niko-og-2023",
     "baseId": "niko",
     "nickname": "niko",
-    "title": null,
+    "title": "Top 5 Player",
     "teamId": "og-2023",
     "year": 2023,
     "game": "CSGO",
@@ -47428,16 +47486,16 @@
     ],
     "rarity": "superstar",
     "traits": [],
-    "overall": 91,
-    "firepower": 87,
-    "clutch": 87,
+    "overall": 96,
+    "firepower": 95,
+    "clutch": 90,
     "entry": 76,
     "awp": 76,
     "support": 76,
     "igl": 94,
     "experience": 87,
-    "consistency": 87,
-    "mental": 87,
+    "consistency": 94,
+    "mental": 92,
     "badges": [
       "major-participant",
       "hltv-top20",
@@ -48614,7 +48672,7 @@
   {
     "id": "spinx-2023",
     "nickname": "Spinx",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 18221,
     "teamId": "vitality-2023",
     "year": 2023,
@@ -48741,7 +48799,8 @@
       "major-mvp-paris-2023",
       "hltv-top20",
       "hltv-top20-2023",
-      "hltv-top20-rank-1-2023"
+      "hltv-top20-rank-1-2023",
+      "major-mvp"
     ],
     "awardBadges": [
       "BLAST Paris 2023 MVP",
@@ -49941,7 +50000,8 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "lurker"
+      "lurker",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -49959,8 +50019,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -49989,7 +50049,8 @@
         "lurker"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "electronic-2024",
@@ -51639,10 +51700,11 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "igl"
+      "igl",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "sourceEvents": [
       "PGL CS2 Major Copenhagen 2024",
       "Perfect World Shanghai Major 2024"
@@ -51662,7 +51724,8 @@
         "igl"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "rain-2024",
@@ -52762,7 +52825,7 @@
   {
     "id": "m0nesy-2024",
     "nickname": "m0NESY",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 19230,
     "teamId": "g2-2024",
     "year": 2024,
@@ -52948,7 +53011,7 @@
   {
     "id": "niko-2024",
     "nickname": "NiKo",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 3741,
     "teamId": "g2-2024",
     "year": 2024,
@@ -53078,10 +53141,11 @@
     "eligibleSlotRoles": [
       "igl",
       "rifler",
-      "lurker"
+      "lurker",
+      "support"
     ],
     "roleConfidence": "medium",
-    "needsReview": false,
+    "needsReview": true,
     "sourceEvents": [
       "PGL CS2 Major Copenhagen 2024",
       "Perfect World Shanghai Major 2024"
@@ -53103,7 +53167,8 @@
         "lurker"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "tauson-2024",
@@ -54285,7 +54350,8 @@
     "eligibleSlotRoles": [
       "igl",
       "rifler",
-      "lurker"
+      "lurker",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -54525,10 +54591,10 @@
     "teamId": "legacy-2024",
     "year": 2024,
     "game": "CS2",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "awper"
     ],
     "rarity": "common",
     "traits": [],
@@ -54547,7 +54613,7 @@
     ],
     "awardBadges": [],
     "needsReview": false,
-    "roleConfidence": "medium",
+    "roleConfidence": "high",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -55854,10 +55920,11 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "sourceEvents": [
       "PGL CS2 Major Copenhagen 2024",
       "Perfect World Shanghai Major 2024"
@@ -55878,7 +55945,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "b1t-2024",
@@ -56093,7 +56161,8 @@
       "major-mvp-copenhagen-2024",
       "hltv-top20",
       "hltv-top20-2024",
-      "hltv-top20-rank-5-2024"
+      "hltv-top20-rank-5-2024",
+      "major-mvp"
     ],
     "awardBadges": [
       "PGL Copenhagen 2024 MVP",
@@ -57502,7 +57571,8 @@
       "hltv-top20",
       "hltv-top20-2024",
       "hltv-top20-rank-1-2024",
-      "rookie-of-the-year-2024"
+      "rookie-of-the-year-2024",
+      "major-mvp"
     ],
     "awardBadges": [
       "PGL Copenhagen 2024 EVP",
@@ -57619,7 +57689,7 @@
   {
     "id": "sh1ro-2024",
     "nickname": "sh1ro",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 16920,
     "teamId": "spirit-2024",
     "year": 2024,
@@ -58671,7 +58741,7 @@
   {
     "id": "zywoo-2024",
     "nickname": "ZywOo",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 11893,
     "teamId": "vitality-2024",
     "year": 2024,
@@ -61251,7 +61321,7 @@
   {
     "id": "m0nesy-2025",
     "nickname": "m0NESY",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 19230,
     "teamId": "falcons-2025",
     "year": 2025,
@@ -61391,10 +61461,11 @@
     ],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "entry",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "sourceEvents": [
       "BLAST.tv Austin Major 2025",
       "StarLadder Budapest Major 2025"
@@ -61416,7 +61487,8 @@
         "entry"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "teses-2025",
@@ -62667,7 +62739,7 @@
     "roleConfidence": "high",
     "rookie": {
       "year": 2025,
-      "label": "Breakout rookie candidate"
+      "label": "Rookie of the Year (HLTV)"
     },
     "needsReview": false,
     "reviewReason": "Roster confirmed from manual 2025 Major copy; role needs review.",
@@ -63998,29 +64070,32 @@
     "teamId": "legacy-2025",
     "year": 2025,
     "game": "CS2",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "awper"
     ],
-    "rarity": "common",
+    "rarity": "superstar",
     "traits": [],
-    "overall": 77,
+    "overall": 85,
     "firepower": 77,
-    "clutch": 77,
+    "clutch": 83,
     "entry": 77,
     "awp": 77,
     "support": 82,
     "igl": 30,
     "experience": 77,
     "consistency": 77,
-    "mental": 77,
+    "mental": 85,
     "badges": [
-      "major-participant"
+      "major-participant",
+      "big-event-mvp"
     ],
-    "awardBadges": [],
+    "awardBadges": [
+      "CS Asia Championships 2025 MVP"
+    ],
     "needsReview": false,
-    "roleConfidence": "medium",
+    "roleConfidence": "high",
     "source": {
       "note": "Placeholder pending roster generated to keep the team-year reviewable in Data Studio.",
       "rosterSource": {
@@ -64062,7 +64137,8 @@
     "role": "lurker",
     "eligibleSlotRoles": [
       "lurker",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "elite",
     "traits": [],
@@ -64080,8 +64156,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "note": "Roster imported from curated Major seed.",
       "rosterSource": {
@@ -64110,7 +64186,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "nertz-2025",
@@ -67783,7 +67860,7 @@
   {
     "id": "donk-2025",
     "nickname": "donk",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 21167,
     "teamId": "spirit-2025",
     "year": 2025,
@@ -67934,7 +68011,7 @@
   {
     "id": "sh1ro-2025",
     "nickname": "sh1ro",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 16920,
     "teamId": "spirit-2025",
     "year": 2025,
@@ -68690,7 +68767,8 @@
     "eligibleSlotRoles": [
       "rifler",
       "entry",
-      "igl"
+      "igl",
+      "support"
     ],
     "rarity": "rare",
     "traits": [],
@@ -68708,7 +68786,7 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
+    "needsReview": true,
     "roleConfidence": "medium",
     "source": {
       "note": "Roster imported from curated Major seed.",
@@ -68724,7 +68802,8 @@
     "sourceEvents": [
       "BLAST.tv Austin Major 2025",
       "StarLadder Budapest Major 2025"
-    ]
+    ],
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "fame-2025",
@@ -69211,7 +69290,7 @@
   {
     "id": "ropz-2025",
     "nickname": "ropz",
-    "title": null,
+    "title": "Top 5 Player",
     "hltvPlayerId": 11816,
     "teamId": "vitality-2025",
     "year": 2025,
@@ -69355,12 +69434,14 @@
       "major-mvp-budapest-2025",
       "hltv-top20",
       "hltv-top20-2025",
-      "hltv-top20-rank-1-2025"
+      "hltv-top20-rank-1-2025",
+      "major-mvp"
     ],
     "awardBadges": [
       "BLAST Austin 2025 MVP",
       "StarLadder Budapest 2025 MVP",
-      "HLTV Top 20 2025 #1"
+      "HLTV Top 20 2025 #1",
+      "BLAST.tv Austin 2025 MVP"
     ],
     "eligibleSlotRoles": [
       "awper",
@@ -71162,15 +71243,17 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "igl",
-      "rifler"
+      "rifler",
+      "support"
     ],
-    "roleConfidence": "high",
-    "needsReview": false,
+    "roleConfidence": "medium",
+    "needsReview": true,
     "identityConfidence": "high",
     "sourceEvent": "IEM Cologne Major 2026",
     "sourceEvents": [
       "IEM Cologne Major 2026"
-    ]
+    ],
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "kyousuke-2026",
@@ -71283,7 +71366,8 @@
     "baseId": "m0nesy",
     "badges": [
       "major-participant",
-      "major-mvp-cologne-2026"
+      "major-mvp-cologne-2026",
+      "major-mvp"
     ],
     "awardBadges": [
       "IEM Cologne 2026 MVP"
@@ -73074,7 +73158,8 @@
     "eligibleSlotRoles": [
       "igl",
       "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -73092,8 +73177,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "label": "IEM Cologne Major 2026 roster table",
       "url": "https://en.wikipedia.org/wiki/IEM_Cologne_Major_2026#Teams",
@@ -73112,7 +73197,8 @@
     "sourceEvent": "IEM Cologne Major 2026",
     "sourceEvents": [
       "IEM Cologne Major 2026"
-    ]
+    ],
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "dumau-2026",
@@ -73187,29 +73273,33 @@
     "teamId": "legacy-2026",
     "year": 2026,
     "game": "CS2",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "awper"
     ],
-    "rarity": "common",
+    "rarity": "superstar",
     "traits": [],
-    "overall": 76,
+    "overall": 85,
     "firepower": 76,
-    "clutch": 76,
+    "clutch": 83,
     "entry": 76,
     "awp": 76,
     "support": 81,
     "igl": 30,
     "experience": 76,
     "consistency": 76,
-    "mental": 76,
+    "mental": 85,
     "badges": [
-      "major-participant"
+      "major-participant",
+      "big-event-mvp"
     ],
-    "awardBadges": [],
+    "awardBadges": [
+      "CS Asia Championships 2026 MVP",
+      "FISSURE Playground 3 MVP"
+    ],
     "needsReview": false,
-    "roleConfidence": "medium",
+    "roleConfidence": "high",
     "source": {
       "label": "IEM Cologne Major 2026 roster table",
       "url": "https://en.wikipedia.org/wiki/IEM_Cologne_Major_2026#Teams",
@@ -73516,7 +73606,8 @@
     "role": "lurker",
     "eligibleSlotRoles": [
       "lurker",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -73534,8 +73625,8 @@
       "major-participant"
     ],
     "awardBadges": [],
-    "needsReview": false,
-    "roleConfidence": "high",
+    "needsReview": true,
+    "roleConfidence": "medium",
     "source": {
       "label": "IEM Cologne Major 2026 roster table",
       "url": "https://en.wikipedia.org/wiki/IEM_Cologne_Major_2026#Teams",
@@ -73568,7 +73659,8 @@
         "rifler"
       ],
       "notes": "Boosts are capped and normalized by confirmed role. Roles and eligibleSlotRoles are preserved."
-    }
+    },
+    "reviewReason": "Support eligibility added by validation pass; confirm exact role before production merge."
   },
   {
     "id": "siuhy-2026",

@@ -11,13 +11,19 @@ import { getCatalog } from '../src/lib/game/catalog';
 import { coachById, coaches, playerById, players, teamById, teams } from '../src/lib/game/data';
 import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
 
-/** Só muda no deploy coordenado do online v2 (cliente e servidor publicados juntos). */
-const FROZEN_ONLINE_DATA_HASH = '13afb71201a6db3a';
+/**
+ * Só muda no deploy coordenado do online v2 (cliente e servidor publicados juntos).
+ * Atualizado em 2026-09-17: correções reais em times/jogadores já existentes (Vitality double-major 2025,
+ * Falcons campeão 2026, Legacy/Latto MVP em 3 torneios grandes, boosts de HLTV Top 20 2020/2025, badges de
+ * validação de suporte) — ver docs/superpowers/specs/2026-09-17-sync-dataset-2013-2015-status.md. Nenhum
+ * time/jogador foi removido; só conteúdo de entradas já existentes mudou (contagem 286/1430 preservada).
+ */
+const FROZEN_ONLINE_DATA_HASH = 'f5462687f127cf1b';
 
 /** SHA-256 dos bytes crus dos arquivos v1. Só mudam no deploy coordenado do online v2. */
 const FROZEN_V1_FILES: Record<string, string> = {
-  'src/lib/data/cs/players.game.json': '647cb3e92761cc24873a7998195e371e39fea3e6555700531fbfb6ad9a3876d6',
-  'src/lib/data/cs/teams.game.json': 'd98444dbe7625265481e0190d2f91fa40ed63bc734c39a9c43c14870b817bf4d',
+  'src/lib/data/cs/players.game.json': 'fd7c9ab26c7c0c227d74f053d6d5a70039b3b514c0a1f2c68bdfd95a66898f9c',
+  'src/lib/data/cs/teams.game.json': '96c8e2e8a6c464e3619ec6294daecdec74b04e669c105d04991a425999a24804',
   'src/lib/data/cs/coaches.game.json': 'aa958df2d6c44c0721c45c9b8ac96a5b2a3c8f50b77e9ab08c19e053e7df79c0'
 };
 
@@ -27,8 +33,8 @@ const ONLINE_BOUNDARY_DIRS = ['src/routes/online', 'src/lib/game/online', 'serve
 /** Os únicos arquivos de dados que o online pode ler; qualquer outro JSON muda o hash ou o pool sem o servidor saber. */
 const ONLINE_DATASET_FILES = ['players.game.json', 'teams.game.json'];
 
-/** Módulos do catálogo expandido (W1): o online não pode passar a importá-los. */
-const FORBIDDEN_SPECIFIER_PATTERNS = [/catalog/i, /\.expansion\./, /expansion\.game/, /identities\.game/, /catalog-manifest/];
+/** Módulos do catálogo expandido (W1) e dados só do offline/créditos (W7): o online não pode passar a importá-los. */
+const FORBIDDEN_SPECIFIER_PATTERNS = [/catalog/i, /\.expansion\./, /expansion\.game/, /identities\.game/, /catalog-manifest/, /sources\.expansion/];
 
 /** Módulos core: o online importa `$lib/game/data` (rota) e ambos alimentam o hash, então só podem ler os três JSON v1. */
 const CORE_ONLY_MODULES = ['src/lib/data/csData.ts', join('src/lib/game', 'data.ts')];
@@ -56,7 +62,8 @@ const isExpansionFile = (file: string) =>
   file === join('src/lib/game', 'catalog.ts') ||
   /\.expansion\.game\.json$/.test(file) ||
   basename(file) === 'identities.game.json' ||
-  basename(file) === 'catalog-manifest.json';
+  basename(file) === 'catalog-manifest.json' ||
+  basename(file) === 'sources.expansion.json';
 
 /** `import type … from` e `export type … from` somem na compilação: não entram no grafo. */
 const stripTypeOnlyImports = (source: string) =>
@@ -172,6 +179,27 @@ describe('grafo transitivo de imports do online', () => {
 
   it('nenhum arquivo alcançável pelo online é o catálogo expandido nem um arquivo da expansão', () => {
     expect(reachable.filter(isExpansionFile)).toEqual([]);
+  });
+
+  it('a varredura passa pelos visuais gerados (puros) sem chegar às identidades nem às fontes da expansão', () => {
+    // W7: TeamBadge/PlayerAvatar/CountryFlag são compartilhados com o online; só módulos puros e o slot licenciado podem vir com eles.
+    expect(reachable).toContain(join('src/lib/components', 'TeamBadge.svelte'));
+    expect(reachable).toContain(join('src/lib/game/visuals', 'crest.ts'));
+    expect(reachable).toContain(join('src/lib/game/visuals', 'avatar.ts'));
+    expect(reachable).not.toContain(join('src/lib/data/cs', 'identities.game.json'));
+    expect(reachable).not.toContain(join('src/lib/data/cs', 'sources.expansion.json'));
+    expect(reachable).not.toContain(join('src/routes/credits', '+page.svelte'));
+  });
+});
+
+describe('países só pelo catálogo (W7)', () => {
+  it("getCatalog('core') nunca conhece país nem organização, mesmo com identidades preenchidas no x1", () => {
+    const core = getCatalog('core');
+    expect(core.playerCountry(players[0])).toBeNull();
+    expect(core.teamCountry(teams[0])).toBeNull();
+    expect(core.teamOrgId(teams[0])).toBeNull();
+    expect(core.playerCountry(null)).toBeNull();
+    expect(core.teamCountry(null)).toBeNull();
   });
 });
 
