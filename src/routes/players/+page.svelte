@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CountryFlag from '$lib/components/CountryFlag.svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
   import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
@@ -12,8 +13,8 @@
   import type { Player } from '$lib/game/types';
   import { SEO_BY_ROUTE } from '$lib/seo';
 
-  // Rankings over the whole current catalog.
-  const { players, teamById } = getCatalog(CURRENT_CATALOG_VERSION);
+  // Rankings (and countries, from the identity layer) over the whole current catalog.
+  const { players, teamById, playerCountry } = getCatalog(CURRENT_CATALOG_VERSION);
 
   $: t = (key: Parameters<typeof translate>[1]) => translate($language, key);
 
@@ -47,7 +48,7 @@
               <span>
                 <b>#{index + 1}</b>
                 <em>{player.nickname ?? 'Unknown'}</em>
-                <small>{player.year ?? ''} · {teamName(player)}</small>
+                <small><CountryFlag code={playerCountry(player)} language={$language} /> {player.year ?? ''} · {teamName(player)}</small>
                 <strong>{player.overall ?? 70}</strong>
               </span>
             {/each}

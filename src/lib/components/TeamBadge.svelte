@@ -1,25 +1,57 @@
-<script lang="ts">
-  export let id = '';
-  export let name = '';
-  export let size: 'sm' | 'md' | 'lg' = 'sm';
-  export let highlight = false;
-
-  const hue = (value: string) => {
-    let hash = 2166136261;
-    for (let index = 0; index < value.length; index += 1) {
-      hash ^= value.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    return (hash >>> 0) % 360;
-  };
-  $: initials = (name || id || '?').replace(/\b(19|20)\d{2}\b/g, '').trim().split(/\s+/).map((part) => part[0] ?? '').join('').slice(0, 2).toUpperCase() || '?';
-  $: color = `hsl(${hue(id || name)} 42% 30%)`;
+<script context="module" lang="ts">
+  // Each instance clips its pattern with its own id: the same crest can appear many times on one page.
+  let instanceCounter = 0;
 </script>
 
-<span class="team-badge {size}" class:highlight style={`--badge:${color}`} aria-hidden="true">{initials}</span>
+<script lang="ts">
+  import { crestFor, crestParts } from '$lib/game/visuals/crest';
+  import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
+
+  export let id = '';
+  export let name = '';
+  export let size: 'sm' | 'md' | 'lg' | 'xl' = 'sm';
+  export let highlight = false;
+  /** Organization id from the identity layer; without one the crest is keyed by the name with the year stripped. */
+  export let orgId: string | null = null;
+
+  const clipId = `crest-clip-${(instanceCounter += 1)}`;
+  // Generated crest by default; a licensed image only when `licensed-images.json` registers one for the org or the team-year.
+  $: crest = crestFor({ orgId, name, id });
+  $: parts = crestParts(crest);
+  $: licensed = licensedImageFor('org', crest.key) ?? licensedImageFor('team', id);
+</script>
+
+<span class="team-badge {size}" class:highlight aria-hidden="true">
+  {#if licensed}
+    <img src={licensedImageSrc(licensed)} alt="" decoding="async" />
+  {:else}
+    <svg viewBox={parts.viewBox} focusable="false">
+      <clipPath id={clipId}><path d={parts.shapePath} /></clipPath>
+      <path d={parts.shapePath} fill={crest.primary} />
+      <g clip-path={`url(#${clipId})`}>
+        {#each parts.patternPaths as path}<path d={path} fill={crest.secondary} />{/each}
+      </g>
+      <path d={parts.shapePath} fill="none" stroke={crest.secondary} stroke-width="2.5" />
+      <text
+        x="32"
+        y="33"
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-family={parts.fontFamily}
+        font-weight="900"
+        font-size={parts.fontSize}
+        fill={crest.ink}
+        stroke="#0b0e10"
+        stroke-width="2"
+        paint-order="stroke"
+        letter-spacing=".5">{crest.initials}</text>
+    </svg>
+  {/if}
+</span>
 
 <style>
-  .team-badge{display:inline-grid;flex:0 0 auto;place-items:center;width:26px;height:26px;border:1px solid color-mix(in srgb,var(--badge) 60%,var(--line));color:#fff;background:var(--badge);font:900 .62rem/1 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em}
-  .team-badge.md{width:34px;height:34px;font-size:.82rem}.team-badge.lg{width:44px;height:44px;font-size:1.05rem}
-  .team-badge.highlight{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .team-badge{display:inline-grid;flex:0 0 auto;place-items:center;width:26px;height:26px;border-radius:3px}
+  .team-badge.md{width:34px;height:34px}.team-badge.lg{width:44px;height:44px}.team-badge.xl{width:64px;height:64px}
+  .team-badge svg,.team-badge img{display:block;width:100%;height:100%;object-fit:contain}
+  .team-badge.highlight{box-shadow:0 0 0 2px var(--accent)}
 </style>

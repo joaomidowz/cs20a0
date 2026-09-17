@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { getCatalogContext } from '$lib/game/catalogContext';
   import { playerTitle } from '$lib/game/data';
   import { translate, translateTitle } from '$lib/game/i18n';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -7,6 +8,8 @@
   import { getEligibleSlotRoles, getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { showsFullIntel } from '$lib/game/teamViews';
   import type { GameMode, Language, LineupSlotRole, Player, SelectedPlayer } from '$lib/game/types';
+  import CountryFlag from './CountryFlag.svelte';
+  import PlayerAvatar from './PlayerAvatar.svelte';
 
   export let player: Player;
   export let mode: GameMode;
@@ -19,6 +22,9 @@
   export let onConfirm: (player: Player, role: LineupSlotRole, secondaryRole?: LineupSlotRole) => void = () => {};
   export let onClose: () => void = () => {};
 
+  // Country comes from the page's catalog; career world cards never resolve, so the career sheet shows no flag.
+  const catalog = getCatalogContext();
+  $: country = mode === 'career' ? null : $catalog.playerCountry(player);
   $: eligibleRoles = getEligibleSlotRoles(player);
   $: detailsValidation = validatePlayerPick(player, lineup, undefined, playerLookup, { unlimitedRoles });
   $: dualRoleOptions = allowDualRole && eligibleRoles.length >= 2 && eligibleRoles.length <= 4
@@ -60,9 +66,9 @@
   <div class="player-sheet {mode === 'faceit' && !draftComplete ? 'rarity-hidden' : `rarity-${rarity}`}" role="dialog" aria-modal="true" aria-label={`Detalhes de ${player.nickname}`} tabindex="-1" on:click|stopPropagation on:keydown={handleSheetKeydown}>
     <button class="sheet-close" type="button" bind:this={closeButton} aria-label={translate(language, 'close')} on:click={onClose}>×</button>
     <div class="sheet-player">
-      <div class="avatar huge">{(player.nickname ?? '?').slice(0, 2).toUpperCase()}</div>
+      <PlayerAvatar {player} variant="huge" />
       <div>
-        <span class="eyebrow">{#if showFullIntel}{player.rarity ?? 'common'} · {/if}{player.teamId ?? ''}</span>
+        <span class="eyebrow"><CountryFlag code={country} {language} /> {#if showFullIntel}{player.rarity ?? 'common'} · {/if}{player.teamId ?? ''}</span>
         <h2>{player.nickname ?? 'Unknown'}</h2>
         <p>{translateTitle(language, playerTitle(player))} · {player.role ?? 'rifler'}</p>
       </div>

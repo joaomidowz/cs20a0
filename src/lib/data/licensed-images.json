@@ -1,4 +1,18 @@
 {
   "version": 1,
-  "entries": []
+  "entries": [
+    {
+      "kind": "org",
+      "key": "sharks",
+      "file": "licensed/orgs/dendele.png",
+      "license": {
+        "holder": "N/A — sem permissão concedida pela organização",
+        "type": "fair use / uso nominativo, sem afiliação",
+        "scope": "Identificação visual da organização no cs13a0; não implica endosso, patrocínio ou afiliação",
+        "grantedAt": "2026-09-17",
+        "evidence": "fair-use-basis.md"
+      },
+      "attribution": "Logo da organização, uso nominativo sem afiliação"
+    }
+  ]
 }

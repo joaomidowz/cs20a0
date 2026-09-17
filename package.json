@@ -13,6 +13,7 @@
     "server:dev": "tsx watch server/index.ts",
     "server:build": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist-server/index.cjs",
     "server:start": "node dist-server/index.cjs",
+    "sync:flags": "node scripts/sync-flags.mjs",
     "data:pull": "cp ../cs13a0-management/data/workspace/players.game.json ../cs13a0-management/data/workspace/teams.game.json ../cs13a0-management/data/workspace/coaches.game.json src/lib/data/cs/"
   },
   "devDependencies": {
@@ -22,6 +23,7 @@
     "@types/node": "^24.10.0",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.28.1",
+    "flag-icons": "7.5.0",
     "svelte": "^5.43.0",
     "svelte-check": "^4.3.0",
     "tsx": "^4.23.5",
