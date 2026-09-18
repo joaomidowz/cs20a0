@@ -63,21 +63,29 @@
   let hasSavedLineup = false;
   let useCollectionTeam = false;
   let pendingLineupTicket: string | undefined;
-  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }> } | null = null;
+  type MajorResultView = { placement: string; lobbySize: number; ranked: boolean; counted: boolean; champion: boolean; basePoints: number; points: number; rewardCoins: number; awardCoins: number; awards: Array<{ kind: string; coins: number; points: number }> };
+  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null } | null = null;
   let collectionOutcomeFor = '';
   async function loadCollectionOutcome(key: string) {
     if (!$accountUser || collectionOutcomeFor === key) return;
     collectionOutcomeFor = key;
-    // The server records the run right after the champion is known; a short delay covers the write.
-    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    const code = roomCode;
+    // The server records the run right after the champion is known; retry a few times while the write lands.
+    let result: MajorResultView | null = null;
+    for (let attempt = 0; attempt < 5 && !result; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      if (collectionOutcomeFor !== key) return;
+      result = (await authFetch<{ result: MajorResultView | null }>(getOnlineServerUrl(), `/me/majors/${code}`).catch(() => ({ result: null }))).result;
+    }
     try {
       const [season, awards] = await Promise.all([
         authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),
         authFetch<{ awards: Array<{ kind: string; count: number }> }>(getOnlineServerUrl(), '/me/awards')
       ]);
-      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8) };
-    } catch { collectionOutcome = null; }
+      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result };
+    } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result } : null; }
   }
+  const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
   $: if (snapshot?.phase === 'completed' && me?.collection) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
   /** Round-by-round state of the tournament; null until the first live update after a snapshot. */
@@ -1134,6 +1142,21 @@
           {#if snapshot.phase === 'completed' && collectionOutcome}
             <section class="panel collection-outcome">
               <div class="section-heading"><div><span class="eyebrow">{t('collection').toUpperCase()}</span><h2>{t('collectionResults')}</h2></div><a class="secondary" href="/online/colecao">{t('viewCollection')}</a></div>
+              {#if collectionOutcome.result}
+                {@const result = collectionOutcome.result}
+                <div class="earned">
+                  <h3>{t('youEarned')}</h3>
+                  <ul>
+                    <li><span>{t('placementCoins')} · {translatePlacement($language, result.placement)}</span><b>+{result.rewardCoins.toLocaleString($language)} coins</b></li>
+                    {#each result.awards as award (award.kind)}
+                      <li><span>{award.kind.replace(/_/g, ' ')}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
+                    {/each}
+                    <li class="total"><span>{t('totalCoins')}</span><b>+{(result.rewardCoins + result.awardCoins).toLocaleString($language)} coins</b></li>
+                    <li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b>+{result.points} pts</b></li>
+                  </ul>
+                  {#if !result.ranked}<p class="note">{t('notRanked')}</p>{:else if !result.counted}<p class="note">{t('notCounted')}</p>{/if}
+                </div>
+              {/if}
               <div class="campaign-grid">
                 <article><small>{t('seasonRank')}</small><strong>{collectionOutcome.rank ?? '—'}</strong></article>
                 <article><small>{t('seasonPointsMine')}</small><strong>{collectionOutcome.points}</strong></article>
@@ -1324,7 +1347,7 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .account-link{margin:12px auto 0;width:fit-content}.mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
+  .account-link{margin:12px auto 0;width:fit-content}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
   .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
   @media(min-width:680px){.mode-choice{grid-template-columns:repeat(3,1fr)}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}

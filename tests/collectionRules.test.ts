@@ -5,13 +5,19 @@ import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { applyCollectionLineup, cardEffects, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
-import { CARDS_PER_PACK, PACK_ODDS, PACK_TIERS, coinValue, matchReward, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, PACK_SLOTS, PACK_TIERS, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, Player } from '../src/lib/game/types';
 
 describe('regras de coins', () => {
-  it('odds somam 100 por tier', () => {
-    for (const tier of PACK_TIERS) expect(Object.values(PACK_ODDS[tier]).reduce((sum, value) => sum + value, 0)).toBeCloseTo(100, 6);
+  it('odds somam 100 em cada carta de cada pacote; GOAT é raro fora do Ícone', () => {
+    for (const tier of PACK_TIERS) {
+      expect(PACK_SLOTS[tier]).toHaveLength(CARDS_PER_PACK);
+      for (const row of PACK_SLOTS[tier]) expect(Object.values(row).reduce((sum: number, value: number) => sum + value, 0)).toBeCloseTo(100, 6);
+    }
+    expect(packChance('icone', ['goat'])).toBe(1);
+    expect(packChance('diamante', ['legend', 'goat'])).toBe(1);
+    for (const tier of ['basic', 'prata', 'era', 'ouro'] as const) expect(packChance(tier, ['goat'])).toBeLessThan(0.07);
   });
 
   it('valor cresce com overall e raridade, dentro de 30..2500, e venda paga 60%', () => {
@@ -24,9 +30,11 @@ describe('regras de coins', () => {
     expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * 0.6));
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
-    expect(matchReward('placementChampion', true)).toBe(300);
-    expect(matchReward('placementChampion', false)).toBe(150);
-    expect(matchReward('placementStage3', true)).toBe(50);
+    expect(matchReward('placementChampion', true)).toBe(1200);
+    expect(matchReward('placementChampion', false)).toBe(600);
+    expect(matchReward('placementRunnerUp', true)).toBe(750);
+    expect(matchReward('placement5to8', true)).toBe(300);
+    expect(matchReward('placementStage3', true)).toBe(150);
   });
 
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {
@@ -60,6 +68,17 @@ describe('sorteio de pacote', () => {
       return total;
     };
     expect(score('ouro')).toBeGreaterThan(score('basic') * 1.5);
+  });
+
+  it('Ícone sempre traz um GOAT e Diamante uma Lenda ou GOAT na primeira carta, sem repetir carta', () => {
+    for (let index = 0; index < 60; index += 1) {
+      const icone = rollPack('icone', `i${index}`, players);
+      expect(rarityOf(icone[0])).toBe('goat');
+      expect(icone.slice(1).every((card) => rarityOf(card) !== 'common' && rarityOf(card) !== 'goat')).toBe(true);
+      expect(new Set(icone.map((card) => card.id)).size).toBe(CARDS_PER_PACK);
+      const diamante = rollPack('diamante', `d${index}`, players);
+      expect(['legend', 'goat']).toContain(rarityOf(diamante[0]));
+    }
   });
 });
 

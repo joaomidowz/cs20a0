@@ -249,6 +249,19 @@ CREATE TABLE IF NOT EXISTS support_tickets (
 );
 CREATE INDEX IF NOT EXISTS support_tickets_unmailed_idx ON support_tickets (created_at) WHERE mailed_at IS NULL;
 `
+  },
+  {
+    id: 10,
+    // Season points for every placement, bigger match rewards: each run keeps its own breakdown for the end screen,
+    // and match awards pay 30% more (collection milestones and season prizes unchanged).
+    sql: `
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS base_points int NOT NULL DEFAULT 0;
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS reward_coins int NOT NULL DEFAULT 0;
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS award_coins int NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS majors_user_room_idx ON majors (user_id, room_code, played_at DESC);
+UPDATE award_rules SET coins = (round(coins * 1.3 / 5) * 5)::int
+WHERE kind IN ('major_title', 'major_mvp', 'top10_player', 'flawless_map', 'perfect_series', 'undefeated_major', 'overtime_king', 'comeback_map', 'comeback_series', 'giant_killer', 'budget_champion', 'common_hero', 'star_delivered', 'carried', 'streak_3');
+`
   }
 ];
 

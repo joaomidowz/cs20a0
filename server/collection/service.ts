@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players } from '../../src/lib/game/online/collection-pool';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
 import type { LineupSlotRole, OrgStyle, Player } from '../../src/lib/game/types';
@@ -51,11 +51,12 @@ const lineupView = (row: LineupRow | undefined): LineupView | null => {
   return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective };
 };
 
-const cardValue = (id: string) => {
+/** What a repeated card pays: the same share as selling it. */
+const duplicateValue = (id: string) => {
   const coach = collectionCoachById.get(id);
-  if (coach) return coachCoinValue(coach);
+  if (coach) return Math.floor(coachCoinValue(coach) * DUPLICATE_RATIO);
   const player = playerById.get(id);
-  return player ? coinValue(player) : 0;
+  return player ? Math.floor(coinValue(player) * DUPLICATE_RATIO) : 0;
 };
 const cardId = (card: PackCard) => (card.kind === 'coach' ? card.coach.id : card.player.id);
 
@@ -89,7 +90,7 @@ async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string)
   for (const card of cards) {
     const id = cardId(card);
     const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, id, 'pack']);
-    if (!inserted.length) { duplicates.push(id); coinsFromDupes += cardValue(id); }
+    if (!inserted.length) { duplicates.push(id); coinsFromDupes += duplicateValue(id); }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
   return { duplicates, coinsFromDupes, wallet };

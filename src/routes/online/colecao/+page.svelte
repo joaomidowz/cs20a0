@@ -12,7 +12,7 @@
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
-  import { COACH_CHANCE, PACK_ODDS, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
+  import { COACH_CHANCE, PACK_PRICES, PACK_SLOTS, RARITIES, packChance, type RarityOdds, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
@@ -89,6 +89,17 @@
   const fmt = (value: number) => Math.round(value).toLocaleString($language);
   $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  const pct = (value: number) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`;
+  type OddsRow = { key: string; tier: PackTier; slot: 'slotFirst' | 'slotOthers' | null; odds: RarityOdds; coach: boolean };
+  /** One row per pack, or two when the first card is a guaranteed slot. */
+  const ODDS_ROWS: OddsRow[] = (['basic', 'prata', 'era', 'ouro', 'diamante', 'icone'] as PackTier[]).flatMap((tier): OddsRow[] => {
+    const [first, ...rest] = PACK_SLOTS[tier];
+    const uniform = rest.every((row) => row === first);
+    return uniform
+      ? [{ key: tier, tier, slot: null, odds: first, coach: true }]
+      : [{ key: `${tier}-1`, tier, slot: 'slotFirst' as const, odds: first, coach: false }, { key: `${tier}-2`, tier, slot: 'slotOthers' as const, odds: rest[0], coach: true }];
+  });
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
   $: packsLeft = state ? Math.max(0, state.packsToday.granted - state.packsToday.opened) : 0;
@@ -246,11 +257,13 @@
               <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small>
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl))}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
             </article>
-            {#each ['prata', 'ouro'] as tier}
+            {#each ['prata', 'ouro', 'diamante', 'icone'] as name}
+              {@const tier = name as Exclude<PackTier, 'basic' | 'era'>}
               <article class="pack {tier}">
-                <strong>{tier === 'prata' ? t('packPrata') : t('packOuro')}</strong>
-                <small>{PACK_PRICES[tier as PackTier].toLocaleString($language)} {t('coins')}</small>
-                <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier as PackTier]} on:click={() => runReveal(() => buyPack(serverUrl, tier as 'prata' | 'ouro'))}>{t('buy')}</button>
+                <strong>{t(PACK_LABEL[tier])}</strong>
+                <small>{PACK_PRICES[tier].toLocaleString($language)} {t('coins')}{#if tier === 'diamante' || tier === 'icone'} · {t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}{/if}</small>
+                <span class="chances">GOAT {pct(packChance(tier, ['goat']))} · {t('legendPlus')} {pct(packChance(tier, ['legend', 'goat']))}</span>
+                <button class={tier === 'icone' || tier === 'diamante' ? 'primary' : 'secondary'} type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier))}>{t('buy')}</button>
               </article>
             {/each}
             <article class="pack era">
@@ -262,9 +275,14 @@
           </div>
           {#if showOdds}
             <table class="odds">
-              <thead><tr><th></th>{#each RARITIES as rarity}<th>{rarity}</th>{/each}</tr></thead>
-              <tbody>{#each ['basic', 'prata', 'ouro', 'era'] as tier}<tr><th>{tier}</th>{#each RARITIES as rarity}<td>{PACK_ODDS[tier as PackTier][rarity]}%</td>{/each}</tr>{/each}<tr><th>coach</th>{#each ['basic', 'prata', 'ouro', 'era'] as tier}<td>{tier} {Math.round(COACH_CHANCE[tier as PackTier] * 100)}%</td>{/each}<td></td><td></td></tr></tbody>
+              <thead><tr><th></th>{#each RARITIES as rarity}<th>{rarity}</th>{/each}<th>coach</th></tr></thead>
+              <tbody>
+                {#each ODDS_ROWS as row (row.key)}
+                  <tr><th>{t(PACK_LABEL[row.tier])}{#if row.slot} · {t(row.slot)}{/if}</th>{#each RARITIES as rarity}<td>{row.odds[rarity] ? `${row.odds[rarity]}%` : '—'}</td>{/each}<td>{row.coach ? `${Math.round(COACH_CHANCE[row.tier] * 100)}%` : ''}</td></tr>
+                {/each}
+              </tbody>
             </table>
+            <p class="note">{t('oddsNote')}</p>
           {/if}
 
           {#if reveal}
@@ -443,6 +461,9 @@
   .pack { display: grid; gap: 10px; align-content: start; min-height: 150px; padding: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
   .pack.basic { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
   .pack.prata { border-color: #c9d1d9; } .pack.ouro { border-color: #d9a441; } .pack.era { border-color: #a66bff; }
+  .pack.diamante { border-color: #5ad1ff; background: linear-gradient(160deg, color-mix(in srgb, #5ad1ff 14%, var(--surface-2)), var(--surface)); box-shadow: 0 0 22px color-mix(in srgb, #5ad1ff 16%, transparent); }
+  .pack.icone { border-color: #ff5ad8; background: linear-gradient(160deg, color-mix(in srgb, #ff5ad8 16%, var(--surface-2)), color-mix(in srgb, #d9a441 8%, var(--surface))); box-shadow: 0 0 26px color-mix(in srgb, #ff5ad8 20%, transparent); }
+  .chances { color: var(--accent); font-size: .66rem; font-weight: 800; letter-spacing: .04em; }
   .pack strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
   .pack small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
   .pack button { margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }

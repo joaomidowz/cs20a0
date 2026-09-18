@@ -1,12 +1,13 @@
 import type { RoomConfig } from '../src/lib/game/online/contracts';
-import { COMPETITIVE_MIN_HUMANS, type PreparedLineup, type RoomManager } from './room-manager';
+import type { PreparedLineup, RoomManager } from './room-manager';
 
 /** Competitive matchmaking: collection teams only, at least three humans per Major, bots fill the rest of the field. */
-export const QUEUE_MIN = COMPETITIVE_MIN_HUMANS;
+/** Three or more close a room after the short fill window; exactly two wait for the pair window instead. */
+export const QUEUE_MIN = 3;
 export const QUEUE_MAX = 8;
 /** Once the minimum is waiting, the queue always holds this long for more players (even when full) before it closes the room. */
 export const QUEUE_FILL_WINDOW_MS = 10_000;
-/** Exactly two waiting: once they have been the only ones for this long, they play each other (not competitive). */
+/** Exactly two waiting: once they have been the only ones for this long, they play each other (a third of the points). */
 export const QUEUE_PAIR_WINDOW_MS = 30_000;
 /** A player whose client stopped polling for this long (tab closed, browser gone) leaves the queue. */
 export const QUEUE_STALE_MS = 20_000;
@@ -42,7 +43,7 @@ export interface QueueStatus {
   match: { roomCode: string; lineupTicket: string } | null;
   /** Time left before the queue closes a room for the players waiting now; null while there are not enough. */
   closesInMs: number | null;
-  /** Only two waiting: the room they get does not score season points. */
+  /** Only two waiting: the room they get scores a third of the season points. */
   pair: boolean;
   /** Why this player was taken out of the queue recently (not set when they left on purpose). */
   left: QueueLeftReason | null;

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { players, teams, playerById } from '../server/data';
 import { detectAwards } from '../server/collection/awards';
-import { pointsFor } from '../server/collection/seasons';
+import { seasonPoints } from '../src/lib/game/online/collection-rules';
 import { LINEUP_TICKET_TTL_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS, type PreparedLineup, type RunCompletedEvent } from '../server/room-manager';
 import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
 import { DEFAULT_ROOM_CONFIG, type RoomConfig } from '../src/lib/game/online/contracts';
@@ -142,14 +142,12 @@ describe('awards e pontos', () => {
     expect(kinds).not.toContain('overtime_king');
   });
 
-  it('pontos por tamanho do lobby', () => {
-    expect(pointsFor(1)).toBe(0);
-    expect(pointsFor(2)).toBe(0);
-    expect(pointsFor(3)).toBe(3);
-    expect(pointsFor(4)).toBe(3);
-    expect(pointsFor(5)).toBe(4);
-    expect(pointsFor(7)).toBe(4);
-    expect(pointsFor(8)).toBe(5);
-    expect(pointsFor(16)).toBe(5);
+  it('pontos por colocação e tamanho do lobby', () => {
+    expect([10, 7, 5, 3, 1]).toEqual(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 8)));
+    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 3))).toEqual([5, 4, 3, 2, 1]);
+    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 2))).toEqual([3, 2, 2, 1, 0]);
+    expect(seasonPoints('placementChampion', 4)).toBe(10);
+    expect(seasonPoints('placementChampion', 1)).toBe(0);
+    expect(seasonPoints('placementStage1', 16)).toBe(1);
   });
 });

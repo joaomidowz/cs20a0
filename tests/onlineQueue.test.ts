@@ -43,7 +43,7 @@ describe('fila competitiva', () => {
     expect(queue.size()).toBe(0);
   });
 
-  it('só dois por 30 s jogam entre si, sem valer pontos', () => {
+  it('só dois por 30 s jogam entre si e valem pontos (1/3)', () => {
     let clock = 2_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
@@ -62,7 +62,7 @@ describe('fila competitiva', () => {
     manager.tick(clock + 10);
     const started = manager.getSnapshot(roomCode, null, clock + 10);
     expect(started.phase).toBe('swiss');
-    expect(started.competitive).toBe(false);
+    expect(started.competitive).toBe(true);
   });
 
   it('dupla que ganha um terceiro troca para a janela de 10 s; dupla desfeita reinicia os 30 s', () => {
@@ -124,7 +124,7 @@ describe('fila competitiva', () => {
     expect(queue.status('u8').state).toBe('waiting');
   });
 
-  it('sala da fila começa sozinha quando todos entram e vale pontos; sala por código só vale com todos de coleção e 3+', () => {
+  it('sala da fila começa sozinha quando todos entram e vale pontos; sala por código só vale com todos de coleção e 2+', () => {
     let clock = 10_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
@@ -140,7 +140,7 @@ describe('fila competitiva', () => {
     expect(started.origin).toBe('queue');
 
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 8 }, clock);
-    for (const user of ['w', 'x']) manager.join(code, `P${user}`, `Org ${user}`, clock, manager.prepareLineup(code, prepared(user), clock));
+    manager.join(code, 'Pw', 'Org w', clock, manager.prepareLineup(code, prepared('w'), clock));
     expect(manager.getSnapshot(code, null, clock).competitive).toBe(false);
     manager.join(code, 'Pz', 'Org z', clock, manager.prepareLineup(code, prepared('z'), clock));
     expect(manager.getSnapshot(code, null, clock).competitive).toBe(true);
@@ -156,7 +156,7 @@ describe('fila competitiva', () => {
     clock += QUEUE_FILL_WINDOW_MS;
     queue.tick();
     const { roomCode } = queue.status('a').match!;
-    for (const user of ['a', 'b']) manager.join(roomCode, `P${user}`, `Org ${user}`, clock, queue.status(user).match!.lineupTicket);
+    manager.join(roomCode, 'Pa', 'Org a', clock, queue.status('a').match!.lineupTicket);
     manager.tick(clock + 1);
     expect(manager.getSnapshot(roomCode, null, clock + 1).phase).toBe('lobby');
     manager.tick(clock + QUEUE_JOIN_WINDOW_MS + 1);

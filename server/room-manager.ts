@@ -242,7 +242,7 @@ interface RoomState {
 }
 
 /** Minimum humans for a run to score season points. */
-export const COMPETITIVE_MIN_HUMANS = 3;
+export const COMPETITIVE_MIN_HUMANS = 2;
 /** A matched queue room waits this long for everybody to connect, then starts with whoever is there. */
 export const QUEUE_JOIN_WINDOW_MS = 30_000;
 
@@ -819,7 +819,8 @@ export class RoomManager {
     let changed = false;
     if (room.origin === 'queue' && room.phase === 'lobby' && room.queue) {
       const joined = [...room.participants.values()].filter((participant) => participant.connected).length;
-      if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 2)) {
+      // After the window it starts with whoever came, even alone (then against bots, not competitive): nobody is left stuck in the lobby.
+      if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 1)) {
         this.startRoom(room, now);
         room.version += 1;
         room.stateVersion += 1;
@@ -834,7 +835,7 @@ export class RoomManager {
         changed = true;
       }
     }
-    if (room.phase === 'draft' && room.participants.size < 2) {
+    if (room.phase === 'draft' && room.participants.size < this.minParticipants(room)) {
       // The remaining participant would otherwise wait forever: nobody else can join a started room.
       this.returnToLobby(room);
       return true;
@@ -1095,8 +1096,13 @@ export class RoomManager {
     return withSecretPlayers(emptyDraftState(), room.config.mode, participant.playerName, participant.organizationName, lookupPlayer);
   }
 
+  /** Code rooms need two people; a queue room whose other players never showed up still plays, alone against bots. */
+  private minParticipants(room: RoomState): number {
+    return room.origin === 'queue' ? 1 : 2;
+  }
+
   private startTournamentIfReady(room: RoomState, now: number) {
-    if (room.phase !== 'draft' || room.participants.size < 2) return;
+    if (room.phase !== 'draft' || room.participants.size < this.minParticipants(room)) return;
     if ([...room.participants.values()].every((participant) => isDraftComplete(room.config.mode, participant.draft))) this.beginTournament(room, now);
   }
 

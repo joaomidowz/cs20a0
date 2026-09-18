@@ -1,4 +1,4 @@
-import { matchReward } from '../../src/lib/game/online/collection-rules';
+import { COUNTED_RUNS_PER_DAY, ELIMINATED_POINTS, FULL_POINTS_LOBBY, PLACEMENT_POINTS, matchReward, seasonPoints } from '../../src/lib/game/online/collection-rules';
 import type { Db, Tx } from '../db/client';
 import { collectionPlayerById as playerById } from '../../src/lib/game/online/collection-pool';
 import type { RunCompletedEvent } from '../room-manager';
@@ -6,15 +6,10 @@ import { detectAwards } from './awards';
 import { applyLedger } from './service';
 import { dayKeyUtcMinus3, seasonMonthOf } from './time';
 
-/** Points of a ranked title by lobby size: playing alone against bots never scores. */
-export const POINTS_BY_LOBBY: ReadonlyArray<{ min: number; points: number }> = [
-  { min: 8, points: 5 },
-  { min: 5, points: 4 },
-  { min: 3, points: 3 }
-];
-export const RANKED_MIN_LOBBY = 3;
-
-export const pointsFor = (lobbySize: number): number => POINTS_BY_LOBBY.find((rule) => lobbySize >= rule.min)?.points ?? 0;
+/** Humans needed for a run to score season points at all (two score a third, see `seasonPoints`). */
+export const RANKED_MIN_LOBBY = 2;
+/** Rules snapshot stored with each season, so a later change never rewrites how an old season was scored. */
+const SEASON_RULES = { byPlacement: PLACEMENT_POINTS, eliminated: ELIMINATED_POINTS, fullLobby: FULL_POINTS_LOBBY, rankedMinLobby: RANKED_MIN_LOBBY, countedPerDay: COUNTED_RUNS_PER_DAY };
 
 export async function ensureActiveSeason(tx: Tx, now: number): Promise<number> {
   const { month, startsAt, endsAt } = seasonMonthOf(now);
@@ -23,7 +18,7 @@ export async function ensureActiveSeason(tx: Tx, now: number): Promise<number> {
      ON CONFLICT (month) DO UPDATE SET month = seasons.month RETURNING id`,
     [month, new Date(startsAt), new Date(endsAt)]
   );
-  await tx.query('INSERT INTO season_rules (season_id, points_json) VALUES ($1, $2) ON CONFLICT DO NOTHING', [row.id, JSON.stringify({ byLobby: POINTS_BY_LOBBY, rankedMinLobby: RANKED_MIN_LOBBY })]);
+  await tx.query('INSERT INTO season_rules (season_id, points_json) VALUES ($1, $2) ON CONFLICT DO NOTHING', [row.id, JSON.stringify(SEASON_RULES)]);
   return row.id;
 }
 
@@ -41,13 +36,14 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
         `SELECT count(*)::text AS n FROM majors WHERE user_id = $1 AND ranked AND counted AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date`,
         [entry.userId, day]
       );
-      const counted = ranked && Number(today.n) === 0;
-      const basePoints = counted && entry.champion ? pointsFor(event.lobbySize) : 0;
+      const counted = ranked && Number(today.n) < COUNTED_RUNS_PER_DAY;
+      const basePoints = counted ? seasonPoints(entry.placement, event.lobbySize) : 0;
       const detected = detectAwards({ ...entry, awards: event.awards, lookup: (id) => playerById.get(id) });
       const rules = new Map((await tx.query<{ kind: string; coins: number; points: number; once_per_season: boolean }>('SELECT kind, coins, points, once_per_season FROM award_rules')).map((row) => [row.kind, row]));
       let awardPoints = 0;
       let awardCoins = 0;
       const granted: string[] = [];
+      const grantedDetail: Array<{ kind: string; coins: number; points: number }> = [];
       for (const award of detected) {
         const rule = rules.get(award.kind);
         if (!rule) continue;
@@ -60,14 +56,15 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
         awardPoints += counted ? rule.points : 0;
         awardCoins += rule.coins;
         granted.push(award.kind);
+        grantedDetail.push({ kind: award.kind, coins: rule.coins, points: counted ? rule.points : 0 });
       }
       const points = basePoints + awardPoints;
       const ratings = entry.stats.map((line) => line.runRating).filter((value) => Number.isFinite(value));
       const avgRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : null;
       await tx.query(
-        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, counted, entry.placement, entry.champion, points, avgRating, JSON.stringify(granted)]
+        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, counted, entry.placement, entry.champion, points, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins]
       );
       const reward = matchReward(entry.placement, ranked);
       await applyLedger(tx, entry.userId, reward, 'match_reward', `${event.roomCode}:${event.seed}`);
@@ -86,6 +83,32 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       );
     });
   }
+}
+
+export interface MajorResult {
+  placement: string;
+  lobbySize: number;
+  ranked: boolean;
+  counted: boolean;
+  champion: boolean;
+  basePoints: number;
+  points: number;
+  rewardCoins: number;
+  awardCoins: number;
+  awards: Array<{ kind: string; coins: number; points: number }>;
+}
+
+/** What this player earned in the latest run of a room: the end-of-run summary. */
+export async function majorResult(db: Db, userId: string, roomCode: string): Promise<MajorResult | null> {
+  const [row] = await db.query<{ placement: string; lobby_size: number; ranked: boolean; counted: boolean; champion: boolean; base_points: number; points: number; reward_coins: number; award_coins: number; awards: unknown }>(
+    `SELECT placement, lobby_size, ranked, counted, champion, base_points, points, reward_coins, award_coins, awards FROM majors
+     WHERE user_id = $1 AND room_code = $2 ORDER BY played_at DESC, id DESC LIMIT 1`,
+    [userId, roomCode]
+  );
+  if (!row) return null;
+  // Older rows stored only award kinds.
+  const awards = Array.isArray(row.awards) ? row.awards.map((item) => (typeof item === 'string' ? { kind: item, coins: 0, points: 0 } : item as { kind: string; coins: number; points: number })) : [];
+  return { placement: row.placement, lobbySize: row.lobby_size, ranked: row.ranked, counted: row.counted, champion: row.champion, basePoints: row.base_points, points: row.points, rewardCoins: row.reward_coins, awardCoins: row.award_coins, awards };
 }
 
 export interface StandingRow {

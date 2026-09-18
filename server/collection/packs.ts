@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, COACH_CHANCE, PACK_ODDS, RARITIES, rarityOf, type PackTier, type Rarity } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, COACH_CHANCE, PACK_SLOTS, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
 import { createSeededRng } from '../../src/lib/game/simulation';
 import type { Coach, Player } from '../../src/lib/game/types';
 
@@ -7,14 +7,19 @@ export interface RollOptions {
   year?: number;
 }
 
-const pickRarity = (tier: PackTier, roll: number): Rarity => {
+const pickRarity = (row: RarityOdds, roll: number): Rarity => {
   let cursor = roll * 100;
+  let last: Rarity = 'common';
   for (const rarity of RARITIES) {
-    cursor -= PACK_ODDS[tier][rarity];
+    if (!row[rarity]) continue;
+    last = rarity;
+    cursor -= row[rarity];
     if (cursor < 0) return rarity;
   }
-  return 'common';
+  return last;
 };
+/** Falls back to the next lower rarity (then higher) only when the wanted one has no card left in the pool. */
+const ladderOf = (wanted: Rarity): Rarity[] => [wanted, ...RARITIES.slice(0, RARITIES.indexOf(wanted)).reverse(), ...RARITIES.slice(RARITIES.indexOf(wanted) + 1)];
 
 /** Deterministic by seed: the same user, day and pack index always reveal the same three cards. */
 export function rollPack(tier: PackTier, seed: string, pool: Player[], options: RollOptions = {}): Player[] {
@@ -32,8 +37,7 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
   const usedYears = new Set<number>();
   const usedIds = new Set<string>();
   for (let index = 0; index < CARDS_PER_PACK; index += 1) {
-    const wanted = pickRarity(tier, rng());
-    const ladder = [wanted, ...RARITIES.slice(0, RARITIES.indexOf(wanted)).reverse(), ...RARITIES.slice(RARITIES.indexOf(wanted) + 1)];
+    const ladder = ladderOf(pickRarity(PACK_SLOTS[tier][index] ?? PACK_SLOTS[tier][0], rng()));
     let chosen: Player | null = null;
     for (const rarity of ladder) {
       const candidates = (byRarity.get(rarity) ?? []).filter((player) => !usedIds.has(player.id) && (options.year || !usedYears.has(player.year ?? 0)));
@@ -53,16 +57,14 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
 
 export type PackCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
 
-/** A pack with a chance that one card is a coach (same seed, same pack). Era packs draw the coach from the chosen year. */
+/** A pack with a chance that its last card is a coach (same seed, same pack); the guaranteed first card is never replaced. Era packs draw the coach from the chosen year. */
 export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[], coaches: Coach[], options: RollOptions = {}): PackCard[] {
   const cards: PackCard[] = rollPack(tier, seed, pool, options).map((player) => ({ kind: 'player', player }));
   const rng = createSeededRng(`${seed}:coach`);
   if (rng() >= COACH_CHANCE[tier]) return cards;
   const eligible = coaches.filter((coach) => !options.year || coach.year === options.year).sort((a, b) => a.id.localeCompare(b.id));
   if (!eligible.length) return cards;
-  const wanted = pickRarity(tier, rng());
-  const ladder = [wanted, ...RARITIES.slice(0, RARITIES.indexOf(wanted)).reverse(), ...RARITIES.slice(RARITIES.indexOf(wanted) + 1)];
-  for (const rarity of ladder) {
+  for (const rarity of ladderOf(pickRarity(PACK_SLOTS[tier][CARDS_PER_PACK - 1], rng()))) {
     const candidates = eligible.filter((coach) => rarityOf(coach) === rarity);
     if (candidates.length) { cards[cards.length - 1] = { kind: 'coach', coach: candidates[Math.floor(rng() * candidates.length)] }; break; }
   }
