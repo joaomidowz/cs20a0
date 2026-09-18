@@ -17,20 +17,17 @@ export const DAILY_BASIC_PACKS = 2;
 
 const odds = (common: number, rare: number, elite: number, superstar: number, legend: number, goat: number): RarityOdds => ({ common, rare, elite, superstar, legend, goat });
 const same = (row: RarityOdds): RarityOdds[] => Array.from({ length: CARDS_PER_PACK }, () => row);
-/** The two "filler" cards of the premium packs: never common, rarely a legend, never a GOAT. */
-const PREMIUM_FILLER = odds(0, 35, 45, 17, 3, 0);
-
 /**
  * Odds per rarity for each card of a pack, in percent (each row sums to 100). Premium packs guarantee their first
- * card: Diamante a Legend (10% of it a GOAT), Ícone a GOAT. GOAT stays rare everywhere else.
+ * card (Diamante a Legend, 10% of it a GOAT; Ícone a GOAT) and their other two cards are Superstar or better.
  */
 export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
-  basic: same(odds(64, 24, 8.5, 2.5, 0.8, 0.2)),
-  prata: same(odds(40, 31, 18, 7.5, 3, 0.5)),
-  era: same(odds(40, 31, 18, 7.5, 3, 0.5)),
-  ouro: same(odds(14, 26, 33, 16, 9, 2)),
-  diamante: [odds(0, 0, 0, 0, 90, 10), PREMIUM_FILLER, PREMIUM_FILLER],
-  icone: [odds(0, 0, 0, 0, 0, 100), PREMIUM_FILLER, PREMIUM_FILLER]
+  basic: same(odds(63.4, 24, 8.5, 2.5, 1.2, 0.4)),
+  prata: same(odds(38.5, 31, 18, 7.5, 4, 1)),
+  era: same(odds(38.5, 31, 18, 7.5, 4, 1)),
+  ouro: same(odds(10, 26, 33, 16, 13, 2)),
+  diamante: [odds(0, 0, 0, 0, 90, 10), odds(0, 0, 0, 30, 60, 10), odds(0, 0, 0, 30, 60, 10)],
+  icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 0, 20, 60, 20), odds(0, 0, 0, 20, 60, 20)]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */

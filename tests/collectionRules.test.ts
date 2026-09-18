@@ -74,10 +74,11 @@ describe('sorteio de pacote', () => {
     for (let index = 0; index < 60; index += 1) {
       const icone = rollPack('icone', `i${index}`, players);
       expect(rarityOf(icone[0])).toBe('goat');
-      expect(icone.slice(1).every((card) => rarityOf(card) !== 'common' && rarityOf(card) !== 'goat')).toBe(true);
+      expect(icone.slice(1).every((card) => ['superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
       expect(new Set(icone.map((card) => card.id)).size).toBe(CARDS_PER_PACK);
       const diamante = rollPack('diamante', `d${index}`, players);
       expect(['legend', 'goat']).toContain(rarityOf(diamante[0]));
+      expect(diamante.slice(1).every((card) => ['superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
     }
   });
 });

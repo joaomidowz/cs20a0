@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import PackOdds from '$lib/components/online/PackOdds.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
@@ -12,7 +13,7 @@
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
-  import { COACH_CHANCE, PACK_PRICES, PACK_SLOTS, RARITIES, packChance, type RarityOdds, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
+  import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
@@ -46,7 +47,6 @@
   let starPlayerId: string | null = null;
   let style: OrgStyle = 'balanced';
   let eraYear = YEARS.at(-1) ?? 2026;
-  let showOdds = false;
 
   // Filters.
   let query = '';
@@ -90,16 +90,7 @@
   $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
   const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
-  const pct = (value: number) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`;
-  type OddsRow = { key: string; tier: PackTier; slot: 'slotFirst' | 'slotOthers' | null; odds: RarityOdds; coach: boolean };
-  /** One row per pack, or two when the first card is a guaranteed slot. */
-  const ODDS_ROWS: OddsRow[] = (['basic', 'prata', 'era', 'ouro', 'diamante', 'icone'] as PackTier[]).flatMap((tier): OddsRow[] => {
-    const [first, ...rest] = PACK_SLOTS[tier];
-    const uniform = rest.every((row) => row === first);
-    return uniform
-      ? [{ key: tier, tier, slot: null, odds: first, coach: true }]
-      : [{ key: `${tier}-1`, tier, slot: 'slotFirst' as const, odds: first, coach: false }, { key: `${tier}-2`, tier, slot: 'slotOthers' as const, odds: rest[0], coach: true }];
-  });
+  $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
   $: packsLeft = state ? Math.max(0, state.packsToday.granted - state.packsToday.opened) : 0;
@@ -250,9 +241,10 @@
 
       <div class="columns">
         <section class="panel shop">
-          <div class="section-heading"><div><span class="eyebrow">{t('shop').toUpperCase()}</span><h2>{t('shop')}</h2></div><button class="ghost small" type="button" on:click={() => showOdds = !showOdds}>{t('odds')}</button></div>
+          <div class="section-heading"><div><span class="eyebrow">{t('shop').toUpperCase()}</span><h2>{t('shop')}</h2></div></div>
           <div class="shop-grid">
             <article class="pack basic">
+              <PackOdds tier="basic" title={t('packBasic')} labels={oddsLabels} />
               <strong>{t('packBasic')}</strong>
               <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small>
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl))}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
@@ -260,31 +252,20 @@
             {#each ['prata', 'ouro', 'diamante', 'icone'] as name}
               {@const tier = name as Exclude<PackTier, 'basic' | 'era'>}
               <article class="pack {tier}">
+                <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
                 <strong>{t(PACK_LABEL[tier])}</strong>
                 <small>{PACK_PRICES[tier].toLocaleString($language)} {t('coins')}{#if tier === 'diamante' || tier === 'icone'} · {t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}{/if}</small>
-                <span class="chances">GOAT {pct(packChance(tier, ['goat']))} · {t('legendPlus')} {pct(packChance(tier, ['legend', 'goat']))}</span>
                 <button class={tier === 'icone' || tier === 'diamante' ? 'primary' : 'secondary'} type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier))}>{t('buy')}</button>
               </article>
             {/each}
             <article class="pack era">
+              <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
               <strong>{t('packEra')}</strong>
               <small>{PACK_PRICES.era.toLocaleString($language)} {t('coins')} · {t('packEraHint')}</small>
               <label class="era-year"><span>{t('filterYear')}</span><select bind:value={eraYear}>{#each YEARS as year}<option value={year}>{year}</option>{/each}</select></label>
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear))}>{t('buy')}</button>
             </article>
           </div>
-          {#if showOdds}
-            <table class="odds">
-              <thead><tr><th></th>{#each RARITIES as rarity}<th>{rarity}</th>{/each}<th>coach</th></tr></thead>
-              <tbody>
-                {#each ODDS_ROWS as row (row.key)}
-                  <tr><th>{t(PACK_LABEL[row.tier])}{#if row.slot} · {t(row.slot)}{/if}</th>{#each RARITIES as rarity}<td>{row.odds[rarity] ? `${row.odds[rarity]}%` : '—'}</td>{/each}<td>{row.coach ? `${Math.round(COACH_CHANCE[row.tier] * 100)}%` : ''}</td></tr>
-                {/each}
-              </tbody>
-            </table>
-            <p class="note">{t('oddsNote')}</p>
-          {/if}
-
           {#if reveal}
             <div class="reveal" bind:this={shopSection}>
               {#if reveal.spinning < reveal.cards.length}
@@ -458,18 +439,17 @@
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  .pack { display: grid; gap: 10px; align-content: start; min-height: 150px; padding: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+  @media (min-width: 1180px) { .shop-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+  .pack { position: relative; display: grid; gap: 10px; align-content: start; min-height: 150px; padding: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
   .pack.basic { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
   .pack.prata { border-color: #c9d1d9; } .pack.ouro { border-color: #d9a441; } .pack.era { border-color: #a66bff; }
   .pack.diamante { border-color: #5ad1ff; background: linear-gradient(160deg, color-mix(in srgb, #5ad1ff 14%, var(--surface-2)), var(--surface)); box-shadow: 0 0 22px color-mix(in srgb, #5ad1ff 16%, transparent); }
   .pack.icone { border-color: #ff5ad8; background: linear-gradient(160deg, color-mix(in srgb, #ff5ad8 16%, var(--surface-2)), color-mix(in srgb, #d9a441 8%, var(--surface))); box-shadow: 0 0 26px color-mix(in srgb, #ff5ad8 20%, transparent); }
-  .chances { color: var(--accent); font-size: .66rem; font-weight: 800; letter-spacing: .04em; }
-  .pack strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .pack > strong { padding-right: 28px; font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
   .pack small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
   .pack button { margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }
   .era-year { display: grid; gap: 4px; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
   .era-year select, .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
-  .odds { width: 100%; border-collapse: collapse; font-size: .7rem; } .odds th, .odds td { padding: 6px 8px; border: 1px solid var(--line); text-align: center; } .odds th:first-child { text-align: left; text-transform: uppercase; }
   .reveal { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .reveal-grid { grid-template-columns: repeat(3, minmax(0, 260px)); justify-content: center; gap: 14px; }
   .reveal-card { display: grid; gap: 6px; min-width: 0; animation: reveal-in .45s cubic-bezier(.16, 1, .3, 1) backwards; }
