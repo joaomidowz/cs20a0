@@ -217,9 +217,9 @@
               <div class="player-grid reveal-grid">
                 {#each reveal.cards.slice(0, reveal.spinning) as card, index (card.id + index)}
                   <div class="reveal-card" class:dupe={reveal.duplicates.has(card.id)}>
+                    <b class="reveal-tag">{reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')}</b>
                     <PlayerCard player={card} mode="premier" revealed language={$language} onOpen={(selected) => detailsPlayer = selected} />
                     <div class="card-origin"><CountryFlag code={playerCountryOf(card)} language={$language} /><TeamBadge id={card.teamId ?? ''} name={teamById.get(card.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(card.teamId ?? '')?.name ?? '—'}</em></div>
-                    <b>{reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')}</b>
                   </div>
                 {/each}
               </div>
@@ -337,8 +337,12 @@
   .odds { width: 100%; border-collapse: collapse; font-size: .7rem; } .odds th, .odds td { padding: 6px 8px; border: 1px solid var(--line); text-align: center; } .odds th:first-child { text-align: left; text-transform: uppercase; }
   .reveal { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .reveal-grid { grid-template-columns: repeat(3, minmax(0, 260px)); justify-content: center; gap: 14px; }
-  .reveal-card { position: relative; } .reveal-card :global(.player-card) { min-height: 280px; }
-  .reveal-card b { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 4px 8px; background: var(--accent); color: #0a0d08; font-size: .58rem; font-weight: 900; letter-spacing: .12em; } .reveal-card.dupe b { background: var(--muted); }
+  .reveal-card { display: grid; gap: 6px; min-width: 0; animation: reveal-in .45s cubic-bezier(.16, 1, .3, 1) backwards; }
+  .reveal-card :global(.player-card) { width: 100%; min-height: 280px; }
+  .reveal-tag { justify-self: start; padding: 4px 10px; background: var(--accent); color: #0a0d08; font-size: .6rem; font-weight: 900; letter-spacing: .14em; }
+  .reveal-card.dupe .reveal-tag { background: var(--muted); }
+  @keyframes reveal-in { from { transform: translateY(14px) scale(.96); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .reveal-card { animation: none; } }
   .team-grid { display: grid; gap: 18px; }
   .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
   .slot { display: grid; gap: 8px; align-content: start; min-height: 230px; padding: 12px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
@@ -367,7 +371,7 @@
   .power { color: var(--accent); font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-  .card-wrap { display: grid; gap: 4px; } .card-wrap.in-lineup :global(.player-card) { border-color: var(--accent); }
+  .card-wrap { display: grid; gap: 4px; min-width: 0; } .card-wrap :global(.player-card) { width: 100%; } .card-wrap.in-lineup :global(.player-card) { border-color: var(--accent); }
   .card-actions { display: flex; gap: 4px; } .card-actions button { flex: 1; }
   .tag { padding: 9px; border: 1px dashed var(--accent); color: var(--accent); font-size: .6rem; font-weight: 800; text-align: center; text-transform: uppercase; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
