@@ -3,6 +3,7 @@
   import CoachCard from './CoachCard.svelte';
   import CollectionCard from './CollectionCard.svelte';
   import PackCase from './PackCase.svelte';
+  import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
   import { RARITIES, rarityOf, type PackTier, type Rarity } from '$lib/game/online/collection-rules';
   import type { Coach, Language, Player } from '$lib/game/types';
 
@@ -18,7 +19,9 @@
   export let caseLabel = '';
   export let language: Language;
   export let sound = true;
-  export let labels: { fresh: string; duplicate: string; skip: string };
+  export let labels: { fresh: string; duplicate: string; skip: string; rolling: string };
+  /** Cards that scroll by in the roulette before it lands. */
+  export let teasers: RouletteEntry[] = [];
   export let playerTeam: (player: Player) => string;
   export let coachTeam: (coach: Coach) => string;
   export let onOpen: (player: Player) => void = () => {};
@@ -29,9 +32,14 @@
   const rank = (card: RevealCard) => RARITIES.indexOf(rarityOfCard(card));
   // Best card last; the server's order only matters for what was drawn, not for how it is shown.
   const ordered = [...cards].sort((a, b) => rank(a) - rank(b));
+  const entryOf = (card: RevealCard): RouletteEntry => card.kind === 'player'
+    ? { id: card.player.id, avatar: (card.player.nickname ?? '?').slice(0, 2).toUpperCase(), title: card.player.nickname ?? card.player.id, subtitle: `${card.player.year ?? ''} · ${rarityOf(card.player)}` }
+    : { id: card.coach.id, avatar: 'C', title: card.coach.name, subtitle: `COACH · ${card.coach.year} · ${rarityOf(card.coach)}` };
   const SPARKS = Array.from({ length: 16 }, (_, index) => index);
 
   let stage: 'case' | 'cards' = 'case';
+  /** Index of the card whose roulette is spinning now (-1: none). */
+  let rolling = -1;
   let flipped = 0;
   let charging = -1;
   let flash: Rarity | null = null;
@@ -64,12 +72,18 @@
     } catch { /* sound is a nicety */ }
   }
 
-  function flipNext() {
-    if (flipped >= ordered.length) { finish(); return; }
-    const index = flipped;
+  /** Spins the roulette for the next card; `land` opens the card when it stops. */
+  function rollNext() {
+    if (flipped >= ordered.length) { rolling = -1; finish(); return; }
+    rolling = flipped;
+  }
+
+  function land(index: number) {
+    if (index !== rolling) return;
+    rolling = -1;
     const rarity = rarityOfCard(ordered[index]);
     const big = rarity === 'legend' || rarity === 'goat';
-    const doFlip = () => {
+    const open = () => {
       charging = -1;
       flipped = index + 1;
       tone(rarity);
@@ -78,9 +92,10 @@
         later(() => { flash = null; }, rarity === 'goat' ? 1500 : 1000);
         if (rarity === 'goat') { shaking = true; later(() => { shaking = false; }, 650); }
       }
-      later(flipNext, big ? 1900 : rarity === 'superstar' ? 1200 : 750);
+      later(rollNext, big ? 2000 : rarity === 'superstar' ? 1200 : 700);
     };
-    if (big) { charging = index; later(doFlip, rarity === 'goat' ? 1600 : 1100); } else doFlip();
+    // A legend or a GOAT holds its breath first: the closed card trembles and glows before it opens.
+    if (big) { charging = index; later(open, rarity === 'goat' ? 1500 : 1000); } else open();
   }
 
   function finish() {
@@ -92,14 +107,14 @@
   function skip() {
     for (const timer of timers) window.clearTimeout(timer);
     timers = [];
-    stage = 'cards'; charging = -1; flash = null; shaking = false;
+    stage = 'cards'; charging = -1; rolling = -1; flash = null; shaking = false;
     flipped = ordered.length;
     finish();
   }
 
   onMount(() => {
     try { audio = sound ? new AudioContext() : null; } catch { audio = null; }
-    later(() => { stage = 'cards'; later(flipNext, 450); }, 1500);
+    later(() => { stage = 'cards'; later(rollNext, 300); }, 1500);
   });
   onDestroy(() => { for (const timer of timers) window.clearTimeout(timer); void audio?.close().catch(() => {}); });
 </script>
@@ -109,29 +124,33 @@
   {#if stage === 'case'}
     <div class="case-stage"><PackCase {tier} size="lg" label={caseLabel} opening /></div>
   {:else}
+    {#if rolling >= 0}
+      {#key rolling}
+        <div class="roll"><Roulette entries={teasers} result={entryOf(ordered[rolling])} labels={{ spinning: labels.rolling, skip: labels.skip, hidden: '?' }} duration={1500} onComplete={() => land(rolling)} /></div>
+      {/key}
+    {/if}
     <div class="cards">
       {#each ordered as card, index (idOf(card) + index)}
         {@const rarity = rarityOfCard(card)}
         {@const up = index < flipped}
-        <div class="slot fx-{rarity}" class:up class:charging={charging === index} style={`--delay:${index * 90}ms`}>
+        <div class="slot fx-{rarity}" class:up class:charging={charging === index} class:next={rolling === index}>
           {#if up && (rarity === 'legend' || rarity === 'goat')}
             <span class="rays" aria-hidden="true"></span>
             <span class="sparks" aria-hidden="true">{#each SPARKS as spark}<i style={`--x:${(spark * 53) % 100}%;--d:${(spark * 137) % 900}ms;--s:${4 + (spark % 4) * 2}px`}></i>{/each}</span>
             {#if rarity === 'goat'}<span class="goat-word" aria-hidden="true">GOAT</span>{/if}
           {/if}
           {#if up && rarity === 'superstar'}<span class="ring" aria-hidden="true"></span>{/if}
-          <div class="flipper">
-            <div class="face back"><span>CS</span><small>13A0</small></div>
-            <div class="face front">
-              {#if up}
-                {#if card.kind === 'player'}
-                  <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
-                {:else}
-                  <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
-                {/if}
+          {#if up}
+            <div class="holder">
+              {#if card.kind === 'player'}
+                <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
+              {:else}
+                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
               {/if}
             </div>
-          </div>
+          {:else}
+            <div class="back"><span>CS</span><small>13A0</small></div>
+          {/if}
         </div>
       {/each}
     </div>
@@ -144,22 +163,20 @@
   .reveal-stage.dark { background: radial-gradient(ellipse at center, #1a0716 0%, #050306 75%); }
   .shaking { animation: quake .6s linear; }
   .case-stage { display: grid; place-items: center; min-height: 300px; }
-  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 250px)); gap: 18px; justify-content: center; width: 100%; perspective: 1400px; }
-  .slot { position: relative; min-width: 0; animation: rise .5s var(--delay) cubic-bezier(.16, 1, .3, 1) backwards; --fx: var(--common); }
+  .roll { width: 100%; }
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 250px)); gap: 18px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
+  .slot { position: relative; min-width: 0; --fx: var(--common); }
+  .holder { position: relative; display: block; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
+  .fx-superstar .holder { animation-duration: .8s; } .fx-legend .holder, .fx-goat .holder { animation-duration: 1s; }
+  .next .back { border-color: var(--accent); }
   .fx-rare { --fx: var(--rare); } .fx-elite { --fx: var(--elite); } .fx-superstar { --fx: var(--superstar); } .fx-legend { --fx: var(--legend); } .fx-goat { --fx: var(--goat); }
-  .flipper { position: relative; display: grid; transform-style: preserve-3d; transform: rotateY(180deg); transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
-  .fx-superstar .flipper { transition-duration: .95s; } .fx-legend .flipper, .fx-goat .flipper { transition-duration: 1.15s; }
-  .up .flipper { transform: rotateY(0); }
-  .face { grid-area: 1 / 1; backface-visibility: hidden; min-width: 0; }
-  .front { display: grid; gap: 6px; }
-  .back { display: grid; place-content: center; justify-items: center; min-height: 340px; transform: rotateY(180deg); border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
+  .back { display: grid; place-content: center; justify-items: center; min-height: 340px; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
   .back span { padding: 4px 8px; background: var(--accent); color: #0a0d08; font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .back small { margin-top: 6px; color: var(--muted); font: 900 1rem 'Arial Narrow', Impact, sans-serif; letter-spacing: .2em; }
-  .up .back { visibility: hidden; transition: visibility 0s .4s; }
   /* edge glow once revealed, stronger with rarity */
-  .up.fx-elite .front { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--fx) 55%, transparent)); }
-  .up.fx-superstar .front { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--fx) 70%, transparent)); }
-  .up.fx-legend .front { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--fx) 80%, transparent)); animation: breathe 2.4s ease-in-out infinite; }
-  .up.fx-goat .front { filter: drop-shadow(0 0 30px var(--fx)) drop-shadow(0 0 60px color-mix(in srgb, #ffd36b 50%, transparent)); animation: breathe 1.8s ease-in-out infinite; }
+  .up.fx-elite .holder { box-shadow: 0 0 18px color-mix(in srgb, var(--fx) 55%, transparent); }
+  .up.fx-superstar .holder { box-shadow: 0 0 26px color-mix(in srgb, var(--fx) 70%, transparent); }
+  .up.fx-legend .holder { box-shadow: 0 0 36px color-mix(in srgb, var(--fx) 80%, transparent); }
+  .up.fx-goat .holder { box-shadow: 0 0 40px var(--fx), 0 0 90px color-mix(in srgb, #ffd36b 45%, transparent); }
   /* suspense before a legend or GOAT */
   .charging { animation: tremble .12s linear infinite; }
   .charging .back { border-color: var(--fx); box-shadow: 0 0 34px var(--fx), inset 0 0 40px color-mix(in srgb, var(--fx) 40%, transparent); transition: box-shadow 1s ease-in; }
@@ -173,8 +190,7 @@
   .flash.goat { background: linear-gradient(90deg, transparent 38%, #ffd6f4 48%, #fff 50%, #ffe7a8 52%, transparent 62%), radial-gradient(circle at center, color-mix(in srgb, var(--goat) 75%, transparent) 0%, transparent 70%); animation-duration: 1.5s; }
   .skip { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
   .skip:hover { color: var(--text); border-color: var(--accent); }
-  @keyframes rise { from { transform: translateY(40px) scale(.9); opacity: 0; } }
-  @keyframes breathe { 50% { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--fx) 55%, transparent)); } }
+  @keyframes open { from { transform: scale(.55) rotate(-4deg); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } }
   @keyframes tremble { 0% { transform: translate(-1.5px, 1px) rotate(-.6deg); } 50% { transform: translate(1.5px, -1px) rotate(.6deg); } 100% { transform: translate(-1px, -1px) rotate(-.3deg); } }
   @keyframes ring { from { transform: scale(.4); opacity: .95; } to { transform: scale(2.1); opacity: 0; } }
   @keyframes spin { to { rotate: 360deg; } }
@@ -185,9 +201,8 @@
   @keyframes quake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-6px, 3px); } 25% { transform: translate(6px, -4px); } 40% { transform: translate(-5px, -2px); } 55% { transform: translate(4px, 3px); } 70% { transform: translate(-3px, 1px); } 85% { transform: translate(2px, -1px); } }
   @media (max-width: 720px) { .cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; } .back { min-height: 260px; } .goat-word { font-size: 4rem; } }
   @media (prefers-reduced-motion: reduce) {
-    .slot, .shaking, .charging, .up .front { animation: none !important; }
-    .flipper { transition: none; }
-    .rays, .sparks, .ring, .goat-word, .flash { display: none; }
-    .up .front { outline: 2px solid var(--fx); }
+    .holder, .shaking, .charging { animation: none !important; }
+      .rays, .sparks, .ring, .goat-word, .flash { display: none; }
+    .up .holder { outline: 2px solid var(--fx); }
   }
 </style>

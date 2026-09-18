@@ -123,6 +123,7 @@
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
+  const teaserPool = players.filter((_, index) => index % 7 === 0).map((player) => ({ id: player.id, avatar: (player.nickname ?? '?').slice(0, 2).toUpperCase(), title: player.nickname ?? player.id, subtitle: `${player.year ?? ''} · ${rarityOf(player)}` }));
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
 
   const PAYMENT_TEXT = {
@@ -286,7 +287,7 @@
             <div bind:this={shopSection}>
               {#key reveal.key}
                 <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : t(PACK_LABEL[reveal.tier])} language={$language}
-                  labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal') }} playerTeam={teamNameOf} coachTeam={coachTeamName}
+                  labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal'), rolling: t('revealing') }} teasers={teaserPool} playerTeam={teamNameOf} coachTeam={coachTeamName}
                   onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; }} />
               {/key}
               {#if reveal.done && reveal.coins > 0}<p class="note dupes">{reveal.duplicates.size} {t('dupesToCoins')} +{reveal.coins.toLocaleString($language)} {t('coins')}</p>{/if}
