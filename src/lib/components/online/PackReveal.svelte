@@ -169,11 +169,10 @@
   .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding: 16px 0 6px; }
   /* Closed and open cards share one box, so nothing jumps when a card opens. */
   .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
-  .rv-cards { --card-h: auto; align-items: stretch; }
-  .rv-back { min-height: 480px; }
+  .rv-cards { --card-h: auto; align-items: start; }
+  .rv-back { min-height: 400px; }
   .rv-holder :global(.card) { height: 100%; }
   .rv-holder :global(.card .face) { height: 100%; align-content: start; }
-  .rv-holder :global(.card .stats) { margin-top: auto; }
   .rv-holder { position: relative; display: grid; height: 100%; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
   .fx-superstar .rv-holder { animation-duration: .8s; } .fx-legend .rv-holder, .fx-goat .rv-holder { animation-duration: 1s; }
   .rv-next .rv-back { border-color: var(--accent); }
@@ -208,7 +207,7 @@
   @keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes quake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-6px, 3px); } 25% { transform: translate(6px, -4px); } 40% { transform: translate(-5px, -2px); } 55% { transform: translate(4px, 3px); } 70% { transform: translate(-3px, 1px); } 85% { transform: translate(2px, -1px); } }
   /* Phone: the best card on top at full width, the other two smaller side by side under it. */
-  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .rv-back { min-height: 330px; } .rv-card.best .rv-back { min-height: 480px; } .rv-card:not(.best) :global(.showcase .awards), .rv-card:not(.best) :global(.showcase .epithet) { display: none; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
+  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .rv-back { min-height: 330px; } .rv-card.best .rv-back { min-height: 400px; } .rv-card:not(.best) :global(.showcase .awards), .rv-card:not(.best) :global(.showcase .epithet) { display: none; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
   @media (prefers-reduced-motion: reduce) {
     .rv-holder, .shaking, .charging { animation: none !important; }
       .rays, .sparks, .ring, .goat-word, .flash { display: none; }
