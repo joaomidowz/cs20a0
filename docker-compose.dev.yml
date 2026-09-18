@@ -1,0 +1,16 @@
+# Postgres local só pro servidor online (conta, coleção, temporadas). Porta 5435 pra não bater nos outros projetos.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cs13a0-postgres-dev
+    environment:
+      POSTGRES_USER: cs13a0
+      POSTGRES_PASSWORD: cs13a0
+      POSTGRES_DB: cs13a0
+    ports:
+      - '127.0.0.1:5435:5432'
+    volumes:
+      - cs13a0-postgres-dev:/var/lib/postgresql/data
+volumes:
+  cs13a0-postgres-dev:

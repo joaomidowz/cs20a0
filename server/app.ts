@@ -4,10 +4,14 @@ import { PROTOCOL_VERSION, clientCommandSchema, roomConfigSchema, type ClientCom
 import { advanceFeedCursor, initialDelivery, planBroadcast, type DeliveryState } from './broadcast';
 import { ONLINE_DATA_HASH } from './data';
 import { RoomError, RoomManager } from './room-manager';
+import type { Db } from './db/client';
+import type { Mailer } from './auth/mailer';
+import { createAuthRoutes } from './http/auth-routes';
+import { createSlidingLimiter } from './http/rate-limit';
+import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
 const MAX_COMMANDS_PER_10_SECONDS = 40;
 const MAX_ROOM_CREATIONS_PER_MINUTE = 10;
-const MAX_PAYLOAD_BYTES = 16 * 1024;
 /** Bytes still queued on a socket above which a live update is skipped: the next tick sends the state of that moment instead. */
 const LIVE_BACKPRESSURE_BYTES = 64 * 1024;
 
@@ -27,27 +31,13 @@ export interface OnlineServerOptions {
   liveBackpressureBytes?: number;
   /** How many bytes a socket still has queued; injectable so tests can simulate a slow connection. */
   bufferedAmountOf?: (socket: WebSocket) => number;
+  /** Accounts and collection need a database; without one the server runs rooms only. */
+  db?: Db;
+  mailer?: Mailer;
+  siteUrl?: string;
 }
 
-const json = (response: ServerResponse, status: number, body: unknown, origin?: string) => {
-  response.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    ...(origin ? { 'access-control-allow-origin': origin, vary: 'origin' } : {})
-  });
-  response.end(JSON.stringify(body));
-};
-
-const readJsonBody = async (request: IncomingMessage): Promise<unknown> => {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.length;
-    if (size > MAX_PAYLOAD_BYTES) throw new Error('Payload too large');
-    chunks.push(buffer);
-  }
-  return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
-};
+const json = sendJson;
 
 export function createOnlineServer(options: OnlineServerOptions = {}) {
   const manager = options.manager ?? new RoomManager();
@@ -55,8 +45,10 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const liveBackpressureBytes = options.liveBackpressureBytes ?? LIVE_BACKPRESSURE_BYTES;
   const bufferedAmountOf = options.bufferedAmountOf ?? ((socket: WebSocket) => socket.bufferedAmount);
   const allowedOrigins = new Set(options.allowedOrigins ?? ['http://localhost:5173', 'https://cs13a0.com', 'https://www.cs13a0.com']);
-  const roomCreations = new Map<string, number[]>();
+  const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
+  const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
+  const httpRoutes: Route[] = [...(auth?.routes ?? [])];
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
@@ -70,14 +62,14 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     if (request.method === 'OPTIONS') {
       response.writeHead(204, {
         'access-control-allow-origin': origin ?? '',
-        'access-control-allow-methods': 'GET,POST,OPTIONS',
-        'access-control-allow-headers': 'content-type',
+        'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'access-control-allow-headers': 'content-type,authorization',
         vary: 'origin'
       });
       return response.end();
     }
     if (request.method === 'GET' && url.pathname === '/health') {
-      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount() }, origin);
+      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth) }, origin);
     }
     const roomLookup = request.method === 'GET' ? /^\/rooms\/([A-Z2-9]{8})$/i.exec(url.pathname) : null;
     if (roomLookup) {
@@ -88,23 +80,21 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     if (request.method === 'POST' && url.pathname === '/rooms') {
       const address = request.socket.remoteAddress ?? 'unknown';
       const current = now();
-      const recent = (roomCreations.get(address) ?? []).filter((timestamp) => current - timestamp < 60_000);
-      if (recent.length) roomCreations.set(address, recent);
-      else roomCreations.delete(address);
-      if (recent.length >= MAX_ROOM_CREATIONS_PER_MINUTE) return json(response, 429, { error: 'Rate limited' }, origin);
+      if (!roomCreations.hit(address)) return json(response, 429, { error: 'Rate limited' }, origin);
       try {
         const body = await readJsonBody(request) as Record<string, unknown>;
         if (body.protocolVersion !== PROTOCOL_VERSION) return json(response, 409, { error: 'Protocol mismatch' }, origin);
         if (body.dataHash !== ONLINE_DATA_HASH) return json(response, 409, { error: 'Dataset mismatch' }, origin);
         const config = body.config === undefined ? undefined : roomConfigSchema.parse(body.config);
         const roomCode = manager.createRoom(config, current);
-        recent.push(current);
-        roomCreations.set(address, recent);
         return json(response, 201, { roomCode, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH }, origin);
       } catch {
         return json(response, 400, { error: 'Invalid room request' }, origin);
       }
     }
+    const handled = await dispatch(httpRoutes, { request, response, url, origin, address: request.socket.remoteAddress ?? 'unknown', now: now() });
+    if (handled) return;
+    if (!auth && /^\/(auth|me|collection|packs|lineup|seasons)\b/.test(url.pathname)) return json(response, 503, { ok: false, error: 'ACCOUNTS_DISABLED', message: 'Contas desativadas neste servidor' }, origin);
     return json(response, 404, { error: 'Not found' }, origin);
   });
 
@@ -242,6 +232,8 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   }, 100);
   tickTimer.unref();
   const heartbeatTimer = setInterval(() => {
+    roomCreations.prune();
+    auth?.prune();
     for (const [socket, session] of sessions) {
       if (!session.alive) {
         socket.terminate();
@@ -261,5 +253,5 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   };
 
-  return { server, manager, close, broadcastRoom };
+  return { server, manager, close, broadcastRoom, httpRoutes, withAuth: auth?.withAuth ?? null };
 }
