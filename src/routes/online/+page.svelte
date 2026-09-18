@@ -47,11 +47,33 @@
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { SEO_BY_ROUTE } from '$lib/seo';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
+  import { accountUser, authFetch, loadAccount } from '$lib/game/online/account';
+  import { fetchCollection } from '$lib/game/online/collection';
   import '../../app.css';
 
   let playerName = '';
   let organizationName = '';
   let roomCode = '';
+  // Collection account: when logged in with a saved team, the room can be entered without drafting.
+  let hasSavedLineup = false;
+  let useCollectionTeam = false;
+  let pendingLineupTicket: string | undefined;
+  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }> } | null = null;
+  let collectionOutcomeFor = '';
+  async function loadCollectionOutcome(key: string) {
+    if (!$accountUser || collectionOutcomeFor === key) return;
+    collectionOutcomeFor = key;
+    // The server records the run right after the champion is known; a short delay covers the write.
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    try {
+      const [season, awards] = await Promise.all([
+        authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),
+        authFetch<{ awards: Array<{ kind: string; count: number }> }>(getOnlineServerUrl(), '/me/awards')
+      ]);
+      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8) };
+    } catch { collectionOutcome = null; }
+  }
+  $: if (snapshot?.phase === 'completed' && me?.collection) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
   /** Round-by-round state of the tournament; null until the first live update after a snapshot. */
   let live: LiveUpdate | null = null;
@@ -250,6 +272,10 @@
     strategicPreferences = loadStrategicPreferences();
     roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
     clockTimer = window.setInterval(updateCountdown, 250);
+    void loadAccount(getOnlineServerUrl()).then(async (user) => {
+      if (!user) return;
+      try { hasSavedLineup = Boolean((await fetchCollection(getOnlineServerUrl())).lineup); useCollectionTeam = hasSavedLineup; } catch { hasSavedLineup = false; }
+    }).catch(() => {});
     if (roomCode && hasOnlineResumeToken(roomCode)) connect();
     loadOfflineSound();
     const unlock = () => { if (snapshot) unlockOfflineAudio(); };
@@ -320,6 +346,20 @@
     return playerName.trim().length >= 2 && organizationName.trim().length >= 2;
   }
 
+  /** Registers the saved collection lineup for the room and keeps the ticket for the join that follows. */
+  async function requestLineupTicket(code: string): Promise<boolean> {
+    pendingLineupTicket = undefined;
+    if (!useCollectionTeam || !$accountUser) return true;
+    try {
+      const result = await authFetch<{ lineupTicket: string }>(getOnlineServerUrl(), `/rooms/${code}/lineup`, { body: {} });
+      pendingLineupTicket = result.lineupTicket;
+      return true;
+    } catch (error) {
+      errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('noSavedLineup') : (error instanceof Error ? error.message : t('connectionFailed'));
+      return false;
+    }
+  }
+
   async function hostRoom() {
     if (!validIdentity()) return;
     creating = true;
@@ -331,6 +371,7 @@
       const url = new URL(window.location.href);
       url.searchParams.set('room', roomCode);
       replaceState(url, {});
+      if (!(await requestLineupTicket(roomCode))) return;
       connect();
     } catch (error) {
       errorMessage = error instanceof OnlineRoomCreationError ? describeError(error.code, error.message) : t('createFailed');
@@ -363,12 +404,15 @@
     const url = new URL(window.location.href);
     url.searchParams.set('room', roomCode);
     replaceState(url, {});
+    if (!(await requestLineupTicket(roomCode))) return;
     connect();
   }
 
   function connect() {
     client?.stop();
-    client = new OnlineRoomClient(getOnlineServerUrl(), roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim() }, {
+    const ticket = pendingLineupTicket;
+    pendingLineupTicket = undefined;
+    client = new OnlineRoomClient(getOnlineServerUrl(), roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim(), ...(ticket ? { lineupTicket: ticket } : {}) }, {
       onConnection: (state) => {
         if (state === 'expired') {
           // The room moved on without us (or the resume token died): back to the entry screen instead of a frozen snapshot.
@@ -681,6 +725,11 @@
       <div class="identity-grid panel">
         <label><span>{t('playerName')}</span><input bind:value={playerName} minlength="2" maxlength="24" autocomplete="nickname" /></label>
         <label><span>{t('orgName')}</span><input bind:value={organizationName} minlength="2" maxlength="24" /></label>
+        {#if $accountUser}
+          <label class="collection-toggle"><input type="checkbox" bind:checked={useCollectionTeam} disabled={!hasSavedLineup} /><span>{t('useCollectionTeam')}</span><small>{hasSavedLineup ? t('collectionTeamHint') : t('noSavedLineup')} <a href="/online/colecao">{t('viewCollection')}</a></small></label>
+        {:else}
+          <p class="collection-cta"><a href="/online/conta">{t('account')}</a> · <a href="/online/colecao">{t('collection')}</a></p>
+        {/if}
       </div>
       <div class="entry-actions">
         <section class="panel">
@@ -714,7 +763,7 @@
             <div class="section-heading"><div><span class="eyebrow">LOBBY</span><h2>{t('participants')}</h2></div><span class="counter">{snapshot.participants.length}/{snapshot.config.capacity}</span></div>
             <div class="participant-list">
               {#each snapshot.participants as participant}
-                <article class:offline={!participant.connected}><span>{participant.organizationName.slice(0, 2).toUpperCase()}</span><div><strong>{participant.organizationName}</strong><small>{participant.playerName}</small></div><b>{participant.host ? 'HOST' : participant.connected ? 'ONLINE' : 'OFFLINE'}</b></article>
+                <article class:offline={!participant.connected}><span>{participant.organizationName.slice(0, 2).toUpperCase()}</span><div><strong>{participant.organizationName}{#if participant.collection} <em class="team-badge-tag">{t('teamBadge')}</em>{/if}</strong><small>{participant.playerName}</small></div><b>{participant.host ? 'HOST' : participant.connected ? 'ONLINE' : 'OFFLINE'}</b></article>
               {/each}
             </div>
           </section>
@@ -851,6 +900,17 @@
               <RematchPanel rematch={snapshot.season.rematch} participants={snapshot.participants} selfParticipantId={self?.participantId ?? null} secondsLeft={rematchSeconds} language={$language} onVote={voteRematch} />
             {/if}
             <SeasonPanel season={snapshot.season} language={$language} selfParticipantId={self?.participantId ?? null} />
+          {/if}
+          {#if snapshot.phase === 'completed' && collectionOutcome}
+            <section class="panel collection-outcome">
+              <div class="section-heading"><div><span class="eyebrow">{t('collection').toUpperCase()}</span><h2>{t('collectionResults')}</h2></div><a class="secondary" href="/online/colecao">{t('viewCollection')}</a></div>
+              <div class="campaign-grid">
+                <article><small>{t('seasonRank')}</small><strong>{collectionOutcome.rank ?? '—'}</strong></article>
+                <article><small>{t('seasonPointsMine')}</small><strong>{collectionOutcome.points}</strong></article>
+                <article><small>{t('champion')}</small><strong>{collectionOutcome.majorsWon}</strong></article>
+              </div>
+              {#if collectionOutcome.awards.length}<p class="awards-line"><span>{t('awardsEarned')}:</span> {collectionOutcome.awards.map((award) => `${award.kind} ×${award.count}`).join(' · ')}</p>{/if}
+            </section>
           {/if}
 
           <div class="major-tabs"><SegmentedControl value={activeTab} label={t('title')} options={[{ value: 'current', label: t('currentGame') }, { value: 'all', label: t('allGames') }]} onChange={(value) => activeTab = value as 'current' | 'all'} /></div>
@@ -1034,6 +1094,7 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+  .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a,.collection-cta a{color:var(--accent)}.collection-cta{grid-column:1/-1;margin:0;color:var(--muted);font-size:.72rem}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
   @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}

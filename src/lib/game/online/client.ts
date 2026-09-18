@@ -141,7 +141,7 @@ export class OnlineRoomClient {
   constructor(
     private readonly serverUrl: string,
     private readonly roomCode: string,
-    private readonly identity: { playerName: string; organizationName: string },
+    private readonly identity: { playerName: string; organizationName: string; lineupTicket?: string },
     private readonly handlers: OnlineClientHandlers
   ) {}
 
@@ -250,7 +250,9 @@ export class OnlineRoomClient {
       this.handlers.onConnection('expired');
       return;
     }
-    this.sendRaw({ type: 'join', requestId: this.requestId(), protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, ...this.identity });
+    const { playerName, organizationName, lineupTicket } = this.identity;
+    // The ticket is single use on the server: a reconnect resumes with the token instead, so it never needs to be resent.
+    this.sendRaw({ type: 'join', requestId: this.requestId(), protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, playerName, organizationName, ...(lineupTicket ? { lineupTicket } : {}) });
   }
 
   private requestId() {
