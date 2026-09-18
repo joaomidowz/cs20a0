@@ -49,7 +49,12 @@ async function main() {
     setInterval(closeSeasons, 60 * 60_000).unref();
   }
 
-  const { server } = createOnlineServer({ allowedOrigins, db, mailer, siteUrl: process.env.PUBLIC_SITE_URL ?? 'http://localhost:5173' });
+  const siteUrl = process.env.PUBLIC_SITE_URL ?? 'http://localhost:5173';
+  // Real money only with both Mercado Pago secrets and the public URL the webhook is posted to.
+  const payments = process.env.MP_ACCESS_TOKEN && process.env.MP_WEBHOOK_SECRET && process.env.PUBLIC_SERVER_URL
+    ? { accessToken: process.env.MP_ACCESS_TOKEN, webhookSecret: process.env.MP_WEBHOOK_SECRET, serverUrl: process.env.PUBLIC_SERVER_URL, siteUrl }
+    : undefined;
+  const { server } = createOnlineServer({ allowedOrigins, db, mailer, siteUrl, payments });
   server.listen(port, '0.0.0.0', () => {
     // Intentionally logs only service metadata, never room or participant content.
     console.info(`online-server listening on port ${port}`);

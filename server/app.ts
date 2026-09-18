@@ -11,6 +11,8 @@ import { createCollectionRoutes } from './http/collection-routes';
 import { createRoomRoutes } from './http/room-routes';
 import { recordMajor } from './collection/seasons';
 import { createQueue } from './queue';
+import { createPaymentRoutes } from './http/payment-routes';
+import type { PaymentsConfig } from './payments/mercadopago';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
@@ -39,6 +41,8 @@ export interface OnlineServerOptions {
   db?: Db;
   mailer?: Mailer;
   siteUrl?: string;
+  /** Mercado Pago; absent keeps the shop off. */
+  payments?: Omit<PaymentsConfig, 'db'>;
 }
 
 const json = sendJson;
@@ -56,7 +60,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
   const queue = createQueue(manager, now);
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue)] : [])];
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
@@ -77,7 +81,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       return response.end();
     }
     if (request.method === 'GET' && url.pathname === '/health') {
-      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth), queue: queue.size() }, origin);
+      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth), queue: queue.size(), payments: Boolean(auth && options.payments) }, origin);
     }
     const roomLookup = request.method === 'GET' ? /^\/rooms\/([A-Z2-9]{8})$/i.exec(url.pathname) : null;
     if (roomLookup) {
