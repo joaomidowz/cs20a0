@@ -126,14 +126,14 @@
   {:else}
     {#if rolling >= 0}
       {#key rolling}
-        <div class="roll"><Roulette entries={teasers} result={entryOf(ordered[rolling])} labels={{ spinning: labels.rolling, skip: labels.skip, hidden: '?' }} duration={1500} onComplete={() => land(rolling)} /></div>
+        <div class="rv-roll"><Roulette entries={teasers} result={entryOf(ordered[rolling])} labels={{ spinning: labels.rolling, skip: labels.skip, hidden: '?' }} duration={1500} onComplete={() => land(rolling)} /></div>
       {/key}
     {/if}
-    <div class="cards">
+    <div class="rv-cards">
       {#each ordered as card, index (idOf(card) + index)}
         {@const rarity = rarityOfCard(card)}
         {@const up = index < flipped}
-        <div class="slot fx-{rarity}" class:up class:charging={charging === index} class:next={rolling === index}>
+        <div class="rv-card fx-{rarity}" class:up class:charging={charging === index} class:next={rolling === index}>
           {#if up && (rarity === 'legend' || rarity === 'goat')}
             <span class="rays" aria-hidden="true"></span>
             <span class="sparks" aria-hidden="true">{#each SPARKS as spark}<i style={`--x:${(spark * 53) % 100}%;--d:${(spark * 137) % 900}ms;--s:${4 + (spark % 4) * 2}px`}></i>{/each}</span>
@@ -141,7 +141,7 @@
           {/if}
           {#if up && rarity === 'superstar'}<span class="ring" aria-hidden="true"></span>{/if}
           {#if up}
-            <div class="holder">
+            <div class="rv-holder">
               {#if card.kind === 'player'}
                 <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
               {:else}
@@ -149,7 +149,7 @@
               {/if}
             </div>
           {:else}
-            <div class="back"><span>CS</span><small>13A0</small></div>
+            <div class="rv-back"><span>CS</span><small>13A0</small></div>
           {/if}
         </div>
       {/each}
@@ -159,27 +159,27 @@
 </div>
 
 <style>
-  .reveal-stage { position: relative; display: grid; gap: 16px; justify-items: center; padding: 22px 0 8px; border-top: 1px solid var(--line); overflow: hidden; transition: background .4s ease; --common: #8d979e; --rare: #4da3ff; --elite: #a66bff; --superstar: #ff8a3d; --legend: #ffc94d; --goat: #ff5ad8; }
+  .reveal-stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; justify-items: center; padding: 22px 0 8px; border-top: 1px solid var(--line); overflow: hidden; transition: background .4s ease; --common: #8d979e; --rare: #4da3ff; --elite: #a66bff; --superstar: #ff8a3d; --legend: #ffc94d; --goat: #ff5ad8; }
   .reveal-stage.dark { background: radial-gradient(ellipse at center, #1a0716 0%, #050306 75%); }
   .shaking { animation: quake .6s linear; }
   .case-stage { display: grid; place-items: center; min-height: 300px; }
-  .roll { width: 100%; }
-  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 250px)); gap: 18px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
-  .slot { position: relative; min-width: 0; --fx: var(--common); }
-  .holder { position: relative; display: block; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
-  .fx-superstar .holder { animation-duration: .8s; } .fx-legend .holder, .fx-goat .holder { animation-duration: 1s; }
-  .next .back { border-color: var(--accent); }
+  .rv-roll { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-self: stretch; }
+  .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 250px)); gap: 18px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
+  .rv-card { position: relative; min-width: 0; --fx: var(--common); }
+  .rv-holder { position: relative; display: block; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
+  .fx-superstar .rv-holder { animation-duration: .8s; } .fx-legend .rv-holder, .fx-goat .rv-holder { animation-duration: 1s; }
+  .next .rv-back { border-color: var(--accent); }
   .fx-rare { --fx: var(--rare); } .fx-elite { --fx: var(--elite); } .fx-superstar { --fx: var(--superstar); } .fx-legend { --fx: var(--legend); } .fx-goat { --fx: var(--goat); }
-  .back { display: grid; place-content: center; justify-items: center; min-height: 340px; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
-  .back span { padding: 4px 8px; background: var(--accent); color: #0a0d08; font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .back small { margin-top: 6px; color: var(--muted); font: 900 1rem 'Arial Narrow', Impact, sans-serif; letter-spacing: .2em; }
+  .rv-back { display: grid; place-content: center; justify-items: center; min-height: 340px; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
+  .rv-back span { padding: 4px 8px; background: var(--accent); color: #0a0d08; font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .rv-back small { margin-top: 6px; color: var(--muted); font: 900 1rem 'Arial Narrow', Impact, sans-serif; letter-spacing: .2em; }
   /* edge glow once revealed, stronger with rarity */
-  .up.fx-elite .holder { box-shadow: 0 0 18px color-mix(in srgb, var(--fx) 55%, transparent); }
-  .up.fx-superstar .holder { box-shadow: 0 0 26px color-mix(in srgb, var(--fx) 70%, transparent); }
-  .up.fx-legend .holder { box-shadow: 0 0 36px color-mix(in srgb, var(--fx) 80%, transparent); }
-  .up.fx-goat .holder { box-shadow: 0 0 40px var(--fx), 0 0 90px color-mix(in srgb, #ffd36b 45%, transparent); }
+  .up.fx-elite .rv-holder { box-shadow: 0 0 18px color-mix(in srgb, var(--fx) 55%, transparent); }
+  .up.fx-superstar .rv-holder { box-shadow: 0 0 26px color-mix(in srgb, var(--fx) 70%, transparent); }
+  .up.fx-legend .rv-holder { box-shadow: 0 0 36px color-mix(in srgb, var(--fx) 80%, transparent); }
+  .up.fx-goat .rv-holder { box-shadow: 0 0 40px var(--fx), 0 0 90px color-mix(in srgb, #ffd36b 45%, transparent); }
   /* suspense before a legend or GOAT */
   .charging { animation: tremble .12s linear infinite; }
-  .charging .back { border-color: var(--fx); box-shadow: 0 0 34px var(--fx), inset 0 0 40px color-mix(in srgb, var(--fx) 40%, transparent); transition: box-shadow 1s ease-in; }
+  .charging .rv-back { border-color: var(--fx); box-shadow: 0 0 34px var(--fx), inset 0 0 40px color-mix(in srgb, var(--fx) 40%, transparent); transition: box-shadow 1s ease-in; }
   .ring { position: absolute; inset: 20% 10%; border: 3px solid var(--fx); border-radius: 50%; animation: ring 1s ease-out forwards; pointer-events: none; z-index: 2; }
   .rays { position: absolute; left: 50%; top: 45%; width: 190%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 42%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: spin 14s linear infinite, fadein .8s ease-out; pointer-events: none; z-index: -1; }
   .sparks { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
@@ -190,7 +190,7 @@
   .flash.goat { background: linear-gradient(90deg, transparent 38%, #ffd6f4 48%, #fff 50%, #ffe7a8 52%, transparent 62%), radial-gradient(circle at center, color-mix(in srgb, var(--goat) 75%, transparent) 0%, transparent 70%); animation-duration: 1.5s; }
   .skip { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
   .skip:hover { color: var(--text); border-color: var(--accent); }
-  @keyframes open { from { transform: scale(.55) rotate(-4deg); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } }
+  @keyframes open { 0% { transform: scaleX(0) scale(.92); opacity: .4; } 55% { transform: scaleX(1.04) scale(1.04); opacity: 1; } 100% { transform: none; } }
   @keyframes tremble { 0% { transform: translate(-1.5px, 1px) rotate(-.6deg); } 50% { transform: translate(1.5px, -1px) rotate(.6deg); } 100% { transform: translate(-1px, -1px) rotate(-.3deg); } }
   @keyframes ring { from { transform: scale(.4); opacity: .95; } to { transform: scale(2.1); opacity: 0; } }
   @keyframes spin { to { rotate: 360deg; } }
@@ -199,10 +199,10 @@
   @keyframes goatword { from { opacity: 0; transform: scale(.6); } to { opacity: .55; transform: scale(1); } }
   @keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes quake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-6px, 3px); } 25% { transform: translate(6px, -4px); } 40% { transform: translate(-5px, -2px); } 55% { transform: translate(4px, 3px); } 70% { transform: translate(-3px, 1px); } 85% { transform: translate(2px, -1px); } }
-  @media (max-width: 720px) { .cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; } .back { min-height: 260px; } .goat-word { font-size: 4rem; } }
+  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; } .rv-back { min-height: 260px; } .goat-word { font-size: 4rem; } }
   @media (prefers-reduced-motion: reduce) {
-    .holder, .shaking, .charging { animation: none !important; }
+    .rv-holder, .shaking, .charging { animation: none !important; }
       .rays, .sparks, .ring, .goat-word, .flash { display: none; }
-    .up .holder { outline: 2px solid var(--fx); }
+    .up .rv-holder { outline: 2px solid var(--fx); }
   }
 </style>
