@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { AuthError, getSession, logout, requestMagicLink, setDisplayName, verifyMagicLink, type AuthDeps } from '../auth/service';
+import { AuthError, getSession, logout, requestMagicLink, setProfile, verifyMagicLink, type AuthDeps } from '../auth/service';
 import { normalizeEmail } from '../auth/tokens';
 import { createSlidingLimiter } from './rate-limit';
 import { HttpError, bearerOf, readBody, route, type Handler, type HttpContext, type Route } from './router';
 
 const requestSchema = z.object({ email: z.string().min(3).max(254) });
 const verifySchema = z.object({ token: z.string().min(16).max(256) });
-const profileSchema = z.object({ displayName: z.string().trim().min(2).max(24) });
+const profileSchema = z.object({ displayName: z.string().trim().min(2).max(24), teamName: z.string().trim().min(2).max(24) });
 
 const toHttp = (error: unknown): never => {
   if (error instanceof AuthError) {
@@ -52,7 +52,7 @@ export function createAuthRoutes(deps: AuthDeps, now: () => number) {
     })),
     route('PUT', /^\/me\/profile$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, profileSchema);
-      await setDisplayName(deps, userId!, body.displayName);
+      await setProfile(deps, userId!, body);
       return { ok: true };
     }))
   ];

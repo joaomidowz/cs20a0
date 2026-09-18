@@ -1,7 +1,7 @@
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
-import { awardsOf, currentStandings } from '../collection/seasons';
+import { awardsOf, currentStandings, lastSeasonPodium } from '../collection/seasons';
 import { playerById, teams } from '../data';
 import type { Db } from '../db/client';
 import { RoomError, type RoomManager } from '../room-manager';
@@ -32,7 +32,7 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
     route('GET', /^\/seasons\/current$/, async ({ request, now }) => {
       const bearer = request.headers.authorization;
       const me = bearer ? await withAuthUserId(withAuth, request) : null;
-      return { ok: true, ...(await currentStandings(db, now, me)) };
+      return { ok: true, ...(await currentStandings(db, now, me)), lastSeason: await lastSeasonPodium(db) };
     }),
     route('GET', /^\/me\/awards$/, withAuth(async ({ userId }) => ({ ok: true, awards: await awardsOf(db, userId!) })))
   ];

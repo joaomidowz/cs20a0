@@ -1,10 +1,15 @@
 <script lang="ts">
+  import '../../../app.css';
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import CountryFlag from '$lib/components/CountryFlag.svelte';
+  import PlayerAvatar from '$lib/components/PlayerAvatar.svelte';
+  import TeamBadge from '$lib/components/TeamBadge.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
-  import { playerById, players } from '$lib/game/data';
+  import { playerById, players, teamById } from '$lib/game/data';
+  import { playerCountryOf } from '$lib/game/online/collection-countries';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, eligibleRolesOf, isStarEffective, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
@@ -213,6 +218,7 @@
                 {#each reveal.cards.slice(0, reveal.spinning) as card, index (card.id + index)}
                   <div class="reveal-card" class:dupe={reveal.duplicates.has(card.id)}>
                     <PlayerCard player={card} mode="premier" revealed language={$language} onOpen={(selected) => detailsPlayer = selected} />
+                    <div class="card-origin"><CountryFlag code={playerCountryOf(card)} language={$language} /><TeamBadge id={card.teamId ?? ''} name={teamById.get(card.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(card.teamId ?? '')?.name ?? '—'}</em></div>
                     <b>{reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')}</b>
                   </div>
                 {/each}
@@ -224,11 +230,15 @@
 
         <section class="panel team">
           <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {Math.round(preview.power)}</strong>{/if}</div>
+          <div class="team-grid">
           <div class="slots">
             {#each slots as slot, index}
               <article class="slot" class:filled={Boolean(slot)} class:star={slot && slot.id === starPlayerId}>
                 {#if slot}
-                  <div class="slot-head"><strong>{slot.nickname ?? slot.id}</strong><span>{slot.year ?? ''} · OVR {slot.overall ?? '—'}</span></div>
+                  <div class="slot-top"><span class="slot-photo"><PlayerAvatar player={slot} bare /></span><span class="slot-ovr"><small>OVR</small>{slot.overall ?? '—'}</span></div>
+                  <strong class="slot-name"><CountryFlag code={playerCountryOf(slot)} language={$language} /> {slot.nickname ?? slot.id}</strong>
+                  <span class="slot-team"><TeamBadge id={slot.teamId ?? ''} name={teamById.get(slot.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(slot.teamId ?? '')?.name ?? '—'}</em></span>
+                  <span class="slot-meta">{slot.year ?? ''} · {rarityOf(slot)}</span>
                   <label><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
                   <div class="slot-actions">
                     <button class="ghost small" type="button" class:active={slot.id === starPlayerId} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★ {t('star')}</button>
@@ -240,6 +250,7 @@
               </article>
             {/each}
           </div>
+          <div class="team-side">
           <p class="note">{t('starHint')}</p>
           {#if starPlayerId && complete && !starOk}<p class="warn">{t('starInactive')}</p>{/if}
           <div class="style-row">
@@ -258,6 +269,8 @@
             </ul>
           {/if}
           <button class="primary" type="button" disabled={busy || !complete} on:click={persistLineup}>{t('saveLineup')}</button>
+          </div>
+          </div>
         </section>
       </div>
 
@@ -276,6 +289,7 @@
             {#each visible as player (player.id)}
               <div class="card-wrap" class:in-lineup={lineupIds.has(player.id)}>
                 <PlayerCard {player} mode="premier" revealed language={$language} onOpen={(selected) => detailsPlayer = selected} />
+                <div class="card-origin"><CountryFlag code={playerCountryOf(player)} language={$language} /><TeamBadge id={player.teamId ?? ''} name={teamById.get(player.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(player.teamId ?? '')?.name ?? '—'}</em></div>
                 <div class="card-actions">
                   {#if lineupIds.has(player.id)}
                     <span class="tag">{t('inLineup')}</span>
@@ -300,50 +314,64 @@
 {#if toast}<div class="toast">{toast}</div>{/if}
 
 <style>
-  .collection { display: grid; gap: 16px; padding: 28px 0 70px; }
+  .collection { display: grid; gap: 18px; padding: 28px 0 70px; }
   .box { display: grid; gap: 12px; padding: 22px; }
   .link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 16px; text-decoration: none; }
-  .topbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 14px 18px; }
+  .topbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 16px 20px; }
   .topbar > div { display: grid; gap: 4px; }
   .topbar span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-  .topbar strong { font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
+  .topbar strong { font: 900 1.9rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
   .topbar strong small { font: 700 .6rem Inter, Arial, sans-serif; color: var(--muted); }
-  .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .columns { display: grid; gap: 16px; }
-  .shop, .team, .cards { display: grid; gap: 14px; padding: 20px; align-content: start; }
-  .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .pack { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); background: var(--surface-2); }
-  .pack.prata { border-color: #c9d1d9; } .pack.ouro { border-color: #d9a441; } .pack.era { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
-  .pack strong { font: 900 1.2rem/1 'Arial Narrow', Impact, sans-serif; text-transform: uppercase; }
-  .pack small { color: var(--muted); font-size: .68rem; }
-  .pack button { min-height: 42px; padding: 0 10px; font-size: .7rem; }
+  .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
+  .columns { display: grid; gap: 18px; }
+  .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
+  .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .pack { display: grid; gap: 10px; align-content: start; min-height: 150px; padding: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+  .pack.basic { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .pack.prata { border-color: #c9d1d9; } .pack.ouro { border-color: #d9a441; } .pack.era { border-color: #a66bff; }
+  .pack strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .pack small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
+  .pack button { margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }
   .era-year { display: grid; gap: 4px; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
-  .era-year select, .filters input, .filters select, .slot select { min-height: 40px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
-  .odds { width: 100%; border-collapse: collapse; font-size: .68rem; } .odds th, .odds td { padding: 5px 6px; border: 1px solid var(--line); text-align: center; } .odds th:first-child { text-align: left; text-transform: uppercase; }
-  .reveal { display: grid; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
-  .reveal-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-  .reveal-card { position: relative; } .reveal-card b { position: absolute; top: 8px; left: 8px; padding: 3px 7px; background: var(--accent); color: #0a0d08; font-size: .55rem; font-weight: 900; letter-spacing: .1em; } .reveal-card.dupe b { background: var(--muted); }
-  .slots { display: grid; gap: 8px; }
-  .slot { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
-  .slot.star { border-color: #d9a441; box-shadow: inset 0 0 0 1px color-mix(in srgb, #d9a441 45%, transparent); }
-  .slot-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; } .slot-head span { color: var(--muted); font-size: .68rem; }
-  .slot label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; } .slot label span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
-  .slot-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .empty { color: var(--muted); font-size: .8rem; }
-  .small { min-height: 34px; padding: 0 10px; font-size: .62rem; }
+  .era-year select, .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  .odds { width: 100%; border-collapse: collapse; font-size: .7rem; } .odds th, .odds td { padding: 6px 8px; border: 1px solid var(--line); text-align: center; } .odds th:first-child { text-align: left; text-transform: uppercase; }
+  .reveal { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .reveal-grid { grid-template-columns: repeat(3, minmax(0, 260px)); justify-content: center; gap: 14px; }
+  .reveal-card { position: relative; } .reveal-card :global(.player-card) { min-height: 280px; }
+  .reveal-card b { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 4px 8px; background: var(--accent); color: #0a0d08; font-size: .58rem; font-weight: 900; letter-spacing: .12em; } .reveal-card.dupe b { background: var(--muted); }
+  .team-grid { display: grid; gap: 18px; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .slot { display: grid; gap: 8px; align-content: start; min-height: 230px; padding: 12px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+  .slot.star { border-color: #d9a441; box-shadow: inset 0 0 0 1px color-mix(in srgb, #d9a441 45%, transparent), 0 0 22px color-mix(in srgb, #d9a441 15%, transparent); }
+  .slot-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+  .slot-photo { display: block; width: 56px; height: 56px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
+  .slot-ovr { display: grid; justify-items: end; font: 900 1.7rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); } .slot-ovr small { font: 700 .5rem Inter, Arial, sans-serif; color: var(--muted); }
+  .slot-name { font: 800 1.2rem/1.1 'Arial Narrow', Impact, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot-name { display: flex; align-items: center; gap: 6px; }
+  .slot-team, .card-origin { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: .68rem; }
+  .slot-team em, .card-origin em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+  .card-origin { padding: 5px 8px; border: 1px solid var(--line); background: var(--surface-2); }
+  .slot-meta { color: var(--muted); font-size: .64rem; text-transform: uppercase; }
+  .slot label { display: grid; gap: 4px; } .slot label span { color: var(--muted); font-size: .56rem; font-weight: 800; text-transform: uppercase; } .slot select { width: 100%; }
+  .slot-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; }
+  .empty { display: grid; place-items: center; min-height: 200px; color: var(--muted); font-size: .8rem; border: 1px dashed var(--line); }
+  .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
+  .team-side { display: grid; gap: 12px; align-content: start; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .warn { margin: 0; color: var(--accent-2); font-size: .78rem; font-weight: 700; }
   .style-row { display: grid; gap: 6px; } .style-row > span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .synergy { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-  .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 9px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .72rem; }
+  .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .74rem; }
   .synergy li.up { border-left-color: var(--accent); } .synergy li.down { border-left-color: var(--danger); } .synergy li.total { border-left-color: #d9a441; font-weight: 800; }
-  .power { color: var(--accent); font: 900 1.2rem/1 'Arial Narrow', Impact, sans-serif; }
-  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
+  .power { color: var(--accent); font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
+  .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
   .card-wrap { display: grid; gap: 4px; } .card-wrap.in-lineup :global(.player-card) { border-color: var(--accent); }
   .card-actions { display: flex; gap: 4px; } .card-actions button { flex: 1; }
-  .tag { padding: 8px; border: 1px dashed var(--accent); color: var(--accent); font-size: .6rem; font-weight: 800; text-align: center; text-transform: uppercase; }
+  .tag { padding: 9px; border: 1px dashed var(--accent); color: var(--accent); font-size: .6rem; font-weight: 800; text-align: center; text-transform: uppercase; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }
-  @media (min-width: 900px) { .columns { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+  @media (min-width: 900px) { .team-grid { grid-template-columns: minmax(0, 1fr) 320px; } }
+  @media (max-width: 720px) { .reveal-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
 </style>

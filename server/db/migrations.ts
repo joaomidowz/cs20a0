@@ -175,6 +175,11 @@ CREATE TABLE IF NOT EXISTS purchases (
 );
 `
   }
+  ,
+  {
+    id: 4,
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name text;`
+  }
 ];
 
 const LOCK_KEY = 7130;

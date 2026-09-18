@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createOnlineServer } from '../server/app';
 import { createDevMailer } from '../server/auth/mailer';
 import { playerById } from '../server/data';
-import { createDb, type Db } from '../server/db/client';
+import type { Db } from '../server/db/client';
+import { createTestDb } from './helpers/testDb';
 import { runMigrations } from '../server/db/migrations';
 import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
 import { coinValue, sellValue } from '../src/lib/game/online/collection-rules';
@@ -24,8 +25,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
   };
 
   beforeAll(async () => {
-    db = createDb(url!);
-    await db.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    db = await createTestDb(url!, 'test_collection');
     await runMigrations(db);
     const app = createOnlineServer({ allowedOrigins: ['http://localhost:5173'], now: () => clock, db, mailer: createDevMailer(), siteUrl: 'http://localhost:5173' });
     await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve));
@@ -102,11 +102,9 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
 
 describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
   it('grava pontos, prêmio, awards e tabela uma vez só por (sala, seed, usuário)', async () => {
-    const { createDb } = await import('../server/db/client');
     const { runMigrations } = await import('../server/db/migrations');
     const { recordMajor, currentStandings } = await import('../server/collection/seasons');
-    const db = createDb(url!);
-    await db.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    const db = await createTestDb(url!, 'test_majors');
     await runMigrations(db);
     const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('major@example.com', now()) RETURNING id`);
     await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
@@ -137,6 +135,20 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const standings = await currentStandings(db, now, user.id);
     expect(standings.month).toBe('2026-09-01');
     expect(standings.me).toMatchObject({ rank: 1, majorsWon: 2, majorsPlayed: 3, points: 3 });
+
+    // Month over: the podium is paid once, the season closes and shows up as the last champion.
+    const { closeFinishedSeasons, lastSeasonPodium } = await import('../server/collection/seasons');
+    expect(await closeFinishedSeasons(db, now)).toEqual([]);
+    const nextMonth = Date.UTC(2026, 9, 1, 4);
+    const [before] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
+    expect(await closeFinishedSeasons(db, nextMonth)).toEqual([{ seasonId: expect.any(Number), month: '2026-09-01', awarded: 1 }]);
+    expect(await closeFinishedSeasons(db, nextMonth)).toEqual([]);
+    const [after] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
+    expect(after.coins - before.coins).toBe(2000);
+    const top = await db.query<{ kind: string }>(`SELECT kind FROM awards WHERE kind LIKE 'season_%'`);
+    expect(top.map((row) => row.kind)).toEqual(['season_top1']);
+    const podium = await lastSeasonPodium(db);
+    expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 3 }] });
     await db.close();
   });
 });

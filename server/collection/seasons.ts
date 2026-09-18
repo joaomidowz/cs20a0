@@ -91,6 +91,7 @@ export interface StandingRow {
   rank: number;
   userId: string;
   displayName: string;
+  teamName: string | null;
   majorsWon: number;
   majorsPlayed: number;
   points: number;
@@ -99,8 +100,8 @@ export interface StandingRow {
 
 export async function currentStandings(db: Db, now: number, userId: string | null): Promise<{ month: string; top: StandingRow[]; me: StandingRow | null }> {
   const { month } = seasonMonthOf(now);
-  const rows = await db.query<{ user_id: string; display_name: string | null; email: string; majors_won: number; majors_played: number; points: number; avg_rating: string | null }>(
-    `SELECT s.user_id, u.display_name, u.email, s.majors_won, s.majors_played, s.points, s.avg_rating
+  const rows = await db.query<{ user_id: string; display_name: string | null; team_name: string | null; email: string; majors_won: number; majors_played: number; points: number; avg_rating: string | null }>(
+    `SELECT s.user_id, u.display_name, u.team_name, u.email, s.majors_won, s.majors_played, s.points, s.avg_rating
      FROM season_standings s JOIN seasons se ON se.id = s.season_id JOIN users u ON u.id = s.user_id
      WHERE se.month = $1
      ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id`,
@@ -110,6 +111,7 @@ export async function currentStandings(db: Db, now: number, userId: string | nul
     rank: index + 1,
     userId: row.user_id,
     displayName: row.display_name ?? row.email.split('@')[0],
+    teamName: row.team_name,
     majorsWon: row.majors_won,
     majorsPlayed: row.majors_played,
     points: row.points,
@@ -121,4 +123,53 @@ export async function currentStandings(db: Db, now: number, userId: string | nul
 export async function awardsOf(db: Db, userId: string): Promise<Array<{ kind: string; count: number; last: string }>> {
   const rows = await db.query<{ kind: string; count: string; last: Date }>('SELECT kind, count(*)::text AS count, max(earned_at) AS last FROM awards WHERE user_id = $1 GROUP BY kind ORDER BY max(earned_at) DESC', [userId]);
   return rows.map((row) => ({ kind: row.kind, count: Number(row.count), last: row.last.toISOString() }));
+}
+
+/** Tier of a final season rank; only the best tier is granted (top 1 does not also get top 3). */
+const seasonAwardFor = (rank: number): 'season_top1' | 'season_top3' | 'season_top10' | null =>
+  rank === 1 ? 'season_top1' : rank <= 3 ? 'season_top3' : rank <= 10 ? 'season_top10' : null;
+
+/**
+ * Closes every season whose month is over: final ranks become awards (champion, top 3, top 10) with their coin prize.
+ * Runs at boot and hourly; closing is a single UPDATE … WHERE status = 'active', so two runs never pay twice.
+ */
+export async function closeFinishedSeasons(db: Db, now: number): Promise<Array<{ seasonId: number; month: string; awarded: number }>> {
+  const due = await db.query<{ id: number; month: Date }>(`SELECT id, month FROM seasons WHERE status = 'active' AND ends_at <= $1 ORDER BY month`, [new Date(now)]);
+  const closed: Array<{ seasonId: number; month: string; awarded: number }> = [];
+  for (const season of due) {
+    const awarded = await db.tx(async (tx) => {
+      const [locked] = await tx.query<{ id: number }>(`UPDATE seasons SET status = 'closed' WHERE id = $1 AND status = 'active' RETURNING id`, [season.id]);
+      if (!locked) return 0;
+      const rows = await tx.query<{ user_id: string; points: number; majors_won: number }>(
+        `SELECT user_id, points, majors_won FROM season_standings WHERE season_id = $1 AND points > 0
+         ORDER BY points DESC, majors_won DESC, avg_rating DESC NULLS LAST, user_id LIMIT 10`,
+        [season.id]
+      );
+      const rules = new Map((await tx.query<{ kind: string; coins: number }>(`SELECT kind, coins FROM award_rules WHERE kind LIKE 'season_top%'`)).map((row) => [row.kind, row.coins]));
+      let count = 0;
+      for (const [index, row] of rows.entries()) {
+        const kind = seasonAwardFor(index + 1);
+        if (!kind) continue;
+        await tx.query('INSERT INTO awards (user_id, kind, ref_id, season_id, detail) VALUES ($1, $2, $3, $4, $5)', [row.user_id, kind, `season:${season.id}`, season.id, JSON.stringify({ rank: index + 1, points: row.points, majorsWon: row.majors_won })]);
+        const coins = rules.get(kind) ?? 0;
+        if (coins) await applyLedger(tx, row.user_id, coins, 'season_prize', `season:${season.id}`);
+        count += 1;
+      }
+      return count;
+    });
+    closed.push({ seasonId: season.id, month: season.month.toISOString().slice(0, 10), awarded });
+  }
+  return closed;
+}
+
+/** Podium of the most recent closed season, for the "reigning champion" line. */
+export async function lastSeasonPodium(db: Db): Promise<{ month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null> {
+  const [season] = await db.query<{ id: number; month: Date }>(`SELECT id, month FROM seasons WHERE status = 'closed' ORDER BY month DESC LIMIT 1`);
+  if (!season) return null;
+  const rows = await db.query<{ display_name: string | null; team_name: string | null; email: string; points: number }>(
+    `SELECT u.display_name, u.team_name, u.email, s.points FROM season_standings s JOIN users u ON u.id = s.user_id
+     WHERE s.season_id = $1 AND s.points > 0 ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT 3`,
+    [season.id]
+  );
+  return { month: season.month.toISOString().slice(0, 10), podium: rows.map((row, index) => ({ rank: index + 1, displayName: row.display_name ?? row.email.split('@')[0], teamName: row.team_name, points: row.points })) };
 }

@@ -4,6 +4,7 @@ import { createOnlineServer } from './app';
 import { createDevMailer, createResendMailer } from './auth/mailer';
 import { createDb } from './db/client';
 import { runMigrations } from './db/migrations';
+import { closeFinishedSeasons } from './collection/seasons';
 
 // Local development reads the same .env the frontend uses; variables already set in the process always win.
 try {
@@ -38,6 +39,15 @@ async function main() {
         ? createDevMailer()
         : undefined;
   if (db && !mailer) console.warn('no RESEND_API_KEY (and AUTH_DEV_LINK is only honoured outside production): accounts disabled');
+
+  if (db) {
+    // Month turned over: last season's podium gets its awards and coins. Hourly is plenty; the close itself is idempotent.
+    const closeSeasons = () => closeFinishedSeasons(db, Date.now())
+      .then((closed) => { for (const season of closed) console.info(`season ${season.month} closed (${season.awarded} awards)`); })
+      .catch((error) => console.error('closeFinishedSeasons failed', error instanceof Error ? error.message : error));
+    void closeSeasons();
+    setInterval(closeSeasons, 60 * 60_000).unref();
+  }
 
   const { server } = createOnlineServer({ allowedOrigins, db, mailer, siteUrl: process.env.PUBLIC_SITE_URL ?? 'http://localhost:5173' });
   server.listen(port, '0.0.0.0', () => {

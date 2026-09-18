@@ -1,15 +1,19 @@
 <script lang="ts">
+  import '../../../app.css';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
-  import { AccountError, accountUser, loadAccount, logoutAccount, requestMagicLink, setDisplayName, verifyMagicLink } from '$lib/game/online/account';
+  import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
-  import { translateOnline } from '$lib/game/online/i18n';
+  import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { language, theme } from '$lib/game/pageState';
 
-  $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
+  $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   const serverUrl = getOnlineServerUrl();
+
+  type Standing = { rank: number; userId: string; displayName: string; teamName: string | null; majorsWon: number; majorsPlayed: number; points: number };
+  type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
 
   let email = '';
   let busy = false;
@@ -18,7 +22,11 @@
   let error = '';
   let verifying = false;
   let displayName = '';
+  let teamName = '';
   let disabled = false;
+  let saved = false;
+  let awards: Array<{ kind: string; count: number; last: string }> = [];
+  let season: Season | null = null;
 
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
@@ -29,6 +37,12 @@
     error = t('connectionFailed');
   };
 
+  const awardLabel = (kind: string) => {
+    const key = `award_${kind}` as OnlineTranslationKey;
+    return translateOnline($language, key) ?? kind;
+  };
+  const monthLabel = (month: string) => new Date(`${month}T12:00:00Z`).toLocaleDateString($language, { month: 'long', year: 'numeric' });
+
   async function submit() {
     error = ''; busy = true; devLink = null;
     try {
@@ -38,9 +52,20 @@
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
-  async function saveName() {
-    error = ''; busy = true;
-    try { await setDisplayName(serverUrl, displayName); await loadAccount(serverUrl); } catch (caught) { fail(caught); } finally { busy = false; }
+  async function persistProfile() {
+    error = ''; busy = true; saved = false;
+    try { await saveProfile(serverUrl, { displayName: displayName.trim(), teamName: teamName.trim() }); await loadAccount(serverUrl); saved = true; } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  async function loadExtras() {
+    try {
+      const [mine, current] = await Promise.all([
+        authFetch<{ awards: typeof awards }>(serverUrl, '/me/awards'),
+        authFetch<Season>(serverUrl, '/seasons/current')
+      ]);
+      awards = mine.awards;
+      season = current;
+    } catch { /* the profile still works without the extras */ }
   }
 
   onMount(async () => {
@@ -55,6 +80,8 @@
       }
     } catch (caught) { fail(caught); } finally { verifying = false; }
     displayName = $accountUser?.displayName ?? '';
+    teamName = $accountUser?.teamName ?? '';
+    if ($accountUser) await loadExtras();
   });
 </script>
 
@@ -63,7 +90,7 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<PageLayout language={$language} theme={$theme} onLanguage={(value) => $language = value} onTheme={() => $theme = $theme === 'dark' ? 'light' : 'dark'}>
+<PageLayout wide language={$language} theme={$theme} onLanguage={(value) => $language = value} onTheme={() => $theme = $theme === 'dark' ? 'light' : 'dark'}>
   <section class="account">
     <header class="screen-header centered">
       <span class="eyebrow">ONLINE · {t('account').toUpperCase()}</span>
@@ -72,26 +99,60 @@
     </header>
 
     {#if !isOnlineEnabled() || disabled}
-      <section class="panel box"><p>{t('accountsDisabled')}</p><a class="secondary link" href="/online">{t('back')}</a></section>
+      <section class="panel box narrow"><p>{t('accountsDisabled')}</p><a class="secondary link" href="/online">{t('back')}</a></section>
     {:else if verifying}
-      <section class="panel box"><p>{t('verifying')}</p></section>
+      <section class="panel box narrow"><p>{t('verifying')}</p></section>
     {:else if $accountUser}
-      <section class="panel box logged">
-        <span class="eyebrow">{t('loggedInAs')}</span>
-        <strong>{$accountUser.displayName ?? $accountUser.email}</strong>
-        <small>{$accountUser.email} · {t('memberSince')} {new Date($accountUser.createdAt).toLocaleDateString($language)}</small>
-        <form class="name" on:submit|preventDefault={saveName}>
-          <label><span>{t('displayName')}</span><input bind:value={displayName} minlength="2" maxlength="24" /></label>
-          <button class="secondary" type="submit" disabled={busy || displayName.trim().length < 2}>{t('saveProfile')}</button>
-        </form>
-        <div class="actions">
-          <a class="primary link" href="/online/colecao">{t('goCollection')}</a>
-          <a class="secondary link" href="/online">{t('back')}</a>
-          <button class="ghost" type="button" on:click={() => logoutAccount(serverUrl)}>{t('logout')}</button>
-        </div>
+      <div class="grid">
+        <section class="panel box">
+          <div class="section-heading"><div><span class="eyebrow">{t('profile').toUpperCase()}</span><h2>{$accountUser.teamName ?? $accountUser.displayName ?? $accountUser.email}</h2></div></div>
+          <small class="muted">{t('loggedInAs')} {$accountUser.email} · {t('memberSince')} {new Date($accountUser.createdAt).toLocaleDateString($language)}</small>
+          <form class="profile" on:submit|preventDefault={persistProfile}>
+            <label><span>{t('displayName')}</span><input bind:value={displayName} minlength="2" maxlength="24" required /></label>
+            <label><span>{t('teamName')}</span><input bind:value={teamName} minlength="2" maxlength="24" required /></label>
+            <button class="secondary" type="submit" disabled={busy || displayName.trim().length < 2 || teamName.trim().length < 2}>{saved ? '✓' : t('saveProfile')}</button>
+          </form>
+          <div class="actions">
+            <a class="primary link" href="/online/colecao">{t('goCollection')}</a>
+            <a class="secondary link" href="/online">{t('playOnline')}</a>
+            <button class="ghost" type="button" on:click={() => logoutAccount(serverUrl)}>{t('logout')}</button>
+          </div>
+        </section>
+
+        <section class="panel box">
+          <div class="section-heading"><div><span class="eyebrow">AWARDS</span><h2>{t('myAwards')}</h2></div><strong class="count">{awards.reduce((sum, award) => sum + award.count, 0)}</strong></div>
+          {#if awards.length}
+            <ul class="awards">
+              {#each awards as award (award.kind)}
+                <li class:gold={award.kind === 'major_title' || award.kind.startsWith('season_top')}><span>{awardLabel(award.kind)}</span><b>×{award.count}</b></li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="muted">{t('noAwards')}</p>
+          {/if}
+        </section>
+      </div>
+
+      <section class="panel box">
+        <div class="section-heading"><div><span class="eyebrow">{t('season').toUpperCase()}</span><h2>{t('seasonOfMonth')}{#if season} · {monthLabel(season.month)}{/if}</h2></div>{#if season?.me}<strong class="count">#{season.me.rank} · {season.me.points} {t('pointsCol').toLowerCase()}</strong>{/if}</div>
+        {#if season?.lastSeason?.podium.length}
+          <p class="champion"><span>{t('lastChampion')} ({monthLabel(season.lastSeason.month)})</span> <b>{season.lastSeason.podium[0].teamName ?? season.lastSeason.podium[0].displayName}</b> · {season.lastSeason.podium[0].points} {t('pointsCol').toLowerCase()}</p>
+        {/if}
+        {#if season?.top.length}
+          <table class="standings">
+            <thead><tr><th>{t('rankCol')}</th><th>{t('teamCol')}</th><th>{t('playerCol')}</th><th>{t('titlesCol')}</th><th>{t('pointsCol')}</th></tr></thead>
+            <tbody>
+              {#each season.top.slice(0, 20) as row (row.userId)}
+                <tr class:me={row.userId === $accountUser.id}><td>{row.rank}</td><td>{row.teamName ?? '—'}</td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
+              {/each}
+            </tbody>
+          </table>
+        {:else}
+          <p class="muted">{t('seasonEmpty')}</p>
+        {/if}
       </section>
     {:else}
-      <form class="panel box" on:submit|preventDefault={submit}>
+      <form class="panel box narrow" on:submit|preventDefault={submit}>
         <label><span>{t('email')}</span><input type="email" bind:value={email} required autocomplete="email" inputmode="email" /></label>
         <button class="primary" type="submit" disabled={busy || !email.includes('@')}>{busy ? '…' : t('sendLink')}</button>
         {#if sent}<p class="note">{t('linkSent')}</p>{/if}
@@ -103,18 +164,28 @@
 </PageLayout>
 
 <style>
-  .account { display: grid; gap: 18px; max-width: 560px; margin: 0 auto; padding: 28px 0 70px; }
-  .box { display: grid; gap: 12px; padding: 22px; }
+  .account { display: grid; gap: 18px; padding: 28px 0 70px; }
+  .grid { display: grid; gap: 18px; }
+  .box { display: grid; gap: 14px; padding: 22px; align-content: start; }
+  .narrow { max-width: 560px; width: 100%; margin: 0 auto; }
   .box label { display: grid; gap: 7px; }
   .box label span { color: var(--muted); font-size: .6rem; font-weight: 800; text-transform: uppercase; }
-  .box input { min-height: 46px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
-  .note { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+  .box input { min-height: 46px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; }
+  .note, .muted { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
   .note.dev a { color: var(--accent); overflow-wrap: anywhere; }
-  .logged strong { font-size: 1.4rem; }
-  .logged small { color: var(--muted); }
-  .name { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+  .profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end; }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; }
   .link { display: inline-flex; align-items: center; min-height: 50px; padding: 0 20px; text-decoration: none; }
+  .count { color: var(--accent); font: 900 1.3rem/1 'Arial Narrow', Impact, sans-serif; white-space: nowrap; }
+  .awards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .awards li { display: flex; justify-content: space-between; gap: 8px; padding: 9px 11px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: .78rem; }
+  .awards li.gold { border-left-color: #d9a441; } .awards li.gold b { color: #d9a441; }
+  .champion { margin: 0; padding: 10px 12px; border-left: 3px solid #d9a441; background: color-mix(in srgb, #d9a441 8%, var(--surface-2)); font-size: .82rem; }
+  .champion span { color: var(--muted); } .champion b { color: #d9a441; }
+  .standings { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .standings th { padding: 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .58rem; letter-spacing: .1em; text-align: left; text-transform: uppercase; }
+  .standings td { padding: 9px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+  .standings tr.me td { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
-  @media (max-width: 520px) { .name { grid-template-columns: 1fr; } }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 </style>

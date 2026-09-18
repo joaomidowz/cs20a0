@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createOnlineServer } from '../server/app';
 import { createDevMailer } from '../server/auth/mailer';
 import { hashToken, isDisposable, normalizeEmail } from '../server/auth/tokens';
-import { createDb, type Db } from '../server/db/client';
+import type { Db } from '../server/db/client';
+import { createTestDb } from './helpers/testDb';
 import { MIGRATIONS, runMigrations } from '../server/db/migrations';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -29,8 +30,7 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
   let clock = Date.now();
 
   beforeAll(async () => {
-    db = createDb(url!);
-    await db.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    db = await createTestDb(url!, 'test_accounts');
     const applied = await runMigrations(db);
     expect(applied).toEqual(MIGRATIONS.map((migration) => migration.id));
     expect(await runMigrations(db)).toEqual([]);
@@ -73,6 +73,11 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
 
     const anonymous = await fetch(`${baseUrl}/me`);
     expect(anonymous.status).toBe(401);
+
+    const profile = await fetch(`${baseUrl}/me/profile`, { method: 'PUT', headers: { 'content-type': 'application/json', authorization: `Bearer ${verified.sessionToken}` }, body: JSON.stringify({ displayName: 'Tester', teamName: 'Tester Esports' }) });
+    expect(profile.status).toBe(200);
+    const named = await (await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).json();
+    expect(named.user).toMatchObject({ displayName: 'Tester', teamName: 'Tester Esports' });
 
     expect((await post('/auth/logout', {}, verified.sessionToken)).status).toBe(200);
     expect((await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).status).toBe(401);

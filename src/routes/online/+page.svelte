@@ -274,6 +274,9 @@
     clockTimer = window.setInterval(updateCountdown, 250);
     void loadAccount(getOnlineServerUrl()).then(async (user) => {
       if (!user) return;
+      // The profile names the player and the organization once; the room form just starts from them.
+      if (!playerName && user.displayName) playerName = user.displayName;
+      if (!organizationName && user.teamName) organizationName = user.teamName;
       try { hasSavedLineup = Boolean((await fetchCollection(getOnlineServerUrl())).lineup); useCollectionTeam = hasSavedLineup; } catch { hasSavedLineup = false; }
     }).catch(() => {});
     if (roomCode && hasOnlineResumeToken(roomCode)) connect();
@@ -722,13 +725,29 @@
         <h1>{t('title')}</h1>
         <p>{t('intro')}</p>
       </header>
-      <div class="identity-grid panel">
+      <div class="mode-choice">
+        <article class="panel mode-card">
+          <span class="eyebrow">{t('pickMode')}</span>
+          <h2>{t('playDraft')}</h2>
+          <p>{t('playDraftHint')}</p>
+          <button class="secondary" type="button" on:click={() => { useCollectionTeam = false; document.getElementById('online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>{t('playDraft')}</button>
+        </article>
+        <article class="panel mode-card collection-mode" class:logged={Boolean($accountUser)}>
+          <span class="eyebrow">{$accountUser ? t('loggedReady') : 'LOGIN · E-MAIL'}</span>
+          <h2>{t('playCollection')}</h2>
+          <p>{t('playCollectionHint')}</p>
+          {#if $accountUser}
+            <div class="mode-actions"><a class="primary online-link" href="/online/colecao">{t('collection')}</a><a class="secondary online-link" href="/online/conta">{t('profile')}</a></div>
+          {:else}
+            <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
+          {/if}
+        </article>
+      </div>
+      <div class="identity-grid panel" id="online-identity">
         <label><span>{t('playerName')}</span><input bind:value={playerName} minlength="2" maxlength="24" autocomplete="nickname" /></label>
         <label><span>{t('orgName')}</span><input bind:value={organizationName} minlength="2" maxlength="24" /></label>
         {#if $accountUser}
           <label class="collection-toggle"><input type="checkbox" bind:checked={useCollectionTeam} disabled={!hasSavedLineup} /><span>{t('useCollectionTeam')}</span><small>{hasSavedLineup ? t('collectionTeamHint') : t('noSavedLineup')} <a href="/online/colecao">{t('viewCollection')}</a></small></label>
-        {:else}
-          <p class="collection-cta"><a href="/online/conta">{t('account')}</a> · <a href="/online/colecao">{t('collection')}</a></p>
         {/if}
       </div>
       <div class="entry-actions">
@@ -1094,8 +1113,9 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a,.collection-cta a{color:var(--accent)}.collection-cta{grid-column:1/-1;margin:0;color:var(--muted);font-size:.72rem}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
-  @media(min-width:680px){.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
+  .mode-choice{display:grid;gap:14px;margin-top:24px}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}.mode-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
+  @media(min-width:680px){.mode-choice{grid-template-columns:1fr 1fr}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}

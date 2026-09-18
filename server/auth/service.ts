@@ -9,6 +9,7 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string | null;
+  teamName: string | null;
   verifiedAt: string | null;
   createdAt: string;
 }
@@ -21,10 +22,13 @@ export class AuthError extends Error {
   }
 }
 
-const toUser = (row: { id: string; email: string; display_name: string | null; verified_at: Date | null; created_at: Date }): AuthUser => ({
+type UserRow = { id: string; email: string; display_name: string | null; team_name: string | null; verified_at: Date | null; created_at: Date };
+
+const toUser = (row: UserRow): AuthUser => ({
   id: row.id,
   email: row.email,
   displayName: row.display_name,
+  teamName: row.team_name,
   verifiedAt: row.verified_at ? row.verified_at.toISOString() : null,
   createdAt: row.created_at.toISOString()
 });
@@ -68,8 +72,8 @@ export async function verifyMagicLink(deps: AuthDeps, token: string): Promise<{ 
       [hashToken(token), new Date(now)]
     );
     if (!link) throw new AuthError('INVALID_TOKEN', 'Link inválido ou expirado');
-    const [user] = await tx.query<{ id: string; email: string; display_name: string | null; verified_at: Date | null; created_at: Date }>(
-      'UPDATE users SET verified_at = COALESCE(verified_at, $2), last_seen_at = $2 WHERE id = $1 RETURNING id, email, display_name, verified_at, created_at',
+    const [user] = await tx.query<UserRow>(
+      'UPDATE users SET verified_at = COALESCE(verified_at, $2), last_seen_at = $2 WHERE id = $1 RETURNING id, email, display_name, team_name, verified_at, created_at',
       [link.user_id, new Date(now)]
     );
     await tx.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [hashToken(session), user.id, new Date(now + SESSION_TTL_MS)]);
@@ -80,8 +84,8 @@ export async function verifyMagicLink(deps: AuthDeps, token: string): Promise<{ 
 
 export async function getSession(deps: Pick<AuthDeps, 'db' | 'now'>, sessionToken: string): Promise<AuthUser | null> {
   const now = deps.now?.() ?? Date.now();
-  const [row] = await deps.db.query<{ id: string; email: string; display_name: string | null; verified_at: Date | null; created_at: Date }>(
-    `SELECT u.id, u.email, u.display_name, u.verified_at, u.created_at
+  const [row] = await deps.db.query<UserRow>(
+    `SELECT u.id, u.email, u.display_name, u.team_name, u.verified_at, u.created_at
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > $2`,
     [hashToken(sessionToken), new Date(now)]
@@ -95,6 +99,6 @@ export async function logout(deps: Pick<AuthDeps, 'db'>, sessionToken: string) {
   await deps.db.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(sessionToken)]);
 }
 
-export async function setDisplayName(deps: Pick<AuthDeps, 'db'>, userId: string, displayName: string) {
-  await deps.db.query('UPDATE users SET display_name = $2 WHERE id = $1', [userId, displayName]);
+export async function setProfile(deps: Pick<AuthDeps, 'db'>, userId: string, profile: { displayName: string; teamName: string }) {
+  await deps.db.query('UPDATE users SET display_name = $2, team_name = $3 WHERE id = $1', [userId, profile.displayName, profile.teamName]);
 }

@@ -8,6 +8,7 @@ export interface AccountUser {
   id: string;
   email: string;
   displayName: string | null;
+  teamName: string | null;
   verifiedAt: string | null;
   createdAt: string;
 }
@@ -78,5 +79,5 @@ export async function logoutAccount(serverUrl: string) {
   accountUser.set(null);
 }
 
-export const setDisplayName = (serverUrl: string, displayName: string) =>
-  authFetch(serverUrl, '/me/profile', { method: 'PUT', body: { displayName } });
+export const saveProfile = (serverUrl: string, profile: { displayName: string; teamName: string }) =>
+  authFetch(serverUrl, '/me/profile', { method: 'PUT', body: profile });
