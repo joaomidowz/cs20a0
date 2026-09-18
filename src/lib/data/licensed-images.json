@@ -6526,6 +6526,97 @@
         "evidence": "player-photos-fair-use-basis.md"
       },
       "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento · arquivo Dev1ce at ESL Barcelona 16.jpg"
+    },
+    {
+      "kind": "player",
+      "key": "fer-luminosity-2016",
+      "file": "licensed/players/fer-luminosity-2016.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-2016",
+      "file": "licensed/players/fer-2016.webp",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-2017",
+      "file": "licensed/players/fer-2017.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-2018",
+      "file": "licensed/players/fer-2018.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-sk-2018",
+      "file": "licensed/players/fer-sk-2018.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-2019",
+      "file": "licensed/players/fer-2019.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
+    },
+    {
+      "kind": "player",
+      "key": "fer-2022",
+      "file": "licensed/players/fer-2022.jpg",
+      "license": {
+        "holder": "N/A — sem permissão concedida pelo jogador",
+        "type": "fair use editorial / figura pública, sem consentimento",
+        "scope": "Identificação visual do jogador no contexto da própria carreira competitiva; não implica endosso nem afiliação",
+        "grantedAt": "2026-09-18",
+        "evidence": "player-photos-fair-use-basis.md"
+      },
+      "attribution": "Foto do jogador em contexto competitivo, uso editorial sem consentimento"
     }
   ]
 }
