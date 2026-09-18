@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -132,6 +133,8 @@
           {/if}
         </section>
       </div>
+
+      <BuyCoins {serverUrl} language={$language} />
 
       <section class="panel box">
         <div class="section-heading"><div><span class="eyebrow">{t('season').toUpperCase()}</span><h2>{t('seasonOfMonth')}{#if season} · {monthLabel(season.month)}{/if}</h2></div>{#if season?.me}<strong class="count">#{season.me.rank} · {season.me.points} {t('pointsCol').toLowerCase()}</strong>{/if}</div>

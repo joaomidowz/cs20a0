@@ -2,6 +2,7 @@
   import '../../../app.css';
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
@@ -171,6 +172,12 @@
     try {
       await loadAccount(serverUrl);
       if ($accountUser) await refresh();
+      const payment = new URLSearchParams(window.location.search).get('pagamento');
+      if (payment) {
+        showToast(payment === 'ok' ? '✓ Pagamento aprovado · coins a caminho' : payment === 'pendente' ? 'Pagamento pendente · as coins caem quando aprovar' : 'Pagamento não concluído');
+        history.replaceState(null, '', window.location.pathname);
+        if (payment === 'ok') setTimeout(() => void refresh(), 4000);
+      }
     } catch (caught) { fail(caught); } finally { loading = false; }
   });
 </script>
@@ -199,7 +206,7 @@
         <div><span>{t('wallet')}</span><strong>{state.wallet.toLocaleString($language)} <small>{t('coins')}</small></strong></div>
         <div><span>{t('packsToday')}</span><strong>{packsLeft}/{state.packsToday.granted}</strong></div>
         <div><span>{t('myCards')}</span><strong>{state.count}</strong></div>
-        <div class="topbar-actions"><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
+        <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
 
       <div class="columns">
@@ -338,6 +345,8 @@
           </div>
         </section>
       </div>
+
+      <BuyCoins {serverUrl} language={$language} />
 
       <section class="panel cards">
         <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>

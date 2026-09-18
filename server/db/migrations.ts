@@ -195,6 +195,18 @@ WITH paid AS (
 )
 UPDATE wallets SET coins = coins + 10000, updated_at = now() WHERE user_id IN (SELECT user_id FROM paid);
 `
+  },
+  {
+    id: 6,
+    // Coin packs sold through Mercado Pago. Bigger packs never give fewer coins per real than smaller ones.
+    sql: `
+INSERT INTO products (id, coins, price_cents, currency, active) VALUES
+  ('coins_3k', 3000, 100, 'BRL', true),
+  ('coins_16k', 16000, 500, 'BRL', true),
+  ('coins_35k', 35000, 1000, 'BRL', true),
+  ('coins_95k', 95000, 2500, 'BRL', true)
+ON CONFLICT (id) DO UPDATE SET coins = EXCLUDED.coins, price_cents = EXCLUDED.price_cents, currency = EXCLUDED.currency, active = EXCLUDED.active;
+`
   }
 ];
 
