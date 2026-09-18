@@ -85,6 +85,7 @@
       collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result };
     } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result } : null; }
   }
+  const awardName = (kind: string) => { const key = `award_${kind}` as Parameters<typeof t>[0]; const label = t(key); return label && label !== key ? label : kind.replace(/_/g, " "); };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
   $: if (snapshot?.phase === 'completed' && me?.collection) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
@@ -1149,7 +1150,7 @@
                   <ul>
                     <li><span>{t('placementCoins')} · {translatePlacement($language, result.placement)}</span><b>+{result.rewardCoins.toLocaleString($language)} coins</b></li>
                     {#each result.awards as award (award.kind)}
-                      <li><span>{award.kind.replace(/_/g, ' ')}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
+                      <li><span>{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
                     {/each}
                     <li class="total"><span>{t('totalCoins')}</span><b>+{(result.rewardCoins + result.awardCoins).toLocaleString($language)} coins</b></li>
                     <li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b>+{result.points} pts</b></li>

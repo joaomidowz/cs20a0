@@ -116,6 +116,11 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const { recordMajor, currentStandings, majorResult } = await import('../server/collection/seasons');
     const db = await createTestDb(url!, 'test_majors');
     await runMigrations(db);
+    const rules = new Map((await db.query<{ kind: string; coins: number; points: number }>('SELECT kind, coins, points FROM award_rules')).map((row) => [row.kind, row]));
+    expect(rules.get('major_mvp')).toMatchObject({ coins: 195, points: 2 });
+    expect(rules.get('streak_3')).toMatchObject({ points: 3 });
+    expect(rules.get('major_title')).toMatchObject({ coins: 260, points: 0 });
+    expect(rules.get('season_top1')).toMatchObject({ coins: 2000 });
     const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('major@example.com', now()) RETURNING id`);
     await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
     const now = Date.UTC(2026, 8, 18, 15);
