@@ -10,6 +10,7 @@ import { createAuthRoutes } from './http/auth-routes';
 import { createCollectionRoutes } from './http/collection-routes';
 import { createRoomRoutes } from './http/room-routes';
 import { recordMajor } from './collection/seasons';
+import { createQueue } from './queue';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
@@ -54,7 +55,8 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth)] : [])];
+  const queue = createQueue(manager, now);
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue)] : [])];
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
@@ -75,7 +77,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       return response.end();
     }
     if (request.method === 'GET' && url.pathname === '/health') {
-      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth) }, origin);
+      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth), queue: queue.size() }, origin);
     }
     const roomLookup = request.method === 'GET' ? /^\/rooms\/([A-Z2-9]{8})$/i.exec(url.pathname) : null;
     if (roomLookup) {
@@ -232,6 +234,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   });
 
   const tickTimer = setInterval(() => {
+    queue.tick();
     manager.tick(now());
     // Every connection, not only the rooms that changed: a live update skipped earlier goes out once the socket drains.
     for (const [socket, session] of sessions) deliver(socket, session);
@@ -259,5 +262,5 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   };
 
-  return { server, manager, close, broadcastRoom, httpRoutes, withAuth: auth?.withAuth ?? null };
+  return { server, manager, queue, close, broadcastRoom, httpRoutes, withAuth: auth?.withAuth ?? null };
 }

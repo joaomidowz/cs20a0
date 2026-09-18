@@ -121,7 +121,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const now = Date.UTC(2026, 8, 18, 15);
     const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
     const event = {
-      roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, awards: null,
+      roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, competitive: true, awards: null,
       entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80 }]
     };
     await recordMajor(db, event, now);
@@ -137,8 +137,8 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     await recordMajor(db, { ...event, seed: 'seed-2' }, now + 60_000);
     const second = await db.query<{ points: number; counted: boolean }>(`SELECT points, counted FROM majors WHERE seed = 'seed-2'`);
     expect(second[0]).toMatchObject({ counted: false, points: 0 });
-    // Bot-only lobby: no points, half reward, no title award.
-    await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 1 }, now + 120_000);
+    // Not competitive (private room with drafters, or alone): no points, half reward, no title award.
+    await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 1, competitive: false }, now + 120_000);
     const solo = await db.query<{ points: number; ranked: boolean; awards: string[] }>(`SELECT points, ranked, awards FROM majors WHERE seed = 'seed-3'`);
     expect(solo[0]).toMatchObject({ ranked: false, points: 0 });
     expect(solo[0].awards).toEqual([]);

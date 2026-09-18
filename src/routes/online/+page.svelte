@@ -299,6 +299,7 @@
   });
 
   onDestroy(() => {
+    stopQueuePolling();
     client?.stop();
     if (clockTimer !== null) window.clearInterval(clockTimer);
   });
@@ -351,6 +352,65 @@
 
   function validIdentity() {
     return playerName.trim().length >= 2 && organizationName.trim().length >= 2;
+  }
+
+  // Competitive queue: poll the server until it matches this account into a room, then connect with the ticket.
+  let queueState: 'idle' | 'waiting' | 'matched' = 'idle';
+  let queueWaiting = 0;
+  let queueSince = 0;
+  let queueElapsed = 0;
+  let queueTimer: number | null = null;
+
+  const stopQueuePolling = () => { if (queueTimer !== null) window.clearInterval(queueTimer); queueTimer = null; };
+
+  async function pollQueue() {
+    try {
+      const status = await authFetch<{ state: 'idle' | 'waiting' | 'matched'; waiting: number; since: number | null; match: { roomCode: string; lineupTicket: string } | null }>(getOnlineServerUrl(), '/queue/status');
+      queueState = status.state;
+      queueWaiting = status.waiting;
+      if (status.since) queueSince = status.since;
+      queueElapsed = Math.max(0, Math.round((Date.now() - queueSince) / 1000));
+      if (status.state === 'matched' && status.match) {
+        stopQueuePolling();
+        const user = $accountUser;
+        playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
+        organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+        roomCode = status.match.roomCode;
+        pendingLineupTicket = status.match.lineupTicket;
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', roomCode);
+        replaceState(url, {});
+        connect();
+        queueState = 'idle';
+      } else if (status.state === 'idle') {
+        stopQueuePolling();
+      }
+    } catch (error) {
+      stopQueuePolling();
+      queueState = 'idle';
+      errorMessage = error instanceof Error ? error.message : t('connectionFailed');
+    }
+  }
+
+  async function joinQueue() {
+    errorMessage = '';
+    try {
+      const status = await authFetch<{ state: 'idle' | 'waiting' | 'matched'; waiting: number; since: number | null }>(getOnlineServerUrl(), '/queue/join', { body: {} });
+      queueState = status.state;
+      queueWaiting = status.waiting;
+      queueSince = status.since ?? Date.now();
+      stopQueuePolling();
+      queueTimer = window.setInterval(() => void pollQueue(), 2_000);
+      void pollQueue();
+    } catch (error) {
+      errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('queueNeedsTeam') : (error instanceof Error ? error.message : t('connectionFailed'));
+    }
+  }
+
+  async function leaveQueue() {
+    stopQueuePolling();
+    queueState = 'idle';
+    try { await authFetch(getOnlineServerUrl(), '/queue/leave', { body: {} }); } catch { /* best effort */ }
   }
 
   /** Registers the saved collection lineup for the room and keeps the ticket for the join that follows. */
@@ -730,21 +790,33 @@
         <p>{t('intro')}</p>
       </header>
       <div class="mode-choice">
+        <article class="panel mode-card collection-mode" class:logged={Boolean($accountUser)}>
+          <span class="eyebrow">{$accountUser ? t('loggedReady') : 'LOGIN · E-MAIL'} · {t('competitive').toUpperCase()}</span>
+          <h2>{t('findMatch')}</h2>
+          <p>{t('findMatchHint')}</p>
+          {#if !$accountUser}
+            <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
+          {:else if queueState === 'waiting' || queueState === 'matched'}
+            <div class="queue-live"><i></i><strong>{queueState === 'matched' ? t('matchFound') : t('searching')}</strong><span>{queueWaiting} {t('inQueue')} · {queueElapsed}s</span></div>
+            {#if queueState === 'waiting'}<button class="secondary" type="button" on:click={leaveQueue}>{t('cancelSearch')}</button>{/if}
+          {:else if !hasSavedLineup}
+            <p class="queue-warn">{t('queueNeedsTeam')}</p>
+            <a class="primary online-link" href="/online/colecao">{t('collection')}</a>
+          {:else}
+            <button class="primary" type="button" on:click={joinQueue}>{t('findMatch')}</button>
+          {/if}
+        </article>
+        <article class="panel mode-card">
+          <span class="eyebrow">{t('notCompetitive').toUpperCase()}</span>
+          <h2>{t('friendsRoom')}</h2>
+          <p>{t('friendsRoomHint')}</p>
+          <button class="secondary" type="button" on:click={() => document.getElementById('online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{t('friendsRoom')}</button>
+        </article>
         <article class="panel mode-card">
           <span class="eyebrow">{t('pickMode')}</span>
           <h2>{t('playDraft')}</h2>
           <p>{t('playDraftHint')}</p>
           <button class="secondary" type="button" on:click={() => { useCollectionTeam = false; document.getElementById('online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>{t('playDraft')}</button>
-        </article>
-        <article class="panel mode-card collection-mode" class:logged={Boolean($accountUser)}>
-          <span class="eyebrow">{$accountUser ? t('loggedReady') : 'LOGIN · E-MAIL'}</span>
-          <h2>{t('playCollection')}</h2>
-          <p>{t('playCollectionHint')}</p>
-          {#if $accountUser}
-            <div class="mode-actions"><a class="primary online-link" href="/online/colecao">{t('collection')}</a><a class="secondary online-link" href="/online/conta">{t('profile')}</a></div>
-          {:else}
-            <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
-          {/if}
         </article>
       </div>
       <div class="identity-grid panel" id="online-identity">
@@ -784,6 +856,7 @@
         <div class="lobby-grid">
           <section class="panel participants-panel">
             <div class="section-heading"><div><span class="eyebrow">LOBBY</span><h2>{t('participants')}</h2></div><span class="counter">{snapshot.participants.length}/{snapshot.config.capacity}</span></div>
+            {#if snapshot.competitive !== undefined}<p class="competitive-badge" class:on={snapshot.competitive}>{snapshot.competitive ? t('competitive') : t('notCompetitive')}{#if snapshot.origin === 'queue'} · {t('findMatch')}{/if}</p>{/if}
             <div class="participant-list">
               {#each snapshot.participants as participant}
                 <article class:offline={!participant.connected}><span>{participant.organizationName.slice(0, 2).toUpperCase()}</span><div><strong>{participant.organizationName}{#if participant.collection} <em class="team-badge-tag">{t('teamBadge')}</em>{/if}</strong><small>{participant.playerName}</small></div><b>{participant.host ? 'HOST' : participant.connected ? 'ONLINE' : 'OFFLINE'}</b></article>
@@ -800,7 +873,7 @@
             <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
             <label><span>{t('seasonLength')}</span><select value={String(config.seasonRuns)} disabled={!isHost} on:change={(event) => saveConfig({ seasonRuns: Number((event.currentTarget as HTMLSelectElement).value) as RoomConfig['seasonRuns'] })}><option value="1">{t('seasonSingleRun')}</option><option value="2">2 runs</option><option value="3">3 runs</option><option value="4">4 runs</option></select><small class="mode-description">{t('seasonLengthHint')}</small></label>
-            {#if isHost}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
+            {#if isHost && snapshot.origin !== 'queue'}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
         </div>
       {:else if snapshot.phase === 'draft' && self}
@@ -1117,9 +1190,9 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .mode-choice{display:grid;gap:14px;margin-top:24px}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}.mode-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
   .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
-  @media(min-width:680px){.mode-choice{grid-template-columns:1fr 1fr}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
+  @media(min-width:680px){.mode-choice{grid-template-columns:repeat(3,1fr)}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}

@@ -4,27 +4,36 @@ import { getLineup } from '../collection/service';
 import { awardsOf, currentStandings, lastSeasonPodium } from '../collection/seasons';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
-import { RoomError, type RoomManager } from '../room-manager';
+import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
+import type { Queue } from '../queue';
 import { HttpError, route, type Handler, type Route } from './router';
 
-export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handler: Handler) => Handler): Route[] {
+/** The saved lineup as the room needs it; throws when the collection team is missing or incomplete. */
+async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
+  const lineup = await getLineup(db, userId);
+  if (!lineup) throw new HttpError(409, 'NO_LINEUP', 'Monte e salve seu time na coleção primeiro');
+  const selected = lineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
+  if (selected.length !== 5) throw new HttpError(409, 'INVALID_LINEUP', 'Time incompleto');
+  return {
+    userId,
+    lineup: lineup.playerIds.map((playerId, index) => ({ playerId, selectedSlotRole: lineup.roles[index] })),
+    style: lineup.style,
+    starPlayerId: lineup.starEffective ? lineup.starPlayerId : null,
+    coachId: lineup.coachId,
+    mapPreferences: [...getDefaultMapSelection(selected, teams)]
+  };
+}
+
+export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handler: Handler) => Handler, queue: Queue): Route[] {
   return [
+    route('POST', /^\/queue\/join$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.join(userId!, await preparedFor(db, userId!)) }))),
+    route('POST', /^\/queue\/leave$/, withAuth(async ({ userId }) => { queue.leave(userId!); return { ok: true, ...queue.status(userId!) }; })),
+    route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.status(userId!) }))),
     /** Registers the saved lineup for a room; the ticket goes in the `join` command and skips the draft. */
     route('POST', /^\/rooms\/([A-Z2-9]{8})\/lineup$/i, withAuth(async ({ params, userId, now }) => {
-      const lineup = await getLineup(db, userId!);
-      if (!lineup) throw new HttpError(409, 'NO_LINEUP', 'Monte e salve seu time na coleção primeiro');
-      const selected = lineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
-      if (selected.length !== 5) throw new HttpError(409, 'INVALID_LINEUP', 'Time incompleto');
+      const prepared = await preparedFor(db, userId!);
       try {
-        const ticket = manager.prepareLineup(params[0].toUpperCase(), {
-          userId: userId!,
-          lineup: lineup.playerIds.map((playerId, index) => ({ playerId, selectedSlotRole: lineup.roles[index] })),
-          style: lineup.style,
-          starPlayerId: lineup.starEffective ? lineup.starPlayerId : null,
-          coachId: lineup.coachId,
-          mapPreferences: [...getDefaultMapSelection(selected, teams)]
-        }, now);
-        return { ok: true, lineupTicket: ticket };
+        return { ok: true, lineupTicket: manager.prepareLineup(params[0].toUpperCase(), prepared, now) };
       } catch (error) {
         if (error instanceof RoomError) throw new HttpError(error.code === 'ROOM_NOT_FOUND' ? 404 : 409, error.code, error.message);
         throw error;

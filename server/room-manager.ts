@@ -148,6 +148,8 @@ export interface RunCompletedEvent {
   runNumber: number;
   /** Humans in the run (collection or draft). */
   lobbySize: number;
+  /** Scores season points (queue room, or code room where all brought collection teams and there were enough). */
+  competitive: boolean;
   awards: MajorAwards | null;
   entries: RunCompletedEntry[];
 }
@@ -231,7 +233,18 @@ interface RoomState {
   awards: MajorAwards | null;
   /** Collection lineups registered over HTTP, waiting for their join. */
   pendingLineups: Map<string, { prepared: PreparedLineup; expiresAt: number }>;
+  /** 'queue' rooms come from matchmaking: they start on their own and always score. */
+  origin: 'code' | 'queue';
+  /** Queue rooms: how many matched players are expected and until when the room waits for them. */
+  queue: { expected: number; startBy: number } | null;
+  /** Fixed when the tournament begins; decides season points. */
+  competitive: boolean;
 }
+
+/** Minimum humans for a run to score season points. */
+export const COMPETITIVE_MIN_HUMANS = 4;
+/** A matched queue room waits this long for everybody to connect, then starts with whoever is there. */
+export const QUEUE_JOIN_WINDOW_MS = 30_000;
 
 export interface JoinResult {
   participantId: string;
@@ -392,7 +405,7 @@ export class RoomManager {
 
   constructor(private readonly hooks: RoomHooks = {}) {}
 
-  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url')): string {
+  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue'; expected?: number } = {}): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
     this.rooms.set(code, {
@@ -418,7 +431,10 @@ export class RoomManager {
       season: emptySeason(1),
       rematch: null,
       awards: null,
-      pendingLineups: new Map()
+      pendingLineups: new Map(),
+      origin: options.origin ?? 'code',
+      queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS } : null,
+      competitive: false
     });
     return code;
   }
@@ -517,15 +533,10 @@ export class RoomManager {
         break;
       case 'start':
         this.requireHost(room, participantId);
+        if (room.origin === 'queue') throw new RoomError('INVALID_ACTION', 'Queue rooms start on their own');
         if (room.phase !== 'lobby') throw new RoomError('INVALID_PHASE', 'The room is not in the lobby');
         if ([...room.participants.values()].filter((candidate) => candidate.connected).length < 2) throw new RoomError('INVALID_ACTION', 'At least two connected participants are required');
-        room.phase = 'draft';
-        // The mode is final now: friends with a secret alias start the draft with their player already in the lineup.
-        for (const candidate of room.participants.values()) candidate.draft = this.initialDraft(room, candidate);
-        room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
-        room.deadlineStage = room.deadlineAt === null ? null : 'picks';
-        // Everybody entered with a collection lineup: no draft to run, straight into the tournament.
-        this.startTournamentIfReady(room, now);
+        this.startRoom(room, now);
         break;
       case 'pick-secret': {
         this.requireDraft(room);
@@ -748,6 +759,8 @@ export class RoomManager {
     return {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true, liveUpdates: true },
+      origin: room.origin,
+      competitive: room.engine ? room.competitive : this.isCompetitiveRun(room),
       season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
       version: room.version,
@@ -804,6 +817,15 @@ export class RoomManager {
 
   private tickRoom(room: RoomState, now: number): boolean {
     let changed = false;
+    if (room.origin === 'queue' && room.phase === 'lobby' && room.queue) {
+      const joined = [...room.participants.values()].filter((participant) => participant.connected).length;
+      if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 2)) {
+        this.startRoom(room, now);
+        room.version += 1;
+        room.stateVersion += 1;
+        changed = true;
+      }
+    }
     for (const [participantId, participant] of room.participants) {
       if (!participant.connected && participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS) {
         room.participants.delete(participantId);
@@ -950,7 +972,7 @@ export class RoomManager {
     }
     if (!entries.length) return;
     try {
-      this.hooks.onRunCompleted({ roomCode: room.code, seed: room.seed, runNumber, lobbySize: humans.length, awards: room.awards, entries });
+      this.hooks.onRunCompleted({ roomCode: room.code, seed: room.seed, runNumber, lobbySize: humans.length, competitive: room.competitive, awards: room.awards, entries });
     } catch (error) {
       console.error('onRunCompleted hook failed', error instanceof Error ? error.message : error);
     }
@@ -985,6 +1007,7 @@ export class RoomManager {
       participant.watchedSeriesId = null;
     }
     room.seed = randomBytes(24).toString('base64url');
+    room.competitive = false;
     room.engine = null;
     room.organizations = null;
     room.live = new Map();
@@ -1047,6 +1070,23 @@ export class RoomManager {
     }
   }
 
+  /** Scores season points: every queue room, or a code room where everybody brought a collection team and there are enough of them. */
+  isCompetitiveRun(room: RoomState): boolean {
+    const humans = [...room.participants.values()];
+    if (room.origin === 'queue') return humans.length >= COMPETITIVE_MIN_HUMANS;
+    return humans.length >= COMPETITIVE_MIN_HUMANS && humans.every((participant) => participant.prepared);
+  }
+
+  private startRoom(room: RoomState, now: number) {
+    room.phase = 'draft';
+    // The mode is final now: friends with a secret alias start the draft with their player already in the lineup.
+    for (const candidate of room.participants.values()) candidate.draft = this.initialDraft(room, candidate);
+    room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
+    room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+    // Everybody entered with a collection lineup: no draft to run, straight into the tournament.
+    this.startTournamentIfReady(room, now);
+  }
+
   /** A collection lineup is a finished draft from the first tick; everybody else starts empty (plus secret picks). */
   private initialDraft(room: RoomState, participant: ParticipantState): DraftState {
     if (participant.prepared) {
@@ -1062,6 +1102,7 @@ export class RoomManager {
 
   private beginTournament(room: RoomState, now: number) {
     if (room.engine) return;
+    room.competitive = this.isCompetitiveRun(room);
     const organizations = [...room.participants.values()].map((participant, index) => this.toTournamentOrganization(participant, index + 1, room.config.mode));
     const humanIds = new Set(organizations.map((organization) => organization.id));
     const shuffledTeams = [...teams].sort((left, right) => {

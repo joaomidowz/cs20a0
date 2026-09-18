@@ -333,6 +333,10 @@ export interface RoomSnapshot {
   /** Points across the runs of this room (null before the first run ends). */
   season: PublicSeason | null;
   serverTime: number;
+  /** 'queue' rooms come from matchmaking; absent in older servers. */
+  origin?: 'code' | 'queue';
+  /** Whether this run scores season points (known in the lobby, fixed when the Major starts). */
+  competitive?: boolean;
 }
 
 /**

@@ -34,7 +34,8 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       const [existing] = await tx.query('SELECT id FROM majors WHERE room_code = $1 AND seed = $2 AND user_id = $3', [event.roomCode, event.seed, entry.userId]);
       if (existing) return;
       const seasonId = await ensureActiveSeason(tx, now);
-      const ranked = event.lobbySize >= RANKED_MIN_LOBBY;
+      // Season points only in competitive runs (queue, or a code room where everybody brought a collection team).
+      const ranked = event.competitive;
       const day = dayKeyUtcMinus3(now);
       const [today] = await tx.query<{ n: string }>(
         `SELECT count(*)::text AS n FROM majors WHERE user_id = $1 AND ranked AND counted AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date`,
