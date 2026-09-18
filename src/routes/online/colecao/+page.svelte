@@ -3,10 +3,11 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
+  import PackReveal from '$lib/components/online/PackReveal.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
-  import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
   import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
@@ -38,7 +39,7 @@
 
   // Pack reveal: three roulette spins, then the cards.
   type RevealCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
-  let reveal: { cards: RevealCard[]; duplicates: Set<string>; coins: number; spinning: number } | null = null;
+  let reveal: { cards: RevealCard[]; duplicates: Set<string>; coins: number; tier: PackTier; key: number; done: boolean } | null = null;
   let coachId: string | null = null;
 
   // Lineup builder.
@@ -111,23 +112,18 @@
     } catch (caught) { fail(caught); }
   }
 
-  async function runReveal(open: () => Promise<PackOpened>) {
+  async function runReveal(open: () => Promise<PackOpened>, tier: PackTier) {
     error = ''; busy = true;
     try {
       const result = await open();
       const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => { const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach }]; const player = playerById.get(id); return player ? [{ kind: 'player', player }] : []; });
-      reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, spinning: 0 };
+      reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, tier, key: Date.now(), done: false };
       scrollTo(shopSection);
       await refresh();
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
-  const toEntry = (player: Player): RouletteEntry => ({ id: player.id, avatar: (player.nickname ?? '?').slice(0, 2).toUpperCase(), title: player.nickname ?? player.id, subtitle: `${player.year ?? ''} · ${rarityOf(player)}` });
-  const revealEntry = (card: RevealCard): RouletteEntry => card.kind === 'player' ? toEntry(card.player) : { id: card.coach.id, avatar: 'C', title: card.coach.name, subtitle: `COACH · ${card.coach.year} · ${rarityOf(card.coach)}` };
-  const revealId = (card: RevealCard) => (card.kind === 'player' ? card.player.id : card.coach.id);
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
-  const teaserPool = players.filter((_, index) => index % 7 === 0).map(toEntry);
-  $: rouletteLabels = { spinning: t('revealing'), skip: $language === 'en' ? 'Skip' : $language === 'es' ? 'Saltar' : 'Pular', hidden: '?' };
 
   const PAYMENT_TEXT = {
     'pt-BR': { checking: 'Confirmando pagamento…', credited: 'Pagamento aprovado', waiting: 'Pagamento em análise · as coins caem sozinhas quando aprovar', failed: 'Pagamento não concluído' },
@@ -245,46 +241,55 @@
           <div class="shop-grid">
             <article class="pack basic">
               <PackOdds tier="basic" title={t('packBasic')} labels={oddsLabels} />
+              <PackCase tier="basic" label={t('packBasic')} />
               <strong>{t('packBasic')}</strong>
               <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small>
-              <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl))}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
+              <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl), 'basic')}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
             </article>
-            {#each ['prata', 'ouro', 'diamante', 'icone'] as name}
-              {@const tier = name as Exclude<PackTier, 'basic' | 'era'>}
+            {#each ['prata', 'ouro'] as name}
+              {@const tier = name as 'prata' | 'ouro'}
               <article class="pack {tier}">
                 <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
+                <PackCase {tier} label={t(PACK_LABEL[tier])} />
                 <strong>{t(PACK_LABEL[tier])}</strong>
-                <small>{PACK_PRICES[tier].toLocaleString($language)} {t('coins')}{#if tier === 'diamante' || tier === 'icone'} · {t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}{/if}</small>
-                <button class={tier === 'icone' || tier === 'diamante' ? 'primary' : 'secondary'} type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier))}>{t('buy')}</button>
+                <span class="price"><i></i>{PACK_PRICES[tier].toLocaleString($language)}</span>
+                <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier), tier)}>{t('buy')}</button>
               </article>
             {/each}
             <article class="pack era">
               <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
+              <PackCase tier="era" label={String(eraYear)} />
               <strong>{t('packEra')}</strong>
-              <small>{PACK_PRICES.era.toLocaleString($language)} {t('coins')} · {t('packEraHint')}</small>
-              <label class="era-year"><span>{t('filterYear')}</span><select bind:value={eraYear}>{#each YEARS as year}<option value={year}>{year}</option>{/each}</select></label>
-              <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear))}>{t('buy')}</button>
+              <span class="price"><i></i>{PACK_PRICES.era.toLocaleString($language)}</span>
+              <label class="era-year"><span>{t('packEraHint')}</span><select bind:value={eraYear}>{#each YEARS as year}<option value={year}>{year}</option>{/each}</select></label>
+              <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear), 'era')}>{t('buy')}</button>
             </article>
           </div>
+          <h3 class="subhead premium-head">{t('premium').toUpperCase()}</h3>
+          <div class="premium-grid">
+            {#each ['diamante', 'icone'] as name}
+              {@const tier = name as 'diamante' | 'icone'}
+              <article class="pack premium {tier}">
+                <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
+                <PackCase {tier} size="lg" label={t(PACK_LABEL[tier])} />
+                <div class="premium-info">
+                  <strong>{t(PACK_LABEL[tier])}</strong>
+                  <small>{t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}</small>
+                  <span class="price"><i></i>{PACK_PRICES[tier].toLocaleString($language)}</span>
+                  <button class="primary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier), tier)}>{t('buy')}</button>
+                </div>
+              </article>
+            {/each}
+          </div>
+
           {#if reveal}
-            <div class="reveal" bind:this={shopSection}>
-              {#if reveal.spinning < reveal.cards.length}
-                {#key `${revealId(reveal.cards[reveal.spinning])}-${reveal.spinning}`}
-                  <Roulette entries={teaserPool} result={revealEntry(reveal.cards[reveal.spinning])} labels={rouletteLabels} duration={1400} onComplete={() => { if (reveal) reveal = { ...reveal, spinning: reveal.spinning + 1 }; }} />
-                {/key}
-              {/if}
-              <div class="player-grid reveal-grid">
-                {#each reveal.cards.slice(0, reveal.spinning) as card, index (revealId(card) + index)}
-                  <div class="reveal-card" class:dupe={reveal.duplicates.has(revealId(card))}>
-                    {#if card.kind === 'player'}
-                      <CollectionCard player={card.player} teamName={teamNameOf(card.player)} language={$language} tag={reveal.duplicates.has(card.player.id) ? t('duplicateCard') : t('newCard')} onOpen={(selected) => detailsPlayer = selected} />
-                    {:else}
-                      <CoachCard coach={card.coach} teamName={coachTeamName(card.coach)} tag={reveal.duplicates.has(card.coach.id) ? t('duplicateCard') : t('newCard')} />
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-              {#if reveal.spinning >= reveal.cards.length && reveal.coins > 0}<p class="note">{reveal.duplicates.size} {t('dupesToCoins')} +{reveal.coins} {t('coins')}</p>{/if}
+            <div bind:this={shopSection}>
+              {#key reveal.key}
+                <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : t(PACK_LABEL[reveal.tier])} language={$language}
+                  labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal') }} playerTeam={teamNameOf} coachTeam={coachTeamName}
+                  onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; }} />
+              {/key}
+              {#if reveal.done && reveal.coins > 0}<p class="note dupes">{reveal.duplicates.size} {t('dupesToCoins')} +{reveal.coins.toLocaleString($language)} {t('coins')}</p>{/if}
             </div>
           {/if}
         </section>
@@ -438,24 +443,22 @@
   .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
-  .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  @media (min-width: 1180px) { .shop-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-  .pack { position: relative; display: grid; gap: 10px; align-content: start; min-height: 150px; padding: 16px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
-  .pack.basic { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-  .pack.prata { border-color: #c9d1d9; } .pack.ouro { border-color: #d9a441; } .pack.era { border-color: #a66bff; }
-  .pack.diamante { border-color: #5ad1ff; background: linear-gradient(160deg, color-mix(in srgb, #5ad1ff 14%, var(--surface-2)), var(--surface)); box-shadow: 0 0 22px color-mix(in srgb, #5ad1ff 16%, transparent); }
-  .pack.icone { border-color: #ff5ad8; background: linear-gradient(160deg, color-mix(in srgb, #ff5ad8 16%, var(--surface-2)), color-mix(in srgb, #d9a441 8%, var(--surface))); box-shadow: 0 0 26px color-mix(in srgb, #ff5ad8 20%, transparent); }
-  .pack > strong { padding-right: 28px; font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .shop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .premium-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .premium-head { margin-top: 8px; color: #d9a441; }
+  .pack { position: relative; display: grid; gap: 10px; align-content: start; justify-items: center; padding: 18px 16px 16px; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--tint, var(--accent)) 12%, var(--surface-2)), var(--surface) 70%); text-align: center; transition: border-color .2s ease, transform .2s ease; }
+  .pack:hover { border-color: var(--tint, var(--accent)); }
+  .pack.basic { --tint: var(--accent); }
+  .pack.prata { --tint: #c9d1d9; } .pack.ouro { --tint: #ffc94d; } .pack.era { --tint: #a66bff; } .pack.diamante { --tint: #5ad1ff; } .pack.icone { --tint: #ff5ad8; }
+  .pack strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
   .pack small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
-  .pack button { margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }
-  .era-year { display: grid; gap: 4px; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
+  .pack button { width: 100%; margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }
+  .price { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: .8rem; font-weight: 800; } .price i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  .pack.premium { grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: stretch; gap: 22px; padding: 22px 26px; border-color: color-mix(in srgb, var(--tint) 55%, var(--line)); text-align: left; box-shadow: 0 0 30px color-mix(in srgb, var(--tint) 12%, transparent); }
+  .premium-info { display: grid; gap: 10px; justify-items: start; } .premium-info strong { font-size: 2rem; } .premium-info small { color: var(--text); font-size: .85rem; }
+  .dupes { text-align: center; padding-top: 8px; }
+  .era-year { display: grid; gap: 4px; width: 100%; text-align: left; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
   .era-year select, .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
-  .reveal { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-  .reveal-grid { grid-template-columns: repeat(3, minmax(0, 260px)); justify-content: center; gap: 14px; }
-  .reveal-card { display: grid; gap: 6px; min-width: 0; animation: reveal-in .45s cubic-bezier(.16, 1, .3, 1) backwards; }
-  .reveal-card.dupe :global(.tag) { background: var(--muted); }
-  @keyframes reveal-in { from { transform: translateY(14px) scale(.96); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .reveal-card { animation: none; } }
   .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
   .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
   .detail-box { display: grid; gap: 12px; align-content: start; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
@@ -484,5 +487,7 @@
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
-  @media (max-width: 720px) { .reveal-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+  @media (max-width: 1000px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 720px) { .premium-grid { grid-template-columns: 1fr; } .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; } .premium-info { justify-items: center; } }
+  @media (max-width: 460px) { .shop-grid { grid-template-columns: 1fr; } }
 </style>
