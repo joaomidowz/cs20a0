@@ -12,7 +12,7 @@ import { createRoomRoutes } from './http/room-routes';
 import { recordMajor } from './collection/seasons';
 import { createQueue } from './queue';
 import { createPaymentRoutes } from './http/payment-routes';
-import type { PaymentsConfig } from './payments/mercadopago';
+import { sweepPendingPurchases, type PaymentsConfig } from './payments/mercadopago';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
@@ -257,10 +257,20 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     }
   }, 30_000);
   heartbeatTimer.unref();
+  // Safety net for webhooks that never arrive: unpaid purchases are re-checked against Mercado Pago.
+  const paymentsConfig = auth && options.db && options.payments ? { ...options.payments, db: options.db, now } : null;
+  let sweeping = false;
+  const paymentTimer = paymentsConfig ? setInterval(() => {
+    if (sweeping) return;
+    sweeping = true;
+    sweepPendingPurchases(paymentsConfig).catch(() => {}).finally(() => { sweeping = false; });
+  }, 60_000) : null;
+  paymentTimer?.unref();
 
   const close = async () => {
     clearInterval(tickTimer);
     clearInterval(heartbeatTimer);
+    if (paymentTimer) clearInterval(paymentTimer);
     for (const socket of sessions.keys()) socket.terminate();
     sockets.close();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

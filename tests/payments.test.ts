@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../server/db/client';
 import { runMigrations } from '../server/db/migrations';
-import { createCheckout, handlePaymentNotification, verifySignature, type PaymentsConfig } from '../server/payments/mercadopago';
+import { createCheckout, handlePaymentNotification, reconcileUser, sweepPendingPurchases, verifySignature, type PaymentsConfig } from '../server/payments/mercadopago';
 import { createTestDb } from './helpers/testDb';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -24,12 +24,17 @@ describe('assinatura do webhook', () => {
 describe.skipIf(!url)('checkout e webhook (Postgres, API simulada)', () => {
   let db: Db;
   let userId = '';
-  const payments = new Map<string, { status: string; transaction_amount: number; currency_id: string; external_reference: string }>();
+  const payments = new Map<string, { status: string; transaction_amount: number; transaction_amount_refunded?: number; currency_id: string; external_reference: string }>();
   const fakeFetch: typeof fetch = async (input, init) => {
     const target = String(input);
     if (target.endsWith('/checkout/preferences')) {
       const body = JSON.parse(String(init?.body));
       return new Response(JSON.stringify({ id: `pref-${body.external_reference}`, init_point: `https://mp.test/checkout/${body.external_reference}` }), { status: 201 });
+    }
+    if (target.includes('/v1/payments/search')) {
+      const reference = new URL(target).searchParams.get('external_reference');
+      const results = [...payments].filter(([, payment]) => payment.external_reference === reference).map(([id, payment]) => ({ id: Number(id), ...payment }));
+      return new Response(JSON.stringify({ results }), { status: 200 });
     }
     const id = target.split('/').at(-1)!;
     const payment = payments.get(id);
@@ -76,8 +81,68 @@ describe.skipIf(!url)('checkout e webhook (Postgres, API simulada)', () => {
     expect(row.raw.unrecovered).toBe(3000);
   });
 
-  it('limite diário de compras', async () => {
-    for (let index = 0; index < 5; index += 1) await createCheckout(config(), userId, 'coins-5k').catch(() => {});
+  it('produto muda depois do checkout: vale o que estava congelado na compra', async () => {
+    await db.query(`INSERT INTO products (id, coins, price_cents) VALUES ('coins-frozen', 1000, 100)`);
+    const checkout = await createCheckout(config(), userId, 'coins-frozen');
+    await db.query(`UPDATE products SET coins = 999999, price_cents = 1 WHERE id = 'coins-frozen'`);
+    const before = await coins();
+    payments.set('910', { status: 'approved', transaction_amount: 0.01, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    expect(await handlePaymentNotification(config(), '910')).toBe('ignored');
+    payments.set('911', { status: 'approved', transaction_amount: 1, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    expect(await handlePaymentNotification(config(), '911')).toBe('credited');
+    expect(await coins()).toBe(before + 1000);
+  });
+
+  it('segundo clique reabre o mesmo checkout; id de pagamento inválido é ignorado', async () => {
+    await db.query(`INSERT INTO products (id, coins, price_cents) VALUES ('coins-reuse', 500, 100)`);
+    const first = await createCheckout(config(), userId, 'coins-reuse');
+    const second = await createCheckout(config(), userId, 'coins-reuse');
+    expect(second).toEqual(first);
+    expect(await handlePaymentNotification(config(), '../users/me')).toBe('ignored');
+    expect(await handlePaymentNotification(config(), '424242')).toBe('ignored');
+  });
+
+  it('webhook perdido: a volta do comprador e a varredura creditam uma vez só', async () => {
+    await db.query(`INSERT INTO products (id, coins, price_cents) VALUES ('coins-lost', 700, 200)`);
+    const checkout = await createCheckout(config(), userId, 'coins-lost');
+    const before = await coins();
+    expect(await reconcileUser(config(), userId)).toMatchObject({ credited: 0 });
+    payments.set('920', { status: 'approved', transaction_amount: 2, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    await db.query('UPDATE purchases SET checked_at = NULL WHERE id = $1::bigint', [checkout.purchaseId]);
+    expect(await reconcileUser(config(), userId)).toMatchObject({ credited: 1, coins: 700 });
+    expect(await reconcileUser(config(), userId)).toMatchObject({ credited: 0 });
+    expect(await handlePaymentNotification(config(), '920')).toBe('ignored');
+    expect(await coins()).toBe(before + 700);
+
+    const [other] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('other@example.com', now()) RETURNING id`);
+    const swept = await createCheckout(config(), other.id, 'coins-lost');
+    payments.set('921', { status: 'approved', transaction_amount: 2, currency_id: 'BRL', external_reference: swept.purchaseId });
+    await db.query(`UPDATE purchases SET created_at = now() - interval '10 minutes' WHERE id = $1::bigint`, [swept.purchaseId]);
+    expect(await sweepPendingPurchases(config())).toBeGreaterThanOrEqual(1);
+    expect(await sweepPendingPurchases(config())).toBe(0);
+    expect((await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [other.id]))[0].coins).toBe(700);
+    // Another account's reconcile never credits or sees this purchase.
+    expect(await reconcileUser(config(), userId)).toMatchObject({ credited: 0 });
+  });
+
+  it('estorno total marcado como approved reverte; chargeback bloqueia novas compras', async () => {
+    await db.query(`INSERT INTO products (id, coins, price_cents) VALUES ('coins-cb', 300, 100)`);
+    const [buyer] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('cb@example.com', now()) RETURNING id`);
+    const checkout = await createCheckout(config(), buyer.id, 'coins-cb');
+    payments.set('930', { status: 'approved', transaction_amount: 1, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    expect(await handlePaymentNotification(config(), '930')).toBe('credited');
+    // A different payment of the same purchase cannot reverse it.
+    payments.set('931', { status: 'refunded', transaction_amount: 1, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    expect(await handlePaymentNotification(config(), '931')).toBe('ignored');
+    payments.set('930', { status: 'charged_back', transaction_amount: 1, currency_id: 'BRL', external_reference: checkout.purchaseId });
+    expect(await handlePaymentNotification(config(), '930')).toBe('reversed');
+    expect((await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [buyer.id]))[0].coins).toBe(0);
+    await expect(createCheckout(config(), buyer.id, 'coins-cb')).rejects.toMatchObject({ code: 'PURCHASES_BLOCKED' });
+  });
+
+  it('limite diário de checkouts abertos', async () => {
+    await db.query(`UPDATE purchases SET checkout_url = NULL WHERE user_id = $1`, [userId]);
+    for (let index = 0; index < 30; index += 1) { await createCheckout(config(), userId, 'coins-5k').catch(() => {}); await db.query(`UPDATE purchases SET checkout_url = NULL WHERE user_id = $1`, [userId]); }
     await expect(createCheckout(config(), userId, 'coins-5k')).rejects.toMatchObject({ code: 'PURCHASE_LIMIT' });
   });
 });

@@ -220,6 +220,19 @@ INSERT INTO products (id, coins, price_cents, currency, active) VALUES
   ('coins_60k', 60000, 2500, 'BRL', true)
 ON CONFLICT (id) DO UPDATE SET coins = EXCLUDED.coins, price_cents = EXCLUDED.price_cents, currency = EXCLUDED.currency, active = EXCLUDED.active;
 `
+  },
+  {
+    id: 8,
+    // A purchase freezes what it pays (coins) and remembers its checkout, so it can be reopened and re-checked.
+    sql: `
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS coins int;
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS checkout_url text;
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS checked_at timestamptz;
+UPDATE purchases p SET coins = pr.coins FROM products pr WHERE pr.id = p.product_id AND p.coins IS NULL;
+ALTER TABLE purchases ALTER COLUMN coins SET NOT NULL;
+CREATE INDEX IF NOT EXISTS purchases_pending_idx ON purchases (created_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS purchases_user_idx ON purchases (user_id, created_at DESC);
+`
   }
 ];
 

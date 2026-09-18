@@ -9,7 +9,7 @@
   import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
-  import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
+  import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { COACH_CHANCE, PACK_ODDS, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
@@ -127,6 +127,34 @@
   const teaserPool = players.filter((_, index) => index % 7 === 0).map(toEntry);
   $: rouletteLabels = { spinning: t('revealing'), skip: $language === 'en' ? 'Skip' : $language === 'es' ? 'Saltar' : 'Pular', hidden: '?' };
 
+  const PAYMENT_TEXT = {
+    'pt-BR': { checking: 'Confirmando pagamento…', credited: 'Pagamento aprovado', waiting: 'Pagamento em análise · as coins caem sozinhas quando aprovar', failed: 'Pagamento não concluído' },
+    en: { checking: 'Confirming payment…', credited: 'Payment approved', waiting: 'Payment under review · coins land by themselves once approved', failed: 'Payment not completed' },
+    es: { checking: 'Confirmando pago…', credited: 'Pago aprobado', waiting: 'Pago en revisión · las coins llegan solas al aprobarse', failed: 'Pago no completado' }
+  } as const;
+  const paymentLanguage = () => ($language in PAYMENT_TEXT ? $language : 'pt-BR') as keyof typeof PAYMENT_TEXT;
+  let confirmingPayment = false;
+
+  /** Back from the checkout: asks the server to re-check this account's open purchases, a few times while the payment settles. */
+  async function confirmPayment() {
+    if (confirmingPayment) return;
+    confirmingPayment = true;
+    const text = PAYMENT_TEXT[paymentLanguage()];
+    const before = state?.wallet ?? 0;
+    showToast(text.checking);
+    try {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const result = await authFetch<{ credited: number; coins: number; pending: number }>(serverUrl, '/shop/reconcile', { method: 'POST', body: {} }).catch(() => null);
+        await refresh();
+        const gained = (state?.wallet ?? 0) - before;
+        if ((result && result.credited > 0) || gained > 0) { showToast(`✓ ${text.credited} · +${Math.max(gained, result?.coins ?? 0).toLocaleString($language)} ${t('coins')}`); return; }
+        if (result && result.pending === 0 && attempt > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 6000));
+      }
+      showToast(text.waiting);
+    } finally { confirmingPayment = false; }
+  }
+
   async function sell(player: Player) {
     const confirmed = await confirmDialog({ title: `${t('sell')} ${player.nickname ?? player.id}?`, body: `+${sellValue(player).toLocaleString($language)} ${t('coins')} · ${player.year ?? ''} · ${rarityOf(player)}`, confirmLabel: t('sell'), cancelLabel: t('cancel'), tone: 'danger' });
     if (!confirmed) return;
@@ -174,9 +202,9 @@
       if ($accountUser) await refresh();
       const payment = new URLSearchParams(window.location.search).get('pagamento');
       if (payment) {
-        showToast(payment === 'ok' ? '✓ Pagamento aprovado · coins a caminho' : payment === 'pendente' ? 'Pagamento pendente · as coins caem quando aprovar' : 'Pagamento não concluído');
+        // The query string is only a hint of where the buyer came from: the server re-checks the payment itself.
         history.replaceState(null, '', window.location.pathname);
-        if (payment === 'ok') setTimeout(() => void refresh(), 4000);
+        if ($accountUser && payment !== 'falhou') void confirmPayment(); else showToast(PAYMENT_TEXT[paymentLanguage()].failed);
       }
     } catch (caught) { fail(caught); } finally { loading = false; }
   });

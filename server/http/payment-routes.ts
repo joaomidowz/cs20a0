@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaymentError, createCheckout, handlePaymentNotification, listProducts, verifySignature, type PaymentsConfig } from '../payments/mercadopago';
+import { PaymentError, createCheckout, handlePaymentNotification, listProducts, reconcileUser, verifySignature, type PaymentsConfig } from '../payments/mercadopago';
 import { HttpError, readBody, readJsonBody, route, sendJson, type Handler, type Route } from './router';
 
 const checkoutSchema = z.object({ productId: z.string().min(1).max(64) });
@@ -16,6 +16,8 @@ export function createPaymentRoutes(config: PaymentsConfig, withAuth: (handler: 
       const body = await readBody(request, checkoutSchema);
       return { ok: true, ...(await createCheckout(config, userId!, body.productId).catch(toHttp)) };
     })),
+    /** The buyer's browser calls this on the way back from the checkout; it only ever touches the caller's own purchases. */
+    route('POST', /^\/shop\/reconcile$/, withAuth(async ({ userId }) => ({ ok: true, ...(await reconcileUser(config, userId!).catch(toHttp)) }))),
     /** Mercado Pago calls this; answers 200 fast even for events it ignores, 401 when the signature does not match. */
     route('POST', /^\/payments\/webhook$/, async ({ request, response, url }) => {
       const body = await readJsonBody(request) as { type?: string; data?: { id?: string | number } };
