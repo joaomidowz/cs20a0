@@ -28,6 +28,13 @@ export function createAuthRoutes(deps: AuthDeps, now: () => number) {
     return handler({ ...context, userId: user.id });
   };
 
+  /** The logged user when a valid bearer comes along, otherwise null (public routes that still know who is asking). */
+  const currentUser = async (context: HttpContext) => {
+    const token = bearerOf(context.request);
+    const user = token ? await getSession(deps, token) : null;
+    return user ? { id: user.id, email: user.email } : null;
+  };
+
   const routes: Route[] = [
     route('POST', /^\/auth\/request$/, async ({ request, address }) => {
       const body = await readBody(request, requestSchema);
@@ -57,5 +64,5 @@ export function createAuthRoutes(deps: AuthDeps, now: () => number) {
     }))
   ];
 
-  return { routes, withAuth, prune: () => { perEmail.prune(); perIp.prune(); } };
+  return { routes, withAuth, currentUser, prune: () => { perEmail.prune(); perIp.prune(); } };
 }

@@ -233,6 +233,22 @@ ALTER TABLE purchases ALTER COLUMN coins SET NOT NULL;
 CREATE INDEX IF NOT EXISTS purchases_pending_idx ON purchases (created_at) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS purchases_user_idx ON purchases (user_id, created_at DESC);
 `
+  },
+  {
+    id: 9,
+    // Support requests and rating reports. Stored first, e-mailed after: a mail outage never loses a ticket.
+    sql: `
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id bigserial PRIMARY KEY,
+  kind text NOT NULL CHECK (kind IN ('contact', 'rating')),
+  user_id uuid REFERENCES users(id),
+  email text NOT NULL,
+  payload jsonb NOT NULL,
+  mailed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS support_tickets_unmailed_idx ON support_tickets (created_at) WHERE mailed_at IS NULL;
+`
   }
 ];
 

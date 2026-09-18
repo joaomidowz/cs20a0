@@ -31,7 +31,9 @@
   </div>
 
   <div class="page-actions">
-    <a class="primary" href="mailto:contato@cs13a0.com">{t('contactSendEmail')}</a>
+    <a class="primary" href="/suporte">{$language === 'en' ? 'Open a support ticket' : $language === 'es' ? 'Abrir soporte' : 'Abrir suporte'}</a>
+    <a class="secondary" href="/suporte?aba=overall">{$language === 'en' ? 'Report a wrong rating' : $language === 'es' ? 'Reportar overall' : 'Reportar overall errado'}</a>
+    <a class="secondary" href="mailto:contato@cs13a0.com">{t('contactSendEmail')}</a>
     <a class="secondary" href="https://ko-fi.com/cs13a0" target="_blank" rel="noopener noreferrer">{t('supportOnKofi')}</a>
   </div>
 

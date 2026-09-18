@@ -10,6 +10,7 @@
     contactPage: string;
     credits: string;
     footerNav: string;
+    helpDesk?: string;
   };
 
   const currentYear = new Date().getFullYear();
@@ -27,6 +28,7 @@
       <a href="/privacy">{labels.privacy}</a>
       <a href="/terms">{labels.terms}</a>
       <a href="/contact">{labels.contactPage}</a>
+      <a href="/suporte">{labels.helpDesk ?? 'Suporte'}</a>
       <a href="/credits">{labels.credits}</a>
     </nav>
 

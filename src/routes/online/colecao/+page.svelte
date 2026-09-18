@@ -234,7 +234,7 @@
         <div><span>{t('wallet')}</span><strong>{state.wallet.toLocaleString($language)} <small>{t('coins')}</small></strong></div>
         <div><span>{t('packsToday')}</span><strong>{packsLeft}/{state.packsToday.granted}</strong></div>
         <div><span>{t('myCards')}</span><strong>{state.count}</strong></div>
-        <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
+        <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="ghost link" href="/suporte?aba=overall">{$language === 'en' ? 'Wrong rating?' : $language === 'es' ? '¿Overall incorrecto?' : 'Overall errado?'}</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
 
       <div class="columns">

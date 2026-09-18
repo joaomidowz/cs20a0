@@ -4,8 +4,10 @@
   import { translate } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
   import { SEO_BY_ROUTE } from '$lib/seo';
+  import { LEGAL_CONTACT, privacyPolicy } from '$lib/legal';
 
   $: t = (key: Parameters<typeof translate>[1]) => translate($language, key);
+  $: doc = privacyPolicy($language);
 </script>
 
 <SeoHead metadata={SEO_BY_ROUTE['/privacy']} />
@@ -18,27 +20,23 @@
 >
   <header class="page-header">
     <span class="eyebrow">cs13a0</span>
-    <h1>{t('privacyTitle')}</h1>
+    <h1>{doc.title}</h1>
+    <p class="updated">{doc.updated}</p>
   </header>
 
   <section class="page-block">
-    <p>{t('privacyNoAccount')}</p>
-    <p>{t('privacyLocalStorage')}</p>
-    <p>{t('privacyFeedback')}</p>
-    <p>{t('privacyKoFi')}</p>
-    <p>{t('privacyOnline')}</p>
+    <p class="lead">{doc.intro}</p>
   </section>
 
-  <section class="page-block">
-    <p><strong>{t('privacyNoSell')}</strong></p>
-  </section>
-
-  <section class="page-block">
-    <p class="notice">{t('privacyUpdates')}</p>
-  </section>
+  {#each doc.sections as section (section.heading)}
+    <section class="page-block">
+      <h2>{section.heading}</h2>
+      {#each section.paragraphs as paragraph}<p>{paragraph}</p>{/each}
+    </section>
+  {/each}
 
   <div class="page-contact">
-    <p>{t('privacyContact')} <a href="mailto:contato@cs13a0.com">contato@cs13a0.com</a></p>
+    <p>{t('privacyContact')} <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a> · <a href="/suporte">{$language === 'en' ? 'Support' : $language === 'es' ? 'Soporte' : 'Suporte'}</a></p>
   </div>
 </PageLayout>
 
@@ -46,9 +44,10 @@
   .page-header { margin-bottom: 35px; }
   .page-header h1 { margin: 10px 0 16px; font-size: clamp(2.4rem, 8vw, 4.5rem); }
   .page-block { margin-bottom: 28px; }
+  .page-block h2 { margin: 0 0 10px; font-size: 1.25rem; }
+  .page-block .lead { color: var(--text); font-size: 1rem; }
+  .updated { margin: 0; color: var(--muted); font-size: .8rem; }
   .page-block p { color: var(--muted); font-size: .92rem; line-height: 1.7; margin-bottom: 16px; }
-  .page-block strong { color: var(--text); }
-  .page-block .notice { padding-left: 14px; border-left: 2px solid var(--accent-2); color: var(--muted); font-size: .85rem; }
   .page-contact { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
   .page-contact p { color: var(--muted); font-size: .85rem; }
   .page-contact a { color: var(--accent); font-weight: 700; }

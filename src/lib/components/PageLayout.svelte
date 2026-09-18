@@ -54,7 +54,8 @@
     terms: t('terms'),
     contactPage: t('contact'),
     credits: t('credits'),
-    footerNav: t('footerNav')
+    footerNav: t('footerNav'),
+    helpDesk: language === 'en' ? 'Support' : language === 'es' ? 'Soporte' : 'Suporte'
   }}
 />
 

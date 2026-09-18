@@ -12,6 +12,8 @@ import { createRoomRoutes } from './http/room-routes';
 import { recordMajor } from './collection/seasons';
 import { createQueue } from './queue';
 import { createPaymentRoutes } from './http/payment-routes';
+import { createSupportRoutes } from './http/support-routes';
+import { flushTickets } from './support/service';
 import { sweepPendingPurchases, type PaymentsConfig } from './payments/mercadopago';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
@@ -43,6 +45,10 @@ export interface OnlineServerOptions {
   siteUrl?: string;
   /** Mercado Pago; absent keeps the shop off. */
   payments?: Omit<PaymentsConfig, 'db'>;
+  /** Inbox for support tickets; absent turns the support routes off. */
+  supportTo?: string;
+  /** Behind a reverse proxy (Railway): the client address is the last hop of X-Forwarded-For, added by the proxy itself. */
+  trustProxy?: boolean;
 }
 
 const json = sendJson;
@@ -60,7 +66,17 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
   const queue = createQueue(manager, now);
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
+  const supportDeps = auth && options.db && options.mailer && options.supportTo ? { db: options.db, mailer: options.mailer, to: options.supportTo } : null;
+  const support = supportDeps && auth ? createSupportRoutes(supportDeps, auth.currentUser, now) : null;
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
+  const clientAddress = (request: IncomingMessage) => {
+    if (options.trustProxy) {
+      const forwarded = request.headers['x-forwarded-for'];
+      const hops = (Array.isArray(forwarded) ? forwarded.join(',') : forwarded ?? '').split(',').map((hop) => hop.trim()).filter(Boolean);
+      if (hops.length) return hops[hops.length - 1];
+    }
+    return request.socket.remoteAddress ?? 'unknown';
+  };
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
@@ -90,7 +106,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       return json(response, exists ? 200 : 404, exists ? { ok: true, roomCode: roomLookup[1].toUpperCase() } : { error: 'Room not found' }, origin);
     }
     if (request.method === 'POST' && url.pathname === '/rooms') {
-      const address = request.socket.remoteAddress ?? 'unknown';
+      const address = clientAddress(request);
       const current = now();
       if (!roomCreations.hit(address)) return json(response, 429, { error: 'Rate limited' }, origin);
       try {
@@ -104,7 +120,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
         return json(response, 400, { error: 'Invalid room request' }, origin);
       }
     }
-    const handled = await dispatch(httpRoutes, { request, response, url, origin, address: request.socket.remoteAddress ?? 'unknown', now: now() });
+    const handled = await dispatch(httpRoutes, { request, response, url, origin, address: clientAddress(request), now: now() });
     if (handled) return;
     if (!auth && /^\/(auth|me|collection|packs|lineup|seasons)\b/.test(url.pathname)) return json(response, 503, { ok: false, error: 'ACCOUNTS_DISABLED', message: 'Contas desativadas neste servidor' }, origin);
     return json(response, 404, { error: 'Not found' }, origin);
@@ -247,6 +263,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const heartbeatTimer = setInterval(() => {
     roomCreations.prune();
     auth?.prune();
+    support?.prune();
     for (const [socket, session] of sessions) {
       if (!session.alive) {
         socket.terminate();
@@ -266,11 +283,15 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     sweepPendingPurchases(paymentsConfig).catch(() => {}).finally(() => { sweeping = false; });
   }, 60_000) : null;
   paymentTimer?.unref();
+  // Tickets stored while the mail provider was down go out on the next pass.
+  const supportTimer = supportDeps ? setInterval(() => { void flushTickets(supportDeps).catch(() => {}); }, 10 * 60_000) : null;
+  supportTimer?.unref();
 
   const close = async () => {
     clearInterval(tickTimer);
     clearInterval(heartbeatTimer);
     if (paymentTimer) clearInterval(paymentTimer);
+    if (supportTimer) clearInterval(supportTimer);
     for (const socket of sessions.keys()) socket.terminate();
     sockets.close();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

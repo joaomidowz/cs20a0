@@ -116,6 +116,7 @@
           <div class="actions">
             <a class="primary link" href="/online/colecao">{t('goCollection')}</a>
             <a class="secondary link" href="/online">{t('playOnline')}</a>
+            <a class="ghost link" href="/suporte">{$language === 'en' ? 'Support' : $language === 'es' ? 'Soporte' : 'Suporte'}</a>
             <button class="ghost" type="button" on:click={() => logoutAccount(serverUrl)}>{t('logout')}</button>
           </div>
         </section>

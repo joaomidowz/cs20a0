@@ -17,9 +17,9 @@
   let error = '';
 
   const TEXT = {
-    'pt-BR': { title: 'Comprar coins', hint: 'Pagamento pelo Mercado Pago (Pix ou cartão). As coins caem na conta assim que o pagamento é aprovado.', buy: 'Comprar', adult: 'Compras só para maiores de 18 anos ou com autorização do responsável. Coins não têm valor em dinheiro e não são reembolsáveis depois de usadas.', fail: 'Não foi possível abrir o pagamento.', limit: 'Limite diário de compras atingido.', blocked: 'Compras bloqueadas nesta conta. Fale com o suporte.', best: 'Melhor valor' },
-    en: { title: 'Buy coins', hint: 'Paid through Mercado Pago (Pix or card). Coins land in your account as soon as the payment is approved.', buy: 'Buy', adult: 'Purchases only for 18+ or with a guardian\'s permission. Coins have no cash value and are not refundable once used.', fail: 'Could not open the payment.', limit: 'Daily purchase limit reached.', blocked: 'Purchases are blocked on this account. Contact support.', best: 'Best value' },
-    es: { title: 'Comprar coins', hint: 'Pago por Mercado Pago (Pix o tarjeta). Las coins llegan a tu cuenta cuando se aprueba el pago.', buy: 'Comprar', adult: 'Compras solo para mayores de 18 o con autorización del responsable. Las coins no tienen valor en dinero y no se reembolsan una vez usadas.', fail: 'No se pudo abrir el pago.', limit: 'Límite diario de compras alcanzado.', blocked: 'Compras bloqueadas en esta cuenta. Contacta al soporte.', best: 'Mejor valor' }
+    'pt-BR': { title: 'Comprar coins', hint: 'Pagamento pelo Mercado Pago (Pix ou cartão). As coins caem na conta assim que o pagamento é aprovado.', buy: 'Comprar', adult: 'Compras só para maiores de 18 anos ou com autorização do responsável. Coins não têm valor em dinheiro e não são reembolsáveis depois de usadas.', fail: 'Não foi possível abrir o pagamento.', limit: 'Limite diário de compras atingido.', blocked: 'Compras bloqueadas nesta conta. Fale com o suporte.', best: 'Melhor valor', help: 'Problema com uma compra? Fale com o suporte.', terms: 'Termos' },
+    en: { title: 'Buy coins', hint: 'Paid through Mercado Pago (Pix or card). Coins land in your account as soon as the payment is approved.', buy: 'Buy', adult: 'Purchases only for 18+ or with a guardian\'s permission. Coins have no cash value and are not refundable once used.', fail: 'Could not open the payment.', limit: 'Daily purchase limit reached.', blocked: 'Purchases are blocked on this account. Contact support.', best: 'Best value', help: 'Trouble with a purchase? Contact support.', terms: 'Terms' },
+    es: { title: 'Comprar coins', hint: 'Pago por Mercado Pago (Pix o tarjeta). Las coins llegan a tu cuenta cuando se aprueba el pago.', buy: 'Comprar', adult: 'Compras solo para mayores de 18 o con autorización del responsable. Las coins no tienen valor en dinero y no se reembolsan una vez usadas.', fail: 'No se pudo abrir el pago.', limit: 'Límite diario de compras alcanzado.', blocked: 'Compras bloqueadas en esta cuenta. Contacta al soporte.', best: 'Mejor valor', help: '¿Problema con una compra? Habla con soporte.', terms: 'Términos' }
   } as const;
   $: text = TEXT[(language in TEXT ? language : 'pt-BR') as keyof typeof TEXT];
   const price = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -61,7 +61,7 @@
         </button>
       {/each}
     </div>
-    <p class="hint small">{text.adult}</p>
+    <p class="hint small">{text.adult} <a href="/suporte?tipo=compra">{text.help}</a> · <a href="/terms">{text.terms}</a></p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
   </section>
 {/if}
@@ -78,5 +78,6 @@
   .offer small { color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
   .offer b { margin-top: 8px; padding: 8px 12px; background: var(--accent); color: #0a0d08; font-size: .72rem; text-transform: uppercase; }
   .ribbon { position: absolute; top: -9px; padding: 2px 8px; background: #d9a441; color: #0a0d08; font-size: .56rem; font-weight: 900; text-transform: uppercase; }
+  .hint a { color: var(--accent); font-weight: 700; }
   .error { margin: 0; color: #ff9b90; font-size: .8rem; }
 </style>

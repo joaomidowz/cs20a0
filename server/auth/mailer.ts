@@ -1,11 +1,22 @@
+/** A plain message (support tickets). `replyTo` lets the inbox answer the player directly. */
+export interface MailMessage {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  replyTo?: string;
+}
+
 /** Sends the magic link. In dev (`AUTH_DEV_LINK=1`) nothing is sent: the link comes back in the HTTP response. */
 export interface Mailer {
   readonly devLink: boolean;
   send(to: string, link: string): Promise<void>;
+  /** Sends any other message. In dev it is dropped: tickets stay in the database only. */
+  deliver(message: MailMessage): Promise<void>;
 }
 
 export function createDevMailer(): Mailer {
-  return { devLink: true, send: async () => {} };
+  return { devLink: true, send: async () => {}, deliver: async () => {} };
 }
 
 export function createResendMailer(apiKey: string, from: string): Mailer {
@@ -23,9 +34,17 @@ export function createResendMailer(apiKey: string, from: string): Mailer {
         html: magicLinkHtml(link)
       });
       if (error) throw new Error(`Resend: ${error.message}`);
+    },
+    async deliver(message) {
+      const { Resend } = await import('resend');
+      const resend = new Resend(apiKey);
+      const { error } = await resend.emails.send({ from, to: message.to, subject: message.subject, text: message.text, html: message.html, replyTo: message.replyTo });
+      if (error) throw new Error(`Resend: ${error.message}`);
     }
   };
 }
+
+export const escapeMailHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
