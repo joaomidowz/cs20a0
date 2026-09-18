@@ -133,7 +133,7 @@
       {#each ordered as card, index (idOf(card) + index)}
         {@const rarity = rarityOfCard(card)}
         {@const up = index < flipped}
-        <div class="rv-card fx-{rarity}" class:up class:charging={charging === index} class:next={rolling === index}>
+        <div class="rv-card fx-{rarity}" class:up class:charging={charging === index} class:rv-next={rolling === index}>
           {#if up && (rarity === 'legend' || rarity === 'goat')}
             <span class="rays" aria-hidden="true"></span>
             <span class="sparks" aria-hidden="true">{#each SPARKS as spark}<i style={`--x:${(spark * 53) % 100}%;--d:${(spark * 137) % 900}ms;--s:${4 + (spark % 4) * 2}px`}></i>{/each}</span>
@@ -168,7 +168,7 @@
   .rv-card { position: relative; min-width: 0; --fx: var(--common); }
   .rv-holder { position: relative; display: block; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
   .fx-superstar .rv-holder { animation-duration: .8s; } .fx-legend .rv-holder, .fx-goat .rv-holder { animation-duration: 1s; }
-  .next .rv-back { border-color: var(--accent); }
+  .rv-next .rv-back { border-color: var(--accent); }
   .fx-rare { --fx: var(--rare); } .fx-elite { --fx: var(--elite); } .fx-superstar { --fx: var(--superstar); } .fx-legend { --fx: var(--legend); } .fx-goat { --fx: var(--goat); }
   .rv-back { display: grid; place-content: center; justify-items: center; min-height: 340px; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
   .rv-back span { padding: 4px 8px; background: var(--accent); color: #0a0d08; font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .rv-back small { margin-top: 6px; color: var(--muted); font: 900 1rem 'Arial Narrow', Impact, sans-serif; letter-spacing: .2em; }
