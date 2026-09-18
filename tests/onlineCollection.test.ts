@@ -99,3 +99,44 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(coinValue(five[0])).toBeGreaterThan(0);
   });
 });
+
+describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
+  it('grava pontos, prêmio, awards e tabela uma vez só por (sala, seed, usuário)', async () => {
+    const { createDb } = await import('../server/db/client');
+    const { runMigrations } = await import('../server/db/migrations');
+    const { recordMajor, currentStandings } = await import('../server/collection/seasons');
+    const db = createDb(url!);
+    await db.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    await runMigrations(db);
+    const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('major@example.com', now()) RETURNING id`);
+    await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
+    const now = Date.UTC(2026, 8, 18, 15);
+    const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
+    const event = {
+      roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, awards: null,
+      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80 }]
+    };
+    await recordMajor(db, event, now);
+    await recordMajor(db, event, now);
+    const majors = await db.query<{ points: number; ranked: boolean; counted: boolean }>('SELECT points, ranked, counted FROM majors');
+    expect(majors).toHaveLength(1);
+    expect(majors[0]).toMatchObject({ ranked: true, counted: true, points: 3 });
+    const awards = await db.query<{ kind: string }>('SELECT kind FROM awards ORDER BY kind');
+    expect(awards.map((row) => row.kind)).toEqual(['major_title']);
+    const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
+    expect(wallet.coins).toBe(300 + 200);
+    // Second ranked title the same day pays coins but no points.
+    await recordMajor(db, { ...event, seed: 'seed-2' }, now + 60_000);
+    const second = await db.query<{ points: number; counted: boolean }>(`SELECT points, counted FROM majors WHERE seed = 'seed-2'`);
+    expect(second[0]).toMatchObject({ counted: false, points: 0 });
+    // Bot-only lobby: no points, half reward, no title award.
+    await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 1 }, now + 120_000);
+    const solo = await db.query<{ points: number; ranked: boolean; awards: string[] }>(`SELECT points, ranked, awards FROM majors WHERE seed = 'seed-3'`);
+    expect(solo[0]).toMatchObject({ ranked: false, points: 0 });
+    expect(solo[0].awards).toEqual([]);
+    const standings = await currentStandings(db, now, user.id);
+    expect(standings.month).toBe('2026-09-01');
+    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 2, majorsPlayed: 3, points: 3 });
+    await db.close();
+  });
+});

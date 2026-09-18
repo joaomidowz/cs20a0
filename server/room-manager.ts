@@ -70,6 +70,8 @@ import {
 } from '../src/lib/game/online/live-series';
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
+import { applyCollectionLineup } from '../src/lib/game/online/collection-lineup';
+import type { LineupSlotRole, SelectedPlayer } from '../src/lib/game/types';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
@@ -94,6 +96,17 @@ export class RoomError extends Error {
   }
 }
 
+/** Lineup of a logged user's collection, registered over HTTP before the join; it replaces the draft for that participant. */
+export interface PreparedLineup {
+  userId: string;
+  lineup: SelectedPlayer[];
+  style: OrgStyle;
+  starPlayerId: string | null;
+  mapPreferences: MapId[];
+}
+
+export const LINEUP_TICKET_TTL_MS = 5 * 60_000;
+
 interface ParticipantState {
   id: string;
   playerName: string;
@@ -105,6 +118,39 @@ interface ParticipantState {
   draft: DraftState;
   watchedSeriesId: string | null;
   requestIds: string[];
+  prepared: PreparedLineup | null;
+}
+
+/** One human's line in a finished run, handed to the persistence layer (points, awards, season). */
+export interface RunCompletedEntry {
+  userId: string;
+  participantId: string;
+  organizationName: string;
+  placement: string;
+  champion: boolean;
+  lineup: SelectedPlayer[];
+  starPlayerId: string | null;
+  /** The participant's series, in order. */
+  matches: SeriesResult[];
+  stats: import('../src/lib/game/types').PlayerRunStats[];
+  /** Ids of the organizations this participant beat and their power, for underdog awards. */
+  opponents: Array<{ id: string; power: number; won: boolean }>;
+  ownPower: number;
+}
+
+export interface RunCompletedEvent {
+  roomCode: string;
+  seed: string;
+  runNumber: number;
+  /** Humans in the run (collection or draft). */
+  lobbySize: number;
+  awards: MajorAwards | null;
+  entries: RunCompletedEntry[];
+}
+
+export interface RoomHooks {
+  /** Called once per finished run with the collection participants; never throws into the room. */
+  onRunCompleted?: (event: RunCompletedEvent) => void;
 }
 
 /** Server-side pacing of one live series: its own clock plus the deadline of the human decision it waits for. */
@@ -179,6 +225,8 @@ interface RoomState {
   rematch: RematchState | null;
   /** Awards of the completed run, computed once when the champion is known. */
   awards: MajorAwards | null;
+  /** Collection lineups registered over HTTP, waiting for their join. */
+  pendingLineups: Map<string, { prepared: PreparedLineup; expiresAt: number }>;
 }
 
 export interface JoinResult {
@@ -336,6 +384,8 @@ const emptySeason = (number: number): SeasonState => ({ number, run: 0, results:
 export class RoomManager {
   private readonly rooms = new Map<string, RoomState>();
 
+  constructor(private readonly hooks: RoomHooks = {}) {}
+
   createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url')): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
@@ -361,9 +411,20 @@ export class RoomManager {
       historyCache: null,
       season: emptySeason(1),
       rematch: null,
-      awards: null
+      awards: null,
+      pendingLineups: new Map()
     });
     return code;
+  }
+
+  /** Registers a collection lineup for a room still in the lobby; the ticket is consumed by the `join` that carries it. */
+  prepareLineup(code: string, prepared: PreparedLineup, now = Date.now()): string {
+    const room = this.requireRoom(code);
+    if (room.phase !== 'lobby') throw new RoomError('ROOM_STARTED', 'The room has already started');
+    for (const [ticket, entry] of room.pendingLineups) if (entry.expiresAt <= now) room.pendingLineups.delete(ticket);
+    const ticket = randomBytes(24).toString('base64url');
+    room.pendingLineups.set(ticket, { prepared, expiresAt: now + LINEUP_TICKET_TTL_MS });
+    return ticket;
   }
 
   hasRoom(code: string): boolean {
@@ -374,12 +435,20 @@ export class RoomManager {
     return this.rooms.size;
   }
 
-  join(code: string, playerName: string, organizationName: string, now = Date.now()): JoinResult {
+  join(code: string, playerName: string, organizationName: string, now = Date.now(), lineupTicket?: string): JoinResult {
     const room = this.requireRoom(code);
     if (room.phase !== 'lobby') throw new RoomError('ROOM_STARTED', 'The room has already started');
     if (room.participants.size >= room.config.capacity) throw new RoomError('ROOM_FULL', 'The room is full');
     if ([...room.participants.values()].some((participant) => normalizeName(participant.organizationName) === normalizeName(organizationName))) {
       throw new RoomError('NAME_TAKEN', 'Organization name is already in use');
+    }
+    let prepared: PreparedLineup | null = null;
+    if (lineupTicket) {
+      const pending = room.pendingLineups.get(lineupTicket);
+      if (!pending || pending.expiresAt <= now) throw new RoomError('INVALID_ACTION', 'Lineup ticket is invalid or expired');
+      if ([...room.participants.values()].some((participant) => participant.prepared?.userId === pending.prepared.userId)) throw new RoomError('INVALID_ACTION', 'This account is already in the room');
+      room.pendingLineups.delete(lineupTicket);
+      prepared = pending.prepared;
     }
     const participant: ParticipantState = {
       id: randomUUID(),
@@ -391,7 +460,8 @@ export class RoomManager {
       disconnectedAt: null,
       draft: emptyDraftState(),
       watchedSeriesId: null,
-      requestIds: []
+      requestIds: [],
+      prepared
     };
     room.participants.set(participant.id, participant);
     room.hostParticipantId ??= participant.id;
@@ -445,9 +515,11 @@ export class RoomManager {
         if ([...room.participants.values()].filter((candidate) => candidate.connected).length < 2) throw new RoomError('INVALID_ACTION', 'At least two connected participants are required');
         room.phase = 'draft';
         // The mode is final now: friends with a secret alias start the draft with their player already in the lineup.
-        for (const candidate of room.participants.values()) candidate.draft = withSecretPlayers(emptyDraftState(), room.config.mode, candidate.playerName, candidate.organizationName, lookupPlayer);
+        for (const candidate of room.participants.values()) candidate.draft = this.initialDraft(room, candidate);
         room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
         room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+        // Everybody entered with a collection lineup: no draft to run, straight into the tournament.
+        this.startTournamentIfReady(room, now);
         break;
       case 'pick-secret': {
         this.requireDraft(room);
@@ -655,7 +727,8 @@ export class RoomManager {
         picksCompleted: room.config.mode === 'pro' ? candidate.draft.proPickedPlayerIds.length : candidate.draft.lineup.length,
         ready: isDraftComplete(room.config.mode, candidate.draft),
         mapPreferences: candidate.id === participantId ? [...candidate.draft.mapPreferences] : [],
-        mapsConfirmed: candidate.draft.mapPreferences.length === 3
+        mapsConfirmed: candidate.draft.mapPreferences.length === 3,
+        ...(candidate.prepared ? { collection: true } : {})
       }));
     const organizations = room.organizations?.map((organization): PublicOrganization => ({
       id: organization.id,
@@ -832,12 +905,49 @@ export class RoomManager {
     }
     season.run = runNumber;
     if (season.run >= room.config.seasonRuns) season.championName = [...season.results.values()].sort(seasonOrder)[0]?.organizationName ?? null;
+    this.emitRunCompleted(room, result, runNumber);
     room.rematch = {
       deadlineAt: now + REMATCH_WINDOW_MS,
       eligible: new Set(room.participants.keys()),
       accepted: new Set(),
       declined: new Set()
     };
+  }
+
+  /** Hands the finished run to the persistence hook (collection participants only); a failing hook never touches the room. */
+  private emitRunCompleted(room: RoomState, result: OnlineTournamentResult, runNumber: number) {
+    if (!this.hooks.onRunCompleted) return;
+    const humans = [...room.participants.values()];
+    const entries: RunCompletedEntry[] = [];
+    const powerOf = new Map((room.organizations ?? []).map((organization) => [organization.id, organization.team.power]));
+    for (const participant of humans) {
+      if (!participant.prepared) continue;
+      const self = this.getSelfResult(room, participant);
+      if (!self) continue;
+      const matches = result.rounds.flatMap((round) => round.series).filter((series) => series.teamA.id === participant.id || series.teamB.id === participant.id);
+      entries.push({
+        userId: participant.prepared.userId,
+        participantId: participant.id,
+        organizationName: participant.organizationName,
+        placement: self.campaign.placement,
+        champion: result.championId === participant.id,
+        lineup: participant.draft.lineup,
+        starPlayerId: participant.prepared.starPlayerId,
+        matches,
+        stats: self.stats,
+        opponents: matches.map((series) => {
+          const opponent = series.teamA.id === participant.id ? series.teamB : series.teamA;
+          return { id: opponent.id, power: powerOf.get(opponent.id) ?? opponent.power, won: series.winnerId === participant.id };
+        }),
+        ownPower: powerOf.get(participant.id) ?? 0
+      });
+    }
+    if (!entries.length) return;
+    try {
+      this.hooks.onRunCompleted({ roomCode: room.code, seed: room.seed, runNumber, lobbySize: humans.length, awards: room.awards, entries });
+    } catch (error) {
+      console.error('onRunCompleted hook failed', error instanceof Error ? error.message : error);
+    }
   }
 
   /**
@@ -865,7 +975,7 @@ export class RoomManager {
       if (!keep.has(participantId)) room.participants.delete(participantId);
     }
     for (const participant of room.participants.values()) {
-      participant.draft = withSecretPlayers(emptyDraftState(), room.config.mode, participant.playerName, participant.organizationName, lookupPlayer);
+      participant.draft = this.initialDraft(room, participant);
       participant.watchedSeriesId = null;
     }
     room.seed = randomBytes(24).toString('base64url');
@@ -929,6 +1039,14 @@ export class RoomManager {
       const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
       participant.draft.mapPreferences = [...getDefaultMapSelection(selected, teams)];
     }
+  }
+
+  /** A collection lineup is a finished draft from the first tick; everybody else starts empty (plus secret picks). */
+  private initialDraft(room: RoomState, participant: ParticipantState): DraftState {
+    if (participant.prepared) {
+      return { ...emptyDraftState(), lineup: participant.prepared.lineup.map((pick) => ({ ...pick })), style: participant.prepared.style, mapPreferences: [...participant.prepared.mapPreferences] };
+    }
+    return withSecretPlayers(emptyDraftState(), room.config.mode, participant.playerName, participant.organizationName, lookupPlayer);
   }
 
   private startTournamentIfReady(room: RoomState, now: number) {
@@ -1122,7 +1240,10 @@ export class RoomManager {
     const runPlayers = mode === 'pro'
       ? buildProRoleEvaluations(selected, participant.draft.proRoleAssignments, style).map((evaluation) => evaluation.adjustedPlayer)
       : selected;
-    const base: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
+    const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
+    const base = participant.prepared
+      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map((pick) => pick.selectedSlotRole as LineupSlotRole), starPlayerId: participant.prepared.starPlayerId })
+      : built;
     return {
       id: participant.id,
       name: participant.organizationName,

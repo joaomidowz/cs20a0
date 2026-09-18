@@ -8,6 +8,8 @@ import type { Db } from './db/client';
 import type { Mailer } from './auth/mailer';
 import { createAuthRoutes } from './http/auth-routes';
 import { createCollectionRoutes } from './http/collection-routes';
+import { createRoomRoutes } from './http/room-routes';
+import { recordMajor } from './collection/seasons';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
@@ -41,15 +43,18 @@ export interface OnlineServerOptions {
 const json = sendJson;
 
 export function createOnlineServer(options: OnlineServerOptions = {}) {
-  const manager = options.manager ?? new RoomManager();
   const now = options.now ?? Date.now;
+  const manager = options.manager ?? new RoomManager(options.db ? {
+    // Persistence never blocks the room: the promise is detached and only logged on failure.
+    onRunCompleted: (event) => { void recordMajor(options.db!, event, now()).catch((error) => console.error('recordMajor failed', error instanceof Error ? error.message : error)); }
+  } : {});
   const liveBackpressureBytes = options.liveBackpressureBytes ?? LIVE_BACKPRESSURE_BYTES;
   const bufferedAmountOf = options.bufferedAmountOf ?? ((socket: WebSocket) => socket.bufferedAmount);
   const allowedOrigins = new Set(options.allowedOrigins ?? ['http://localhost:5173', 'https://cs13a0.com', 'https://www.cs13a0.com']);
   const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? createCollectionRoutes(options.db, auth.withAuth) : [])];
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth)] : [])];
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
@@ -174,7 +179,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
           if (command.protocolVersion !== PROTOCOL_VERSION) throw new RoomError('PROTOCOL_MISMATCH', 'Protocol version mismatch');
           if (command.dataHash !== ONLINE_DATA_HASH) throw new RoomError('DATA_MISMATCH', 'Dataset hash mismatch');
           const joined = command.type === 'join'
-            ? manager.join(roomCode, command.playerName, command.organizationName, current)
+            ? manager.join(roomCode, command.playerName, command.organizationName, current, command.lineupTicket)
             : manager.resume(roomCode, command.resumeToken, current);
           session.participantId = joined.participantId;
           // A participant owns a single live socket: an older tab is detached first so its close never marks the participant offline.

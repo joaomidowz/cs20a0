@@ -60,7 +60,9 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     protocolVersion: z.number().int(),
     dataHash: z.string().min(8).max(128),
     playerName: participantNameSchema,
-    organizationName: participantNameSchema
+    organizationName: participantNameSchema,
+    /** Ticket from `POST /rooms/:code/lineup`: the participant enters with the collection lineup and skips the draft. */
+    lineupTicket: z.string().min(16).max(128).optional()
   }).strict(),
   baseCommandSchema.extend({
     type: z.literal('resume'),
@@ -237,6 +239,8 @@ export interface PublicParticipant {
   /** Only the requesting participant sees their own preferences; other participants receive an empty list. */
   mapPreferences: MapId[];
   mapsConfirmed: boolean;
+  /** Entered with a collection lineup (online account); the draft is skipped for this participant. */
+  collection?: boolean;
 }
 
 export interface PublicOrganization {
