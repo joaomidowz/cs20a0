@@ -1,6 +1,6 @@
-import { CARDS_PER_PACK, PACK_ODDS, RARITIES, rarityOf, type PackTier, type Rarity } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, COACH_CHANCE, PACK_ODDS, RARITIES, rarityOf, type PackTier, type Rarity } from '../../src/lib/game/online/collection-rules';
 import { createSeededRng } from '../../src/lib/game/simulation';
-import type { Player } from '../../src/lib/game/types';
+import type { Coach, Player } from '../../src/lib/game/types';
 
 export interface RollOptions {
   /** `era` packs: every card from this year. Other tiers draw three distinct years. */
@@ -47,6 +47,24 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
     cards.push(chosen);
     usedIds.add(chosen.id);
     if (chosen.year) usedYears.add(chosen.year);
+  }
+  return cards;
+}
+
+export type PackCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
+
+/** A pack with a chance that one card is a coach (same seed, same pack). Era packs draw the coach from the chosen year. */
+export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[], coaches: Coach[], options: RollOptions = {}): PackCard[] {
+  const cards: PackCard[] = rollPack(tier, seed, pool, options).map((player) => ({ kind: 'player', player }));
+  const rng = createSeededRng(`${seed}:coach`);
+  if (rng() >= COACH_CHANCE[tier]) return cards;
+  const eligible = coaches.filter((coach) => !options.year || coach.year === options.year).sort((a, b) => a.id.localeCompare(b.id));
+  if (!eligible.length) return cards;
+  const wanted = pickRarity(tier, rng());
+  const ladder = [wanted, ...RARITIES.slice(0, RARITIES.indexOf(wanted)).reverse(), ...RARITIES.slice(RARITIES.indexOf(wanted) + 1)];
+  for (const rarity of ladder) {
+    const candidates = eligible.filter((coach) => rarityOf(coach) === rarity);
+    if (candidates.length) { cards[cards.length - 1] = { kind: 'coach', coach: candidates[Math.floor(rng() * candidates.length)] }; break; }
   }
   return cards;
 }

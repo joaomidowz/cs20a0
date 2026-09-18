@@ -1,9 +1,9 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players } from '../../src/lib/game/online/collection-pool';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
 import type { LineupSlotRole, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
-import { playerById, players } from '../data';
-import { rollPack } from './packs';
+import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3 } from './time';
 
 export class CollectionError extends Error {
@@ -36,23 +36,35 @@ export interface LineupView {
   playerIds: string[];
   roles: LineupSlotRole[];
   starPlayerId: string | null;
+  coachId: string | null;
   style: OrgStyle;
   starEffective: boolean;
 }
 
-const lineupView = (row: { player_ids: string[]; roles: string[]; star_player_id: string | null; style: string } | undefined): LineupView | null => {
+type LineupRow = { player_ids: string[]; roles: string[]; star_player_id: string | null; coach_id: string | null; style: string };
+const LINEUP_COLUMNS = 'player_ids, roles, star_player_id, coach_id, style';
+
+const lineupView = (row: LineupRow | undefined): LineupView | null => {
   if (!row) return null;
   const chosen = row.player_ids.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
   const check = validateLineup({ players: chosen, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
-  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, style: row.style as OrgStyle, starEffective: check.starEffective };
+  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective };
 };
+
+const cardValue = (id: string) => {
+  const coach = collectionCoachById.get(id);
+  if (coach) return coachCoinValue(coach);
+  const player = playerById.get(id);
+  return player ? coinValue(player) : 0;
+};
+const cardId = (card: PackCard) => (card.kind === 'coach' ? card.coach.id : card.player.id);
 
 export async function getCollection(db: Db, userId: string, now: number): Promise<CollectionView> {
   const day = dayKeyUtcMinus3(now);
   const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
   const rows = await db.query<{ player_id: string; acquired_at: Date }>('SELECT player_id, acquired_at FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
   const [grant] = await db.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2', [userId, day]);
-  const [lineup] = await db.query<{ player_ids: string[]; roles: string[]; star_player_id: string | null; style: string }>('SELECT player_ids, roles, star_player_id, style FROM lineups WHERE user_id = $1', [userId]);
+  const [lineup] = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineups WHERE user_id = $1`, [userId]);
   return {
     wallet: wallet?.coins ?? 0,
     count: rows.length,
@@ -71,12 +83,13 @@ export interface PackResult {
   wallet: number;
 }
 
-async function addCards(tx: Tx, userId: string, cards: Player[], seed: string): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
+async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
   const duplicates: string[] = [];
   let coinsFromDupes = 0;
   for (const card of cards) {
-    const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, card.id, 'pack']);
-    if (!inserted.length) { duplicates.push(card.id); coinsFromDupes += coinValue(card); }
+    const id = cardId(card);
+    const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, id, 'pack']);
+    if (!inserted.length) { duplicates.push(id); coinsFromDupes += cardValue(id); }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
   return { duplicates, coinsFromDupes, wallet };
@@ -90,13 +103,13 @@ export async function openDailyPack(db: Db, userId: string, now: number): Promis
     const [grant] = await tx.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2 FOR UPDATE', [userId, day]);
     if (grant.opened >= grant.granted) throw new CollectionError(409, 'NO_PACKS_LEFT', 'Sem pacotes hoje');
     const seed = `${userId}:${day}:${grant.opened + 1}`;
-    const cards = rollPack('basic', seed, players);
+    const cards = rollPackWithCoaches('basic', seed, players, collectionCoaches);
     await tx.query('UPDATE pack_grants SET opened = opened + 1 WHERE user_id = $1 AND day = $2', [userId, day]);
-    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, 'basic', seed, cards.map((card) => card.id)]);
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, 'basic', seed, cards.map(cardId)]);
     await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
-    return { tier: 'basic', seed, players: cards.map((card) => card.id), ...added };
+    return { tier: 'basic', seed, players: cards.map(cardId), ...added };
   });
 }
 
@@ -108,23 +121,24 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
     await applyLedger(tx, userId, -price, 'buy_pack', tier);
     const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
     const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
-    const cards = rollPack(tier, seed, players, tier === 'era' ? { year } : {});
-    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map((card) => card.id)]);
+    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches, tier === 'era' ? { year } : {});
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
-    return { tier, seed, players: cards.map((card) => card.id), ...added };
+    return { tier, seed, players: cards.map(cardId), ...added };
   });
 }
 
 export async function sellPlayer(db: Db, userId: string, playerId: string): Promise<{ coins: number; wallet: number }> {
+  const coach = collectionCoachById.get(playerId);
   const player = playerById.get(playerId);
-  if (!player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Jogador desconhecido');
+  if (!coach && !player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
   return db.tx(async (tx) => {
-    const [lineup] = await tx.query<{ player_ids: string[] }>('SELECT player_ids FROM lineups WHERE user_id = $1', [userId]);
-    if (lineup?.player_ids.includes(playerId)) throw new CollectionError(409, 'IN_LINEUP', 'Tire o jogador do time antes de vender');
+    const [lineup] = await tx.query<{ player_ids: string[]; coach_id: string | null }>('SELECT player_ids, coach_id FROM lineups WHERE user_id = $1', [userId]);
+    if (lineup?.player_ids.includes(playerId) || lineup?.coach_id === playerId) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de vender');
     const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 RETURNING player_id', [userId, playerId]);
     if (!removed.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
-    const coins = sellValue(player);
+    const coins = coach ? coachSellValue(coach) : sellValue(player!);
     const wallet = await applyLedger(tx, userId, coins, 'sell', playerId);
     return { coins, wallet };
   });
@@ -134,6 +148,7 @@ export interface LineupInput {
   playerIds: string[];
   roles: LineupSlotRole[];
   starPlayerId: string | null;
+  coachId: string | null;
   style: OrgStyle;
 }
 
@@ -141,20 +156,22 @@ export async function saveLineup(db: Db, userId: string, input: LineupInput): Pr
   if (input.playerIds.length !== 5 || input.roles.length !== 5 || new Set(input.playerIds).size !== 5) throw new CollectionError(400, 'LINEUP_SIZE', 'O time tem cinco cartas');
   const chosen = input.playerIds.map((id) => playerById.get(id));
   if (chosen.some((player) => !player)) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Jogador desconhecido');
-  const owned = await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1 AND player_id = ANY($2)', [userId, input.playerIds]);
-  if (owned.length !== 5) throw new CollectionError(403, 'NOT_OWNED', 'Só cartas da sua coleção entram no time');
+  if (input.coachId && !collectionCoachById.has(input.coachId)) throw new CollectionError(404, 'UNKNOWN_COACH', 'Coach desconhecido');
+  const wanted = input.coachId ? [...input.playerIds, input.coachId] : input.playerIds;
+  const owned = await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1 AND player_id = ANY($2)', [userId, wanted]);
+  if (owned.length !== wanted.length) throw new CollectionError(403, 'NOT_OWNED', 'Só cartas da sua coleção entram no time');
   const check = validateLineup({ players: chosen as Player[], roles: input.roles, starPlayerId: input.starPlayerId }, (id) => playerById.get(id));
   if (!check.ok) throw new CollectionError(400, 'INVALID_LINEUP', check.problems.join('; '));
   await db.query(
-    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style) VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, updated_at = now()`,
-    [userId, input.playerIds, input.roles, input.starPlayerId, input.style]
+    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style, coach_id) VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, coach_id = $6, updated_at = now()`,
+    [userId, input.playerIds, input.roles, input.starPlayerId, input.style, input.coachId]
   );
   return { ...input, starEffective: check.starEffective };
 }
 
 export async function getLineup(db: Db, userId: string): Promise<LineupView | null> {
-  const [row] = await db.query<{ player_ids: string[]; roles: string[]; star_player_id: string | null; style: string }>('SELECT player_ids, roles, star_player_id, style FROM lineups WHERE user_id = $1', [userId]);
+  const [row] = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineups WHERE user_id = $1`, [userId]);
   return lineupView(row);
 }
 

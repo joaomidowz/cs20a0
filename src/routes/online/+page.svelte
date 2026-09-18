@@ -30,7 +30,8 @@
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
-  import { playerById, secretPlayers, teamById, getTeamPlayers, teams } from '$lib/game/data';
+  import { playerById as corePlayerById, secretPlayers, teamById as coreTeamById, getTeamPlayers, teams } from '$lib/game/data';
+  import { collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
   import { findSecretOrganization, isSecretPlayerId, secretPoolOf } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -51,6 +52,9 @@
   import { fetchCollection } from '$lib/game/online/collection';
   import '../../app.css';
 
+  // Collection lineups may bring 2013–2015 cards; the draft itself only ever offers core players.
+  const playerById = new Map([...collectionPlayerById, ...corePlayerById]);
+  const teamById = new Map([...collectionTeamById, ...coreTeamById]);
   let playerName = '';
   let organizationName = '';
   let roomCode = '';

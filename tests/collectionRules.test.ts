@@ -117,3 +117,25 @@ describe('lineup da coleção', () => {
     expect(check.problems).toContain('STAR_NOT_IN_LINEUP');
   });
 });
+
+describe('pool desde 2013 e coaches', () => {
+  it('pacote de era 2013 só traz 2013 e pacotes às vezes trazem coach, sempre determinístico', async () => {
+    const { collectionCoaches, collectionPlayers } = await import('../src/lib/game/online/collection-pool');
+    const { rollPackWithCoaches } = await import('../server/collection/packs');
+    const era = rollPackWithCoaches('era', 'e2013', collectionPlayers, collectionCoaches, { year: 2013 });
+    expect(era.every((card) => (card.kind === 'player' ? card.player.year : card.coach.year) === 2013)).toBe(true);
+    let coaches = 0;
+    for (let index = 0; index < 400; index += 1) coaches += rollPackWithCoaches('ouro', `c${index}`, collectionPlayers, collectionCoaches).filter((card) => card.kind === 'coach').length;
+    expect(coaches).toBeGreaterThan(40);
+    expect(coaches).toBeLessThan(120);
+    expect(rollPackWithCoaches('ouro', 'same', collectionPlayers, collectionCoaches)).toEqual(rollPackWithCoaches('ouro', 'same', collectionPlayers, collectionCoaches));
+    expect(collectionPlayers.some((player) => player.year === 2013)).toBe(true);
+    expect(collectionCoaches.every((coach) => coach.confidence !== 'placeholder')).toBe(true);
+  });
+
+  it('valor do coach cresce com overall e raridade', async () => {
+    const { coachCoinValue } = await import('../src/lib/game/online/collection-rules');
+    expect(coachCoinValue({ overall: 88, rarity: 'legend' })).toBeGreaterThan(coachCoinValue({ overall: 70, rarity: 'common' }));
+    expect(coachCoinValue({ overall: 60, rarity: 'common' })).toBeGreaterThanOrEqual(30);
+  });
+});

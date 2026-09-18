@@ -1,4 +1,4 @@
-import type { Player } from '../types';
+import type { Coach, Player } from '../types';
 
 /**
  * Pack and coin rules of the online collection, shared by the server (source of truth) and the client (previews and
@@ -53,3 +53,19 @@ export function matchReward(placement: string, ranked: boolean): number {
   const base = placement === 'placementChampion' ? 300 : placement === 'placementRunnerUp' || placement === 'placement3to4' ? 150 : 50;
   return ranked ? base : Math.floor(base / 2);
 }
+
+/** Chance that one of the three cards of a pack is a coach instead of a player. */
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12 };
+
+/** New accounts start with this; paid once on the first verified login. */
+export const WELCOME_COINS = 10_000;
+
+/** Coin value of a coach card: the Dynasty coach market curve scaled to coins, with the same rarity multiplier as players. */
+export function coachCoinValue(coach: Pick<Coach, 'overall' | 'rarity'>): number {
+  const base = 20 * 1.08 ** (Math.max(60, coach.overall) - 60);
+  const rarity = RARITY_MULTIPLIER[rarityOf(coach)] ?? 1;
+  const rounded = Math.round((base * rarity * 1.4) / VALUE_STEP) * VALUE_STEP;
+  return Math.min(VALUE_CAP, Math.max(VALUE_FLOOR, rounded));
+}
+
+export const coachSellValue = (coach: Pick<Coach, 'overall' | 'rarity'>) => Math.floor(coachCoinValue(coach) * SELL_RATIO);

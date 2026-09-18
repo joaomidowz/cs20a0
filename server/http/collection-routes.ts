@@ -11,6 +11,7 @@ const lineupSchema = z.object({
   playerIds: z.array(z.string().min(1).max(80)).length(5),
   roles: z.array(roleSchema).length(5),
   starPlayerId: z.string().min(1).max(80).nullable(),
+  coachId: z.string().min(1).max(80).nullable().default(null),
   style: z.enum(['aggressive', 'balanced', 'tactical'])
 });
 

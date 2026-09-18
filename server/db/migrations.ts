@@ -179,6 +179,22 @@ CREATE TABLE IF NOT EXISTS purchases (
   {
     id: 4,
     sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS team_name text;`
+  },
+  {
+    id: 5,
+    sql: `
+ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
+ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome'));
+ALTER TABLE lineups ADD COLUMN IF NOT EXISTS coach_id text;
+INSERT INTO wallets (user_id) SELECT id FROM users WHERE verified_at IS NOT NULL ON CONFLICT DO NOTHING;
+WITH paid AS (
+  INSERT INTO ledger (user_id, delta, reason, ref_id)
+  SELECT u.id, 10000, 'welcome', 'welcome' FROM users u
+  WHERE u.verified_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ledger l WHERE l.user_id = u.id AND l.reason = 'welcome')
+  RETURNING user_id
+)
+UPDATE wallets SET coins = coins + 10000, updated_at = now() WHERE user_id IN (SELECT user_id FROM paid);
+`
   }
 ];
 

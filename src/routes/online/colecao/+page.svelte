@@ -5,11 +5,13 @@
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
-  import { playerById, players, teamById } from '$lib/game/data';
+  import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
+  import CoachCard from '$lib/components/online/CoachCard.svelte';
+  import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
-  import { PACK_ODDS, PACK_PRICES, RARITIES, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
+  import { COACH_CHANCE, PACK_ODDS, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
@@ -17,13 +19,13 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { calculateUserTeamPower } from '$lib/game/simulation';
-  import type { LineupSlotRole, OrgStyle, Player } from '$lib/game/types';
+  import type { Coach, LineupSlotRole, OrgStyle, Player } from '$lib/game/types';
 
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
   const serverUrl = getOnlineServerUrl();
   const ROLES: LineupSlotRole[] = ['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'];
-  const YEARS = [...new Set(players.map((player) => player.year).filter((year): year is number => Boolean(year)))].sort((a, b) => a - b);
+  const YEARS = COLLECTION_YEARS;
 
   let state: CollectionState | null = null;
   let loading = true;
@@ -33,7 +35,9 @@
   let detailsPlayer: Player | null = null;
 
   // Pack reveal: three roulette spins, then the cards.
-  let reveal: { cards: Player[]; duplicates: Set<string>; coins: number; spinning: number } | null = null;
+  type RevealCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
+  let reveal: { cards: RevealCard[]; duplicates: Set<string>; coins: number; spinning: number } | null = null;
+  let coachId: string | null = null;
 
   // Lineup builder.
   let slots: Array<Player | null> = [null, null, null, null, null];
@@ -59,6 +63,9 @@
   };
 
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
+  $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
+  $: activeCoach = coachId ? collectionCoachById.get(coachId) ?? null : null;
+  $: coachBonus = activeCoach && complete ? coachAffinity(activeCoach, lineupPlayers, collectionTeams) : 0;
   $: ownedIds = new Set(owned.map((player) => player.id));
   $: lineupIds = new Set(slots.filter((slot): slot is Player => Boolean(slot)).map((player) => player.id));
   $: visible = owned
@@ -72,9 +79,10 @@
   $: lineupRoles = roles.filter((role): role is LineupSlotRole => Boolean(role));
   $: synergy = complete ? synergyOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId }) : [];
   $: starOk = complete && isStarEffective(lineupPlayers, starPlayerId);
-  $: preview = complete
+  $: synergized = complete
     ? applyCollectionLineup(calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => ({ playerId: player.id, selectedSlotRole: lineupRoles[index] })), 'preview'), { players: lineupPlayers, roles: lineupRoles, starPlayerId })
     : null;
+  $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId }) : {};
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
@@ -85,6 +93,7 @@
     slots = saved.playerIds.map((id) => playerById.get(id) ?? null);
     roles = [...saved.roles];
     starPlayerId = saved.starPlayerId;
+    coachId = saved.coachId ?? null;
     style = saved.style;
   }
 
@@ -99,13 +108,16 @@
     error = ''; busy = true;
     try {
       const result = await open();
-      const cards = result.players.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
+      const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => { const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach }]; const player = playerById.get(id); return player ? [{ kind: 'player', player }] : []; });
       reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, spinning: 0 };
       await refresh();
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
   const toEntry = (player: Player): RouletteEntry => ({ id: player.id, avatar: (player.nickname ?? '?').slice(0, 2).toUpperCase(), title: player.nickname ?? player.id, subtitle: `${player.year ?? ''} · ${rarityOf(player)}` });
+  const revealEntry = (card: RevealCard): RouletteEntry => card.kind === 'player' ? toEntry(card.player) : { id: card.coach.id, avatar: 'C', title: card.coach.name, subtitle: `COACH · ${card.coach.year} · ${rarityOf(card.coach)}` };
+  const revealId = (card: RevealCard) => (card.kind === 'player' ? card.player.id : card.coach.id);
+  const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
   const teaserPool = players.filter((_, index) => index % 7 === 0).map(toEntry);
   $: rouletteLabels = { spinning: t('revealing'), skip: $language === 'en' ? 'Skip' : $language === 'es' ? 'Saltar' : 'Pular', hidden: '?' };
 
@@ -114,6 +126,13 @@
     if (!confirmed) return;
     error = ''; busy = true;
     try { await sellCard(serverUrl, player.id); showToast(`+${sellValue(player)} ${t('coins')}`); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  async function sellCoach(coach: Coach) {
+    const confirmed = await confirmDialog({ title: `${t('sell')} ${coach.name}?`, body: `+${coachSellValue(coach).toLocaleString($language)} ${t('coins')} · COACH ${coach.year}`, confirmLabel: t('sell'), cancelLabel: t('cancel'), tone: 'danger' });
+    if (!confirmed) return;
+    error = ''; busy = true;
+    try { await sellCard(serverUrl, coach.id); showToast(`+${coachSellValue(coach)} ${t('coins')}`); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
   function addToLineup(player: Player) {
@@ -136,7 +155,7 @@
     if (!complete) { error = t('lineupIncomplete'); return; }
     error = ''; busy = true;
     try {
-      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, style });
+      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style });
       showToast(t('lineupSaved'));
       await refresh();
     } catch (caught) { fail(caught); } finally { busy = false; }
@@ -203,21 +222,25 @@
           {#if showOdds}
             <table class="odds">
               <thead><tr><th></th>{#each RARITIES as rarity}<th>{rarity}</th>{/each}</tr></thead>
-              <tbody>{#each ['basic', 'prata', 'ouro', 'era'] as tier}<tr><th>{tier}</th>{#each RARITIES as rarity}<td>{PACK_ODDS[tier as PackTier][rarity]}%</td>{/each}</tr>{/each}</tbody>
+              <tbody>{#each ['basic', 'prata', 'ouro', 'era'] as tier}<tr><th>{tier}</th>{#each RARITIES as rarity}<td>{PACK_ODDS[tier as PackTier][rarity]}%</td>{/each}</tr>{/each}<tr><th>coach</th>{#each ['basic', 'prata', 'ouro', 'era'] as tier}<td>{tier} {Math.round(COACH_CHANCE[tier as PackTier] * 100)}%</td>{/each}<td></td><td></td></tr></tbody>
             </table>
           {/if}
 
           {#if reveal}
             <div class="reveal">
               {#if reveal.spinning < reveal.cards.length}
-                {#key `${reveal.cards[reveal.spinning].id}-${reveal.spinning}`}
-                  <Roulette entries={teaserPool} result={toEntry(reveal.cards[reveal.spinning])} labels={rouletteLabels} duration={1400} onComplete={() => { if (reveal) reveal = { ...reveal, spinning: reveal.spinning + 1 }; }} />
+                {#key `${revealId(reveal.cards[reveal.spinning])}-${reveal.spinning}`}
+                  <Roulette entries={teaserPool} result={revealEntry(reveal.cards[reveal.spinning])} labels={rouletteLabels} duration={1400} onComplete={() => { if (reveal) reveal = { ...reveal, spinning: reveal.spinning + 1 }; }} />
                 {/key}
               {/if}
               <div class="player-grid reveal-grid">
-                {#each reveal.cards.slice(0, reveal.spinning) as card, index (card.id + index)}
-                  <div class="reveal-card" class:dupe={reveal.duplicates.has(card.id)}>
-                    <CollectionCard player={card} teamName={teamNameOf(card)} language={$language} tag={reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')} onOpen={(selected) => detailsPlayer = selected} />
+                {#each reveal.cards.slice(0, reveal.spinning) as card, index (revealId(card) + index)}
+                  <div class="reveal-card" class:dupe={reveal.duplicates.has(revealId(card))}>
+                    {#if card.kind === 'player'}
+                      <CollectionCard player={card.player} teamName={teamNameOf(card.player)} language={$language} tag={reveal.duplicates.has(card.player.id) ? t('duplicateCard') : t('newCard')} onOpen={(selected) => detailsPlayer = selected} />
+                    {:else}
+                      <CoachCard coach={card.coach} teamName={coachTeamName(card.coach)} tag={reveal.duplicates.has(card.coach.id) ? t('duplicateCard') : t('newCard')} />
+                    {/if}
                   </div>
                 {/each}
               </div>
@@ -247,6 +270,19 @@
           <div class="team-side">
           <p class="note">{t('starHint')}</p>
           {#if starPlayerId && complete && !starOk}<p class="warn">{t('starInactive')}</p>{/if}
+          <div class="coach-slot">
+            <span class="label">COACH</span>
+            {#if activeCoach}
+              <CoachCard coach={activeCoach} teamName={coachTeamName(activeCoach)} active affinity={coachBonus > 0}>
+                <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
+              </CoachCard>
+              {#if coachBonus > 0}<p class="note up-note">+{(coachBonus * 100).toFixed(2)}% · {t('coachAffinity')}</p>{/if}
+            {:else if ownedCoaches.length}
+              <select on:change={(event) => { coachId = (event.currentTarget as HTMLSelectElement).value || null; }}><option value="">{t('pickCoach')}</option>{#each ownedCoaches as coach (coach.id)}<option value={coach.id}>{coach.name} · {coach.year} · {coach.overall}</option>{/each}</select>
+            {:else}
+              <p class="note">{t('noCoach')}</p>
+            {/if}
+          </div>
           <div class="style-row">
             <span>{t('style')}</span>
             <div class="segmented-control">{#each ['aggressive', 'balanced', 'tactical'] as option}<button type="button" class:active={style === option} on:click={() => style = option as OrgStyle}>{gameT(option as 'aggressive' | 'balanced' | 'tactical')}</button>{/each}</div>
@@ -276,6 +312,22 @@
           <label><span>{t('filterRole')}</span><select bind:value={filterRole}><option value="">{t('all')}</option>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
           <label><span>{t('filterRarity')}</span><select bind:value={filterRarity}><option value="">{t('all')}</option>{#each RARITIES as rarity}<option value={rarity}>{rarity}</option>{/each}</select></label>
         </div>
+        {#if ownedCoaches.length}
+          <h3 class="subhead">COACHES <small>{ownedCoaches.length}</small></h3>
+          <div class="player-grid">
+            {#each ownedCoaches as coach (coach.id)}
+              <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId}>
+                {#if coach.id === coachId}
+                  <span class="tag">{t('inLineup')}</span>
+                {:else}
+                  <button class="ghost small" type="button" on:click={() => coachId = coach.id}>{t('addToLineup')}</button>
+                  <button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>
+                {/if}
+              </CoachCard>
+            {/each}
+          </div>
+          <h3 class="subhead">{t('myCards').toUpperCase()}</h3>
+        {/if}
         {#if !owned.length}
           <p class="note">{t('noCards')}</p>
         {:else}
@@ -341,6 +393,9 @@
   .team-side { display: grid; gap: 12px; align-content: start; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .warn { margin: 0; color: var(--accent-2); font-size: .78rem; font-weight: 700; }
+  .coach-slot { display: grid; gap: 8px; } .coach-slot .label { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; } .coach-slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  .up-note { color: var(--accent); font-weight: 800; }
+  .subhead { margin: 6px 0 0; color: var(--muted); font-size: .7rem; letter-spacing: .14em; } .subhead small { color: var(--accent); }
   .style-row { display: grid; gap: 6px; } .style-row > span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .synergy { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .74rem; }

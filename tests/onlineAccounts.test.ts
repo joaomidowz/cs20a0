@@ -69,7 +69,9 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
     const me = await (await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).json();
     expect(me.user.id).toBe(verified.user.id);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [verified.user.id]);
-    expect(wallet.coins).toBe(0);
+    expect(wallet.coins).toBe(10_000);
+    const welcome = await db.query<{ delta: number }>(`SELECT delta FROM ledger WHERE reason = 'welcome' AND user_id = $1`, [verified.user.id]);
+    expect(welcome).toEqual([{ delta: 10_000 }]);
 
     const anonymous = await fetch(`${baseUrl}/me`);
     expect(anonymous.status).toBe(401);
@@ -78,6 +80,12 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
     expect(profile.status).toBe(200);
     const named = await (await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).json();
     expect(named.user).toMatchObject({ displayName: 'Tester', teamName: 'Tester Esports' });
+
+    // A second login never pays the welcome again.
+    const again2 = await (await post('/auth/request', { email: 'tester@example.com' })).json();
+    await post('/auth/verify', { token: new URL(again2.devLink).searchParams.get('token') });
+    const [still] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [verified.user.id]);
+    expect(still.coins).toBe(10_000);
 
     expect((await post('/auth/logout', {}, verified.sessionToken)).status).toBe(200);
     expect((await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).status).toBe(401);

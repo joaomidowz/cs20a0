@@ -14,6 +14,7 @@ export interface SavedLineup {
   playerIds: string[];
   roles: LineupSlotRole[];
   starPlayerId: string | null;
+  coachId: string | null;
   style: OrgStyle;
   starEffective: boolean;
 }

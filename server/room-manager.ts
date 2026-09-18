@@ -71,6 +71,8 @@ import {
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { applyCollectionLineup } from '../src/lib/game/online/collection-lineup';
+import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
+import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
 import type { LineupSlotRole, SelectedPlayer } from '../src/lib/game/types';
 
 export const RESUME_TTL_MS = 120_000;
@@ -102,6 +104,8 @@ export interface PreparedLineup {
   lineup: SelectedPlayer[];
   style: OrgStyle;
   starPlayerId: string | null;
+  /** Coach card of the collection (6th slot); applied like the Dynasty coach. */
+  coachId?: string | null;
   mapPreferences: MapId[];
 }
 
@@ -235,6 +239,8 @@ export interface JoinResult {
 }
 
 const lookupPlayer = (id: string) => playerById.get(id);
+/** Tournament-side lookup: drafted cards live in the frozen core; collection lineups may bring 2013–2015 cards. */
+const lineupPlayer = (id: string) => playerById.get(id) ?? collectionPlayerById.get(id);
 
 const roundInterval = (config: RoomConfig) => config.simulationSpeed === 'normal' ? 2_400 : config.simulationSpeed === 'fast' ? 1_200 : 200;
 /** Pause after the last round of a map: the clients play that round's kill feed slower before the map closes. */
@@ -1080,7 +1086,7 @@ export class RoomManager {
     const strategies: MapSimulationContext['strategies'] = new Map();
     const rosters = new Map<string, Roster>();
     for (const participant of room.participants.values()) {
-      const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+      const selected = participant.draft.lineup.map((pick) => lineupPlayer(pick.playerId)).filter((player): player is Player => Boolean(player));
       strategies.set(participant.id, createUserMapStrategy(
         participant.id,
         participant.draft.mapPreferences as [MapId, MapId, MapId],
@@ -1234,16 +1240,18 @@ export class RoomManager {
 
   private toTournamentOrganization(participant: ParticipantState, seed: number, mode: RoomConfig['mode']): TournamentOrganization {
     const selected = (mode === 'pro' ? participant.draft.proPickedPlayerIds : participant.draft.lineup.map((pick) => pick.playerId))
-      .map((id) => playerById.get(id))
+      .map((id) => lineupPlayer(id))
       .filter((player): player is Player => Boolean(player));
     const style: OrgStyle = participant.draft.style ?? 'balanced';
     const runPlayers = mode === 'pro'
       ? buildProRoleEvaluations(selected, participant.draft.proRoleAssignments, style).map((evaluation) => evaluation.adjustedPlayer)
       : selected;
     const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
-    const base = participant.prepared
+    const synergized = participant.prepared
       ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map((pick) => pick.selectedSlotRole as LineupSlotRole), starPlayerId: participant.prepared.starPlayerId })
       : built;
+    const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
+    const base = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;
     return {
       id: participant.id,
       name: participant.organizationName,
@@ -1275,7 +1283,7 @@ export class RoomManager {
       placement: campaign.placement
     };
     const selected = participant.draft.lineup
-      .map((pick) => playerById.get(pick.playerId))
+      .map((pick) => lineupPlayer(pick.playerId))
       .filter((player): player is Player => Boolean(player));
     const runPlayers = room.config.mode === 'pro'
       ? buildProRoleEvaluations(selected, participant.draft.proRoleAssignments, participant.draft.style ?? 'balanced')

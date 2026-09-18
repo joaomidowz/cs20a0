@@ -36,6 +36,13 @@ const ONLINE_DATASET_FILES = ['players.game.json', 'teams.game.json'];
 /** Módulos do catálogo expandido (W1) e dados só do offline/créditos (W7): o online não pode passar a importá-los. */
 const FORBIDDEN_SPECIFIER_PATTERNS = [/catalog/i, /\.expansion\./, /expansion\.game/, /identities\.game/, /catalog-manifest/, /sources\.expansion/];
 
+/**
+ * Exceção única (coleção por pacotes): o pool de cartas lê a expansão 2013–2015 e os coaches. Ele não entra no draft das salas nem
+ * no ONLINE_DATA_HASH; a varredura para nele, e só ele pode ter esses imports.
+ */
+const COLLECTION_POOL = join('src/lib/game/online', 'collection-pool.ts');
+const COLLECTION_POOL_FILES = ['players.game.json', 'teams.game.json', 'coaches.game.json', 'players.expansion.game.json', 'teams.expansion.game.json', 'coaches.expansion.game.json'];
+
 /** Módulos core: o online importa `$lib/game/data` (rota) e ambos alimentam o hash, então só podem ler os três JSON v1. */
 const CORE_ONLY_MODULES = ['src/lib/data/csData.ts', join('src/lib/game', 'data.ts')];
 
@@ -90,6 +97,7 @@ const reachableFromOnline = (): string[] => {
   while (queue.length) {
     const file = queue.shift()!;
     if (!file.endsWith('.ts') && !file.endsWith('.svelte')) continue;
+    if (file === COLLECTION_POOL) continue;
     for (const specifier of importSpecifiers(stripTypeOnlyImports(readFileSync(file, 'utf8')))) {
       const resolved = resolveSpecifier(file, specifier);
       if (resolved && !seen.has(resolved)) {
@@ -127,6 +135,7 @@ describe('fronteira de import do online', () => {
 
   it('nenhum arquivo do online importa módulo do catálogo expandido', () => {
     for (const [file, source] of boundaryFiles) {
+      if (file === COLLECTION_POOL) continue;
       for (const specifier of importSpecifiers(source)) {
         for (const pattern of FORBIDDEN_SPECIFIER_PATTERNS) {
           expect(specifier, `${file} importa '${specifier}'`).not.toMatch(pattern);
@@ -137,12 +146,20 @@ describe('fronteira de import do online', () => {
 
   it('nenhum arquivo do online importa JSON além de players.game.json e teams.game.json', () => {
     for (const [file, source] of boundaryFiles) {
+      if (file === COLLECTION_POOL) continue;
       const jsonImports = importSpecifiers(source).filter((specifier) => specifier.endsWith('.json'));
       for (const specifier of jsonImports) {
         expect(ONLINE_DATASET_FILES, `${file} importa '${specifier}'`).toContain(basename(specifier));
         expect(specifier, `${file} importa '${specifier}' fora de src/lib/data/cs`).toMatch(/(^|\/)data\/cs\/[^/]+\.json$/);
       }
     }
+  });
+
+  it('o pool da coleção é o único a ler a expansão e os coaches, e lê exatamente esses arquivos', () => {
+    const specifiers = importSpecifiers(readFileSync(COLLECTION_POOL, 'utf8')).filter((specifier) => specifier.endsWith('.json'));
+    expect(specifiers.map((specifier) => basename(specifier)).sort()).toEqual([...COLLECTION_POOL_FILES].sort());
+    for (const specifier of specifiers) expect(specifier).toMatch(/(^|\/)data\/cs\/[^/]+\.json$/);
+    expect(importSpecifiers(readFileSync('server/data.ts', 'utf8'))).not.toContain('../src/lib/game/online/collection-pool');
   });
 
   it('server/data.ts e online/dataset.ts leem exatamente players.game.json e teams.game.json de src/lib/data/cs', () => {

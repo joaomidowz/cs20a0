@@ -1,5 +1,6 @@
 import type { Db } from '../db/client';
 import type { Mailer } from './mailer';
+import { WELCOME_COINS } from '../../src/lib/game/online/collection-rules';
 import { hashToken, isDisposable, newToken, normalizeEmail } from './tokens';
 
 export const MAGIC_LINK_TTL_MS = 15 * 60_000;
@@ -72,12 +73,22 @@ export async function verifyMagicLink(deps: AuthDeps, token: string): Promise<{ 
       [hashToken(token), new Date(now)]
     );
     if (!link) throw new AuthError('INVALID_TOKEN', 'Link inválido ou expirado');
+    const [before] = await tx.query<{ verified_at: Date | null }>('SELECT verified_at FROM users WHERE id = $1 FOR UPDATE', [link.user_id]);
+    const firstLogin = !before.verified_at;
     const [user] = await tx.query<UserRow>(
       'UPDATE users SET verified_at = COALESCE(verified_at, $2), last_seen_at = $2 WHERE id = $1 RETURNING id, email, display_name, team_name, verified_at, created_at',
       [link.user_id, new Date(now)]
     );
     await tx.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [hashToken(session), user.id, new Date(now + SESSION_TTL_MS)]);
     await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
+    if (firstLogin) {
+      // Welcome coins, once per account: the ledger row doubles as the guard against paying twice.
+      const [paid] = await tx.query(`SELECT 1 FROM ledger WHERE user_id = $1 AND reason = 'welcome'`, [user.id]);
+      if (!paid) {
+        await tx.query(`INSERT INTO ledger (user_id, delta, reason, ref_id) VALUES ($1, $2, 'welcome', 'welcome')`, [user.id, WELCOME_COINS]);
+        await tx.query('UPDATE wallets SET coins = coins + $2, updated_at = now() WHERE user_id = $1', [user.id, WELCOME_COINS]);
+      }
+    }
     return { sessionToken: session, user: toUser(user) };
   });
 }

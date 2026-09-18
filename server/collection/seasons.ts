@@ -1,6 +1,6 @@
 import { matchReward } from '../../src/lib/game/online/collection-rules';
 import type { Db, Tx } from '../db/client';
-import { playerById } from '../data';
+import { collectionPlayerById as playerById } from '../../src/lib/game/online/collection-pool';
 import type { RunCompletedEvent } from '../room-manager';
 import { detectAwards } from './awards';
 import { applyLedger } from './service';

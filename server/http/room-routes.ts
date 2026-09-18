@@ -2,7 +2,7 @@ import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
 import { awardsOf, currentStandings, lastSeasonPodium } from '../collection/seasons';
-import { playerById, teams } from '../data';
+import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
 import { RoomError, type RoomManager } from '../room-manager';
 import { HttpError, route, type Handler, type Route } from './router';
@@ -21,6 +21,7 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
           lineup: lineup.playerIds.map((playerId, index) => ({ playerId, selectedSlotRole: lineup.roles[index] })),
           style: lineup.style,
           starPlayerId: lineup.starEffective ? lineup.starPlayerId : null,
+          coachId: lineup.coachId,
           mapPreferences: [...getDefaultMapSelection(selected, teams)]
         }, now);
         return { ok: true, lineupTicket: ticket };
