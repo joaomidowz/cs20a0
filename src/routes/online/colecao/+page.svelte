@@ -2,17 +2,13 @@
   import '../../../app.css';
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
-  import CountryFlag from '$lib/components/CountryFlag.svelte';
-  import PlayerAvatar from '$lib/components/PlayerAvatar.svelte';
-  import TeamBadge from '$lib/components/TeamBadge.svelte';
-  import PlayerCard from '$lib/components/PlayerCard.svelte';
+  import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
   import { playerById, players, teamById } from '$lib/game/data';
-  import { playerCountryOf } from '$lib/game/online/collection-countries';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, eligibleRolesOf, isStarEffective, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_ODDS, PACK_PRICES, RARITIES, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -79,6 +75,8 @@
   $: preview = complete
     ? applyCollectionLineup(calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => ({ playerId: player.id, selectedSlotRole: lineupRoles[index] })), 'preview'), { players: lineupPlayers, roles: lineupRoles, starPlayerId })
     : null;
+  $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId }) : {};
+  const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
   $: packsLeft = state ? Math.max(0, state.packsToday.granted - state.packsToday.opened) : 0;
 
@@ -219,9 +217,7 @@
               <div class="player-grid reveal-grid">
                 {#each reveal.cards.slice(0, reveal.spinning) as card, index (card.id + index)}
                   <div class="reveal-card" class:dupe={reveal.duplicates.has(card.id)}>
-                    <b class="reveal-tag">{reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')}</b>
-                    <PlayerCard player={card} mode="premier" revealed language={$language} onOpen={(selected) => detailsPlayer = selected} />
-                    <div class="card-origin"><CountryFlag code={playerCountryOf(card)} language={$language} /><TeamBadge id={card.teamId ?? ''} name={teamById.get(card.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(card.teamId ?? '')?.name ?? '—'}</em></div>
+                    <CollectionCard player={card} teamName={teamNameOf(card)} language={$language} tag={reveal.duplicates.has(card.id) ? t('duplicateCard') : t('newCard')} onOpen={(selected) => detailsPlayer = selected} />
                   </div>
                 {/each}
               </div>
@@ -235,21 +231,17 @@
           <div class="team-grid">
           <div class="slots">
             {#each slots as slot, index}
-              <article class="slot" class:filled={Boolean(slot)} class:star={slot && slot.id === starPlayerId}>
+              <div class="slot" class:filled={Boolean(slot)}>
                 {#if slot}
-                  <div class="slot-top"><span class="slot-photo"><PlayerAvatar player={slot} bare /></span><span class="slot-ovr"><small>OVR</small>{slot.overall ?? '—'}</span></div>
-                  <strong class="slot-name"><CountryFlag code={playerCountryOf(slot)} language={$language} /> {slot.nickname ?? slot.id}</strong>
-                  <span class="slot-team"><TeamBadge id={slot.teamId ?? ''} name={teamById.get(slot.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(slot.teamId ?? '')?.name ?? '—'}</em></span>
-                  <span class="slot-meta">{slot.year ?? ''} · {rarityOf(slot)}</span>
-                  <label><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
-                  <div class="slot-actions">
+                  <CollectionCard player={slot} teamName={teamNameOf(slot)} language={$language} compact inLineup star={slot.id === starPlayerId && starOk} effect={effects[slot.id] ?? null}>
                     <button class="ghost small" type="button" class:active={slot.id === starPlayerId} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★ {t('star')}</button>
                     <button class="ghost small" type="button" on:click={() => removeFromLineup(index)}>{t('removeFromLineup')}</button>
-                  </div>
+                  </CollectionCard>
+                  <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
                 {:else}
                   <span class="empty">{t('slotEmpty')}</span>
                 {/if}
-              </article>
+              </div>
             {/each}
           </div>
           <div class="team-side">
@@ -289,18 +281,14 @@
         {:else}
           <div class="player-grid">
             {#each visible as player (player.id)}
-              <div class="card-wrap" class:in-lineup={lineupIds.has(player.id)}>
-                <PlayerCard {player} mode="premier" revealed language={$language} onOpen={(selected) => detailsPlayer = selected} />
-                <div class="card-origin"><CountryFlag code={playerCountryOf(player)} language={$language} /><TeamBadge id={player.teamId ?? ''} name={teamById.get(player.teamId ?? '')?.name ?? ''} size="sm" /><em>{teamById.get(player.teamId ?? '')?.name ?? '—'}</em></div>
-                <div class="card-actions">
-                  {#if lineupIds.has(player.id)}
-                    <span class="tag">{t('inLineup')}</span>
-                  {:else}
-                    <button class="ghost small" type="button" disabled={busy || slots.every(Boolean)} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
-                    <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
-                  {/if}
-                </div>
-              </div>
+              <CollectionCard {player} teamName={teamNameOf(player)} language={$language} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
+                {#if lineupIds.has(player.id)}
+                  <span class="tag">{t('inLineup')}</span>
+                {:else}
+                  <button class="ghost small" type="button" disabled={busy || slots.every(Boolean)} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
+                  <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
+                {/if}
+              </CollectionCard>
             {/each}
           </div>
         {/if}
@@ -340,27 +328,14 @@
   .reveal { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .reveal-grid { grid-template-columns: repeat(3, minmax(0, 260px)); justify-content: center; gap: 14px; }
   .reveal-card { display: grid; gap: 6px; min-width: 0; animation: reveal-in .45s cubic-bezier(.16, 1, .3, 1) backwards; }
-  .reveal-card :global(.player-card) { width: 100%; min-height: 280px; }
-  .reveal-tag { justify-self: start; padding: 4px 10px; background: var(--accent); color: #0a0d08; font-size: .6rem; font-weight: 900; letter-spacing: .14em; }
-  .reveal-card.dupe .reveal-tag { background: var(--muted); }
+  .reveal-card.dupe :global(.tag) { background: var(--muted); }
   @keyframes reveal-in { from { transform: translateY(14px) scale(.96); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .reveal-card { animation: none; } }
   .team-grid { display: grid; gap: 18px; }
   .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .slot { display: grid; gap: 8px; align-content: start; min-height: 230px; padding: 12px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
-  .slot.star { border-color: #d9a441; box-shadow: inset 0 0 0 1px color-mix(in srgb, #d9a441 45%, transparent), 0 0 22px color-mix(in srgb, #d9a441 15%, transparent); }
-  .slot-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
-  .slot-photo { display: block; width: 56px; height: 56px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
-  .slot-ovr { display: grid; justify-items: end; font: 900 1.7rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); } .slot-ovr small { font: 700 .5rem Inter, Arial, sans-serif; color: var(--muted); }
-  .slot-name { font: 800 1.2rem/1.1 'Arial Narrow', Impact, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .slot-name { display: flex; align-items: center; gap: 6px; }
-  .slot-team, .card-origin { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: .68rem; }
-  .slot-team em, .card-origin em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-  .card-origin { padding: 5px 8px; border: 1px solid var(--line); background: var(--surface-2); }
-  .slot-meta { color: var(--muted); font-size: .64rem; text-transform: uppercase; }
-  .slot label { display: grid; gap: 4px; } .slot label span { color: var(--muted); font-size: .56rem; font-weight: 800; text-transform: uppercase; } .slot select { width: 100%; }
-  .slot-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; }
-  .empty { display: grid; place-items: center; min-height: 200px; color: var(--muted); font-size: .8rem; border: 1px dashed var(--line); }
+  .slot { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .slot-role { display: grid; gap: 4px; } .slot-role span { color: var(--muted); font-size: .56rem; font-weight: 800; text-transform: uppercase; } .slot-role select { width: 100%; }
+  .empty { display: grid; place-items: center; min-height: 230px; color: var(--muted); font-size: .8rem; border: 1px dashed var(--line); }
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
   .team-side { display: grid; gap: 12px; align-content: start; }
@@ -372,9 +347,7 @@
   .synergy li.up { border-left-color: var(--accent); } .synergy li.down { border-left-color: var(--danger); } .synergy li.total { border-left-color: #d9a441; font-weight: 800; }
   .power { color: var(--accent); font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
-  .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-  .card-wrap { display: grid; gap: 4px; min-width: 0; } .card-wrap :global(.player-card) { width: 100%; } .card-wrap.in-lineup :global(.player-card) { border-color: var(--accent); }
-  .card-actions { display: flex; gap: 4px; } .card-actions button { flex: 1; }
+  .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 12px; padding-top: 8px; }
   .tag { padding: 9px; border: 1px dashed var(--accent); color: var(--accent); font-size: .6rem; font-weight: 800; text-align: center; text-transform: uppercase; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }

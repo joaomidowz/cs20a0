@@ -96,6 +96,25 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   return lines;
 }
 
+/** Which cards light up in the builder: the ones that create a positive line glow, the ones that cost strength turn red. */
+export function cardEffects(input: CollectionLineupInput): Record<string, 'up' | 'down'> {
+  const effects: Record<string, 'up' | 'down'> = {};
+  const lines = new Set(synergyOf(input).map((line) => line.key));
+  input.players.forEach((player, index) => {
+    const role = input.roles[index];
+    if (primaryRoleOf(player) !== role) { effects[player.id] = 'down'; return; }
+    const up = (role === 'igl' && lines.has('igl_one'))
+      || (role === 'awper' && lines.has('awp_double_strong'))
+      || (role === 'entry' && lines.has('entry_one'))
+      || (role === 'support' && lines.has('support_present'))
+      || (role === 'lurker' && lines.has('lurker_present'));
+    const down = role === 'awper' && lines.has('awp_double_weak');
+    if (down) effects[player.id] = 'down';
+    else if (up) effects[player.id] = 'up';
+  });
+  return effects;
+}
+
 const clamp99 = (value: number) => Math.max(1, Math.min(99, value));
 
 /** Applies the synergy to a team already built by `calculateUserTeamPower`. */

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
-import { applyCollectionLineup, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
+import { applyCollectionLineup, cardEffects, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, PACK_ODDS, PACK_TIERS, coinValue, matchReward, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, Player } from '../src/lib/game/types';
@@ -110,6 +110,9 @@ describe('lineup da coleção', () => {
     const noStar = applyCollectionLineup(base, { players: lineup, roles, starPlayerId: null });
     expect(withStar.power).toBeGreaterThan(noStar.power);
     expect(withStar.mental).toBeLessThanOrEqual(99);
+    const lit = cardEffects({ players: lineup, roles, starPlayerId: null });
+    expect(lit[pick('igl').id]).toBe('up');
+    expect(lit[pick('support').id]).toBe('up');
     const check = validateLineup({ players: lineup, roles, starPlayerId: 'nao-existe' }, lookup);
     expect(check.problems).toContain('STAR_NOT_IN_LINEUP');
   });
