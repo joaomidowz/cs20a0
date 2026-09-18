@@ -53,6 +53,8 @@
   import ShareRunCard from '$lib/components/ShareRunCard.svelte';
   import { buildDynastyLineage } from '$lib/game/runCard';
   import TeamRosterModal from '$lib/components/TeamRosterModal.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import { confirmDialog } from '$lib/game/ui/dialog';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
   import { HOME_SEO_COPY, HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
@@ -1057,7 +1059,7 @@
   }
 
   function endDynasty() {
-    if (window.confirm(t('dynastyEndConfirm'))) resetRun(true);
+    void confirmDialog({ title: t('dynastyEnd'), body: t('dynastyEndConfirm'), confirmLabel: t('dynastyEnd'), cancelLabel: t('cancel'), tone: 'danger' }).then((confirmed) => { if (confirmed) resetRun(true); });
   }
 
   const stageEntries = (run: MajorRun) => MAJOR_STAGES.filter((stage) => run.stages?.[stage]).map((stage) => ({ stage, record: run.stages![stage]! }));
@@ -1884,6 +1886,7 @@
 <OrganizationRosterModal organization={ownOrganizationView} isOpen={showOrgModal} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} onClose={() => showOrgModal = false} />
 
 {#if toast}<div class="toast">{toast}</div>{/if}
+<ConfirmDialog />
 
 <style>
   .offline-settings { display: flex; justify-content: flex-end; padding-top: 12px; }

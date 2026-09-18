@@ -6,6 +6,7 @@
   import { translate } from '$lib/game/i18n';
   import Navbar from './Navbar.svelte';
   import Footer from './Footer.svelte';
+  import ConfirmDialog from './ui/ConfirmDialog.svelte';
 
   export let language: Language;
   export let theme: Theme;
@@ -56,6 +57,8 @@
     footerNav: t('footerNav')
   }}
 />
+
+<ConfirmDialog />
 
 <style>
   .page-content {

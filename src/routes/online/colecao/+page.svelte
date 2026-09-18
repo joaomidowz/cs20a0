@@ -18,6 +18,7 @@
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
   import { language, theme } from '$lib/game/pageState';
+  import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { calculateUserTeamPower } from '$lib/game/simulation';
   import type { LineupSlotRole, OrgStyle, Player } from '$lib/game/types';
@@ -111,7 +112,8 @@
   $: rouletteLabels = { spinning: t('revealing'), skip: $language === 'en' ? 'Skip' : $language === 'es' ? 'Saltar' : 'Pular', hidden: '?' };
 
   async function sell(player: Player) {
-    if (!confirm(`${t('sell')} ${player.nickname ?? player.id} · ${sellValue(player)} ${t('coins')}?`)) return;
+    const confirmed = await confirmDialog({ title: `${t('sell')} ${player.nickname ?? player.id}?`, body: `+${sellValue(player).toLocaleString($language)} ${t('coins')} · ${player.year ?? ''} · ${rarityOf(player)}`, confirmLabel: t('sell'), cancelLabel: t('cancel'), tone: 'danger' });
+    if (!confirmed) return;
     error = ''; busy = true;
     try { await sellCard(serverUrl, player.id); showToast(`+${sellValue(player)} ${t('coins')}`); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
   }
