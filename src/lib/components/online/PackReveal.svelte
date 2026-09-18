@@ -146,7 +146,7 @@
               {#if card.kind === 'player'}
                 <CollectionCard showcase player={card.player} teamName={playerTeam(card.player)} {language} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
               {:else}
-                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
+                <CoachCard showcase coach={card.coach} teamName={coachTeam(card.coach)} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
               {/if}
             </div>
           {:else}
