@@ -35,7 +35,7 @@
   const entryOf = (card: RevealCard): RouletteEntry => card.kind === 'player'
     ? { id: card.player.id, avatar: (card.player.nickname ?? '?').slice(0, 2).toUpperCase(), title: card.player.nickname ?? card.player.id, subtitle: `${card.player.year ?? ''} · ${rarityOf(card.player)}` }
     : { id: card.coach.id, avatar: 'C', title: card.coach.name, subtitle: `COACH · ${card.coach.year} · ${rarityOf(card.coach)}` };
-  const SPARKS = Array.from({ length: 16 }, (_, index) => index);
+  const SPARKS = Array.from({ length: 8 }, (_, index) => index);
 
   let stage: 'case' | 'cards' = 'case';
   /** Index of the card whose roulette is spinning now (-1: none). */
@@ -169,10 +169,11 @@
   .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
   /* Closed and open cards share one box, so nothing jumps when a card opens. */
   .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
-  .rv-cards { --card-h: 430px; }
+  .rv-cards { --card-h: 480px; }
   .rv-holder :global(.card) { height: 100%; }
   .rv-holder :global(.card .face) { height: 100%; align-content: start; }
   .rv-holder :global(.card .stats) { margin-top: auto; }
+  .rv-holder :global(.card) { overflow: hidden; }
   .rv-holder { position: relative; display: grid; height: 100%; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
   .fx-superstar .rv-holder { animation-duration: .8s; } .fx-legend .rv-holder, .fx-goat .rv-holder { animation-duration: 1s; }
   .rv-next .rv-back { border-color: var(--accent); }
@@ -188,9 +189,9 @@
   .charging { animation: tremble .12s linear infinite; }
   .charging .rv-back { border-color: var(--fx); box-shadow: 0 0 34px var(--fx), inset 0 0 40px color-mix(in srgb, var(--fx) 40%, transparent); transition: box-shadow 1s ease-in; }
   .ring { position: absolute; inset: 20% 10%; border: 3px solid var(--fx); border-radius: 50%; animation: ring 1s ease-out forwards; pointer-events: none; z-index: 2; }
-  .rays { position: absolute; left: 50%; top: 45%; width: 190%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 42%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: spin 14s linear infinite, fadein .8s ease-out; pointer-events: none; z-index: -1; }
+  .rays { position: absolute; left: 50%; top: 45%; width: 190%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 42%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: spin 14s linear infinite, fadein .8s ease-out; will-change: rotate; pointer-events: none; z-index: -1; }
   .sparks { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
-  .sparks i { position: absolute; bottom: 8%; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--fx); box-shadow: 0 0 8px var(--fx); opacity: 0; animation: spark 1.9s var(--d) ease-out infinite; }
+  .sparks i { position: absolute; bottom: 8%; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--fx); box-shadow: 0 0 8px var(--fx); opacity: 0; animation: spark 1.9s var(--d) ease-out infinite; will-change: transform, opacity; }
   .goat-word { position: absolute; left: 50%; top: -6%; translate: -50% 0; color: transparent; -webkit-text-stroke: 2px color-mix(in srgb, var(--goat) 70%, #ffd36b); font: 900 6.5rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .08em; opacity: .0; animation: goatword 1.2s .15s ease-out forwards; pointer-events: none; z-index: -1; }
   .flash { position: absolute; inset: 0; z-index: 5; pointer-events: none; animation: flash 1s ease-out forwards; }
   .flash.legend { background: radial-gradient(circle at center, #fff6d0 0%, color-mix(in srgb, var(--legend) 70%, transparent) 35%, transparent 75%); }
@@ -207,7 +208,7 @@
   @keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes quake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-6px, 3px); } 25% { transform: translate(6px, -4px); } 40% { transform: translate(-5px, -2px); } 55% { transform: translate(4px, 3px); } 70% { transform: translate(-3px, 1px); } 85% { transform: translate(2px, -1px); } }
   /* Phone: the best card on top at full width, the other two smaller side by side under it. */
-  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; --card-h: 330px; } .rv-card.best { height: 440px; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
+  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; --card-h: 330px; } .rv-card.best { height: 490px; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
   @media (prefers-reduced-motion: reduce) {
     .rv-holder, .shaking, .charging { animation: none !important; }
       .rays, .sparks, .ring, .goat-word, .flash { display: none; }

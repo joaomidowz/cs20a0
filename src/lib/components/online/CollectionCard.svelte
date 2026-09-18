@@ -25,6 +25,9 @@
   $: rarity = rarityOf(player);
   $: country = playerCountryOf(player);
   const STATS: Array<[keyof Player, string]> = [['firepower', 'FIRE'], ['entry', 'ENTRY'], ['awp', 'AWP'], ['igl', 'IGL'], ['support', 'SUP'], ['clutch', 'CLUTCH'], ['consistency', 'CONS'], ['mental', 'MENTAL'], ['experience', 'EXP']];
+  /** Why the card is rated like this: the season's awards, shortest label that still says what it was. */
+  const shortAward = (award: string) => award.replace(/^HLTV Top 20 (\d{4}) #(\d+)$/, 'HLTV #$2 · $1').replace(/^HLTV /, '');
+  $: awards = showcase ? [...new Set(player.awardBadges ?? [])].map(shortAward) : [];
   $: bestStats = showcase ? STATS.map(([key, label]) => ({ label, value: Number(player[key] ?? 0) })).filter((stat) => stat.value > 0).sort((a, b) => b.value - a.value).slice(0, 4) : [];
 </script>
 
@@ -39,9 +42,11 @@
     <strong class="name"><CountryFlag code={country} {language} /> <span>{player.nickname ?? player.id}</span></strong>
     <span class="role">{getRoleLabel(primaryRoleOf(player))} · {player.year ?? '—'}{#if showcase && country} · {countryName(country, language)}{/if}</span>
     <span class="team"><TeamBadge id={player.teamId ?? ''} name={teamName} size="sm" /><em>{teamName || '—'}</em></span>
+    {#if showcase && player.title}<span class="epithet">“{player.title}”</span>{/if}
     {#if showcase && bestStats.length}
       <span class="stats">{#each bestStats as stat}<span class="stat"><small>{stat.label}</small><b>{stat.value}</b><i><u style={`width:${stat.value}%`}></u></i></span>{/each}</span>
     {/if}
+    {#if awards.length}<span class="awards">{#each awards as award}<span class:gold={/MVP|#1 ·|#2 ·|#3 ·/.test(award)}>{award}</span>{/each}</span>{/if}
   </button>
   {#if $$slots.default}<footer><slot /></footer>{/if}
 </article>
@@ -71,6 +76,10 @@
   .showcase .ovr { font-size: 3.4rem; } .showcase .ovr small { font-size: .62rem; }
   .showcase .rarity { font-size: .66rem; } .showcase .name { font-size: 1.9rem; } .showcase .role { font-size: .7rem; }
   .showcase .team { padding: 7px 8px; font-size: .8rem; }
+  .epithet { color: var(--muted); font-size: .72rem; font-style: italic; }
+  .awards { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+  .awards span { padding: 3px 6px; border: 1px solid color-mix(in srgb, var(--rarity) 55%, var(--line)); background: color-mix(in srgb, var(--rarity) 12%, transparent); color: var(--text); font-size: .56rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .awards span.gold { border-color: #d9a441; color: #ffd36b; background: color-mix(in srgb, #d9a441 16%, transparent); }
   .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; margin-top: 4px; }
   .stat { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: baseline; }
   .stat small { color: var(--muted); font-size: .56rem; font-weight: 800; letter-spacing: .1em; } .stat b { color: var(--text); font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; }
