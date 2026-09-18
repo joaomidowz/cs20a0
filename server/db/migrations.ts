@@ -207,6 +207,19 @@ INSERT INTO products (id, coins, price_cents, currency, active) VALUES
   ('coins_95k', 95000, 2500, 'BRL', true)
 ON CONFLICT (id) DO UPDATE SET coins = EXCLUDED.coins, price_cents = EXCLUDED.price_cents, currency = EXCLUDED.currency, active = EXCLUDED.active;
 `
+  },
+  {
+    id: 7,
+    // Cheaper coin table; old ids retired (kept for purchase history).
+    sql: `
+UPDATE products SET active = false WHERE id IN ('coins_3k', 'coins_16k', 'coins_35k', 'coins_95k');
+INSERT INTO products (id, coins, price_cents, currency, active) VALUES
+  ('coins_2k', 2000, 100, 'BRL', true),
+  ('coins_10k5', 10500, 500, 'BRL', true),
+  ('coins_22k', 22000, 1000, 'BRL', true),
+  ('coins_60k', 60000, 2500, 'BRL', true)
+ON CONFLICT (id) DO UPDATE SET coins = EXCLUDED.coins, price_cents = EXCLUDED.price_cents, currency = EXCLUDED.currency, active = EXCLUDED.active;
+`
   }
 ];
 
