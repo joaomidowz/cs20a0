@@ -17,12 +17,14 @@ import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
  * Falcons campeão 2026, Legacy/Latto MVP em 3 torneios grandes, boosts de HLTV Top 20 2020/2025, badges de
  * validação de suporte) — ver docs/superpowers/specs/2026-09-17-sync-dataset-2013-2015-status.md. Nenhum
  * time/jogador foi removido; só conteúdo de entradas já existentes mudou (contagem 286/1430 preservada).
+ * Atualizado em 2026-09-18: revisão de overall/raridade (scripts/apply-overall-review.mjs): escada do top 20 HLTV,
+ * pisos de MVP/EVP, teto 89 fora do top 20 e IGLs campeões de Major como GOAT. Só overall, raridade e atributos mudaram.
  */
-const FROZEN_ONLINE_DATA_HASH = 'f5462687f127cf1b';
+const FROZEN_ONLINE_DATA_HASH = '466b6521a8fe6805';
 
 /** SHA-256 dos bytes crus dos arquivos v1. Só mudam no deploy coordenado do online v2. */
 const FROZEN_V1_FILES: Record<string, string> = {
-  'src/lib/data/cs/players.game.json': 'fd7c9ab26c7c0c227d74f053d6d5a70039b3b514c0a1f2c68bdfd95a66898f9c',
+  'src/lib/data/cs/players.game.json': '74e5e0b754c6c16c7b6b2eb9236ce7fe78a3b7cb35a7e11cabf7686ed4fcd178',
   'src/lib/data/cs/teams.game.json': '96c8e2e8a6c464e3619ec6294daecdec74b04e669c105d04991a425999a24804',
   'src/lib/data/cs/coaches.game.json': 'aa958df2d6c44c0721c45c9b8ac96a5b2a3c8f50b77e9ab08c19e053e7df79c0'
 };

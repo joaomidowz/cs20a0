@@ -11,7 +11,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -45,7 +45,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 84,
     "firepower": 84,
@@ -80,7 +80,7 @@
       "entry",
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -119,7 +119,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -153,7 +153,7 @@
     "eligibleSlotRoles": [
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 89,
     "firepower": 89,
@@ -192,7 +192,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "rare",
+    "rarity": "superstar",
     "traits": [],
     "overall": 86,
     "firepower": 89,
@@ -226,7 +226,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -260,15 +260,15 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "goat",
     "traits": [],
-    "overall": 84,
+    "overall": 95,
     "firepower": 84,
     "clutch": 84,
     "entry": 80,
     "awp": 20,
-    "support": 92,
-    "igl": 30,
+    "support": 99,
+    "igl": 99,
     "experience": 84,
     "consistency": 84,
     "mental": 84,
@@ -294,7 +294,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "superstar",
     "traits": [],
     "overall": 85,
     "firepower": 89,
@@ -329,7 +329,7 @@
       "support",
       "lurker"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -402,7 +402,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 79,
     "firepower": 83,
@@ -436,7 +436,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -606,7 +606,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -645,7 +645,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -679,7 +679,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -714,7 +714,7 @@
       "entry",
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -754,7 +754,7 @@
       "rifler",
       "awper"
     ],
-    "rarity": "elite",
+    "rarity": "legend",
     "traits": [],
     "overall": 91,
     "firepower": 90,
@@ -827,7 +827,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 84,
     "firepower": 84,
@@ -861,18 +861,18 @@
     "eligibleSlotRoles": [
       "rifler"
     ],
-    "rarity": "superstar",
+    "rarity": "goat",
     "traits": [],
-    "overall": 96,
-    "firepower": 95,
-    "clutch": 90,
+    "overall": 98,
+    "firepower": 97,
+    "clutch": 92,
     "entry": 77,
     "awp": 20,
     "support": 79,
     "igl": 30,
     "experience": 81,
-    "consistency": 94,
-    "mental": 92,
+    "consistency": 96,
+    "mental": 94,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -900,7 +900,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 84,
     "firepower": 84,
@@ -937,16 +937,16 @@
     ],
     "rarity": "legend",
     "traits": [],
-    "overall": 98,
-    "firepower": 97,
-    "clutch": 92,
-    "entry": 80,
+    "overall": 96,
+    "firepower": 95,
+    "clutch": 90,
+    "entry": 78,
     "awp": 20,
-    "support": 82,
+    "support": 80,
     "igl": 30,
-    "experience": 90,
-    "consistency": 96,
-    "mental": 94,
+    "experience": 88,
+    "consistency": 94,
+    "mental": 92,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -974,18 +974,18 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "elite",
+    "rarity": "goat",
     "traits": [],
-    "overall": 91,
-    "firepower": 90,
-    "clutch": 85,
+    "overall": 95,
+    "firepower": 94,
+    "clutch": 89,
     "entry": 80,
     "awp": 20,
-    "support": 92,
-    "igl": 30,
+    "support": 96,
+    "igl": 99,
     "experience": 84,
-    "consistency": 89,
-    "mental": 87,
+    "consistency": 93,
+    "mental": 91,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -1013,13 +1013,13 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "rare",
+    "rarity": "goat",
     "traits": [],
-    "overall": 83,
-    "firepower": 86,
+    "overall": 97,
+    "firepower": 99,
     "clutch": 81,
     "entry": 77,
-    "awp": 91,
+    "awp": 99,
     "support": 79,
     "igl": 30,
     "experience": 81,
@@ -1047,7 +1047,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 89,
@@ -1086,7 +1086,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -1120,7 +1120,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -1189,7 +1189,7 @@
       "rifler",
       "entry"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -1229,7 +1229,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -1331,7 +1331,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 82,
     "firepower": 86,
@@ -1365,7 +1365,7 @@
     "eligibleSlotRoles": [
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "legend",
     "traits": [],
     "overall": 91,
     "firepower": 90,
@@ -1510,7 +1510,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -1550,15 +1550,15 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "goat",
     "traits": [],
-    "overall": 85,
-    "firepower": 89,
+    "overall": 95,
+    "firepower": 99,
     "clutch": 84,
-    "entry": 92,
+    "entry": 98,
     "awp": 20,
     "support": 82,
-    "igl": 30,
+    "igl": 99,
     "experience": 84,
     "consistency": 84,
     "mental": 84,
@@ -1688,7 +1688,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -1722,7 +1722,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -1795,7 +1795,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -1898,7 +1898,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 89,
     "firepower": 87,
@@ -1973,7 +1973,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2041,7 +2041,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2075,7 +2075,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2110,7 +2110,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2144,7 +2144,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2179,18 +2179,18 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "superstar",
+    "rarity": "goat",
     "traits": [],
-    "overall": 96,
-    "firepower": 95,
-    "clutch": 90,
+    "overall": 97,
+    "firepower": 96,
+    "clutch": 91,
     "entry": 68,
-    "awp": 94,
+    "awp": 95,
     "support": 70,
     "igl": 30,
     "experience": 72,
-    "consistency": 94,
-    "mental": 92,
+    "consistency": 95,
+    "mental": 93,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -2219,7 +2219,7 @@
       "entry",
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 89,
     "firepower": 87,
@@ -2258,7 +2258,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 82,
     "firepower": 86,
@@ -2362,7 +2362,7 @@
       "rifler",
       "awper"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -2402,7 +2402,7 @@
       "igl",
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2437,7 +2437,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -2472,7 +2472,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -2506,7 +2506,7 @@
     "eligibleSlotRoles": [
       "rifler"
     ],
-    "rarity": "superstar",
+    "rarity": "legend",
     "traits": [],
     "overall": 94,
     "firepower": 93,
@@ -2545,7 +2545,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2579,7 +2579,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -2614,7 +2614,7 @@
     "eligibleSlotRoles": [
       "lurker"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -2683,7 +2683,7 @@
       "rifler",
       "awper"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 89,
     "firepower": 87,
@@ -2756,18 +2756,18 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "superstar",
+    "rarity": "goat",
     "traits": [],
-    "overall": 96,
-    "firepower": 95,
-    "clutch": 90,
+    "overall": 98,
+    "firepower": 97,
+    "clutch": 92,
     "entry": 77,
-    "awp": 94,
+    "awp": 96,
     "support": 79,
     "igl": 30,
     "experience": 81,
-    "consistency": 94,
-    "mental": 92,
+    "consistency": 96,
+    "mental": 94,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -2796,18 +2796,18 @@
       "igl",
       "support"
     ],
-    "rarity": "elite",
+    "rarity": "goat",
     "traits": [],
-    "overall": 91,
-    "firepower": 90,
-    "clutch": 85,
+    "overall": 95,
+    "firepower": 94,
+    "clutch": 89,
     "entry": 80,
     "awp": 20,
     "support": 82,
-    "igl": 94,
+    "igl": 99,
     "experience": 84,
-    "consistency": 89,
-    "mental": 87,
+    "consistency": 93,
+    "mental": 91,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -2905,7 +2905,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "rare",
+    "rarity": "superstar",
     "traits": [],
     "overall": 86,
     "firepower": 89,
@@ -2973,7 +2973,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "elite",
+    "rarity": "legend",
     "traits": [],
     "overall": 91,
     "firepower": 90,
@@ -3012,7 +3012,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "superstar",
     "traits": [],
     "overall": 85,
     "firepower": 89,
@@ -3080,7 +3080,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 84,
     "firepower": 84,
@@ -3114,7 +3114,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -3148,7 +3148,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -3182,7 +3182,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 80,
     "firepower": 83,
@@ -3320,7 +3320,7 @@
       "rifler",
       "entry"
     ],
-    "rarity": "elite",
+    "rarity": "legend",
     "traits": [],
     "overall": 91,
     "firepower": 90,
@@ -3360,7 +3360,7 @@
       "rifler",
       "igl"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 87,
     "firepower": 87,
@@ -3399,7 +3399,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 79,
     "firepower": 83,
@@ -3433,7 +3433,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 79,
     "firepower": 83,
@@ -3537,18 +3537,18 @@
       "rifler",
       "entry"
     ],
-    "rarity": "legend",
+    "rarity": "goat",
     "traits": [],
-    "overall": 98,
-    "firepower": 97,
-    "clutch": 92,
+    "overall": 99,
+    "firepower": 98,
+    "clutch": 93,
     "entry": 80,
     "awp": 20,
     "support": 82,
     "igl": 30,
-    "experience": 90,
-    "consistency": 96,
-    "mental": 94,
+    "experience": 91,
+    "consistency": 97,
+    "mental": 95,
     "badges": [
       "major-participant",
       "hltv-top20"
@@ -3644,15 +3644,15 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "goat",
     "traits": [],
-    "overall": 85,
-    "firepower": 89,
+    "overall": 95,
+    "firepower": 99,
     "clutch": 84,
-    "entry": 92,
+    "entry": 98,
     "awp": 20,
     "support": 82,
-    "igl": 30,
+    "igl": 99,
     "experience": 84,
     "consistency": 84,
     "mental": 84,
@@ -3853,7 +3853,7 @@
     "eligibleSlotRoles": [
       "awper"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 83,
     "firepower": 86,
@@ -3989,7 +3989,7 @@
     "eligibleSlotRoles": [
       "rifler"
     ],
-    "rarity": "elite",
+    "rarity": "superstar",
     "traits": [],
     "overall": 89,
     "firepower": 87,
@@ -4097,7 +4097,7 @@
       "rifler",
       "igl"
     ],
-    "rarity": "superstar",
+    "rarity": "legend",
     "traits": [],
     "overall": 94,
     "firepower": 93,
@@ -4136,7 +4136,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -4170,7 +4170,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 79,
     "firepower": 83,
@@ -4273,7 +4273,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "common",
+    "rarity": "rare",
     "traits": [],
     "overall": 78,
     "firepower": 78,
@@ -4341,7 +4341,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 82,
     "firepower": 86,
@@ -4410,7 +4410,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "rare",
+    "rarity": "elite",
     "traits": [],
     "overall": 81,
     "firepower": 81,
