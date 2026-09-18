@@ -166,13 +166,18 @@
   .shaking { animation: quake .6s linear; }
   .case-stage { display: grid; place-items: center; min-height: 300px; }
   .rv-roll { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-self: stretch; }
-  .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 270px)); gap: 20px; min-height: 420px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
-  .rv-card { position: relative; min-width: 0; --fx: var(--common); }
-  .rv-holder { position: relative; display: block; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
+  .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding-top: 10px; }
+  /* Closed and open cards share one box, so nothing jumps when a card opens. */
+  .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
+  .rv-cards { --card-h: 430px; }
+  .rv-holder :global(.card) { height: 100%; }
+  .rv-holder :global(.card .face) { height: 100%; align-content: start; }
+  .rv-holder :global(.card .stats) { margin-top: auto; }
+  .rv-holder { position: relative; display: grid; height: 100%; animation: open .55s cubic-bezier(.16, 1.2, .3, 1) backwards; }
   .fx-superstar .rv-holder { animation-duration: .8s; } .fx-legend .rv-holder, .fx-goat .rv-holder { animation-duration: 1s; }
   .rv-next .rv-back { border-color: var(--accent); }
   .fx-rare { --fx: var(--rare); } .fx-elite { --fx: var(--elite); } .fx-superstar { --fx: var(--superstar); } .fx-legend { --fx: var(--legend); } .fx-goat { --fx: var(--goat); }
-  .rv-back { display: grid; place-content: center; justify-items: center; min-height: 420px; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
+  .rv-back { display: grid; place-content: center; justify-items: center; height: 100%; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface) 12px 24px); }
   .rv-back span { padding: 4px 8px; background: var(--accent); color: #0a0d08; font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .rv-back small { margin-top: 6px; color: var(--muted); font: 900 1rem 'Arial Narrow', Impact, sans-serif; letter-spacing: .2em; }
   /* edge glow once revealed, stronger with rarity */
   .up.fx-elite .rv-holder { box-shadow: 0 0 18px color-mix(in srgb, var(--fx) 55%, transparent); }
@@ -202,7 +207,7 @@
   @keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes quake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-6px, 3px); } 25% { transform: translate(6px, -4px); } 40% { transform: translate(-5px, -2px); } 55% { transform: translate(4px, 3px); } 70% { transform: translate(-3px, 1px); } 85% { transform: translate(2px, -1px); } }
   /* Phone: the best card on top at full width, the other two smaller side by side under it. */
-  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-height: 0; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-back { min-height: 300px; } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
+  @media (max-width: 720px) { .rv-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; --card-h: 330px; } .rv-card.best { height: 440px; } .rv-card.best { order: -1; grid-column: 1 / -1; justify-self: center; width: min(100%, 320px); } .rv-card:not(.best) :global(.showcase .ovr) { font-size: 2.2rem; } .rv-card:not(.best) :global(.showcase .name) { font-size: 1.25rem; } .rv-card:not(.best) :global(.showcase .face) { padding: 10px; } .goat-word { font-size: 4rem; } }
   @media (prefers-reduced-motion: reduce) {
     .rv-holder, .shaking, .charging { animation: none !important; }
       .rays, .sparks, .ring, .goat-word, .flash { display: none; }
