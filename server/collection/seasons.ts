@@ -9,10 +9,10 @@ import { dayKeyUtcMinus3, seasonMonthOf } from './time';
 /** Points of a ranked title by lobby size: playing alone against bots never scores. */
 export const POINTS_BY_LOBBY: ReadonlyArray<{ min: number; points: number }> = [
   { min: 8, points: 5 },
-  { min: 4, points: 3 },
-  { min: 2, points: 1 }
+  { min: 5, points: 4 },
+  { min: 3, points: 3 }
 ];
-export const RANKED_MIN_LOBBY = 4;
+export const RANKED_MIN_LOBBY = 3;
 
 export const pointsFor = (lobbySize: number): number => POINTS_BY_LOBBY.find((rule) => lobbySize >= rule.min)?.points ?? 0;
 

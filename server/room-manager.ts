@@ -242,7 +242,7 @@ interface RoomState {
 }
 
 /** Minimum humans for a run to score season points. */
-export const COMPETITIVE_MIN_HUMANS = 4;
+export const COMPETITIVE_MIN_HUMANS = 3;
 /** A matched queue room waits this long for everybody to connect, then starts with whoever is there. */
 export const QUEUE_JOIN_WINDOW_MS = 30_000;
 
@@ -1289,7 +1289,7 @@ export class RoomManager {
       : selected;
     const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
     const synergized = participant.prepared
-      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map((pick) => pick.selectedSlotRole as LineupSlotRole), starPlayerId: participant.prepared.starPlayerId })
+      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map((pick) => pick.selectedSlotRole as LineupSlotRole), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style })
       : built;
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
     const base = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;

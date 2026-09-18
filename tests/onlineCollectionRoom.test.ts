@@ -144,10 +144,11 @@ describe('awards e pontos', () => {
 
   it('pontos por tamanho do lobby', () => {
     expect(pointsFor(1)).toBe(0);
-    expect(pointsFor(2)).toBe(1);
-    expect(pointsFor(3)).toBe(1);
+    expect(pointsFor(2)).toBe(0);
+    expect(pointsFor(3)).toBe(3);
     expect(pointsFor(4)).toBe(3);
-    expect(pointsFor(7)).toBe(3);
+    expect(pointsFor(5)).toBe(4);
+    expect(pointsFor(7)).toBe(4);
     expect(pointsFor(8)).toBe(5);
     expect(pointsFor(16)).toBe(5);
   });

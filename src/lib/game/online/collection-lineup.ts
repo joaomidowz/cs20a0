@@ -1,5 +1,5 @@
 import { getEligibleSlotRoles, validatePlayerPick } from '../roleRules';
-import type { CombatTeam, LineupSlotRole, Player, SelectedPlayer } from '../types';
+import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
 /**
  * Lineup rules of the collection mode. Roles may repeat; instead of the off-position penalty of Dinastia there is a
@@ -12,6 +12,22 @@ export interface CollectionLineupInput {
   players: Player[];
   roles: LineupSlotRole[];
   starPlayerId: string | null;
+  /** Game plan: balanced is free, aggressive needs an entry, tactical needs a real caller and a support (and pays the most). */
+  style?: OrgStyle;
+}
+
+/** Caller strength a tactical plan needs from its IGL. */
+export const TACTICAL_MIN_IGL = 75;
+
+/** Whether the lineup can run the chosen plan; the builder shows the requirement next to the style buttons. */
+export function styleReady(input: CollectionLineupInput): boolean {
+  const has = (role: LineupSlotRole) => input.roles.includes(role);
+  if (input.style === 'aggressive') return has('entry');
+  if (input.style === 'tactical') {
+    const igl = input.players.find((_, index) => input.roles[index] === 'igl');
+    return Boolean(igl && (igl.igl ?? 0) >= TACTICAL_MIN_IGL && has('support'));
+  }
+  return true;
 }
 
 export interface LineupCheck {
@@ -84,6 +100,10 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
   const offRole = input.players.filter((player, index) => primaryRoleOf(player) !== input.roles[index]).length;
   if (offRole) add('off_role', { power: -1 * offRole });
+  const ready = styleReady(input);
+  if (input.style === 'balanced') add('style_balanced', { power: 0.5 });
+  else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', ready ? { power: 1.5 } : { power: -1 });
+  else if (input.style === 'tactical') add(ready ? 'style_tactical' : 'style_tactical_off', ready ? { power: 3, mental: 2 } : { power: -2, mental: -1 });
   if (isStarEffective(input.players, input.starPlayerId)) {
     const star = input.players.find((player) => player.id === input.starPlayerId)!;
     const role = input.roles[input.players.indexOf(star)];

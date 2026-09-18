@@ -1,11 +1,11 @@
 import type { RoomConfig } from '../src/lib/game/online/contracts';
 import { COMPETITIVE_MIN_HUMANS, type PreparedLineup, type RoomManager } from './room-manager';
 
-/** Competitive matchmaking: collection teams only, at least four humans per Major, bots fill the rest of the field. */
+/** Competitive matchmaking: collection teams only, at least three humans per Major, bots fill the rest of the field. */
 export const QUEUE_MIN = COMPETITIVE_MIN_HUMANS;
 export const QUEUE_MAX = 8;
-/** Once four are waiting, the queue holds this long for more players before it closes the room. */
-export const QUEUE_FILL_WINDOW_MS = 20_000;
+/** Once the minimum is waiting, the queue always holds this long for more players (even when full) before it closes the room. */
+export const QUEUE_FILL_WINDOW_MS = 10_000;
 /** A match stays claimable this long; the player's client polls it and connects. */
 const MATCH_TTL_MS = 120_000;
 
@@ -58,13 +58,13 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
     return { state: entry ? 'waiting' : 'idle', waiting: waiting.size, since: entry?.since ?? null, match: null };
   }
 
-  /** Closes a room when eight are waiting, or when at least four waited out the fill window. Oldest first. */
+  /** Closes a room (up to eight, oldest first) once at least three waited out the fill window. */
   function tick() {
     const current = now();
     for (const [userId, match] of matches) if (current - match.at > MATCH_TTL_MS) matches.delete(userId);
     if (waiting.size < QUEUE_MIN) { readySince = null; return; }
     readySince ??= current;
-    if (waiting.size < QUEUE_MAX && current - readySince < QUEUE_FILL_WINDOW_MS) return;
+    if (current - readySince < QUEUE_FILL_WINDOW_MS) return;
     const group = [...waiting.values()].sort((a, b) => a.since - b.since).slice(0, QUEUE_MAX);
     const roomCode = manager.createRoom(QUEUE_ROOM_CONFIG, current, undefined, { origin: 'queue', expected: group.length });
     for (const entry of group) {

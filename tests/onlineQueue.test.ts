@@ -1,5 +1,5 @@
 // tests/onlineQueue.test.ts
-// Fila competitiva: fecha com 8 na hora ou com 4+ depois da janela; nunca com menos de 4. Regra única de "vale pontos".
+// Fila competitiva: com 3+ espera sempre a janela (até 8 por sala); nunca fecha com menos de 3. Regra única de "vale pontos".
 import { describe, expect, it } from 'vitest';
 import { players, teams } from '../server/data';
 import { QUEUE_FILL_WINDOW_MS, createQueue } from '../server/queue';
@@ -23,14 +23,15 @@ const prepared = (userId: string): PreparedLineup => ({
 });
 
 describe('fila competitiva', () => {
-  it('três esperando não fecha nunca; o quarto abre a janela e ela fecha a sala', () => {
+  it('dois esperando não fecha nunca; o terceiro abre a janela e ela fecha a sala', () => {
     let clock = 1_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
-    for (const user of ['a', 'b', 'c']) queue.join(user, prepared(user));
+    for (const user of ['a', 'b']) queue.join(user, prepared(user));
     clock += 10 * 60_000;
     queue.tick();
     expect(queue.status('a').state).toBe('waiting');
+    queue.join('c', prepared('c'));
     queue.join('d', prepared('d'));
     expect(queue.status('d').state).toBe('waiting');
     clock += QUEUE_FILL_WINDOW_MS;
@@ -41,17 +42,20 @@ describe('fila competitiva', () => {
     expect(queue.size()).toBe(0);
   });
 
-  it('oito fecham na hora e o nono espera a próxima', () => {
-    const clock = 5_000;
+  it('mesmo com oito espera a janela; fecha oito e o nono espera a próxima', () => {
+    let clock = 5_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
     for (let index = 0; index < 9; index += 1) queue.join(`u${index}`, prepared(`u${index}`));
+    expect(queue.status('u0').state).toBe('waiting');
+    clock += QUEUE_FILL_WINDOW_MS;
+    queue.tick();
     expect(queue.status('u0').state).toBe('matched');
     expect(queue.status('u7').state).toBe('matched');
     expect(queue.status('u8').state).toBe('waiting');
   });
 
-  it('sala da fila começa sozinha quando todos entram e vale pontos; sala por código só vale com todos de coleção e 4+', () => {
+  it('sala da fila começa sozinha quando todos entram e vale pontos; sala por código só vale com todos de coleção e 3+', () => {
     let clock = 10_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
@@ -67,7 +71,7 @@ describe('fila competitiva', () => {
     expect(started.origin).toBe('queue');
 
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 8 }, clock);
-    for (const user of ['w', 'x', 'y']) manager.join(code, `P${user}`, `Org ${user}`, clock, manager.prepareLineup(code, prepared(user), clock));
+    for (const user of ['w', 'x']) manager.join(code, `P${user}`, `Org ${user}`, clock, manager.prepareLineup(code, prepared(user), clock));
     expect(manager.getSnapshot(code, null, clock).competitive).toBe(false);
     manager.join(code, 'Pz', 'Org z', clock, manager.prepareLineup(code, prepared('z'), clock));
     expect(manager.getSnapshot(code, null, clock).competitive).toBe(true);
@@ -83,7 +87,7 @@ describe('fila competitiva', () => {
     clock += QUEUE_FILL_WINDOW_MS;
     queue.tick();
     const { roomCode } = queue.status('a').match!;
-    for (const user of ['a', 'b', 'c']) manager.join(roomCode, `P${user}`, `Org ${user}`, clock, queue.status(user).match!.lineupTicket);
+    for (const user of ['a', 'b']) manager.join(roomCode, `P${user}`, `Org ${user}`, clock, queue.status(user).match!.lineupTicket);
     manager.tick(clock + 1);
     expect(manager.getSnapshot(roomCode, null, clock + 1).phase).toBe('lobby');
     manager.tick(clock + QUEUE_JOIN_WINDOW_MS + 1);
