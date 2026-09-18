@@ -1,8 +1,9 @@
 // tests/onlineQueue.test.ts
-// Fila competitiva: com 3+ espera sempre a janela (até 8 por sala); nunca fecha com menos de 3. Regra única de "vale pontos".
+// Fila competitiva: com 3+ espera a janela de 10 s (até 8 por sala); só 2 por 30 s jogam entre si (não competitivo);
+// quem para de consultar some da fila; regra única de "vale pontos".
 import { describe, expect, it } from 'vitest';
 import { players, teams } from '../server/data';
-import { QUEUE_FILL_WINDOW_MS, createQueue } from '../server/queue';
+import { QUEUE_FILL_WINDOW_MS, QUEUE_PAIR_WINDOW_MS, QUEUE_STALE_MS, createQueue } from '../server/queue';
 import { QUEUE_JOIN_WINDOW_MS, RoomManager, type PreparedLineup } from '../server/room-manager';
 import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
 import { DEFAULT_ROOM_CONFIG } from '../src/lib/game/online/contracts';
@@ -23,23 +24,91 @@ const prepared = (userId: string): PreparedLineup => ({
 });
 
 describe('fila competitiva', () => {
-  it('dois esperando não fecha nunca; o terceiro abre a janela e ela fecha a sala', () => {
+  it('um sozinho espera; o terceiro abre a janela de 10 s e ela fecha a sala', () => {
     let clock = 1_000;
     const manager = new RoomManager();
     const queue = createQueue(manager, () => clock);
-    for (const user of ['a', 'b']) queue.join(user, prepared(user));
-    clock += 10 * 60_000;
+    queue.join('a', prepared('a'));
+    clock += 60_000;
+    queue.status('a');
     queue.tick();
     expect(queue.status('a').state).toBe('waiting');
-    queue.join('c', prepared('c'));
-    queue.join('d', prepared('d'));
-    expect(queue.status('d').state).toBe('waiting');
+    for (const user of ['b', 'c', 'd']) queue.join(user, prepared(user));
+    expect(queue.status('d')).toMatchObject({ state: 'waiting', pair: false, closesInMs: QUEUE_FILL_WINDOW_MS });
     clock += QUEUE_FILL_WINDOW_MS;
     queue.tick();
     const match = queue.status('a');
     expect(match.state).toBe('matched');
     expect(['b', 'c', 'd'].map((user) => queue.status(user).match?.roomCode)).toEqual([match.match!.roomCode, match.match!.roomCode, match.match!.roomCode]);
     expect(queue.size()).toBe(0);
+  });
+
+  it('só dois por 30 s jogam entre si, sem valer pontos', () => {
+    let clock = 2_000;
+    const manager = new RoomManager();
+    const queue = createQueue(manager, () => clock);
+    queue.join('a', prepared('a'));
+    queue.join('b', prepared('b'));
+    expect(queue.status('a')).toMatchObject({ state: 'waiting', pair: true, closesInMs: QUEUE_PAIR_WINDOW_MS });
+    clock += QUEUE_PAIR_WINDOW_MS - 1_000;
+    queue.status('a'); queue.status('b');
+    queue.tick();
+    expect(queue.status('a').state).toBe('waiting');
+    clock += 1_000;
+    queue.tick();
+    const { roomCode } = queue.status('a').match!;
+    expect(queue.status('b').match?.roomCode).toBe(roomCode);
+    ['a', 'b'].forEach((user, index) => manager.join(roomCode, `P${user}`, `Org ${user}`, clock + index, queue.status(user).match!.lineupTicket));
+    manager.tick(clock + 10);
+    const started = manager.getSnapshot(roomCode, null, clock + 10);
+    expect(started.phase).toBe('swiss');
+    expect(started.competitive).toBe(false);
+  });
+
+  it('dupla que ganha um terceiro troca para a janela de 10 s; dupla desfeita reinicia os 30 s', () => {
+    let clock = 3_000;
+    const manager = new RoomManager();
+    const queue = createQueue(manager, () => clock);
+    queue.join('a', prepared('a'));
+    queue.join('b', prepared('b'));
+    clock += 20_000;
+    queue.join('c', prepared('c'));
+    expect(queue.status('a')).toMatchObject({ pair: false, closesInMs: QUEUE_FILL_WINDOW_MS });
+    clock += QUEUE_FILL_WINDOW_MS;
+    queue.tick();
+    expect(queue.status('c').state).toBe('matched');
+
+    queue.join('x', prepared('x'));
+    queue.join('y', prepared('y'));
+    clock += 20_000;
+    queue.leave('y');
+    queue.join('z', prepared('z'));
+    clock += 20_000;
+    queue.status('x'); queue.status('z');
+    queue.tick();
+    expect(queue.status('x').state).toBe('waiting');
+    expect(queue.status('x').closesInMs).toBe(QUEUE_PAIR_WINDOW_MS - 20_000);
+  });
+
+  it('quem para de consultar some da fila e não entra no match; saída por aba escondida é informada', () => {
+    let clock = 4_000;
+    const manager = new RoomManager();
+    const queue = createQueue(manager, () => clock);
+    for (const user of ['a', 'b', 'ghost']) queue.join(user, prepared(user));
+    clock += QUEUE_STALE_MS - 5_000;
+    queue.status('a'); queue.status('b');
+    clock += 6_000;
+    queue.status('a'); queue.status('b');
+    queue.tick();
+    expect(queue.status('ghost')).toMatchObject({ state: 'idle', left: 'stale' });
+    expect(queue.size()).toBe(2);
+
+    queue.leave('b', 'hidden');
+    expect(queue.status('b')).toMatchObject({ state: 'idle', left: 'hidden' });
+    queue.leave('a');
+    expect(queue.status('a').left).toBeNull();
+    queue.join('b', prepared('b'));
+    expect(queue.status('b').left).toBeNull();
   });
 
   it('mesmo com oito espera a janela; fecha oito e o nono espera a próxima', () => {

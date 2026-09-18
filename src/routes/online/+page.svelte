@@ -48,7 +48,8 @@
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { SEO_BY_ROUTE } from '$lib/seo';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
-  import { accountUser, authFetch, loadAccount } from '$lib/game/online/account';
+  import { accountUser, authFetch, loadAccount, sessionToken } from '$lib/game/online/account';
+  import { get } from 'svelte/store';
   import { fetchCollection } from '$lib/game/online/collection';
   import '../../app.css';
 
@@ -286,11 +287,13 @@
     if (roomCode && hasOnlineResumeToken(roomCode)) connect();
     loadOfflineSound();
     const unlock = () => { if (snapshot) unlockOfflineAudio(); };
-    const visibility = () => { if (document.hidden) stopOfflineSounds(); };
+    const visibility = () => { if (document.hidden) stopOfflineSounds(); onQueueVisibility(); };
     document.addEventListener('pointerdown', unlock);
     document.addEventListener('keydown', unlock);
     document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('pagehide', leaveQueueOnExit);
     return () => {
+      window.removeEventListener('pagehide', leaveQueueOnExit);
       document.removeEventListener('pointerdown', unlock);
       document.removeEventListener('keydown', unlock);
       document.removeEventListener('visibilitychange', visibility);
@@ -299,7 +302,11 @@
   });
 
   onDestroy(() => {
+    leaveQueueOnExit();
     stopQueuePolling();
+    clearHiddenTimer();
+    stopTitleAlert();
+    void queueAudio?.close().catch(() => {});
     client?.stop();
     if (clockTimer !== null) window.clearInterval(clockTimer);
   });
@@ -355,62 +362,182 @@
   }
 
   // Competitive queue: poll the server until it matches this account into a room, then connect with the ticket.
+  // The 2 s poll is also the heartbeat: a client that stops polling for 20 s is dropped by the server.
+  type QueueStatusResponse = {
+    state: 'idle' | 'waiting' | 'matched';
+    waiting: number;
+    since: number | null;
+    match: { roomCode: string; lineupTicket: string } | null;
+    closesInMs?: number | null;
+    pair?: boolean;
+    left?: 'stale' | 'hidden' | null;
+  };
+  const QUEUE_HIDDEN_LIMIT_MS = 60_000;
+  const QUEUE_REJOIN_GAP_MS = 30_000;
+  const QUEUE_MAX_FAILURES = 30;
   let queueState: 'idle' | 'waiting' | 'matched' = 'idle';
   let queueWaiting = 0;
   let queueSince = 0;
   let queueElapsed = 0;
   let queueTimer: number | null = null;
+  let queueClosesIn: number | null = null;
+  let queuePair = false;
+  let queueNotice = '';
+  /** The player is searching (joined and did not cancel); drives the silent rejoin after a server restart. */
+  let queueWanted = false;
+  let queueFailures = 0;
+  let lastAutoRejoin = 0;
+  let hiddenTimer: number | null = null;
+  let titleTimer: number | null = null;
+  let titleBeforeAlert = '';
+  let queueAudio: AudioContext | null = null;
 
   const stopQueuePolling = () => { if (queueTimer !== null) window.clearInterval(queueTimer); queueTimer = null; };
-
-  async function pollQueue() {
-    try {
-      const status = await authFetch<{ state: 'idle' | 'waiting' | 'matched'; waiting: number; since: number | null; match: { roomCode: string; lineupTicket: string } | null }>(getOnlineServerUrl(), '/queue/status');
-      queueState = status.state;
-      queueWaiting = status.waiting;
-      if (status.since) queueSince = status.since;
-      queueElapsed = Math.max(0, Math.round((Date.now() - queueSince) / 1000));
-      if (status.state === 'matched' && status.match) {
-        stopQueuePolling();
-        const user = $accountUser;
-        playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
-        organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
-        roomCode = status.match.roomCode;
-        pendingLineupTicket = status.match.lineupTicket;
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', roomCode);
-        replaceState(url, {});
-        connect();
-        queueState = 'idle';
-      } else if (status.state === 'idle') {
-        stopQueuePolling();
-      }
-    } catch (error) {
-      stopQueuePolling();
-      queueState = 'idle';
-      errorMessage = error instanceof Error ? error.message : t('connectionFailed');
-    }
+  const clearHiddenTimer = () => { if (hiddenTimer !== null) window.clearTimeout(hiddenTimer); hiddenTimer = null; };
+  function stopTitleAlert() {
+    if (titleTimer === null) return;
+    window.clearInterval(titleTimer);
+    titleTimer = null;
+    document.title = titleBeforeAlert;
   }
 
-  async function joinQueue() {
-    errorMessage = '';
+  /** Match found while the tab is in the background: blink the tab title and beep until the player comes back. */
+  function alertMatchFound() {
+    if (!document.hidden) return;
+    let on = false;
+    stopTitleAlert();
+    titleBeforeAlert = document.title;
+    titleTimer = window.setInterval(() => { on = !on; document.title = on ? t('matchFoundTitle') : titleBeforeAlert; }, 900);
     try {
-      const status = await authFetch<{ state: 'idle' | 'waiting' | 'matched'; waiting: number; since: number | null }>(getOnlineServerUrl(), '/queue/join', { body: {} });
-      queueState = status.state;
-      queueWaiting = status.waiting;
+      if (!queueAudio) return;
+      const start = queueAudio.currentTime;
+      for (const offset of [0, 0.22]) {
+        const oscillator = queueAudio.createOscillator();
+        const gain = queueAudio.createGain();
+        oscillator.frequency.value = 880;
+        gain.gain.setValueAtTime(0.18, start + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.18);
+        oscillator.connect(gain).connect(queueAudio.destination);
+        oscillator.start(start + offset);
+        oscillator.stop(start + offset + 0.2);
+      }
+    } catch { /* sound is a nicety */ }
+  }
+
+  function applyQueueStatus(status: QueueStatusResponse) {
+    queueState = status.state;
+    queueWaiting = status.waiting;
+    if (status.since) queueSince = status.since;
+    queueElapsed = Math.max(0, Math.round((Date.now() - queueSince) / 1000));
+    queueClosesIn = typeof status.closesInMs === 'number' ? Math.ceil(status.closesInMs / 1000) : null;
+    queuePair = Boolean(status.pair);
+  }
+
+  async function pollQueue() {
+    let status: QueueStatusResponse;
+    try {
+      status = await authFetch<QueueStatusResponse>(getOnlineServerUrl(), '/queue/status');
+      queueFailures = 0;
+    } catch (error) {
+      // A deploy or restart takes the server away for a few seconds: keep trying for about a minute.
+      queueFailures += 1;
+      if (queueFailures < QUEUE_MAX_FAILURES) return;
+      stopQueuePolling();
+      queueWanted = false;
+      queueState = 'idle';
+      errorMessage = error instanceof Error ? error.message : t('connectionFailed');
+      return;
+    }
+    applyQueueStatus(status);
+    if (status.state === 'matched' && status.match) {
+      stopQueuePolling();
+      queueWanted = false;
+      clearHiddenTimer();
+      alertMatchFound();
+      const user = $accountUser;
+      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
+      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+      roomCode = status.match.roomCode;
+      pendingLineupTicket = status.match.lineupTicket;
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', roomCode);
+      replaceState(url, {});
+      connect();
+      queueState = 'idle';
+      return;
+    }
+    if (status.state !== 'idle') return;
+    if (status.left) {
+      stopQueuePolling();
+      clearHiddenTimer();
+      queueWanted = false;
+      queueNotice = status.left === 'hidden' ? t('queueLeftHidden') : t('queueLeftStale');
+      return;
+    }
+    // Idle with no reason while still searching: the server restarted and lost the queue. Rejoin quietly.
+    if (queueWanted && Date.now() - lastAutoRejoin > QUEUE_REJOIN_GAP_MS) {
+      lastAutoRejoin = Date.now();
+      queueNotice = t('queueRejoining');
+      await joinQueue(true);
+      return;
+    }
+    stopQueuePolling();
+    queueWanted = false;
+  }
+
+  async function joinQueue(silent = false) {
+    errorMessage = '';
+    if (!silent) {
+      queueNotice = '';
+      // Created inside the click, so the browser lets it beep later from a background tab.
+      try { queueAudio ??= new AudioContext(); void queueAudio.resume(); } catch { queueAudio = null; }
+    }
+    try {
+      const status = await authFetch<QueueStatusResponse>(getOnlineServerUrl(), '/queue/join', { body: {} });
+      applyQueueStatus(status);
       queueSince = status.since ?? Date.now();
+      queueWanted = true;
+      queueFailures = 0;
+      if (silent) queueNotice = '';
       stopQueuePolling();
       queueTimer = window.setInterval(() => void pollQueue(), 2_000);
       void pollQueue();
     } catch (error) {
+      queueWanted = false;
       errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('queueNeedsTeam') : (error instanceof Error ? error.message : t('connectionFailed'));
     }
   }
 
-  async function leaveQueue() {
+  async function leaveQueue(reason?: 'hidden') {
     stopQueuePolling();
+    clearHiddenTimer();
+    queueWanted = false;
     queueState = 'idle';
-    try { await authFetch(getOnlineServerUrl(), '/queue/leave', { body: {} }); } catch { /* best effort */ }
+    queueNotice = reason === 'hidden' ? t('queueLeftHidden') : '';
+    try { await authFetch(getOnlineServerUrl(), '/queue/leave', { body: reason ? { reason } : {} }); } catch { /* best effort: the server drops silent clients anyway */ }
+  }
+
+  /** Tab or page going away while searching: tell the server now instead of waiting for the 20 s heartbeat cut. */
+  function leaveQueueOnExit() {
+    if (!queueWanted || queueState !== 'waiting') return;
+    queueWanted = false;
+    stopQueuePolling();
+    const token = get(sessionToken);
+    try {
+      void fetch(new URL('/queue/leave', getOnlineServerUrl()), { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ reason: 'user' }) }).catch(() => {});
+    } catch { /* heartbeat cut covers it */ }
+  }
+
+  /** Hidden for more than a minute while searching: leave the queue. Coming back cancels the countdown and the title alert. */
+  function onQueueVisibility() {
+    if (document.hidden) {
+      if (queueWanted && queueState === 'waiting' && hiddenTimer === null) {
+        hiddenTimer = window.setTimeout(() => { hiddenTimer = null; if (document.hidden && queueWanted) void leaveQueue('hidden'); }, QUEUE_HIDDEN_LIMIT_MS);
+      }
+      return;
+    }
+    clearHiddenTimer();
+    stopTitleAlert();
   }
 
   /** Registers the saved collection lineup for the room and keeps the ticket for the join that follows. */
@@ -799,12 +926,14 @@
             <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
           {:else if queueState === 'waiting' || queueState === 'matched'}
             <div class="queue-live"><i></i><strong>{queueState === 'matched' ? t('matchFound') : t('searching')}</strong><span>{queueWaiting} {t('inQueue')} · {queueElapsed}s</span></div>
-            {#if queueState === 'waiting'}<button class="secondary" type="button" on:click={leaveQueue}>{t('cancelSearch')}</button>{/if}
+            {#if queueState === 'waiting' && queueClosesIn !== null}<p class="queue-hint" class:pair={queuePair}>{(queuePair ? t('queuePairHint') : t('queueStartsIn')).replace('{s}', String(queueClosesIn))}</p>{/if}
+            {#if queueState === 'waiting'}<button class="secondary" type="button" on:click={() => leaveQueue()}>{t('cancelSearch')}</button>{/if}
           {:else if !hasSavedLineup}
             <p class="queue-warn">{t('queueNeedsTeam')}</p>
             <a class="primary online-link" href="/online/colecao">{t('collection')}</a>
           {:else}
-            <button class="primary" type="button" on:click={joinQueue}>{t('findMatch')}</button>
+            {#if queueNotice}<p class="queue-warn" role="status">{queueNotice}</p>{/if}
+            <button class="primary" type="button" on:click={() => joinQueue()}>{queueNotice ? t('searchAgain') : t('findMatch')}</button>
           {/if}
         </article>
         <article class="panel mode-card">
@@ -1195,7 +1324,7 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .account-link{margin:12px auto 0;width:fit-content}.mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
+  .account-link{margin:12px auto 0;width:fit-content}.mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
   .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
   @media(min-width:680px){.mode-choice{grid-template-columns:repeat(3,1fr)}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}

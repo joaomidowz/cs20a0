@@ -6,7 +6,10 @@ import { collectionPlayerById as playerById, collectionTeams as teams } from '..
 import type { Db } from '../db/client';
 import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
 import type { Queue } from '../queue';
-import { HttpError, route, type Handler, type Route } from './router';
+import { z } from 'zod';
+import { HttpError, readBody, route, type Handler, type Route } from './router';
+
+const leaveSchema = z.object({ reason: z.enum(['hidden', 'user']).optional() });
 
 /** The saved lineup as the room needs it; throws when the collection team is missing or incomplete. */
 async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
@@ -27,7 +30,11 @@ async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
 export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handler: Handler) => Handler, queue: Queue): Route[] {
   return [
     route('POST', /^\/queue\/join$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.join(userId!, await preparedFor(db, userId!)) }))),
-    route('POST', /^\/queue\/leave$/, withAuth(async ({ userId }) => { queue.leave(userId!); return { ok: true, ...queue.status(userId!) }; })),
+    route('POST', /^\/queue\/leave$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, leaveSchema);
+      queue.leave(userId!, body.reason === 'hidden' ? 'hidden' : undefined);
+      return { ok: true, ...queue.status(userId!) };
+    })),
     route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.status(userId!) }))),
     /** Registers the saved lineup for a room; the ticket goes in the `join` command and skips the draft. */
     route('POST', /^\/rooms\/([A-Z2-9]{8})\/lineup$/i, withAuth(async ({ params, userId, now }) => {
