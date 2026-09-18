@@ -7,7 +7,7 @@
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
-  import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
+  import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
   import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
@@ -428,7 +428,7 @@
 </PageLayout>
 
 {#if detailsPlayer}
-  <PlayerDetailSheet player={detailsPlayer} mode="premier" language={$language} draftComplete={true} lineup={[]} playerLookup={(id) => playerById.get(id)} onConfirm={() => {}} onClose={() => detailsPlayer = null} />
+  <CollectionCardSheet player={detailsPlayer} teamName={teamNameOf(detailsPlayer)} language={$language} labels={{ close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') }} onClose={() => detailsPlayer = null} />
 {/if}
 {#if toast}<div class="toast">{toast}</div>{/if}
 
