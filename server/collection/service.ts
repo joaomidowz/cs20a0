@@ -1,0 +1,161 @@
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { validateLineup } from '../../src/lib/game/online/collection-lineup';
+import type { LineupSlotRole, OrgStyle, Player } from '../../src/lib/game/types';
+import type { Db, Tx } from '../db/client';
+import { playerById, players } from '../data';
+import { rollPack } from './packs';
+import { dayKeyUtcMinus3 } from './time';
+
+export class CollectionError extends Error {
+  constructor(readonly status: number, readonly code: string, message: string = code) {
+    super(message);
+  }
+}
+
+export type LedgerReason = 'pack_open' | 'duplicate' | 'sell' | 'buy_pack' | 'match_reward' | 'season_prize' | 'award' | 'purchase' | 'refund' | 'chargeback';
+
+/** The only writer of `wallets`: every change is a ledger row first. Throws INSUFFICIENT_COINS when the balance would go negative. */
+export async function applyLedger(tx: Tx, userId: string, delta: number, reason: LedgerReason, refId: string | null = null): Promise<number> {
+  await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
+  const [wallet] = await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1 FOR UPDATE', [userId]);
+  if (wallet.coins + delta < 0) throw new CollectionError(402, 'INSUFFICIENT_COINS', 'Coins insuficientes');
+  await tx.query('INSERT INTO ledger (user_id, delta, reason, ref_id) VALUES ($1, $2, $3, $4)', [userId, delta, reason, refId]);
+  const [updated] = await tx.query<{ coins: number }>('UPDATE wallets SET coins = coins + $2, updated_at = now() WHERE user_id = $1 RETURNING coins', [userId, delta]);
+  return updated.coins;
+}
+
+export interface CollectionView {
+  wallet: number;
+  count: number;
+  players: Array<{ playerId: string; acquiredAt: string }>;
+  packsToday: { granted: number; opened: number };
+  lineup: LineupView | null;
+}
+
+export interface LineupView {
+  playerIds: string[];
+  roles: LineupSlotRole[];
+  starPlayerId: string | null;
+  style: OrgStyle;
+  starEffective: boolean;
+}
+
+const lineupView = (row: { player_ids: string[]; roles: string[]; star_player_id: string | null; style: string } | undefined): LineupView | null => {
+  if (!row) return null;
+  const chosen = row.player_ids.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
+  const check = validateLineup({ players: chosen, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
+  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, style: row.style as OrgStyle, starEffective: check.starEffective };
+};
+
+export async function getCollection(db: Db, userId: string, now: number): Promise<CollectionView> {
+  const day = dayKeyUtcMinus3(now);
+  const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
+  const rows = await db.query<{ player_id: string; acquired_at: Date }>('SELECT player_id, acquired_at FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
+  const [grant] = await db.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2', [userId, day]);
+  const [lineup] = await db.query<{ player_ids: string[]; roles: string[]; star_player_id: string | null; style: string }>('SELECT player_ids, roles, star_player_id, style FROM lineups WHERE user_id = $1', [userId]);
+  return {
+    wallet: wallet?.coins ?? 0,
+    count: rows.length,
+    players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
+    packsToday: { granted: grant?.granted ?? DAILY_BASIC_PACKS, opened: grant?.opened ?? 0 },
+    lineup: lineupView(lineup)
+  };
+}
+
+export interface PackResult {
+  tier: PackTier;
+  seed: string;
+  players: string[];
+  duplicates: string[];
+  coinsFromDupes: number;
+  wallet: number;
+}
+
+async function addCards(tx: Tx, userId: string, cards: Player[], seed: string): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
+  const duplicates: string[] = [];
+  let coinsFromDupes = 0;
+  for (const card of cards) {
+    const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, card.id, 'pack']);
+    if (!inserted.length) { duplicates.push(card.id); coinsFromDupes += coinValue(card); }
+  }
+  let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
+  return { duplicates, coinsFromDupes, wallet };
+}
+
+/** One of the two daily basic packs; the seed makes the reveal reproducible and the grant row keeps it idempotent. */
+export async function openDailyPack(db: Db, userId: string, now: number): Promise<PackResult> {
+  const day = dayKeyUtcMinus3(now);
+  return db.tx(async (tx) => {
+    await tx.query('INSERT INTO pack_grants (user_id, day, granted, opened) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING', [userId, day, DAILY_BASIC_PACKS]);
+    const [grant] = await tx.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2 FOR UPDATE', [userId, day]);
+    if (grant.opened >= grant.granted) throw new CollectionError(409, 'NO_PACKS_LEFT', 'Sem pacotes hoje');
+    const seed = `${userId}:${day}:${grant.opened + 1}`;
+    const cards = rollPack('basic', seed, players);
+    await tx.query('UPDATE pack_grants SET opened = opened + 1 WHERE user_id = $1 AND day = $2', [userId, day]);
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, 'basic', seed, cards.map((card) => card.id)]);
+    await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
+    const added = await addCards(tx, userId, cards, seed);
+    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
+    return { tier: 'basic', seed, players: cards.map((card) => card.id), ...added };
+  });
+}
+
+export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number): Promise<PackResult> {
+  if (tier === 'basic') throw new CollectionError(400, 'BAD_TIER', 'O pacote básico é só o diário');
+  if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
+  return db.tx(async (tx) => {
+    const price = PACK_PRICES[tier];
+    await applyLedger(tx, userId, -price, 'buy_pack', tier);
+    const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
+    const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
+    const cards = rollPack(tier, seed, players, tier === 'era' ? { year } : {});
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map((card) => card.id)]);
+    const added = await addCards(tx, userId, cards, seed);
+    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
+    return { tier, seed, players: cards.map((card) => card.id), ...added };
+  });
+}
+
+export async function sellPlayer(db: Db, userId: string, playerId: string): Promise<{ coins: number; wallet: number }> {
+  const player = playerById.get(playerId);
+  if (!player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Jogador desconhecido');
+  return db.tx(async (tx) => {
+    const [lineup] = await tx.query<{ player_ids: string[] }>('SELECT player_ids FROM lineups WHERE user_id = $1', [userId]);
+    if (lineup?.player_ids.includes(playerId)) throw new CollectionError(409, 'IN_LINEUP', 'Tire o jogador do time antes de vender');
+    const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 RETURNING player_id', [userId, playerId]);
+    if (!removed.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
+    const coins = sellValue(player);
+    const wallet = await applyLedger(tx, userId, coins, 'sell', playerId);
+    return { coins, wallet };
+  });
+}
+
+export interface LineupInput {
+  playerIds: string[];
+  roles: LineupSlotRole[];
+  starPlayerId: string | null;
+  style: OrgStyle;
+}
+
+export async function saveLineup(db: Db, userId: string, input: LineupInput): Promise<LineupView> {
+  if (input.playerIds.length !== 5 || input.roles.length !== 5 || new Set(input.playerIds).size !== 5) throw new CollectionError(400, 'LINEUP_SIZE', 'O time tem cinco cartas');
+  const chosen = input.playerIds.map((id) => playerById.get(id));
+  if (chosen.some((player) => !player)) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Jogador desconhecido');
+  const owned = await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1 AND player_id = ANY($2)', [userId, input.playerIds]);
+  if (owned.length !== 5) throw new CollectionError(403, 'NOT_OWNED', 'Só cartas da sua coleção entram no time');
+  const check = validateLineup({ players: chosen as Player[], roles: input.roles, starPlayerId: input.starPlayerId }, (id) => playerById.get(id));
+  if (!check.ok) throw new CollectionError(400, 'INVALID_LINEUP', check.problems.join('; '));
+  await db.query(
+    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, updated_at = now()`,
+    [userId, input.playerIds, input.roles, input.starPlayerId, input.style]
+  );
+  return { ...input, starEffective: check.starEffective };
+}
+
+export async function getLineup(db: Db, userId: string): Promise<LineupView | null> {
+  const [row] = await db.query<{ player_ids: string[]; roles: string[]; star_player_id: string | null; style: string }>('SELECT player_ids, roles, star_player_id, style FROM lineups WHERE user_id = $1', [userId]);
+  return lineupView(row);
+}
+
+export const CARDS = CARDS_PER_PACK;

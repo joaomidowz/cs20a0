@@ -7,6 +7,7 @@ import { RoomError, RoomManager } from './room-manager';
 import type { Db } from './db/client';
 import type { Mailer } from './auth/mailer';
 import { createAuthRoutes } from './http/auth-routes';
+import { createCollectionRoutes } from './http/collection-routes';
 import { createSlidingLimiter } from './http/rate-limit';
 import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from './http/router';
 
@@ -48,7 +49,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
-  const httpRoutes: Route[] = [...(auth?.routes ?? [])];
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(auth && options.db ? createCollectionRoutes(options.db, auth.withAuth) : [])];
 
   const isAllowedOrigin = (request: IncomingMessage) => {
     const origin = request.headers.origin;
