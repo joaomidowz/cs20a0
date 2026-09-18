@@ -14,6 +14,8 @@ const KNOWN_TOP3 = { 2013: ['get_right', 'f0rest', 'shox'], 2014: ['get_right', 
 const CALLER_OVERRIDE = { 'fnatic-2013': 'pronax', 'ninjas-in-pyjamas-2014': 'xizt', 'team-ldlc-com-2014': 'happy', 'fnatic-2015': 'pronax', 'team-envyus-2015': 'happy' };
 // Cards that carry another player's HLTV rank by nickname clash (OG's niko is not G2's NiKo).
 const NOT_RANKED = new Set(['niko-og-2023']);
+// Callers who are GOAT for the titles they led; the other Major-winning callers are Legends (IGL 99, overall 95+).
+const GOAT_CALLERS = new Set(['pronax-2013', 'pronax-2015', 'fallen-2016', 'gla1ve-2017', 'gla1ve-2018', 'gla1ve-2019', 'karrigan-2022', 'jame-2022', 'apex-2025']);
 const UNTOUCHED_YEARS = new Set([2026]);
 const ATTRIBUTES = ['firepower', 'clutch', 'entry', 'awp', 'support', 'igl', 'experience', 'consistency', 'mental'];
 const load = (file) => JSON.parse(readFileSync(file, 'utf8'));
@@ -66,7 +68,7 @@ for (const year of [...new Set(players.map((p) => p.year))].sort()) {
     if (hasList && isIgl(p) && (p.igl ?? 0) >= 92 && before >= 90 && after < 90) after = Math.min(before, 93);
     let rarity = rarityFor(after);
     const champion = championCallers.has(p.id);
-    if (champion) { after = Math.max(after, 95); rarity = 'goat'; }
+    if (champion) { after = Math.max(after, 95); rarity = GOAT_CALLERS.has(`${slug(p)}-${year}`) ? 'goat' : rarityFor(after); }
     const delta = after - before;
     if (delta !== 0) {
       // Attributes move with the card so the numbers on it (and the simulation that reads them) agree with the overall.

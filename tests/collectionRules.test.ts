@@ -114,7 +114,7 @@ describe('lineup da coleção', () => {
     // Only counts when the dataset says the card can play there; otherwise it is invalid, never silently penalized.
     const eligible = allowed.ok;
     const off = synergyOf({ players: lineup, roles: eligible ? swapped : roles, starPlayerId: null }).find((line) => line.key === 'off_role');
-    if (eligible) expect(off?.power).toBe(-2);
+    if (eligible) expect(off?.power).toBeCloseTo(-0.6, 6);
     else expect(off).toBeUndefined();
     expect(igl.id).not.toBe(awper.id);
   });

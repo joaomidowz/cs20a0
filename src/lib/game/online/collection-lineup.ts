@@ -16,6 +16,9 @@ export interface CollectionLineupInput {
   style?: OrgStyle;
 }
 
+/** Power lost, in percent, for each player used in a secondary position. */
+export const OFF_ROLE_COST = 0.3;
+
 /** Caller strength a tactical plan needs from its IGL. */
 export const TACTICAL_MIN_IGL = 75;
 
@@ -99,7 +102,8 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   else add('support_present', { power: 0.5 });
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
   const offRole = input.players.filter((player, index) => primaryRoleOf(player) !== input.roles[index]).length;
-  if (offRole) add('off_role', { power: -1 * offRole });
+  // Playing a secondary position the card is eligible for costs little: the builder only offers eligible roles.
+  if (offRole) add('off_role', { power: -OFF_ROLE_COST * offRole });
   const ready = styleReady(input);
   if (input.style === 'balanced') add('style_balanced', { power: 0.5 });
   else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', ready ? { power: 1.5 } : { power: -1 });

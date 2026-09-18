@@ -7692,7 +7692,7 @@
     "eligibleSlotRoles": [
       "igl"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 84,
@@ -11482,7 +11482,7 @@
       "entry",
       "rifler"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [
       "rifler",
       "entry",
@@ -29690,7 +29690,7 @@
     "game": "CSGO",
     "role": "igl",
     "overall": 95,
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "firepower": 93,
     "clutch": 93,
@@ -48451,7 +48451,7 @@
     "game": "CSGO",
     "role": "igl",
     "overall": 95,
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "firepower": 84,
     "clutch": 84,
@@ -55866,7 +55866,7 @@
     "game": "CS2",
     "role": "igl",
     "overall": 95,
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "firepower": 93,
     "clutch": 93,
@@ -57426,7 +57426,7 @@
     "game": "CS2",
     "role": "igl",
     "overall": 95,
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "firepower": 92,
     "clutch": 92,

@@ -13,7 +13,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
+  import { OFF_ROLE_COST, applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -86,9 +86,30 @@
   $: readyStyle = styleReady({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style });
   let teamSection: HTMLElement | null = null;
   let shopSection: HTMLElement | null = null;
+  let shopTop: HTMLElement | null = null;
+  let cardsSection: HTMLElement | null = null;
   const scrollTo = (element: HTMLElement | null) => setTimeout(() => element?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   const fmt = (value: number) => Math.round(value).toLocaleString($language);
   $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
+  // The saved team, built the same way, so the player sees what changes before saving.
+  $: savedLineup = state?.lineup ?? null;
+  $: savedPlayers = savedLineup ? savedLineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player)) : [];
+  $: savedTeam = (() => {
+    if (!savedLineup || savedPlayers.length !== 5) return null;
+    const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style };
+    const built = applyCollectionLineup(calculateUserTeamPower(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => ({ playerId: player.id, selectedSlotRole: savedLineup.roles[index] })), 'preview'), input);
+    const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
+    return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
+  })();
+  $: dirty = Boolean(complete && savedLineup && (savedLineup.playerIds.join() !== lineupPlayers.map((player) => player.id).join() || savedLineup.roles.join() !== lineupRoles.join() || savedLineup.starPlayerId !== starPlayerId || (savedLineup.coachId ?? null) !== coachId || savedLineup.style !== style));
+  $: comparison = savedTeam && preview && dirty ? [
+    { label: t('power'), before: savedTeam.power, after: preview.power, digits: 0 },
+    { label: t('mentalStat'), before: savedTeam.mental, after: preview.mental, digits: 1 },
+    { label: t('clutchStat'), before: savedTeam.clutch, after: preview.clutch, digits: 1 },
+    { label: t('consistencyStat'), before: savedTeam.consistency ?? 0, after: preview.consistency ?? 0, digits: 1 }
+  ] : [];
+  $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
+  $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
   const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
@@ -179,6 +200,28 @@
     scrollTo(teamSection);
   }
 
+  /** Fast swap: a card waiting for the slot it takes. */
+  let swapIn: Player | null = null;
+  const roleFor = (player: Player): LineupSlotRole => { const eligible = eligibleRolesOf(player); return eligible.includes(primaryRoleOf(player)) ? primaryRoleOf(player) : eligible[0] ?? 'rifler'; };
+
+  function startSwap(player: Player) {
+    swapIn = player;
+    scrollTo(teamSection);
+  }
+
+  /** Puts the waiting card in this slot; it keeps the slot's role when it can play it, so the team shape survives the swap. */
+  function swapInto(index: number) {
+    if (!swapIn) return;
+    const leaving = slots[index];
+    if (leaving?.id === starPlayerId) starPlayerId = null;
+    const keptRole = roles[index];
+    slots[index] = swapIn;
+    roles[index] = keptRole && eligibleRolesOf(swapIn).includes(keptRole) ? keptRole : roleFor(swapIn);
+    slots = [...slots]; roles = [...roles];
+    showToast(`${swapIn.nickname ?? swapIn.id} ⇄ ${leaving?.nickname ?? '—'}`);
+    swapIn = null;
+  }
+
   function removeFromLineup(index: number) {
     if (slots[index]?.id === starPlayerId) starPlayerId = null;
     slots[index] = null; roles[index] = null;
@@ -237,7 +280,7 @@
       </div>
 
       <div class="columns">
-        <section class="panel shop">
+        <section class="panel shop" bind:this={shopTop}>
           <div class="section-heading"><div><span class="eyebrow">{t('shop').toUpperCase()}</span><h2>{t('shop')}</h2></div></div>
           <div class="shop-grid">
             <article class="pack basic">
@@ -297,6 +340,7 @@
 
         <section class="panel team" bind:this={teamSection}>
           <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {fmt(preview.power)}</strong>{/if}</div>
+          {#if swapIn}<p class="swap-banner" role="status"><span>⇄ {t('swapChoose')} <b>{swapIn.nickname ?? swapIn.id}</b></span><button class="ghost small" type="button" on:click={() => swapIn = null}>{t('cancel')}</button></p>{/if}
           <div class="slots">
             {#each slots as slot, index}
               <div class="slot" class:filled={Boolean(slot)}>
@@ -305,8 +349,14 @@
                     <button class="ghost small" type="button" class:active={slot.id === starPlayerId} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★ {t('star')}</button>
                     <button class="ghost small" type="button" on:click={() => removeFromLineup(index)}>{t('removeFromLineup')}</button>
                   </CollectionCard>
+                  {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')} {slot.nickname ?? slot.id}</button>{/if}
                   <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+                  <p class="slot-notes">
+                    {#if roles[index] && primaryRoleOf(slot) !== roles[index]}<span class="bad">▼ {t('noteOffRole')} −{OFF_ROLE_COST}%</span>{:else}<span class="good">▲ {t('noteOwnRole')}</span>{/if}
+                    {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : t('noteStarOff')}</span>{/if}
+                  </p>
                 {:else}
+                  {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')}</button>{/if}
                   <span class="empty">{t('slotEmpty')}</span>
                 {/if}
               </div>
@@ -347,7 +397,7 @@
                 <ul class="synergy">
                   {#each synergy as line (line.key)}
                     <li class:up={line.power > 0 || line.mental > 0 || line.clutch > 0} class:down={line.power < 0 || line.mental < 0 || line.consistency < 0}>
-                      <span>{t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
+                      <span>{line.power < 0 || line.mental < 0 || line.consistency < 0 ? '▼' : '▲'} {t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
                       <b>{line.power ? `${line.power > 0 ? '+' : ''}${line.power}% ${t('power').toLowerCase()}` : ''}{line.mental ? ` ${line.mental > 0 ? '+' : ''}${line.mental} mental` : ''}{line.clutch ? ` +${line.clutch} clutch` : ''}{line.consistency ? ` ${line.consistency} cons.` : ''}</b>
                     </li>
                   {/each}
@@ -373,6 +423,17 @@
               {:else}
                 <p class="note">{t('lineupIncomplete')}</p>
               {/if}
+              {#if comparison.length}
+                <span class="label">{t('compareTitle')}</span>
+                <ul class="stat-list compare">
+                  {#each comparison as row}
+                    {@const delta = row.after - row.before}
+                    <li><span>{row.label}</span><b>{row.before.toFixed(row.digits)} → {row.after.toFixed(row.digits)} <em class:up={delta > 0} class:down={delta < 0}>{delta > 0 ? '+' : ''}{delta.toFixed(row.digits)}</em></b></li>
+                  {/each}
+                  {#if leavingPlayers.length}<li><span>{t('compareOut')}</span><b class="down">{leavingPlayers.map((player) => player.nickname ?? player.id).join(', ')}</b></li>{/if}
+                  {#if joiningPlayers.length}<li><span>{t('compareIn')}</span><b class="up">{joiningPlayers.map((player) => player.nickname ?? player.id).join(', ')}</b></li>{/if}
+                </ul>
+              {/if}
               <button class="primary" type="button" disabled={busy || !complete} on:click={persistLineup}>{t('saveLineup')}</button>
             </div>
           </div>
@@ -381,7 +442,7 @@
 
       <BuyCoins {serverUrl} language={$language} />
 
-      <section class="panel cards">
+      <section class="panel cards" bind:this={cardsSection}>
         <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>
         <div class="filters">
           <label><span>{t('search')}</span><input bind:value={query} /></label>
@@ -414,7 +475,11 @@
                 {#if lineupIds.has(player.id)}
                   <button class="ghost small" type="button" on:click={() => removeFromLineup(slots.findIndex((slot) => slot?.id === player.id))}>{t('removeFromLineup')}</button>
                 {:else}
-                  <button class="ghost small" type="button" disabled={busy || slots.every(Boolean)} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
+                  {#if slots.every(Boolean)}
+                    <button class="ghost small" type="button" disabled={busy} on:click={() => startSwap(player)}>⇄ {t('swap')}</button>
+                  {:else}
+                    <button class="ghost small" type="button" disabled={busy} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
+                  {/if}
                   <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
                 {/if}
               </CollectionCard>
@@ -422,6 +487,14 @@
           </div>
         {/if}
       </section>
+    {/if}
+    {#if state}
+      <nav class="dock" aria-label={t('collection')}>
+        <button type="button" on:click={() => scrollTo(shopTop)}>{t('shop')}</button>
+        <button type="button" on:click={() => scrollTo(teamSection)}>{t('myTeam')}{#if preview} · {fmt(preview.power)}{/if}</button>
+        <button type="button" on:click={() => scrollTo(cardsSection)}>{t('myCards')}</button>
+        <button type="button" class="save" class:dirty disabled={busy || !complete || !dirty && Boolean(savedLineup)} on:click={persistLineup}>{dirty || !savedLineup ? t('saveLineup') : '✓'}</button>
+      </nav>
     {/if}
     {#if error}<p class="online-error" role="alert">{error}</p>{/if}
   </section>
@@ -473,6 +546,20 @@
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
   .team-side { display: grid; gap: 12px; align-content: start; }
+  .swap-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0; padding: 10px 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); font-size: .82rem; } .swap-banner b { color: var(--accent); }
+  .swap-here { width: 100%; animation: swap-pulse 1.1s ease-in-out infinite; }
+  @keyframes swap-pulse { 50% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); } }
+  .slot-notes { display: grid; gap: 2px; margin: 0; font-size: .64rem; font-weight: 800; } .slot-notes .good { color: var(--accent); } .slot-notes .bad { color: #ff9b90; } .slot-notes .gold { color: #ffd36b; }
+  .compare em { font-style: normal; margin-left: 6px; color: var(--muted); } .compare em.up, .compare b.up { color: var(--accent); } .compare em.down, .compare b.down { color: #ff9b90; }
+  .dock { display: none; }
+  @media (max-width: 720px) {
+    .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: var(--line); }
+    .dock button { min-height: 52px; padding: 0 4px; border: 0; background: var(--surface); color: var(--text); font: inherit; font-size: .62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .dock .save { color: var(--muted); } .dock .save.dirty { background: var(--accent); color: #0a0d08; }
+    .collection { padding-bottom: 120px; }
+    .toast { bottom: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .swap-here { animation: none; } }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .warn { margin: 0; color: var(--accent-2); font-size: .78rem; font-weight: 700; }
   .coach-slot { display: grid; gap: 8px; } .coach-slot .label { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; } .coach-slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }

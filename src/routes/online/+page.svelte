@@ -709,6 +709,21 @@
   }
 
   /** Clears view-only state; room identity and host preferences remain cached for the next connection. */
+  /** Leaves the finished room and lands on the online entry screen, ready to queue or open another room. */
+  function exitRoom() {
+    client?.stop();
+    client = null;
+    resetTransientRoomState();
+    snapshot = null;
+    roomCode = '';
+    collectionOutcome = null;
+    collectionOutcomeFor = '';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    replaceState(url, {});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function resetTransientRoomState() {
     proAssignments = {};
     proStyle = 'balanced';
@@ -1138,7 +1153,8 @@
             {#if snapshot.season.rematch}
               <RematchPanel rematch={snapshot.season.rematch} participants={snapshot.participants} selfParticipantId={self?.participantId ?? null} secondsLeft={rematchSeconds} language={$language} onVote={voteRematch} />
             {/if}
-            <SeasonPanel season={snapshot.season} language={$language} selfParticipantId={self?.participantId ?? null} />
+            <!-- A single-run room has no season to show: the run result below already says who won. -->
+            {#if snapshot.config.seasonRuns > 1}<SeasonPanel season={snapshot.season} language={$language} selfParticipantId={self?.participantId ?? null} />{/if}
           {/if}
           {#if snapshot.phase === 'completed' && collectionOutcome}
             <section class="panel collection-outcome">
@@ -1176,17 +1192,10 @@
                 <h1>{snapshot.tournament.championId === me?.id ? gameT('champion') : gameT('eliminated')}</h1>
                 <p>{myCampaign ? translatePlacement($language, myCampaign.placement) : '—'}</p>
               </header>
-              {#if myCampaign}
-                <div class="campaign-grid">
-                  <article><small>{gameT('placement')}</small><strong>{translatePlacement($language, myCampaign.placement)}</strong></article>
-                  <article><small>{gameT('seriesWon')}</small><strong>{myCampaign.seriesWon}</strong></article>
-                  <article><small>{gameT('seriesLost')}</small><strong>{myCampaign.seriesLost}</strong></article>
-                  <article><small>{gameT('mapsWon')}</small><strong>{myCampaign.mapsWon}</strong></article>
-                  <article><small>{gameT('mapsLost')}</small><strong>{myCampaign.mapsLost}</strong></article>
-                  <article><small>{gameT('roundsWon')}</small><strong>{myCampaign.roundsWon}</strong></article>
-                  <article><small>{gameT('roundsLost')}</small><strong>{myCampaign.roundsLost}</strong></article>
-                </div>
-              {/if}
+              <div class="after-run">
+                {#if me?.collection}<a class="primary online-link" href="/online/colecao">{t('editMyTeam')}</a>{/if}
+                <button class="secondary" type="button" on:click={exitRoom}>{t('backToStart')}</button>
+              </div>
               {#if snapshot.selfResult && onlineRunReport && self}
                 <ShareRunCard
                   seed={roomCode}
@@ -1200,6 +1209,19 @@
                   language={$language}
                   labels={{ champion: gameT('champion'), eliminated: gameT('eliminated'), placement: gameT('placement'), record: gameT('record'), maps: gameT('maps'), mvp: gameT('runMvp') }}
                 />
+              {/if}
+              {#if myCampaign}
+                <div class="campaign-grid">
+                  <article><small>{gameT('placement')}</small><strong>{translatePlacement($language, myCampaign.placement)}</strong></article>
+                  <article><small>{gameT('seriesWon')}</small><strong>{myCampaign.seriesWon}</strong></article>
+                  <article><small>{gameT('seriesLost')}</small><strong>{myCampaign.seriesLost}</strong></article>
+                  <article><small>{gameT('mapsWon')}</small><strong>{myCampaign.mapsWon}</strong></article>
+                  <article><small>{gameT('mapsLost')}</small><strong>{myCampaign.mapsLost}</strong></article>
+                  <article><small>{gameT('roundsWon')}</small><strong>{myCampaign.roundsWon}</strong></article>
+                  <article><small>{gameT('roundsLost')}</small><strong>{myCampaign.roundsLost}</strong></article>
+                </div>
+              {/if}
+              {#if snapshot.selfResult && onlineRunReport && self}
                 <section class="online-stats">
                   <div class="section-heading"><div><span class="eyebrow">MAJOR AWARDS</span><h2>{gameT('majorMvp')}</h2></div></div>
                   <MajorAwardsPanel awards={snapshot.tournament?.awards ?? null} language={$language} userTeamId={me?.id ?? null} onTeam={openOrganization} />
@@ -1347,7 +1369,7 @@
   .watch-bar{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:44px;padding:0 14px}
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
-  .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+  .online-major-screen{max-width:900px;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   .account-link{margin:12px auto 0;width:fit-content}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
   .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
   @media(min-width:680px){.mode-choice{grid-template-columns:repeat(3,1fr)}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}

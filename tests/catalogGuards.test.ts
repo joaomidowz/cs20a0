@@ -20,11 +20,11 @@ import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
  * Atualizado em 2026-09-18: revisão de overall/raridade (scripts/apply-overall-review.mjs): escada do top 20 HLTV,
  * pisos de MVP/EVP, teto 89 fora do top 20 e IGLs campeões de Major como GOAT. Só overall, raridade e atributos mudaram.
  */
-const FROZEN_ONLINE_DATA_HASH = '466b6521a8fe6805';
+const FROZEN_ONLINE_DATA_HASH = '18385e9d096d0909';
 
 /** SHA-256 dos bytes crus dos arquivos v1. Só mudam no deploy coordenado do online v2. */
 const FROZEN_V1_FILES: Record<string, string> = {
-  'src/lib/data/cs/players.game.json': '74e5e0b754c6c16c7b6b2eb9236ce7fe78a3b7cb35a7e11cabf7686ed4fcd178',
+  'src/lib/data/cs/players.game.json': 'd071b2615e71a9d5e360b38a1074a3bbd0e24fd5845dd71ce0717a401f51c960',
   'src/lib/data/cs/teams.game.json': '96c8e2e8a6c464e3619ec6294daecdec74b04e669c105d04991a425999a24804',
   'src/lib/data/cs/coaches.game.json': 'aa958df2d6c44c0721c45c9b8ac96a5b2a3c8f50b77e9ab08c19e053e7df79c0'
 };

@@ -974,7 +974,7 @@
     "eligibleSlotRoles": [
       "support"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 94,
@@ -1550,7 +1550,7 @@
     "eligibleSlotRoles": [
       "entry"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 99,
@@ -2796,7 +2796,7 @@
       "igl",
       "support"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 94,
