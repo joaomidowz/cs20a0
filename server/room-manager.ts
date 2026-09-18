@@ -636,6 +636,7 @@ export class RoomManager {
         break;
       case 'configure-simulation':
         this.requireHost(room, participantId);
+        if (room.origin === 'queue') throw new RoomError('INVALID_ACTION', 'Queue matches always run automatic at ultra speed');
         if (!room.engine) throw new RoomError('INVALID_PHASE', 'The tournament has not started');
         if (command.simulationMode) room.config = { ...room.config, simulationMode: command.simulationMode };
         if (command.simulationSpeed) room.config = { ...room.config, simulationSpeed: command.simulationSpeed };

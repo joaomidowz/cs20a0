@@ -24,7 +24,8 @@ export const QUEUE_ROOM_CONFIG: RoomConfig = {
   capacity: QUEUE_MAX,
   draftDeadlineSeconds: 60,
   simulationMode: 'automatic',
-  simulationSpeed: 'normal',
+  // Queue matches always run automatic at ultra speed; nobody can change it in the room.
+  simulationSpeed: 'ultra',
   seasonRuns: 1
 };
 

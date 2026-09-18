@@ -1108,22 +1108,22 @@
           {#if snapshot.phase !== 'completed'}
             <div class="match-controls panel">
               <div class="control-group">
-                <span>{gameT('simulationMode')} {isHost ? '' : '· HOST'}</span>
+                <span>{gameT('simulationMode')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
                 <SegmentedControl
                   value={snapshot.config.simulationMode}
                   label={gameT('simulationMode')}
-                  disabled={!isHost}
+                  disabled={!isHost || snapshot.origin === 'queue'}
                   options={[{ value: 'manual', label: gameT('manual') }, { value: 'automatic', label: gameT('automatic') }]}
                   onChange={(value) => configureSimulation({ simulationMode: value as RoomConfig['simulationMode'] })}
                 />
               </div>
               <div class="control-group">
-                <span>{gameT('speed')} {isHost ? '' : '· HOST'}</span>
+                <span>{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
                 <div class="control-row">
                   <SegmentedControl
                     value={snapshot.config.simulationSpeed}
                     label={gameT('speed')}
-                    disabled={!isHost}
+                    disabled={!isHost || snapshot.origin === 'queue'}
                     options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
                     onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
                   />

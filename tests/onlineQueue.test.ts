@@ -138,6 +138,7 @@ describe('fila competitiva', () => {
     const started = manager.getSnapshot(roomCode, null, clock + 10);
     expect(started.phase).toBe('swiss');
     expect(started.origin).toBe('queue');
+    expect(started.config).toMatchObject({ simulationMode: 'automatic', simulationSpeed: 'ultra' });
 
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 8 }, clock);
     manager.join(code, 'Pw', 'Org w', clock, manager.prepareLineup(code, prepared('w'), clock));

@@ -44,7 +44,7 @@ export const DEFAULT_ROOM_CONFIG: RoomConfig = {
   capacity: 16,
   draftDeadlineSeconds: 120,
   simulationMode: 'automatic',
-  simulationSpeed: 'normal',
+  simulationSpeed: 'ultra',
   seasonRuns: 1
 };
 
