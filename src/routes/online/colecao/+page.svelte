@@ -3,7 +3,6 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
-  import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import Upgrader from '$lib/components/online/Upgrader.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
   import TradesPanel from '$lib/components/online/TradesPanel.svelte';
@@ -300,11 +299,8 @@
         <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="ghost link" href="/suporte?aba=overall">{$language === 'en' ? 'Wrong rating?' : $language === 'es' ? '¿Overall incorrecto?' : 'Overall errado?'}</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
 
-      <MissionsPanel {serverUrl} language={$language} onClaimed={() => void refresh()} />
-
-      <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} {oddsLabels} onBuy={(tier) => runReveal(() => buyPromo(serverUrl, tier), tier)} />
-
-      <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()} />
+      <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()}
+        playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
 
       <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onChanged={() => void refresh()} />
 
@@ -354,6 +350,8 @@
               </article>
             {/each}
           </div>
+
+          <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} {oddsLabels} onBuy={(tier) => runReveal(() => buyPromo(serverUrl, tier), tier)} />
 
           {#if reveal}
             <div bind:this={shopSection}>

@@ -64,38 +64,39 @@
 </script>
 
 <section class="panel missions-panel" aria-label={t('missions')}>
-  <header class="missions-head">
-    <h2>{t('missions')}</h2>
-    <div class="missions-tabs" role="tablist">
-      {#each TABS as item}
-        <button type="button" role="tab" aria-selected={tab === item.scope} class:active={tab === item.scope} on:click={() => (tab = item.scope)}>
-          {t(item.key)}{#if ready(item.scope)}<i class="missions-dot" aria-hidden="true"></i>{/if}
-        </button>
-      {/each}
-    </div>
-  </header>
-  <p class="missions-hint">
-    {tab === 'solo' ? t('missionSoloHint') : t('missionOnlineHint')}
-    {#if tab === 'solo'} · {t('soloStreakNow')}: <b>{streak.current}</b> (máx. {streak.best}){/if}
-  </p>
+  <div class="section-heading">
+    <div><span class="eyebrow">{t('missions').toUpperCase()}</span><h2>{t('missions')}</h2></div>
+    {#if tab === 'solo'}<strong class="count">{t('soloStreakNow')} {streak.current} <small>· {t('missionBest')} {streak.best}</small></strong>{/if}
+  </div>
+  <div class="segmented-control missions-tabs" role="tablist">
+    {#each TABS as item}
+      <button type="button" role="tab" aria-selected={tab === item.scope} class:active={tab === item.scope} on:click={() => (tab = item.scope)}>
+        {t(item.key)}{#if ready(item.scope)}<b class="missions-badge">{ready(item.scope)}</b>{/if}
+      </button>
+    {/each}
+  </div>
+  <p class="note">{tab === 'solo' ? t('missionSoloHint') : t('missionOnlineHint')}</p>
   {#if error}<p class="missions-error" role="alert">{error}</p>{/if}
   <ul class="missions-list">
     {#each shown as mission (mission.id)}
       {@const done = mission.progress >= mission.target}
-      <li class:done class:claimed={mission.claimed}>
+      <li class:ready={done && !mission.claimed} class:claimed={mission.claimed}>
         <div class="missions-text">
           <strong>{label(mission.id)}</strong>
-          <small>{mission.coins.toLocaleString(language)} coins{#if mission.packs} + {mission.packs} {t('missionPacks')}{/if} · {t('missionResets')} {resetsIn(mission.resetsAt)}</small>
+          <small>{t('missionResets')} {resetsIn(mission.resetsAt)}</small>
+        </div>
+        <div class="missions-progress">
           <div class="missions-bar" role="progressbar" aria-valuemin="0" aria-valuemax={mission.target} aria-valuenow={mission.progress}>
             <span style={`width: ${Math.min(100, (mission.progress / mission.target) * 100)}%`}></span>
           </div>
+          <span class="missions-count">{Math.min(mission.progress, mission.target)}/{mission.target}</span>
         </div>
+        <span class="missions-reward"><i></i>{mission.coins.toLocaleString(language)}{#if mission.packs}<em>+ {mission.packs} {t('missionPacks')}</em>{/if}</span>
         <div class="missions-action">
-          <span class="missions-count">{mission.progress}/{mission.target}</span>
           {#if mission.claimed}
-            <span class="missions-claimed">{t('missionClaimed')}</span>
+            <span class="missions-claimed">✓ {t('missionClaimed')}</span>
           {:else}
-            <button type="button" class="primary" disabled={!done || busyId === mission.id} on:click={() => claim(mission)}>{t('missionClaim')}</button>
+            <button type="button" class={done ? 'primary' : 'secondary'} disabled={!done || busyId === mission.id} on:click={() => claim(mission)}>{t('missionClaim')}</button>
           {/if}
         </div>
       </li>
@@ -104,25 +105,33 @@
 </section>
 
 <style>
-  .missions-panel { display: grid; gap: 0.75rem; }
-  .missions-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .missions-head h2 { margin: 0; }
-  .missions-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-  .missions-tabs button { position: relative; padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
-  .missions-tabs button.active { background: var(--accent, #f5a623); color: var(--accent-ink, #111); border-color: transparent; }
-  .missions-dot { position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: #3ddc84; }
-  .missions-hint { margin: 0; font-size: 0.85rem; opacity: 0.8; }
-  .missions-error { margin: 0; color: #ff6b6b; }
-  .missions-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-  .missions-list li { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--line, #333); }
-  .missions-list li.done:not(.claimed) { border-color: #3ddc84; }
-  .missions-list li.claimed { opacity: 0.6; }
-  .missions-text { display: grid; gap: 0.25rem; flex: 1; min-width: 0; }
-  .missions-text small { opacity: 0.75; }
-  .missions-bar { height: 6px; border-radius: 999px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
-  .missions-bar span { display: block; height: 100%; background: var(--accent, #f5a623); transition: width 300ms ease-out; }
-  .missions-action { display: grid; gap: 0.25rem; justify-items: end; }
-  .missions-count { font-variant-numeric: tabular-nums; font-size: 0.85rem; }
-  .missions-claimed { font-size: 0.8rem; opacity: 0.8; }
-  @media (max-width: 520px) { .missions-list li { flex-direction: column; align-items: stretch; } .missions-action { justify-items: stretch; grid-auto-flow: column; align-items: center; } }
+  .missions-panel { display: grid; gap: 16px; padding: 22px; align-content: start; }
+  .count { color: var(--accent); font: 900 1.3rem/1 'Arial Narrow', Impact, sans-serif; white-space: nowrap; }
+  .count small { color: var(--muted); font: 700 .7rem Inter, Arial, sans-serif; }
+  .missions-tabs button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 0; }
+  .missions-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; background: var(--accent); color: #0a0d08; font-size: .6rem; font-weight: 900; }
+  .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+  .missions-error { margin: 0; padding: 10px 12px; border: 1px solid var(--danger); color: #ff9b90; font-size: .78rem; }
+  .missions-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .missions-list li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(140px, 1fr) 150px 150px; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid var(--line); background: var(--surface-2); }
+  .missions-list li.ready { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+  .missions-list li.claimed { border-left-color: var(--line); background: var(--surface); }
+  .missions-list li.claimed .missions-text, .missions-list li.claimed .missions-progress, .missions-list li.claimed .missions-reward { opacity: .5; }
+  .missions-text { display: grid; gap: 4px; min-width: 0; }
+  .missions-text strong { font-size: .86rem; line-height: 1.3; }
+  .missions-text small { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .missions-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+  .missions-bar { height: 6px; background: var(--surface); border: 1px solid var(--line); }
+  .missions-bar span { display: block; height: 100%; background: var(--accent); transition: width 300ms ease-out; }
+  .missions-count { color: var(--text); font: 900 1rem/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
+  .missions-reward { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; font-size: .8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .missions-reward i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  .missions-reward em { color: var(--accent); font-size: .66rem; font-style: normal; text-transform: uppercase; }
+  .missions-action { display: grid; }
+  .missions-action button { min-height: 42px; padding: 0 12px; border-radius: 0; font-size: .66rem; }
+  .missions-claimed { display: grid; place-items: center; min-height: 42px; border: 1px solid var(--line); color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  @media (max-width: 860px) {
+    .missions-list li { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
+    .missions-text, .missions-progress { grid-column: 1 / -1; }
+  }
 </style>

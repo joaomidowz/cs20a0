@@ -1,4 +1,4 @@
-import { COACH_CHANCE, PACK_SLOTS, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
+import { COACH_CHANCE, PACK_SLOTS, PROMO_BONUS_COACH, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
 import { createSeededRng } from '../../src/lib/game/simulation';
 import type { Coach, Player } from '../../src/lib/game/types';
 
@@ -60,7 +60,10 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
 
 export type PackCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
 
-/** A pack with a chance that its last card is a coach (same seed, same pack); the guaranteed first card is never replaced. Era packs draw the coach from the chosen year. */
+/**
+ * A pack with a chance that its last card is a coach (same seed, same pack); the guaranteed first card is never replaced. Era packs
+ * draw the coach from the chosen year. The Legend promotion adds its coach as an extra card instead of replacing one.
+ */
 export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[], coaches: Coach[], options: RollOptions = {}): PackCard[] {
   const cards: PackCard[] = rollPack(tier, seed, pool, options).map((player) => ({ kind: 'player', player }));
   const rng = createSeededRng(`${seed}:coach`);
@@ -69,7 +72,10 @@ export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[]
   if (!eligible.length) return cards;
   for (const rarity of ladderOf(pickRarity(PACK_SLOTS[tier][PACK_SLOTS[tier].length - 1], rng()))) {
     const candidates = eligible.filter((coach) => rarityOf(coach) === rarity);
-    if (candidates.length) { cards[cards.length - 1] = { kind: 'coach', coach: candidates[Math.floor(rng() * candidates.length)] }; break; }
+    if (!candidates.length) continue;
+    const coach: PackCard = { kind: 'coach', coach: candidates[Math.floor(rng() * candidates.length)] };
+    if ((PROMO_BONUS_COACH as readonly string[]).includes(tier)) cards.push(coach); else cards[cards.length - 1] = coach;
+    break;
   }
   return cards;
 }

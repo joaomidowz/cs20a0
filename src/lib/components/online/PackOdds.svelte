@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CARDS_PER_PACK, COACH_CHANCE, PACK_SLOTS, RARITIES, type PackTier, type Rarity, type RarityOdds } from '$lib/game/online/collection-rules';
+  import { COACH_CHANCE, PACK_SLOTS, RARITIES, type PackTier, type Rarity, type RarityOdds } from '$lib/game/online/collection-rules';
 
   /** The ⓘ in the corner of a pack: hover or focus previews the odds on desktop, a click or tap pins them (bottom sheet on phones). */
   export let tier: PackTier;
@@ -29,7 +29,7 @@
   <button type="button" class="info" aria-label={`${labels.heading}: ${title}`} aria-expanded={open} on:click|stopPropagation={() => pinned = !pinned} on:focus={() => hovered = true} on:blur={() => hovered = false}>i</button>
   {#if open}
     <div class="odds-sheet" role="dialog" aria-label={`${labels.heading}: ${title}`}>
-      <header><strong>{title}</strong><span>{labels.heading} · {CARDS_PER_PACK}×</span></header>
+      <header><strong>{title}</strong><span>{labels.heading} · {PACK_SLOTS[tier].length}×</span></header>
       {#each blocks as block}
         <div class="block">
           <small>{block.label}</small>

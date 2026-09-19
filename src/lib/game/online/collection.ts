@@ -64,7 +64,6 @@ export const upgradeCards = (serverUrl: string, stake: string[], target: string)
 export interface PromoOffer {
   tier: PromoTier;
   price: number;
-  cards: string[];
   bought: boolean;
 }
 

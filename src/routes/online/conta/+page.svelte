@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import PublicProfileSheet from '$lib/components/online/PublicProfileSheet.svelte';
   import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -136,6 +137,8 @@
           {/if}
         </section>
       </div>
+
+      <MissionsPanel {serverUrl} language={$language} />
 
       <BuyCoins {serverUrl} language={$language} />
 

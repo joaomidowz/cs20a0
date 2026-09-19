@@ -11,10 +11,16 @@ export type RarityOdds = Readonly<Record<Rarity, number>>;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
 export const PACK_TIERS: readonly PackTier[] = ['basic', 'prata', 'ouro', 'era', 'diamante', 'icone'];
-/** Daily promotions: one per rarity, four cards, sold once a day per account. */
+/**
+ * Daily promotions: one per rarity, a single surprise card drawn at purchase, sold once a day per account. The Legend one
+ * also brings a coach, added as an extra card (see PROMO_BONUS_COACH).
+ */
 export const PROMO_TIERS: readonly PromoTier[] = ['promo_elite', 'promo_superstar', 'promo_legend'];
 export const PROMO_RARITY: Readonly<Record<PromoTier, Rarity>> = { promo_elite: 'elite', promo_superstar: 'superstar', promo_legend: 'legend' };
-export const PROMO_CARDS = 4;
+export const PROMO_CARDS = 1;
+/** Promotions whose coach comes on top of the card instead of replacing it. */
+export const PROMO_BONUS_COACH: readonly PromoTier[] = ['promo_legend'];
+export const isPromoTier = (tier: PackTier): tier is PromoTier => (PROMO_TIERS as readonly string[]).includes(tier);
 /** Packs sold for coins, in shop order (the basic pack is the daily grant). */
 export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['prata', 'era', 'ouro', 'diamante', 'icone'];
 export const CARDS_PER_PACK = 3;
@@ -33,11 +39,10 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
   ouro: same(odds(10, 26, 33, 16, 13, 2)),
   diamante: [odds(0, 0, 0, 0, 90, 10), odds(0, 0, 0, 30, 60, 10), odds(0, 0, 0, 30, 60, 10)],
   icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 0, 20, 60, 20), odds(0, 0, 0, 20, 60, 20)],
-  // Promotions: the first card is the promotion's rarity (0.5% of it a GOAT, the only GOAT chance of the pack); the other three
-  // are cheaper, with Legend kept low in the two smaller ones.
-  promo_elite: [odds(0, 0, 97.5, 0, 2, 0.5), ...Array.from({ length: 3 }, () => odds(35, 40, 20, 4, 1, 0))],
-  promo_superstar: [odds(0, 0, 0, 97.5, 2, 0.5), ...Array.from({ length: 3 }, () => odds(15, 35, 35, 12, 3, 0))],
-  promo_legend: [odds(0, 0, 0, 0, 99.5, 0.5), ...Array.from({ length: 3 }, () => odds(0, 20, 40, 30, 10, 0))]
+  // Promotions: one card. Elite and Superstar are exactly that rarity; Legend is a Legend about 30% of the time, a Superstar otherwise.
+  promo_elite: [odds(0, 0, 100, 0, 0, 0)],
+  promo_superstar: [odds(0, 0, 0, 100, 0, 0)],
+  promo_legend: [odds(0, 0, 0, 70, 30, 0)]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
@@ -107,8 +112,8 @@ export function seasonPoints(placement: string, lobbySize: number): number {
 /** A repeated card pays this share of its value, like selling it (paying 100% let cheap packs print coins). */
 export const DUPLICATE_RATIO = 0.6;
 
-/** Chance that one of the three cards of a pack is a coach instead of a player. */
-export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2, promo_elite: 0.25, promo_superstar: 0.25, promo_legend: 0.25 };
+/** Chance that one of the three cards of a pack is a coach instead of a player (the Legend promotion: a coach on top of its card). */
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2, promo_elite: 0, promo_superstar: 0, promo_legend: 1 };
 
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;

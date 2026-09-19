@@ -1,12 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
-  import { cardLabel } from '$lib/game/online/card-value';
   import { fetchPromos, type PromoOffer } from '$lib/game/online/collection';
-  import type { PromoTier } from '$lib/game/online/collection-rules';
+  import { PROMO_RARITY, type PromoTier } from '$lib/game/online/collection-rules';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import type { Language } from '$lib/game/types';
-  import PackCase from './PackCase.svelte';
   import PackOdds from './PackOdds.svelte';
 
   export let serverUrl: string;
@@ -18,6 +16,7 @@
   export let onBuy: (tier: PromoTier) => Promise<void>;
 
   const LABEL: Record<PromoTier, OnlineTranslationKey> = { promo_elite: 'promoElite', promo_superstar: 'promoSuperstar', promo_legend: 'promoLegend' };
+  const HINT: Record<PromoTier, OnlineTranslationKey> = { promo_elite: 'promoEliteHint', promo_superstar: 'promoSuperstarHint', promo_legend: 'promoLegendHint' };
   let promos: PromoOffer[] = [];
   let endsAt = 0;
   let clock = Date.now();
@@ -27,6 +26,7 @@
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: left = Math.max(0, endsAt - clock);
   $: countdown = `${String(Math.floor(left / 3_600_000)).padStart(2, '0')}:${String(Math.floor((left % 3_600_000) / 60_000)).padStart(2, '0')}:${String(Math.floor((left % 60_000) / 1000)).padStart(2, '0')}`;
+  $: open = promos.filter((promo) => !promo.bought).length;
 
   async function load() {
     try {
@@ -54,39 +54,66 @@
   onDestroy(() => clearInterval(timer));
 </script>
 
-<section class="panel promos" aria-label={t('promos')}>
-  <div class="section-heading">
-    <div><span class="eyebrow">{t('promos').toUpperCase()}</span><h2>{t('promos')}</h2></div>
-    {#if endsAt}<span class="promos-clock">{t('promoEndsIn')} <b>{countdown}</b></span>{/if}
+<details class="promos-acc">
+  <summary>
+    <span class="promos-title">{t('promos')}</span>
+    <b class="promos-count">{open}/{promos.length || 3}</b>
+    {#if endsAt}<em class="promos-clock">{t('promoEndsIn')} {countdown}</em>{/if}
+  </summary>
+  <div class="promos-body">
+    <p class="note">{t('promosHint')}</p>
+    {#if error}<p class="promos-error" role="alert">{error}</p>{/if}
+    <ul class="promos-list">
+      {#each promos as promo (promo.tier)}
+        <li class="promo rarity-{PROMO_RARITY[promo.tier]}" class:bought={promo.bought}>
+          <div class="promo-info">
+            <span class="promo-rarity">{PROMO_RARITY[promo.tier]}</span>
+            <strong>{t(LABEL[promo.tier])}</strong>
+            <small>{t(HINT[promo.tier])}</small>
+          </div>
+          <span class="promo-price"><i></i>{promo.price.toLocaleString(language)}</span>
+          <span class="promo-clock">{promo.bought ? t('promoBought') : countdown}</span>
+          {#if promo.bought}
+            <span class="promo-done">✓</span>
+          {:else}
+            <button type="button" class="primary small" disabled={busy || wallet < promo.price} on:click={() => buy(promo.tier)}>{t('promoBuy')}</button>
+          {/if}
+          <PackOdds tier={promo.tier} title={t(LABEL[promo.tier])} labels={oddsLabels} />
+        </li>
+      {/each}
+    </ul>
   </div>
-  <p class="promos-hint">{t('promosHint')}</p>
-  {#if error}<p class="promos-error" role="alert">{error}</p>{/if}
-  <div class="promos-grid">
-    {#each promos as promo (promo.tier)}
-      <article class="promo" class:bought={promo.bought}>
-        <PackOdds tier={promo.tier} title={t(LABEL[promo.tier])} labels={oddsLabels} />
-        <PackCase tier={promo.tier} label={t(LABEL[promo.tier])} />
-        <strong>{t(LABEL[promo.tier])}</strong>
-        <ol>{#each promo.cards as id}<li>{cardLabel(id)}</li>{/each}</ol>
-        {#if promo.bought}
-          <span class="promos-done">{t('promoBought')}</span>
-        {:else}
-          <button type="button" class="primary" disabled={busy || wallet < promo.price} on:click={() => buy(promo.tier)}>{t('promoBuy')} · {promo.price.toLocaleString(language)} coins</button>
-        {/if}
-      </article>
-    {/each}
-  </div>
-</section>
+</details>
 
 <style>
-  .promos { display: grid; gap: 0.75rem; }
-  .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 0.5rem; flex-wrap: wrap; }
-  .promos-clock { font-variant-numeric: tabular-nums; font-size: 0.9rem; opacity: 0.85; }
-  .promos-hint { margin: 0; font-size: 0.85rem; opacity: 0.8; }
-  .promos-error { margin: 0; color: #ff6b6b; }
-  .promos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
-  .promo { position: relative; display: grid; gap: 0.5rem; justify-items: center; padding: 0.75rem; border-radius: 12px; border: 1px solid var(--line, #333); }
-  .promo.bought { opacity: 0.6; }
-  .promo ol { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; justify-self: stretch; }
-  .promos-done { font-size: 0.85rem; opacity: 0.8; }
+  .promos-acc { border: 1px solid var(--line); background: var(--surface); }
+  .promos-acc summary { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; padding: 14px 16px; cursor: pointer; list-style-position: inside; }
+  .promos-acc[open] summary { border-bottom: 1px solid var(--line); }
+  .promos-title { font: 900 1.1rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+  .promos-count { color: var(--accent); font-size: .72rem; font-weight: 800; }
+  .promos-clock { margin-left: auto; color: var(--muted); font-size: .64rem; font-style: normal; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+  .promos-body { display: grid; gap: 12px; padding: 16px; }
+  .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+  .promos-error { margin: 0; padding: 10px 12px; border: 1px solid var(--danger); color: #ff9b90; font-size: .78rem; }
+  .promos-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .promo { --rarity: var(--line); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto 96px 140px; gap: 16px; align-items: center; padding: 14px 44px 14px 16px; border: 1px solid var(--line); border-left: 3px solid var(--rarity); background: linear-gradient(90deg, color-mix(in srgb, var(--rarity) 10%, var(--surface-2)), var(--surface-2) 60%); }
+  .rarity-elite { --rarity: #a66bff; } .rarity-superstar { --rarity: #ff7a45; } .rarity-legend { --rarity: #f2c14e; }
+  .promo :global(.odds-root) { top: 50%; right: 12px; transform: translateY(-50%); }
+  .promo-info { display: grid; gap: 4px; min-width: 0; }
+  .promo-rarity { color: color-mix(in srgb, var(--rarity) 75%, var(--text)); font-size: .56rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+  .promo-info strong { font: 900 1.25rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .promo-info small { color: var(--muted); font-size: .72rem; line-height: 1.4; }
+  .promo-price { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); font-size: .8rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .promo-price i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  .promo-clock { color: var(--muted); font-size: .7rem; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; text-transform: uppercase; }
+  .promo .small { border-radius: 0; min-height: 40px; padding: 0 12px; font-size: .66rem; }
+  .promo-done { display: grid; place-items: center; min-height: 40px; border: 1px solid var(--accent); color: var(--accent); font-weight: 900; }
+  .promo.bought { background: var(--surface-2); }
+  .promo.bought .promo-info, .promo.bought .promo-price { opacity: .55; }
+  @media (max-width: 720px) {
+    .promo { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
+    .promo-info { grid-column: 1 / -1; }
+    .promo-clock { text-align: left; }
+    .promo .small, .promo-done { grid-column: 1 / -1; }
+  }
 </style>

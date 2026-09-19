@@ -138,28 +138,25 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
 export interface PromoView {
   tier: PromoTier;
   price: number;
-  /** The day's four cards: the same for everyone, drawn from `promo:<day>:<rarity>`. */
-  cards: string[];
   bought: boolean;
 }
 
-/** Seed of a daily promotion: everyone sees (and buys) the same four cards that day. */
-export const promoSeed = (day: string, tier: PromoTier) => `promo:${day}:${PROMO_RARITY[tier]}`;
-const promoCards = (day: string, tier: PromoTier) => rollPackWithCoaches(tier, promoSeed(day, tier), players, collectionCoaches);
+/** Seed of one account's promotion of the day: the card is a surprise, drawn at purchase and different for each account. */
+export const promoSeed = (day: string, tier: PromoTier, userId: string) => `promo:${day}:${PROMO_RARITY[tier]}:${userId}`;
 /** Next midnight in Brasília (UTC-3), when the promotions turn over. */
 const nextDayStart = (day: string) => { const [y, m, d] = day.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 1, 3)).toISOString(); };
 
 export async function listPromos(db: Db, userId: string, now: number): Promise<{ day: string; endsAt: string; promos: PromoView[] }> {
   const day = dayKeyUtcMinus3(now);
   const bought = new Set((await db.query<{ tier: string }>('SELECT tier FROM promo_purchases WHERE user_id = $1 AND day = $2', [userId, day])).map((row) => row.tier));
-  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: PACK_PRICES[tier], cards: promoCards(day, tier).map(cardId), bought: bought.has(tier) })) };
+  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: PACK_PRICES[tier], bought: bought.has(tier) })) };
 }
 
-/** Buys today's promotion of one rarity, once per account per day. */
+/** Buys today's promotion of one rarity, once per account per day: one surprise card (plus a coach in the Legend one). */
 export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: number): Promise<PackResult> {
   const day = dayKeyUtcMinus3(now);
-  const cards = promoCards(day, tier);
-  const seed = `${promoSeed(day, tier)}:${userId}`;
+  const seed = promoSeed(day, tier, userId);
+  const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches);
   return db.tx(async (tx) => {
     const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, seed]);
     if (!inserted.length) throw new CollectionError(409, 'PROMO_BOUGHT', 'Você já comprou essa promoção hoje');
