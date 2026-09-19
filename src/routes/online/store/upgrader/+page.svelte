@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../../../../app.css';
   import StoreNav from '$lib/components/online/StoreNav.svelte';
+  import { uiCopy } from '$lib/game/online/ui-copy';
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import Upgrader from '$lib/components/online/Upgrader.svelte';
@@ -74,7 +75,7 @@
     {#if !isOnlineEnabled()}
       <section class="panel box"><p>{t('accountsDisabled')}</p></section>
     {:else if loading}
-      <section class="panel box"><p>…</p></section>
+      <section class="panel box" aria-busy="true"><p role="status">{uiCopy($language, 'loading')}</p></section>
     {:else if !$accountUser}
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href="/online/conta?next=/online/store/upgrader">{t('goAccount')}</a></section>
     {:else if state}
@@ -84,7 +85,7 @@
       <Upgrader {serverUrl} language={$language} {ownedIds} {lockedIds} onDone={() => void refresh()}
         playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
     {/if}
-    {#if error}<p class="online-error" role="alert">{error}</p>{/if}
+    {#if error}<p class="online-error" role="alert"><span>{error}</span>{#if !state}<button class="secondary" type="button" on:click={() => refresh()}>{uiCopy($language, 'retry')}</button>{/if}</p>{/if}
 
     <section class="faq panel" aria-labelledby="faq-title">
       <h2 id="faq-title">{t('faqTitle')}</h2>
@@ -149,5 +150,6 @@
   .faq th, .faq td { padding: 6px 14px 6px 0; border-bottom: 1px solid var(--line); text-align: left; }
   .faq th { color: var(--muted); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; }
   .faq pre { margin: 0 0 14px; padding: 12px; overflow-x: auto; border: 1px solid var(--line); background: var(--surface-2); font-size: .7rem; line-height: 1.5; }
-  .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
+  .online-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
+  .online-error button { min-height: 44px; border-radius: 0; }
 </style>

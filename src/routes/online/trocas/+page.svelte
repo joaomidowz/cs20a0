@@ -30,15 +30,19 @@
     <header class="screen-header"><span class="eyebrow">ONLINE · {uiCopy($language, 'team')}</span><h1>{t('trades')}</h1><p>{t('tradesHint')}</p></header>
     <a class="secondary link" href="/online/colecao">← {uiCopy($language, 'team')}</a>
     {#if !isOnlineEnabled()}<p>{t('accountsDisabled')}</p>
-    {:else if loading}<p role="status">{uiCopy($language, 'loading')}</p>
+    {:else if loading}<p class="panel status" role="status" aria-busy="true">{uiCopy($language, 'loading')}</p>
     {:else if !$accountUser}<a class="primary link" href="/online/conta?next=/online/trocas">{t('goAccount')}</a>
     {:else if state}
       <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={[...(state.lineup?.playerIds ?? []), ...(state.lineup?.coachId ? [state.lineup.coachId] : [])]} onChanged={() => void refresh()} />
     {/if}
-    {#if error}<p role="alert">{error}</p><button class="secondary" on:click={refresh}>{uiCopy($language, 'retry')}</button>{/if}
+    {#if error}<p class="online-error" role="alert"><span>{error}</span><button class="secondary" type="button" on:click={refresh}>{uiCopy($language, 'retry')}</button></p>{/if}
   </section>
 </PageLayout>
 <style>
   .trade-page { display:grid; gap:20px; padding:28px 0 60px; }
+  .status { margin:0; padding:22px; }
+  @media(max-width:720px) { .trade-page { padding-top:8px; gap:14px; } }
+  .online-error { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:12px; border:1px solid var(--danger); color:#ff9b90; }
+  .online-error button { min-height:44px; border-radius:0; }
   .link { display:inline-flex; align-items:center; justify-self:start; min-height:48px; padding:0 20px; text-decoration:none; }
 </style>

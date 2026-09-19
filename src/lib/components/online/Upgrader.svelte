@@ -8,6 +8,7 @@
   import { FAIR_CLIENT_SEED_MAX, isValidClientSeed, rollDegrees, verifyFair } from '$lib/game/online/fair';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { confirmDialog } from '$lib/game/ui/dialog';
+  import { uiCopy } from '$lib/game/online/ui-copy';
   import type { Coach, Language, Player } from '$lib/game/types';
   import CollectionCard from './CollectionCard.svelte';
   import CoachCard from './CoachCard.svelte';
@@ -94,6 +95,13 @@
   $: spinning = phase === 'spinning';
   $: resultRarity = resultCard?.rarity ?? 'common';
   $: seedOk = isValidClientSeed(clientSeed);
+  $: u = (key: Parameters<typeof uiCopy>[1]) => uiCopy(language, key);
+  /** Phones (≤720px) walk the three columns one at a time: cards to stake, target, then review and spin. Desktop shows all three. */
+  let step: 1 | 2 | 3 = 1;
+  $: if (!round && step > 1 && !stake.length) step = 1;
+  $: if (!round && step > 2 && !target) step = 2;
+  $: canStep = (value: 1 | 2 | 3) => value === 1 || Boolean(round) || (value === 2 ? stake.length > 0 : stake.length > 0 && Boolean(target));
+  const goStep = (value: 1 | 2 | 3) => { if (spinning || !canStep(value)) return; if (round && value < 3) clearRound(); step = value; if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
@@ -191,7 +199,13 @@
 <section class="upgrader" aria-label={t('upgrader')}>
   {#if error}<p class="upgrader-error" role="alert">{error}</p>{/if}
 
-  <div class="board">
+  <nav class="steps" aria-label={t('upgrader')}>
+    {#each [[1, 'chooseStake'], [2, 'chooseTarget'], [3, 'reviewUpgrade']] as [value, key]}
+      <button type="button" aria-current={step === value ? 'step' : undefined} disabled={spinning || !canStep(value as 1 | 2 | 3)} on:click={() => goStep(value as 1 | 2 | 3)}><b>{value}</b>{u(key as 'chooseStake')}</button>
+    {/each}
+  </nav>
+
+  <div class="board step-{step}">
     <div class="column stake-col">
       <div class="col-head">
         <span class="label">{t('upgraderStake')}</span>
@@ -249,9 +263,13 @@
           </div>
         {/each}
       </div>
+      <button type="button" class="primary step-next" disabled={!stake.length || spinning} on:click={() => goStep(2)}>{u('next')} · {u('chooseTarget')}</button>
     </div>
 
     <div class="column wheel-col">
+      {#if !round && stakeCards.length && targetCard}
+        <p class="review-line"><span>{stakeCards.length} · {fmt(stakeValue)} coins</span> → <b>{cardLabel(targetCard.id)}</b></p>
+      {/if}
       <div class="dial fx-{resultRarity}" bind:this={wheel} class:spinning class:won={settled && outcome?.won} class:lost={settled && outcome && !outcome.won}>
         {#if settled && outcome?.won}
           <div class="rays" aria-hidden="true"></div>
@@ -278,6 +296,8 @@
         {/if}
       </p>
       <button type="button" class="primary go" disabled={busy || spinning || !target || !stake.length} on:click={go}>{spinning ? t('upgraderSpinning') : t('upgraderGo')}</button>
+      {#if settled}<button type="button" class="secondary step-next" on:click={() => goStep(1)}>{u('chooseStake')}</button>
+      {:else}<button type="button" class="secondary step-next" disabled={spinning} on:click={() => goStep(2)}>← {u('back')}</button>{/if}
     </div>
 
     <div class="column target-col">
@@ -323,6 +343,10 @@
             {/if}
           </div>
         {/each}
+      </div>
+      <div class="step-actions">
+        <button type="button" class="secondary step-next" on:click={() => goStep(1)}>← {u('back')}</button>
+        <button type="button" class="primary step-next" disabled={!target || !stake.length || spinning} on:click={() => goStep(3)}>{u('next')} · {u('reviewUpgrade')}</button>
       </div>
     </div>
   </div>
@@ -410,7 +434,7 @@
     100% { transform: scale(1); box-shadow: 0 0 34px color-mix(in srgb, var(--fx) 65%, transparent); }
   }
 
-  .wheel-col { position: sticky; top: 84px; justify-items: center; gap: 14px; background: var(--surface); overflow: hidden; }
+  .wheel-col { position: sticky; top: 150px; justify-items: center; gap: 14px; background: var(--surface); overflow: hidden; }
   /* Rarity colors, the same as the pack reveal: the win burst and the target glow take the won card's. */
   .dial, .target-card { --fx: #8d979e; }
   .fx-rare { --fx: #4da3ff; } .fx-elite { --fx: #a66bff; } .fx-superstar { --fx: #ff8a3d; } .fx-legend { --fx: #ffc94d; } .fx-goat { --fx: #ff5ad8; }
@@ -469,6 +493,21 @@
   .rarity-filter button.active { border-color: var(--accent); color: var(--accent); }
   .filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font: inherit; }
 
+  .steps, .step-next, .review-line { display: none; }
+  .step-actions { display: contents; }
+  @media (max-width: 720px) {
+    .steps { position: sticky; top: 118px; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); background: var(--surface); }
+    .steps button { display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 4px; border: 1px solid transparent; border-radius: 0; background: transparent; color: var(--muted); font-size: .66rem; font-weight: 800; line-height: 1.2; }
+    .steps button b { font: 900 1rem/1 'Arial Narrow', Impact, sans-serif; }
+    .steps button[aria-current] { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+    .steps button:disabled { opacity: .45; }
+    .board.step-1 .column:not(.stake-col), .board.step-2 .column:not(.target-col), .board.step-3 .column:not(.wheel-col) { display: none; }
+    .step-next { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border-radius: 0; }
+    .step-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+    .review-line { display: flex; flex-wrap: wrap; gap: 4px 8px; justify-content: center; margin: 0; font-size: .8rem; text-align: center; }
+    .review-line span { color: var(--muted); } .review-line b { color: var(--accent); }
+    .board .mini-grid.scroll { max-height: none; overflow: visible; }
+  }
   @media (max-width: 980px) {
     .board { grid-template-columns: 1fr; }
     .wheel-col { position: static; }

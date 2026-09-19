@@ -86,6 +86,8 @@
   let filterRole = '';
   let filterRarity = '';
 
+  $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity);
+  const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; };
   const showToast = (message: string) => { toast = message; setTimeout(() => { if (toast === message) toast = ''; }, 2400); };
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
@@ -311,7 +313,7 @@
 
 <PageLayout wide language={$language} theme={$theme} onLanguage={(value) => $language = value} onTheme={() => $theme = $theme === 'dark' ? 'light' : 'dark'}>
   <section class="collection">
-    {#if error}<p class="online-error inline-error" role="alert">{error}</p>{/if}
+    {#if error}<p class="online-error inline-error" role="alert"><span>{error}</span>{#if !state && !loading}<button class="secondary small" type="button" on:click={() => refresh()}>{u('retry')}</button>{:else}<button class="ghost small" type="button" on:click={() => error = ''}>×</button>{/if}</p>{/if}
     <header class="screen-header centered">
       <span class="eyebrow">ONLINE · {t('collection').toUpperCase()}</span>
       <h1>{section === 'store' ? 'Store' : t('myTeam')}</h1>
@@ -321,7 +323,7 @@
     {#if !isOnlineEnabled()}
       <section class="panel box"><p>{t('accountsDisabled')}</p></section>
     {:else if loading}
-      <section class="panel box"><p>…</p></section>
+      <section class="panel box" aria-busy="true"><p role="status">{u('loading')}</p></section>
     {:else if !$accountUser}
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href={section === 'store' ? '/online/conta?next=/online/store' : '/online/conta?next=/online/colecao'}>{t('goAccount')}</a></section>
     {:else if state}
@@ -518,6 +520,7 @@
           <label><span>{t('filterYear')}</span><select bind:value={filterYear}><option value="">{t('all')}</option>{#each YEARS as year}<option value={String(year)}>{year}</option>{/each}</select></label>
           <label><span>{t('filterRole')}</span><select bind:value={filterRole}><option value="">{t('all')}</option>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
           <label><span>{t('filterRarity')}</span><select bind:value={filterRarity}><option value="">{t('all')}</option>{#each RARITIES as rarity}<option value={rarity}>{rarity}</option>{/each}</select></label>
+          {#if filtersOn}<button class="ghost small clear-filters" type="button" on:click={clearFilters}>{u('clear')}</button>{/if}
         </div>
         {#if ownedCoaches.length}
           <h3 class="subhead">COACHES <small>{ownedCoaches.length}</small></h3>
@@ -536,7 +539,7 @@
           <h3 class="subhead">{t('myCards').toUpperCase()}</h3>
         {/if}
         {#if !visible.length}
-          <p class="note">{u('noCards')}</p><a class="secondary link" href="/online/store">Store →</a>
+          <p class="note">{u('noCards')}</p>{#if filtersOn}<button class="secondary" type="button" on:click={clearFilters}>{u('clear')}</button>{:else}<a class="secondary link" href="/online/store">Store →</a>{/if}
         {:else}
           <div class="player-grid">
             {#each visible as player (player.id)}
@@ -661,7 +664,8 @@
   .picker-search { display: grid; gap: 8px; margin-bottom: 16px; }
   .picker-search input { min-height: 48px; font-size: 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); padding: 10px; }
   .pick-review { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--accent); }
-  .inline-error { position: sticky; top: 8px; z-index: 21; background: var(--surface); }
+  .inline-error { position: sticky; top: 140px; z-index: 21; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; background: var(--surface); }
+  .clear-filters { align-self: end; }
   .small { min-height: 44px; font-size: .8rem; }
   @media(max-width:720px) {
     .collection { padding-top: 8px; }
