@@ -557,6 +557,61 @@ CREATE TABLE IF NOT EXISTS free_pack_claims (
   PRIMARY KEY (user_id, tier, period_key)
 );
 `
+  },
+  {
+    id: 23,
+    // Decisão do dono (2026-09-19) sobre a própria conta, depois do rebalanceamento da economia.
+    // Ranking: tudo o que ele jogou antes das 18h de Brasília de 18/09 era teste e sai. Das partidas seguintes ficam no
+    // máximo cinco Majors (os dois títulos invictos, um Major com 4+ jogadores e as mais recentes sem título), valendo
+    // só os pontos da colocação, sem bônus de prêmio, e o total não passa a pontuação da Peka das Bebe. Só flags.
+    // Conta: coleção e time zerados (cartas vindas de coins adicionadas à mão e upgrades da regra antiga), trocas
+    // pendentes canceladas e carteira em 40.000 coins, com o ajuste registrado no ledger.
+    sql: `
+UPDATE majors m SET voided = true, counted = false, points = 0 FROM seasons s
+WHERE s.id = m.season_id AND s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND m.played_at < '2026-09-18 21:00:00+00' AND NOT m.voided;
+
+WITH runs AS (
+  SELECT m.id, m.played_at, m.lobby_size, m.champion, m.base_points,
+    EXISTS (SELECT 1 FROM awards w WHERE w.user_id = m.user_id AND w.kind = 'undefeated_major' AND w.ref_id = m.room_code || ':' || m.seed) AS unbeaten
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND m.ranked AND NOT m.voided
+), unbeaten AS (
+  SELECT id, 1 AS prio FROM runs WHERE champion AND unbeaten ORDER BY lobby_size DESC, played_at DESC, id DESC LIMIT 2
+), big AS (
+  SELECT id, 2 AS prio FROM runs WHERE id NOT IN (SELECT id FROM unbeaten) AND lobby_size >= 4 ORDER BY champion DESC, played_at DESC, id DESC LIMIT 1
+), rest AS (
+  SELECT id, 3 AS prio FROM runs WHERE id NOT IN (SELECT id FROM unbeaten UNION SELECT id FROM big) AND NOT champion
+  ORDER BY played_at DESC, id DESC LIMIT (SELECT 5 - (SELECT count(*) FROM unbeaten) - (SELECT count(*) FROM big))
+), cap AS (
+  SELECT coalesce((SELECT st.points FROM season_standings st JOIN seasons s ON s.id = st.season_id AND s.status = 'active' WHERE st.user_id = 'b08bf2fb-1f37-40d8-bf87-904796a50441'), 2147483647) AS points
+), ranked_keep AS (
+  SELECT r.id, sum(r.base_points) OVER (ORDER BY c.prio, r.played_at DESC, r.id DESC) AS running
+  FROM (SELECT * FROM unbeaten UNION ALL SELECT * FROM big UNION ALL SELECT * FROM rest) c JOIN runs r ON r.id = c.id
+), keep AS (SELECT id FROM ranked_keep WHERE running <= (SELECT points FROM cap))
+UPDATE majors m SET voided = (m.id NOT IN (SELECT id FROM keep)), counted = (m.id IN (SELECT id FROM keep)),
+  points = CASE WHEN m.id IN (SELECT id FROM keep) THEN m.base_points ELSE 0 END
+FROM runs r WHERE r.id = m.id;
+
+UPDATE awards a SET voided = true FROM majors m
+WHERE m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND m.voided AND a.user_id = m.user_id AND a.ref_id = m.room_code || ':' || m.seed AND NOT a.voided;
+
+UPDATE season_standings st SET points = agg.points, majors_won = agg.won, majors_played = agg.played
+FROM (
+  SELECT m.season_id, m.user_id, sum(m.points)::int AS points, count(*) FILTER (WHERE m.champion AND m.ranked AND NOT m.voided)::int AS won, count(*) FILTER (WHERE m.ranked AND NOT m.voided)::int AS played
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
+
+UPDATE trades SET status = 'cancelled', resolved_at = now()
+WHERE status = 'pending' AND (from_user = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' OR to_user = '3bbabac9-16f1-4272-9d7d-5b5b0c508768');
+DELETE FROM lineups WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768';
+DELETE FROM collection WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768';
+INSERT INTO wallets (user_id, coins) SELECT id, 0 FROM users WHERE id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO ledger (user_id, delta, reason, ref_id)
+SELECT user_id, 40000 - coins, 'refund', 'reset-conta-dono-2026-09-19' FROM wallets
+WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND coins <> 40000;
+UPDATE wallets SET coins = 40000, updated_at = now() WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768';
+`
   }
 ];
 
