@@ -1,7 +1,8 @@
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
-import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players } from '../../src/lib/game/online/collection-pool';
+import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
-import type { LineupSlotRole, OrgStyle, Player } from '../../src/lib/game/types';
+import { isValidLineupMapSelection } from '../../src/lib/game/maps';
+import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
 import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3 } from './time';
@@ -39,16 +40,20 @@ export interface LineupView {
   coachId: string | null;
   style: OrgStyle;
   starEffective: boolean;
+  /** Three maps chosen for this team; null means the default for the five cards. */
+  mapPreferences: MapId[] | null;
 }
 
-type LineupRow = { player_ids: string[]; roles: string[]; star_player_id: string | null; coach_id: string | null; style: string };
-const LINEUP_COLUMNS = 'player_ids, roles, star_player_id, coach_id, style';
+type LineupRow = { player_ids: string[]; roles: string[]; star_player_id: string | null; coach_id: string | null; style: string; map_preferences: string[] | null };
+const LINEUP_COLUMNS = 'player_ids, roles, star_player_id, coach_id, style, map_preferences';
 
 const lineupView = (row: LineupRow | undefined): LineupView | null => {
   if (!row) return null;
   const chosen = row.player_ids.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
   const check = validateLineup({ players: chosen, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
-  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective };
+  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective,
+    // Maps saved for another five (a card sold since) fall back to the default.
+    mapPreferences: row.map_preferences && isValidLineupMapSelection(row.map_preferences, chosen, collectionTeams) ? row.map_preferences : null };
 };
 
 /** What a repeated card pays: the same share as selling it. */
@@ -151,6 +156,7 @@ export interface LineupInput {
   starPlayerId: string | null;
   coachId: string | null;
   style: OrgStyle;
+  mapPreferences?: string[] | null;
 }
 
 export async function saveLineup(db: Db, userId: string, input: LineupInput): Promise<LineupView> {
@@ -163,12 +169,14 @@ export async function saveLineup(db: Db, userId: string, input: LineupInput): Pr
   if (owned.length !== wanted.length) throw new CollectionError(403, 'NOT_OWNED', 'Só cartas da sua coleção entram no time');
   const check = validateLineup({ players: chosen as Player[], roles: input.roles, starPlayerId: input.starPlayerId }, (id) => playerById.get(id));
   if (!check.ok) throw new CollectionError(400, 'INVALID_LINEUP', check.problems.join('; '));
+  const maps = input.mapPreferences?.length ? input.mapPreferences : null;
+  if (maps && !isValidLineupMapSelection(maps, chosen as Player[], collectionTeams)) throw new CollectionError(400, 'INVALID_MAPS', 'Escolha três mapas que o time conhece');
   await db.query(
-    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style, coach_id) VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, coach_id = $6, updated_at = now()`,
-    [userId, input.playerIds, input.roles, input.starPlayerId, input.style, input.coachId]
+    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style, coach_id, map_preferences) VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, coach_id = $6, map_preferences = $7, updated_at = now()`,
+    [userId, input.playerIds, input.roles, input.starPlayerId, input.style, input.coachId, maps]
   );
-  return { ...input, starEffective: check.starEffective };
+  return { playerIds: input.playerIds, roles: input.roles, starPlayerId: input.starPlayerId, coachId: input.coachId, style: input.style, starEffective: check.starEffective, mapPreferences: maps as MapId[] | null };
 }
 
 export async function getLineup(db: Db, userId: string): Promise<LineupView | null> {

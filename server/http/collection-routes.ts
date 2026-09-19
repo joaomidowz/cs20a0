@@ -12,7 +12,8 @@ const lineupSchema = z.object({
   roles: z.array(roleSchema).length(5),
   starPlayerId: z.string().min(1).max(80).nullable(),
   coachId: z.string().min(1).max(80).nullable().default(null),
-  style: z.enum(['aggressive', 'balanced', 'tactical'])
+  style: z.enum(['aggressive', 'balanced', 'tactical']),
+  mapPreferences: z.array(z.string().min(1).max(24)).length(3).nullable().optional()
 });
 
 const toHttp = (error: unknown): never => {

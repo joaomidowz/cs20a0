@@ -23,7 +23,7 @@ async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
     style: lineup.style,
     starPlayerId: lineup.starEffective ? lineup.starPlayerId : null,
     coachId: lineup.coachId,
-    mapPreferences: [...getDefaultMapSelection(selected, teams)]
+    mapPreferences: [...(lineup.mapPreferences ?? getDefaultMapSelection(selected, teams))]
   };
 }
 

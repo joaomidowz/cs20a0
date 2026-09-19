@@ -1,4 +1,4 @@
-import type { LineupSlotRole, OrgStyle } from '../types';
+import type { LineupSlotRole, MapId, OrgStyle } from '../types';
 import { authFetch } from './account';
 import type { PackTier } from './collection-rules';
 
@@ -17,6 +17,7 @@ export interface SavedLineup {
   coachId: string | null;
   style: OrgStyle;
   starEffective: boolean;
+  mapPreferences?: MapId[] | null;
 }
 
 export interface PackOpened {

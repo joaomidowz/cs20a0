@@ -104,6 +104,15 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect((await call('/collection/sell', { playerId: five[0].id })).status).toBe(409);
     const stolen = await call('/lineup', { playerIds: ['device-2016', 'device-2017', 'device-2018', 'device-2019', 'device-2020'], roles: ['awper', 'awper', 'awper', 'awper', 'awper'], starPlayerId: null, style: 'balanced' }, 'PUT');
     expect([400, 403]).toContain(stolen.status);
+    // Team maps: three maps the five cards know are saved; anything else is refused; null goes back to automatic.
+    const { getDefaultMapSelection } = await import('../src/lib/game/maps');
+    const { collectionTeams } = await import('../src/lib/game/online/collection-pool');
+    const maps = [...getDefaultMapSelection(five, collectionTeams)];
+    const base = { playerIds: five.map((player) => player.id), roles, starPlayerId: star.id, coachId: ownedCoach?.id ?? null, style: 'balanced' };
+    const withMaps = await call('/lineup', { ...base, mapPreferences: maps }, 'PUT');
+    expect(withMaps.body.lineup.mapPreferences).toEqual(maps);
+    expect((await call('/lineup', { ...base, mapPreferences: ['nope', maps[0], maps[1]] }, 'PUT')).status).toBe(400);
+    expect((await call('/lineup')).body.lineup.mapPreferences).toEqual(maps);
     const me = await call('/lineup');
     expect(me.body.lineup.playerIds).toEqual(five.map((player) => player.id));
     expect(coinValue(five[0])).toBeGreaterThan(0);

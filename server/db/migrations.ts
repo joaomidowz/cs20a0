@@ -268,6 +268,11 @@ UPDATE award_rules SET points = v.points FROM (VALUES
   ('carried', 1), ('streak_3', 3)
 ) AS v(kind, points) WHERE award_rules.kind = v.kind;
 `
+  },
+  {
+    id: 11,
+    // The three maps a collection team plays (null: the server picks the default for the five cards).
+    sql: `ALTER TABLE lineups ADD COLUMN IF NOT EXISTS map_preferences text[];`
   }
 ];
 

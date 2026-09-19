@@ -22,7 +22,8 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { calculateUserTeamPower } from '$lib/game/simulation';
-  import type { Coach, LineupSlotRole, OrgStyle, Player } from '$lib/game/types';
+  import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
+  import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, getMapAffinity, isValidLineupMapSelection } from '$lib/game/maps';
 
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
@@ -101,7 +102,7 @@
     const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
     return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
   })();
-  $: dirty = Boolean(complete && savedLineup && (savedLineup.playerIds.join() !== lineupPlayers.map((player) => player.id).join() || savedLineup.roles.join() !== lineupRoles.join() || savedLineup.starPlayerId !== starPlayerId || (savedLineup.coachId ?? null) !== coachId || savedLineup.style !== style));
+  $: dirty = Boolean(complete && savedLineup && (savedLineup.playerIds.join() !== lineupPlayers.map((player) => player.id).join() || savedLineup.roles.join() !== lineupRoles.join() || savedLineup.starPlayerId !== starPlayerId || (savedLineup.coachId ?? null) !== coachId || savedLineup.style !== style || (savedLineup.mapPreferences ?? []).join() !== (mapsValid ? mapPicks : []).join()));
   $: comparison = savedTeam && preview && dirty ? [
     { label: t('power'), before: savedTeam.power, after: preview.power, digits: 0 },
     { label: t('mentalStat'), before: savedTeam.mental, after: preview.mental, digits: 1 },
@@ -124,6 +125,7 @@
     starPlayerId = saved.starPlayerId;
     coachId = saved.coachId ?? null;
     style = saved.style;
+    mapPicks = saved.mapPreferences ? [...saved.mapPreferences] : [];
   }
 
   async function refresh() {
@@ -200,6 +202,21 @@
     scrollTo(teamSection);
   }
 
+  // Team maps: three picks among the maps the five cards played in their years. Bans stay automatic (the team bans what
+  // it knows least); in a manual room the player vetoes live, as before.
+  let mapPicks: MapId[] = [];
+  $: mapContributors = getLineupMapContributors(lineupPlayers, collectionTeams);
+  $: defaultMaps = complete ? [...getDefaultMapSelection(lineupPlayers, collectionTeams)] : [];
+  $: coachMaps = new Set<MapId>(activeCoach ? getActiveDutyMapsForYear(activeCoach.year) : []);
+  $: mapsValid = mapPicks.length === 3 && isValidLineupMapSelection(mapPicks, lineupPlayers, collectionTeams);
+  // Picks that stop making sense for a new five fall back to the default instead of blocking the save.
+  $: if (complete && mapPicks.length && !mapPicks.every((mapId) => mapContributors[mapId]?.length)) mapPicks = [];
+  $: effectiveMaps = mapsValid ? mapPicks : defaultMaps;
+  function toggleMap(mapId: MapId) {
+    const current = mapPicks.length ? mapPicks : [];
+    mapPicks = current.includes(mapId) ? current.filter((item) => item !== mapId) : current.length >= 3 ? current : [...current, mapId];
+  }
+
   /** Fast swap: a card waiting for the slot it takes. */
   let swapIn: Player | null = null;
   const roleFor = (player: Player): LineupSlotRole => { const eligible = eligibleRolesOf(player); return eligible.includes(primaryRoleOf(player)) ? primaryRoleOf(player) : eligible[0] ?? 'rifler'; };
@@ -232,7 +249,7 @@
     if (!complete) { error = t('lineupIncomplete'); return; }
     error = ''; busy = true;
     try {
-      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style });
+      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style, mapPreferences: mapsValid ? mapPicks : null });
       showToast(t('lineupSaved'));
       await refresh();
     } catch (caught) { fail(caught); } finally { busy = false; }
@@ -384,6 +401,26 @@
                 <p class="note">{t('noCoachBonus')}</p>
               {:else}
                 <p class="note">{t('noCoach')}</p>
+              {/if}
+            </div>
+
+            <div class="detail-box maps-box">
+              <span class="label">{t('teamMaps')} · {(mapPicks.length ? mapPicks : effectiveMaps).length}/3</span>
+              {#if complete}
+                <div class="map-grid">
+                  {#each ACTIVE_DUTY_MAPS as mapId}
+                    {@const count = mapContributors[mapId]?.length ?? 0}
+                    {@const chosen = (mapPicks.length ? mapPicks : effectiveMaps).includes(mapId)}
+                    <button type="button" class="map" class:chosen disabled={count === 0 || (!chosen && mapPicks.length >= 3)} on:click={() => { if (!mapPicks.length) mapPicks = []; toggleMap(mapId); }} title={(mapContributors[mapId] ?? []).map((player) => player.nickname).join(', ')}>
+                      <strong>{MAP_NAMES[mapId]}</strong>
+                      <small>{count ? `${count}/5 · ${getMapAffinity(count)}` : '—'}{#if coachMaps.has(mapId)} · coach{/if}</small>
+                    </button>
+                  {/each}
+                </div>
+                <p class="note">{mapPicks.length === 0 ? t('teamMapsAuto') : mapsValid ? t('teamMapsHint') : t('teamMapsPick')}</p>
+                {#if mapPicks.length}<button class="ghost small" type="button" on:click={() => mapPicks = []}>{t('teamMapsReset')}</button>{/if}
+              {:else}
+                <p class="note">{t('lineupIncomplete')}</p>
               {/if}
             </div>
 
@@ -545,6 +582,11 @@
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
   .team-side { display: grid; gap: 12px; align-content: start; }
+  .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  .map { display: grid; gap: 2px; min-height: 52px; padding: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+  .map strong { font-size: .8rem; } .map small { color: var(--muted); font-size: .6rem; font-weight: 700; }
+  .map.chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); } .map.chosen small { color: var(--accent); }
+  .map:disabled { opacity: .4; cursor: default; }
   .swap-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0; padding: 10px 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); font-size: .82rem; } .swap-banner b { color: var(--accent); }
   .swap-here { width: 100%; animation: swap-pulse 1.1s ease-in-out infinite; }
   @keyframes swap-pulse { 50% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); } }
