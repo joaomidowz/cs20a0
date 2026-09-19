@@ -2,14 +2,17 @@
 // Promoções diárias: odds puras, 1 carta surpresa (mais 1 coach na Legend) e compra uma vez por dia contra o Postgres local (pulada sem TEST_DATABASE_URL).
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
-import { COACH_CHANCE, PACK_PRICES, PACK_SLOTS, PROMO_BONUS_COACH, PROMO_CARDS, PROMO_RARITY, PROMO_TIERS, RARITIES, rarityOf } from '../src/lib/game/online/collection-rules';
+import { COACH_CHANCE, PACK_SLOTS, PROMO_BONUS_COACH, PROMO_CARDS, PROMO_RARITY, PROMO_TIERS, RARITIES, promoPrice, rarityOf } from '../src/lib/game/online/collection-rules';
 import { rollPackWithCoaches } from '../server/collection/packs';
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 
 describe('regras das promoções', () => {
-  it('têm 1 carta, preços 45k/70k/120k, Elite e Superstar puras e Legend com cerca de 30% de Legend', () => {
-    expect(PROMO_TIERS.map((tier) => PACK_PRICES[tier])).toEqual([45_000, 70_000, 120_000]);
+  it('têm 1 carta, preço do dia nas faixas 4,5–6k / 9–12k / 18–25k + coach, Elite e Superstar puras e Legend com cerca de 30% de Legend', () => {
+    const [elite, superstar, legend] = PROMO_TIERS.map((tier) => promoPrice(tier, '2026-09-19'));
+    expect(elite).toBeGreaterThanOrEqual(4_500); expect(elite).toBeLessThanOrEqual(6_000);
+    expect(superstar).toBeGreaterThanOrEqual(9_000); expect(superstar).toBeLessThanOrEqual(12_000);
+    expect(legend).toBeGreaterThanOrEqual(18_000 + 4_000); expect(legend).toBeLessThanOrEqual(25_000 + 15_000);
     for (const tier of PROMO_TIERS) {
       expect(PACK_SLOTS[tier]).toHaveLength(PROMO_CARDS);
       expect(PROMO_CARDS).toBe(1);
@@ -69,7 +72,7 @@ describe.skipIf(!url)('compra de promoção (Postgres)', () => {
     db = await createTestDb(url!, 'test_promos');
     await runMigrations(db);
     [{ id: userId }] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('promo@example.com', now()) RETURNING id`);
-    await db.query('INSERT INTO wallets (user_id, coins) VALUES ($1, 50000)', [userId]);
+    await db.query('INSERT INTO wallets (user_id, coins) VALUES ($1, $2)', [userId, promoPrice('promo_elite', '2026-09-19') + 1_000]);
   });
   afterAll(async () => { await db?.close(); });
 
@@ -89,6 +92,8 @@ describe.skipIf(!url)('compra de promoção (Postgres)', () => {
     expect(listed.day).toBe('2026-09-19');
     expect(listed.endsAt).toBe('2026-09-20T03:00:00.000Z');
     expect(listed.promos.map((promo) => promo.tier)).toEqual([...PROMO_TIERS]);
+    // The server lists and charges the same pure price of the day the client computes.
+    expect(listed.promos.map((promo) => promo.price)).toEqual(PROMO_TIERS.map((tier) => promoPrice(tier, '2026-09-19')));
     const bought = await buyPromo(db, userId, 'promo_elite', now);
     expect(bought.players).toHaveLength(1);
     expect(bought.seed).toBe(`promo:2026-09-19:elite:${userId}`);
@@ -96,7 +101,7 @@ describe.skipIf(!url)('compra de promoção (Postgres)', () => {
     await expect(buyPromo(db, userId, 'promo_superstar', now)).rejects.toMatchObject({ code: 'INSUFFICIENT_COINS' });
     expect((await listPromos(db, userId, now)).promos.map((promo) => promo.bought)).toEqual([true, false, false]);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
-    expect(wallet.coins).toBe(5_000 + bought.coinsFromDupes);
+    expect(wallet.coins).toBe(1_000 + bought.coinsFromDupes);
     // Next day: a new promotion, buyable again.
     expect((await listPromos(db, userId, now + 86_400_000)).promos[0].bought).toBe(false);
   });

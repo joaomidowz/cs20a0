@@ -58,7 +58,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect((await call('/packs/open', {})).status).toBe(200);
   });
 
-  it('venda paga 60% e some da coleção; comprar sem coins dá 402; comprar com coins funciona', async () => {
+  it('venda paga SELL_RATIO e some da coleção; comprar sem coins dá 402; comprar com coins funciona', async () => {
     const before = await call('/collection');
     const playerId = before.body.players[0].playerId as string;
     const sold = await call('/collection/sell', { playerId });

@@ -46,7 +46,28 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 2000, ouro: 3500, diamante: 10000, icone: 30000, promo_elite: 45000, promo_superstar: 70000, promo_legend: 120000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 2000, ouro: 3500, diamante: 10000, icone: 30000, promo_elite: 4500, promo_superstar: 9000, promo_legend: 22000 };
+
+/** Daily promotion prices: the card part varies by day inside these bands (the floors are the PACK_PRICES entries above). */
+export const PROMO_PRICE_BAND: Readonly<Record<PromoTier, readonly [number, number]>> = { promo_elite: [4500, 6000], promo_superstar: [9000, 12000], promo_legend: [18000, 25000] };
+/** The Legend promotion adds its coach on top: 4k (an Elite-grade coach) to 15k (a Legend-grade one), drawn for the day too. */
+export const PROMO_COACH_BAND: readonly [number, number] = [4000, 15000];
+const PROMO_PRICE_STEP: Readonly<Record<PromoTier, number>> = { promo_elite: 100, promo_superstar: 250, promo_legend: 500 };
+
+/** 0..1 from a string (FNV-1a + a final mix): the same day always gives the same price, on the server and the client. */
+function unitHash(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193);
+  hash ^= hash >>> 16; hash = Math.imul(hash, 0x7feb352d); hash ^= hash >>> 15; hash = Math.imul(hash, 0x846ca68b); hash ^= hash >>> 16;
+  return (hash >>> 0) / 4294967296;
+}
+const inBand = ([low, high]: readonly [number, number], unit: number, step: number) => Math.round((low + (high - low) * unit) / step) * step;
+
+/** Price of one promotion on a day (YYYY-MM-DD, Brasília): the same for every account, charged by the server. */
+export function promoPrice(tier: PromoTier, day: string): number {
+  const card = inBand(PROMO_PRICE_BAND[tier], unitHash(`promo-price:${day}:${tier}`), PROMO_PRICE_STEP[tier]);
+  return PROMO_BONUS_COACH.includes(tier) ? card + inBand(PROMO_COACH_BAND, unitHash(`promo-price:${day}:${tier}:coach`), 500) : card;
+}
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {
@@ -54,27 +75,41 @@ export function packChance(tier: PackTier, rarities: readonly Rarity[]): number 
   return 1 - miss;
 }
 
-export const SELL_RATIO = 0.6;
-const VALUE_STEP = 5;
-const VALUE_FLOOR = 30;
-const VALUE_CAP = 2500;
-const RARITY_MULTIPLIER: Readonly<Record<string, number>> = { common: 1, rare: 1.05, elite: 1.12, legend: 1.2, superstar: 1.3, goat: 1.45 };
+/** A sold card pays this share of its value (see tests/collectionEconomy.test.ts: selling a pack never pays back its price). */
+export const SELL_RATIO = 0.04;
+
+/** Coin value of each rarity, the middle of its band: the upgrader and the trades compare cards by it. */
+export const RARITY_BASE_VALUE: Readonly<Record<Rarity, number>> = { common: 2000, rare: 3000, elite: 5000, superstar: 10000, legend: 20000, goat: 50000 };
+/** Lowest and highest value of each rarity, by overall (common and rare follow the Elite proportion, 90%..120% of the base). */
+export const RARITY_VALUE_BAND: Readonly<Record<Rarity, readonly [number, number]>> = {
+  common: [1800, 2400], rare: [2700, 3600], elite: [4500, 6000], superstar: [9000, 12000], legend: [18000, 25000], goat: [45000, 60000]
+};
+/** Overalls each rarity spans in the pool: the lowest gets the band floor, the middle the base, the highest the band top. */
+const RARITY_OVERALL_SPAN: Readonly<Record<Rarity, readonly [number, number]>> = { common: [69, 80], rare: [78, 86], elite: [81, 87], superstar: [85, 92], legend: [90, 96], goat: [95, 99] };
+const COACH_OVERALL_SPAN: readonly [number, number] = [68, 90];
+const RARITY_VALUE_STEP: Readonly<Record<Rarity, number>> = { common: 100, rare: 100, elite: 100, superstar: 250, legend: 500, goat: 1000 };
+/** A coach is worth this share of a player of the same rarity. */
+export const COACH_VALUE_RATIO = 0.8;
 
 export const rarityOf = (player: Pick<Player, 'rarity'>): Rarity => {
   const value = (player.rarity ?? 'common').toLowerCase();
   return (RARITIES as readonly string[]).includes(value) ? (value as Rarity) : 'common';
 };
 
-/** Coin value of a card: the Dynasty market curve (dollars) scaled to coins. Selling and duplicates pay SELL_RATIO of it. */
-export function coinValue(player: Pick<Player, 'overall' | 'rarity' | 'role' | 'badges'>): number {
-  const overall = Math.min(99, Math.max(60, player.overall ?? 70));
-  const base = 50 * 1.09 ** (overall - 60);
-  const rarity = RARITY_MULTIPLIER[rarityOf(player)] ?? 1;
-  const role = (player.role ?? '').toLowerCase();
-  const position = role.includes('awp') ? 1.15 : role.includes('igl') ? 1.1 : 1;
-  const titles = 1 + 0.08 * Math.min(2, (player.badges ?? []).filter((badge) => badge === 'major-champion').length);
-  const rounded = Math.round((base * rarity * position * titles) / VALUE_STEP) * VALUE_STEP;
-  return Math.min(VALUE_CAP, Math.max(VALUE_FLOOR, rounded));
+/** Value inside the rarity band: floor..base over the lower half of the overall span, base..top over the upper half. */
+function bandValue(rarity: Rarity, overall: number, span: readonly [number, number], scale = 1): number {
+  const [floor, top] = RARITY_VALUE_BAND[rarity];
+  const base = RARITY_BASE_VALUE[rarity];
+  const position = Math.min(1, Math.max(0, (overall - span[0]) / (span[1] - span[0])));
+  const raw = position < 0.5 ? floor + (base - floor) * position * 2 : base + (top - base) * (position - 0.5) * 2;
+  const step = RARITY_VALUE_STEP[rarity];
+  return Math.round((raw * scale) / step) * step;
+}
+
+/** Coin value of a card: its rarity price, varied by overall inside the rarity band. Selling and duplicates pay a small share of it. */
+export function coinValue(player: Pick<Player, 'overall' | 'rarity'>): number {
+  const rarity = rarityOf(player);
+  return bandValue(rarity, player.overall ?? RARITY_OVERALL_SPAN[rarity][0], RARITY_OVERALL_SPAN[rarity]);
 }
 
 export const sellValue = (player: Pick<Player, 'overall' | 'rarity' | 'role' | 'badges'>) => Math.floor(coinValue(player) * SELL_RATIO);
@@ -109,8 +144,8 @@ export function seasonPoints(placement: string, lobbySize: number): number {
   return 0;
 }
 
-/** A repeated card pays this share of its value, like selling it (paying 100% let cheap packs print coins). */
-export const DUPLICATE_RATIO = 0.6;
+/** A repeated card pays this share of its value, like selling it (a higher share let cheap packs print coins). */
+export const DUPLICATE_RATIO = SELL_RATIO;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player (the Legend promotion: a coach on top of its card). */
 export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2, promo_elite: 0, promo_superstar: 0, promo_legend: 1 };
@@ -118,12 +153,9 @@ export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, p
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;
 
-/** Coin value of a coach card: the Dynasty coach market curve scaled to coins, with the same rarity multiplier as players. */
+/** Coin value of a coach card: COACH_VALUE_RATIO of a player of the same rarity, varied by the coach overall. */
 export function coachCoinValue(coach: Pick<Coach, 'overall' | 'rarity'>): number {
-  const base = 20 * 1.08 ** (Math.max(60, coach.overall) - 60);
-  const rarity = RARITY_MULTIPLIER[rarityOf(coach)] ?? 1;
-  const rounded = Math.round((base * rarity * 1.4) / VALUE_STEP) * VALUE_STEP;
-  return Math.min(VALUE_CAP, Math.max(VALUE_FLOOR, rounded));
+  return bandValue(rarityOf(coach), coach.overall, COACH_OVERALL_SPAN, COACH_VALUE_RATIO);
 }
 
 export const coachSellValue = (coach: Pick<Coach, 'overall' | 'rarity'>) => Math.floor(coachCoinValue(coach) * SELL_RATIO);

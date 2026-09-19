@@ -1,0 +1,82 @@
+// tests/collectionEconomy.test.ts
+// Economia da coleção: preço das cartas por raridade, promoções do dia e a regra de que vender (ou receber duplicata de) um
+// pacote nunca devolve mais que ~60% do que ele custou, calculada com as odds reais de PACK_SLOTS e COACH_CHANCE.
+import { describe, expect, it } from 'vitest';
+import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
+import {
+  BUYABLE_TIERS, COACH_CHANCE, DUPLICATE_RATIO, PACK_PRICES, PACK_SLOTS, PROMO_COACH_BAND, PROMO_PRICE_BAND, PROMO_TIERS, RARITIES, RARITY_BASE_VALUE,
+  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coachSellValue, coinValue, promoPrice, rarityOf, sellValue, type Rarity, type RarityOdds
+} from '../src/lib/game/online/collection-rules';
+
+/** Most a pack may pay back when all its cards are sold, as a share of its price. */
+const MAX_PAYBACK = 0.6;
+
+const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+const byRarity = <T>(items: T[], rarity: (item: T) => Rarity, value: (item: T) => number) =>
+  new Map(RARITIES.map((wanted) => [wanted, items.filter((item) => rarity(item) === wanted).map(value)] as const).filter(([, values]) => values.length).map(([wanted, values]) => [wanted, mean(values)]));
+/** Same fallback as server/collection/packs.ts: the wanted rarity, then lower ones, then higher. */
+const ladderOf = (wanted: Rarity): Rarity[] => [wanted, ...RARITIES.slice(0, RARITIES.indexOf(wanted)).reverse(), ...RARITIES.slice(RARITIES.indexOf(wanted) + 1)];
+const expected = (row: RarityOdds, means: Map<Rarity, number>) => RARITIES.reduce((sum, rarity) => sum + (row[rarity] / 100) * (means.get(ladderOf(rarity).find((step) => means.has(step))!) ?? 0), 0);
+
+/** Expected coins from a pack when every card is sold at `ratio` of its value: the last card is a coach COACH_CHANCE of the time. */
+function packPayback(tier: (typeof BUYABLE_TIERS)[number], player: Map<Rarity, number>, coach: Map<Rarity, number>): number {
+  const rows = PACK_SLOTS[tier];
+  const last = rows.length - 1;
+  return rows.reduce((sum, row, index) => sum + (index === last ? (1 - COACH_CHANCE[tier]) * expected(row, player) + COACH_CHANCE[tier] * expected(row, coach) : expected(row, player)), 0);
+}
+
+describe('preço das cartas', () => {
+  it('fica na faixa da raridade, cresce com o overall e o coach vale 80%', () => {
+    for (const player of collectionPlayers) {
+      const [low, high] = RARITY_VALUE_BAND[rarityOf(player)];
+      expect(coinValue(player)).toBeGreaterThanOrEqual(low);
+      expect(coinValue(player)).toBeLessThanOrEqual(high);
+    }
+    expect(RARITY_BASE_VALUE).toEqual({ common: 2000, rare: 3000, elite: 5000, superstar: 10000, legend: 20000, goat: 50000 });
+    expect(coinValue({ overall: 81, rarity: 'elite' })).toBe(4500);
+    expect(coinValue({ overall: 84, rarity: 'elite' })).toBe(5000);
+    expect(coinValue({ overall: 87, rarity: 'elite' })).toBe(6000);
+    expect(coinValue({ overall: 99, rarity: 'goat' })).toBe(60000);
+    expect(coinValue({ overall: 90, rarity: 'legend' })).toBe(18000);
+    expect(coinValue({ overall: 96, rarity: 'legend' })).toBe(25000);
+    expect(coinValue({ overall: 92, rarity: 'superstar' })).toBeGreaterThan(coinValue({ overall: 86, rarity: 'superstar' }));
+    // Same rarity, different overalls: not one flat price.
+    for (const rarity of RARITIES) expect(new Set(collectionPlayers.filter((player) => rarityOf(player) === rarity).map(coinValue)).size).toBeGreaterThan(2);
+    expect(coachCoinValue({ overall: 79, rarity: 'elite' })).toBe(4000);
+    for (const coach of collectionCoaches) {
+      const [low, high] = RARITY_VALUE_BAND[rarityOf(coach)];
+      expect(coachCoinValue(coach)).toBeGreaterThanOrEqual(low * 0.8 - 100);
+      expect(coachCoinValue(coach)).toBeLessThanOrEqual(high * 0.8 + 100);
+    }
+  });
+
+  it('nenhum pacote comprável devolve 60% ou mais do preço em venda ou duplicata', () => {
+    expect(DUPLICATE_RATIO).toBeLessThanOrEqual(SELL_RATIO);
+    const player = byRarity(collectionPlayers, rarityOf, sellValue);
+    const coach = byRarity(collectionCoaches, rarityOf, coachSellValue);
+    for (const tier of BUYABLE_TIERS) {
+      const payback = packPayback(tier, player, coach) / PACK_PRICES[tier];
+      expect(payback, `${tier}: ${(payback * 100).toFixed(1)}% do preço`).toBeLessThan(MAX_PAYBACK);
+    }
+  });
+});
+
+describe('preço das promoções', () => {
+  const days = Array.from({ length: 60 }, (_, index) => new Date(Date.UTC(2026, 8, 1 + index)).toISOString().slice(0, 10));
+
+  it('varia por dia dentro da faixa, igual para quem pedir no mesmo dia', () => {
+    for (const tier of PROMO_TIERS) {
+      const prices = days.map((day) => promoPrice(tier, day));
+      const [low, high] = PROMO_PRICE_BAND[tier];
+      const coach = tier === 'promo_legend' ? PROMO_COACH_BAND : [0, 0];
+      for (const price of prices) {
+        expect(price).toBeGreaterThanOrEqual(low + coach[0]);
+        expect(price).toBeLessThanOrEqual(high + coach[1]);
+      }
+      expect(new Set(prices).size).toBeGreaterThan(5);
+      expect(promoPrice(tier, '2026-09-19')).toBe(promoPrice(tier, '2026-09-19'));
+    }
+    expect(PROMO_PRICE_BAND).toEqual({ promo_elite: [4500, 6000], promo_superstar: [9000, 12000], promo_legend: [18000, 25000] });
+    expect(PROMO_COACH_BAND).toEqual([4000, 15000]);
+  });
+});

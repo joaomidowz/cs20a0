@@ -5,7 +5,7 @@ import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { applyCollectionLineup, cardEffects, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
-import { CARDS_PER_PACK, PACK_SLOTS, PACK_TIERS, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, Player } from '../src/lib/game/types';
 
@@ -20,14 +20,14 @@ describe('regras de coins', () => {
     for (const tier of ['basic', 'prata', 'era', 'ouro'] as const) expect(packChance(tier, ['goat'])).toBeLessThan(0.07);
   });
 
-  it('valor cresce com overall e raridade, dentro de 30..2500, e venda paga 60%', () => {
-    const low = coinValue({ overall: 62, rarity: 'common', role: 'rifler', badges: [] });
-    const high = coinValue({ overall: 97, rarity: 'goat', role: 'awper', badges: ['major-champion', 'major-champion'] });
-    expect(low).toBeGreaterThanOrEqual(30);
-    expect(high).toBeLessThanOrEqual(2500);
+  it('valor cresce com overall e raridade, dentro de 1.800..60.000, e venda paga SELL_RATIO', () => {
+    const low = coinValue({ overall: 62, rarity: 'common' });
+    const high = coinValue({ overall: 97, rarity: 'goat' });
+    expect(low).toBe(1_800);
+    expect(high).toBeLessThanOrEqual(60_000);
     expect(high).toBeGreaterThan(low);
     expect(coinValue({ overall: 80, rarity: 'goat' })).toBeGreaterThan(coinValue({ overall: 80, rarity: 'common' }));
-    expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * 0.6));
+    expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * SELL_RATIO));
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
     expect(matchReward('placementChampion', true)).toBe(1200);

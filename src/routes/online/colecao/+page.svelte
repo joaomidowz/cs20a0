@@ -3,7 +3,6 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
-  import Upgrader from '$lib/components/online/Upgrader.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
   import TradesPanel from '$lib/components/online/TradesPanel.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
@@ -299,8 +298,10 @@
         <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="ghost link" href="/suporte?aba=overall">{$language === 'en' ? 'Wrong rating?' : $language === 'es' ? '¿Overall incorrecto?' : 'Overall errado?'}</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
 
-      <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()}
-        playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
+      <a class="upgrader-link panel" href="/online/upgrader">
+        <span class="upgrader-link-text"><span class="eyebrow">{t('upgrader').toUpperCase()}</span><strong>{t('upgrader')}</strong><small>{t('upgraderHint')}</small></span>
+        <span class="primary upgrader-link-go">{t('upgraderOpen')} →</span>
+      </a>
 
       <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onChanged={() => void refresh()} />
 
@@ -622,6 +623,12 @@
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 12px; padding-top: 8px; }
   .tag { padding: 9px; border: 1px dashed var(--accent); color: var(--accent); font-size: .6rem; font-weight: 800; text-align: center; text-transform: uppercase; }
+  .upgrader-link { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; justify-content: space-between; padding: 18px 22px; border-left: 3px solid var(--accent); color: var(--text); text-decoration: none; transition: border-color .18s ease; }
+  .upgrader-link:hover { border-color: var(--accent); }
+  .upgrader-link-text { display: grid; gap: 4px; min-width: 0; }
+  .upgrader-link-text strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+  .upgrader-link-text small { color: var(--muted); font-size: .76rem; line-height: 1.4; }
+  .upgrader-link-go { display: inline-flex; align-items: center; min-height: 46px; padding: 0 18px; border-radius: 0; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }

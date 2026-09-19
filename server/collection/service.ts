@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, PROMO_RARITY, PROMO_TIERS, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, PROMO_RARITY, PROMO_TIERS, type PromoTier, coachCoinValue, promoPrice, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
@@ -149,7 +149,7 @@ const nextDayStart = (day: string) => { const [y, m, d] = day.split('-').map(Num
 export async function listPromos(db: Db, userId: string, now: number): Promise<{ day: string; endsAt: string; promos: PromoView[] }> {
   const day = dayKeyUtcMinus3(now);
   const bought = new Set((await db.query<{ tier: string }>('SELECT tier FROM promo_purchases WHERE user_id = $1 AND day = $2', [userId, day])).map((row) => row.tier));
-  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: PACK_PRICES[tier], bought: bought.has(tier) })) };
+  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: promoPrice(tier, day), bought: bought.has(tier) })) };
 }
 
 /** Buys today's promotion of one rarity, once per account per day: one surprise card (plus a coach in the Legend one). */
@@ -160,7 +160,8 @@ export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: num
   return db.tx(async (tx) => {
     const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, seed]);
     if (!inserted.length) throw new CollectionError(409, 'PROMO_BOUGHT', 'Você já comprou essa promoção hoje');
-    await applyLedger(tx, userId, -PACK_PRICES[tier], 'buy_pack', tier);
+    // The price of the day, the same one GET /promos showed (a pure function of the Brasília day).
+    await applyLedger(tx, userId, -promoPrice(tier, day), 'buy_pack', tier);
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
