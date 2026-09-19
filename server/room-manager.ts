@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { buildProRoleEvaluations, validateProAssignments } from '../src/lib/game/proMode';
 import { createBotMapStrategy, createUserMapStrategy, type MapSimulationContext } from '../src/lib/game/map-veto';
 import { getDefaultMapSelection, isValidLineupMapSelection } from '../src/lib/game/maps';
@@ -451,6 +451,25 @@ export class RoomManager {
 
   hasRoom(code: string): boolean {
     return this.rooms.has(code.toUpperCase());
+  }
+
+  /** Ranked (queue) Majors being played now, for the public "live" board: human teams with their record, nothing private. */
+  liveQueueRooms(now = Date.now()): Array<{ id: string; phase: RoomPhase; round: number; competitive: boolean; champion: string | null; teams: Array<{ name: string; wins: number; losses: number; status: string }> }> {
+    const live: ReturnType<RoomManager['liveQueueRooms']> = [];
+    for (const [code, room] of this.rooms) {
+      if (room.origin !== 'queue' || room.phase === 'lobby' || room.phase === 'draft') continue;
+      const snapshot = this.getSnapshot(code, null, now);
+      const standings = new Map((snapshot.tournament?.standings ?? []).map((row) => [row.organizationId, row]));
+      const teams = snapshot.participants.map((participant) => {
+        const row = standings.get(participant.id);
+        return { name: participant.organizationName, wins: row?.wins ?? 0, losses: row?.losses ?? 0, status: row?.status ?? 'active' };
+      }).sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+      const championId = snapshot.tournament?.championId ?? null;
+      const champion = championId ? (snapshot.tournament?.standings.find((row) => row.organizationId === championId)?.name ?? null) : null;
+      // The room code is never exposed: a short stable tag is enough to key the list.
+      live.push({ id: createHash('sha256').update(code).digest('hex').slice(0, 10), phase: room.phase, round: snapshot.tournament?.currentRound ?? 0, competitive: room.competitive, champion, teams });
+    }
+    return live;
   }
 
   roomCount(): number {

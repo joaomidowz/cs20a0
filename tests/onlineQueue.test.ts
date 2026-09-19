@@ -139,6 +139,11 @@ describe('fila competitiva', () => {
     expect(started.phase).toBe('swiss');
     expect(started.origin).toBe('queue');
     expect(started.config).toMatchObject({ simulationMode: 'automatic', simulationSpeed: 'ultra' });
+    // The public live board lists the ranked Major with its human teams and never the room code.
+    const live = manager.liveQueueRooms(clock + 10);
+    expect(live).toHaveLength(1);
+    expect(live[0].teams.map((team) => team.name).sort()).toEqual(['Org a', 'Org b', 'Org c', 'Org d']);
+    expect(JSON.stringify(live)).not.toContain(roomCode);
 
     const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, capacity: 8 }, clock);
     manager.join(code, 'Pw', 'Org w', clock, manager.prepareLineup(code, prepared('w'), clock));

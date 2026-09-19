@@ -46,6 +46,8 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
         throw error;
       }
     })),
+    /** Public board of the ranked Majors being played right now. */
+    route('GET', /^\/live$/, async ({ now }) => ({ ok: true, rooms: manager.liveQueueRooms(now) })),
     route('GET', /^\/seasons\/current$/, async ({ request, now }) => {
       const bearer = request.headers.authorization;
       const me = bearer ? await withAuthUserId(withAuth, request) : null;
