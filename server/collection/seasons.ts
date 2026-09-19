@@ -111,6 +111,19 @@ export async function majorResult(db: Db, userId: string, roomCode: string): Pro
   return { placement: row.placement, lobbySize: row.lobby_size, ranked: row.ranked, counted: row.counted, champion: row.champion, basePoints: row.base_points, points: row.points, rewardCoins: row.reward_coins, awardCoins: row.award_coins, awards };
 }
 
+export interface PublicProfile { userId: string; teamName: string | null; displayName: string; memberSince: string; majorsPlayed: number; majorsWon: number; seasonPoints: number; awards: Array<{ kind: string; count: number }> }
+
+/** What anyone may see of another player: names, totals and awards. Never the e-mail, wallet or cards. */
+export async function publicProfile(db: Db, userId: string, now: number): Promise<PublicProfile | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
+  const [user] = await db.query<{ id: string; team_name: string | null; display_name: string | null; created_at: Date }>('SELECT id, team_name, display_name, created_at FROM users WHERE id = $1 AND verified_at IS NOT NULL', [userId]);
+  if (!user) return null;
+  const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2)::text AS won FROM majors WHERE user_id = $1`, [userId]);
+  const { month } = seasonMonthOf(now);
+  const [season] = await db.query<{ points: number }>('SELECT s.points FROM season_standings s JOIN seasons se ON se.id = s.season_id WHERE s.user_id = $1 AND se.month = $2', [userId, month]);
+  return { userId: user.id, teamName: user.team_name, displayName: user.display_name ?? 'Player', memberSince: user.created_at.toISOString(), majorsPlayed: Number(totals.played), majorsWon: Number(totals.won), seasonPoints: season?.points ?? 0, awards: (await awardsOf(db, userId)).map(({ kind, count }) => ({ kind, count })) };
+}
+
 export interface RoomReward { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number }
 
 /** What every collection player of a room earned in its latest run (names as shown in the season table, never e-mails). */

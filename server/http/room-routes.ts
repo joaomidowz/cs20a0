@@ -1,7 +1,7 @@
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
-import { awardsOf, currentStandings, lastSeasonPodium, majorResult, roomRewards } from '../collection/seasons';
+import { awardsOf, currentStandings, lastSeasonPodium, majorResult, publicProfile, roomRewards } from '../collection/seasons';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
 import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
@@ -50,6 +50,11 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
       const bearer = request.headers.authorization;
       const me = bearer ? await withAuthUserId(withAuth, request) : null;
       return { ok: true, ...(await currentStandings(db, now, me)), lastSeason: await lastSeasonPodium(db) };
+    }),
+    route('GET', /^\/players\/([0-9a-f-]{36})$/i, async ({ params, now }) => {
+      const profile = await publicProfile(db, params[0], now);
+      if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Jogador não encontrado');
+      return { ok: true, profile };
     }),
     route('GET', /^\/me\/awards$/, withAuth(async ({ userId }) => ({ ok: true, awards: await awardsOf(db, userId!) }))),
     route('GET', /^\/me\/majors\/([A-Z2-9]{8})$/i, withAuth(async ({ params, userId }) => ({ ok: true, result: await majorResult(db, userId!, params[0].toUpperCase()), room: await roomRewards(db, params[0].toUpperCase()) })))

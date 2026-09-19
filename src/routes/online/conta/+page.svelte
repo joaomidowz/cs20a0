@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import PublicProfileSheet from '$lib/components/online/PublicProfileSheet.svelte';
   import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -17,6 +18,7 @@
   type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
 
   let email = '';
+  let profileOf: string | null = null;
   let busy = false;
   let sent = false;
   let devLink: string | null = null;
@@ -147,7 +149,7 @@
             <thead><tr><th>{t('rankCol')}</th><th>{t('teamCol')}</th><th>{t('playerCol')}</th><th>{t('titlesCol')}</th><th>{t('pointsCol')}</th></tr></thead>
             <tbody>
               {#each season.top.slice(0, 20) as row (row.userId)}
-                <tr class:me={row.userId === $accountUser.id}><td>{row.rank}</td><td>{row.teamName ?? '—'}</td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
+                <tr class:me={row.userId === $accountUser.id}><td>{row.rank}</td><td><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? '—'}</button></td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
               {/each}
             </tbody>
           </table>
@@ -165,9 +167,11 @@
     {/if}
     {#if error}<p class="online-error" role="alert">{error}</p>{/if}
   </section>
+{#if profileOf}<PublicProfileSheet {serverUrl} userId={profileOf} language={$language} onClose={() => profileOf = null} />{/if}
 </PageLayout>
 
 <style>
+  .row-link { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; cursor: pointer; min-height: 0; }
   .account { display: grid; gap: 18px; padding: 28px 0 70px; }
   .grid { display: grid; gap: 18px; }
   .box { display: grid; gap: 14px; padding: 22px; align-content: start; }
