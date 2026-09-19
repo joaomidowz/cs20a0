@@ -66,7 +66,7 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       await tx.query(
         `WITH day_runs AS (
            SELECT id, row_number() OVER (ORDER BY potential_points DESC, played_at, id) AS place FROM majors
-           WHERE user_id = $1 AND ranked AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date
+           WHERE user_id = $1 AND ranked AND NOT voided AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date
          )
          UPDATE majors m SET counted = d.place <= $3, points = CASE WHEN d.place <= $3 THEN m.potential_points ELSE 0 END
          FROM day_runs d WHERE d.id = m.id`,
@@ -127,7 +127,7 @@ export async function publicProfile(db: Db, userId: string, now: number): Promis
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
   const [user] = await db.query<{ id: string; team_name: string | null; display_name: string | null; created_at: Date }>('SELECT id, team_name, display_name, created_at FROM users WHERE id = $1 AND verified_at IS NOT NULL', [userId]);
   if (!user) return null;
-  const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2)::text AS won FROM majors WHERE user_id = $1`, [userId]);
+  const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2 AND NOT voided)::text AS won FROM majors WHERE user_id = $1`, [userId]);
   const { month } = seasonMonthOf(now);
   const [season] = await db.query<{ points: number }>('SELECT s.points FROM season_standings s JOIN seasons se ON se.id = s.season_id WHERE s.user_id = $1 AND se.month = $2', [userId, month]);
   return { userId: user.id, teamName: user.team_name, displayName: user.display_name ?? 'Player', memberSince: user.created_at.toISOString(), majorsPlayed: Number(totals.played), majorsWon: Number(totals.won), seasonPoints: season?.points ?? 0, awards: (await awardsOf(db, userId)).map(({ kind, count }) => ({ kind, count })) };
@@ -181,7 +181,7 @@ export async function currentStandings(db: Db, now: number, userId: string | nul
 }
 
 export async function awardsOf(db: Db, userId: string): Promise<Array<{ kind: string; count: number; last: string }>> {
-  const rows = await db.query<{ kind: string; count: string; last: Date }>('SELECT kind, count(*)::text AS count, max(earned_at) AS last FROM awards WHERE user_id = $1 GROUP BY kind ORDER BY max(earned_at) DESC', [userId]);
+  const rows = await db.query<{ kind: string; count: string; last: Date }>('SELECT kind, count(*)::text AS count, max(earned_at) AS last FROM awards WHERE user_id = $1 AND NOT voided GROUP BY kind ORDER BY max(earned_at) DESC', [userId]);
   return rows.map((row) => ({ kind: row.kind, count: Number(row.count), last: row.last.toISOString() }));
 }
 

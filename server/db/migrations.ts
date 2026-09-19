@@ -353,6 +353,42 @@ FROM (
   FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
 `
+  },
+  {
+    id: 14,
+    // Owner's ruling (2026-09-18): five titles of one account and two of another are annulled, the ones won in the
+    // smallest lobbies first. Nothing is deleted: the runs and their awards are flagged `voided`, stop scoring and stop
+    // counting as titles; coins already paid stay. Runs only by id, so the ruling can never catch another account.
+    sql: `
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS voided boolean NOT NULL DEFAULT false;
+ALTER TABLE awards ADD COLUMN IF NOT EXISTS voided boolean NOT NULL DEFAULT false;
+
+WITH ruling(user_id, titles) AS (VALUES ('3bbabac9-16f1-4272-9d7d-5b5b0c508768'::uuid, 5), ('b08bf2fb-1f37-40d8-bf87-904796a50441'::uuid, 2)),
+picked AS (
+  SELECT m.id, row_number() OVER (PARTITION BY m.user_id ORDER BY m.lobby_size, m.potential_points, m.played_at, m.id) AS place, r.titles
+  FROM majors m JOIN seasons s ON s.id = m.season_id JOIN ruling r ON r.user_id = m.user_id
+  WHERE s.status = 'active' AND m.champion AND m.ranked AND NOT m.voided
+)
+UPDATE majors m SET voided = true, counted = false, points = 0 FROM picked p WHERE p.id = m.id AND p.place <= p.titles;
+
+UPDATE awards a SET voided = true FROM majors m
+WHERE m.voided AND a.user_id = m.user_id AND a.ref_id = m.room_code || ':' || m.seed AND NOT a.voided;
+
+WITH day_runs AS (
+  SELECT m.id, row_number() OVER (PARTITION BY m.user_id, (m.played_at AT TIME ZONE 'UTC' - interval '3 hours')::date ORDER BY m.potential_points DESC, m.played_at, m.id) AS place
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.ranked AND NOT m.voided AND m.user_id IN ('3bbabac9-16f1-4272-9d7d-5b5b0c508768', 'b08bf2fb-1f37-40d8-bf87-904796a50441')
+)
+UPDATE majors m SET counted = d.place <= 10, points = CASE WHEN d.place <= 10 THEN m.potential_points ELSE 0 END
+FROM day_runs d WHERE d.id = m.id;
+
+UPDATE season_standings st SET points = agg.points, majors_won = agg.won
+FROM (
+  SELECT m.season_id, m.user_id, sum(m.points)::int AS points, count(*) FILTER (WHERE m.champion AND m.ranked AND NOT m.voided)::int AS won
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id
+  AND st.user_id IN ('3bbabac9-16f1-4272-9d7d-5b5b0c508768', 'b08bf2fb-1f37-40d8-bf87-904796a50441');
+`
   }
 ];
 
