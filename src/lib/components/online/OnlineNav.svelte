@@ -6,8 +6,8 @@
   $: path = $page.url.pathname;
   $: links = [
     { href: '/online', label: uiCopy(language, 'play'), icon: '▷', active: path === '/online' },
-    { href: '/online/colecao', label: uiCopy(language, 'team'), icon: '▦', active: path === '/online/colecao' || path === '/online/trocas' },
-    { href: '/online/store', label: 'Store', icon: '◇', active: path.startsWith('/online/store') || path === '/online/upgrader' },
+    { href: '/online/colecao', label: uiCopy(language, 'team'), icon: '▦', active: path === '/online/colecao' },
+    { href: '/online/store', label: 'Store', icon: '◇', active: path.startsWith('/online/store') || path === '/online/upgrader' || path === '/online/trocas' },
     { href: '/online/conta', label: uiCopy(language, 'account'), icon: '◎', active: path === '/online/conta' }
   ];
 </script>

@@ -41,6 +41,19 @@ const copy = {
   promoAdded: ['Carta adicionada à coleção', 'Card added to your collection', 'Carta añadida a la colección'],
   back: ['Voltar', 'Back', 'Volver'], next: ['Avançar', 'Next', 'Siguiente'],
   step: ['Etapa', 'Step', 'Paso'],
+  tradeExpiresIn: ['Expira em', 'Expires in', 'Expira en'],
+  tradeStepTeam: ['Time', 'Team', 'Equipo'], tradeStepTheirs: ['Carta dele', 'Their card', 'Su carta'],
+  tradeStepMine: ['Sua carta', 'Your card', 'Tu carta'], tradeStepCoins: ['Coins e revisão', 'Coins and review', 'Coins y revisión'],
+  tradeTeamHint: ['Digite o nome exato do time do outro jogador.', 'Type the exact team name of the other player.', 'Escribe el nombre exacto del equipo del otro jugador.'],
+  tradeTheirsHint: ['Cartas dele que você ainda não tem.', 'Their cards you do not have yet.', 'Sus cartas que aún no tienes.'],
+  tradeMineHint: ['Cartas do time salvo ficam travadas.', 'Cards on your saved team are locked.', 'Las cartas del equipo guardado quedan bloqueadas.'],
+  tradeNoTheirs: ['Esse time não tem cartas que você ainda não tenha.', 'This team has no card you do not own yet.', 'Ese equipo no tiene cartas que no tengas.'],
+  tradeNoMine: ['Você não tem cartas livres para oferecer.', 'You have no free cards to offer.', 'No tienes cartas libres para ofrecer.'],
+  tradeFilter: ['Filtrar por nome', 'Filter by name', 'Filtrar por nombre'],
+  tradePick: ['Escolher', 'Pick', 'Elegir'], tradeChange: ['Trocar', 'Change', 'Cambiar'],
+  showMore: ['Mostrar mais', 'Show more', 'Mostrar más'],
+  tradeEmptyReceived: ['Nenhuma proposta recebida. Proponha uma troca e movimente o mercado.', 'No proposals received. Send one and get the market moving.', 'No recibiste propuestas. Envía una y mueve el mercado.'],
+  tradeEmptySent: ['Você ainda não enviou propostas.', 'You have not sent any proposals yet.', 'Aún no enviaste propuestas.'],
 } as const;
 
 export type UiKey = keyof typeof copy;

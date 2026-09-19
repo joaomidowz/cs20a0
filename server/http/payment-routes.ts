@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PaymentError, createCheckout, handlePaymentNotification, listProducts, reconcileUser, verifySignature, type PaymentsConfig } from '../payments/mercadopago';
+import type { Db } from '../db/client';
 import { HttpError, readBody, readJsonBody, route, sendJson, type Handler, type Route } from './router';
 
 const checkoutSchema = z.object({ productId: z.string().min(1).max(64) });
@@ -9,9 +10,16 @@ const toHttp = (error: unknown): never => {
   throw error;
 };
 
+/**
+ * Public, read-only coin catalog. It answers even with payments off (`enabled: false`), so the Store can show the
+ * prices; it never creates a purchase. The checkout below only exists when Mercado Pago is configured.
+ */
+export function createCatalogRoutes(db: Db, enabled: boolean): Route[] {
+  return [route('GET', /^\/shop\/products$/, async () => ({ ok: true, enabled, products: await listProducts(db) }))];
+}
+
 export function createPaymentRoutes(config: PaymentsConfig, withAuth: (handler: Handler) => Handler): Route[] {
   return [
-    route('GET', /^\/shop\/products$/, async () => ({ ok: true, products: await listProducts(config.db) })),
     route('POST', /^\/shop\/checkout$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, checkoutSchema);
       return { ok: true, ...(await createCheckout(config, userId!, body.productId).catch(toHttp)) };

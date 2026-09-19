@@ -163,7 +163,7 @@
         </section>
       </div>
 
-      <a class="secondary link store-link" href="/online/store">Store · {uiCopy($language, 'coins')}</a>
+      <a class="secondary link store-link" href="/online/store#comprar-coins">Store · {uiCopy($language, 'coins')}</a>
 
       <section class="panel box">
         <div class="section-heading"><div><span class="eyebrow">{t('season').toUpperCase()}</span><h2>{t('seasonOfMonth')}{#if season} · {monthLabel(season.month)}{/if}</h2></div>{#if season?.me}<strong class="count">#{season.me.rank} · {season.me.points} {t('pointsCol').toLowerCase()}</strong>{/if}</div>

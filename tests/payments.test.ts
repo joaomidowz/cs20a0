@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../server/db/client';
 import { runMigrations } from '../server/db/migrations';
 import { createCheckout, handlePaymentNotification, reconcileUser, sweepPendingPurchases, verifySignature, type PaymentsConfig } from '../server/payments/mercadopago';
+import { createCatalogRoutes } from '../server/http/payment-routes';
 import { createTestDb } from './helpers/testDb';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -144,5 +145,14 @@ describe.skipIf(!url)('checkout e webhook (Postgres, API simulada)', () => {
     await db.query(`UPDATE purchases SET checkout_url = NULL WHERE user_id = $1`, [userId]);
     for (let index = 0; index < 30; index += 1) { await createCheckout(config(), userId, 'coins-5k').catch(() => {}); await db.query(`UPDATE purchases SET checkout_url = NULL WHERE user_id = $1`, [userId]); }
     await expect(createCheckout(config(), userId, 'coins-5k')).rejects.toMatchObject({ code: 'PURCHASE_LIMIT' });
+  });
+
+  it('catálogo público responde com pagamentos desligados, só leitura', async () => {
+    const [catalog] = createCatalogRoutes(db, false);
+    expect(catalog.method).toBe('GET');
+    expect(catalog.pattern.test('/shop/products')).toBe(true);
+    const result = await catalog.handler({} as never) as { enabled: boolean; products: Array<{ id: string; priceCents: number }> };
+    expect(result.enabled).toBe(false);
+    expect(result.products.some((product) => product.id === 'coins_2k' && product.priceCents === 100)).toBe(true);
   });
 });

@@ -328,8 +328,9 @@
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href={section === 'store' ? '/online/conta?next=/online/store' : '/online/conta?next=/online/colecao'}>{t('goAccount')}</a></section>
     {:else if state}
 
-      {#if section === 'store'}<StoreNav language={$language} />{:else}
-      <div class="team-links"><button class="primary" type="button" disabled={!complete || busy} on:click={saveAndPlay}>{dirty ? u('savePlay') : t('playOnline')}</button><a class="secondary link" href="/online/trocas">{t('trades')}</a><button class="secondary" type="button" on:click={() => scrollTo(cardsSection)}>{t('myCards')}</button></div>{/if}
+      {#if section === 'store'}<StoreNav language={$language} />
+      <BuyCoins {serverUrl} language={$language} />{:else}
+      <div class="team-links"><button class="primary" type="button" disabled={!complete || busy} on:click={saveAndPlay}>{dirty ? u('savePlay') : t('playOnline')}</button><button class="secondary" type="button" on:click={() => scrollTo(cardsSection)}>{t('myCards')}</button></div>{/if}
       <div class="columns">
         {#if section === 'store'}
         <section class="panel shop" bind:this={shopTop}>
@@ -510,9 +511,7 @@
         {/if}
       </div>
 
-      {#if section === 'store'}<BuyCoins {serverUrl} language={$language} />
-
-      {:else}
+      {#if section !== 'store'}
       <section class="panel cards" bind:this={cardsSection}>
         <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>
         <div class="filters">
