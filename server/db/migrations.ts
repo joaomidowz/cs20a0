@@ -389,6 +389,47 @@ FROM (
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id
   AND st.user_id IN ('3bbabac9-16f1-4272-9d7d-5b5b0c508768', 'b08bf2fb-1f37-40d8-bf87-904796a50441');
 `
+  },
+  {
+    id: 15,
+    // Owner's ruling on his own account (2026-09-18): only three titles stand, the two flawless ones (champion without
+    // dropping a single map: every series a sweep) and the most recent title. Every other title of the account is
+    // annulled, including re-deciding the ones ruling 14 had picked. Flags only; nothing deleted, coins stay.
+    sql: `
+WITH titles AS (
+  SELECT m.id, m.played_at, m.lobby_size,
+    (SELECT count(*) FROM jsonb_array_elements(m.awards) a WHERE (CASE WHEN jsonb_typeof(a) = 'string' THEN a #>> '{}' ELSE a ->> 'kind' END) = 'perfect_series') AS sweeps,
+    (SELECT max((w.detail ->> 'series')::int) FROM awards w WHERE w.user_id = m.user_id AND w.kind = 'undefeated_major' AND w.ref_id = m.room_code || ':' || m.seed) AS series
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND m.champion AND m.ranked
+), flawless AS (
+  SELECT id FROM titles WHERE series IS NOT NULL AND sweeps >= series ORDER BY lobby_size DESC, played_at DESC, id DESC LIMIT 2
+), latest AS (
+  SELECT id FROM titles WHERE id NOT IN (SELECT id FROM flawless) ORDER BY played_at DESC, id DESC LIMIT 1
+), keep AS (SELECT id FROM flawless UNION SELECT id FROM latest)
+UPDATE majors m SET voided = (m.id NOT IN (SELECT id FROM keep)) FROM titles t WHERE t.id = m.id;
+
+UPDATE awards a SET voided = m.voided FROM majors m
+WHERE m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND a.user_id = m.user_id AND a.ref_id = m.room_code || ':' || m.seed AND a.voided IS DISTINCT FROM m.voided;
+
+UPDATE majors m SET counted = false, points = 0 FROM seasons s
+WHERE s.id = m.season_id AND s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND m.voided;
+
+WITH day_runs AS (
+  SELECT m.id, row_number() OVER (PARTITION BY (m.played_at AT TIME ZONE 'UTC' - interval '3 hours')::date ORDER BY m.potential_points DESC, m.played_at, m.id) AS place
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.ranked AND NOT m.voided AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768'
+)
+UPDATE majors m SET counted = d.place <= 10, points = CASE WHEN d.place <= 10 THEN m.potential_points ELSE 0 END
+FROM day_runs d WHERE d.id = m.id;
+
+UPDATE season_standings st SET points = agg.points, majors_won = agg.won
+FROM (
+  SELECT m.season_id, m.user_id, sum(m.points)::int AS points, count(*) FILTER (WHERE m.champion AND m.ranked AND NOT m.voided)::int AS won
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
+`
   }
 ];
 
