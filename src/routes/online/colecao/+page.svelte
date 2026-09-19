@@ -6,6 +6,7 @@
   import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import Upgrader from '$lib/components/online/Upgrader.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
+  import TradesPanel from '$lib/components/online/TradesPanel.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -304,6 +305,8 @@
       <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} {oddsLabels} onBuy={(tier) => runReveal(() => buyPromo(serverUrl, tier), tier)} />
 
       <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()} />
+
+      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onChanged={() => void refresh()} />
 
       <div class="columns">
         <section class="panel shop" bind:this={shopTop}>

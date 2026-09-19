@@ -11,6 +11,7 @@ import { createCollectionRoutes } from './http/collection-routes';
 import { createRoomRoutes } from './http/room-routes';
 import { createMissionRoutes } from './http/mission-routes';
 import { createUpgraderRoutes } from './http/upgrader-routes';
+import { createTradeRoutes } from './http/trade-routes';
 import { recordMajor } from './collection/seasons';
 import { createQueue } from './queue';
 import { createPaymentRoutes } from './http/payment-routes';
@@ -70,7 +71,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const queue = createQueue(manager, now);
   const supportDeps = auth && options.db && options.mailer && options.supportTo ? { db: options.db, mailer: options.mailer, to: options.supportTo } : null;
   const support = supportDeps && auth ? createSupportRoutes(supportDeps, auth.currentUser, now) : null;
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createTradeRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
   const clientAddress = (request: IncomingMessage) => {
     if (options.trustProxy) {
       const forwarded = request.headers['x-forwarded-for'];

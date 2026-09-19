@@ -13,7 +13,7 @@ export class CollectionError extends Error {
   }
 }
 
-export type LedgerReason = 'pack_open' | 'duplicate' | 'sell' | 'buy_pack' | 'match_reward' | 'season_prize' | 'award' | 'purchase' | 'refund' | 'chargeback' | 'welcome' | 'mission_reward';
+export type LedgerReason = 'pack_open' | 'duplicate' | 'sell' | 'buy_pack' | 'match_reward' | 'season_prize' | 'award' | 'purchase' | 'refund' | 'chargeback' | 'welcome' | 'mission_reward' | 'trade';
 
 /** The only writer of `wallets`: every change is a ledger row first. Throws INSUFFICIENT_COINS when the balance would go negative. */
 export async function applyLedger(tx: Tx, userId: string, delta: number, reason: LedgerReason, refId: string | null = null): Promise<number> {

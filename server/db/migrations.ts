@@ -488,6 +488,31 @@ CREATE TABLE IF NOT EXISTS promo_purchases (
   PRIMARY KEY (user_id, day, tier)
 );
 `
+  },
+  {
+    id: 19,
+    // Trocas diretas (Entrega 4): carta por carta, com coins opcionais do proponente; motivo 'trade' no ledger e origem 'trade' na coleção.
+    sql: `
+CREATE TABLE IF NOT EXISTS trades (
+  id bigserial PRIMARY KEY,
+  from_user uuid NOT NULL REFERENCES users(id),
+  to_user uuid NOT NULL REFERENCES users(id),
+  offered_card text NOT NULL,
+  requested_card text NOT NULL,
+  coins int NOT NULL DEFAULT 0 CHECK (coins >= 0),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined','cancelled','expired')),
+  created_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  resolved_at timestamptz,
+  CHECK (from_user <> to_user)
+);
+CREATE INDEX IF NOT EXISTS trades_to_idx ON trades (to_user, status);
+CREATE INDEX IF NOT EXISTS trades_from_idx ON trades (from_user, status);
+ALTER TABLE collection DROP CONSTRAINT IF EXISTS collection_source_check;
+ALTER TABLE collection ADD CONSTRAINT collection_source_check CHECK (source IN ('pack','reward','upgrade','trade'));
+ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
+ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade'));
+`
   }
 ];
 

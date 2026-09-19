@@ -70,3 +70,21 @@ export interface PromoOffer {
 
 export const fetchPromos = (serverUrl: string) => authFetch<{ day: string; endsAt: string; promos: PromoOffer[] }>(serverUrl, '/promos');
 export const buyPromo = (serverUrl: string, tier: PromoTier) => authFetch<PackOpened>(serverUrl, '/promos/buy', { body: { tier } });
+
+export type TradeStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
+export interface TradeItem {
+  id: string;
+  direction: 'sent' | 'received';
+  partner: string;
+  offeredCard: string;
+  requestedCard: string;
+  coins: number;
+  status: TradeStatus;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export const fetchTrades = (serverUrl: string) => authFetch<{ received: TradeItem[]; sent: TradeItem[] }>(serverUrl, '/trades');
+export const fetchTradePartner = (serverUrl: string, teamName: string) => authFetch<{ teamName: string; cards: string[] }>(serverUrl, `/trades/partner?teamName=${encodeURIComponent(teamName)}`);
+export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
+export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} });
