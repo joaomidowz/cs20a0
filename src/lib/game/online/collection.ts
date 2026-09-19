@@ -49,3 +49,14 @@ export interface MissionState {
 export const fetchMissions = (serverUrl: string) => authFetch<{ missions: MissionState[]; soloStreak: { current: number; best: number } }>(serverUrl, '/missions');
 export const claimMission = (serverUrl: string, missionId: string) => authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} });
 export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });
+
+export interface UpgradeOutcome {
+  won: boolean;
+  chance: number;
+  roll: number;
+  seed: string;
+  target: string;
+  returned: string | null;
+}
+
+export const upgradeCards = (serverUrl: string, stake: string[], target: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target } });

@@ -112,3 +112,16 @@ export function coachCoinValue(coach: Pick<Coach, 'overall' | 'rarity'>): number
 }
 
 export const coachSellValue = (coach: Pick<Coach, 'overall' | 'rarity'>) => Math.floor(coachCoinValue(coach) * SELL_RATIO);
+
+/** Upgrader: at most this many cards staked at once. */
+export const UPGRADER_MAX_STAKE = 6;
+/** Upgrader: the chance never goes above this, however much is staked. */
+export const UPGRADER_MAX_CHANCE = 0.75;
+/** Upgrader: share of the staked value that turns into chance (the house keeps the rest). */
+export const UPGRADER_EDGE = 0.9;
+
+/** Chance (0..0.75) of turning cards worth `stakeValue` coins into one worth `targetValue`. */
+export function upgradeChance(stakeValue: number, targetValue: number): number {
+  if (targetValue <= 0 || stakeValue <= 0) return 0;
+  return Math.min(UPGRADER_MAX_CHANCE, (stakeValue / targetValue) * UPGRADER_EDGE);
+}

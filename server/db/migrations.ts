@@ -451,6 +451,29 @@ CREATE TABLE IF NOT EXISTS solo_streaks (
 ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
 ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward'));
 `
+  },
+  {
+    id: 17,
+    // Upgrader (Entrega 2): cada aposta com a seed sorteada no servidor; a carta que entra por ele tem origem 'upgrade'.
+    sql: `
+CREATE TABLE IF NOT EXISTS upgrades (
+  id bigserial PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  stake text[] NOT NULL CHECK (cardinality(stake) BETWEEN 1 AND 6),
+  target text NOT NULL,
+  stake_value int NOT NULL,
+  target_value int NOT NULL,
+  chance double precision NOT NULL CHECK (chance >= 0 AND chance <= 0.75),
+  seed text NOT NULL UNIQUE,
+  roll double precision NOT NULL,
+  won boolean NOT NULL,
+  returned text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS upgrades_user_idx ON upgrades (user_id, created_at DESC);
+ALTER TABLE collection DROP CONSTRAINT IF EXISTS collection_source_check;
+ALTER TABLE collection ADD CONSTRAINT collection_source_check CHECK (source IN ('pack','reward','upgrade'));
+`
   }
 ];
 

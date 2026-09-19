@@ -4,6 +4,7 @@
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
+  import Upgrader from '$lib/components/online/Upgrader.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -298,6 +299,8 @@
       </div>
 
       <MissionsPanel {serverUrl} language={$language} onClaimed={() => void refresh()} />
+
+      <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()} />
 
       <div class="columns">
         <section class="panel shop" bind:this={shopTop}>
