@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
@@ -6,7 +6,7 @@ import { isValidLineupMapSelection } from '../../src/lib/game/maps';
 import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
 import { rollPackWithCoaches, type PackCard } from './packs';
-import { dayKeyUtcMinus3 } from './time';
+import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3 } from './time';
 
 export class CollectionError extends Error {
   constructor(readonly status: number, readonly code: string, message: string = code) {
@@ -31,6 +31,8 @@ export interface CollectionView {
   count: number;
   players: Array<{ playerId: string; acquiredAt: string }>;
   packsToday: { granted: number; opened: number };
+  /** Free packs still available this period: Prata once per ISO week, Ouro once per month (Brasília). */
+  freePacks: Record<FreePackTier, boolean>;
   lineup: LineupView | null;
 }
 
@@ -72,11 +74,16 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
   const rows = await db.query<{ player_id: string; acquired_at: Date }>('SELECT player_id, acquired_at FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
   const [grant] = await db.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2', [userId, day]);
   const [lineup] = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineups WHERE user_id = $1`, [userId]);
+  const claimed = new Set((await db.query<{ tier: string }>(
+    'SELECT tier FROM free_pack_claims WHERE user_id = $1 AND ((tier = $2 AND period_key = $3) OR (tier = $4 AND period_key = $5))',
+    [userId, 'prata', freePackPeriod('prata', now), 'ouro', freePackPeriod('ouro', now)]
+  )).map((row) => row.tier));
   return {
     wallet: wallet?.coins ?? 0,
     count: rows.length,
     players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
     packsToday: { granted: grant?.granted ?? DAILY_BASIC_PACKS, opened: grant?.opened ?? 0 },
+    freePacks: { prata: !claimed.has('prata'), ouro: !claimed.has('ouro') },
     lineup: lineupView(lineup)
   };
 }
@@ -102,7 +109,10 @@ async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string)
   return { duplicates, coinsFromDupes, wallet };
 }
 
-/** One of the two daily basic packs; the seed makes the reveal reproducible and the grant row keeps it idempotent. */
+/** Period a free pack belongs to: the ISO week for Prata, the month for Ouro, both in Brasília time. */
+export const freePackPeriod = (tier: FreePackTier, now: number) => (tier === 'prata' ? isoWeekKeyUtcMinus3(now) : monthKeyUtcMinus3(now));
+
+/** One of the daily basic packs; the seed makes the reveal reproducible and the grant row keeps it idempotent. */
 export async function openDailyPack(db: Db, userId: string, now: number): Promise<PackResult> {
   const day = dayKeyUtcMinus3(now);
   return db.tx(async (tx) => {
@@ -117,6 +127,26 @@ export async function openDailyPack(db: Db, userId: string, now: number): Promis
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
     return { tier: 'basic', seed, players: cards.map(cardId), ...added };
+  });
+}
+
+/**
+ * The free Prata (once per ISO week) or Ouro (once per month) pack of the account: the same roll as a bought pack, no
+ * coins charged. The claim row's primary key keeps it to once per period, even with two requests at the same time.
+ */
+export async function openFreePack(db: Db, userId: string, tier: FreePackTier, now: number): Promise<PackResult> {
+  if (!(FREE_PACK_TIERS as readonly string[]).includes(tier)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não sai grátis');
+  const period = freePackPeriod(tier, now);
+  const seed = `${userId}:free:${tier}:${period}`;
+  return db.tx(async (tx) => {
+    const claimed = await tx.query('INSERT INTO free_pack_claims (user_id, tier, period_key, seed) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, tier, period, seed]);
+    if (!claimed.length) throw new CollectionError(409, 'FREE_PACK_USED', tier === 'prata' ? 'O Prata grátis desta semana já foi aberto' : 'O Ouro grátis deste mês já foi aberto');
+    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches);
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
+    await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
+    const added = await addCards(tx, userId, cards, seed);
+    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
+    return { tier, seed, players: cards.map(cardId), ...added };
   });
 }
 

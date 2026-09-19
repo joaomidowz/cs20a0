@@ -4,13 +4,15 @@ import { patchWalletCoins, setWalletFromCollection } from './wallet';
 
 /** Every response that carries the new balance also updates the shared wallet bar. */
 const withWallet = <T extends { wallet: number }>(request: Promise<T>) => request.then((result) => { patchWalletCoins(result.wallet); return result; });
-import type { PackTier, PromoTier } from './collection-rules';
+import type { FreePackTier, PackTier, PromoTier } from './collection-rules';
 
 export interface CollectionState {
   wallet: number;
   count: number;
   players: Array<{ playerId: string; acquiredAt: string }>;
   packsToday: { granted: number; opened: number };
+  /** Free Prata (weekly) and Ouro (monthly) packs still available; missing on an older server. */
+  freePacks?: Record<FreePackTier, boolean>;
   lineup: SavedLineup | null;
 }
 
@@ -35,6 +37,7 @@ export interface PackOpened {
 
 export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection').then((state) => { setWalletFromCollection(state); return state; });
 export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} }));
+export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/free', { body: { tier } }));
 export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } }));
 export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: lineup });

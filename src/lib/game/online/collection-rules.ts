@@ -21,25 +21,30 @@ export const promoFinalPrice = (originalPrice: number, tier: PromoTier): number 
 /** Packs sold for coins, in shop order (the basic pack is the daily grant). */
 export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['prata', 'era', 'ouro', 'diamante', 'icone'];
 export const CARDS_PER_PACK = 3;
-export const DAILY_BASIC_PACKS = 2;
+export const DAILY_BASIC_PACKS = 3;
+/** Free packs per account besides the daily basic ones: one Prata per ISO week and one Ouro per month, both in Brasília time. */
+export type FreePackTier = 'prata' | 'ouro';
+export const FREE_PACK_TIERS: readonly FreePackTier[] = ['prata', 'ouro'];
+export const isFreePackTier = (tier: string): tier is FreePackTier => (FREE_PACK_TIERS as readonly string[]).includes(tier);
 
 const odds = (common: number, rare: number, elite: number, superstar: number, legend: number, goat: number): RarityOdds => ({ common, rare, elite, superstar, legend, goat });
 const same = (row: RarityOdds): RarityOdds[] => Array.from({ length: CARDS_PER_PACK }, () => row);
 /**
  * Odds per rarity for each card of a pack, in percent (each row sums to 100). Premium packs guarantee their first
- * card (Diamante a Legend, 10% of it a GOAT; Ícone a GOAT) and their other two cards are Superstar or better.
+ * card (Diamante a Legend, 6% of it a GOAT; Ícone a GOAT) and their other two cards are Elite or better. Legend and GOAT
+ * odds of the premium packs are ~40% below what they were, moved to Superstar and Elite: a GOAT should feel like a miracle.
  */
 export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
   basic: same(odds(63.4, 24, 8.5, 2.5, 1.2, 0.4)),
   prata: same(odds(38.5, 31, 18, 7.5, 4, 1)),
   era: same(odds(38.5, 31, 18, 7.5, 4, 1)),
   ouro: same(odds(10, 26, 33, 16, 13, 2)),
-  diamante: [odds(0, 0, 0, 0, 90, 10), odds(0, 0, 0, 30, 60, 10), odds(0, 0, 0, 30, 60, 10)],
-  icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 0, 20, 60, 20), odds(0, 0, 0, 20, 60, 20)]
+  diamante: [odds(0, 0, 0, 0, 94, 6), odds(0, 0, 14, 44, 36, 6), odds(0, 0, 14, 44, 36, 6)],
+  icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 12, 40, 36, 12), odds(0, 0, 12, 40, 36, 12)]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 2000, ouro: 3500, diamante: 10000, icone: 30000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 7500, ouro: 3500, diamante: 30000, icone: 50000 };
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {
@@ -48,18 +53,19 @@ export function packChance(tier: PackTier, rarities: readonly Rarity[]): number 
 }
 
 /** A sold card pays this share of its value (see tests/collectionEconomy.test.ts: selling a pack never pays back its price). */
-export const SELL_RATIO = 0.04;
+export const SELL_RATIO = 0.035;
 
 /** Coin value of each rarity, the middle of its band: the upgrader and the trades compare cards by it. */
-export const RARITY_BASE_VALUE: Readonly<Record<Rarity, number>> = { common: 2000, rare: 3000, elite: 5000, superstar: 10000, legend: 20000, goat: 50000 };
+export const RARITY_BASE_VALUE: Readonly<Record<Rarity, number>> = { common: 2400, rare: 3600, elite: 6000, superstar: 12000, legend: 24000, goat: 100000 };
 /** Lowest and highest value of each rarity, by overall (common and rare follow the Elite proportion, 90%..120% of the base). */
 export const RARITY_VALUE_BAND: Readonly<Record<Rarity, readonly [number, number]>> = {
-  common: [1800, 2400], rare: [2700, 3600], elite: [4500, 6000], superstar: [9000, 12000], legend: [18000, 25000], goat: [45000, 60000]
+  common: [2160, 2880], rare: [3240, 4320], elite: [5400, 7200], superstar: [10800, 14400], legend: [21600, 30000], goat: [85000, 110000]
 };
 /** Overalls each rarity spans in the pool: the lowest gets the band floor, the middle the base, the highest the band top. */
 const RARITY_OVERALL_SPAN: Readonly<Record<Rarity, readonly [number, number]>> = { common: [69, 80], rare: [78, 86], elite: [81, 87], superstar: [85, 92], legend: [90, 96], goat: [95, 99] };
 const COACH_OVERALL_SPAN: readonly [number, number] = [68, 90];
-const RARITY_VALUE_STEP: Readonly<Record<Rarity, number>> = { common: 100, rare: 100, elite: 100, superstar: 250, legend: 500, goat: 1000 };
+/** Rounding step of each band: it divides both ends of the band, so a rounded value never leaves it. */
+const RARITY_VALUE_STEP: Readonly<Record<Rarity, number>> = { common: 20, rare: 20, elite: 100, superstar: 100, legend: 100, goat: 1000 };
 /** A coach is worth this share of a player of the same rarity. */
 export const COACH_VALUE_RATIO = 0.8;
 
@@ -134,13 +140,25 @@ export const coachSellValue = (coach: Pick<Coach, 'overall' | 'rarity'>) => Math
 
 /** Upgrader: at most this many cards staked at once. */
 export const UPGRADER_MAX_STAKE = 6;
-/** Upgrader: the chance never goes above this, however much is staked. */
+/** Upgrader: the chance never goes above this, however much is staked (the cap of the lower rarities). */
 export const UPGRADER_MAX_CHANCE = 0.75;
+/** Upgrader: cap of the chance by the rarity of the target (a coach uses its own rarity). */
+export const UPGRADER_RARITY_CAP: Readonly<Record<Rarity, number>> = { common: 0.75, rare: 0.75, elite: 0.75, superstar: 0.75, legend: 0.4, goat: 0.2 };
+/** Upgrader: a target this many rarities (or more) above the best staked card... */
+export const UPGRADER_REACH_STEPS = 2;
+/** ...has its chance multiplied by this, after the cap. */
+export const UPGRADER_REACH_PENALTY = 0.5;
 /** Upgrader: share of the staked value that turns into chance (the house keeps the rest). */
 export const UPGRADER_EDGE = 0.9;
 
-/** Chance (0..0.75) of turning cards worth `stakeValue` coins into one worth `targetValue`. */
-export function upgradeChance(stakeValue: number, targetValue: number): number {
+/**
+ * Chance of turning cards worth `stakeValue` coins into one worth `targetValue`: stake/target × UPGRADER_EDGE, capped by
+ * the target rarity (UPGRADER_RARITY_CAP), then halved when the target is UPGRADER_REACH_STEPS or more rarities above the
+ * best staked card. Server and client call this same function.
+ */
+export function upgradeChance(stakeValue: number, targetValue: number, targetRarity: Rarity, stakeRarities: readonly Rarity[]): number {
   if (targetValue <= 0 || stakeValue <= 0) return 0;
-  return Math.min(UPGRADER_MAX_CHANCE, (stakeValue / targetValue) * UPGRADER_EDGE);
+  const capped = Math.min(UPGRADER_RARITY_CAP[targetRarity], (stakeValue / targetValue) * UPGRADER_EDGE);
+  const best = Math.max(...stakeRarities.map((rarity) => RARITIES.indexOf(rarity)));
+  return RARITIES.indexOf(targetRarity) - best >= UPGRADER_REACH_STEPS ? capped * UPGRADER_REACH_PENALTY : capped;
 }

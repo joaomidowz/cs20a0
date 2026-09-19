@@ -1,9 +1,9 @@
 // tests/upgrader.test.ts
 // Chance do upgrader (pura), o provably fair (vetores fixos, node:crypto = crypto.subtle) e os desfechos contra o Postgres local. A parte de banco é pulada sem TEST_DATABASE_URL.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cardCoinValue } from '../src/lib/game/online/card-value';
+import { cardCoinValue, cardUpgradeChance } from '../src/lib/game/online/card-value';
 import { collectionPlayers } from '../src/lib/game/online/collection-pool';
-import { UPGRADER_MAX_CHANCE, upgradeChance } from '../src/lib/game/online/collection-rules';
+import { UPGRADER_MAX_CHANCE, UPGRADER_RARITY_CAP, upgradeChance } from '../src/lib/game/online/collection-rules';
 import { CONSOLATION_COMMON_CHANCE, CONSOLATION_VALUE_RATIO, consolationCard, fairConsolation, fairRoll, rollDegrees, rollFromHex, sha256Hex, verifyFair } from '../src/lib/game/online/fair';
 import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
 import { rarityOf } from '../src/lib/game/online/collection-rules';
@@ -11,12 +11,35 @@ import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 
 describe('chance do upgrader', () => {
-  it('é aposta/alvo × 0,9, com teto de 75%', () => {
-    expect(upgradeChance(100, 1000)).toBeCloseTo(0.09, 10);
-    expect(upgradeChance(500, 1000)).toBeCloseTo(0.45, 10);
-    expect(upgradeChance(990, 1000)).toBe(UPGRADER_MAX_CHANCE);
-    expect(upgradeChance(0, 1000)).toBe(0);
-    expect(upgradeChance(100, 0)).toBe(0);
+  it('é aposta/alvo × 0,9, com teto de 75% até Superstar', () => {
+    expect(upgradeChance(100, 1000, 'rare', ['common'])).toBeCloseTo(0.09, 10);
+    expect(upgradeChance(500, 1000, 'elite', ['rare'])).toBeCloseTo(0.45, 10);
+    expect(upgradeChance(990, 1000, 'superstar', ['elite'])).toBe(UPGRADER_MAX_CHANCE);
+    for (const rarity of ['common', 'rare', 'elite', 'superstar'] as const) expect(UPGRADER_RARITY_CAP[rarity]).toBe(0.75);
+    expect(upgradeChance(0, 1000, 'rare', ['common'])).toBe(0);
+    expect(upgradeChance(100, 0, 'rare', ['common'])).toBe(0);
+  });
+
+  it('teto de 40% em Lenda e 20% em GOAT', () => {
+    expect(upgradeChance(20000, 24000, 'legend', ['legend'])).toBe(0.4);
+    expect(upgradeChance(9000, 24000, 'legend', ['superstar'])).toBeCloseTo(0.3375, 10);
+    expect(upgradeChance(90000, 100000, 'goat', ['legend'])).toBe(0.2);
+    expect(upgradeChance(10000, 100000, 'goat', ['legend'])).toBeCloseTo(0.09, 10);
+  });
+
+  it('alvo 2+ raridades acima da melhor carta apostada: metade da chance, depois do teto', () => {
+    // Elite → Lenda (2 acima): 6.000/24.000 × 0,9 = 22,5% → 11,25%.
+    expect(upgradeChance(6000, 24000, 'legend', ['elite'])).toBeCloseTo(0.1125, 10);
+    // Muitas comuns por uma Lenda: bate no teto de 40% e cai para 20%.
+    expect(upgradeChance(15000, 24000, 'legend', ['common', 'common', 'common', 'common', 'common', 'common'])).toBeCloseTo(0.2, 10);
+    // Uma Superstar na aposta tira a penalidade (só 1 acima).
+    expect(upgradeChance(15000, 24000, 'legend', ['common', 'superstar'])).toBe(0.4);
+    // GOAT a partir de Superstar: teto 20% vira 10%.
+    expect(upgradeChance(90000, 100000, 'goat', ['superstar'])).toBeCloseTo(0.1, 10);
+    // Coach usa a raridade dele: por id, a regra é a mesma do servidor.
+    const coach = [...collectionCoachById.values()].find((item) => rarityOf(item) === 'legend');
+    const common = collectionPlayers.find((player) => rarityOf(player) === 'common')!;
+    if (coach) expect(cardUpgradeChance([common.id], coach.id)).toBeCloseTo(upgradeChance(cardCoinValue(common.id), cardCoinValue(coach.id), 'legend', ['common']), 10);
   });
 });
 
@@ -151,7 +174,7 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
   it('derrota com uma carta: a apostada é perdida e entra uma rebaixada; saldo intacto', async () => {
     const { upgradeCards, getFairState, serverRoll, sha256 } = await import('../server/collection/upgrader');
     const stake = cheap.slice(0, 1);
-    const chance = upgradeChance(cardCoinValue(stake[0]), cardCoinValue(target));
+    const chance = cardUpgradeChance(stake, target);
     const serverSeed = 'd'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const before = await getFairState(db, userId);
@@ -190,7 +213,7 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     const { upgradeCards, serverRoll } = await import('../server/collection/upgrader');
     const { duplicateValue } = await import('../server/collection/service');
     const stake = cheap.slice(1, 3);
-    const chance = upgradeChance(stake.reduce((sum, id) => sum + cardCoinValue(id), 0), cardCoinValue(target));
+    const chance = cardUpgradeChance(stake, target);
     const serverSeed = '9'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const clientSeed = await clientSeedFor(serverSeed, nonce, chance, false);
@@ -211,7 +234,7 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
   it('vitória: as apostadas saem e o alvo entra', async () => {
     const { upgradeCards } = await import('../server/collection/upgrader');
     const stake = cheap.slice(3, 5);
-    const chance = upgradeChance(stake.reduce((sum, id) => sum + cardCoinValue(id), 0), cardCoinValue(target));
+    const chance = cardUpgradeChance(stake, target);
     const serverSeed = 'e'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const clientSeed = await clientSeedFor(serverSeed, nonce, chance, true);

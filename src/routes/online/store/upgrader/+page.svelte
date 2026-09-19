@@ -11,7 +11,7 @@
   import { fetchCollection, type CollectionState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
-  import { UPGRADER_MAX_CHANCE, upgradeChance } from '$lib/game/online/collection-rules';
+  import { UPGRADER_RARITY_CAP, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
   import { language, theme } from '$lib/game/pageState';
   import type { Coach, Player } from '$lib/game/types';
 
@@ -24,7 +24,8 @@
   let detailsPlayer: Player | null = null;
 
   /** FAQ examples, computed with the same rule the server uses. */
-  const EXAMPLES = [[5000, 20000], [10000, 20000], [10000, 12000]].map(([stake, target]) => ({ stake, target, chance: upgradeChance(stake, target) }));
+  const EXAMPLES = ([[12000, 'superstar', 24000, 'legend'], [6000, 'elite', 24000, 'legend'], [12000, 'superstar', 14400, 'superstar'], [48000, 'legend', 100000, 'goat']] as const)
+    .map(([stake, from, target, to]) => ({ stake, target, chance: upgradeChance(stake, target, to, [from as Rarity]), cap: UPGRADER_RARITY_CAP[to] }));
   const VERIFY_SNIPPET = [
     "const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(serverSeed), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);",
     "const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${clientSeed}:${nonce}`)));",
@@ -113,7 +114,7 @@
           <thead><tr><th>{t('faqTableStake')}</th><th>{t('faqTableTarget')}</th><th>{t('faqTableChance')}</th></tr></thead>
           <tbody>
             {#each EXAMPLES as example}
-              <tr><td>{example.stake.toLocaleString($language)}</td><td>{example.target.toLocaleString($language)}</td><td>{pct(example.chance)}{#if example.chance >= UPGRADER_MAX_CHANCE} ({t('faqTableCap')}){/if}</td></tr>
+              <tr><td>{example.stake.toLocaleString($language)}</td><td>{example.target.toLocaleString($language)}</td><td>{pct(example.chance)}{#if example.chance >= example.cap} ({t('faqTableCap')}){/if}</td></tr>
             {/each}
           </tbody>
         </table>

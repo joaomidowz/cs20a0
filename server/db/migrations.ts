@@ -542,6 +542,21 @@ ALTER TABLE promo_purchases ADD CONSTRAINT promo_purchases_tier_check CHECK (tie
 ALTER TABLE promo_purchases ADD COLUMN IF NOT EXISTS card_id text;
 ALTER TABLE promo_purchases ADD COLUMN IF NOT EXISTS price int CHECK (price IS NULL OR price > 0);
 `
+  },
+  {
+    id: 22,
+    // Pacotes grátis por conta: um Prata por semana ISO e um Ouro por mês (fuso de Brasília). A chave primária faz
+    // cada período valer uma vez só; a abertura em si fica em pack_opens, como a de qualquer pacote.
+    sql: `
+CREATE TABLE IF NOT EXISTS free_pack_claims (
+  user_id uuid NOT NULL REFERENCES users(id),
+  tier text NOT NULL CHECK (tier IN ('prata','ouro')),
+  period_key text NOT NULL CHECK (char_length(period_key) BETWEEN 7 AND 8),
+  seed text NOT NULL UNIQUE,
+  claimed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, tier, period_key)
+);
+`
   }
 ];
 

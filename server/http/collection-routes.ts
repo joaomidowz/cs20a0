@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
-import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineup, openDailyPack, saveLineup, sellPlayer } from '../collection/service';
+import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineup, openDailyPack, openFreePack, saveLineup, sellPlayer } from '../collection/service';
 import type { Db } from '../db/client';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
 const buySchema = z.object({ tier: z.enum(['prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional() });
+const freeSchema = z.object({ tier: z.enum(['prata', 'ouro']) });
 const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']) });
 const sellSchema = z.object({ playerId: z.string().min(1).max(80) });
 const lineupSchema = z.object({
@@ -27,9 +28,13 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
     route('GET', /^\/collection$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await getCollection(db, userId!, now)) }))),
     route('GET', /^\/packs$/, withAuth(async ({ userId, now }) => {
       const view = await getCollection(db, userId!, now);
-      return { ok: true, today: view.packsToday, daily: DAILY_BASIC_PACKS, prices: PACK_PRICES, odds: PACK_SLOTS, wallet: view.wallet };
+      return { ok: true, today: view.packsToday, daily: DAILY_BASIC_PACKS, free: view.freePacks, prices: PACK_PRICES, odds: PACK_SLOTS, wallet: view.wallet };
     })),
     route('POST', /^\/packs\/open$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await openDailyPack(db, userId!, now).catch(toHttp)) }))),
+    route('POST', /^\/packs\/free$/, withAuth(async ({ request, userId, now }) => {
+      const body = await readBody(request, freeSchema);
+      return { ok: true, ...(await openFreePack(db, userId!, body.tier, now).catch(toHttp)) };
+    })),
     route('POST', /^\/packs\/buy$/, withAuth(async ({ request, userId, now }) => {
       const body = await readBody(request, buySchema);
       return { ok: true, ...(await buyPack(db, userId!, body.tier, now, body.year).catch(toHttp)) };

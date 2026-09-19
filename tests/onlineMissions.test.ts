@@ -84,6 +84,6 @@ describe.skipIf(!url)('missões (Postgres)', () => {
     const result = await claimMission(db, userId, 'season_win_5', now + 20_000);
     expect(result).toMatchObject({ coins: 3000, packs: 2 });
     const [grant] = await db.query<{ granted: number }>(`SELECT granted FROM pack_grants WHERE user_id = $1`, [userId]);
-    expect(grant.granted).toBe(4);
+    expect(grant.granted).toBe(5);
   });
 });

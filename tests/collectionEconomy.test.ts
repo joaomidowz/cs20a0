@@ -32,17 +32,20 @@ describe('preço das cartas', () => {
       expect(coinValue(player)).toBeGreaterThanOrEqual(low);
       expect(coinValue(player)).toBeLessThanOrEqual(high);
     }
-    expect(RARITY_BASE_VALUE).toEqual({ common: 2000, rare: 3000, elite: 5000, superstar: 10000, legend: 20000, goat: 50000 });
-    expect(coinValue({ overall: 81, rarity: 'elite' })).toBe(4500);
-    expect(coinValue({ overall: 84, rarity: 'elite' })).toBe(5000);
-    expect(coinValue({ overall: 87, rarity: 'elite' })).toBe(6000);
-    expect(coinValue({ overall: 99, rarity: 'goat' })).toBe(60000);
-    expect(coinValue({ overall: 90, rarity: 'legend' })).toBe(18000);
-    expect(coinValue({ overall: 96, rarity: 'legend' })).toBe(25000);
+    expect(RARITY_BASE_VALUE).toEqual({ common: 2400, rare: 3600, elite: 6000, superstar: 12000, legend: 24000, goat: 100000 });
+    expect(RARITY_VALUE_BAND).toEqual({ common: [2160, 2880], rare: [3240, 4320], elite: [5400, 7200], superstar: [10800, 14400], legend: [21600, 30000], goat: [85000, 110000] });
+    expect(coinValue({ overall: 81, rarity: 'elite' })).toBe(5400);
+    expect(coinValue({ overall: 84, rarity: 'elite' })).toBe(6000);
+    expect(coinValue({ overall: 87, rarity: 'elite' })).toBe(7200);
+    expect(coinValue({ overall: 99, rarity: 'goat' })).toBe(110000);
+    expect(coinValue({ overall: 95, rarity: 'goat' })).toBe(85000);
+    expect(coinValue({ overall: 97, rarity: 'goat' })).toBe(100000);
+    expect(coinValue({ overall: 90, rarity: 'legend' })).toBe(21600);
+    expect(coinValue({ overall: 96, rarity: 'legend' })).toBe(30000);
     expect(coinValue({ overall: 92, rarity: 'superstar' })).toBeGreaterThan(coinValue({ overall: 86, rarity: 'superstar' }));
     // Same rarity, different overalls: not one flat price.
     for (const rarity of RARITIES) expect(new Set(collectionPlayers.filter((player) => rarityOf(player) === rarity).map(coinValue)).size).toBeGreaterThan(2);
-    expect(coachCoinValue({ overall: 79, rarity: 'elite' })).toBe(4000);
+    expect(coachCoinValue({ overall: 79, rarity: 'elite' })).toBe(4800);
     for (const coach of collectionCoaches) {
       const [low, high] = RARITY_VALUE_BAND[rarityOf(coach)];
       expect(coachCoinValue(coach)).toBeGreaterThanOrEqual(low * 0.8 - 100);

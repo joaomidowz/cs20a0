@@ -3,9 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
-import { dayKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
+import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { applyCollectionLineup, cardEffects, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
-import { CARDS_PER_PACK, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, Player } from '../src/lib/game/types';
 
@@ -20,11 +20,11 @@ describe('regras de coins', () => {
     for (const tier of ['basic', 'prata', 'era', 'ouro'] as const) expect(packChance(tier, ['goat'])).toBeLessThan(0.07);
   });
 
-  it('valor cresce com overall e raridade, dentro de 1.800..60.000, e venda paga SELL_RATIO', () => {
+  it('valor cresce com overall e raridade, dentro de 2.160..110.000, e venda paga SELL_RATIO', () => {
     const low = coinValue({ overall: 62, rarity: 'common' });
     const high = coinValue({ overall: 97, rarity: 'goat' });
-    expect(low).toBe(1_800);
-    expect(high).toBeLessThanOrEqual(60_000);
+    expect(low).toBe(2_160);
+    expect(high).toBeLessThanOrEqual(110_000);
     expect(high).toBeGreaterThan(low);
     expect(coinValue({ overall: 80, rarity: 'goat' })).toBeGreaterThan(coinValue({ overall: 80, rarity: 'common' }));
     expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * SELL_RATIO));
@@ -37,6 +37,17 @@ describe('regras de coins', () => {
     expect(matchReward('placementStage3', true)).toBe(150);
   });
 
+  it('pacotes premium: Lenda e GOAT ~40% mais raras, garantias mantidas', () => {
+    expect(PACK_PRICES).toMatchObject({ prata: 1200, ouro: 3500, era: 7500, diamante: 30000, icone: 50000 });
+    // Antes: Diamante 10% de GOAT por carta; Ícone 60% Lenda e 20% GOAT nas cartas 2 e 3.
+    for (const row of PACK_SLOTS.diamante) expect(row.goat).toBe(6);
+    expect(PACK_SLOTS.diamante[1]).toMatchObject({ elite: 14, superstar: 44, legend: 36 });
+    expect(PACK_SLOTS.icone[1]).toMatchObject({ elite: 12, superstar: 40, legend: 36, goat: 12 });
+    expect(packChance('icone', ['goat'])).toBe(1);
+    expect(packChance('diamante', ['legend', 'goat'])).toBe(1);
+    expect(DAILY_BASIC_PACKS).toBe(3);
+  });
+
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {
     expect(dayKeyUtcMinus3(Date.UTC(2026, 8, 18, 2, 59))).toBe('2026-09-17');
     expect(dayKeyUtcMinus3(Date.UTC(2026, 8, 18, 3, 0))).toBe('2026-09-18');
@@ -44,6 +55,16 @@ describe('regras de coins', () => {
     expect(season.month).toBe('2026-09-01');
     expect(season.startsAt).toBe(Date.UTC(2026, 8, 1, 3));
     expect(season.endsAt).toBe(Date.UTC(2026, 9, 1, 3));
+  });
+
+  it('semana ISO e mês dos pacotes grátis viram no fuso de Brasília', () => {
+    // Segunda 21/09/2026 começa à meia-noite de Brasília (03:00 UTC).
+    expect(isoWeekKeyUtcMinus3(Date.UTC(2026, 8, 21, 2, 59))).toBe('2026-W38');
+    expect(isoWeekKeyUtcMinus3(Date.UTC(2026, 8, 21, 3, 0))).toBe('2026-W39');
+    expect(isoWeekKeyUtcMinus3(Date.UTC(2025, 11, 29, 12))).toBe('2026-W01');
+    expect(isoWeekKeyUtcMinus3(Date.UTC(2021, 0, 3, 12))).toBe('2020-W53');
+    expect(monthKeyUtcMinus3(Date.UTC(2026, 9, 1, 2, 59))).toBe('2026-09');
+    expect(monthKeyUtcMinus3(Date.UTC(2026, 9, 1, 3, 0))).toBe('2026-10');
   });
 });
 
@@ -74,11 +95,11 @@ describe('sorteio de pacote', () => {
     for (let index = 0; index < 60; index += 1) {
       const icone = rollPack('icone', `i${index}`, players);
       expect(rarityOf(icone[0])).toBe('goat');
-      expect(icone.slice(1).every((card) => ['superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
+      expect(icone.slice(1).every((card) => ['elite', 'superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
       expect(new Set(icone.map((card) => card.id)).size).toBe(CARDS_PER_PACK);
       const diamante = rollPack('diamante', `d${index}`, players);
       expect(['legend', 'goat']).toContain(rarityOf(diamante[0]));
-      expect(diamante.slice(1).every((card) => ['superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
+      expect(diamante.slice(1).every((card) => ['elite', 'superstar', 'legend', 'goat'].includes(rarityOf(card)))).toBe(true);
     }
   });
 });

@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { cardCoinValue, isKnownCard } from '../../src/lib/game/online/card-value';
-import { UPGRADER_MAX_STAKE, upgradeChance } from '../../src/lib/game/online/collection-rules';
+import { cardCoinValue, cardUpgradeChance, isKnownCard } from '../../src/lib/game/online/card-value';
+import { UPGRADER_MAX_STAKE } from '../../src/lib/game/online/collection-rules';
 import { consolationCard, fairMessage, isValidClientSeed, rollFromHex, FAIR_CLIENT_SEED_MAX, type ConsolationKind, type FairSuffix } from '../../src/lib/game/online/fair';
 import type { Db, Tx } from '../db/client';
 import { applyLedger, CollectionError, duplicateValue } from './service';
@@ -73,7 +73,7 @@ export async function upgradeCards(db: Db, userId: string, stake: string[], targ
   const stakeValue = stake.reduce((sum, id) => sum + cardCoinValue(id), 0);
   const targetValue = cardCoinValue(target);
   if (targetValue <= stakeValue) throw new CollectionError(400, 'TARGET_TOO_CHEAP', 'O alvo tem que valer mais que a aposta');
-  const chance = upgradeChance(stakeValue, targetValue);
+  const chance = cardUpgradeChance(stake, target);
   return db.tx(async (tx) => {
     const inLineup = await lineupCardIds(tx, userId);
     if (stake.some((id) => inLineup.has(id))) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de apostar');

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
-  import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
+  import { cardCoinValue, cardLabel, cardUpgradeChance } from '$lib/game/online/card-value';
   import { collectionCoachById, collectionCoaches, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
-  import { RARITIES, UPGRADER_MAX_STAKE, rarityOf, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
+  import { RARITIES, UPGRADER_MAX_STAKE, rarityOf, type Rarity } from '$lib/game/online/collection-rules';
   import { fetchUpgraderFair, upgradeCards, type UpgradeOutcome, type UpgraderFair } from '$lib/game/online/collection';
   import { FAIR_CLIENT_SEED_MAX, isValidClientSeed, rollDegrees, verifyFair } from '$lib/game/online/fair';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -79,7 +79,7 @@
   $: stakeValue = stakeCards.reduce((sum, card) => sum + card.value, 0);
   $: targetCard = target ? cardOf(target) : null;
   $: targetValue = targetCard?.value ?? 0;
-  $: chance = target && stakeValue && targetValue > stakeValue ? upgradeChance(stakeValue, targetValue) : 0;
+  $: chance = target && stakeValue && targetValue > stakeValue ? cardUpgradeChance(stake, target) : 0;
   $: needleText = query.trim().toLowerCase();
   $: targets = stakeValue
     ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
@@ -334,11 +334,11 @@
             <span class="value-tag"><i></i>{fmt(card.value)}</span>
             {#if card.coach}
               <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={aimed}>
-                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(upgradeChance(stakeValue, card.value))}</button>
+                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, card.id))}</button>
               </CoachCard>
             {:else if card.player}
               <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>
-                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(upgradeChance(stakeValue, card.value))}</button>
+                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, card.id))}</button>
               </CollectionCard>
             {/if}
           </div>

@@ -19,7 +19,7 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
+  import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -169,9 +169,9 @@
     } catch (caught) { fail(caught); }
   }
 
-  async function runReveal(open: () => Promise<PackOpened>, tier: PackTier) {
+  async function runReveal(open: () => Promise<PackOpened>, tier: PackTier, free = false) {
     if (busy) return;
-    if (tier !== 'basic' && !await confirmDialog({ title: u('confirmBuy'), body: t(PACK_LABEL[tier]) + ' · ' + PACK_PRICES[tier].toLocaleString($language) + ' coins', confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
+    if (tier !== 'basic' && !free && !await confirmDialog({ title: u('confirmBuy'), body: t(PACK_LABEL[tier]) + ' · ' + PACK_PRICES[tier].toLocaleString($language) + ' coins', confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
     error = ''; busy = true;
     try {
       const result = await open();
@@ -351,8 +351,13 @@
                 <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
                 <PackCase {tier} label={t(PACK_LABEL[tier])} />
                 <strong>{t(PACK_LABEL[tier])}</strong>
-                <span class="price"><i></i>{PACK_PRICES[tier].toLocaleString($language)}</span>
-                <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier), tier)}>{t('buy')}</button>
+                {#if state.freePacks?.[tier]}
+                  <span class="price">{t('free')}</span>
+                  <button class="secondary" type="button" disabled={busy} on:click={() => runReveal(() => openFreePack(serverUrl, tier), tier, true)}>{t('openPack')}</button>
+                {:else}
+                  <span class="price"><i></i>{PACK_PRICES[tier].toLocaleString($language)}</span>
+                  <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier), tier)}>{t('buy')}</button>
+                {/if}
               </article>
             {/each}
             <article class="pack era">

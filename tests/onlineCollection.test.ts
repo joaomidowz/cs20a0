@@ -41,7 +41,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
 
   afterAll(async () => { await close(); await db?.close(); });
 
-  it('dá dois pacotes por dia, recusa o terceiro e libera no dia seguinte', async () => {
+  it('dá três pacotes por dia, recusa o quarto e libera no dia seguinte', async () => {
     const first = await call('/packs/open', {});
     expect(first.status).toBe(200);
     expect(first.body.players).toHaveLength(3);
@@ -49,11 +49,13 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(second.status).toBe(200);
     expect(second.body.seed).not.toBe(first.body.seed);
     const third = await call('/packs/open', {});
-    expect(third.status).toBe(409);
-    expect(third.body.error).toBe('NO_PACKS_LEFT');
+    expect(third.status).toBe(200);
+    const fourth = await call('/packs/open', {});
+    expect(fourth.status).toBe(409);
+    expect(fourth.body.error).toBe('NO_PACKS_LEFT');
     const collection = await call('/collection');
-    expect(collection.body.count).toBe(6 - collection.body.players.filter(() => false).length - (first.body.duplicates.length + second.body.duplicates.length));
-    expect(collection.body.packsToday).toEqual({ granted: 2, opened: 2 });
+    expect(collection.body.count).toBe(9 - (first.body.duplicates.length + second.body.duplicates.length + third.body.duplicates.length));
+    expect(collection.body.packsToday).toEqual({ granted: 3, opened: 3 });
     clock += 24 * 60 * 60_000;
     expect((await call('/packs/open', {})).status).toBe(200);
   });
@@ -77,10 +79,51 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     const yearOf = (id: string) => collectionPlayerById.get(id)?.year ?? collectionCoachById.get(id)?.year;
     expect(bought.body.players.every((id: string) => yearOf(id) === 2014)).toBe(true);
     const ledger = await db.query<{ reason: string; delta: number }>('SELECT reason, delta FROM ledger ORDER BY id');
-    expect(ledger.some((row) => row.reason === 'buy_pack' && row.delta === -2000)).toBe(true);
+    expect(ledger.some((row) => row.reason === 'buy_pack' && row.delta === -7500)).toBe(true);
     expect(ledger.some((row) => row.reason === 'sell')).toBe(true);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets');
     expect(wallet.coins).toBeGreaterThanOrEqual(0);
+  });
+
+  it('Prata grátis uma vez por semana e Ouro grátis uma vez por mês, sem cobrar', async () => {
+    const coinsOf = async () => (await db.query<{ coins: number }>('SELECT coins FROM wallets'))[0].coins;
+    // Sábado 19/09/2026, 12:00 de Brasília: semana ISO 2026-W38, mês 2026-09.
+    clock = Date.UTC(2026, 8, 19, 15);
+    const saved = await coinsOf();
+    expect((await call('/collection')).body.freePacks).toEqual({ prata: true, ouro: true });
+    expect((await call('/packs')).body.free).toEqual({ prata: true, ouro: true });
+    await db.query('UPDATE wallets SET coins = 0');
+    const prata = await call('/packs/free', { tier: 'prata' });
+    expect(prata.status).toBe(200);
+    expect(prata.body).toMatchObject({ tier: 'prata' });
+    expect(prata.body.players).toHaveLength(3);
+    const again = await call('/packs/free', { tier: 'prata' });
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe('FREE_PACK_USED');
+    const ouro = await call('/packs/free', { tier: 'ouro' });
+    expect(ouro.status).toBe(200);
+    expect((await call('/packs/free', { tier: 'ouro' })).status).toBe(409);
+    expect((await call('/packs/free', { tier: 'diamante' })).status).toBe(400);
+    expect((await call('/collection')).body.freePacks).toEqual({ prata: false, ouro: false });
+    // Só as duplicatas entram na carteira: nada foi cobrado.
+    expect(await coinsOf()).toBe(prata.body.coinsFromDupes + ouro.body.coinsFromDupes);
+    const ledger = await db.query<{ reason: string }>(`SELECT reason FROM ledger WHERE ref_id = ANY($1)`, [[prata.body.seed, ouro.body.seed]]);
+    expect(ledger.every((row) => row.reason === 'duplicate')).toBe(true);
+    const opens = await db.query<{ tier: string }>('SELECT tier FROM pack_opens WHERE seed = ANY($1) ORDER BY tier', [[prata.body.seed, ouro.body.seed]]);
+    expect(opens.map((row) => row.tier)).toEqual(['ouro', 'prata']);
+    // Domingo 20/09, 23:59 de Brasília: ainda a mesma semana.
+    clock = Date.UTC(2026, 8, 21, 2, 59);
+    expect((await call('/packs/free', { tier: 'prata' })).status).toBe(409);
+    // Segunda 21/09, 00:00 de Brasília: semana nova libera o Prata; o Ouro só no mês seguinte.
+    clock = Date.UTC(2026, 8, 21, 3);
+    expect((await call('/collection')).body.freePacks).toEqual({ prata: true, ouro: false });
+    expect((await call('/packs/free', { tier: 'prata' })).status).toBe(200);
+    expect((await call('/packs/free', { tier: 'ouro' })).status).toBe(409);
+    // 1º/10, 00:00 de Brasília: mês novo libera o Ouro.
+    clock = Date.UTC(2026, 9, 1, 3);
+    expect((await call('/packs/free', { tier: 'ouro' })).status).toBe(200);
+    expect((await call('/packs/free', { tier: 'ouro' })).status).toBe(409);
+    await db.query('UPDATE wallets SET coins = $1', [saved]);
   });
 
   it('lineup exige cinco cartas próprias e devolve se o star vale', async () => {
