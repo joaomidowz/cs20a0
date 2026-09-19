@@ -430,6 +430,27 @@ FROM (
   WHERE s.status = 'active' AND m.user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' GROUP BY m.season_id, m.user_id
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
 `
+  },
+  {
+    id: 16,
+    // Missões diárias, semanais, da season e solo (Entrega 1): progresso por período, sequência solo e o motivo mission_reward.
+    sql: `
+CREATE TABLE IF NOT EXISTS mission_progress (
+  user_id uuid NOT NULL REFERENCES users(id),
+  mission_id text NOT NULL,
+  period_key text NOT NULL,
+  progress int NOT NULL DEFAULT 0,
+  claimed_at timestamptz,
+  PRIMARY KEY (user_id, mission_id, period_key)
+);
+CREATE TABLE IF NOT EXISTS solo_streaks (
+  user_id uuid PRIMARY KEY REFERENCES users(id),
+  current int NOT NULL DEFAULT 0,
+  best int NOT NULL DEFAULT 0
+);
+ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
+ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward'));
+`
   }
 ];
 

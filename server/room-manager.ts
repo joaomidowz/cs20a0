@@ -70,6 +70,7 @@ import {
 } from '../src/lib/game/online/live-series';
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
+import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
 import { applyCollectionLineup } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -140,7 +141,14 @@ export interface RunCompletedEntry {
   /** Ids of the organizations this participant beat and their power, for underdog awards. */
   opponents: Array<{ id: string; power: number; won: boolean }>;
   ownPower: number;
+  /** Series this participant lost in the run (0 with the title = the "13 a 0" run). */
+  seriesLost: number;
+  /** Player ids of the lineup that played the run. */
+  lineupIds: string[];
 }
+
+/** How the bots of a room are drawn: the usual shuffle, or Major champions first (solo "Major dos Campeões"). */
+export type RoomField = 'random' | 'champions';
 
 export interface RunCompletedEvent {
   roomCode: string;
@@ -150,6 +158,8 @@ export interface RunCompletedEvent {
   lobbySize: number;
   /** Scores season points (queue room, or code room where all brought collection teams and there were enough). */
   competitive: boolean;
+  /** Bot field of the run; only the solo room can ask for 'champions'. */
+  field: RoomField;
   awards: MajorAwards | null;
   entries: RunCompletedEntry[];
 }
@@ -239,6 +249,7 @@ interface RoomState {
   queue: { expected: number; startBy: number } | null;
   /** Fixed when the tournament begins; decides season points. */
   competitive: boolean;
+  field: RoomField;
 }
 
 /** Minimum humans for a run to score season points. */
@@ -405,7 +416,7 @@ export class RoomManager {
 
   constructor(private readonly hooks: RoomHooks = {}) {}
 
-  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue'; expected?: number } = {}): string {
+  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue'; expected?: number; field?: RoomField } = {}): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
     this.rooms.set(code, {
@@ -434,7 +445,8 @@ export class RoomManager {
       pendingLineups: new Map(),
       origin: options.origin ?? 'code',
       queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS } : null,
-      competitive: false
+      competitive: false,
+      field: options.field ?? 'random'
     });
     return code;
   }
@@ -457,7 +469,8 @@ export class RoomManager {
   liveQueueRooms(now = Date.now()): Array<{ id: string; phase: RoomPhase; round: number; competitive: boolean; champion: string | null; teams: Array<{ name: string; wins: number; losses: number; status: string }> }> {
     const live: ReturnType<RoomManager['liveQueueRooms']> = [];
     for (const [code, room] of this.rooms) {
-      if (room.origin !== 'queue' || room.phase === 'lobby' || room.phase === 'draft') continue;
+      // Solo rooms (one human against bots) are not ranked Majors: they stay off the public board.
+      if (room.origin !== 'queue' || room.queue?.expected === 1 || room.phase === 'lobby' || room.phase === 'draft') continue;
       const snapshot = this.getSnapshot(code, null, now);
       const standings = new Map((snapshot.tournament?.standings ?? []).map((row) => [row.organizationId, row]));
       const teams = snapshot.participants.map((participant) => {
@@ -988,12 +1001,14 @@ export class RoomManager {
           const opponent = series.teamA.id === participant.id ? series.teamB : series.teamA;
           return { id: opponent.id, power: powerOf.get(opponent.id) ?? opponent.power, won: series.winnerId === participant.id };
         }),
-        ownPower: powerOf.get(participant.id) ?? 0
+        ownPower: powerOf.get(participant.id) ?? 0,
+        seriesLost: matches.filter((series) => series.winnerId && series.winnerId !== participant.id).length,
+        lineupIds: participant.draft.lineup.map((pick) => pick.playerId)
       });
     }
     if (!entries.length) return;
     try {
-      this.hooks.onRunCompleted({ roomCode: room.code, seed: room.seed, runNumber, lobbySize: humans.length, competitive: room.competitive, awards: room.awards, entries });
+      this.hooks.onRunCompleted({ roomCode: room.code, seed: room.seed, runNumber, lobbySize: humans.length, competitive: room.competitive, field: room.field, awards: room.awards, entries });
     } catch (error) {
       console.error('onRunCompleted hook failed', error instanceof Error ? error.message : error);
     }
@@ -1134,7 +1149,9 @@ export class RoomManager {
     const shuffledTeams = [...teams].sort((left, right) => {
       const leftRoll = createSeededRng(`${room.seed}:bot:${left.id}`)();
       const rightRoll = createSeededRng(`${room.seed}:bot:${right.id}`)();
-      return leftRoll - rightRoll || left.id.localeCompare(right.id);
+      // "Major dos Campeões": the champion versions come first (still shuffled by the seed), the usual draw fills any gap.
+      const championOrder = room.field === 'champions' ? Number(!CHAMPION_TEAM_IDS.has(left.id)) - Number(!CHAMPION_TEAM_IDS.has(right.id)) : 0;
+      return championOrder || leftRoll - rightRoll || left.id.localeCompare(right.id);
     });
     const botPool: TournamentOrganization[] = shuffledTeams.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);

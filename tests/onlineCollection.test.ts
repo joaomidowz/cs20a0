@@ -135,8 +135,8 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const now = Date.UTC(2026, 8, 18, 15);
     const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
     const event = {
-      roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, competitive: true, awards: null,
-      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80 }]
+      roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, competitive: true, field: 'random' as const, awards: null,
+      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
     };
     await recordMajor(db, event, now);
     await recordMajor(db, event, now);

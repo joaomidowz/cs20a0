@@ -34,3 +34,18 @@ export const openDailyPack = (serverUrl: string) => authFetch<PackOpened>(server
 export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } });
 export const sellCard = (serverUrl: string, playerId: string) => authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } });
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: lineup });
+
+export interface MissionState {
+  id: string;
+  scope: 'daily' | 'weekly' | 'season' | 'solo';
+  target: number;
+  progress: number;
+  coins: number;
+  packs: number;
+  claimed: boolean;
+  resetsAt: string;
+}
+
+export const fetchMissions = (serverUrl: string) => authFetch<{ missions: MissionState[]; soloStreak: { current: number; best: number } }>(serverUrl, '/missions');
+export const claimMission = (serverUrl: string, missionId: string) => authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} });
+export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });

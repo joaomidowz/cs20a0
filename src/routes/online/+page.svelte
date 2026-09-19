@@ -51,7 +51,7 @@
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { accountUser, authFetch, loadAccount, sessionToken } from '$lib/game/online/account';
   import { get } from 'svelte/store';
-  import { fetchCollection } from '$lib/game/online/collection';
+  import { fetchCollection, startSolo } from '$lib/game/online/collection';
   import '../../app.css';
 
   // Collection lineups may bring 2013–2015 cards; the draft itself only ever offers core players.
@@ -410,6 +410,7 @@
   let queueNotice = '';
   /** The player is searching (joined and did not cancel); drives the silent rejoin after a server restart. */
   let queueWanted = false;
+  let soloBusy = false;
   let queueFailures = 0;
   let lastAutoRejoin = 0;
   let hiddenTimer: number | null = null;
@@ -530,6 +531,29 @@
     } catch (error) {
       queueWanted = false;
       errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('queueNeedsTeam') : (error instanceof Error ? error.message : t('connectionFailed'));
+    }
+  }
+
+  /** Solo contra bots com o time salvo: o servidor cria a sala e devolve o ticket, como um match da fila. */
+  async function playSolo(field: 'random' | 'champions') {
+    if (soloBusy) return;
+    errorMessage = '';
+    soloBusy = true;
+    try {
+      const result = await startSolo(getOnlineServerUrl(), field);
+      const user = $accountUser;
+      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
+      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+      roomCode = result.roomCode;
+      pendingLineupTicket = result.lineupTicket;
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', roomCode);
+      replaceState(url, {});
+      connect();
+    } catch (error) {
+      errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('queueNeedsTeam') : (error instanceof Error ? error.message : t('connectionFailed'));
+    } finally {
+      soloBusy = false;
     }
   }
 
@@ -976,6 +1000,16 @@
             <button class="primary" type="button" on:click={() => joinQueue()}>{queueNotice ? t('searchAgain') : t('findMatch')}</button>
           {/if}
         </article>
+        {#if $accountUser && hasSavedLineup}
+          <article class="panel mode-card solo-mode">
+            <span class="eyebrow">{t('notCompetitive').toUpperCase()}</span>
+            <h2>{t('soloTitle')}</h2>
+            <p>{t('soloHint')}</p>
+            <button class="secondary" type="button" disabled={soloBusy} on:click={() => playSolo('random')}>{t('soloRandom')}</button>
+            <button class="primary" type="button" disabled={soloBusy} title={t('soloChampionsHint')} on:click={() => playSolo('champions')}>{t('soloChampions')}</button>
+            <small>{t('soloChampionsHint')}</small>
+          </article>
+        {/if}
         <article class="panel mode-card">
           <span class="eyebrow">{t('notCompetitive').toUpperCase()}</span>
           <h2>{t('friendsRoom')}</h2>

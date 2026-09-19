@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -295,6 +296,8 @@
         <div><span>{t('myCards')}</span><strong>{state.count}</strong></div>
         <div class="topbar-actions"><a class="primary link" href="#comprar-coins">+ coins</a><a class="ghost link" href="/suporte?aba=overall">{$language === 'en' ? 'Wrong rating?' : $language === 'es' ? '¿Overall incorrecto?' : 'Overall errado?'}</a><a class="secondary link" href="/online/conta">{t('account')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
+
+      <MissionsPanel {serverUrl} language={$language} onClaimed={() => void refresh()} />
 
       <div class="columns">
         <section class="panel shop" bind:this={shopTop}>

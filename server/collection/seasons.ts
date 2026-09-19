@@ -3,6 +3,7 @@ import type { Db, Tx } from '../db/client';
 import { collectionPlayerById as playerById } from '../../src/lib/game/online/collection-pool';
 import type { RunCompletedEvent } from '../room-manager';
 import { detectAwards } from './awards';
+import { advanceMissions } from './missions';
 import { applyLedger } from './service';
 import { dayKeyUtcMinus3, seasonMonthOf } from './time';
 
@@ -72,6 +73,7 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
          FROM day_runs d WHERE d.id = m.id`,
         [entry.userId, day, COUNTED_RUNS_PER_DAY]
       );
+      await advanceMissions(tx, { entry, event, seasonId, now, mvp: detected.some((award) => award.kind === 'major_mvp') });
       const reward = matchReward(entry.placement, ranked);
       await applyLedger(tx, entry.userId, reward, 'match_reward', `${event.roomCode}:${event.seed}`);
       if (awardCoins) await applyLedger(tx, entry.userId, awardCoins, 'award', `${event.roomCode}:${event.seed}`);
