@@ -16,6 +16,7 @@
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
   import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
+  import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
@@ -401,13 +402,29 @@
             {#each slots as slot, index}
               <div class="slot" class:filled={Boolean(slot)}>
                 {#if slot}
-                  <CollectionCard player={slot} teamName={teamNameOf(slot)} language={$language} compact inLineup star={slot.id === starPlayerId && starOk} effect={effects[slot.id] ?? null}>
-                    <button class="ghost small" type="button" class:active={slot.id === starPlayerId} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★ {t('star')}</button>
-                    <button class="ghost small" type="button" on:click={() => removeFromLineup(index)}>{t('removeFromLineup')}</button>
-                  </CollectionCard>
+                  <div class="slot-desk">
+                    <CollectionCard player={slot} teamName={teamNameOf(slot)} language={$language} compact inLineup star={slot.id === starPlayerId && starOk} effect={effects[slot.id] ?? null}>
+                      <button class="ghost small" type="button" class:active={slot.id === starPlayerId} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★ {t('star')}</button>
+                      <button class="ghost small" type="button" on:click={() => removeFromLineup(index)}>{t('removeFromLineup')}</button>
+                    </CollectionCard>
+                  </div>
+                  <!-- Phone: one compact row per slot (mini card left, actions right). -->
+                  <div class="slot-row">
+                    <MiniCard id={slot.id} layout="row" star={slot.id === starPlayerId && starOk} onClick={() => detailsPlayer = slot} />
+                    <div class="row-actions">
+                      <select aria-label={t('role')} value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select>
+                      <div class="row-buttons">
+                        <button class="icon" type="button" class:active={slot.id === starPlayerId} aria-pressed={slot.id === starPlayerId} aria-label={`${t('star')}: ${slot.nickname ?? slot.id}`} title={t('star')} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★</button>
+                        <button class="icon" type="button" aria-label={`${u('replace')}: ${slot.nickname ?? slot.id}`} title={u('replace')} on:click={() => openSlot(index)}>⇄</button>
+                        <button class="icon" type="button" aria-label={`${t('removeFromLineup')}: ${slot.nickname ?? slot.id}`} title={t('removeFromLineup')} on:click={() => removeFromLineup(index)}>✕</button>
+                      </div>
+                    </div>
+                  </div>
                   {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')} {slot.nickname ?? slot.id}</button>{/if}
-                  <button class="secondary small" type="button" on:click={() => openSlot(index)}>{u('replace')}</button>
-                  <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+                  <div class="slot-desk">
+                    <button class="secondary small" type="button" on:click={() => openSlot(index)}>{u('replace')}</button>
+                    <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+                  </div>
                   <p class="slot-notes">
                     {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : t('noteStarOff')}</span>{/if}
                   </p>
@@ -425,9 +442,15 @@
             <div class="detail-box coach-slot">
               <span class="label">COACH · {t('coachBonus')}</span>
               {#if activeCoach}
-                <CoachCard coach={activeCoach} teamName={coachTeamName(activeCoach)} active affinity={coachBonus > 0}>
-                  <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
-                </CoachCard>
+                <div class="slot-desk">
+                  <CoachCard coach={activeCoach} teamName={coachTeamName(activeCoach)} active affinity={coachBonus > 0}>
+                    <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
+                  </CoachCard>
+                </div>
+                <div class="slot-row coach-row">
+                  <MiniCard id={activeCoach.id} layout="row" />
+                  <button class="icon" type="button" aria-label={`${t('removeFromLineup')}: ${activeCoach.name}`} title={t('removeFromLineup')} on:click={() => coachId = null}>✕</button>
+                </div>
                 {#if preview && synergized}
                   <ul class="stat-list">
                     <li><span>{t('power')}</span><b class:up={preview.power > synergized.power}>{preview.power >= synergized.power ? '+' : ''}{fmt(preview.power - synergized.power)}</b></li>
@@ -634,8 +657,24 @@
   @keyframes swap-pulse { 50% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); } }
   .slot-notes { display: grid; gap: 2px; margin: 0; font-size: .64rem; font-weight: 800; } .slot-notes .bad { color: #ff9b90; } .slot-notes .gold { color: #ffd36b; }
   .compare em { font-style: normal; margin-left: 6px; color: var(--muted); } .compare em.up, .compare b.up { color: var(--accent); } .compare em.down, .compare b.down { color: #ff9b90; }
+  /* Lineup: desktop keeps the big cards; the phone swaps them for a compact row per slot. */
+  .slot-desk { display: contents; }
+  .slot-row { display: none; }
+  .slot :global(footer) { flex-direction: column; }
+  .slot :global(footer button) { width: 100%; min-width: 0; }
   @media (max-width: 720px) {
-    .collection { padding-bottom: 120px; }
+    .collection { padding-bottom: calc(170px + env(safe-area-inset-bottom)); }
+    .slot-desk { display: none; }
+    .slot-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px; align-items: stretch; gap: 6px; min-width: 0; }
+    .slot-row.coach-row { grid-template-columns: minmax(0, 1fr) 40px; }
+    .row-actions { display: grid; grid-template-rows: auto auto; gap: 4px; min-width: 0; }
+    .row-actions select { width: 100%; min-height: 36px; padding: 0 6px; font-size: .72rem; }
+    .row-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+    .icon { display: grid; place-items: center; min-width: 0; min-height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: 1rem; font-weight: 900; cursor: pointer; }
+    .icon:hover { border-color: var(--accent); }
+    .icon.active { border-color: #d9a441; color: #ffd36b; background: color-mix(in srgb, #d9a441 14%, var(--surface)); }
+    .slot .empty { min-height: 56px; }
+    .slot-notes:empty { display: none; }
     .toast { bottom: 70px; }
   }
   @media (prefers-reduced-motion: reduce) { .swap-here { animation: none; } }
@@ -671,7 +710,7 @@
     .save-bar { position: fixed; left: 0; right: 0; bottom: calc(65px + env(safe-area-inset-bottom)); }
     .team, .cards, .shop { padding: 14px; }
     .details { grid-template-columns: minmax(0, 1fr); }
-    .slots { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+    .slots { grid-template-columns: minmax(0, 1fr); gap: 8px; }
     .toast { bottom: calc(145px + env(safe-area-inset-bottom)); }
     .team-links > * { flex: 1 1 auto; }
     .picker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }

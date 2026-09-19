@@ -85,6 +85,17 @@
   .stat small { color: var(--muted); font-size: .56rem; font-weight: 800; letter-spacing: .1em; } .stat b { color: var(--text); font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; }
   .stat i { grid-column: 1 / -1; height: 3px; background: var(--surface); } .stat u { display: block; height: 100%; background: var(--rarity); }
   .compact .photo { width: 52px; height: 52px; } .compact .ovr { font-size: 1.7rem; } .compact .name { font-size: 1.1rem; } .compact .face { padding: 10px; }
+  /* Narrow columns (lineup slots): nothing may push past the frame; long names and teams end in an ellipsis. */
+  .face { min-width: 0; overflow: hidden; }
+  .face > * { min-width: 0; }
+  .top > * { min-width: 0; } .photo { flex: 0 0 auto; }
+  .rarity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { overflow: hidden; } .name span { min-width: 0; } .name :global(*) { flex-shrink: 0; } .name span { flex-shrink: 1; }
+  .role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team { overflow: hidden; } .team :global(*) { flex-shrink: 0; } .team em { flex-shrink: 1; min-width: 0; }
+  .compact .ovr { font-size: clamp(1.25rem, 1rem + 1.4vw, 1.7rem); }
+  .compact .name { font-size: clamp(.95rem, .8rem + .6vw, 1.1rem); }
+  footer { min-width: 0; } footer :global(button) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .in-lineup { border-color: var(--accent); }
   .up { box-shadow: 0 0 0 1px var(--accent), 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent); animation: glow 2.4s ease-in-out infinite; }
   .down { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), 0 0 18px color-mix(in srgb, var(--danger) 22%, transparent); }

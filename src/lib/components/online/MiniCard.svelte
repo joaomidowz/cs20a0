@@ -13,6 +13,9 @@
   export let selected = false;
   export let label = '';
   export let onClick: (() => void) | null = null;
+  /** `row`: photo, text and OVR on one line (lineup on a phone). */
+  export let layout: 'stack' | 'row' = 'stack';
+  export let star = false;
 
   $: player = collectionPlayerById.get(id);
   $: coach = player ? undefined : collectionCoachById.get(id);
@@ -23,15 +26,17 @@
   $: team = collectionTeamById.get(player?.teamId ?? coach?.teamId ?? '')?.name ?? '';
 </script>
 
-<button type="button" class="mini rarity-{rarity}" class:selected disabled={!onClick} aria-pressed={onClick ? selected : undefined} aria-label={label ? `${label}: ${name}` : name} on:click={() => onClick?.()}>
+<button type="button" class="mini rarity-{rarity}" class:row={layout === 'row'} class:star class:selected disabled={!onClick} aria-pressed={onClick ? selected : undefined} aria-label={label ? `${label}: ${name}` : name} on:click={() => onClick?.()}>
   <span class="top">
     <span class="photo">{#if card}<PlayerAvatar player={{ id: card.id, baseId: card.baseId }} bare />{/if}</span>
     <span class="ovr"><small>OVR</small>{card?.overall ?? '—'}</span>
   </span>
-  <span class="rarity">{rarity}</span>
-  <strong class="name">{name}</strong>
-  <span class="meta">{meta}</span>
-  {#if team}<span class="team">{team}</span>{/if}
+  <span class="text">
+    <span class="rarity">{rarity}{#if star} · ★ STAR{/if}</span>
+    <strong class="name">{name}</strong>
+    <span class="meta">{meta}</span>
+    {#if team}<span class="team">{team}</span>{/if}
+  </span>
 </button>
 
 <style>
@@ -49,5 +54,13 @@
   .name { overflow: hidden; font: 800 clamp(.82rem, 3.4vw, 1rem)/1.1 'Arial Narrow', Impact, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .meta, .team { overflow: hidden; color: var(--muted); font-size: clamp(.52rem, 2.2vw, .6rem); font-weight: 700; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .team { text-transform: none; }
+  .text { display: grid; gap: 3px; min-width: 0; }
+  .star { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441; }
+  /* Row: photo | text | OVR, one line tall. */
+  .row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; height: 100%; }
+  .row .top { display: contents; }
+  .row .photo { grid-column: 1; grid-row: 1; width: 44px; height: 44px; }
+  .row .text { grid-column: 2; grid-row: 1; gap: 1px; }
+  .row .ovr { grid-column: 3; grid-row: 1; font-size: clamp(1.2rem, 5.4vw, 1.5rem); }
   @media (prefers-reduced-motion: reduce) { .mini { transition: none; } }
 </style>
