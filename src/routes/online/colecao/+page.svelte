@@ -23,7 +23,7 @@
   import { getRoleLabel } from '$lib/game/roleRules';
   import { calculateUserTeamPower } from '$lib/game/simulation';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
-  import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, getMapAffinity, isValidLineupMapSelection } from '$lib/game/maps';
+  import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
@@ -402,25 +402,19 @@
               {:else}
                 <p class="note">{t('noCoach')}</p>
               {/if}
-            </div>
-
-            <div class="detail-box maps-box">
-              <span class="label">{t('teamMaps')} · {(mapPicks.length ? mapPicks : effectiveMaps).length}/3</span>
               {#if complete}
-                <div class="map-grid">
-                  {#each ACTIVE_DUTY_MAPS as mapId}
-                    {@const count = mapContributors[mapId]?.length ?? 0}
-                    {@const chosen = (mapPicks.length ? mapPicks : effectiveMaps).includes(mapId)}
-                    <button type="button" class="map" class:chosen disabled={count === 0 || (!chosen && mapPicks.length >= 3)} on:click={() => { if (!mapPicks.length) mapPicks = []; toggleMap(mapId); }} title={(mapContributors[mapId] ?? []).map((player) => player.nickname).join(', ')}>
-                      <strong>{MAP_NAMES[mapId]}</strong>
-                      <small>{count ? `${count}/5 · ${getMapAffinity(count)}` : '—'}{#if coachMaps.has(mapId)} · coach{/if}</small>
-                    </button>
-                  {/each}
-                </div>
-                <p class="note">{mapPicks.length === 0 ? t('teamMapsAuto') : mapsValid ? t('teamMapsHint') : t('teamMapsPick')}</p>
-                {#if mapPicks.length}<button class="ghost small" type="button" on:click={() => mapPicks = []}>{t('teamMapsReset')}</button>{/if}
-              {:else}
-                <p class="note">{t('lineupIncomplete')}</p>
+                <details class="maps-acc">
+                  <summary><span>{t('teamMaps')}</span><b>{effectiveMaps.map((mapId) => MAP_NAMES[mapId]).join(' · ')}</b><em>{mapPicks.length ? '' : 'auto'}</em></summary>
+                  <div class="map-grid">
+                    {#each ACTIVE_DUTY_MAPS.filter((mapId) => (mapContributors[mapId]?.length ?? 0) > 0) as mapId}
+                      {@const count = mapContributors[mapId].length}
+                      {@const chosen = (mapPicks.length ? mapPicks : effectiveMaps).includes(mapId)}
+                      <button type="button" class="map" class:chosen disabled={!chosen && mapPicks.length >= 3} on:click={() => toggleMap(mapId)} title={mapContributors[mapId].map((player) => player.nickname).join(', ')}>{MAP_NAMES[mapId]} <small>{count}/5{#if coachMaps.has(mapId)} · C{/if}</small></button>
+                    {/each}
+                  </div>
+                  <p class="note">{mapPicks.length === 0 ? t('teamMapsAuto') : mapsValid ? t('teamMapsHint') : t('teamMapsPick')}</p>
+                  {#if mapPicks.length}<button class="ghost small" type="button" on:click={() => mapPicks = []}>{t('teamMapsReset')}</button>{/if}
+                </details>
               {/if}
             </div>
 
@@ -582,10 +576,15 @@
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
   .team-side { display: grid; gap: 12px; align-content: start; }
-  .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-  .map { display: grid; gap: 2px; min-height: 52px; padding: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
-  .map strong { font-size: .8rem; } .map small { color: var(--muted); font-size: .6rem; font-weight: 700; }
-  .map.chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); } .map.chosen small { color: var(--accent); }
+  .maps-acc { border: 1px solid var(--line); background: var(--surface); }
+  .maps-acc summary { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 9px 10px; cursor: pointer; font-size: .74rem; list-style-position: inside; }
+  .maps-acc summary span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; } .maps-acc summary b { font-weight: 800; } .maps-acc summary em { color: var(--accent); font-size: .58rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+  .maps-acc[open] summary { border-bottom: 1px solid var(--line); }
+  .maps-acc .note, .maps-acc > button { margin: 0 10px 10px; } .maps-acc .note { font-size: .68rem; }
+  .map-grid { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px; }
+  .map { min-height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
+  .map small { color: var(--muted); font-size: .58rem; }
+  .map.chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); } .map.chosen small { color: var(--accent); }
   .map:disabled { opacity: .4; cursor: default; }
   .swap-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0; padding: 10px 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); font-size: .82rem; } .swap-banner b { color: var(--accent); }
   .swap-here { width: 100%; animation: swap-pulse 1.1s ease-in-out infinite; }
