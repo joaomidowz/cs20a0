@@ -273,6 +273,43 @@ UPDATE award_rules SET points = v.points FROM (VALUES
     id: 11,
     // The three maps a collection team plays (null: the server picks the default for the five cards).
     sql: `ALTER TABLE lineups ADD COLUMN IF NOT EXISTS map_preferences text[];`
+  },
+  {
+    id: 12,
+    // Active seasons rescored with the current rules, so runs played under the old table (title only, one a day) are
+    // worth the same as runs played now: every placement scores, by lobby size, first three runs of each day count,
+    // and match awards add their points. Runs with two or more humans count as ranked. Coins already paid stay as paid.
+    sql: `
+WITH scoped AS (
+  SELECT m.id, m.user_id, m.season_id, m.placement, m.lobby_size, m.awards,
+    (m.ranked OR m.lobby_size >= 2) AS is_ranked,
+    row_number() OVER (PARTITION BY m.user_id, (m.played_at AT TIME ZONE 'UTC' - interval '3 hours')::date ORDER BY m.played_at, m.id) AS run_of_day
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' AND m.lobby_size >= 2
+), scored AS (
+  SELECT sc.id, sc.is_ranked, (sc.is_ranked AND sc.run_of_day <= 3) AS is_counted,
+    CASE sc.placement WHEN 'placementChampion' THEN 10 WHEN 'placementRunnerUp' THEN 7 WHEN 'placement3to4' THEN 5 WHEN 'placement5to8' THEN 3 ELSE 1 END AS full_points,
+    sc.lobby_size,
+    coalesce((SELECT sum(r.points) FROM jsonb_array_elements(sc.awards) a
+      JOIN award_rules r ON r.kind = CASE WHEN jsonb_typeof(a) = 'string' THEN a #>> '{}' ELSE a ->> 'kind' END), 0)::int AS award_points
+  FROM scoped sc
+), final AS (
+  SELECT id, is_ranked, is_counted,
+    CASE WHEN NOT is_counted THEN 0
+      WHEN lobby_size >= 4 THEN full_points
+      WHEN lobby_size = 3 THEN ceil(full_points / 2.0)::int
+      ELSE round(full_points / 3.0)::int END AS base_points,
+    CASE WHEN is_counted THEN award_points ELSE 0 END AS award_points
+  FROM scored
+)
+UPDATE majors m SET ranked = f.is_ranked, counted = f.is_counted, base_points = f.base_points, points = f.base_points + f.award_points
+FROM final f WHERE f.id = m.id;
+
+UPDATE season_standings st SET points = agg.points, majors_won = agg.won
+FROM (
+  SELECT m.season_id, m.user_id, sum(m.points)::int AS points, count(*) FILTER (WHERE m.champion AND m.ranked)::int AS won
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
+`
   }
 ];
 
