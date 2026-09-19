@@ -513,6 +513,24 @@ ALTER TABLE collection ADD CONSTRAINT collection_source_check CHECK (source IN (
 ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
 ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade'));
 `
+  },
+  {
+    id: 20,
+    // Upgrader provably fair: a seed do servidor ainda não usada (só o hash é publicado) e o nonce de cada conta;
+    // cada aposta guarda a seed revelada, o hash publicado antes, a client seed e o nonce. `roll` já existia (17).
+    sql: `
+CREATE TABLE IF NOT EXISTS upgrader_seeds (
+  user_id uuid PRIMARY KEY REFERENCES users(id),
+  server_seed text NOT NULL,
+  nonce int NOT NULL DEFAULT 0 CHECK (nonce >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS server_seed text;
+ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS server_seed_hash text;
+ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS client_seed text CHECK (client_seed IS NULL OR char_length(client_seed) BETWEEN 1 AND 64);
+ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS nonce int;
+ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS roll double precision;
+`
   }
 ];
 

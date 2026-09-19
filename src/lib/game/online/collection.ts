@@ -50,16 +50,26 @@ export const fetchMissions = (serverUrl: string) => authFetch<{ missions: Missio
 export const claimMission = (serverUrl: string, missionId: string) => authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} });
 export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });
 
+export interface UpgraderFair {
+  serverSeedHash: string;
+  nonce: number;
+}
+
 export interface UpgradeOutcome {
   won: boolean;
   chance: number;
   roll: number;
-  seed: string;
   target: string;
   returned: string | null;
+  serverSeed: string;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  next: UpgraderFair;
 }
 
-export const upgradeCards = (serverUrl: string, stake: string[], target: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target } });
+export const fetchUpgraderFair = (serverUrl: string) => authFetch<UpgraderFair>(serverUrl, '/upgrader/fair');
+export const upgradeCards = (serverUrl: string, stake: string[], target: string, clientSeed: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target, clientSeed } });
 
 export interface PromoOffer {
   tier: PromoTier;

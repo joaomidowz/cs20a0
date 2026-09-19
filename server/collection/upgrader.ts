@@ -1,20 +1,39 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { cardCoinValue, isKnownCard } from '../../src/lib/game/online/card-value';
 import { UPGRADER_MAX_STAKE, upgradeChance } from '../../src/lib/game/online/collection-rules';
-import { createSeededRng } from '../../src/lib/game/simulation';
+import { fairMessage, isValidClientSeed, refundIndex, rollFromHex, FAIR_CLIENT_SEED_MAX } from '../../src/lib/game/online/fair';
 import type { Db, Tx } from '../db/client';
 import { CollectionError } from './service';
+
+/** The seed commitment shown before a spin: the hash of the unused server seed and the nonce it will be used with. */
+export interface FairState {
+  serverSeedHash: string;
+  nonce: number;
+}
 
 export interface UpgradeResult {
   won: boolean;
   chance: number;
   /** The draw in [0, 1): a win is any roll below `chance`. */
   roll: number;
-  seed: string;
   target: string;
   /** On a loss, the one staked card that comes back. */
   returned: string | null;
+  /** Revealed after the spin: SHA-256(serverSeed) is the hash published before it. */
+  serverSeed: string;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  /** The next commitment (a fresh server seed). */
+  next: FairState;
 }
+
+export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+export const newServerSeed = () => randomBytes(32).toString('hex');
+
+/** Server-side roll: HMAC-SHA256(serverSeed, `${clientSeed}:${nonce}[:suffix]`), first 13 hex over 16^13. */
+export const serverRoll = (serverSeed: string, clientSeed: string, nonce: number, suffix: '' | 'refund' = '') =>
+  rollFromHex(createHmac('sha256', serverSeed).update(fairMessage(clientSeed, nonce, suffix)).digest('hex'));
 
 /** Cards the user has on the saved team (five players and the coach): they cannot be staked or traded. */
 export async function lineupCardIds(tx: Tx | Db, userId: string): Promise<Set<string>> {
@@ -22,12 +41,26 @@ export async function lineupCardIds(tx: Tx | Db, userId: string): Promise<Set<st
   return new Set(lineup ? [...lineup.player_ids, ...(lineup.coach_id ? [lineup.coach_id] : [])] : []);
 }
 
+async function seedRow(tx: Tx | Db, userId: string, lock: boolean): Promise<{ server_seed: string; nonce: number }> {
+  await tx.query('INSERT INTO upgrader_seeds (user_id, server_seed) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING', [userId, newServerSeed()]);
+  const [row] = await tx.query<{ server_seed: string; nonce: number }>(`SELECT server_seed, nonce FROM upgrader_seeds WHERE user_id = $1${lock ? ' FOR UPDATE' : ''}`, [userId]);
+  return row;
+}
+
+/** The current commitment; creates the first server seed (32 random bytes) when the user has none. */
+export async function getFairState(db: Db, userId: string): Promise<FairState> {
+  const row = await seedRow(db, userId, false);
+  return { serverSeedHash: sha256(row.server_seed), nonce: row.nonce };
+}
+
 /**
- * Stakes 1 to 6 cards for a pricier one. The seed is drawn here and stored with the result; everything happens in one
- * transaction. Win: the staked cards leave and the target comes in. Loss: they leave and one of them, at random, comes back.
+ * Stakes 1 to 6 cards for a pricier one, all in one transaction. The roll comes from the committed server seed and the
+ * client seed; the server seed is then revealed and replaced by a fresh one. Win: the staked cards leave and the target
+ * comes in. Loss: they leave and one of them (picked by the ':refund' roll) comes back.
  */
-export async function upgradeCards(db: Db, userId: string, stake: string[], target: string, seed: string = randomUUID()): Promise<UpgradeResult> {
+export async function upgradeCards(db: Db, userId: string, stake: string[], target: string, clientSeed: string): Promise<UpgradeResult> {
   if (!stake.length || stake.length > UPGRADER_MAX_STAKE || new Set(stake).size !== stake.length) throw new CollectionError(400, 'BAD_STAKE', `Aposte de 1 a ${UPGRADER_MAX_STAKE} cartas diferentes`);
+  if (!isValidClientSeed(clientSeed)) throw new CollectionError(400, 'BAD_CLIENT_SEED', `A client seed precisa ter de 1 a ${FAIR_CLIENT_SEED_MAX} caracteres`);
   if (!isKnownCard(target) || stake.some((id) => !isKnownCard(id))) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
   if (stake.includes(target)) throw new CollectionError(400, 'BAD_TARGET', 'O alvo não pode estar na aposta');
   const stakeValue = stake.reduce((sum, id) => sum + cardCoinValue(id), 0);
@@ -41,15 +74,19 @@ export async function upgradeCards(db: Db, userId: string, stake: string[], targ
     if (already) throw new CollectionError(409, 'ALREADY_OWNED', 'Você já tem essa carta');
     const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = ANY($2) RETURNING player_id', [userId, stake]);
     if (removed.length !== stake.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
-    const rng = createSeededRng(seed);
-    const roll = rng();
+    const { server_seed: serverSeed, nonce } = await seedRow(tx, userId, true);
+    const serverSeedHash = sha256(serverSeed);
+    const roll = serverRoll(serverSeed, clientSeed, nonce);
     const won = roll < chance;
-    const returned = won ? null : stake[Math.floor(rng() * stake.length)];
+    const returned = won ? null : stake[refundIndex(serverRoll(serverSeed, clientSeed, nonce, 'refund'), stake.length)];
     await tx.query('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3)', [userId, won ? target : returned, 'upgrade']);
     await tx.query(
-      'INSERT INTO upgrades (user_id, stake, target, stake_value, target_value, chance, seed, roll, won, returned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-      [userId, stake, target, stakeValue, targetValue, chance, seed, roll, won, returned]
+      `INSERT INTO upgrades (user_id, stake, target, stake_value, target_value, chance, seed, roll, won, returned, server_seed, server_seed_hash, client_seed, nonce)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $7, $11, $12, $13)`,
+      [userId, stake, target, stakeValue, targetValue, chance, serverSeed, roll, won, returned, serverSeedHash, clientSeed, nonce]
     );
-    return { won, chance, roll, seed, target, returned };
+    const nextSeed = newServerSeed();
+    await tx.query('UPDATE upgrader_seeds SET server_seed = $2, nonce = nonce + 1, updated_at = now() WHERE user_id = $1', [userId, nextSeed]);
+    return { won, chance, roll, target, returned, serverSeed, serverSeedHash, clientSeed, nonce, next: { serverSeedHash: sha256(nextSeed), nonce: nonce + 1 } };
   });
 }

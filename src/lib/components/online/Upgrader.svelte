@@ -4,7 +4,8 @@
   import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
   import { collectionCoachById, collectionCoaches, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
   import { RARITIES, UPGRADER_MAX_STAKE, rarityOf, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
-  import { upgradeCards, type UpgradeOutcome } from '$lib/game/online/collection';
+  import { fetchUpgraderFair, upgradeCards, type UpgradeOutcome, type UpgraderFair } from '$lib/game/online/collection';
+  import { FAIR_CLIENT_SEED_MAX, isValidClientSeed, rollDegrees, verifyFair } from '$lib/game/online/fair';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import type { Coach, Language, Player } from '$lib/game/types';
@@ -38,10 +39,10 @@
   const RADIUS = 128;
   const CENTER = SIZE / 2;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-  // Spin: whole turns, then a slow creep across the arc border (the near miss), about 4.5 s in all.
-  const MAIN_MS = 3400;
-  const HOLD_MS = 150;
-  const CREEP_MS = 1000;
+  // Spin: a roulette throw, 5 to 7 whole turns on one continuous ease-out curve, landing exactly on the roll.
+  const SPIN_MS = 5000;
+  /** Particles of the win burst: fixed spread, the same language as the pack reveal sparks. */
+  const SPARKS = Array.from({ length: 18 }, (_, index) => ({ x: `${6 + ((index * 37) % 88)}%`, s: `${4 + (index % 4) * 2}px`, d: `${(index % 6) * 0.12}s` }));
 
   let stake: string[] = [];
   let target = '';
@@ -60,6 +61,14 @@
   let angle = 0;
   let frame = 0;
   let reducedMotion = false;
+  /** Provably fair: the commitment for the next spin, the client seed and the last round's check. */
+  let fair: UpgraderFair | null = null;
+  let clientSeed = '';
+  /** The hash that was on screen before the last spin (what the revealed seed must hash to). */
+  let committedHash = '';
+  let verifyState: 'idle' | 'busy' | 'ok' | 'bad' = 'idle';
+  /** The last round's revealed seeds: stays in the fair panel until the next spin (picking new cards does not clear it). */
+  let revealed: UpgradeOutcome | null = null;
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: locked = new Set(lockedIds);
@@ -83,6 +92,8 @@
   $: settled = phase === 'done' && outcome;
   $: resultCard = settled && outcome ? cardOf(outcome.won ? outcome.target : outcome.returned ?? '') : null;
   $: spinning = phase === 'spinning';
+  $: resultRarity = resultCard?.rarity ?? 'common';
+  $: seedOk = isValidClientSeed(clientSeed);
 
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
@@ -99,71 +110,75 @@
     if (needle) needle.style.transform = `rotate(${degrees}deg)`;
   };
   const easeOutQuart = (x: number) => 1 - (1 - x) ** 4;
-  const easeInOutSine = (x: number) => -(Math.cos(Math.PI * x) - 1) / 2;
+  const randomClientSeed = () => [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 
   /**
-   * Where the main spin stops before the creep: just across the arc border nearest to the roll, on the wrong side. A win
-   * waits just outside the arc and slides in; a loss waits just inside and slides out. Always ends exactly on the roll.
+   * Roulette spin: from where the needle rests, straight to turns × 360 + roll × 360 on one ease-out curve. No stop, no
+   * reversal, no correction at the end: the last frame is the exact angle of the draw.
    */
-  function teaseOf(rollDeg: number, edgeDeg: number, won: boolean): number {
-    const inside = Math.max(0.5, Math.min(8, edgeDeg / 2));
-    const outside = Math.max(0.5, Math.min(8, (360 - edgeDeg) / 2));
-    if (won) return rollDeg <= edgeDeg - rollDeg ? -outside : edgeDeg + outside;
-    return rollDeg - edgeDeg <= 360 - rollDeg ? edgeDeg - inside : 360 + inside;
-  }
-
   function spin(result: UpgradeOutcome): Promise<void> {
-    const rollDeg = result.roll * 360;
-    const start = ((angle % 360) + 360) % 360;
-    if (reducedMotion) { setNeedle(rollDeg); return Promise.resolve(); }
-    // 4 or 5 whole turns plus the way from the start to the roll: 4 to 6 turns in all.
-    const turns = 4 + Math.floor(Math.random() * 2);
-    const base = 360 * turns + (rollDeg < start ? 360 : 0);
-    const tease = base + teaseOf(rollDeg, result.chance * 360, result.won);
-    const final = base + rollDeg;
+    const rollDeg = rollDegrees(result.roll);
     const edgeDeg = result.chance * 360;
+    const start = ((angle % 360) + 360) % 360;
+    const final = 360 * (5 + Math.floor(Math.random() * 3)) + rollDeg;
+    if (reducedMotion) { setNeedle(rollDeg); wheel?.classList.toggle('inside', rollDeg < edgeDeg); return Promise.resolve(); }
     setNeedle(start);
     return new Promise((resolve) => {
       const began = performance.now();
       const step = (now: number) => {
-        const elapsed = now - began;
-        let current: number;
-        if (elapsed < MAIN_MS) current = start + (tease - start) * easeOutQuart(elapsed / MAIN_MS);
-        else if (elapsed < MAIN_MS + HOLD_MS) current = tease;
-        else current = tease + (final - tease) * easeInOutSine(Math.min(1, (elapsed - MAIN_MS - HOLD_MS) / CREEP_MS));
+        const progress = Math.min(1, (now - began) / SPIN_MS);
+        const current = progress < 1 ? start + (final - start) * easeOutQuart(progress) : final;
         setNeedle(current);
-        const at = ((current % 360) + 360) % 360;
-        wheel?.classList.toggle('inside', at < edgeDeg);
-        if (elapsed < MAIN_MS + HOLD_MS + CREEP_MS) frame = requestAnimationFrame(step);
-        else { setNeedle(final); resolve(); }
+        wheel?.classList.toggle('inside', ((current % 360) + 360) % 360 < edgeDeg);
+        if (progress < 1) frame = requestAnimationFrame(step);
+        else resolve();
       };
       frame = requestAnimationFrame(step);
     });
   }
 
+  async function loadFair() {
+    try { fair = await fetchUpgraderFair(serverUrl); } catch { fair = null; }
+  }
+
+  async function verify() {
+    if (!revealed || verifyState === 'busy') return;
+    verifyState = 'busy';
+    try { verifyState = await verifyFair(revealed, committedHash) ? 'ok' : 'bad'; } catch { verifyState = 'bad'; }
+  }
+
   async function go() {
     if (busy || spinning || !target || !stake.length) return;
+    if (!seedOk) { error = t('fairBadSeed'); return; }
     const confirmed = await confirmDialog({ title: t('upgraderGo'), body: t('upgraderConfirm'), confirmLabel: t('upgraderGo'), cancelLabel: t('cancel'), tone: 'danger' });
     if (!confirmed) return;
     busy = true; error = '';
     const staked = [...stake];
     const aimed = target;
     try {
-      const result = await upgradeCards(serverUrl, staked, aimed);
+      const result = await upgradeCards(serverUrl, staked, aimed, clientSeed);
+      committedHash = fair?.serverSeedHash ?? result.serverSeedHash;
+      verifyState = 'idle';
+      revealed = null;
       round = { stake: staked, target: aimed };
       outcome = result;
+      fair = result.next;
       stake = []; target = '';
       phase = 'spinning';
       await spin(result);
       phase = 'done';
+      revealed = result;
       onDone();
     } catch (caught) {
       phase = 'idle';
+      void loadFair();
       error = caught instanceof AccountError ? caught.message : t('connectionFailed');
     } finally { busy = false; }
   }
 
   onMount(() => {
+    clientSeed = randomClientSeed();
+    void loadFair();
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
     reducedMotion = query.matches;
     const update = () => reducedMotion = query.matches;
@@ -221,7 +236,12 @@
     </div>
 
     <div class="column wheel-col">
-      <div class="dial" bind:this={wheel} class:spinning class:won={settled && outcome?.won} class:lost={settled && outcome && !outcome.won}>
+      <div class="dial fx-{resultRarity}" bind:this={wheel} class:spinning class:won={settled && outcome?.won} class:lost={settled && outcome && !outcome.won}>
+        {#if settled && outcome?.won}
+          <div class="rays" aria-hidden="true"></div>
+          <div class="ring" aria-hidden="true"></div>
+          <div class="sparks" aria-hidden="true">{#each SPARKS as spark}<i style="--x: {spark.x}; --s: {spark.s}; --d: {spark.d}"></i>{/each}</div>
+        {/if}
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={`${pct(shownChance)} ${t('chance')}`}>
           <circle cx={CENTER} cy={CENTER} r={RADIUS} class="track" />
           <circle cx={CENTER} cy={CENTER} r={RADIUS} class="arc" stroke-dasharray={`${shownChance * CIRCUMFERENCE} ${CIRCUMFERENCE}`} transform={`rotate(-90 ${CENTER} ${CENTER})`} />
@@ -230,7 +250,7 @@
           <text x={CENTER} y={CENTER + 30} class="lbl">{t('chance')}</text>
         </svg>
         <div class="needle" bind:this={needle} aria-hidden="true"><i></i></div>
-        <div class="flash" aria-hidden="true"></div>
+        {#if settled && outcome}<div class="flash" class:win={outcome.won} aria-hidden="true"></div>{/if}
       </div>
       <p class="result" class:won={settled && outcome?.won} role="status" aria-live="polite">
         {#if settled && outcome}
@@ -250,7 +270,7 @@
         {#if shownTarget}<strong class="count">{fmt(shownTarget.value)} <small>coins</small></strong>{/if}
       </div>
       {#if shownTarget}
-        <div class="pick aimed target-card" class:glow={settled && outcome?.won} class:missed={settled && outcome && !outcome.won}>
+        <div class="pick aimed target-card fx-{resultRarity}" class:glow={settled && outcome?.won} class:missed={settled && outcome && !outcome.won}>
           <span class="value-tag"><i></i>{fmt(shownTarget.value)}</span>
           {#if shownTarget.coach}
             <CoachCard coach={shownTarget.coach} teamName={coachTeam(shownTarget.coach)} active>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
@@ -290,6 +310,44 @@
       </div>
     </div>
   </div>
+
+  <section class="fair" aria-labelledby="fair-title">
+    <div class="fair-head">
+      <h3 id="fair-title">{t('fairTitle')}</h3>
+      <p>{t('fairIntro')}</p>
+    </div>
+    <dl class="fair-grid">
+      <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{fair?.serverSeedHash ?? '…'}</code></dd></div>
+      <div class="wide">
+        <dt><label for="client-seed">{t('fairClientSeed')}</label></dt>
+        <dd class="seed-row">
+          <input id="client-seed" type="text" bind:value={clientSeed} maxlength={FAIR_CLIENT_SEED_MAX} spellcheck="false" autocomplete="off" disabled={spinning} aria-invalid={!seedOk} aria-describedby="client-seed-hint" />
+          <button type="button" class="ghost small" disabled={spinning} on:click={() => clientSeed = randomClientSeed()}>{t('fairNewClientSeed')}</button>
+        </dd>
+        <small id="client-seed-hint" class:bad={!seedOk}>{seedOk ? t('fairClientSeedHint') : t('fairBadSeed')}</small>
+      </div>
+      <div><dt>{t('fairNonce')}</dt><dd><code>{fair?.nonce ?? '…'}</code></dd></div>
+    </dl>
+    <div class="fair-reveal">
+      {#if revealed}
+        <dl class="fair-grid">
+          <div class="wide"><dt>{t('fairServerSeed')}</dt><dd><code>{revealed.serverSeed}</code></dd></div>
+          <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{committedHash}</code></dd></div>
+          <div><dt>{t('fairClientSeed')}</dt><dd><code>{revealed.clientSeed}</code></dd></div>
+          <div><dt>{t('fairNonce')}</dt><dd><code>{revealed.nonce}</code></dd></div>
+          <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll}</code></dd></div>
+          <div><dt>{t('fairResult')}</dt><dd class:win={revealed.won} class:loss={!revealed.won}>{revealed.won ? t('fairWin') : t('fairLoss')} · {pct(revealed.roll)} {revealed.won ? '<' : '≥'} {pct(revealed.chance)}</dd></div>
+        </dl>
+        <div class="verify-row">
+          <button type="button" class="secondary small" disabled={verifyState === 'busy'} on:click={verify}>{verifyState === 'busy' ? t('fairVerifying') : t('fairVerify')}</button>
+          {#if verifyState === 'ok'}<span class="check ok" role="status">✓ {t('fairVerified')}</span>{/if}
+          {#if verifyState === 'bad'}<span class="check bad" role="status">✗ {t('fairMismatch')}</span>{/if}
+        </div>
+      {:else}
+        <p class="note">{t('fairAfterSpin')}</p>
+      {/if}
+    </div>
+  </section>
 </section>
 
 <style>
@@ -312,50 +370,70 @@
   .value-tag { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
   .value-tag i { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
   .pick.vanish { opacity: 0; transform: scale(.85); filter: grayscale(1); }
-  .pick.vanish.returned { opacity: 1; transform: none; filter: none; outline-color: #ffd36b; box-shadow: 0 0 24px color-mix(in srgb, #ffd36b 45%, transparent); }
+  .pick.vanish.returned { opacity: 1; transform: none; filter: none; outline-color: #ffd36b; box-shadow: 0 0 24px color-mix(in srgb, #ffd36b 45%, transparent); animation: returned-pulse 1.4s .2s ease-out both; }
+  @keyframes returned-pulse {
+    0% { transform: scale(.92); box-shadow: 0 0 0 transparent; }
+    40% { transform: scale(1.04); box-shadow: 0 0 40px color-mix(in srgb, #ffd36b 75%, transparent), 0 0 0 6px color-mix(in srgb, #ffd36b 35%, transparent); }
+    100% { transform: none; box-shadow: 0 0 24px color-mix(in srgb, #ffd36b 45%, transparent); }
+  }
   .back-tag { position: absolute; left: 50%; bottom: 44px; z-index: 2; transform: translateX(-50%); padding: 4px 8px; background: #ffd36b; color: #0a0d08; font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
   .target-card { max-width: 240px; justify-self: center; width: 100%; }
-  .target-card.glow { outline-color: var(--accent); animation: target-glow 1.6s ease-out both; }
-  .target-card.missed { opacity: .45; filter: grayscale(.7); }
+  .target-card.glow { outline-color: var(--fx); animation: target-glow 1.6s ease-out both; }
+  .target-card.missed { opacity: .45; filter: grayscale(.7); transition-delay: .35s; }
   @keyframes target-glow {
-    0% { transform: scale(.9); box-shadow: 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
-    35% { transform: scale(1.06); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 80%, transparent); }
-    100% { transform: scale(1); box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent); }
+    0% { transform: scale(.9); box-shadow: 0 0 0 transparent; }
+    35% { transform: scale(1.07); box-shadow: 0 0 70px var(--fx), 0 0 120px color-mix(in srgb, var(--fx) 45%, transparent); }
+    100% { transform: scale(1); box-shadow: 0 0 34px color-mix(in srgb, var(--fx) 65%, transparent); }
   }
 
-  .wheel-col { position: sticky; top: 84px; justify-items: center; gap: 14px; background: var(--surface); }
+  .wheel-col { position: sticky; top: 84px; justify-items: center; gap: 14px; background: var(--surface); overflow: hidden; }
+  /* Rarity colors, the same as the pack reveal: the win burst and the target glow take the won card's. */
+  .dial, .target-card { --fx: #8d979e; }
+  .fx-rare { --fx: #4da3ff; } .fx-elite { --fx: #a66bff; } .fx-superstar { --fx: #ff8a3d; } .fx-legend { --fx: #ffc94d; } .fx-goat { --fx: #ff5ad8; }
   .dial { position: relative; width: min(100%, 340px); aspect-ratio: 1; }
-  .dial svg { display: block; width: 100%; height: 100%; }
+  .dial svg { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
   .track { fill: none; stroke: var(--line); stroke-width: 22; }
   .arc { fill: none; stroke: var(--accent); stroke-width: 22; stroke-linecap: butt; transition: stroke-dasharray .3s ease-out, stroke-width .3s ease, filter .3s ease; }
   .inner { fill: var(--surface-2); }
   .pct { fill: var(--text); font: 900 40px 'Arial Narrow', Impact, sans-serif; text-anchor: middle; font-variant-numeric: tabular-nums; }
   .lbl { fill: var(--muted); font-size: 12px; font-weight: 800; text-anchor: middle; text-transform: uppercase; letter-spacing: .1em; }
-  .needle { position: absolute; inset: 0; pointer-events: none; will-change: transform; }
-  .needle i { position: absolute; top: 0; left: 50%; width: 0; height: 0; margin-left: -11px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 30px solid var(--text); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
-  .needle::after { content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--text); }
-  .flash { position: absolute; inset: -6%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--danger) 55%, transparent), transparent 70%); opacity: 0; pointer-events: none; }
-  .dial.spinning { animation: dial-pulse .6s ease-in-out infinite; }
+  /* The pointer is the red triangle on the rim; no center pivot, so the percentage stays readable. */
+  .needle { position: absolute; inset: 0; z-index: 2; pointer-events: none; will-change: transform; }
+  .needle i { position: absolute; top: 0; left: 50%; width: 0; height: 0; margin-left: -11px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 30px solid #ff3b3b; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); transition: border-top-color .15s ease; }
   .dial.spinning .arc { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 50%, transparent)); }
   .dial:global(.inside) .needle i { border-top-color: var(--accent); }
-  .dial.won .arc { stroke-width: 30; animation: arc-burst 1.4s ease-out both; }
-  .dial.won .needle i { border-top-color: var(--accent); }
-  .dial.lost { animation: dial-shake .42s cubic-bezier(.36, .07, .19, .97) both; }
-  .dial.lost .needle i { border-top-color: var(--danger); }
-  .dial.lost .flash { animation: red-flash .7s ease-out both; }
-  @keyframes dial-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+
+  /* Win: burst of light on the arc (rays, ring, sparks, flash), in the won card's rarity color. */
+  .rays { position: absolute; left: 50%; top: 50%; z-index: 0; width: 170%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 42%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: rays-spin 14s linear infinite, fadein .8s ease-out; pointer-events: none; }
+  .ring { position: absolute; inset: 8%; z-index: 3; border: 3px solid var(--fx); border-radius: 50%; animation: ring 1s ease-out forwards; pointer-events: none; }
+  .sparks { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .sparks i { position: absolute; bottom: 12%; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--fx); box-shadow: 0 0 8px var(--fx); opacity: 0; animation: spark 1.9s var(--d) ease-out infinite; }
+  .flash { position: absolute; inset: -8%; z-index: 4; border-radius: 50%; pointer-events: none; }
+  .flash.win { background: radial-gradient(circle, color-mix(in srgb, #fff 70%, var(--fx)) 0%, color-mix(in srgb, var(--fx) 60%, transparent) 35%, transparent 70%); animation: flash 1s ease-out forwards; }
+  .dial.won .arc { stroke: var(--fx); stroke-width: 30; animation: arc-burst 1.4s ease-out both; }
+  .dial.won .needle i { border-top-color: var(--fx); }
+
+  /* Loss: dark red pulse over the wheel while the arc's light goes out. */
+  .flash:not(.win) { background: radial-gradient(circle, color-mix(in srgb, #8b0000 70%, transparent) 0%, color-mix(in srgb, #3a0000 55%, transparent) 45%, transparent 72%); animation: loss-pulse 1.6s ease-out forwards; }
+  .dial.lost .arc { animation: arc-out 1.4s ease-out forwards; }
+  .dial.lost .needle i { border-top-color: #b3121b; }
+  .dial.lost .pct { fill: #ff6b6b; transition: fill .4s ease; }
+
   @keyframes arc-burst {
-    0% { filter: drop-shadow(0 0 0 var(--accent)); }
-    30% { filter: drop-shadow(0 0 28px var(--accent)) brightness(1.6); }
-    100% { filter: drop-shadow(0 0 10px var(--accent)); }
+    0% { filter: drop-shadow(0 0 0 var(--fx)); }
+    30% { filter: drop-shadow(0 0 28px var(--fx)) brightness(1.7); }
+    100% { filter: drop-shadow(0 0 12px var(--fx)); }
   }
-  @keyframes dial-shake {
-    10%, 90% { transform: translateX(-2px); }
-    20%, 80% { transform: translateX(4px); }
-    30%, 50%, 70% { transform: translateX(-7px); }
-    40%, 60% { transform: translateX(7px); }
+  @keyframes arc-out {
+    0% { filter: drop-shadow(0 0 14px var(--accent)) brightness(1.2); }
+    100% { filter: grayscale(.9) brightness(.45); }
   }
-  @keyframes red-flash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes loss-pulse { 0% { opacity: 0; } 15% { opacity: 1; } 35% { opacity: .45; } 55% { opacity: .85; } 100% { opacity: .25; } }
+  @keyframes rays-spin { to { rotate: 360deg; } }
+  @keyframes fadein { from { opacity: 0; } }
+  @keyframes ring { from { transform: scale(.6); opacity: .95; } to { transform: scale(1.5); opacity: 0; } }
+  @keyframes spark { 0% { transform: translateY(0) scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-260px) scale(.2); opacity: 0; } }
+  @keyframes flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
   .result { margin: 0; width: 100%; box-sizing: border-box; min-height: 3.2em; padding: 8px 10px; border-left: 3px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: .76rem; line-height: 1.45; }
   .dial.lost + .result { border-left-color: var(--danger); color: #ff9b90; }
   .result.won { border-left-color: var(--accent); color: var(--accent); }
@@ -372,9 +450,32 @@
     .wheel-col { position: static; }
     .mini-grid.scroll { max-height: 440px; }
   }
+  .fair { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
+  .fair-head h3 { margin: 0 0 4px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .fair-head p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+  .fair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin: 0; }
+  .fair-grid > div { display: grid; gap: 4px; min-width: 0; }
+  .fair-grid .wide { grid-column: 1 / -1; }
+  .fair-grid dt { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .fair-grid dd { margin: 0; font-size: .78rem; overflow-wrap: anywhere; }
+  .fair-grid dd.win { color: var(--accent); font-weight: 800; } .fair-grid dd.loss { color: #ff9b90; font-weight: 800; }
+  .fair code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: .74rem; overflow-wrap: anywhere; }
+  .fair small { color: var(--muted); font-size: .66rem; } .fair small.bad { color: #ff9b90; }
+  .seed-row { display: flex; gap: 8px; }
+  .seed-row input { flex: 1; min-width: 0; min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font: .78rem ui-monospace, Menlo, monospace; }
+  .seed-row input[aria-invalid='true'] { border-color: var(--danger); }
+  .seed-row :global(.small), .verify-row :global(.small) { min-height: 40px; padding: 0 12px; border-radius: 0; font-size: .62rem; }
+  .fair-reveal { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .verify-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .check { font-size: .76rem; font-weight: 800; } .check.ok { color: var(--accent); } .check.bad { color: #ff9b90; }
+
   @media (prefers-reduced-motion: reduce) {
-    .arc, .pick { transition: none; }
-    .dial.spinning, .dial.won .arc, .dial.lost, .dial.lost .flash, .target-card.glow { animation: none; }
-    .target-card.glow { box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent); }
+    .arc, .pick, .needle i { transition: none; }
+    .dial.won .arc, .dial.lost .arc, .flash, .target-card.glow, .pick.vanish.returned { animation: none; }
+    .rays, .ring, .sparks, .flash.win { display: none; }
+    .flash:not(.win) { opacity: .35; }
+    .dial.won .arc { filter: drop-shadow(0 0 12px var(--fx)); }
+    .dial.lost .arc { filter: grayscale(.9) brightness(.45); }
+    .target-card.glow { box-shadow: 0 0 30px color-mix(in srgb, var(--fx) 55%, transparent); }
   }
 </style>

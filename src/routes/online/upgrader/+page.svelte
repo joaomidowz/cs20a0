@@ -9,6 +9,7 @@
   import { fetchCollection, type CollectionState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
+  import { UPGRADER_MAX_CHANCE, upgradeChance } from '$lib/game/online/collection-rules';
   import { language, theme } from '$lib/game/pageState';
   import type { Coach, Player } from '$lib/game/types';
 
@@ -19,6 +20,15 @@
   let loading = true;
   let error = '';
   let detailsPlayer: Player | null = null;
+
+  /** FAQ examples, computed with the same rule the server uses. */
+  const EXAMPLES = [[5000, 20000], [10000, 20000], [10000, 12000]].map(([stake, target]) => ({ stake, target, chance: upgradeChance(stake, target) }));
+  const VERIFY_SNIPPET = [
+    "const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(serverSeed), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);",
+    "const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${clientSeed}:${nonce}`)));",
+    "const roll = parseInt([...mac].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 13), 16) / 16 ** 13; // vence se roll < chance"
+  ].join('\n');
+  const pct = (value: number) => `${(value * 100).toLocaleString($language, { maximumFractionDigits: 2 })}%`;
 
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
@@ -74,6 +84,40 @@
         playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
     {/if}
     {#if error}<p class="online-error" role="alert">{error}</p>{/if}
+
+    <section class="faq panel" aria-labelledby="faq-title">
+      <h2 id="faq-title">{t('faqTitle')}</h2>
+      <details>
+        <summary>{t('faqFairQ')}</summary>
+        <p>{t('faqFairA')}</p>
+      </details>
+      <details>
+        <summary>{t('faqChanceQ')}</summary>
+        <p>{t('faqChanceA')}</p>
+      </details>
+      <details>
+        <summary>{t('faqEdgeQ')}</summary>
+        <p>{t('faqEdgeA')}</p>
+        <ul>
+          <li class="fair-ok">{t('faqEdgeFair')}</li>
+          <li class="bad">{t('faqEdgeBad')}</li>
+          <li class="generous">{t('faqEdgeGenerous')}</li>
+        </ul>
+        <table>
+          <thead><tr><th>{t('faqTableStake')}</th><th>{t('faqTableTarget')}</th><th>{t('faqTableChance')}</th></tr></thead>
+          <tbody>
+            {#each EXAMPLES as example}
+              <tr><td>{example.stake.toLocaleString($language)}</td><td>{example.target.toLocaleString($language)}</td><td>{pct(example.chance)}{#if example.chance >= UPGRADER_MAX_CHANCE} ({t('faqTableCap')}){/if}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </details>
+      <details>
+        <summary>{t('faqVerifyQ')}</summary>
+        <p>{t('faqVerifyA')}</p>
+        <pre><code>{VERIFY_SNIPPET}</code></pre>
+      </details>
+    </section>
   </section>
 </PageLayout>
 
@@ -91,5 +135,17 @@
   .topbar strong { font: 900 1.9rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
   .topbar strong small { font: 700 .6rem Inter, Arial, sans-serif; color: var(--muted); }
   .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
+  .faq { display: grid; gap: 0; padding: 18px 20px; }
+  .faq h2 { margin: 0 0 10px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .faq details { border-top: 1px solid var(--line); }
+  .faq summary { padding: 12px 0; font-size: .86rem; font-weight: 800; cursor: pointer; }
+  .faq summary:hover { color: var(--accent); }
+  .faq p, .faq li { margin: 0 0 10px; color: var(--muted); font-size: .8rem; line-height: 1.55; }
+  .faq ul { margin: 0 0 12px; padding-left: 18px; }
+  .faq li.fair-ok { color: var(--accent); } .faq li.bad { color: #ff9b90; } .faq li.generous { color: #ffd36b; }
+  .faq table { margin: 0 0 14px; border-collapse: collapse; font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .faq th, .faq td { padding: 6px 14px 6px 0; border-bottom: 1px solid var(--line); text-align: left; }
+  .faq th { color: var(--muted); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; }
+  .faq pre { margin: 0 0 14px; padding: 12px; overflow-x: auto; border: 1px solid var(--line); background: var(--surface-2); font-size: .7rem; line-height: 1.5; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
 </style>
