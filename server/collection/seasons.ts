@@ -111,6 +111,20 @@ export async function majorResult(db: Db, userId: string, roomCode: string): Pro
   return { placement: row.placement, lobbySize: row.lobby_size, ranked: row.ranked, counted: row.counted, champion: row.champion, basePoints: row.base_points, points: row.points, rewardCoins: row.reward_coins, awardCoins: row.award_coins, awards };
 }
 
+export interface RoomReward { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number }
+
+/** What every collection player of a room earned in its latest run (names as shown in the season table, never e-mails). */
+export async function roomRewards(db: Db, roomCode: string): Promise<RoomReward[]> {
+  const rows = await db.query<{ user_id: string; team_name: string | null; display_name: string | null; placement: string; points: number; coins: number }>(
+    `SELECT m.user_id, u.team_name, u.display_name, m.placement, m.points, (m.reward_coins + m.award_coins) AS coins
+     FROM majors m JOIN users u ON u.id = m.user_id
+     WHERE m.room_code = $1 AND m.seed = (SELECT seed FROM majors WHERE room_code = $1 ORDER BY played_at DESC, id DESC LIMIT 1)
+     ORDER BY m.points DESC, coins DESC`,
+    [roomCode]
+  );
+  return rows.map((row) => ({ userId: row.user_id, teamName: row.team_name, displayName: row.display_name ?? 'Player', placement: row.placement, points: row.points, coins: row.coins }));
+}
+
 export interface StandingRow {
   rank: number;
   userId: string;

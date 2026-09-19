@@ -64,7 +64,8 @@
   let useCollectionTeam = false;
   let pendingLineupTicket: string | undefined;
   type MajorResultView = { placement: string; lobbySize: number; ranked: boolean; counted: boolean; champion: boolean; basePoints: number; points: number; rewardCoins: number; awardCoins: number; awards: Array<{ kind: string; coins: number; points: number }> };
-  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null } | null = null;
+  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null; room: RoomRewardView[] } | null = null;
+  type RoomRewardView = { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number };
   let collectionOutcomeFor = '';
   async function loadCollectionOutcome(key: string) {
     if (!$accountUser || collectionOutcomeFor === key) return;
@@ -72,18 +73,20 @@
     const code = roomCode;
     // The server records the run right after the champion is known; retry a few times while the write lands.
     let result: MajorResultView | null = null;
+    let room: RoomRewardView[] = [];
     for (let attempt = 0; attempt < 5 && !result; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       if (collectionOutcomeFor !== key) return;
-      result = (await authFetch<{ result: MajorResultView | null }>(getOnlineServerUrl(), `/me/majors/${code}`).catch(() => ({ result: null }))).result;
+      const reply = await authFetch<{ result: MajorResultView | null; room?: RoomRewardView[] }>(getOnlineServerUrl(), `/me/majors/${code}`).catch(() => ({ result: null, room: [] }));
+      result = reply.result; room = reply.room ?? [];
     }
     try {
       const [season, awards] = await Promise.all([
         authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),
         authFetch<{ awards: Array<{ kind: string; count: number }> }>(getOnlineServerUrl(), '/me/awards')
       ]);
-      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result };
-    } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result } : null; }
+      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result, room };
+    } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result, room } : null; }
   }
   const awardName = (kind: string) => { const key = `award_${kind}` as Parameters<typeof t>[0]; const label = t(key); return label && label !== key ? label : kind.replace(/_/g, " "); };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
@@ -1172,6 +1175,16 @@
                     <li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b>+{result.points} pts</b></li>
                   </ul>
                   {#if !result.ranked}<p class="note">{t('notRanked')}</p>{:else if !result.counted}<p class="note">{t('notCounted')}</p>{/if}
+                </div>
+              {/if}
+              {#if collectionOutcome.room.length > 1}
+                <div class="earned">
+                  <h3>{t('roomRewards')}</h3>
+                  <ul>
+                    {#each collectionOutcome.room as row (row.userId)}
+                      <li class:total={row.userId === $accountUser?.id}><span>{row.teamName ?? row.displayName} · {translatePlacement($language, row.placement)}</span><b>+{row.coins.toLocaleString($language)} coins · +{row.points} pts</b></li>
+                    {/each}
+                  </ul>
                 </div>
               {/if}
               <div class="campaign-grid">

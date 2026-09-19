@@ -1,7 +1,7 @@
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
-import { awardsOf, currentStandings, lastSeasonPodium, majorResult } from '../collection/seasons';
+import { awardsOf, currentStandings, lastSeasonPodium, majorResult, roomRewards } from '../collection/seasons';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
 import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
@@ -52,7 +52,7 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
       return { ok: true, ...(await currentStandings(db, now, me)), lastSeason: await lastSeasonPodium(db) };
     }),
     route('GET', /^\/me\/awards$/, withAuth(async ({ userId }) => ({ ok: true, awards: await awardsOf(db, userId!) }))),
-    route('GET', /^\/me\/majors\/([A-Z2-9]{8})$/i, withAuth(async ({ params, userId }) => ({ ok: true, result: await majorResult(db, userId!, params[0].toUpperCase()) })))
+    route('GET', /^\/me\/majors\/([A-Z2-9]{8})$/i, withAuth(async ({ params, userId }) => ({ ok: true, result: await majorResult(db, userId!, params[0].toUpperCase()), room: await roomRewards(db, params[0].toUpperCase()) })))
   ];
 }
 
