@@ -104,7 +104,7 @@ describe('lineup da coleção', () => {
     expect(bad.reduce((sum, line) => sum + line.power, 0)).toBeLessThan(0);
   });
 
-  it('função repetida é permitida e fora da função própria custa 1% cada', () => {
+  it('função repetida é permitida e posição secundária não custa nada', () => {
     const check = validateLineup({ players: lineup, roles, starPlayerId: null }, lookup);
     expect(check.ok).toBe(true);
     const swapped: LineupSlotRole[] = ['awper', 'igl', 'entry', 'lurker', 'support'];
@@ -114,8 +114,8 @@ describe('lineup da coleção', () => {
     // Only counts when the dataset says the card can play there; otherwise it is invalid, never silently penalized.
     const eligible = allowed.ok;
     const off = synergyOf({ players: lineup, roles: eligible ? swapped : roles, starPlayerId: null }).find((line) => line.key === 'off_role');
-    if (eligible) expect(off?.power).toBeCloseTo(-0.6, 6);
-    else expect(off).toBeUndefined();
+    // A secondary position is free now: no line, no penalty.
+    expect(off).toBeUndefined();
     expect(igl.id).not.toBe(awper.id);
   });
 

@@ -13,7 +13,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { OFF_ROLE_COST, applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -352,7 +352,6 @@
                   {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')} {slot.nickname ?? slot.id}</button>{/if}
                   <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
                   <p class="slot-notes">
-                    {#if roles[index] && primaryRoleOf(slot) !== roles[index]}<span class="bad">▼ {t('noteOffRole')} −{OFF_ROLE_COST}%</span>{:else}<span class="good">▲ {t('noteOwnRole')}</span>{/if}
                     {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : t('noteStarOff')}</span>{/if}
                   </p>
                 {:else}
@@ -549,7 +548,7 @@
   .swap-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0; padding: 10px 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); font-size: .82rem; } .swap-banner b { color: var(--accent); }
   .swap-here { width: 100%; animation: swap-pulse 1.1s ease-in-out infinite; }
   @keyframes swap-pulse { 50% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); } }
-  .slot-notes { display: grid; gap: 2px; margin: 0; font-size: .64rem; font-weight: 800; } .slot-notes .good { color: var(--accent); } .slot-notes .bad { color: #ff9b90; } .slot-notes .gold { color: #ffd36b; }
+  .slot-notes { display: grid; gap: 2px; margin: 0; font-size: .64rem; font-weight: 800; } .slot-notes .bad { color: #ff9b90; } .slot-notes .gold { color: #ffd36b; }
   .compare em { font-style: normal; margin-left: 6px; color: var(--muted); } .compare em.up, .compare b.up { color: var(--accent); } .compare em.down, .compare b.down { color: #ff9b90; }
   .dock { display: none; }
   @media (max-width: 720px) {

@@ -16,9 +16,6 @@ export interface CollectionLineupInput {
   style?: OrgStyle;
 }
 
-/** Power lost, in percent, for each player used in a secondary position. */
-export const OFF_ROLE_COST = 0.3;
-
 /** Caller strength a tactical plan needs from its IGL. */
 export const TACTICAL_MIN_IGL = 75;
 
@@ -101,9 +98,7 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (count('support') === 0) add('support_none', { power: -1.5 });
   else add('support_present', { power: 0.5 });
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
-  const offRole = input.players.filter((player, index) => primaryRoleOf(player) !== input.roles[index]).length;
-  // Playing a secondary position the card is eligible for costs little: the builder only offers eligible roles.
-  if (offRole) add('off_role', { power: -OFF_ROLE_COST * offRole });
+  // A secondary position costs nothing: the builder only offers roles the card is eligible for.
   const ready = styleReady(input);
   if (input.style === 'balanced') add('style_balanced', { power: 0.5 });
   else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', ready ? { power: 1.5 } : { power: -1 });
@@ -126,7 +121,6 @@ export function cardEffects(input: CollectionLineupInput): Record<string, 'up' |
   const lines = new Set(synergyOf(input).map((line) => line.key));
   input.players.forEach((player, index) => {
     const role = input.roles[index];
-    if (primaryRoleOf(player) !== role) { effects[player.id] = 'down'; return; }
     const up = (role === 'igl' && lines.has('igl_one'))
       || (role === 'awper' && lines.has('awp_double_strong'))
       || (role === 'entry' && lines.has('entry_one'))
