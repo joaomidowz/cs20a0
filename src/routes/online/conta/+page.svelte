@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
-  import BuyCoins from '$lib/components/online/BuyCoins.svelte';
+  import { safeOnlineReturn, uiCopy } from '$lib/game/online/ui-copy';
   import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import PublicProfileSheet from '$lib/components/online/PublicProfileSheet.svelte';
   import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
@@ -19,6 +19,20 @@
   type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
 
   let email = '';
+  let loading = true;
+  let returnTo = '/online';
+  const returnKey = 'cs13a0:auth-return';
+  function rememberReturn() {
+    if (!$page.url.searchParams.has('next')) return;
+    try { localStorage.setItem(returnKey, JSON.stringify({ path: returnTo, expires: Date.now() + 30 * 60_000 })); } catch { /* Storage can be blocked. */ }
+  }
+  function consumeReturn() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(returnKey) ?? 'null');
+      localStorage.removeItem(returnKey);
+      return stored?.expires > Date.now() ? safeOnlineReturn(stored.path) : '/online/conta';
+    } catch { return '/online/conta'; }
+  }
   let profileOf: string | null = null;
   let busy = false;
   let sent = false;
@@ -48,6 +62,8 @@
   const monthLabel = (month: string) => new Date(`${month}T12:00:00Z`).toLocaleDateString($language, { month: 'long', year: 'numeric' });
 
   async function submit() {
+    if (busy) return;
+    rememberReturn();
     error = ''; busy = true; devLink = null;
     try {
       const result = await requestMagicLink(serverUrl, email);
@@ -74,15 +90,21 @@
 
   onMount(async () => {
     const token = $page.url.searchParams.get('token');
+    const hasNext = $page.url.searchParams.has('next');
+    returnTo = safeOnlineReturn($page.url.searchParams.get('next'));
+    rememberReturn();
     try {
       if (token) {
         verifying = true;
         await verifyMagicLink(serverUrl, token);
-        await goto('/online/conta', { replaceState: true });
+        const destination = hasNext ? returnTo : consumeReturn();
+        await goto(destination, { replaceState: true });
+        if (destination !== '/online/conta') return;
       } else {
         await loadAccount(serverUrl);
+        if ($accountUser && hasNext) { consumeReturn(); await goto(returnTo, { replaceState: true }); return; }
       }
-    } catch (caught) { fail(caught); } finally { verifying = false; }
+    } catch (caught) { fail(caught); } finally { verifying = false; loading = false; }
     displayName = $accountUser?.displayName ?? '';
     teamName = $accountUser?.teamName ?? '';
     if ($accountUser) await loadExtras();
@@ -104,18 +126,21 @@
 
     {#if !isOnlineEnabled() || disabled}
       <section class="panel box narrow"><p>{t('accountsDisabled')}</p><a class="secondary link" href="/online">{t('back')}</a></section>
-    {:else if verifying}
-      <section class="panel box narrow"><p>{t('verifying')}</p></section>
+    {:else if verifying || loading}
+      <section class="panel box narrow"><p role="status">{verifying ? t('verifying') : uiCopy($language, 'loading')}</p></section>
     {:else if $accountUser}
+      <MissionsPanel {serverUrl} language={$language} />
       <div class="grid">
         <section class="panel box">
           <div class="section-heading"><div><span class="eyebrow">{t('profile').toUpperCase()}</span><h2>{$accountUser.teamName ?? $accountUser.displayName ?? $accountUser.email}</h2></div></div>
           <small class="muted">{t('loggedInAs')} {$accountUser.email} · {t('memberSince')} {new Date($accountUser.createdAt).toLocaleDateString($language)}</small>
+          <details class="profile-edit"><summary>{uiCopy($language, 'edit')}</summary>
           <form class="profile" on:submit|preventDefault={persistProfile}>
             <label><span>{t('displayName')}</span><input bind:value={displayName} minlength="2" maxlength="24" required /></label>
             <label><span>{t('teamName')}</span><input bind:value={teamName} minlength="2" maxlength="24" required /></label>
             <button class="secondary" type="submit" disabled={busy || displayName.trim().length < 2 || teamName.trim().length < 2}>{saved ? '✓' : t('saveProfile')}</button>
           </form>
+          </details>
           <div class="actions">
             <a class="primary link" href="/online/colecao">{t('goCollection')}</a>
             <a class="secondary link" href="/online">{t('playOnline')}</a>
@@ -138,9 +163,7 @@
         </section>
       </div>
 
-      <MissionsPanel {serverUrl} language={$language} />
-
-      <BuyCoins {serverUrl} language={$language} />
+      <a class="secondary link store-link" href="/online/store">Store · {uiCopy($language, 'coins')}</a>
 
       <section class="panel box">
         <div class="section-heading"><div><span class="eyebrow">{t('season').toUpperCase()}</span><h2>{t('seasonOfMonth')}{#if season} · {monthLabel(season.month)}{/if}</h2></div>{#if season?.me}<strong class="count">#{season.me.rank} · {season.me.points} {t('pointsCol').toLowerCase()}</strong>{/if}</div>
@@ -148,14 +171,15 @@
           <p class="champion"><span>{t('lastChampion')} ({monthLabel(season.lastSeason.month)})</span> <b>{season.lastSeason.podium[0].teamName ?? season.lastSeason.podium[0].displayName}</b> · {season.lastSeason.podium[0].points} {t('pointsCol').toLowerCase()}</p>
         {/if}
         {#if season?.top.length}
-          <table class="standings">
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div class="table-scroll" tabindex="0" role="region" aria-label={t('season')}><table class="standings">
             <thead><tr><th>{t('rankCol')}</th><th>{t('teamCol')}</th><th>{t('playerCol')}</th><th>{t('titlesCol')}</th><th>{t('pointsCol')}</th></tr></thead>
             <tbody>
               {#each season.top.slice(0, 20) as row (row.userId)}
                 <tr class:me={row.userId === $accountUser.id}><td>{row.rank}</td><td><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? '—'}</button></td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
               {/each}
             </tbody>
-          </table>
+          </table></div>
         {:else}
           <p class="muted">{t('seasonEmpty')}</p>
         {/if}
@@ -174,6 +198,10 @@
 </PageLayout>
 
 <style>
+  .table-scroll { overflow-x:auto; min-width:0; }
+  .profile-edit summary { cursor:pointer; padding:14px 0; font-weight:800; }
+  .store-link { justify-self:start; }
+  @media(max-width:520px) { .box { padding:14px; } .count { white-space:normal; } .actions > * { flex:1 1 140px; justify-content:center; } }
   .row-link { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; cursor: pointer; min-height: 0; }
   .account { display: grid; gap: 18px; padding: 28px 0 70px; }
   .grid { display: grid; gap: 18px; }

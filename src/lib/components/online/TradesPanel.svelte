@@ -1,4 +1,7 @@
 <script lang="ts">
+  import TradeCard from './TradeCard.svelte';
+  import { confirmDialog } from '$lib/game/ui/dialog';
+  import { uiCopy } from '$lib/game/online/ui-copy';
   import { onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
   import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
@@ -43,13 +46,14 @@
   }
 
   async function findPartner() {
-    if (!partnerQuery.trim()) return;
+    if (busy || !partnerQuery.trim()) return;
     busy = true; error = ''; partner = null; requested = '';
     try { partner = await fetchTradePartner(serverUrl, partnerQuery.trim()); } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
   async function send() {
-    if (!partner || !offered || !requested) return;
+    if (busy || !partner || !offered || !requested) return;
+    if (!await confirmDialog({ title: uiCopy(language, 'review'), body: `${t('tradeWith')} ${partner.teamName}\n${t('tradeYouGive')}: ${cardLabel(offered)} + ${Math.max(0, Math.floor(coins || 0)).toLocaleString(language)} coins\n${t('tradeYouGet')}: ${cardLabel(requested)}`, confirmLabel: t('tradeSend'), cancelLabel: t('cancel') })) return;
     busy = true; error = ''; notice = '';
     try {
       await proposeTrade(serverUrl, { teamName: partner.teamName, offeredCard: offered, requestedCard: requested, coins: Math.max(0, Math.floor(coins || 0)) });
@@ -60,12 +64,14 @@
   }
 
   async function answer(trade: TradeItem, action: 'accept' | 'decline' | 'cancel') {
+    if (busy) return;
+    if (action === 'accept' && !await confirmDialog({ title: uiCopy(language, 'confirmTrade'), body: `${t('tradeWith')} ${trade.partner}\n${t('tradeYouGive')}: ${cardLabel(trade.requestedCard)}\n${t('tradeYouGet')}: ${cardLabel(trade.offeredCard)} + ${trade.coins.toLocaleString(language)} coins`, confirmLabel: t('tradeAccept'), cancelLabel: t('cancel') })) return;
     busy = true; error = ''; notice = '';
     try {
       await answerTrade(serverUrl, trade.id, action);
       await load();
       if (action === 'accept') onChanged();
-    } catch (caught) { fail(caught); await load(); } finally { busy = false; }
+    } catch (caught) { await load(); fail(caught); } finally { busy = false; }
   }
 
   onMount(() => { void load(); });
@@ -74,10 +80,10 @@
 <section class="panel trades" id="trocas" aria-label={t('trades')}>
   <div class="trades-head">
     <div><span class="eyebrow">{t('trades').toUpperCase()}</span><h2>{t('trades')}</h2></div>
-    <div class="trades-tabs" role="tablist">
-      <button type="button" role="tab" aria-selected={tab === 'received'} class:active={tab === 'received'} on:click={() => (tab = 'received')}>{t('tradesReceived')}{#if pendingReceived} ({pendingReceived}){/if}</button>
-      <button type="button" role="tab" aria-selected={tab === 'sent'} class:active={tab === 'sent'} on:click={() => (tab = 'sent')}>{t('tradesSent')}</button>
-      <button type="button" role="tab" aria-selected={tab === 'new'} class:active={tab === 'new'} on:click={() => (tab = 'new')}>{t('tradesNew')}</button>
+    <div class="trades-tabs" role="group" aria-label={t('trades')}>
+      <button type="button" aria-pressed={tab === 'received'} class:active={tab === 'received'} on:click={() => (tab = 'received')}>{t('tradesReceived')}{#if pendingReceived} ({pendingReceived}){/if}</button>
+      <button type="button" aria-pressed={tab === 'sent'} class:active={tab === 'sent'} on:click={() => (tab = 'sent')}>{t('tradesSent')}</button>
+      <button type="button" aria-pressed={tab === 'new'} class:active={tab === 'new'} on:click={() => (tab = 'new')}>{t('tradesNew')}</button>
     </div>
   </div>
   <p class="trades-hint">{t('tradesHint')}</p>
@@ -103,8 +109,9 @@
             {#each wanted as id}<option value={id}>{cardLabel(id)} · {cardCoinValue(id).toLocaleString(language)}</option>{/each}
           </select>
         </label>
+        <div class="trade-preview"><div><small>{t('tradeYouGive')}</small>{#if offered}<TradeCard id={offered} {language} />{/if}</div><div><small>{t('tradeYouGet')}</small>{#if requested}<TradeCard id={requested} {language} />{/if}</div></div>
         <label>{t('tradeCoins')}<input type="number" min="0" step="1" bind:value={coins} /></label>
-        <button type="button" class="primary" disabled={busy || !offered || !requested} on:click={send}>{t('tradeSend')}</button>
+        <button type="button" class="primary" disabled={busy || !offered || !requested} on:click={send}>{busy ? uiCopy(language, 'working') : uiCopy(language, 'review')}</button>
       </div>
     {/if}
   {:else}
@@ -117,6 +124,7 @@
             <span>{trade.direction === 'sent' ? t('tradeYouGive') : t('tradeYouGet')}: <b>{cardLabel(trade.offeredCard)}</b>{#if trade.coins} + {trade.coins.toLocaleString(language)} coins{/if}</span>
             <span>{trade.direction === 'sent' ? t('tradeYouGet') : t('tradeYouGive')}: <b>{cardLabel(trade.requestedCard)}</b></span>
           </div>
+          <div class="trade-preview history"><div><small>{t('tradeYouGive')}</small><TradeCard id={trade.direction === 'sent' ? trade.offeredCard : trade.requestedCard} {language} /></div><div><small>{t('tradeYouGet')}</small><TradeCard id={trade.direction === 'sent' ? trade.requestedCard : trade.offeredCard} {language} /></div></div>
           {#if trade.status === 'pending'}
             <div class="trades-actions">
               {#if trade.direction === 'received'}
@@ -134,11 +142,20 @@
 </section>
 
 <style>
+  .trades { padding:22px; }
+  .trades-tabs button, .trades input, .trades select { min-height:44px; }
+  .trades input, .trades select { width:100%; padding:10px; color:var(--text); background:var(--surface-2); border:1px solid var(--line); font:inherit; }
+  .trade-preview { flex:1 0 100%; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .trade-preview > div { display:grid; align-content:start; gap:8px; min-width:0; }
+  .trade-preview small { font-weight:800; color:var(--muted); }
+  .trade-preview.history { flex:0 1 340px; }
+  @media(max-width:720px) { .trades { padding:14px; } .trades-list li { flex-direction:column; align-items:stretch; } .trade-preview.history { flex-basis:auto; } .trades-actions button { flex:1; } }
+
   .trades { display: grid; gap: 0.75rem; }
   .trades-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 0.5rem; }
   .trades-head h2 { margin: 0; }
   .trades-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-  .trades-tabs button { padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
+  .trades-tabs button { padding: 0.35rem 0.75rem; border-radius: 0; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
   .trades-tabs button.active { background: var(--accent, #f5a623); color: var(--accent-ink, #111); border-color: transparent; }
   .trades-hint { margin: 0; font-size: 0.85rem; opacity: 0.8; }
   .trades-error { margin: 0; color: #ff6b6b; }
@@ -147,7 +164,7 @@
   .trades-new label, .trades-pick label { display: grid; gap: 0.25rem; font-size: 0.85rem; flex: 1 1 200px; min-width: 0; }
   .trades-pick select { max-width: 100%; }
   .trades-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-  .trades-list li { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--line, #333); }
+  .trades-list li { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 0; border: 1px solid var(--line, #333); }
   .trades-list li.closed { opacity: 0.6; }
   .trades-text { display: grid; gap: 0.2rem; min-width: 0; }
   .trades-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }

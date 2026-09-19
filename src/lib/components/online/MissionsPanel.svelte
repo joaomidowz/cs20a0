@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { uiCopy } from '$lib/game/online/ui-copy';
   import { AccountError } from '$lib/game/online/account';
   import { claimMission, fetchMissions, type MissionState } from '$lib/game/online/collection';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -23,9 +24,11 @@
   let tab: Scope = 'daily';
   let busyId = '';
   let error = '';
+  let loading = true;
+  let notice = '';
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
-  $: shown = missions.filter((mission) => mission.scope === tab);
+  $: shown = missions.filter((mission) => mission.scope === tab).sort((a, b) => Number(a.claimed) * 2 + Number(a.progress < a.target) - (Number(b.claimed) * 2 + Number(b.progress < b.target)));
   $: ready = (scope: Scope) => missions.filter((mission) => mission.scope === scope && !mission.claimed && mission.progress >= mission.target).length;
 
   const label = (id: string) => translateOnline(language, `mission_${id}` as OnlineTranslationKey) ?? id;
@@ -43,15 +46,17 @@
       error = '';
     } catch (caught) {
       error = caught instanceof AccountError ? caught.message : t('connectionFailed');
-    }
+    } finally { loading = false; }
   }
 
   async function claim(mission: MissionState) {
     if (busyId) return;
     busyId = mission.id;
+    notice = '';
     try {
       const result = await claimMission(serverUrl, mission.id);
       onClaimed({ wallet: result.wallet, packs: result.packs });
+      notice = `${uiCopy(language, 'received')}: ${mission.coins.toLocaleString(language)} coins${mission.packs ? ` + ${mission.packs} ${t('missionPacks')}` : ''}.`;
       await load();
     } catch (caught) {
       error = caught instanceof AccountError ? caught.message : t('connectionFailed');
@@ -68,15 +73,17 @@
     <div><span class="eyebrow">{t('missions').toUpperCase()}</span><h2>{t('missions')}</h2></div>
     {#if tab === 'solo'}<strong class="count">{t('soloStreakNow')} {streak.current} <small>· {t('missionBest')} {streak.best}</small></strong>{/if}
   </div>
-  <div class="segmented-control missions-tabs" role="tablist">
+  <div class="segmented-control missions-tabs" role="group" aria-label={t('missions')}>
     {#each TABS as item}
-      <button type="button" role="tab" aria-selected={tab === item.scope} class:active={tab === item.scope} on:click={() => (tab = item.scope)}>
+      <button type="button" aria-pressed={tab === item.scope} class:active={tab === item.scope} on:click={() => (tab = item.scope)}>
         {t(item.key)}{#if ready(item.scope)}<b class="missions-badge">{ready(item.scope)}</b>{/if}
       </button>
     {/each}
   </div>
   <p class="note">{tab === 'solo' ? t('missionSoloHint') : t('missionOnlineHint')}</p>
   {#if error}<p class="missions-error" role="alert">{error}</p>{/if}
+  {#if loading}<p class="note" role="status">{uiCopy(language, 'loading')}</p>{/if}
+  {#if notice}<p class="missions-notice" role="status">{notice}</p>{/if}
   <ul class="missions-list">
     {#each shown as mission (mission.id)}
       {@const done = mission.progress >= mission.target}
@@ -86,7 +93,7 @@
           <small>{t('missionResets')} {resetsIn(mission.resetsAt)}</small>
         </div>
         <div class="missions-progress">
-          <div class="missions-bar" role="progressbar" aria-valuemin="0" aria-valuemax={mission.target} aria-valuenow={mission.progress}>
+          <div class="missions-bar" role="progressbar" aria-valuemin="0" aria-valuemax={mission.target} aria-label={label(mission.id)} aria-valuenow={Math.min(mission.progress, mission.target)}>
             <span style={`width: ${Math.min(100, (mission.progress / mission.target) * 100)}%`}></span>
           </div>
           <span class="missions-count">{Math.min(mission.progress, mission.target)}/{mission.target}</span>
@@ -96,7 +103,7 @@
           {#if mission.claimed}
             <span class="missions-claimed">✓ {t('missionClaimed')}</span>
           {:else}
-            <button type="button" class={done ? 'primary' : 'secondary'} disabled={!done || busyId === mission.id} on:click={() => claim(mission)}>{t('missionClaim')}</button>
+            <button type="button" class={done ? 'primary' : 'secondary'} disabled={!done || !!busyId} on:click={() => claim(mission)}>{busyId === mission.id ? uiCopy(language, 'working') : done ? t('missionClaim') : uiCopy(language, 'progress')}</button>
           {/if}
         </div>
       </li>
@@ -105,6 +112,8 @@
 </section>
 
 <style>
+  .missions-notice { margin:0; padding:12px; border-left:3px solid var(--accent); color:var(--accent); background:var(--surface-2); }
+  @media(max-width:520px) { .missions-tabs { display:grid; grid-template-columns:1fr 1fr; } .missions-panel { padding:14px; } .missions-list li { padding:12px; } }
   .missions-panel { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .count { color: var(--accent); font: 900 1.3rem/1 'Arial Narrow', Impact, sans-serif; white-space: nowrap; }
   .count small { color: var(--muted); font: 700 .7rem Inter, Arial, sans-serif; }
