@@ -65,6 +65,7 @@
       <span class="eyebrow">ONLINE · {t('collection').toUpperCase()}</span>
       <h1>{t('upgrader')}</h1>
       <p>{t('upgraderIntro')}</p>
+      <a class="faq-link" href="#faq-title">{t('faqLink')}</a>
     </header>
 
     {#if !isOnlineEnabled()}
@@ -80,6 +81,8 @@
         <div class="topbar-actions"><a class="secondary link" href="/online/colecao">← {t('collection')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
       </div>
 
+      <p class="loss-warning" role="note">{t('upgraderLossWarning')}</p>
+
       <Upgrader {serverUrl} language={$language} {ownedIds} {lockedIds} onDone={() => void refresh()}
         playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
     {/if}
@@ -90,6 +93,10 @@
       <details>
         <summary>{t('faqFairQ')}</summary>
         <p>{t('faqFairA')}</p>
+      </details>
+      <details>
+        <summary>{t('faqLossQ')}</summary>
+        <p>{t('faqLossA')}</p>
       </details>
       <details>
         <summary>{t('faqChanceQ')}</summary>
@@ -136,7 +143,10 @@
   .topbar strong small { font: 700 .6rem Inter, Arial, sans-serif; color: var(--muted); }
   .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
   .faq { display: grid; gap: 0; padding: 18px 20px; }
-  .faq h2 { margin: 0 0 10px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .faq-link { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-height: 40px; margin-top: 10px; padding: 0 14px; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+  .faq-link:hover, .faq-link:focus-visible { border-color: var(--accent); color: var(--accent); }
+  .loss-warning { margin: 0; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--danger) 60%, var(--line)); border-left: 3px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); color: #ff9b90; font-size: .8rem; font-weight: 700; }
+  .faq h2 { scroll-margin-top: 90px; margin: 0 0 10px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .faq details { border-top: 1px solid var(--line); }
   .faq summary { padding: 12px 0; font-size: .86rem; font-weight: 800; cursor: pointer; }
   .faq summary:hover { color: var(--accent); }

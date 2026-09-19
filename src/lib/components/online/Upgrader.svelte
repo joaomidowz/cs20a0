@@ -90,7 +90,7 @@
   $: shownStakeValue = shownStake.reduce((sum, card) => sum + card.value, 0);
   $: shownChance = outcome ? outcome.chance : chance;
   $: settled = phase === 'done' && outcome;
-  $: resultCard = settled && outcome ? cardOf(outcome.won ? outcome.target : outcome.returned ?? '') : null;
+  $: resultCard = settled && outcome ? cardOf(outcome.won ? outcome.target : outcome.consolation ?? '') : null;
   $: spinning = phase === 'spinning';
   $: resultRarity = resultCard?.rarity ?? 'common';
   $: seedOk = isValidClientSeed(clientSeed);
@@ -200,19 +200,35 @@
       {#if shownStake.length}
         <div class="mini-grid staked">
           {#each shownStake as card (card.id)}
-            <div class="pick picked" class:vanish={settled} class:returned={settled && outcome && !outcome.won && outcome.returned === card.id}>
+            <div class="pick picked" class:vanish={settled}>
               <span class="value-tag"><i></i>{fmt(card.value)}</span>
               {#if card.coach}
                 <CoachCard coach={card.coach} teamName={coachTeam(card.coach)}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
               {:else if card.player}
                 <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
               {/if}
-              {#if settled && outcome && !outcome.won && outcome.returned === card.id}<b class="back-tag">{t('upgraderReturned')}</b>{/if}
             </div>
           {/each}
         </div>
       {:else}
         <span class="empty">{t('upgraderEmpty')}</span>
+      {/if}
+      {#if settled && outcome && !outcome.won && resultCard}
+        <!-- Loss: every staked card is gone; the downgraded consolation card comes in their place. -->
+        <div class="consolation" role="status">
+          <div class="mini-grid">
+            <div class="pick returned">
+              <span class="value-tag"><i></i>{fmt(resultCard.value)}</span>
+              {#if resultCard.coach}
+                <CoachCard coach={resultCard.coach} teamName={coachTeam(resultCard.coach)} />
+              {:else if resultCard.player}
+                <CollectionCard player={resultCard.player} teamName={playerTeam(resultCard.player)} {language} compact {onOpen} />
+              {/if}
+              <b class="back-tag">{t('upgraderDowngraded')}</b>
+            </div>
+          </div>
+          <p class="note">{t('upgraderAllLost')}{#if outcome.duplicate} <b class="dupe">{t('upgraderDuplicate')} {fmt(outcome.duplicateCoins)} coins.</b>{/if}</p>
+        </div>
       {/if}
 
       <h3 class="subhead">{t('upgraderYourCards').toUpperCase()} <small>{stakeable.length}</small></h3>
@@ -313,7 +329,10 @@
 
   <section class="fair" aria-labelledby="fair-title">
     <div class="fair-head">
-      <h3 id="fair-title">{t('fairTitle')}</h3>
+      <div class="fair-title-row">
+        <h3 id="fair-title">{t('fairTitle')}</h3>
+        <a class="faq-link" href="#faq-title">{t('faqLink')}</a>
+      </div>
       <p>{t('fairIntro')}</p>
     </div>
     <dl class="fair-grid">
@@ -337,6 +356,7 @@
           <div><dt>{t('fairNonce')}</dt><dd><code>{revealed.nonce}</code></dd></div>
           <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll}</code></dd></div>
           <div><dt>{t('fairResult')}</dt><dd class:win={revealed.won} class:loss={!revealed.won}>{revealed.won ? t('fairWin') : t('fairLoss')} · {pct(revealed.roll)} {revealed.won ? '<' : '≥'} {pct(revealed.chance)}</dd></div>
+          {#if !revealed.won && revealed.consolation}<div class="wide"><dt>{t('fairConsolation')}</dt><dd>{cardLabel(revealed.consolation)} · {revealed.consolationKind === 'value' ? t('fairConsolationValue') : t('fairConsolationCommon')}</dd></div>{/if}
         </dl>
         <div class="verify-row">
           <button type="button" class="secondary small" disabled={verifyState === 'busy'} on:click={verify}>{verifyState === 'busy' ? t('fairVerifying') : t('fairVerify')}</button>
@@ -370,7 +390,11 @@
   .value-tag { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
   .value-tag i { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
   .pick.vanish { opacity: 0; transform: scale(.85); filter: grayscale(1); }
-  .pick.vanish.returned { opacity: 1; transform: none; filter: none; outline-color: #ffd36b; box-shadow: 0 0 24px color-mix(in srgb, #ffd36b 45%, transparent); animation: returned-pulse 1.4s .2s ease-out both; }
+  .consolation { display: grid; gap: 8px; }
+  .consolation .mini-grid { grid-template-columns: minmax(150px, 190px); }
+  .consolation .dupe { color: #ffd36b; }
+  .consolation .back-tag { bottom: 10px; }
+  .pick.returned { outline-color: #ffd36b; box-shadow: 0 0 24px color-mix(in srgb, #ffd36b 45%, transparent); animation: returned-pulse 1.4s .2s ease-out both; }
   @keyframes returned-pulse {
     0% { transform: scale(.92); box-shadow: 0 0 0 transparent; }
     40% { transform: scale(1.04); box-shadow: 0 0 40px color-mix(in srgb, #ffd36b 75%, transparent), 0 0 0 6px color-mix(in srgb, #ffd36b 35%, transparent); }
@@ -451,7 +475,10 @@
     .mini-grid.scroll { max-height: 440px; }
   }
   .fair { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
-  .fair-head h3 { margin: 0 0 4px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .fair-title-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .faq-link { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+  .faq-link:hover, .faq-link:focus-visible { border-color: var(--accent); color: var(--accent); }
+  .fair-head h3 { margin: 0; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .fair-head p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
   .fair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin: 0; }
   .fair-grid > div { display: grid; gap: 4px; min-width: 0; }
@@ -471,7 +498,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .arc, .pick, .needle i { transition: none; }
-    .dial.won .arc, .dial.lost .arc, .flash, .target-card.glow, .pick.vanish.returned { animation: none; }
+    .dial.won .arc, .dial.lost .arc, .flash, .target-card.glow, .pick.returned { animation: none; }
     .rays, .ring, .sparks, .flash.win { display: none; }
     .flash:not(.win) { opacity: .35; }
     .dial.won .arc { filter: drop-shadow(0 0 12px var(--fx)); }

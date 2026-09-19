@@ -4,7 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cardCoinValue } from '../src/lib/game/online/card-value';
 import { collectionPlayers } from '../src/lib/game/online/collection-pool';
 import { UPGRADER_MAX_CHANCE, upgradeChance } from '../src/lib/game/online/collection-rules';
-import { fairRoll, rollDegrees, rollFromHex, sha256Hex, verifyFair } from '../src/lib/game/online/fair';
+import { CONSOLATION_COMMON_CHANCE, CONSOLATION_VALUE_RATIO, consolationCard, fairConsolation, fairRoll, rollDegrees, rollFromHex, sha256Hex, verifyFair } from '../src/lib/game/online/fair';
+import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
+import { rarityOf } from '../src/lib/game/online/collection-rules';
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 
@@ -56,6 +58,65 @@ describe('provably fair (puro)', () => {
   });
 });
 
+const rarityOfCard = (id: string) => rarityOf((collectionCoachById.get(id) ?? collectionPlayerById.get(id))!);
+
+describe('carta rebaixada da derrota (pura)', () => {
+  const byValue = [...collectionPlayers].sort((a, b) => cardCoinValue(a.id) - cardCoinValue(b.id));
+  /** Six expensive cards: 20% of their value has plenty of cheaper cards. */
+  const rich = byValue.slice(-6).map((player) => player.id);
+  const target = byValue[byValue.length - 7].id;
+  const rolls = Array.from({ length: 200 }, (_, index) => (index + 0.5) / 200);
+
+  it('ramo comum abaixo de 0,7: sempre uma comum, nunca apostada nem o alvo', () => {
+    for (const pick of rolls) {
+      const result = consolationCard(CONSOLATION_COMMON_CHANCE - 0.01, pick, rich, target);
+      expect(result.kind).toBe('common');
+      expect(rarityOfCard(result.card)).toBe('common');
+      expect(rich).not.toContain(result.card);
+      expect(result.card).not.toBe(target);
+    }
+  });
+
+  it('ramo de valor a partir de 0,7: vale no máximo 20% da aposta e fica perto disso', () => {
+    const limit = rich.reduce((sum, id) => sum + cardCoinValue(id), 0) * CONSOLATION_VALUE_RATIO;
+    const best = Math.max(...[...collectionPlayerById.keys(), ...collectionCoachById.keys()].map(cardCoinValue).filter((value) => value <= limit));
+    const seen = new Set<string>();
+    for (const pick of rolls) {
+      const result = consolationCard(CONSOLATION_COMMON_CHANCE, pick, rich, target);
+      expect(result.kind).toBe('value');
+      expect(cardCoinValue(result.card)).toBeLessThanOrEqual(limit);
+      expect(cardCoinValue(result.card)).toBeGreaterThanOrEqual(best * 0.9);
+      expect(rich).not.toContain(result.card);
+      seen.add(result.card);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('aposta barata demais para 20%: o ramo de valor cai numa comum', () => {
+    const cheap = [byValue[0].id];
+    const result = consolationCard(0.99, 0.5, cheap, target);
+    expect(result.kind).toBe('common');
+    expect(result.card).not.toBe(cheap[0]);
+  });
+
+  it('com uma carta só, a rebaixada nunca é a apostada, em nenhum sorteio', () => {
+    for (const id of [byValue[0].id, byValue.at(-1)!.id]) {
+      for (const branch of [0, 0.5, 0.7, 0.99]) for (const pick of rolls) expect(consolationCard(branch, pick, [id], target).card).not.toBe(id);
+    }
+  });
+
+  it('mesma seed, mesma carta: servidor (node:crypto) e navegador (crypto.subtle)', async () => {
+    const { serverRoll } = await import('../server/collection/upgrader');
+    const kinds = new Set<string>();
+    for (let nonce = 0; nonce < 40; nonce += 1) {
+      const server = consolationCard(serverRoll('f'.repeat(64), 'seed', nonce, 'refund'), serverRoll('f'.repeat(64), 'seed', nonce, 'refund-pick'), rich, target);
+      expect(await fairConsolation('f'.repeat(64), 'seed', nonce, rich, target)).toEqual(server);
+      kinds.add(server.kind);
+    }
+    expect(kinds).toEqual(new Set(['common', 'value']));
+  });
+});
+
 const url = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!url)('upgrader (Postgres)', () => {
@@ -87,11 +148,10 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
   });
   afterAll(async () => { await db?.close(); });
 
-  it('derrota: as apostadas saem e só uma delas volta; saldo intacto', async () => {
-    const { upgradeCards } = await import('../server/collection/upgrader');
-    const stake = cheap.slice(0, 2);
-    const chance = upgradeChance(cardCoinValue(stake[0]) + cardCoinValue(stake[1]), cardCoinValue(target));
-    const { getFairState, serverRoll, sha256 } = await import('../server/collection/upgrader');
+  it('derrota com uma carta: a apostada é perdida e entra uma rebaixada; saldo intacto', async () => {
+    const { upgradeCards, getFairState, serverRoll, sha256 } = await import('../server/collection/upgrader');
+    const stake = cheap.slice(0, 1);
+    const chance = upgradeChance(cardCoinValue(stake[0]), cardCoinValue(target));
     const serverSeed = 'd'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const before = await getFairState(db, userId);
@@ -99,38 +159,64 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     const clientSeed = await clientSeedFor(serverSeed, nonce, chance, false);
     const result = await upgradeCards(db, userId, stake, target, clientSeed);
     expect(result.won).toBe(false);
-    // Determinístico dada a seed: o roll e a carta devolvida saem do HMAC.
+    // Determinístico dada a seed: o roll e a carta rebaixada saem do HMAC.
     expect(result.roll).toBe(serverRoll(serverSeed, clientSeed, nonce));
-    expect(result.returned).toBe(stake[Math.floor(serverRoll(serverSeed, clientSeed, nonce, 'refund') * stake.length)]);
-    // A revelação bate com o hash publicado antes do giro.
+    const expected = consolationCard(serverRoll(serverSeed, clientSeed, nonce, 'refund'), serverRoll(serverSeed, clientSeed, nonce, 'refund-pick'), stake, target);
+    expect(result).toMatchObject({ consolation: expected.card, consolationKind: expected.kind, stake });
+    expect(stake).not.toContain(result.consolation);
+    // O navegador chega na mesma carta e o Verificar confere tudo.
+    expect((await fairConsolation(serverSeed, clientSeed, nonce, stake, target)).card).toBe(result.consolation);
     expect(result).toMatchObject({ serverSeed, serverSeedHash: before.serverSeedHash, clientSeed, nonce });
-    expect(sha256(result.serverSeed)).toBe(before.serverSeedHash);
     expect(await verifyFair(result, before.serverSeedHash)).toBe(true);
+    expect(await verifyFair({ ...result, consolation: stake[0] }, before.serverSeedHash)).toBe(false);
     // A seed rotaciona: hash novo, nonce + 1, e é isso que o GET devolve agora.
     expect(result.next.serverSeedHash).not.toBe(before.serverSeedHash);
     expect(result.next.nonce).toBe(nonce + 1);
     expect(await getFairState(db, userId)).toEqual(result.next);
     expect(result.chance).toBeCloseTo(chance, 10);
-    expect(stake).toContain(result.returned);
-    const ids = (await owned()).map((row) => row.player_id);
-    expect(ids).toContain(result.returned);
-    expect(ids).not.toContain(stake.find((id) => id !== result.returned));
+    const rows = await owned();
+    const ids = rows.map((row) => row.player_id);
+    expect(ids).not.toContain(stake[0]);
     expect(ids).not.toContain(target);
+    expect(result.duplicate).toBe(cheap.includes(result.consolation!) && result.consolation !== stake[0]);
+    if (!result.duplicate) expect(rows.find((row) => row.player_id === result.consolation)?.source).toBe('upgrade');
     const [row] = await db.query('SELECT won, returned, server_seed, server_seed_hash, client_seed, nonce, roll FROM upgrades WHERE user_id = $1', [userId]);
-    expect(row).toEqual({ won: false, returned: result.returned, server_seed: serverSeed, server_seed_hash: before.serverSeedHash, client_seed: clientSeed, nonce, roll: result.roll });
+    expect(row).toEqual({ won: false, returned: result.consolation, server_seed: serverSeed, server_seed_hash: before.serverSeedHash, client_seed: clientSeed, nonce, roll: result.roll });
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
-    expect(wallet.coins).toBe(500);
+    expect(wallet.coins).toBe(500 + result.duplicateCoins);
+  });
+
+  it('derrota com várias cartas: todas são perdidas; rebaixada repetida vira coins', async () => {
+    const { upgradeCards, serverRoll } = await import('../server/collection/upgrader');
+    const { duplicateValue } = await import('../server/collection/service');
+    const stake = cheap.slice(1, 3);
+    const chance = upgradeChance(stake.reduce((sum, id) => sum + cardCoinValue(id), 0), cardCoinValue(target));
+    const serverSeed = '9'.repeat(64);
+    const nonce = await pinSeed(serverSeed);
+    const clientSeed = await clientSeedFor(serverSeed, nonce, chance, false);
+    const expected = consolationCard(serverRoll(serverSeed, clientSeed, nonce, 'refund'), serverRoll(serverSeed, clientSeed, nonce, 'refund-pick'), stake, target);
+    // Já tem a carta que vai sair: ela vira coins.
+    await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack') ON CONFLICT DO NOTHING`, [userId, expected.card]);
+    const [{ coins: before }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
+    const result = await upgradeCards(db, userId, stake, target, clientSeed);
+    expect(result).toMatchObject({ won: false, consolation: expected.card, duplicate: true, duplicateCoins: duplicateValue(expected.card) });
+    expect(result.duplicateCoins).toBeGreaterThan(0);
+    const ids = (await owned()).map((row) => row.player_id);
+    for (const id of stake) expect(ids).not.toContain(id);
+    const [{ coins: after }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
+    expect(after).toBe(before + result.duplicateCoins);
+    await db.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 AND NOT (player_id = ANY($3))', [userId, expected.card, cheap]);
   });
 
   it('vitória: as apostadas saem e o alvo entra', async () => {
     const { upgradeCards } = await import('../server/collection/upgrader');
-    const stake = cheap.slice(2, 5);
+    const stake = cheap.slice(3, 5);
     const chance = upgradeChance(stake.reduce((sum, id) => sum + cardCoinValue(id), 0), cardCoinValue(target));
     const serverSeed = 'e'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const clientSeed = await clientSeedFor(serverSeed, nonce, chance, true);
     const result = await upgradeCards(db, userId, stake, target, clientSeed);
-    expect(result).toMatchObject({ won: true, returned: null, target, serverSeed, nonce });
+    expect(result).toMatchObject({ won: true, consolation: null, consolationKind: null, duplicate: false, target, serverSeed, nonce });
     expect(result.roll).toBeLessThan(chance);
     const rows = await owned();
     expect(rows.find((row) => row.player_id === target)?.source).toBe('upgrade');

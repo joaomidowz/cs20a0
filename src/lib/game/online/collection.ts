@@ -60,7 +60,13 @@ export interface UpgradeOutcome {
   chance: number;
   roll: number;
   target: string;
-  returned: string | null;
+  stake: string[];
+  /** On a loss: the downgraded card handed out (never one of the staked cards). */
+  consolation: string | null;
+  consolationKind: 'common' | 'value' | null;
+  /** The consolation card was already owned: it turned into `duplicateCoins` coins. */
+  duplicate: boolean;
+  duplicateCoins: number;
   serverSeed: string;
   serverSeedHash: string;
   clientSeed: string;

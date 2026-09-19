@@ -57,7 +57,7 @@ const lineupView = (row: LineupRow | undefined): LineupView | null => {
 };
 
 /** What a repeated card pays: the same share as selling it. */
-const duplicateValue = (id: string) => {
+export const duplicateValue = (id: string) => {
   const coach = collectionCoachById.get(id);
   if (coach) return Math.floor(coachCoinValue(coach) * DUPLICATE_RATIO);
   const player = playerById.get(id);
