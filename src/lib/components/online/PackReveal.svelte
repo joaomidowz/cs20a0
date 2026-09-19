@@ -166,10 +166,12 @@
   .shaking { animation: quake .6s linear; }
   .case-stage { display: grid; place-items: center; min-height: 300px; }
   .rv-roll { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-self: stretch; }
-  .rv-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding: 16px 0 6px; }
+  .rv-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), minmax(0, 270px)); gap: 24px; justify-content: center; width: 100%; padding: 16px 0 6px; }
   /* Closed and open cards share one box, so nothing jumps when a card opens. */
   .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
-  .rv-cards { --card-h: auto; align-items: start; }
+  /* Every card in the row gets the same height (coach cards are shorter than players); only the best one is bigger. */
+  .rv-cards { --card-h: auto; align-items: stretch; }
+  @media (min-width: 721px) { .rv-card.best { scale: 1.07; transform-origin: center top; z-index: 1; margin-bottom: 22px; } }
   .rv-back { min-height: 400px; }
   .rv-holder :global(.card) { height: 100%; }
   .rv-holder :global(.card .face) { height: 100%; align-content: start; }
