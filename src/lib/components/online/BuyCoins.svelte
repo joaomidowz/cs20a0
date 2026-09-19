@@ -6,7 +6,7 @@
 </script>
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { AccountError, authFetch } from '$lib/game/online/account';
 
   export let serverUrl: string;
@@ -25,12 +25,20 @@
   const price = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   $: bestId = products.reduce<Product | null>((best, item) => (!best || item.coins / item.priceCents > best.coins / best.priceCents ? item : best), null)?.id;
 
+  /** The "+ Coins" link lands here (`#comprar-coins`); the section only exists once the products arrive. */
+  async function revealAnchor() {
+    if (typeof location === 'undefined' || location.hash !== '#comprar-coins' || !products.length) return;
+    await tick();
+    document.getElementById('comprar-coins')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   onMount(async () => {
-    if (cached && cached.url === serverUrl && Date.now() - cached.at < 60_000) { products = cached.products; return; }
+    if (cached && cached.url === serverUrl && Date.now() - cached.at < 60_000) { products = cached.products; void revealAnchor(); return; }
     try {
       const result = await authFetch<{ products: Product[] }>(serverUrl, '/shop/products', { method: 'GET' });
       products = result.products.filter((item) => item.coins > 0 && item.priceCents > 0);
       cached = { url: serverUrl, at: Date.now(), products };
+      void revealAnchor();
     } catch {
       products = []; // Payments off on this server: the section stays hidden.
     }
@@ -67,7 +75,7 @@
 {/if}
 
 <style>
-  .buy { display: grid; gap: 16px; padding: 22px; }
+  .buy { display: grid; gap: 16px; padding: 22px; scroll-margin-top: 140px; }
   h2 { margin: 4px 0; }
   .hint { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.5; } .hint.small { font-size: .7rem; }
   .offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }

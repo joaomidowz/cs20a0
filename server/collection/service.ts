@@ -1,5 +1,6 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, PROMO_RARITY, PROMO_TIERS, type PromoTier, coachCoinValue, promoPrice, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
+import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
 import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
@@ -120,7 +121,7 @@ export async function openDailyPack(db: Db, userId: string, now: number): Promis
 }
 
 export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number): Promise<PackResult> {
-  if (tier === 'basic' || (PROMO_TIERS as readonly string[]).includes(tier)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
+  if (tier === 'basic' || !(tier in PACK_PRICES)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
   if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
   return db.tx(async (tx) => {
     const price = PACK_PRICES[tier];
@@ -135,37 +136,45 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
   });
 }
 
-export interface PromoView {
-  tier: PromoTier;
-  price: number;
+export interface PromoView extends PromoCard {
+  /** This account already bought this offer today. */
   bought: boolean;
+  /** This account already has the card (bought elsewhere): the offer cannot be bought. */
+  owned: boolean;
 }
 
-/** Seed of one account's promotion of the day: the card is a surprise, drawn at purchase and different for each account. */
-export const promoSeed = (day: string, tier: PromoTier, userId: string) => `promo:${day}:${PROMO_RARITY[tier]}:${userId}`;
+export interface PromoBought {
+  tier: PromoTier;
+  cardId: string;
+  price: number;
+  wallet: number;
+}
+
 /** Next midnight in Brasília (UTC-3), when the promotions turn over. */
 const nextDayStart = (day: string) => { const [y, m, d] = day.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 1, 3)).toISOString(); };
 
+/** Today's four offers (the same cards and prices for everyone), with what this account already bought or owns. */
 export async function listPromos(db: Db, userId: string, now: number): Promise<{ day: string; endsAt: string; promos: PromoView[] }> {
   const day = dayKeyUtcMinus3(now);
+  const offers = dailyPromos(day);
   const bought = new Set((await db.query<{ tier: string }>('SELECT tier FROM promo_purchases WHERE user_id = $1 AND day = $2', [userId, day])).map((row) => row.tier));
-  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: promoPrice(tier, day), bought: bought.has(tier) })) };
+  const owned = new Set((await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1 AND player_id = ANY($2)', [userId, offers.map((offer) => offer.cardId)])).map((row) => row.player_id));
+  return { day, endsAt: nextDayStart(day), promos: offers.map((offer) => ({ ...offer, bought: bought.has(offer.tier), owned: owned.has(offer.cardId) })) };
 }
 
-/** Buys today's promotion of one rarity, once per account per day: one surprise card (plus a coach in the Legend one). */
-export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: number): Promise<PackResult> {
+/** Buys one of today's offers, once per account per day, at the price the pure rule computes (the same the client shows). */
+export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: number): Promise<PromoBought> {
   const day = dayKeyUtcMinus3(now);
-  const seed = promoSeed(day, tier, userId);
-  const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches);
+  const offer = dailyPromos(day).find((item) => item.tier === tier);
+  if (!offer || offer.price <= 0) throw new CollectionError(400, 'BAD_TIER', 'Promoção desconhecida');
   return db.tx(async (tx) => {
-    const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, seed]);
+    const [owned] = await tx.query('SELECT 1 FROM collection WHERE user_id = $1 AND player_id = $2', [userId, offer.cardId]);
+    if (owned) throw new CollectionError(409, 'ALREADY_OWNED', 'Você já tem essa carta');
+    const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed, card_id, price) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, promoSeed(day), offer.cardId, offer.price]);
     if (!inserted.length) throw new CollectionError(409, 'PROMO_BOUGHT', 'Você já comprou essa promoção hoje');
-    // The price of the day, the same one GET /promos showed (a pure function of the Brasília day).
-    await applyLedger(tx, userId, -promoPrice(tier, day), 'buy_pack', tier);
-    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
-    const added = await addCards(tx, userId, cards, seed);
-    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
-    return { tier, seed, players: cards.map(cardId), ...added };
+    const wallet = await applyLedger(tx, userId, -offer.price, 'buy_pack', tier);
+    await tx.query('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3)', [userId, offer.cardId, 'pack']);
+    return { tier, cardId: offer.cardId, price: offer.price, wallet };
   });
 }
 

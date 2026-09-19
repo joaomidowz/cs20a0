@@ -32,6 +32,15 @@ const copy = {
   storeHint: ['Caixas, promoções e upgrades para sua coleção.', 'Cases, offers and upgrades for your collection.', 'Cajas, ofertas y upgrades para tu colección.'],
   teamHint: ['Monte sua line, salve e entre na próxima partida.', 'Build your lineup, save and join the next match.', 'Arma tu equipo, guarda y entra en la próxima partida.'],
   confirmBuy: ['Confirmar compra', 'Confirm purchase', 'Confirmar compra'],
+  walletLabel: ['Carteira', 'Wallet', 'Cartera'], packsShort: ['pacotes', 'packs', 'sobres'], cardsShort: ['cartas', 'cards', 'cartas'],
+  addCoins: ['+ Coins', '+ Coins', '+ Coins'],
+  promoCoach: ['Promo Coach', 'Coach promo', 'Promo Coach'],
+  promoOwned: ['Você já tem', 'You already have it', 'Ya la tienes'],
+  promoFrom: ['de', 'was', 'de'], promoFor: ['por', 'now', 'por'],
+  promoEnlarge: ['Ampliar carta', 'Enlarge card', 'Ampliar carta'],
+  promoAdded: ['Carta adicionada à coleção', 'Card added to your collection', 'Carta añadida a la colección'],
+  back: ['Voltar', 'Back', 'Volver'], next: ['Avançar', 'Next', 'Siguiente'],
+  step: ['Etapa', 'Step', 'Paso'],
 } as const;
 
 export type UiKey = keyof typeof copy;

@@ -52,6 +52,7 @@
   import { accountUser, authFetch, loadAccount, sessionToken } from '$lib/game/online/account';
   import { get } from 'svelte/store';
   import { fetchCollection, startSolo } from '$lib/game/online/collection';
+  import { refreshWallet } from '$lib/game/online/wallet';
   import '../../app.css';
 
   // Collection lineups may bring 2013–2015 cards; the draft itself only ever offers core players.
@@ -90,6 +91,8 @@
       const reply = await authFetch<{ result: MajorResultView | null; room?: RoomRewardView[] }>(getOnlineServerUrl(), `/me/majors/${code}`).catch(() => ({ result: null, room: [] }));
       result = reply.result; room = reply.room ?? [];
     }
+    // The run's coins (and any award prize) land on the wallet bar.
+    if (result) void refreshWallet(getOnlineServerUrl());
     try {
       const [season, awards] = await Promise.all([
         authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),

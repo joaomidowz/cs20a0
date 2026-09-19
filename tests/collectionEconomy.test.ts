@@ -1,11 +1,11 @@
 // tests/collectionEconomy.test.ts
-// Economia da coleção: preço das cartas por raridade, promoções do dia e a regra de que vender (ou receber duplicata de) um
+// Economia da coleção: preço das cartas por raridade e a regra de que vender (ou receber duplicata de) um
 // pacote nunca devolve mais que ~60% do que ele custou, calculada com as odds reais de PACK_SLOTS e COACH_CHANCE.
 import { describe, expect, it } from 'vitest';
 import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
 import {
-  BUYABLE_TIERS, COACH_CHANCE, DUPLICATE_RATIO, PACK_PRICES, PACK_SLOTS, PROMO_COACH_BAND, PROMO_PRICE_BAND, PROMO_TIERS, RARITIES, RARITY_BASE_VALUE,
-  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coachSellValue, coinValue, promoPrice, rarityOf, sellValue, type Rarity, type RarityOdds
+  BUYABLE_TIERS, COACH_CHANCE, DUPLICATE_RATIO, PACK_PRICES, PACK_SLOTS, RARITIES, RARITY_BASE_VALUE,
+  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coachSellValue, coinValue, rarityOf, sellValue, type Rarity, type RarityOdds
 } from '../src/lib/game/online/collection-rules';
 
 /** Most a pack may pay back when all its cards are sold, as a share of its price. */
@@ -58,25 +58,5 @@ describe('preço das cartas', () => {
       const payback = packPayback(tier, player, coach) / PACK_PRICES[tier];
       expect(payback, `${tier}: ${(payback * 100).toFixed(1)}% do preço`).toBeLessThan(MAX_PAYBACK);
     }
-  });
-});
-
-describe('preço das promoções', () => {
-  const days = Array.from({ length: 60 }, (_, index) => new Date(Date.UTC(2026, 8, 1 + index)).toISOString().slice(0, 10));
-
-  it('varia por dia dentro da faixa, igual para quem pedir no mesmo dia', () => {
-    for (const tier of PROMO_TIERS) {
-      const prices = days.map((day) => promoPrice(tier, day));
-      const [low, high] = PROMO_PRICE_BAND[tier];
-      const coach = tier === 'promo_legend' ? PROMO_COACH_BAND : [0, 0];
-      for (const price of prices) {
-        expect(price).toBeGreaterThanOrEqual(low + coach[0]);
-        expect(price).toBeLessThanOrEqual(high + coach[1]);
-      }
-      expect(new Set(prices).size).toBeGreaterThan(5);
-      expect(promoPrice(tier, '2026-09-19')).toBe(promoPrice(tier, '2026-09-19'));
-    }
-    expect(PROMO_PRICE_BAND).toEqual({ promo_elite: [4500, 6000], promo_superstar: [9000, 12000], promo_legend: [18000, 25000] });
-    expect(PROMO_COACH_BAND).toEqual([4000, 15000]);
   });
 });

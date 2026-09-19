@@ -2,6 +2,7 @@
   import TradeCard from './TradeCard.svelte';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { uiCopy } from '$lib/game/online/ui-copy';
+  import { refreshWallet } from '$lib/game/online/wallet';
   import { onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
   import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
@@ -69,6 +70,7 @@
     busy = true; error = ''; notice = '';
     try {
       await answerTrade(serverUrl, trade.id, action);
+      void refreshWallet(serverUrl);
       await load();
       if (action === 'accept') onChanged();
     } catch (caught) { await load(); fail(caught); } finally { busy = false; }

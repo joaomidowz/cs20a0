@@ -531,6 +531,17 @@ ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS client_seed text CHECK (client_see
 ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS nonce int;
 ALTER TABLE upgrades ADD COLUMN IF NOT EXISTS roll double precision;
 `
+  },
+  {
+    id: 21,
+    // Promoção diária de 4 cartas fixas (iguais para todas as contas): nova oferta de coach e registro da carta e do
+    // preço cobrado. As linhas antigas (carta surpresa) continuam válidas; card_id e price ficam nulos nelas.
+    sql: `
+ALTER TABLE promo_purchases DROP CONSTRAINT IF EXISTS promo_purchases_tier_check;
+ALTER TABLE promo_purchases ADD CONSTRAINT promo_purchases_tier_check CHECK (tier IN ('promo_elite','promo_superstar','promo_legend','promo_coach'));
+ALTER TABLE promo_purchases ADD COLUMN IF NOT EXISTS card_id text;
+ALTER TABLE promo_purchases ADD COLUMN IF NOT EXISTS price int CHECK (price IS NULL OR price > 0);
+`
   }
 ];
 

@@ -6,7 +6,7 @@ import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
 const buySchema = z.object({ tier: z.enum(['prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional() });
-const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend']) });
+const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']) });
 const sellSchema = z.object({ playerId: z.string().min(1).max(80) });
 const lineupSchema = z.object({
   playerIds: z.array(z.string().min(1).max(80)).length(5),

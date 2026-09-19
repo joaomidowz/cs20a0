@@ -78,11 +78,6 @@
     {:else if !$accountUser}
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href="/online/conta?next=/online/store/upgrader">{t('goAccount')}</a></section>
     {:else if state}
-      <div class="topbar panel">
-        <div><span>{t('wallet')}</span><strong>{state.wallet.toLocaleString($language)} <small>{t('coins')}</small></strong></div>
-        <div><span>{t('myCards')}</span><strong>{state.count}</strong></div>
-        <div class="topbar-actions"><a class="secondary link" href="/online/colecao">← {t('collection')}</a><a class="secondary link" href="/online">{t('playOnline')}</a></div>
-      </div>
 
       <p class="loss-warning" role="note">{t('upgraderLossWarning')}</p>
 
@@ -139,12 +134,6 @@
   .upgrader-page { display: grid; gap: 18px; padding: 28px 0 70px; }
   .box { display: grid; gap: 12px; padding: 22px; }
   .link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 16px; border-radius: 0; text-decoration: none; }
-  .topbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 16px 20px; }
-  .topbar > div { display: grid; gap: 4px; }
-  .topbar span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-  .topbar strong { font: 900 1.9rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
-  .topbar strong small { font: 700 .6rem Inter, Arial, sans-serif; color: var(--muted); }
-  .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
   .faq { display: grid; gap: 0; padding: 18px 20px; }
   .faq-link { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-height: 40px; margin-top: 10px; padding: 0 14px; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
   .faq-link:hover, .faq-link:focus-visible { border-color: var(--accent); color: var(--accent); }

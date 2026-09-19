@@ -18,7 +18,7 @@
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyPack, buyPromo, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
+  import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -143,7 +143,7 @@
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
-  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone', promo_elite: 'promoElite', promo_superstar: 'promoSuperstar', promo_legend: 'promoLegend' };
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
@@ -325,12 +325,6 @@
     {:else if !$accountUser}
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href={section === 'store' ? '/online/conta?next=/online/store' : '/online/conta?next=/online/colecao'}>{t('goAccount')}</a></section>
     {:else if state}
-      <div class="topbar panel">
-        <div><span>{t('wallet')}</span><strong>{state.wallet.toLocaleString($language)} <small>{t('coins')}</small></strong></div>
-        <div><span>{t('packsToday')}</span><strong>{packsLeft}/{state.packsToday.granted}</strong></div>
-        <div><span>{t('myCards')}</span><strong>{state.count}</strong></div>
-        <div class="topbar-actions"><a class="secondary link" href="/online/store#comprar-coins">+ coins</a></div>
-      </div>
 
       {#if section === 'store'}<StoreNav language={$language} />{:else}
       <div class="team-links"><button class="primary" type="button" disabled={!complete || busy} on:click={saveAndPlay}>{dirty ? u('savePlay') : t('playOnline')}</button><a class="secondary link" href="/online/trocas">{t('trades')}</a><button class="secondary" type="button" on:click={() => scrollTo(cardsSection)}>{t('myCards')}</button></div>{/if}
@@ -338,6 +332,7 @@
         {#if section === 'store'}
         <section class="panel shop" bind:this={shopTop}>
           <div class="section-heading"><div><span class="eyebrow">{t('shop').toUpperCase()}</span><h2>{t('shop')}</h2></div></div>
+          <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} onBought={() => refresh()} />
           <div class="shop-grid">
             <article class="pack basic">
               <PackOdds tier="basic" title={t('packBasic')} labels={oddsLabels} />
@@ -382,7 +377,6 @@
             {/each}
           </div>
 
-          <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} {oddsLabels} onBuy={(tier) => runReveal(() => buyPromo(serverUrl, tier), tier)} />
 
           {#if reveal}
             <div bind:this={shopSection}>
@@ -593,12 +587,6 @@
   .collection { display: grid; gap: 18px; padding: 28px 0 70px; }
   .box { display: grid; gap: 12px; padding: 22px; }
   .link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 16px; text-decoration: none; }
-  .topbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 16px 20px; }
-  .topbar > div { display: grid; gap: 4px; }
-  .topbar span { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-  .topbar strong { font: 900 1.9rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
-  .topbar strong small { font: 700 .6rem Inter, Arial, sans-serif; color: var(--muted); }
-  .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .shop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }

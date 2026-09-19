@@ -1,5 +1,9 @@
 import type { LineupSlotRole, MapId, OrgStyle } from '../types';
 import { authFetch } from './account';
+import { patchWalletCoins, setWalletFromCollection } from './wallet';
+
+/** Every response that carries the new balance also updates the shared wallet bar. */
+const withWallet = <T extends { wallet: number }>(request: Promise<T>) => request.then((result) => { patchWalletCoins(result.wallet); return result; });
 import type { PackTier, PromoTier } from './collection-rules';
 
 export interface CollectionState {
@@ -29,10 +33,10 @@ export interface PackOpened {
   wallet: number;
 }
 
-export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection');
-export const openDailyPack = (serverUrl: string) => authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} });
-export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } });
-export const sellCard = (serverUrl: string, playerId: string) => authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } });
+export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection').then((state) => { setWalletFromCollection(state); return state; });
+export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} }));
+export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } }));
+export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: lineup });
 
 export interface MissionState {
@@ -47,7 +51,7 @@ export interface MissionState {
 }
 
 export const fetchMissions = (serverUrl: string) => authFetch<{ missions: MissionState[]; soloStreak: { current: number; best: number } }>(serverUrl, '/missions');
-export const claimMission = (serverUrl: string, missionId: string) => authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} });
+export const claimMission = (serverUrl: string, missionId: string) => withWallet(authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} }));
 export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });
 
 export interface UpgraderFair {
@@ -79,12 +83,16 @@ export const upgradeCards = (serverUrl: string, stake: string[], target: string,
 
 export interface PromoOffer {
   tier: PromoTier;
+  cardId: string;
+  originalPrice: number;
   price: number;
+  discount: number;
   bought: boolean;
+  owned: boolean;
 }
 
 export const fetchPromos = (serverUrl: string) => authFetch<{ day: string; endsAt: string; promos: PromoOffer[] }>(serverUrl, '/promos');
-export const buyPromo = (serverUrl: string, tier: PromoTier) => authFetch<PackOpened>(serverUrl, '/promos/buy', { body: { tier } });
+export const buyPromo = (serverUrl: string, tier: PromoTier) => withWallet(authFetch<{ tier: PromoTier; cardId: string; price: number; wallet: number }>(serverUrl, '/promos/buy', { body: { tier } }));
 
 export type TradeStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
 export interface TradeItem {
@@ -102,4 +110,4 @@ export interface TradeItem {
 export const fetchTrades = (serverUrl: string) => authFetch<{ received: TradeItem[]; sent: TradeItem[] }>(serverUrl, '/trades');
 export const fetchTradePartner = (serverUrl: string, teamName: string) => authFetch<{ teamName: string; cards: string[] }>(serverUrl, `/trades/partner?teamName=${encodeURIComponent(teamName)}`);
 export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
-export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} });
+export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} }).then((result) => { if (typeof result.wallet === 'number') patchWalletCoins(result.wallet); return result; });

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { uiCopy } from '$lib/game/online/ui-copy';
+  import { refreshWallet } from '$lib/game/online/wallet';
   import { AccountError } from '$lib/game/online/account';
   import { claimMission, fetchMissions, type MissionState } from '$lib/game/online/collection';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
@@ -56,6 +57,7 @@
     try {
       const result = await claimMission(serverUrl, mission.id);
       onClaimed({ wallet: result.wallet, packs: result.packs });
+      if (result.packs) void refreshWallet(serverUrl);
       notice = `${uiCopy(language, 'received')}: ${mission.coins.toLocaleString(language)} coins${mission.packs ? ` + ${mission.packs} ${t('missionPacks')}` : ''}.`;
       await load();
     } catch (caught) {
