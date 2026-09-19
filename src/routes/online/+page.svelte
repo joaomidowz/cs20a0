@@ -1198,6 +1198,13 @@
             </section>
           {/if}
 
+          {#if snapshot.phase === 'completed'}
+            <div class="after-run">
+              <button class="secondary" type="button" on:click={exitRoom}>← {t('backToStart')}</button>
+              {#if $accountUser}<a class="secondary online-link" href="/online/conta">{t('myAccount')}</a>{/if}
+              {#if me?.collection}<a class="primary online-link" href="/online/colecao">{t('editMyTeam')}</a>{/if}
+            </div>
+          {/if}
           <div class="major-tabs"><SegmentedControl value={activeTab} label={t('title')} options={[{ value: 'current', label: t('currentGame') }, { value: 'all', label: t('allGames') }]} onChange={(value) => activeTab = value as 'current' | 'all'} /></div>
 
           {#if activeTab === 'current'}
@@ -1207,10 +1214,6 @@
                 <h1>{snapshot.tournament.championId === me?.id ? gameT('champion') : gameT('eliminated')}</h1>
                 <p>{myCampaign ? translatePlacement($language, myCampaign.placement) : '—'}</p>
               </header>
-              <div class="after-run">
-                {#if me?.collection}<a class="primary online-link" href="/online/colecao">{t('editMyTeam')}</a>{/if}
-                <button class="secondary" type="button" on:click={exitRoom}>{t('backToStart')}</button>
-              </div>
               {#if snapshot.selfResult && onlineRunReport && self}
                 <ShareRunCard
                   seed={roomCode}
