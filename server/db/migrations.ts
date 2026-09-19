@@ -310,6 +310,49 @@ FROM (
   FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
 `
+  },
+  {
+    id: 13,
+    // Titles decide the season again: match awards add at most 3 points per Major (they repeat inside a run), and the
+    // day's ten BEST runs count instead of the first three. Every run keeps what it would be worth (potential_points)
+    // so a later, better run can take the place of a weaker one. Active seasons are rescored; coins stay as paid.
+    sql: `
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS potential_points int NOT NULL DEFAULT 0;
+UPDATE majors SET potential_points = points WHERE potential_points = 0;
+
+WITH scored AS (
+  SELECT m.id,
+    CASE m.placement WHEN 'placementChampion' THEN 10 WHEN 'placementRunnerUp' THEN 7 WHEN 'placement3to4' THEN 5 WHEN 'placement5to8' THEN 3 ELSE 1 END AS full_points,
+    m.lobby_size, m.ranked,
+    coalesce((SELECT sum(r.points) FROM jsonb_array_elements(m.awards) a
+      JOIN award_rules r ON r.kind = CASE WHEN jsonb_typeof(a) = 'string' THEN a #>> '{}' ELSE a ->> 'kind' END), 0)::int AS award_points
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active'
+), worth AS (
+  SELECT id, ranked,
+    CASE WHEN NOT ranked OR lobby_size < 2 THEN 0
+      WHEN lobby_size >= 4 THEN full_points
+      WHEN lobby_size = 3 THEN ceil(full_points / 2.0)::int
+      ELSE round(full_points / 3.0)::int END AS base_points,
+    CASE WHEN ranked AND lobby_size >= 2 THEN least(3, award_points) ELSE 0 END AS award_points
+  FROM scored
+)
+UPDATE majors m SET base_points = w.base_points, potential_points = w.base_points + w.award_points
+FROM worth w WHERE w.id = m.id;
+
+WITH day_runs AS (
+  SELECT m.id, row_number() OVER (PARTITION BY m.user_id, (m.played_at AT TIME ZONE 'UTC' - interval '3 hours')::date ORDER BY m.potential_points DESC, m.played_at, m.id) AS place
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' AND m.ranked
+)
+UPDATE majors m SET counted = d.place <= 10, points = CASE WHEN d.place <= 10 THEN m.potential_points ELSE 0 END
+FROM day_runs d WHERE d.id = m.id;
+UPDATE majors m SET counted = false, points = 0 FROM seasons s WHERE s.id = m.season_id AND s.status = 'active' AND NOT m.ranked;
+
+UPDATE season_standings st SET points = agg.points
+FROM (
+  SELECT m.season_id, m.user_id, sum(m.points)::int AS points
+  FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
+`
   }
 ];
 

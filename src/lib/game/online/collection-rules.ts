@@ -80,8 +80,11 @@ export const PLACEMENT_POINTS: Readonly<Record<string, number>> = { placementCha
 export const ELIMINATED_POINTS = 1;
 /** Humans in the run for full points; three score half (rounded up), two a third (rounded), one alone scores nothing. */
 export const FULL_POINTS_LOBBY = 4;
-/** Runs per day (Brasília) that score season points; later runs still pay coins. */
-export const COUNTED_RUNS_PER_DAY = 3;
+/** Runs per day (Brasília) that score season points: the day's best ones, so a late title replaces an early bad run. */
+export const COUNTED_RUNS_PER_DAY = 10;
+
+/** Match awards repeat inside a Major (several perfect series, several top-10 players): together they add at most this. */
+export const AWARD_POINTS_CAP = 3;
 
 export function seasonPoints(placement: string, lobbySize: number): number {
   const full = PLACEMENT_POINTS[placement] ?? ELIMINATED_POINTS;

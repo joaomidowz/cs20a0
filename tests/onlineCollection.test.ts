@@ -153,10 +153,23 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placement5to8', champion: false }] }, now + 90_000);
     const scored = await db.query<{ seed: string; points: number; counted: boolean }>(`SELECT seed, points, counted FROM majors WHERE seed IN ('seed-2', 'seed-3') ORDER BY seed`);
     expect(scored).toEqual([{ seed: 'seed-2', points: 4, counted: true }, { seed: 'seed-3', points: 1, counted: true }]);
-    // The fourth ranked run of the day pays coins but no points.
+    // Up to ten runs a day count, the best ones first: here all four score.
     await recordMajor(db, { ...event, seed: 'seed-4' }, now + 100_000);
-    const fourth = await db.query<{ points: number; counted: boolean }>(`SELECT points, counted FROM majors WHERE seed = 'seed-4'`);
-    expect(fourth[0]).toMatchObject({ counted: false, points: 0 });
+    const day = await db.query<{ seed: string; points: number; counted: boolean }>(`SELECT seed, points, counted FROM majors WHERE seed IN ('seed-1', 'seed-2', 'seed-3', 'seed-4') ORDER BY seed`);
+    expect(day).toEqual([
+      { seed: 'seed-1', points: 10, counted: true },
+      { seed: 'seed-2', points: 4, counted: true },
+      { seed: 'seed-3', points: 1, counted: true },
+      { seed: 'seed-4', points: 10, counted: true }
+    ]);
+    // The eleventh run of the day only counts if it beats one of the ten: a weak one scores nothing, a title takes a place.
+    for (let index = 0; index < 6; index += 1) await recordMajor(db, { ...event, seed: `fill-${index}` }, now + 101_000 + index);
+    await recordMajor(db, { ...event, seed: 'weak-11', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placementStage3', champion: false }] }, now + 110_000);
+    const [weak] = await db.query<{ points: number; counted: boolean }>(`SELECT points, counted FROM majors WHERE seed = 'weak-11'`);
+    expect(weak).toEqual({ points: 0, counted: false });
+    await recordMajor(db, { ...event, seed: 'title-12' }, now + 111_000);
+    const pushed = await db.query<{ seed: string; counted: boolean }>(`SELECT seed, counted FROM majors WHERE seed IN ('seed-3', 'title-12') ORDER BY seed`);
+    expect(pushed).toEqual([{ seed: 'seed-3', counted: false }, { seed: 'title-12', counted: true }]);
     // Not competitive (private room with drafters, or alone): no points, half reward, no title award.
     await recordMajor(db, { ...event, seed: 'seed-5', lobbySize: 1, competitive: false }, now + 120_000);
     const solo = await db.query<{ points: number; ranked: boolean; awards: string[] }>(`SELECT points, ranked, awards FROM majors WHERE seed = 'seed-5'`);
@@ -164,7 +177,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(solo[0].awards).toEqual([]);
     const standings = await currentStandings(db, now, user.id);
     expect(standings.month).toBe('2026-09-01');
-    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 2, majorsPlayed: 5, points: 10 + 4 + 1 });
+    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 13, points: 9 * 10 + 4 });
     // End-of-run summary is the latest run of the room.
     expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, rewardCoins: 600, awardCoins: 0, lobbySize: 1 });
 
@@ -180,7 +193,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const top = await db.query<{ kind: string }>(`SELECT kind FROM awards WHERE kind LIKE 'season_%'`);
     expect(top.map((row) => row.kind)).toEqual(['season_top1']);
     const podium = await lastSeasonPodium(db);
-    expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 15 }] });
+    expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 94 }] });
     await db.close();
   });
 });

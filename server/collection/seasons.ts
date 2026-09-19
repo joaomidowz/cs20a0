@@ -1,4 +1,4 @@
-import { COUNTED_RUNS_PER_DAY, ELIMINATED_POINTS, FULL_POINTS_LOBBY, PLACEMENT_POINTS, matchReward, seasonPoints } from '../../src/lib/game/online/collection-rules';
+import { AWARD_POINTS_CAP, COUNTED_RUNS_PER_DAY, ELIMINATED_POINTS, FULL_POINTS_LOBBY, PLACEMENT_POINTS, matchReward, seasonPoints } from '../../src/lib/game/online/collection-rules';
 import type { Db, Tx } from '../db/client';
 import { collectionPlayerById as playerById } from '../../src/lib/game/online/collection-pool';
 import type { RunCompletedEvent } from '../room-manager';
@@ -32,12 +32,8 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       // Season points only in competitive runs (queue, or a code room where everybody brought a collection team).
       const ranked = event.competitive;
       const day = dayKeyUtcMinus3(now);
-      const [today] = await tx.query<{ n: string }>(
-        `SELECT count(*)::text AS n FROM majors WHERE user_id = $1 AND ranked AND counted AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date`,
-        [entry.userId, day]
-      );
-      const counted = ranked && Number(today.n) < COUNTED_RUNS_PER_DAY;
-      const basePoints = counted ? seasonPoints(entry.placement, event.lobbySize) : 0;
+      // What this run is worth if it ends up among the day's best; which runs count is decided after the insert.
+      const basePoints = ranked ? seasonPoints(entry.placement, event.lobbySize) : 0;
       const detected = detectAwards({ ...entry, awards: event.awards, lookup: (id) => playerById.get(id) });
       const rules = new Map((await tx.query<{ kind: string; coins: number; points: number; once_per_season: boolean }>('SELECT kind, coins, points, once_per_season FROM award_rules')).map((row) => [row.kind, row]));
       let awardPoints = 0;
@@ -53,33 +49,46 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
           if (already) continue;
         }
         await tx.query('INSERT INTO awards (user_id, kind, ref_id, season_id, detail) VALUES ($1, $2, $3, $4, $5)', [entry.userId, award.kind, `${event.roomCode}:${event.seed}`, seasonId, JSON.stringify(award.detail)]);
-        awardPoints += counted ? rule.points : 0;
+        awardPoints += ranked ? rule.points : 0;
         awardCoins += rule.coins;
         granted.push(award.kind);
-        grantedDetail.push({ kind: award.kind, coins: rule.coins, points: counted ? rule.points : 0 });
+        grantedDetail.push({ kind: award.kind, coins: rule.coins, points: ranked ? rule.points : 0 });
       }
-      const points = basePoints + awardPoints;
+      const potential = basePoints + Math.min(AWARD_POINTS_CAP, awardPoints);
       const ratings = entry.stats.map((line) => line.runRating).filter((value) => Number.isFinite(value));
       const avgRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : null;
       await tx.query(
-        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, counted, entry.placement, entry.champion, points, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins]
+        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, potential_points)
+         VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14)`,
+        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, potential]
+      );
+      // The day's best runs count, the rest score nothing: a new run can push an older, weaker one out.
+      await tx.query(
+        `WITH day_runs AS (
+           SELECT id, row_number() OVER (ORDER BY potential_points DESC, played_at, id) AS place FROM majors
+           WHERE user_id = $1 AND ranked AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date
+         )
+         UPDATE majors m SET counted = d.place <= $3, points = CASE WHEN d.place <= $3 THEN m.potential_points ELSE 0 END
+         FROM day_runs d WHERE d.id = m.id`,
+        [entry.userId, day, COUNTED_RUNS_PER_DAY]
       );
       const reward = matchReward(entry.placement, ranked);
       await applyLedger(tx, entry.userId, reward, 'match_reward', `${event.roomCode}:${event.seed}`);
       if (awardCoins) await applyLedger(tx, entry.userId, awardCoins, 'award', `${event.roomCode}:${event.seed}`);
       await tx.query(
         `INSERT INTO season_standings (season_id, user_id, majors_won, majors_played, points, avg_rating)
-         VALUES ($1, $2, $3, 1, $4, $5)
+         VALUES ($1, $2, $3, 1, 0, $4)
          ON CONFLICT (season_id, user_id) DO UPDATE SET
            majors_won = season_standings.majors_won + EXCLUDED.majors_won,
            majors_played = season_standings.majors_played + 1,
-           points = season_standings.points + EXCLUDED.points,
            avg_rating = CASE WHEN EXCLUDED.avg_rating IS NULL THEN season_standings.avg_rating
              WHEN season_standings.avg_rating IS NULL THEN EXCLUDED.avg_rating
              ELSE (season_standings.avg_rating * season_standings.majors_played + EXCLUDED.avg_rating) / (season_standings.majors_played + 1) END`,
-        [seasonId, entry.userId, entry.champion && ranked ? 1 : 0, points, avgRating]
+        [seasonId, entry.userId, entry.champion && ranked ? 1 : 0, avgRating]
+      );
+      await tx.query(
+        'UPDATE season_standings SET points = (SELECT coalesce(sum(points), 0) FROM majors WHERE season_id = $1 AND user_id = $2) WHERE season_id = $1 AND user_id = $2',
+        [seasonId, entry.userId]
       );
     });
   }
