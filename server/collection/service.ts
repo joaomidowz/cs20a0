@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, PACK_PRICES, PROMO_RARITY, PROMO_TIERS, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { validateLineup } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
@@ -120,7 +120,7 @@ export async function openDailyPack(db: Db, userId: string, now: number): Promis
 }
 
 export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number): Promise<PackResult> {
-  if (tier === 'basic') throw new CollectionError(400, 'BAD_TIER', 'O pacote básico é só o diário');
+  if (tier === 'basic' || (PROMO_TIERS as readonly string[]).includes(tier)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
   if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
   return db.tx(async (tx) => {
     const price = PACK_PRICES[tier];
@@ -128,6 +128,42 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
     const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
     const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
     const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches, tier === 'era' ? { year } : {});
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
+    const added = await addCards(tx, userId, cards, seed);
+    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
+    return { tier, seed, players: cards.map(cardId), ...added };
+  });
+}
+
+export interface PromoView {
+  tier: PromoTier;
+  price: number;
+  /** The day's four cards: the same for everyone, drawn from `promo:<day>:<rarity>`. */
+  cards: string[];
+  bought: boolean;
+}
+
+/** Seed of a daily promotion: everyone sees (and buys) the same four cards that day. */
+export const promoSeed = (day: string, tier: PromoTier) => `promo:${day}:${PROMO_RARITY[tier]}`;
+const promoCards = (day: string, tier: PromoTier) => rollPackWithCoaches(tier, promoSeed(day, tier), players, collectionCoaches);
+/** Next midnight in Brasília (UTC-3), when the promotions turn over. */
+const nextDayStart = (day: string) => { const [y, m, d] = day.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 1, 3)).toISOString(); };
+
+export async function listPromos(db: Db, userId: string, now: number): Promise<{ day: string; endsAt: string; promos: PromoView[] }> {
+  const day = dayKeyUtcMinus3(now);
+  const bought = new Set((await db.query<{ tier: string }>('SELECT tier FROM promo_purchases WHERE user_id = $1 AND day = $2', [userId, day])).map((row) => row.tier));
+  return { day, endsAt: nextDayStart(day), promos: PROMO_TIERS.map((tier) => ({ tier, price: PACK_PRICES[tier], cards: promoCards(day, tier).map(cardId), bought: bought.has(tier) })) };
+}
+
+/** Buys today's promotion of one rarity, once per account per day. */
+export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: number): Promise<PackResult> {
+  const day = dayKeyUtcMinus3(now);
+  const cards = promoCards(day, tier);
+  const seed = `${promoSeed(day, tier)}:${userId}`;
+  return db.tx(async (tx) => {
+    const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, seed]);
+    if (!inserted.length) throw new CollectionError(409, 'PROMO_BOUGHT', 'Você já comprou essa promoção hoje');
+    await applyLedger(tx, userId, -PACK_PRICES[tier], 'buy_pack', tier);
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);

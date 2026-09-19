@@ -129,7 +129,7 @@
         <div class="rv-roll"><Roulette entries={teasers} result={entryOf(ordered[rolling])} labels={{ spinning: labels.rolling, skip: labels.skip, hidden: '?' }} duration={1500} onComplete={() => land(rolling)} /></div>
       {/key}
     {/if}
-    <div class="rv-cards">
+    <div class="rv-cards" style={`--cards: ${ordered.length}`}>
       {#each ordered as card, index (idOf(card) + index)}
         {@const rarity = rarityOfCard(card)}
         {@const up = index < flipped}
@@ -166,7 +166,7 @@
   .shaking { animation: quake .6s linear; }
   .case-stage { display: grid; place-items: center; min-height: 300px; }
   .rv-roll { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-self: stretch; }
-  .rv-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding: 16px 0 6px; }
+  .rv-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), minmax(0, 270px)); gap: 20px; justify-content: center; align-items: start; width: 100%; padding: 16px 0 6px; }
   /* Closed and open cards share one box, so nothing jumps when a card opens. */
   .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
   .rv-cards { --card-h: auto; align-items: start; }

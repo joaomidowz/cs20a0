@@ -1,6 +1,6 @@
 import type { LineupSlotRole, MapId, OrgStyle } from '../types';
 import { authFetch } from './account';
-import type { PackTier } from './collection-rules';
+import type { PackTier, PromoTier } from './collection-rules';
 
 export interface CollectionState {
   wallet: number;
@@ -60,3 +60,13 @@ export interface UpgradeOutcome {
 }
 
 export const upgradeCards = (serverUrl: string, stake: string[], target: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target } });
+
+export interface PromoOffer {
+  tier: PromoTier;
+  price: number;
+  cards: string[];
+  bought: boolean;
+}
+
+export const fetchPromos = (serverUrl: string) => authFetch<{ day: string; endsAt: string; promos: PromoOffer[] }>(serverUrl, '/promos');
+export const buyPromo = (serverUrl: string, tier: PromoTier) => authFetch<PackOpened>(serverUrl, '/promos/buy', { body: { tier } });

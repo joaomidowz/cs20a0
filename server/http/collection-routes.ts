@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
-import { CollectionError, buyPack, getCollection, getLineup, openDailyPack, saveLineup, sellPlayer } from '../collection/service';
+import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineup, openDailyPack, saveLineup, sellPlayer } from '../collection/service';
 import type { Db } from '../db/client';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
 const buySchema = z.object({ tier: z.enum(['prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional() });
+const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend']) });
 const sellSchema = z.object({ playerId: z.string().min(1).max(80) });
 const lineupSchema = z.object({
   playerIds: z.array(z.string().min(1).max(80)).length(5),
@@ -32,6 +33,11 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
     route('POST', /^\/packs\/buy$/, withAuth(async ({ request, userId, now }) => {
       const body = await readBody(request, buySchema);
       return { ok: true, ...(await buyPack(db, userId!, body.tier, now, body.year).catch(toHttp)) };
+    })),
+    route('GET', /^\/promos$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await listPromos(db, userId!, now)) }))),
+    route('POST', /^\/promos\/buy$/, withAuth(async ({ request, userId, now }) => {
+      const body = await readBody(request, promoSchema);
+      return { ok: true, ...(await buyPromo(db, userId!, body.tier, now).catch(toHttp)) };
     })),
     route('POST', /^\/collection\/sell$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, sellSchema);

@@ -5,6 +5,7 @@
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import Upgrader from '$lib/components/online/Upgrader.svelte';
+  import PromosPanel from '$lib/components/online/PromosPanel.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -14,7 +15,7 @@
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyPack, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
+  import { buyPack, buyPromo, fetchCollection, openDailyPack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -114,7 +115,7 @@
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
-  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone', promo_elite: 'promoElite', promo_superstar: 'promoSuperstar', promo_legend: 'promoLegend' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
@@ -299,6 +300,8 @@
       </div>
 
       <MissionsPanel {serverUrl} language={$language} onClaimed={() => void refresh()} />
+
+      <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} {oddsLabels} onBuy={(tier) => runReveal(() => buyPromo(serverUrl, tier), tier)} />
 
       <Upgrader {serverUrl} language={$language} ownedIds={state.players.map((item) => item.playerId)} lockedIds={state.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : []} onDone={() => void refresh()} />
 

@@ -51,6 +51,9 @@
   .ouro { --case-hi: #ffe9a8; --case-a: #e0ab3c; --case-b: #a87516; --case-c: #6f4a0a; --case-glow: #ffc94d; }
   .diamante { --case-hi: #eafaff; --case-a: #7fdcff; --case-b: #2f9fd1; --case-c: #17607f; --case-glow: #5ad1ff; }
   .icone { --case-hi: #4a3a52; --case-a: #241a2b; --case-b: #150f1a; --case-c: #0a070d; --case-glow: #ff5ad8; --case-ink: #ffd36b; }
+  .promo_elite { --case-hi: #e2cbff; --case-a: #a66bff; --case-b: #6f3fc4; --case-c: #432575; --case-glow: #c49bff; --case-ink: #fff; }
+  .promo_superstar { --case-hi: #ffd2b0; --case-a: #ff8a3d; --case-b: #c55a17; --case-c: #7a340a; --case-glow: #ffa25e; }
+  .promo_legend { --case-hi: #fff0c2; --case-a: #d9a441; --case-b: #9c6d1c; --case-c: #5e3f0b; --case-glow: #ffd36b; --case-ink: #2a1a00; }
   .rim { fill: #07090a; }
   .strap { fill: color-mix(in srgb, var(--case-c) 70%, #000); }
   .latch { fill: var(--case-hi); stroke: var(--case-c); stroke-width: 1.5; }

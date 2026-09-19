@@ -1,10 +1,12 @@
-import { CARDS_PER_PACK, COACH_CHANCE, PACK_SLOTS, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
+import { COACH_CHANCE, PACK_SLOTS, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
 import { createSeededRng } from '../../src/lib/game/simulation';
 import type { Coach, Player } from '../../src/lib/game/types';
 
 export interface RollOptions {
   /** `era` packs: every card from this year. Other tiers draw three distinct years. */
   year?: number;
+  /** Cards in the pack; defaults to the tier's slot rows (3, or 4 for the promotions). */
+  size?: number;
 }
 
 const pickRarity = (row: RarityOdds, roll: number): Rarity => {
@@ -36,8 +38,9 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
   const cards: Player[] = [];
   const usedYears = new Set<number>();
   const usedIds = new Set<string>();
-  for (let index = 0; index < CARDS_PER_PACK; index += 1) {
-    const ladder = ladderOf(pickRarity(PACK_SLOTS[tier][index] ?? PACK_SLOTS[tier][0], rng()));
+  const size = options.size ?? PACK_SLOTS[tier].length;
+  for (let index = 0; index < size; index += 1) {
+    const ladder = ladderOf(pickRarity(PACK_SLOTS[tier][index] ?? PACK_SLOTS[tier][PACK_SLOTS[tier].length - 1], rng()));
     let chosen: Player | null = null;
     for (const rarity of ladder) {
       const candidates = (byRarity.get(rarity) ?? []).filter((player) => !usedIds.has(player.id) && (options.year || !usedYears.has(player.year ?? 0)));
@@ -64,7 +67,7 @@ export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[]
   if (rng() >= COACH_CHANCE[tier]) return cards;
   const eligible = coaches.filter((coach) => !options.year || coach.year === options.year).sort((a, b) => a.id.localeCompare(b.id));
   if (!eligible.length) return cards;
-  for (const rarity of ladderOf(pickRarity(PACK_SLOTS[tier][CARDS_PER_PACK - 1], rng()))) {
+  for (const rarity of ladderOf(pickRarity(PACK_SLOTS[tier][PACK_SLOTS[tier].length - 1], rng()))) {
     const candidates = eligible.filter((coach) => rarityOf(coach) === rarity);
     if (candidates.length) { cards[cards.length - 1] = { kind: 'coach', coach: candidates[Math.floor(rng() * candidates.length)] }; break; }
   }

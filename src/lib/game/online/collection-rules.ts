@@ -4,12 +4,17 @@ import type { Coach, Player } from '../types';
  * Pack and coin rules of the online collection, shared by the server (source of truth) and the client (previews and
  * odds shown in the shop). Pure: no data imports, so it stays inside the online boundary.
  */
-export type PackTier = 'basic' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
+export type PromoTier = 'promo_elite' | 'promo_superstar' | 'promo_legend';
+export type PackTier = 'basic' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone' | PromoTier;
 export type Rarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
 export type RarityOdds = Readonly<Record<Rarity, number>>;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
 export const PACK_TIERS: readonly PackTier[] = ['basic', 'prata', 'ouro', 'era', 'diamante', 'icone'];
+/** Daily promotions: one per rarity, four cards, sold once a day per account. */
+export const PROMO_TIERS: readonly PromoTier[] = ['promo_elite', 'promo_superstar', 'promo_legend'];
+export const PROMO_RARITY: Readonly<Record<PromoTier, Rarity>> = { promo_elite: 'elite', promo_superstar: 'superstar', promo_legend: 'legend' };
+export const PROMO_CARDS = 4;
 /** Packs sold for coins, in shop order (the basic pack is the daily grant). */
 export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['prata', 'era', 'ouro', 'diamante', 'icone'];
 export const CARDS_PER_PACK = 3;
@@ -27,11 +32,16 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
   era: same(odds(38.5, 31, 18, 7.5, 4, 1)),
   ouro: same(odds(10, 26, 33, 16, 13, 2)),
   diamante: [odds(0, 0, 0, 0, 90, 10), odds(0, 0, 0, 30, 60, 10), odds(0, 0, 0, 30, 60, 10)],
-  icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 0, 20, 60, 20), odds(0, 0, 0, 20, 60, 20)]
+  icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 0, 20, 60, 20), odds(0, 0, 0, 20, 60, 20)],
+  // Promotions: the first card is the promotion's rarity (0.5% of it a GOAT, the only GOAT chance of the pack); the other three
+  // are cheaper, with Legend kept low in the two smaller ones.
+  promo_elite: [odds(0, 0, 97.5, 0, 2, 0.5), ...Array.from({ length: 3 }, () => odds(35, 40, 20, 4, 1, 0))],
+  promo_superstar: [odds(0, 0, 0, 97.5, 2, 0.5), ...Array.from({ length: 3 }, () => odds(15, 35, 35, 12, 3, 0))],
+  promo_legend: [odds(0, 0, 0, 0, 99.5, 0.5), ...Array.from({ length: 3 }, () => odds(0, 20, 40, 30, 10, 0))]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 2000, ouro: 3500, diamante: 10000, icone: 30000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 2000, ouro: 3500, diamante: 10000, icone: 30000, promo_elite: 45000, promo_superstar: 70000, promo_legend: 120000 };
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {
@@ -98,7 +108,7 @@ export function seasonPoints(placement: string, lobbySize: number): number {
 export const DUPLICATE_RATIO = 0.6;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player. */
-export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2, promo_elite: 0.25, promo_superstar: 0.25, promo_legend: 0.25 };
 
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;

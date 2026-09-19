@@ -474,6 +474,20 @@ CREATE INDEX IF NOT EXISTS upgrades_user_idx ON upgrades (user_id, created_at DE
 ALTER TABLE collection DROP CONSTRAINT IF EXISTS collection_source_check;
 ALTER TABLE collection ADD CONSTRAINT collection_source_check CHECK (source IN ('pack','reward','upgrade'));
 `
+  },
+  {
+    id: 18,
+    // Promoções diárias (Entrega 3): cada conta compra cada promoção uma vez por dia (Brasília).
+    sql: `
+CREATE TABLE IF NOT EXISTS promo_purchases (
+  user_id uuid NOT NULL REFERENCES users(id),
+  day date NOT NULL,
+  tier text NOT NULL CHECK (tier IN ('promo_elite','promo_superstar','promo_legend')),
+  seed text NOT NULL,
+  bought_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, day, tier)
+);
+`
   }
 ];
 
