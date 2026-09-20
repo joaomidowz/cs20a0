@@ -1,4 +1,7 @@
 import { getEligibleSlotRoles, getRoleLabel, validatePlayerPick } from '../roleRules';
+import { collectionCoachById, collectionTeamById } from './collection-pool';
+import { playerCountryOf } from './collection-countries';
+import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
 /**
@@ -68,6 +71,8 @@ export interface CollectionLineupInput {
   starPlayerId: string | null;
   /** Game plan: balanced is free, aggressive needs an entry, tactical needs a real caller and a support (and pays the most). */
   style?: OrgStyle;
+  /** Coach card of the collection: it counts as the sixth member of the team and year themes. */
+  coachId?: string | null;
 }
 
 /** Caller strength a tactical plan needs from its IGL. */
@@ -136,6 +141,27 @@ export interface SynergyLine {
   consistency: number;
 }
 
+/** Organization of a team-year, so Astralis 2016 and Astralis 2019 recognise each other. */
+const orgOfTeam = (teamId: string | null | undefined): string | null => {
+  const name = teamId ? collectionTeamById.get(teamId)?.name : null;
+  return name ? name.toLowerCase().replace(/[^a-z0-9]/g, '') || null : null;
+};
+
+const memberOfPlayer = (player: Player): ThemeMember => ({
+  country: playerCountryOf(player),
+  teamId: player.teamId ?? null,
+  org: orgOfTeam(player.teamId),
+  year: player.year ?? null
+});
+
+/** The thematic lines of a lineup, with their labels: the builder names the theme, `synergyOf` only takes the power. */
+export function themeOf(input: CollectionLineupInput): ThemeLine[] {
+  const coach = input.coachId ? collectionCoachById.get(input.coachId) : undefined;
+  // The coach never counts for country: only 13% of the coach cards know their own.
+  const coachMember: ThemeMember | null = coach ? { country: null, teamId: coach.teamId, org: orgOfTeam(coach.teamId), year: coach.year } : null;
+  return themeLines(input.players.map(memberOfPlayer), coachMember);
+}
+
 /** Every composition effect as percentages (power) or points (mental/clutch/consistency); the sum is applied to the team. */
 export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   const lines: SynergyLine[] = [];
@@ -174,6 +200,8 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
     if (role === AWPER_IGL) add('star_awper_igl', { power: quarter(STAR_ROLE_BONUS.awper[style] * scale * HYBRID_BONUS_RATIO) });
     else if (role === 'awper' || role === 'entry' || role === 'rifler' || role === 'lurker') add(`star_${role}`, { power: quarter(STAR_ROLE_BONUS[role][style] * scale), ...(role === 'lurker' ? { clutch: 3 } : {}) });
   }
+  // The themes the lineup is built around (same team, country or year); the labels come from `themeOf`.
+  for (const line of themeOf(input)) add(line.key, { power: line.power });
   return lines;
 }
 

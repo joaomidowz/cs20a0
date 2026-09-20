@@ -103,3 +103,38 @@ describe('regra do tema', () => {
     expect(sk.find((line) => line.key === 'theme_year')).toMatchObject({ theme: '2017', count: 5 });
   });
 });
+
+describe('tema aplicado na line da coleção', () => {
+  it('line temática ganha bônus e line de estrelas soltas quase nada', async () => {
+    const { synergyOf, eligibleRolesOf } = await import('../src/lib/game/online/collection-lineup');
+    const { collectionPlayerById } = await import('../src/lib/game/online/collection-pool');
+    const sk = collectionPlayers.filter((player) => player.teamId === 'sk-2017').sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 5);
+    expect(sk).toHaveLength(5);
+    const { collectionCoachById } = await import('../src/lib/game/online/collection-pool');
+    const roles = sk.map((player) => eligibleRolesOf(player)[0]);
+    const temas = synergyOf({ players: sk, roles, starPlayerId: null }).filter((line) => line.key.startsWith('theme_'));
+    expect(temas.map((line) => line.key).sort()).toEqual(['theme_country', 'theme_team', 'theme_year']);
+    // Sem coach as linhas de time e ano param no quinto degrau: 1,5 + 1,5 + 2 de país.
+    expect(temas.reduce((sum, line) => sum + line.power, 0)).toBe(5);
+    // É o coach do próprio time que fecha as três linhas e leva ao teto.
+    const coach = [...collectionCoachById.values()].find((item) => item.teamId === 'sk-2017')!;
+    const comCoach = synergyOf({ players: sk, roles, starPlayerId: null, coachId: coach.id }).filter((line) => line.key.startsWith('theme_'));
+    expect(comCoach.reduce((sum, line) => sum + line.power, 0)).toBe(THEME_TOTAL_CAP);
+    const soltos = ['fallen-2019', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'].map((id) => collectionPlayerById.get(id)!).filter(Boolean);
+    expect(soltos).toHaveLength(5);
+    const total = synergyOf({ players: soltos, roles: soltos.map((player) => eligibleRolesOf(player)[0]), starPlayerId: null })
+      .filter((line) => line.key.startsWith('theme_')).reduce((sum, line) => sum + line.power, 0);
+    expect(total).toBeLessThan(1);
+  });
+
+  it('o coach entra na contagem de time e ano da line', async () => {
+    const { themeOf, eligibleRolesOf } = await import('../src/lib/game/online/collection-lineup');
+    const { collectionCoachById } = await import('../src/lib/game/online/collection-pool');
+    const sk = collectionPlayers.filter((player) => player.teamId === 'sk-2017').sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 5);
+    const coach = [...collectionCoachById.values()].find((item) => item.teamId === 'sk-2017');
+    expect(coach).toBeTruthy();
+    const roles = sk.map((player) => eligibleRolesOf(player)[0]);
+    expect(themeOf({ players: sk, roles, starPlayerId: null, coachId: coach!.id }).find((line) => line.key === 'theme_team')).toMatchObject({ count: 6, exact: true });
+    expect(themeOf({ players: sk, roles, starPlayerId: null }).find((line) => line.key === 'theme_team')).toMatchObject({ count: 5, exact: true });
+  });
+});
