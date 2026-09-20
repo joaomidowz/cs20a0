@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatRating } from '$lib/game/powerRating';
   import DynastyCardSheet from './DynastyCardSheet.svelte';
   import DynastyCoachCard from './DynastyCoachCard.svelte';
   import DynastyPlayerCard from './DynastyPlayerCard.svelte';
@@ -62,11 +63,11 @@
 <section class="team-panel">
   <header>
     <div><span class="eyebrow">DINASTIA</span><h2>{labels.title}</h2></div>
-    <strong>{power.toFixed(1)}</strong>
+    <strong>{formatRating(power)}</strong>
   </header>
 
   <div class="metrics">
-    <span>{labels.power}<b>{power.toFixed(1)}</b></span>
+    <span>{labels.power}<b>{formatRating(power)}</b></span>
     <span>{labels.plan}<b>{labels[plan.style]} · {labels[plan.tactic]}</b></span>
     <span>{labels.studies}<b>{studiesLeft}</b></span>
     <span>{labels.training}<b>{training ? labels[training] : '—'}</b></span>

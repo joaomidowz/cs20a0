@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { powerRatingDelta } from '$lib/game/powerRating';
   import { onDestroy, tick } from 'svelte';
   import SegmentedControl from './SegmentedControl.svelte';
   import { CURRENT_CATALOG_VERSION, getCatalog } from '$lib/game/catalog';
@@ -60,7 +61,7 @@
     const nextPicks = picks.length > slotIndex
       ? picks.map((pick, index) => index === slotIndex ? { playerId: player.id, selectedSlotRole: role } : pick)
       : [...picks, { playerId: player.id, selectedSlotRole: role }];
-    const delta = Math.round((previewSandboxLineupPower(nextPicks, style, organizationId).power - currentPower) * 10) / 10;
+    const delta = Math.round(powerRatingDelta(previewSandboxLineupPower(nextPicks, style, organizationId).power - currentPower) * 10) / 10;
     return { player, role, delta, eligible: getEligibleSlotRoles(player), year: originYear(player), team: player.teamId ? teamById.get(player.teamId) : null };
   });
 

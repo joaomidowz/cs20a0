@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatRating } from '$lib/game/powerRating';
   import { onDestroy, onMount, tick } from 'svelte';
   import { dev } from '$app/environment';
   import { isOnlineEnabled } from '$lib/game/online/config';
@@ -329,7 +330,7 @@
     id: 'user',
     name: t('orgHud'),
     avatar: (selectedPlayers[0]?.nickname ?? 'ORG').slice(0, 2).toUpperCase(),
-    eyebrow: `${$game.style.toUpperCase()} · POWER ${userTeam.power.toFixed(1)}`,
+    eyebrow: `${$game.style.toUpperCase()} · POWER ${formatRating(userTeam.power)}`,
     subtitle: `${$game.style} · OVR ${averageOverall(selectedPlayers)}`,
     tags: getOrgStrengths().slice(0, 3).map((stat) => `${stat.key.toUpperCase()} ${stat.value}`),
     roster: selectedPlayers,
@@ -1295,7 +1296,7 @@
               <div class="team-banner" class:roulette-impact={freshOffer} role="status">
                 <div class="team-avatar">{(rolledTeam.name ?? 'T').slice(0, 2).toUpperCase()}</div>
                 <div><span class="eyebrow">ROLLED TEAM</span><h2>{rolledTeam.name ?? 'Time'} <b>{rolledTeam.year ?? ''}</b></h2><p>{rolledTeam.game ?? 'CS'} · RANK #{rolledTeam.sourceRank ?? rolledTeam.rank ?? '—'} · {rolledTeam.rarity ?? 'standard'}</p></div>
-                <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ?? '—'}</span>
+                <span class="team-power">PWR {rolledTeam.teamPowerPreview ?? rolledTeam.power ? formatRating(rolledTeam.teamPowerPreview ?? rolledTeam.power ?? 0) : '—'}</span>
               </div>
             {/if}
             <div class="reroll-bar">
@@ -1355,7 +1356,7 @@
 
       {#if draftComplete && !isProMode}
         <section class="summary-grid">
-          <article class="power-panel panel"><span class="eyebrow">ORG POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
+          <article class="power-panel panel"><span class="eyebrow">ORG POWER INDEX</span><strong>{formatRating(userTeam.power)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
           <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
         </section>
         {#if $game.mode === 'faceit'}<div class="reveal-note">INTEL UNLOCKED · {t('revealed')}</div>{/if}
@@ -1451,7 +1452,7 @@
         </div>
       </section>
       <section class="summary-grid">
-        <article class="power-panel panel"><span class="eyebrow">PRO POWER INDEX</span><strong>{userTeam.power.toFixed(1)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
+        <article class="power-panel panel"><span class="eyebrow">PRO POWER INDEX</span><strong>{formatRating(userTeam.power)}</strong><div class="power-bar"><span style={`width:${userTeam.power}%`}></span></div><small>{t('estimatedPower')} · {t($game.style)}</small></article>
         <article class="panel composition"><span class="eyebrow">{t('composition')}</span><div class="warning-list">{#each compositionWarnings() as warning}<span>{warning}</span>{/each}{#if !compositionWarnings().length}<span>{t('compositionReady')}</span>{/if}</div></article>
       </section>
       <button class="primary wide major-button" type="button" on:click={beginMapSelection}>{t('chooseMaps')} →</button>

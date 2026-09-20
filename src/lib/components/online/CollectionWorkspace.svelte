@@ -29,6 +29,7 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { countryName } from '$lib/game/visuals/flags';
+  import { powerRating, powerRatingDelta } from '$lib/game/powerRating';
   import { calculateUserTeamPower } from '$lib/game/simulation';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
@@ -146,7 +147,10 @@
   let shopTop: HTMLElement | null = null;
   let cardsSection: HTMLElement | null = null;
   const scrollTo = (element: HTMLElement | null) => setTimeout(() => element?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  const fmt = (value: number) => Math.round(value).toLocaleString($language);
+  /** Power on screen is the 0-99 rating, never the raw engine number (src/lib/game/powerRating.ts). */
+  const fmt = (value: number) => Math.round(powerRating(value)).toLocaleString($language);
+  /** A difference between two powers, in rating points: the anchored conversion would be meaningless on a delta. */
+  const fmtDelta = (value: number) => Math.round(powerRatingDelta(value)).toLocaleString($language);
   $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
   // The saved team, built the same way, so the player sees what changes before saving.
   $: savedLineup = state?.lineup ?? null;
@@ -161,7 +165,7 @@
   const lineupKey = (ids: Array<string | null>, assigned: Array<string | null>, star: string | null, coach: string | null, orgStyle: string, maps: string[]) => JSON.stringify([ids, assigned, star, coach, orgStyle, maps]);
   $: dirty = loadedLineup && section === 'team' && lineupKey(slots.map(slot => slot?.id ?? null), roles, starPlayerId, coachId, style, mapPicks) !== lineupKey(savedLineup?.playerIds ?? [null,null,null,null,null], savedLineup?.roles ?? [null,null,null,null,null], savedLineup?.starPlayerId ?? null, savedLineup?.coachId ?? null, savedLineup?.style ?? 'balanced', savedLineup?.mapPreferences ?? []);
   $: comparison = savedTeam && preview && dirty ? [
-    { label: t('power'), before: savedTeam.power, after: preview.power, digits: 0 },
+    { label: t('power'), before: powerRating(savedTeam.power), after: powerRating(preview.power), digits: 0 },
     { label: t('mentalStat'), before: savedTeam.mental, after: preview.mental, digits: 1 },
     { label: t('clutchStat'), before: savedTeam.clutch, after: preview.clutch, digits: 1 },
     { label: t('consistencyStat'), before: savedTeam.consistency ?? 0, after: preview.consistency ?? 0, digits: 1 }
@@ -481,7 +485,7 @@
                 </div>
                 {#if preview && synergized}
                   <ul class="stat-list">
-                    <li><span>{t('power')}</span><b class:up={preview.power > synergized.power}>{preview.power >= synergized.power ? '+' : ''}{fmt(preview.power - synergized.power)}</b></li>
+                    <li><span>{t('power')}</span><b class:up={preview.power > synergized.power}>{preview.power >= synergized.power ? '+' : ''}{fmtDelta(preview.power - synergized.power)}</b></li>
                     {#if coachBonus > 0}<li><span>{t('coachAffinity')}</span><b class="up">+{(coachBonus * 100).toFixed(2)}%</b></li>{/if}
                     <li><span>{t('mentalStat')}</span><b>{preview.mental - synergized.mental >= 0 ? '+' : ''}{(preview.mental - synergized.mental).toFixed(1)}</b></li>
                     <li><span>{t('consistencyStat')}</span><b>{(preview.consistency ?? 0) - (synergized.consistency ?? 0) >= 0 ? '+' : ''}{((preview.consistency ?? 0) - (synergized.consistency ?? 0)).toFixed(1)}</b></li>

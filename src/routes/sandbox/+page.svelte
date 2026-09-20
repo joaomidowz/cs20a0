@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatRating, powerRating } from '$lib/game/powerRating';
   import { onDestroy, onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SandboxPlayerPicker from '$lib/components/SandboxPlayerPicker.svelte';
@@ -417,8 +418,8 @@
 
       <aside class="sandbox-power panel" aria-live="polite">
         <span class="eyebrow">PRÉVIA DO TIME</span>
-        <strong class="power-value">{preview.power.toFixed(1)}</strong>
-        <div class="power-bar"><span style={`width:${Math.max(0, Math.min(100, preview.power))}%`}></span></div>
+        <strong class="power-value">{formatRating(preview.power)}</strong>
+        <div class="power-bar"><span style={`width:${Math.max(0, Math.min(100, powerRating(preview.power)))}%`}></span></div>
         <small>Poder estimado · {styleLabel(selection.style)}</small>
         <dl class="power-stats">
           <div><dt>OVR médio</dt><dd>{preview.averageOverall || '—'}</dd></div>
@@ -489,7 +490,7 @@
             <article><small>Séries</small><strong>{campaign.wins}–{campaign.losses}</strong></article>
             <article><small>Mapas</small><strong>{campaign.mapsWon}–{campaign.mapsLost}</strong></article>
             <article><small>Rounds</small><strong>{campaign.roundsWon}–{campaign.roundsLost}</strong></article>
-            <article><small>Poder do time</small><strong>{major.userTeam.power.toFixed(1)}</strong></article>
+            <article><small>Poder do time</small><strong>{formatRating(major.userTeam.power)}</strong></article>
             <article><small>Campeão</small><strong>{championName}</strong></article>
           </div>
           <section class="sandbox-stats">
