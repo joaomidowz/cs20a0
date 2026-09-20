@@ -1199,6 +1199,9 @@ export class RoomManager {
       seed: room.seed,
       mapContext,
       seedOrder,
+      // The online modes play on the court scale: nothing is cut at 110, so a well-built lineup is worth more than a
+      // lazy one of the same cards. Offline, Dinastia and the sandbox build their own engines and keep the classic cut.
+      powerScale: 'court',
       swissBestOf: 3,
       controllerFor: (organization) => organization.human ? 'human' : 'bot',
       // Only two humans veto by hand; against a bot the veto is settled by the policies, decisions inside the maps stay live.

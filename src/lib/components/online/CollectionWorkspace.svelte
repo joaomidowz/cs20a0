@@ -20,7 +20,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -29,7 +29,7 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { countryName } from '$lib/game/visuals/flags';
-  import { powerRating, powerRatingDelta } from '$lib/game/powerRating';
+  import { courtRating, courtRatingDelta } from '$lib/game/powerRating';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
@@ -146,10 +146,10 @@
   let shopTop: HTMLElement | null = null;
   let cardsSection: HTMLElement | null = null;
   const scrollTo = (element: HTMLElement | null) => setTimeout(() => element?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  /** Power on screen is the 0-99 rating, never the raw engine number (src/lib/game/powerRating.ts). */
-  const fmt = (value: number) => Math.round(powerRating(value)).toLocaleString($language);
-  /** A difference between two powers, in rating points: the anchored conversion would be meaningless on a delta. */
-  const fmtDelta = (value: number) => Math.round(powerRatingDelta(value)).toLocaleString($language);
+  /** Power on screen is the court power, the number that actually plays (src/lib/game/courtPower.ts). One decimal: at the top the differences are tenths. */
+  const oneDecimal = (value: number) => value.toLocaleString($language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const fmt = (value: number) => oneDecimal(courtRating(value));
+  const signed = (value: number) => `${value >= 0 ? '+' : ''}${oneDecimal(value)}`;
   $: preview = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
   // The saved team, built the same way, so the player sees what changes before saving.
   $: savedLineup = state?.lineup ?? null;
@@ -164,7 +164,7 @@
   const lineupKey = (ids: Array<string | null>, assigned: Array<string | null>, star: string | null, coach: string | null, orgStyle: string, maps: string[]) => JSON.stringify([ids, assigned, star, coach, orgStyle, maps]);
   $: dirty = loadedLineup && section === 'team' && lineupKey(slots.map(slot => slot?.id ?? null), roles, starPlayerId, coachId, style, mapPicks) !== lineupKey(savedLineup?.playerIds ?? [null,null,null,null,null], savedLineup?.roles ?? [null,null,null,null,null], savedLineup?.starPlayerId ?? null, savedLineup?.coachId ?? null, savedLineup?.style ?? 'balanced', savedLineup?.mapPreferences ?? []);
   $: comparison = savedTeam && preview && dirty ? [
-    { label: t('power'), before: powerRating(savedTeam.power), after: powerRating(preview.power), digits: 0 },
+    { label: t('power'), before: courtRating(savedTeam.power), after: courtRating(preview.power), digits: 1 },
     { label: t('mentalStat'), before: savedTeam.mental, after: preview.mental, digits: 1 },
     { label: t('clutchStat'), before: savedTeam.clutch, after: preview.clutch, digits: 1 },
     { label: t('consistencyStat'), before: savedTeam.consistency ?? 0, after: preview.consistency ?? 0, digits: 1 }
@@ -175,7 +175,9 @@
   const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
-  $: synergyTotal = synergy.reduce((sum, line) => sum + line.power, 0);
+  /** Each line in rating points, measured by taking it away: a percentage says little under the court curve. */
+  $: impact = baseTeam && complete ? synergyImpact(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
+  $: synergyTotal = baseTeam && synergized ? courtRatingDelta(baseTeam.power, synergized.power) : 0;
   $: packsLeft = state ? Math.max(0, state.packsToday.granted - state.packsToday.opened) : 0;
 
   function hydrateLineup(saved: CollectionState['lineup']) {
@@ -484,7 +486,7 @@
                 </div>
                 {#if preview && synergized}
                   <ul class="stat-list">
-                    <li><span>{t('power')}</span><b class:up={preview.power > synergized.power}>{preview.power >= synergized.power ? '+' : ''}{fmtDelta(preview.power - synergized.power)}</b></li>
+                    <li><span>{t('power')}</span><b class:up={preview.power > synergized.power}>{signed(courtRatingDelta(synergized.power, preview.power))}</b></li>
                     {#if coachBonus > 0}<li><span>{t('coachAffinity')}</span><b class="up">+{(coachBonus * 100).toFixed(2)}%</b></li>{/if}
                     <li><span>{t('mentalStat')}</span><b>{preview.mental - synergized.mental >= 0 ? '+' : ''}{(preview.mental - synergized.mental).toFixed(1)}</b></li>
                     <li><span>{t('consistencyStat')}</span><b>{(preview.consistency ?? 0) - (synergized.consistency ?? 0) >= 0 ? '+' : ''}{((preview.consistency ?? 0) - (synergized.consistency ?? 0)).toFixed(1)}</b></li>
@@ -521,12 +523,13 @@
                 <ul class="synergy">
                   {#each synergy as line (line.key)}
                     {@const theme = line.key.startsWith('theme_') ? themes.find((item) => item.key === line.key) : undefined}
-                    <li class:up={line.power > 0 || line.mental > 0 || line.clutch > 0} class:down={line.power < 0 || line.mental < 0 || line.consistency < 0}>
-                      <span>{line.power < 0 || line.mental < 0 || line.consistency < 0 ? '▼' : '▲'} {line.key.startsWith('theme_') ? themeTitle(line.key, theme) + themeLabel(line.key, theme) : t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
-                      <b>{line.power ? `${line.power > 0 ? '+' : ''}${line.power}% ${t('power').toLowerCase()}` : ''}{line.mental ? ` ${line.mental > 0 ? '+' : ''}${line.mental} mental` : ''}{line.clutch ? ` +${line.clutch} clutch` : ''}{line.consistency ? ` ${line.consistency} cons.` : ''}</b>
+                    {@const bad = line.power < 0 || line.court < 0 || line.mental < 0 || line.consistency < 0 || line.key.endsWith('_off')}
+                    <li class:up={!bad && (line.power > 0 || line.mental > 0 || line.clutch > 0)} class:down={bad}>
+                      <span>{bad ? '▼' : '▲'} {line.key.startsWith('theme_') ? themeTitle(line.key, theme) + themeLabel(line.key, theme) : t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
+                      <b>{line.power || line.court ? `${signed(impact[line.key] ?? 0)} ${t('ratingPoints')}` : ''}{line.mental ? ` ${line.mental > 0 ? '+' : ''}${line.mental} mental` : ''}{line.clutch ? ` +${line.clutch} clutch` : ''}{line.consistency ? ` ${line.consistency} cons.` : ''}</b>
                     </li>
                   {/each}
-                  <li class="total"><span>{t('synergy')}</span><b>{synergyTotal > 0 ? '+' : ''}{synergyTotal.toFixed(2)}% {t('power').toLowerCase()}</b></li>
+                  <li class="total"><span>{t('synergy')}</span><b>{signed(synergyTotal)} {t('ratingPoints')}</b></li>
                 </ul>
               {:else}
                 <p class="note">{t('lineupIncomplete')}</p>

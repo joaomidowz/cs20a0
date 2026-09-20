@@ -2,7 +2,7 @@ import { getEligibleSlotRoles, getRoleLabel, validatePlayerPick } from '../roleR
 import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
-import { addCourtPoints } from '../courtPower';
+import { addCourtPoints, courtPower } from '../courtPower';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -286,9 +286,23 @@ export function cardEffects(input: CollectionLineupInput): Record<string, 'up' |
 
 const clamp99 = (value: number) => Math.max(1, Math.min(99, value));
 
+/**
+ * What each synergy line is worth in court points, measured by taking it away. A percentage says little on its own
+ * under the court curve: +14% is fourteen points for a modest lineup and barely two at the top.
+ */
+export function synergyImpact(team: CombatTeam, input: CollectionLineupInput): Record<string, number> {
+  const lines = synergyOf(input);
+  const full = courtPower(applyLines(team, lines).power);
+  return Object.fromEntries(lines.map((line) => [line.key, full - courtPower(applyLines(team, lines.filter((item) => item !== line)).power)]));
+}
+
 /** Applies the synergy to a team built by `collectionBaseTeam`. */
 export function applyCollectionLineup(team: CombatTeam, input: CollectionLineupInput): CombatTeam {
-  const total = synergyOf(input).reduce((sum, line) => ({ power: sum.power + line.power, court: sum.court + line.court, mental: sum.mental + line.mental, clutch: sum.clutch + line.clutch, consistency: sum.consistency + line.consistency }), { power: 0, court: 0, mental: 0, clutch: 0, consistency: 0 });
+  return applyLines(team, synergyOf(input));
+}
+
+function applyLines(team: CombatTeam, lines: readonly SynergyLine[]): CombatTeam {
+  const total = lines.reduce((sum, line) => ({ power: sum.power + line.power, court: sum.court + line.court, mental: sum.mental + line.mental, clutch: sum.clutch + line.clutch, consistency: sum.consistency + line.consistency }), { power: 0, court: 0, mental: 0, clutch: 0, consistency: 0 });
   return {
     ...team,
     // What the lineup gains is a share of its power; what it lacks is paid in court points, the same for everybody.

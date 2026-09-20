@@ -1,5 +1,9 @@
+import { courtPower } from '../../src/lib/game/courtPower';
 import { rarityOf } from '../../src/lib/game/online/collection-rules';
 import type { MajorAwards, Player, PlayerRunStats, SelectedPlayer, SeriesResult } from '../../src/lib/game/types';
+
+/** Court points the beaten opponent had over the lineup for the win to count as a giant killing (about one upset in twelve). */
+export const GIANT_KILLER_GAP = 6;
 
 export interface AwardInput {
   participantId: string;
@@ -54,7 +58,12 @@ export function detectAwards(input: AwardInput): DetectedAward[] {
   if (overtimeWins >= 3) add('overtime_king', { overtimeWins });
   if (input.champion && input.matches.length && wins.length === input.matches.length) add('undefeated_major', { series: input.matches.length });
 
-  for (const opponent of input.opponents) if (opponent.won && opponent.power >= input.ownPower + 8) add('giant_killer', { opponent: opponent.id, gap: Number((opponent.power - input.ownPower).toFixed(1)) });
+  // A giant is measured on the court scale, the one that plays: above the curve's knee eight raw points are barely one
+  // on the court, and beating such a "giant" used to pay an award for a coin flip.
+  for (const opponent of input.opponents) {
+    const gap = courtPower(opponent.power) - courtPower(input.ownPower);
+    if (opponent.won && gap >= GIANT_KILLER_GAP) add('giant_killer', { opponent: opponent.id, gap: Number(gap.toFixed(1)) });
+  }
 
   const cards = input.lineup.map((pick) => input.lookup(pick.playerId)).filter((player): player is Player => Boolean(player));
   const average = cards.length ? cards.reduce((sum, player) => sum + (player.overall ?? 70), 0) / cards.length : 0;
