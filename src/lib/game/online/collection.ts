@@ -70,7 +70,9 @@ export interface UpgradeOutcome {
   stake: string[];
   /** On a loss: the downgraded card handed out (never one of the staked cards). */
   consolation: string | null;
-  consolationKind: 'common' | 'value' | null;
+  consolationKind: 'common' | 'value' | 'coins' | null;
+  /** Loss with only Commons staked: coins paid instead of a card. */
+  consolationCoins: number;
   /** The consolation card was already owned: it turned into `duplicateCoins` coins. */
   duplicate: boolean;
   duplicateCoins: number;

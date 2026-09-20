@@ -612,6 +612,14 @@ SELECT user_id, 40000 - coins, 'refund', 'reset-conta-dono-2026-09-19' FROM wall
 WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768' AND coins <> 40000;
 UPDATE wallets SET coins = 40000, updated_at = now() WHERE user_id = '3bbabac9-16f1-4272-9d7d-5b5b0c508768';
 `
+  },
+  {
+    id: 24,
+    // Upgrader: derrota apostando só Comuns paga coins em vez de devolver carta (motivo próprio no ledger).
+    sql: `
+ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
+ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade','upgrade_consolation'));
+`
   }
 ];
 

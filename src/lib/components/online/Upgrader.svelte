@@ -243,6 +243,11 @@
           </div>
           <p class="note">{t('upgraderAllLost')}{#if outcome.duplicate} <b class="dupe">{t('upgraderDuplicate')} {fmt(outcome.duplicateCoins)} coins.</b>{/if}</p>
         </div>
+      {:else if settled && outcome && !outcome.won && outcome.consolationKind === 'coins'}
+        <!-- Loss with only Commons staked: no card comes back, just coins. -->
+        <div class="consolation" role="status">
+          <p class="note">{t('upgraderAllLost')} <b class="dupe">{t('upgraderCoinsOnly')} {fmt(outcome.consolationCoins)} coins.</b></p>
+        </div>
       {/if}
 
       <h3 class="subhead">{t('upgraderYourCards').toUpperCase()} <small>{stakeable.length}</small></h3>
@@ -288,7 +293,7 @@
       </div>
       <p class="result" class:won={settled && outcome?.won} role="status" aria-live="polite">
         {#if settled && outcome}
-          {outcome.won ? t('upgraderWon') : t('upgraderLost')} {#if resultCard}<b>{cardLabel(resultCard.id)}</b>{/if}
+          {#if !outcome.won && outcome.consolationKind === 'coins'}{t('upgraderLostCoins')} <b>{fmt(outcome.consolationCoins)} coins</b>{:else}{outcome.won ? t('upgraderWon') : t('upgraderLost')} {#if resultCard}<b>{cardLabel(resultCard.id)}</b>{/if}{/if}
         {:else if spinning}
           {t('upgraderSpinning')}
         {:else}
@@ -381,6 +386,7 @@
           <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll}</code></dd></div>
           <div><dt>{t('fairResult')}</dt><dd class:win={revealed.won} class:loss={!revealed.won}>{revealed.won ? t('fairWin') : t('fairLoss')} · {pct(revealed.roll)} {revealed.won ? '<' : '≥'} {pct(revealed.chance)}</dd></div>
           {#if !revealed.won && revealed.consolation}<div class="wide"><dt>{t('fairConsolation')}</dt><dd>{cardLabel(revealed.consolation)} · {revealed.consolationKind === 'value' ? t('fairConsolationValue') : t('fairConsolationCommon')}</dd></div>{/if}
+          {#if !revealed.won && revealed.consolationKind === 'coins'}<div class="wide"><dt>{t('fairConsolation')}</dt><dd>{fmt(revealed.consolationCoins)} coins · {t('fairConsolationCoins')}</dd></div>{/if}
         </dl>
         <div class="verify-row">
           <button type="button" class="secondary small" disabled={verifyState === 'busy'} on:click={verify}>{verifyState === 'busy' ? t('fairVerifying') : t('fairVerify')}</button>

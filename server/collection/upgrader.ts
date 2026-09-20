@@ -19,9 +19,11 @@ export interface UpgradeResult {
   target: string;
   /** The staked cards (all of them are lost on a loss). */
   stake: string[];
-  /** On a loss, the downgraded card handed out instead (never one of the staked cards); null on a win. */
+  /** On a loss, the downgraded card handed out instead (never one of the staked cards); null on a win or when the loss pays coins. */
   consolation: string | null;
   consolationKind: ConsolationKind | null;
+  /** Loss with only Commons staked: coins paid instead of a card (`consolationKind` 'coins'); 0 otherwise. */
+  consolationCoins: number;
   /** The consolation card was already in the collection: it turned into `duplicateCoins` coins. */
   duplicate: boolean;
   duplicateCoins: number;
@@ -64,6 +66,7 @@ export async function getFairState(db: Db, userId: string): Promise<FairState> {
  * client seed; the server seed is then revealed and replaced by a fresh one. Win: the staked cards leave and the target
  * comes in. Loss: they all leave and a downgraded consolation card comes in (`consolationCard`, from the ':refund' and
  * ':refund-pick' rolls); if the user already has it, it pays DUPLICATE_RATIO of its value in coins, like a pack duplicate.
+ * A stake of only Commons gets no card back, just a few coins.
  */
 export async function upgradeCards(db: Db, userId: string, stake: string[], target: string, clientSeed: string): Promise<UpgradeResult> {
   if (!stake.length || stake.length > UPGRADER_MAX_STAKE || new Set(stake).size !== stake.length) throw new CollectionError(400, 'BAD_STAKE', `Aposte de 1 a ${UPGRADER_MAX_STAKE} cartas diferentes`);
@@ -86,11 +89,14 @@ export async function upgradeCards(db: Db, userId: string, stake: string[], targ
     const roll = serverRoll(serverSeed, clientSeed, nonce);
     const won = roll < chance;
     const consolation = won ? null : consolationCard(serverRoll(serverSeed, clientSeed, nonce, 'refund'), serverRoll(serverSeed, clientSeed, nonce, 'refund-pick'), stake, target);
+    // A loss that pays coins (only Commons staked) hands out no card.
     const received = won ? target : consolation!.card;
-    const inserted = await tx.query('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, received, 'upgrade']);
-    const duplicate = !inserted.length;
-    const duplicateCoins = duplicate ? duplicateValue(received) : 0;
+    const inserted = received ? await tx.query('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, received, 'upgrade']) : [];
+    const duplicate = Boolean(received) && !inserted.length;
+    const duplicateCoins = duplicate ? duplicateValue(received!) : 0;
     if (duplicateCoins) await applyLedger(tx, userId, duplicateCoins, 'duplicate', serverSeedHash);
+    const consolationCoins = consolation?.coins ?? 0;
+    if (consolationCoins) await applyLedger(tx, userId, consolationCoins, 'upgrade_consolation', serverSeedHash);
     // The `returned` column keeps its name (append-only schema): it now holds the consolation card of a loss.
     await tx.query(
       `INSERT INTO upgrades (user_id, stake, target, stake_value, target_value, chance, seed, roll, won, returned, server_seed, server_seed_hash, client_seed, nonce)
@@ -99,6 +105,6 @@ export async function upgradeCards(db: Db, userId: string, stake: string[], targ
     );
     const nextSeed = newServerSeed();
     await tx.query('UPDATE upgrader_seeds SET server_seed = $2, nonce = nonce + 1, updated_at = now() WHERE user_id = $1', [userId, nextSeed]);
-    return { won, chance, roll, target, stake: [...stake], consolation: consolation?.card ?? null, consolationKind: consolation?.kind ?? null, duplicate, duplicateCoins, serverSeed, serverSeedHash, clientSeed, nonce, next: { serverSeedHash: sha256(nextSeed), nonce: nonce + 1 } };
+    return { won, chance, roll, target, stake: [...stake], consolation: consolation?.card ?? null, consolationKind: consolation?.kind ?? null, consolationCoins, duplicate, duplicateCoins, serverSeed, serverSeedHash, clientSeed, nonce, next: { serverSeedHash: sha256(nextSeed), nonce: nonce + 1 } };
   });
 }

@@ -4,7 +4,7 @@
 
 import { cardCoinValue } from './card-value';
 import { collectionCoaches, collectionPlayers } from './collection-pool';
-import { rarityOf } from './collection-rules';
+import { SELL_RATIO, rarityOf } from './collection-rules';
 
 /** Hex digits of the HMAC that make the roll: 13 hex = 52 bits, exact in a double. */
 export const FAIR_ROLL_HEX = 13;
@@ -29,10 +29,16 @@ export const CONSOLATION_VALUE_RATIO = 0.2;
 /** Loss: the "value" consolation is drawn among this many cards closest to (and not above) that value. */
 export const CONSOLATION_NEAREST = 5;
 
-export type ConsolationKind = 'common' | 'value';
+/** Loss with only Commons staked: no card comes back, just this share of the staked value in coins (half of selling them). */
+export const CONSOLATION_COINS_RATIO = SELL_RATIO / 2;
+
+export type ConsolationKind = 'common' | 'value' | 'coins';
 export interface Consolation {
-  card: string;
+  /** The downgraded card; null when the loss pays coins instead (`kind` 'coins'). */
+  card: string | null;
   kind: ConsolationKind;
+  /** Coins paid instead of a card; 0 when a card comes back. */
+  coins: number;
 }
 
 type PoolCard = { id: string; value: number; common: boolean };
@@ -44,26 +50,32 @@ const consolationPool = (): PoolCard[] =>
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 
 /**
- * The downgraded card handed out on a loss; never one of the staked cards nor the target. The ':refund' roll picks the
- * branch: below 0.7 a random Common; otherwise the cards worth at most 20% of the stake, the CONSOLATION_NEAREST closest
- * to that value, one drawn by the ':refund-pick' roll (a Common when no card is that cheap).
+ * The downgraded card handed out on a loss; never one of the staked cards nor the target. A stake of only Commons has
+ * nothing below it: a Common back would be a free retry, so it pays CONSOLATION_COINS_RATIO of the staked value in coins
+ * and no card. Otherwise the ':refund' roll picks the branch: below 0.7 a random Common; otherwise the cards worth at most
+ * 20% of the stake, the CONSOLATION_NEAREST closest to that value, one drawn by the ':refund-pick' roll (a Common when
+ * no card is that cheap).
  */
 export function consolationCard(branchRoll: number, pickRoll: number, stake: readonly string[], target: string): Consolation {
   const excluded = new Set([...stake, target]);
-  const pool = consolationPool().filter((card) => !excluded.has(card.id));
+  const all = consolationPool();
+  const stakeValue = stake.reduce((sum, id) => sum + cardCoinValue(id), 0);
+  const commonIds = new Set(all.filter((card) => card.common).map((card) => card.id));
+  if (stake.every((id) => commonIds.has(id))) return { card: null, kind: 'coins', coins: Math.floor(stakeValue * CONSOLATION_COINS_RATIO) };
+  const pool = all.filter((card) => !excluded.has(card.id));
   const commons = pool.filter((card) => card.common);
   const common = (): Consolation => {
     const list = commons.length ? commons : pool;
-    return { card: list[rollIndex(pickRoll, list.length)].id, kind: 'common' };
+    return { card: list[rollIndex(pickRoll, list.length)].id, kind: 'common', coins: 0 };
   };
   if (branchRoll < CONSOLATION_COMMON_CHANCE) return common();
-  const limit = stake.reduce((sum, id) => sum + cardCoinValue(id), 0) * CONSOLATION_VALUE_RATIO;
+  const limit = stakeValue * CONSOLATION_VALUE_RATIO;
   const nearest = pool
     .filter((card) => card.value > 0 && card.value <= limit)
     .sort((a, b) => b.value - a.value || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .slice(0, CONSOLATION_NEAREST);
   if (!nearest.length) return common();
-  return { card: nearest[rollIndex(pickRoll, nearest.length)].id, kind: 'value' };
+  return { card: nearest[rollIndex(pickRoll, nearest.length)].id, kind: 'value', coins: 0 };
 }
 
 /** Needle angle for a roll: the win arc runs clockwise from the top over chance × 360°. */
@@ -119,5 +131,5 @@ export async function verifyFair(reveal: FairReveal, committedHash: string = rev
   if (roll !== reveal.roll || (roll < reveal.chance) !== reveal.won) return false;
   if (reveal.won || !reveal.stake || reveal.target === undefined) return true;
   const consolation = await fairConsolation(reveal.serverSeed, reveal.clientSeed, reveal.nonce, reveal.stake, reveal.target);
-  return consolation.card === reveal.consolation;
+  return consolation.card === (reveal.consolation ?? null);
 }
