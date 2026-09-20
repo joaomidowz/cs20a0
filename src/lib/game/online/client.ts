@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import { PROTOCOL_VERSION, roomConfigSchema, type ClientCommand, type ErrorCode, type LiveUpdate, type RoomConfig, type RoomSnapshot, type ServerMessage } from './contracts';
 import { ONLINE_DATA_HASH } from './dataset';
 
-type ClientCommandInput = ClientCommand extends infer Command
+export type ClientCommandInput = ClientCommand extends infer Command
   ? Command extends ClientCommand ? Omit<Command, 'requestId'> : never
   : never;
 
