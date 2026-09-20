@@ -15,7 +15,7 @@ describe('online client lifecycle UI', () => {
 
   it('clears transient room UI on session expiry and on a new run', () => {
     expect(onlinePage.match(/resetTransientRoomState\(\)/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(onlinePage).toContain("if (state === 'expired') {");
+    expect(onlinePage).toContain("if (room.connection === 'expired') {");
     expect(onlinePage).toContain('if (newRun) startNewRun(next);');
   });
 

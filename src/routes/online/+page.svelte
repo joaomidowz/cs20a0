@@ -44,14 +44,14 @@
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
   import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
-  import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomClient, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type OnlineClientErrorCode } from '$lib/game/online/client';
+  import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type ClientCommandInput, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { SEO_BY_ROUTE } from '$lib/seo';
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
-  import { accountUser, authFetch, loadAccount, sessionToken } from '$lib/game/online/account';
-  import { get } from 'svelte/store';
+  import { accountUser, authFetch, loadAccount } from '$lib/game/online/account';
+  import { onlineSession, queueView, roomView, type OnlineRoomView } from '$lib/game/online/session';
   import { fetchCollection, startSolo } from '$lib/game/online/collection';
   import { refreshWallet } from '$lib/game/online/wallet';
   import '../../app.css';
@@ -113,7 +113,6 @@
   let connection: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
   let errorMessage = '';
   let toast = '';
-  let client: OnlineRoomClient | null = null;
   let config: RoomConfig = { ...DEFAULT_ROOM_CONFIG };
   let creating = false;
   let detailsPlayer: Player | null = null;
@@ -154,6 +153,9 @@
   let celebrateLineup = false;
   let flight: { id: number; name: string; source: DOMRect; slot: number } | null = null;
   let flightId = 0;
+  let appliedSnapshotVersion = -1;
+  let appliedLiveVersion = -1;
+  let appliedRoomError = '';
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
@@ -293,6 +295,19 @@
   }
 
   onMount(() => {
+    const unsubscribeQueue = queueView.subscribe((queue) => {
+      queueState = queue.state;
+      queueWaiting = queue.waiting;
+      queueSince = queue.since ?? queueSince;
+      queueElapsed = queue.elapsed;
+      queueClosesIn = queue.closesInMs === null ? null : Math.ceil(queue.closesInMs / 1_000);
+      queuePair = queue.pair;
+      queueWanted = queue.wanted;
+      queueFailures = queue.failures;
+      if (queue.error) errorMessage = queue.error;
+      if (queue.left) queueNotice = queue.left === 'hidden' ? t('queueLeftHidden') : t('queueLeftStale');
+    });
+    const unsubscribeRoom = roomView.subscribe(applyPersistentRoom);
     const cachedIdentity = loadOnlineIdentity();
     if (cachedIdentity) {
       playerName = cachedIdentity.playerName;
@@ -301,7 +316,7 @@
     const cachedConfig = loadOnlineConfig();
     if (cachedConfig) config = cachedConfig;
     strategicPreferences = loadStrategicPreferences();
-    roomCode = new URL(window.location.href).searchParams.get('room')?.toUpperCase() ?? '';
+    roomCode = roomCode || new URL(window.location.href).searchParams.get('room')?.toUpperCase() || '';
     clockTimer = window.setInterval(updateCountdown, 250);
     void loadAccount(getOnlineServerUrl()).then(async (user) => {
       if (!user) return;
@@ -315,13 +330,13 @@
     void loadLive();
     liveTimer = window.setInterval(() => void loadLive(), 8_000);
     const unlock = () => { if (snapshot) unlockOfflineAudio(); };
-    const visibility = () => { if (document.hidden) stopOfflineSounds(); onQueueVisibility(); };
+    const visibility = () => { if (document.hidden) stopOfflineSounds(); };
     document.addEventListener('pointerdown', unlock);
     document.addEventListener('keydown', unlock);
     document.addEventListener('visibilitychange', visibility);
-    window.addEventListener('pagehide', leaveQueueOnExit);
     return () => {
-      window.removeEventListener('pagehide', leaveQueueOnExit);
+      unsubscribeQueue();
+      unsubscribeRoom();
       document.removeEventListener('pointerdown', unlock);
       document.removeEventListener('keydown', unlock);
       document.removeEventListener('visibilitychange', visibility);
@@ -331,12 +346,8 @@
 
   onDestroy(() => {
     if (liveTimer !== null) window.clearInterval(liveTimer);
-    leaveQueueOnExit();
-    stopQueuePolling();
-    clearHiddenTimer();
     stopTitleAlert();
     void queueAudio?.close().catch(() => {});
-    client?.stop();
     if (clockTimer !== null) window.clearInterval(clockTimer);
   });
 
@@ -392,23 +403,10 @@
 
   // Competitive queue: poll the server until it matches this account into a room, then connect with the ticket.
   // The 2 s poll is also the heartbeat: a client that stops polling for 20 s is dropped by the server.
-  type QueueStatusResponse = {
-    state: 'idle' | 'waiting' | 'matched';
-    waiting: number;
-    since: number | null;
-    match: { roomCode: string; lineupTicket: string } | null;
-    closesInMs?: number | null;
-    pair?: boolean;
-    left?: 'stale' | 'hidden' | null;
-  };
-  const QUEUE_HIDDEN_LIMIT_MS = 60_000;
-  const QUEUE_REJOIN_GAP_MS = 30_000;
-  const QUEUE_MAX_FAILURES = 30;
   let queueState: 'idle' | 'waiting' | 'matched' = 'idle';
   let queueWaiting = 0;
   let queueSince = 0;
   let queueElapsed = 0;
-  let queueTimer: number | null = null;
   let queueClosesIn: number | null = null;
   let queuePair = false;
   let queueNotice = '';
@@ -416,14 +414,10 @@
   let queueWanted = false;
   let soloBusy = false;
   let queueFailures = 0;
-  let lastAutoRejoin = 0;
-  let hiddenTimer: number | null = null;
   let titleTimer: number | null = null;
   let titleBeforeAlert = '';
   let queueAudio: AudioContext | null = null;
 
-  const stopQueuePolling = () => { if (queueTimer !== null) window.clearInterval(queueTimer); queueTimer = null; };
-  const clearHiddenTimer = () => { if (hiddenTimer !== null) window.clearTimeout(hiddenTimer); hiddenTimer = null; };
   function stopTitleAlert() {
     if (titleTimer === null) return;
     window.clearInterval(titleTimer);
@@ -454,67 +448,6 @@
     } catch { /* sound is a nicety */ }
   }
 
-  function applyQueueStatus(status: QueueStatusResponse) {
-    queueState = status.state;
-    queueWaiting = status.waiting;
-    if (status.since) queueSince = status.since;
-    queueElapsed = Math.max(0, Math.round((Date.now() - queueSince) / 1000));
-    queueClosesIn = typeof status.closesInMs === 'number' ? Math.ceil(status.closesInMs / 1000) : null;
-    queuePair = Boolean(status.pair);
-  }
-
-  async function pollQueue() {
-    let status: QueueStatusResponse;
-    try {
-      status = await authFetch<QueueStatusResponse>(getOnlineServerUrl(), '/queue/status');
-      queueFailures = 0;
-    } catch (error) {
-      // A deploy or restart takes the server away for a few seconds: keep trying for about a minute.
-      queueFailures += 1;
-      if (queueFailures < QUEUE_MAX_FAILURES) return;
-      stopQueuePolling();
-      queueWanted = false;
-      queueState = 'idle';
-      errorMessage = error instanceof Error ? error.message : t('connectionFailed');
-      return;
-    }
-    applyQueueStatus(status);
-    if (status.state === 'matched' && status.match) {
-      stopQueuePolling();
-      queueWanted = false;
-      clearHiddenTimer();
-      alertMatchFound();
-      const user = $accountUser;
-      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
-      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
-      roomCode = status.match.roomCode;
-      pendingLineupTicket = status.match.lineupTicket;
-      const url = new URL(window.location.href);
-      url.searchParams.set('room', roomCode);
-      replaceState(url, {});
-      connect();
-      queueState = 'idle';
-      return;
-    }
-    if (status.state !== 'idle') return;
-    if (status.left) {
-      stopQueuePolling();
-      clearHiddenTimer();
-      queueWanted = false;
-      queueNotice = status.left === 'hidden' ? t('queueLeftHidden') : t('queueLeftStale');
-      return;
-    }
-    // Idle with no reason while still searching: the server restarted and lost the queue. Rejoin quietly.
-    if (queueWanted && Date.now() - lastAutoRejoin > QUEUE_REJOIN_GAP_MS) {
-      lastAutoRejoin = Date.now();
-      queueNotice = t('queueRejoining');
-      await joinQueue(true);
-      return;
-    }
-    stopQueuePolling();
-    queueWanted = false;
-  }
-
   async function joinQueue(silent = false) {
     errorMessage = '';
     if (!silent) {
@@ -523,15 +456,11 @@
       try { queueAudio ??= new AudioContext(); void queueAudio.resume(); } catch { queueAudio = null; }
     }
     try {
-      const status = await authFetch<QueueStatusResponse>(getOnlineServerUrl(), '/queue/join', { body: {} });
-      applyQueueStatus(status);
-      queueSince = status.since ?? Date.now();
-      queueWanted = true;
-      queueFailures = 0;
+      const user = $accountUser;
+      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
+      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+      await onlineSession.joinQueue({ playerName, organizationName });
       if (silent) queueNotice = '';
-      stopQueuePolling();
-      queueTimer = window.setInterval(() => void pollQueue(), 2_000);
-      void pollQueue();
     } catch (error) {
       queueWanted = false;
       errorMessage = error instanceof Error && error.message.includes('NO_LINEUP') ? t('queueNeedsTeam') : (error instanceof Error ? error.message : t('connectionFailed'));
@@ -562,35 +491,8 @@
   }
 
   async function leaveQueue(reason?: 'hidden') {
-    stopQueuePolling();
-    clearHiddenTimer();
-    queueWanted = false;
-    queueState = 'idle';
     queueNotice = reason === 'hidden' ? t('queueLeftHidden') : '';
-    try { await authFetch(getOnlineServerUrl(), '/queue/leave', { body: reason ? { reason } : {} }); } catch { /* best effort: the server drops silent clients anyway */ }
-  }
-
-  /** Tab or page going away while searching: tell the server now instead of waiting for the 20 s heartbeat cut. */
-  function leaveQueueOnExit() {
-    if (!queueWanted || queueState !== 'waiting') return;
-    queueWanted = false;
-    stopQueuePolling();
-    const token = get(sessionToken);
-    try {
-      void fetch(new URL('/queue/leave', getOnlineServerUrl()), { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ reason: 'user' }) }).catch(() => {});
-    } catch { /* heartbeat cut covers it */ }
-  }
-
-  /** Hidden for more than a minute while searching: leave the queue. Coming back cancels the countdown and the title alert. */
-  function onQueueVisibility() {
-    if (document.hidden) {
-      if (queueWanted && queueState === 'waiting' && hiddenTimer === null) {
-        hiddenTimer = window.setTimeout(() => { hiddenTimer = null; if (document.hidden && queueWanted) void leaveQueue('hidden'); }, QUEUE_HIDDEN_LIMIT_MS);
-      }
-      return;
-    }
-    clearHiddenTimer();
-    stopTitleAlert();
+    try { await onlineSession.cancelQueue(reason); } catch { /* best effort: the server drops silent clients anyway */ }
   }
 
   /** Registers the saved collection lineup for the room and keeps the ticket for the join that follows. */
@@ -656,74 +558,90 @@
   }
 
   function connect() {
-    client?.stop();
     const ticket = pendingLineupTicket;
     pendingLineupTicket = undefined;
-    client = new OnlineRoomClient(getOnlineServerUrl(), roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim(), ...(ticket ? { lineupTicket: ticket } : {}) }, {
-      onConnection: (state) => {
-        if (state === 'expired') {
-          // The room moved on without us (or the resume token died): back to the entry screen instead of a frozen snapshot.
-          resetTransientRoomState();
-          snapshot = null;
-          connection = 'disconnected';
-          if (!errorMessage) errorMessage = t('sessionExpired');
-          return;
-        }
-        connection = state;
-      },
-      onSnapshot: (next) => {
-        const previous = snapshot;
-        const newRun = isNewOnlineRun(previous, next);
-        snapshot = next;
-        // A snapshot is newer than any live update received before it.
-        live = null;
-        resyncRequested = false;
-        serverOffset = next.serverTime - Date.now();
-        config = next.config;
-        if (newRun) startNewRun(next);
-        mergeLiveDetails(next.tournament?.liveCursor?.primarySeries ?? null);
-        // A fresh authoritative snapshot confirms that a transient reconnect error no longer applies.
-        errorMessage = '';
-        if (next.self) {
-          const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
-          const nextProKey = next.self.proPickedPlayerIds.join('|');
-          // Only adopt server-side PRO choices when they exist or the picked players changed; otherwise every broadcast would wipe what the user is still filling in.
-          if (Object.keys(serverAssignments).length || nextProKey !== proLineupKey) {
-            proAssignments = serverAssignments;
-            proStyle = next.self.style ?? proStyle;
-          }
-          proLineupKey = nextProKey;
-          const nextLineupKey = next.self.lineup.map((pick) => pick.playerId).join('|');
-          if (next.self.mapPreferences.length === 3) provisionalMapPreferences = [...next.self.mapPreferences];
-          else if (next.self.lineup.length === 5 && nextLineupKey !== mapLineupKey) {
-            const lineupPlayers = next.self.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
-            provisionalMapPreferences = getDefaultMapSelection(lineupPlayers, teams);
-          }
-          mapLineupKey = nextLineupKey;
-        }
-        updateCountdown();
-      },
-      onLive: (next) => {
-        if (!snapshot) {
-          // A live update without a snapshot on this socket: ask for the whole room once and wait for it.
-          if (!resyncRequested) {
-            resyncRequested = true;
-            client?.resync();
-          }
-          return;
-        }
-        live = next;
-        serverOffset = next.serverTime - Date.now();
-        mergeLiveDetails(next.cursor.primarySeries);
-        updateCountdown();
-      },
-      onError: (message, code) => {
-        errorMessage = describeError(code, message);
-        // A rejected host edit must not linger in the form.
-        if (snapshot) config = snapshot.config;
+    onlineSession.connectRoom(roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim(), ...(ticket ? { lineupTicket: ticket } : {}) });
+  }
+
+  function applyPersistentRoom(room: OnlineRoomView) {
+    const previousCode = roomCode;
+    if (room.code) {
+      roomCode = room.code;
+      if (!previousCode && room.code) alertMatchFound();
+      if (window.location.pathname === '/online' && new URL(window.location.href).searchParams.get('room') !== room.code) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', room.code);
+        replaceState(url, {});
       }
-    });
-    client.connect();
+    }
+    if (room.connection === 'expired') {
+      resetTransientRoomState();
+      snapshot = null;
+      connection = 'disconnected';
+      if (!errorMessage) errorMessage = t('sessionExpired');
+      return;
+    }
+    connection = room.connection;
+    if (room.snapshot && room.snapshot.version !== appliedSnapshotVersion) {
+      appliedSnapshotVersion = room.snapshot.version;
+      applyPersistentSnapshot(room.snapshot);
+    }
+    for (const next of room.liveHistory) {
+      if (next.version <= appliedLiveVersion) continue;
+      appliedLiveVersion = next.version;
+      applyPersistentLive(next);
+    }
+    const errorKey = room.error ? `${room.error.code}:${room.error.message}` : '';
+    if (room.error && errorKey !== appliedRoomError) {
+      appliedRoomError = errorKey;
+      errorMessage = describeError(room.error.code, room.error.message);
+      if (snapshot) config = snapshot.config;
+    }
+  }
+
+  function applyPersistentSnapshot(next: RoomSnapshot) {
+    const previous = snapshot;
+    const newRun = isNewOnlineRun(previous, next);
+    snapshot = next;
+    appliedLiveVersion = next.version;
+    live = null;
+    resyncRequested = false;
+    serverOffset = next.serverTime - Date.now();
+    config = next.config;
+    if (newRun) startNewRun(next);
+    mergeLiveDetails(next.tournament?.liveCursor?.primarySeries ?? null);
+    errorMessage = '';
+    if (next.self) {
+      const serverAssignments = Object.fromEntries(Object.entries(next.self.proRoleAssignments).filter((entry): entry is [string, LineupSlotRole] => Boolean(entry[1])));
+      const nextProKey = next.self.proPickedPlayerIds.join('|');
+      if (Object.keys(serverAssignments).length || nextProKey !== proLineupKey) {
+        proAssignments = serverAssignments;
+        proStyle = next.self.style ?? proStyle;
+      }
+      proLineupKey = nextProKey;
+      const nextLineupKey = next.self.lineup.map((pick) => pick.playerId).join('|');
+      if (next.self.mapPreferences.length === 3) provisionalMapPreferences = [...next.self.mapPreferences];
+      else if (next.self.lineup.length === 5 && nextLineupKey !== mapLineupKey) {
+        const lineupPlayers = next.self.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+        provisionalMapPreferences = getDefaultMapSelection(lineupPlayers, teams);
+      }
+      mapLineupKey = nextLineupKey;
+    }
+    updateCountdown();
+  }
+
+  function applyPersistentLive(next: LiveUpdate) {
+    if (!snapshot) {
+      if (!resyncRequested) {
+        resyncRequested = true;
+        onlineSession.resync();
+      }
+      return;
+    }
+    live = next;
+    serverOffset = next.serverTime - Date.now();
+    mergeLiveDetails(next.cursor.primarySeries);
+    updateCountdown();
   }
 
   /**
@@ -755,8 +673,7 @@
   /** Clears view-only state; room identity and host preferences remain cached for the next connection. */
   /** Leaves the finished room and lands on the online entry screen, ready to queue or open another room. */
   function exitRoom() {
-    client?.stop();
-    client = null;
+    onlineSession.leaveRoom();
     resetTransientRoomState();
     snapshot = null;
     roomCode = '';
@@ -769,6 +686,9 @@
   }
 
   function resetTransientRoomState() {
+    appliedSnapshotVersion = -1;
+    appliedLiveVersion = -1;
+    appliedRoomError = '';
     proAssignments = {};
     proStyle = 'balanced';
     provisionalMapPreferences = [];
@@ -805,9 +725,9 @@
     activeTab = 'current';
   }
 
-  function send(command: Parameters<OnlineRoomClient['send']>[0]) {
+  function send(command: ClientCommandInput) {
     errorMessage = '';
-    client?.send(command);
+    onlineSession.send(command);
   }
 
   function saveConfig(patch: Partial<RoomConfig>) {
