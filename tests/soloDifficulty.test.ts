@@ -43,11 +43,11 @@ describe('Major dos Campeões: a parede cede conforme o time sobe de nível', ()
     const high = titleOf('goatsLazy');
     const top = titleOf('goatsBuilt');
     const label = `nível ${mid.level.toFixed(0)}: ${mid.title}% · nível ${high.level.toFixed(0)}: ${high.title}% · nível ${top.level.toFixed(0)}: ${top.title}%`;
-    // Nível ~86: por volta de 1 em 10 (no 85 exato, ~1 em 15). Nível ~90: 3 a 5 em 10.
-    expect(mid.title, label).toBeGreaterThanOrEqual(3);
-    expect(mid.title, label).toBeLessThanOrEqual(22);
-    expect(high.title, label).toBeGreaterThanOrEqual(24);
-    expect(high.title, label).toBeLessThanOrEqual(52);
+    // Nível ~86: por volta de 1 em 6. Nível ~90: perto de 5 em 10 (os bots ficaram ~15% mais fáceis em 2026-09-20).
+    expect(mid.title, label).toBeGreaterThanOrEqual(6);
+    expect(mid.title, label).toBeLessThanOrEqual(32);
+    expect(high.title, label).toBeGreaterThanOrEqual(32);
+    expect(high.title, label).toBeLessThanOrEqual(64);
     // O topo (95+): 6 a 8 em 10, a dinastia no auge — e ainda perde o bastante para não ser garantido.
     expect(top.title, label).toBeGreaterThanOrEqual(58);
     expect(top.title, label).toBeLessThanOrEqual(86);

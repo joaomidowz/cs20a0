@@ -67,7 +67,7 @@
   let useCollectionTeam = false;
   let pendingLineupTicket: string | undefined;
   type MajorResultView = { placement: string; lobbySize: number; ranked: boolean; counted: boolean; champion: boolean; basePoints: number; points: number; rewardCoins: number; awardCoins: number; awards: Array<{ kind: string; coins: number; points: number }> };
-  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null; room: RoomRewardView[] } | null = null;
+  let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null; room: RoomRewardView[]; pending: boolean } | null = null;
   type RoomRewardView = { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number };
   let collectionOutcomeFor = '';
   let profileOf: string | null = null;
@@ -83,10 +83,13 @@
     if (!$accountUser || collectionOutcomeFor === key) return;
     collectionOutcomeFor = key;
     const code = roomCode;
-    // The server records the run right after the champion is known; retry a few times while the write lands.
+    // The panel opens at once, saying the rewards are on their way: the run always ends with what was earned on screen.
+    collectionOutcome = { rank: null, points: 0, majorsWon: 0, awards: [], result: null, room: [], pending: true };
+    // The server records the run right after the champion is known; keep asking while the write lands. It used to give
+    // up after 7.5 s, and a slower write meant the earnings of that run never showed up at all.
     let result: MajorResultView | null = null;
     let room: RoomRewardView[] = [];
-    for (let attempt = 0; attempt < 5 && !result; attempt += 1) {
+    for (let attempt = 0; attempt < 20 && !result; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       if (collectionOutcomeFor !== key) return;
       const reply = await authFetch<{ result: MajorResultView | null; room?: RoomRewardView[] }>(getOnlineServerUrl(), `/me/majors/${code}`).catch(() => ({ result: null, room: [] }));
@@ -99,8 +102,8 @@
         authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),
         authFetch<{ awards: Array<{ kind: string; count: number }> }>(getOnlineServerUrl(), '/me/awards')
       ]);
-      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result, room };
-    } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result, room } : null; }
+      collectionOutcome = { rank: season.me?.rank ?? null, points: season.me?.points ?? 0, majorsWon: season.me?.majorsWon ?? 0, awards: awards.awards.slice(0, 8), result, room, pending: false };
+    } catch { collectionOutcome = result ? { rank: null, points: 0, majorsWon: 0, awards: [], result, room, pending: false } : null; }
   }
   const awardName = (kind: string) => { const key = `award_${kind}` as Parameters<typeof t>[0]; const label = t(key); return label && label !== key ? label : kind.replace(/_/g, " "); };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
@@ -1161,6 +1164,8 @@
                   </ul>
                   {#if !result.ranked}<p class="note">{t('notRanked')}</p>{:else if !result.counted}<p class="note">{t('notCounted')}</p>{/if}
                 </div>
+              {:else if collectionOutcome.pending}
+                <div class="earned"><h3>{t('youEarned')}</h3><p class="note">{t('resultPending')}</p></div>
               {/if}
               {#if collectionOutcome.room.length > 1}
                 <div class="earned">

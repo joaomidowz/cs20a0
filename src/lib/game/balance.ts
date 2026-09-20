@@ -89,21 +89,23 @@ export const THEME_TOTAL_CAP = 4;
  * Quanto cada tipo de bot fica ABAIXO do topo da escala, em níveis. Número menor = bot mais forte.
  * É a progressão do chaveamento: o time sem história é o degrau de entrada e o campeão é a parede final.
  *
- * Medido (time caprichado × bot): sem história 83%, top 8 74%, semifinal 76%, vice 66%, campeão 64%.
- * Contra um time mal montado o bot sem história já ganha ~35% — dá pra tomar susto na primeira fase.
+ * Em 2026-09-20 a escada inteira desceu ~6 níveis a pedido do dono ("impossível ganhar"): o campeão saiu do nível
+ * 91 para o 85. Medido (melhor de 3, 300 séries): GOATs caprichados × sem história 84%, × campeão 66% (eram 58%);
+ * iniciante × sem história 64%, × campeão 37% (eram 30%); quatro 99 sem IGL × campeão 43%.
+ * Num Major inteiro SEM alívio (a fila ranqueada), um time de nível 95 leva o título em ~32% das runs.
  *
  * Um bot nunca fica mais fraco do que já era: se o poder próprio dele for maior, vale o próprio.
  */
 export const BOT_GAP_FROM_TOP: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', number>> = {
-  champion: 8.1,
-  finalist: 9.9,
-  semifinal: 12.6,
-  top8: 16.2,
-  none: 27
+  champion: 14,
+  finalist: 16,
+  semifinal: 18.5,
+  top8: 22,
+  none: 33
 };
 
 /** Nenhum bot chega mais perto do topo do que isto: os melhores times da história empatam com uma line perfeita, nunca são favoritos. */
-export const BOT_MIN_GAP_FROM_TOP = 5.85;
+export const BOT_MIN_GAP_FROM_TOP = 11.85;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
@@ -139,7 +141,7 @@ export const PLAYER_GAP_FROM_TOP = 19.8;
  * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
  * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
  *
- * Medido em 2026-09-20 com esta tabela (100 Majors por linha): nível 79 → 1%, 86 → 11%, 90 → 35%, 95 → 71–75%;
+ * Medido em 2026-09-20 com esta tabela e a escada de bots atual: nível 79 → 3%, 86 → 18%, 90 → 49%, 95 → 69–70%;
  * o time do topo cai na fase suíça em 0–2% das runs (eram 45%). O Major normal usa a mesma tabela e é mais
  * fácil pelo campo. `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
@@ -147,9 +149,9 @@ export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: numbe
   [79, 4],
   [85, 7],
   [90, 30],
-  [93, 40],
-  [95, 48],
-  [99, 56]
+  [93, 36],
+  [95, 41],
+  [99, 48]
 ];
 
 /** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */
