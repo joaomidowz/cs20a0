@@ -620,6 +620,24 @@ UPDATE wallets SET coins = 40000, updated_at = now() WHERE user_id = '3bbabac9-1
 ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
 ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade','upgrade_consolation'));
 `
+  },
+  {
+    id: 25,
+    // "Majors jogados" da temporada contava toda run, inclusive a solo contra bots, enquanto "ganhos" sempre exigiu
+    // run ranqueada: o contador ficava inflado e a taxa de vitória, artificialmente baixa. recordMajor passou a contar
+    // só a run ranqueada; aqui o histórico da temporada ativa é refeito pela mesma fórmula da migração 23.
+    // avg_rating vai junto porque é a média sobre exatamente majors_played runs: recalcular só um dos dois deixaria a
+    // média móvel com o peso errado. Temporadas fechadas ficam como estão: o pódio delas já foi pago.
+    sql: `
+UPDATE season_standings st SET majors_played = agg.played, avg_rating = agg.avg_rating
+FROM (
+  SELECT m.season_id, m.user_id,
+    count(*) FILTER (WHERE m.ranked AND NOT m.voided)::int AS played,
+    avg(m.avg_rating) FILTER (WHERE m.ranked AND NOT m.voided) AS avg_rating
+  FROM majors m JOIN seasons s ON s.id = m.season_id
+  WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
+) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
+`
   }
 ];
 

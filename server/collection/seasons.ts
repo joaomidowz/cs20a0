@@ -59,9 +59,11 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       const ratings = entry.stats.map((line) => line.runRating).filter((value) => Number.isFinite(value));
       const avgRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : null;
       await tx.query(
-        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, potential_points)
-         VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14)`,
-        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, potential]
+        // `played_at` comes from `now`, like the day key below: left to the database clock, the two could disagree
+        // (and a run recorded with a past `now` would never be found among its own day's runs).
+        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, potential_points, played_at)
+         VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14, to_timestamp($15::double precision / 1000))`,
+        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, potential, now]
       );
       // The day's best runs count, the rest score nothing: a new run can push an older, weaker one out.
       await tx.query(
@@ -77,16 +79,18 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       const reward = matchReward(entry.placement, ranked);
       await applyLedger(tx, entry.userId, reward, 'match_reward', `${event.roomCode}:${event.seed}`);
       if (awardCoins) await applyLedger(tx, entry.userId, awardCoins, 'award', `${event.roomCode}:${event.seed}`);
+      // Only a ranked run is a Major played: alone against bots (or a friendly room) it is practice, so it neither
+      // counts as played nor feeds the rating average — the same gate `majors_won` has always had.
       await tx.query(
         `INSERT INTO season_standings (season_id, user_id, majors_won, majors_played, points, avg_rating)
-         VALUES ($1, $2, $3, 1, 0, $4)
+         VALUES ($1, $2, $3, $5, 0, $4)
          ON CONFLICT (season_id, user_id) DO UPDATE SET
            majors_won = season_standings.majors_won + EXCLUDED.majors_won,
-           majors_played = season_standings.majors_played + 1,
+           majors_played = season_standings.majors_played + EXCLUDED.majors_played,
            avg_rating = CASE WHEN EXCLUDED.avg_rating IS NULL THEN season_standings.avg_rating
              WHEN season_standings.avg_rating IS NULL THEN EXCLUDED.avg_rating
              ELSE (season_standings.avg_rating * season_standings.majors_played + EXCLUDED.avg_rating) / (season_standings.majors_played + 1) END`,
-        [seasonId, entry.userId, entry.champion && ranked ? 1 : 0, avgRating]
+        [seasonId, entry.userId, entry.champion && ranked ? 1 : 0, ranked ? avgRating : null, ranked ? 1 : 0]
       );
       await tx.query(
         'UPDATE season_standings SET points = (SELECT coalesce(sum(points), 0) FROM majors WHERE season_id = $1 AND user_id = $2) WHERE season_id = $1 AND user_id = $2',
@@ -129,7 +133,7 @@ export async function publicProfile(db: Db, userId: string, now: number): Promis
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
   const [user] = await db.query<{ id: string; team_name: string | null; display_name: string | null; created_at: Date }>('SELECT id, team_name, display_name, created_at FROM users WHERE id = $1 AND verified_at IS NOT NULL', [userId]);
   if (!user) return null;
-  const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2 AND NOT voided)::text AS won FROM majors WHERE user_id = $1`, [userId]);
+  const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*) FILTER (WHERE lobby_size >= 2 AND NOT voided)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2 AND NOT voided)::text AS won FROM majors WHERE user_id = $1`, [userId]);
   const { month } = seasonMonthOf(now);
   const [season] = await db.query<{ points: number }>('SELECT s.points FROM season_standings s JOIN seasons se ON se.id = s.season_id WHERE s.user_id = $1 AND se.month = $2', [userId, month]);
   return { userId: user.id, teamName: user.team_name, displayName: user.display_name ?? 'Player', memberSince: user.created_at.toISOString(), majorsPlayed: Number(totals.played), majorsWon: Number(totals.won), seasonPoints: season?.points ?? 0, awards: (await awardsOf(db, userId)).map(({ kind, count }) => ({ kind, count })) };

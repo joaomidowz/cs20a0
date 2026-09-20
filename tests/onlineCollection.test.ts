@@ -165,7 +165,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
 describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
   it('grava pontos, prêmio, awards e tabela uma vez só por (sala, seed, usuário)', async () => {
     const { runMigrations } = await import('../server/db/migrations');
-    const { recordMajor, currentStandings, majorResult } = await import('../server/collection/seasons');
+    const { recordMajor, currentStandings, majorResult, publicProfile } = await import('../server/collection/seasons');
     const db = await createTestDb(url!, 'test_majors');
     await runMigrations(db);
     const rules = new Map((await db.query<{ kind: string; coins: number; points: number }>('SELECT kind, coins, points FROM award_rules')).map((row) => [row.kind, row]));
@@ -220,7 +220,20 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(solo[0].awards).toEqual([]);
     const standings = await currentStandings(db, now, user.id);
     expect(standings.month).toBe('2026-09-01');
-    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 13, points: 9 * 10 + 4 });
+    // Twelve ranked runs and one alone against bots ('seed-5'): the solo run is practice, not a Major played.
+    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 12, points: 9 * 10 + 4 });
+    // The profile counts the same way: only runs against other players, and `played` never trails `won`.
+    const profile = await publicProfile(db, user.id, now);
+    expect(profile).toMatchObject({ majorsPlayed: 12, majorsWon: 9 });
+    const [{ total }] = await db.query<{ total: string }>('SELECT count(*)::text AS total FROM majors WHERE user_id = $1', [user.id]);
+    expect(Number(total)).toBe(13);
+    // Migration 25 repairs the counter of accounts that played before the fix: inflate it, run the SQL, get the truth back.
+    const { MIGRATIONS } = await import('../server/db/migrations');
+    await db.query('UPDATE season_standings SET majors_played = 99, avg_rating = 0.01 WHERE user_id = $1', [user.id]);
+    await db.query(MIGRATIONS.find((migration) => migration.id === 25)!.sql);
+    const [repaired] = await db.query<{ majors_played: number; avg_rating: string | null }>('SELECT majors_played, avg_rating FROM season_standings WHERE user_id = $1', [user.id]);
+    expect(repaired.majors_played).toBe(12);
+    expect(repaired.avg_rating === null || Number(repaired.avg_rating) !== 0.01).toBe(true);
     // End-of-run summary is the latest run of the room.
     expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, rewardCoins: 600, awardCoins: 0, lobbySize: 1 });
 
