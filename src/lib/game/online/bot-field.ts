@@ -1,4 +1,5 @@
-import { addCourtPoints } from '../courtPower';
+import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
+import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -16,11 +17,10 @@ import type { HistoricalTeam, Player } from '../types';
 export type BotPlacement = 'champion' | 'finalist' | 'semifinal' | 'top8' | 'none';
 
 /**
- * Buff by placement, in court points (`courtPower.ts`): a percentage would shrink to nothing above the curve's knee,
- * where the champions live, and leave them half a point above an ordinary bot. Tuned so a well-built lineup beats the
- * average champion about three times in four, as it did under the old cut at 110: beatable, never a farm.
+ * Where each kind of bot sits on the court scale: the tournament's own ladder, from the team with no Major history
+ * (the opening step) up to the champion (the final wall). The numbers live in `src/lib/game/balance.ts`.
  */
-export const BOT_PLACEMENT_COURT: Readonly<Record<BotPlacement, number>> = { champion: 0.7, finalist: 0.5, semifinal: 0.35, top8: 0.2, none: 0 };
+export { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP };
 
 /** An underdog is a team whose five average this overall or more... */
 export const UNDERDOG_MIN_OVERALL = 80;
@@ -94,8 +94,13 @@ export function planBotField(input: { shuffled: readonly HistoricalTeam[]; playe
   return { order: [...opening, ...others.slice(slots - reserved.size)], zebraIds: new Set(zebras.map((team) => team.id)) };
 }
 
-/** Power a bot takes to the run: its placement buff, or the zebra boost (capped) when the run made it one. */
+/**
+ * Power a bot takes to the run: its place on the ladder by Major pedigree, or the zebra boost when the run made it
+ * one. A bot is never made weaker than it already was — the ladder only lifts.
+ */
 export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean): number {
   if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
-  return addCourtPoints(basePower, BOT_PLACEMENT_COURT[botPlacementOf(team)]);
+  const target = COURT_TOP - BOT_GAP_FROM_TOP[botPlacementOf(team)];
+  const ceiling = COURT_TOP - BOT_MIN_GAP_FROM_TOP;
+  return Math.max(basePower, rawFromCourt(Math.min(ceiling, Math.max(courtPower(basePower), target))));
 }

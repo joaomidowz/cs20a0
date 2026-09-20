@@ -4,6 +4,7 @@
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, toSelectedPlayer, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { botFieldPower } from '../../src/lib/game/online/bot-field';
+import { withPlayerFloor } from '../../src/lib/game/courtPower';
 import { createLiveSeries, runSeriesToEnd, toSeriesResult, type PowerScale } from '../../src/lib/game/online/live-series';
 import { createBotMapStrategy, createUserMapStrategy, type MapStrategy } from '../../src/lib/game/map-veto';
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
@@ -40,7 +41,10 @@ export function labLineup(build: LabBuild): LabSide {
   const base = collectionBaseTeam(cards, build.style, lineup, build.name);
   const synergized = applyCollectionLineup(base, { players: cards, roles: build.roles, starPlayerId: build.star, style: build.style, coachId: build.coachId });
   const coach = build.coachId ? collectionCoachById.get(build.coachId) : undefined;
-  const team = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
+  const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
+  // The floor the server applies before the match (`server/room-manager.ts`): the lab has to mirror it or the
+  // measurements lie about anyone starting out.
+  const team = { ...withCoach, power: withPlayerFloor(withCoach.power) };
   const maps = getDefaultMapSelection(cards, collectionTeams) as [MapId, MapId, MapId];
   return {
     team: { ...team, id: build.name, name: build.name },
@@ -97,10 +101,23 @@ export const LAB = {
   goatsNoIgl: { name: 'goats-sem-igl', ids: ['s1mple-2021', 'donk-2024', 'coldzera-2017', 'zywoo-2023', 'niko-2017'], roles: ['awper', 'rifler', 'rifler', 'awper', 'rifler'], style: 'balanced', star: null, coachId: null },
   goatsBuilt: { name: 'goats-montados', ids: ['fallen-2019', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'], roles: ['igl', 'awper', 'awper', 'entry', 'support'], style: 'aggressive', star: 'donk-2024', coachId: 'coach-natus-vincere-2021' },
   superstarsBuilt: { name: 'superstars-montados', ids: ['gla1ve-2021', 'molodoy-2026', 'yekindar-2026', 'niko-2026', 'rpk-2019'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'aggressive', star: 'yekindar-2026', coachId: 'coach-natus-vincere-2021' },
+
   superstarsThrown: { name: 'superstars-jogados', ids: ['gla1ve-2021', 'molodoy-2026', 'yekindar-2026', 'niko-2026', 'rpk-2019'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
   beginner: { name: 'iniciante', ids: ['graviti-2026', 'maka-2026', 'grim-2026', 'ex3rcice-2026', 'sjuush-2026'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
-  ownerSk: { name: 'sk-do-dono', ids: ['taco-2016', 'fallen-2017', 'coldzera-2017', 'fer-2017', 'fnx-2016'], roles: ['entry', 'awper-igl', 'rifler', 'lurker', 'support'], style: 'aggressive', star: 'coldzera-2017', coachId: 'coach-sk-2017' }
+  ownerSk: { name: 'sk-do-dono', ids: ['taco-2016', 'fallen-2017', 'coldzera-2017', 'fer-2017', 'fnx-2016'], roles: ['entry', 'awper-igl', 'rifler', 'lurker', 'support'], style: 'aggressive', star: 'coldzera-2017', coachId: 'coach-sk-2017' },
+  /** Five Elite cards (~85 overall), every role filled: the middle of the collection. */
+  elites: { name: 'elites', ids: ['msl-2018', 'fox-2016', 'apex-2018', 'naf-2016', 'perfecto-2021'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null }
 } satisfies Record<string, LabBuild>;
 
+/** The bot of each step of the bracket, from the opening one to the final wall. */
+export const LAB_BOTS = {
+  semHistoria: 'og-2023',
+  top8: 'liquid-2023',
+  semifinal: 'heroic-2021',
+  vice: 'furia-2026',
+  campeao: 'faze-2022',
+  campeaoForte: 'astralis-2018'
+} as const;
+
 /** The champion bot closest to the average champion (raw 102.2 against a mean of 102.3). */
-export const LAB_CHAMPION_BOT = 'faze-2022';
+export const LAB_CHAMPION_BOT = LAB_BOTS.campeao;

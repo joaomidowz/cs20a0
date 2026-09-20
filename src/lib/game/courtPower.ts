@@ -13,15 +13,10 @@
  * No imports on purpose: this is a leaf, shared by the engine, the server and the screens.
  */
 
-/** Raw power up to here counts in full. */
-export const COURT_KNEE = 104;
-/** Above the knee, how much of each extra raw point reaches the court. */
-export const COURT_SLOPE = 0.15;
-/**
- * Subtracted everywhere so the scale tops out just under 100: the strongest lineup that can be built reads about 98
- * and reaches about 99.6 on its best day (pinned by `tests/powerRating.test.ts`). Outcome-neutral.
- */
-export const COURT_SHIFT = 8.5;
+import { COURT_KNEE, COURT_SHIFT, COURT_SLOPE, COURT_TOP, PLAYER_GAP_FROM_TOP } from './balance';
+
+export { COURT_KNEE, COURT_SHIFT, COURT_SLOPE, COURT_TOP };
+
 /** Raw power never goes below this before the curve (the floor `getMatchDayPower` has always had). */
 export const COURT_RAW_FLOOR = 45;
 
@@ -48,3 +43,12 @@ export type MatchDayCurve = (power: number, multiplier: number) => number;
 
 /** The curve goes over power × multiplier, where the old cut used to be: a good day still helps, it just helps less at the top. */
 export const courtMatchDay: MatchDayCurve = (power, multiplier) => courtPower(Math.max(COURT_RAW_FLOOR, power * multiplier));
+
+/** The lowest a PLAYER's team ever takes the court (`PLAYER_GAP_FROM_TOP`); bots keep their own level. */
+export const COURT_PLAYER_FLOOR = COURT_TOP - PLAYER_GAP_FROM_TOP;
+
+/** A player's team raw power with the floor applied: what someone starting out takes to the court. */
+export const withPlayerFloor = (raw: number): number => Math.max(raw, rawFromCourt(COURT_PLAYER_FLOOR));
+
+/** Match-day curve of a player's team: the floor holds on a bad day too. */
+export const courtMatchDayPlayer: MatchDayCurve = (power, multiplier) => Math.max(courtMatchDay(power, multiplier), COURT_PLAYER_FLOOR);

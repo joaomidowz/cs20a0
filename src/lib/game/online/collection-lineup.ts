@@ -3,6 +3,7 @@ import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import { addCourtPoints, courtPower } from '../courtPower';
+import { MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT } from '../balance';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -196,10 +197,8 @@ export interface SynergyLine {
   consistency: number;
 }
 
-/** Court points a lineup pays for playing without each piece. Two points are about 67/33 in a best-of-three. */
-export const MISSING_IGL_COURT = -2;
-export const MISSING_AWPER_COURT = -2;
-export const MISSING_SUPPORT_COURT = -1.5;
+/** Court points a lineup pays for playing without each piece; tune them in `src/lib/game/balance.ts`. */
+export { MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT } from '../balance';
 
 /** Organization of a team-year, so Astralis 2016 and Astralis 2019 recognise each other. */
 const orgOfTeam = (teamId: string | null | undefined): string | null => {
