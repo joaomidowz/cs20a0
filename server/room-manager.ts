@@ -71,6 +71,7 @@ import {
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
+import { botFieldPower, planBotField } from '../src/lib/game/online/bot-field';
 import { applyCollectionLineup, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -1153,13 +1154,18 @@ export class RoomManager {
       const championOrder = room.field === 'champions' ? Number(!CHAMPION_TEAM_IDS.has(left.id)) - Number(!CHAMPION_TEAM_IDS.has(right.id)) : 0;
       return championOrder || leftRoll - rightRoll || left.id.localeCompare(right.id);
     });
-    const botPool: TournamentOrganization[] = shuffledTeams.map((team, index) => {
-      const combat = calculateHistoricalTeamPower(team, players);
-      const id = `bot-${team.id}`;
-      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, id }, human: false, sourceTeamId: team.id };
-    }).filter((organization) => !humanIds.has(organization.id));
     // Humans are spread over the field by the room seed, so friends who joined in sequence do not always meet first.
     const fieldSize = room.config.entryStage === 'stage3' ? 16 : 8;
+    // The opening bots hold the guaranteed champions and the zebras of the run; the "Major dos Campeões" keeps its own
+    // order (champion versions first) and only takes the placement buff.
+    const plan = room.field === 'champions'
+      ? { order: shuffledTeams, zebraIds: new Set<string>() }
+      : planBotField({ shuffled: shuffledTeams, playerById, seed: room.seed, slots: fieldSize - organizations.length });
+    const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
+      const combat = calculateHistoricalTeamPower(team, players);
+      const id = `bot-${team.id}`;
+      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id)), id }, human: false, sourceTeamId: team.id };
+    }).filter((organization) => !humanIds.has(organization.id));
     const humanSeeds = drawHumanSeeds(room.seed, organizations.length, fieldSize);
     const seedOrder: string[] = Array.from({ length: fieldSize }, () => '');
     organizations.forEach((organization, index) => { seedOrder[humanSeeds[index] - 1] = organization.id; });
