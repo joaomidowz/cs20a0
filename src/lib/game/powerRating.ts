@@ -18,6 +18,8 @@
  * `tests/powerRating.test.ts` trava isso e falha se a melhor line possível passar do teto.
  */
 
+import { courtPower } from './courtPower';
+
 /** Raw power that keeps its own number: the weakest historical team of the pool. Below it the rating just follows. */
 export const RATING_FLOOR = 74;
 /** Raw power of the strongest lineup buildable today (Astralis 2018 reunited, with the coach), measured 2026-09-20. */
@@ -41,3 +43,15 @@ export const powerRatingDelta = (delta: number): number => delta * RATING_SCALE;
 
 /** The rating as it is written on screen. */
 export const formatRating = (power: number, digits = 1): string => powerRating(power).toFixed(digits);
+
+/**
+ * Rating of the ONLINE screens: the court power itself (`courtPower.ts`), so the number on screen is the number that
+ * plays. The offline screens keep `powerRating` above, because their engine is still linear up to the old cut at 110
+ * and showing the curve there would lie about how two lineups compare.
+ */
+export const courtRating = (power: number): number => Math.max(RATING_MIN, Math.min(99.9, courtPower(power)));
+
+/** Rating points between two raw powers. Under a curve a difference is not linear: it needs both ends. */
+export const courtRatingDelta = (before: number, after: number): number => courtRating(after) - courtRating(before);
+
+export const formatCourtRating = (power: number, digits = 1): string => courtRating(power).toFixed(digits);

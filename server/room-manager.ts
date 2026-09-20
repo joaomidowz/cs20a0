@@ -72,7 +72,8 @@ import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor,
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
 import { botFieldPower, planBotField } from '../src/lib/game/online/bot-field';
-import { applyCollectionLineup, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
+import { withPlayerFloor } from '../src/lib/game/courtPower';
+import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
 import type { SelectedPlayer } from '../src/lib/game/types';
@@ -1199,6 +1200,9 @@ export class RoomManager {
       seed: room.seed,
       mapContext,
       seedOrder,
+      // The online modes play on the court scale: nothing is cut at 110, so a well-built lineup is worth more than a
+      // lazy one of the same cards. Offline, Dinastia and the sandbox build their own engines and keep the classic cut.
+      powerScale: 'court',
       swissBestOf: 3,
       controllerFor: (organization) => organization.human ? 'human' : 'bot',
       // Only two humans veto by hand; against a bot the veto is settled by the policies, decisions inside the maps stay live.
@@ -1336,12 +1340,18 @@ export class RoomManager {
     const runPlayers = mode === 'pro'
       ? buildProRoleEvaluations(selected, participant.draft.proRoleAssignments, style).map((evaluation) => evaluation.adjustedPlayer)
       : selected;
-    const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
+    // A collection lineup starts from the plan-neutral motor: its plan is priced in the open by `applyCollectionLineup`.
+    const built: CombatTeam = participant.prepared
+      ? collectionBaseTeam(runPlayers, participant.prepared.style, participant.draft.lineup, participant.id)
+      : calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
     const synergized = participant.prepared
       ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map(collectionRoleOf), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style, coachId: participant.prepared.coachId })
       : built;
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
-    const base = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;
+    const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;
+    // A player's team never takes the court below the floor (`balance.ts`): starting out is a disadvantage, not a
+    // sentence. Bots keep their own level, so the opening step of the bracket stays winnable for a new account.
+    const base = { ...withCoach, power: withPlayerFloor(withCoach.power) };
     return {
       id: participant.id,
       name: participant.organizationName,

@@ -1,8 +1,9 @@
 // tests/botField.test.ts
 // Campo de bots do online: buff por colocação em Major, campeões garantidos e as zebras da run.
+import { COURT_TOP, courtPower } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
-import { BOT_PLACEMENT_BUFF, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
+import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { HistoricalTeam } from '../src/lib/game/types';
 
@@ -10,7 +11,7 @@ const playerById = new Map(players.map((player) => [player.id, player]));
 const shuffle = (seed: string) => [...teams].sort((left, right) => createSeededRng(`${seed}:bot:${left.id}`)() - createSeededRng(`${seed}:bot:${right.id}`)() || left.id.localeCompare(right.id));
 const team = (summary: HistoricalTeam['majorSummary']): HistoricalTeam => ({ id: 't', majorSummary: summary });
 
-describe('buff por colocação', () => {
+describe('escada de progressão dos bots', () => {
   it('vale a melhor colocação do time em Major', () => {
     expect(botPlacementOf(team({ titles: 1, finals: 2, semifinals: 3, top8: 4 }))).toBe('champion');
     expect(botPlacementOf(team({ titles: 0, finals: 1, top8: 3 }))).toBe('finalist');
@@ -20,17 +21,38 @@ describe('buff por colocação', () => {
     expect(botPlacementOf(team(null))).toBe('none');
   });
 
-  it('desce de campeão até quem nunca passou do top 8, e é moderado', () => {
-    const { champion, finalist, semifinal, top8, none } = BOT_PLACEMENT_BUFF;
-    expect(champion).toBeGreaterThan(finalist);
-    expect(finalist).toBeGreaterThan(semifinal);
-    expect(semifinal).toBeGreaterThan(top8);
-    expect(top8).toBeGreaterThan(none);
-    expect(none).toBe(0);
-    // Dois pontos de poder já são 67/33 numa MD3: acima de 5% o campeão encosta no teto do dia de jogo e vira cara ou coroa.
-    expect(champion).toBeLessThanOrEqual(0.05);
-    expect(botFieldPower(100, team({ titles: 1 }), false)).toBeCloseTo(104, 10);
-    expect(botFieldPower(100, team(null), false)).toBe(100);
+  it('cada degrau do chaveamento é mais duro que o anterior', () => {
+    const { champion, finalist, semifinal, top8, none } = BOT_GAP_FROM_TOP;
+    // Distância até o topo: quanto menor, mais forte o bot.
+    expect(champion).toBeLessThan(finalist);
+    expect(finalist).toBeLessThan(semifinal);
+    expect(semifinal).toBeLessThan(top8);
+    expect(top8).toBeLessThan(none);
+    expect(champion).toBeGreaterThanOrEqual(BOT_MIN_GAP_FROM_TOP);
+  });
+
+  it('sobe o bot fraco até o degrau dele, e deixa quem já é forte como está', () => {
+    for (const [summary, placement] of [[{ titles: 1 }, 'champion'], [{ finals: 1 }, 'finalist'], [null, 'none']] as const) {
+      const alvo = COURT_TOP - BOT_GAP_FROM_TOP[placement];
+      // Time fraco para o degrau: sobe até ele, venha de onde vier o poder próprio.
+      for (const power of [80, 90]) expect(courtPower(botFieldPower(power, team(summary), false))).toBeCloseTo(alvo, 9);
+    }
+    // Poder próprio já acima do degrau: fica com o próprio. A escada só levanta, nunca enfraquece.
+    expect(botFieldPower(106, team(null), false)).toBeCloseTo(106, 9);
+  });
+
+  it('a escada nunca passa do nível de uma line perfeita', () => {
+    for (const summary of [{ titles: 1 }, { finals: 1 }, { semifinals: 1 }]) {
+      expect(courtPower(botFieldPower(70, team(summary), false))).toBeLessThanOrEqual(COURT_TOP - BOT_MIN_GAP_FROM_TOP + 1e-9);
+    }
+    expect(botFieldPower(90, team(null), false)).toBeGreaterThan(90);
+  });
+
+  it('o time sem história é o degrau de entrada: vencível, mas não de graça', () => {
+    const entrada = courtPower(botFieldPower(82, team(null), false));
+    const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false));
+    expect(campeao - entrada).toBeGreaterThan(1.5);
+    expect(COURT_TOP - entrada).toBeLessThan(4);
   });
 });
 
@@ -52,7 +74,7 @@ describe('zebra', () => {
   it('o gás é de 20%, travado: perigosa, não monstro, e nunca enfraquece o time', () => {
     const underdog = team(null);
     expect(botFieldPower(80, underdog, true)).toBeCloseTo(80 * (1 + ZEBRA_BOOST), 10);
-    expect(botFieldPower(100, underdog, true)).toBe(ZEBRA_POWER_CAP);
+    expect(botFieldPower(ZEBRA_POWER_CAP - 2, underdog, true)).toBe(ZEBRA_POWER_CAP);
     expect(botFieldPower(ZEBRA_POWER_CAP + 3, underdog, true)).toBe(ZEBRA_POWER_CAP + 3);
   });
 });

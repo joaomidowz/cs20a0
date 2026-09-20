@@ -15,6 +15,7 @@ import {
   type Controller,
   type MapState
 } from '../rounds';
+import { courtMatchDay } from '../courtPower';
 import { createSeededRng, getMatchDayPower, type SeededRng } from '../simulation';
 import type { CombatTeam, MapId, MapResult, MapSide, MapVetoStep, OnlineGameMode, Roster, SeriesDecision, SeriesResult, TeamSide, TimeoutTiming } from '../types';
 
@@ -45,7 +46,15 @@ export interface LiveSeriesConfig {
    * Timeouts are never listed here: `requestSeriesTimeout` works for every human team.
    */
   humanDecisions?: Partial<Record<PendingSeriesDecision['kind'], boolean>>;
+  /**
+   * How match-day power is scaled. 'classic' (the default) cuts it at MAX_TEAM_POWER + 4, as every offline mode expects;
+   * 'court' uses the court curve, where nothing is cut (`courtPower.ts`). A string, not a function: configs get cloned
+   * and compared.
+   */
+  powerScale?: PowerScale;
 }
+
+export type PowerScale = 'classic' | 'court';
 
 export interface VetoBoard {
   available: MapId[];
@@ -97,15 +106,23 @@ const teamOf = (state: LiveSeriesState, side: TeamSide) => (side === 'a' ? state
 
 const vetoSeedOf = (config: LiveSeriesConfig) => config.vetoSeed ?? `${config.seed}:veto`;
 
-export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
+/** Both teams as they take the court: the day's roll from the series seed, then the pressure of a final. */
+function matchDayTeams(config: LiveSeriesConfig): { adjustedA: CombatTeam; adjustedB: CombatTeam } {
   const matchDay = createSeededRng(`${config.seed}:matchday`);
+  const curve = config.powerScale === 'court' ? courtMatchDay : undefined;
   const pressureA = config.phase === 'final' ? (config.teamA.experience + config.teamA.mental) / 180 : 1;
   const pressureB = config.phase === 'final' ? (config.teamB.experience + config.teamB.mental) / 180 : 1;
+  return {
+    adjustedA: { ...config.teamA, power: getMatchDayPower(config.teamA, matchDay, curve) + pressureA },
+    adjustedB: { ...config.teamB, power: getMatchDayPower(config.teamB, matchDay, curve) + pressureB }
+  };
+}
+
+export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
   const state: LiveSeriesState = {
     config,
     phase: config.strategies ? 'veto' : 'intermission',
-    adjustedA: { ...config.teamA, power: getMatchDayPower(config.teamA, matchDay) + pressureA },
-    adjustedB: { ...config.teamB, power: getMatchDayPower(config.teamB, matchDay) + pressureB },
+    ...matchDayTeams(config),
     veto: null,
     playedMaps: [],
     maps: [],
@@ -136,11 +153,7 @@ export function retuneSeriesTeam(state: LiveSeriesState, side: TeamSide, team: C
   }
   if (side === 'a') state.config.teamA = team;
   else state.config.teamB = team;
-  const matchDay = createSeededRng(`${state.config.seed}:matchday`);
-  const pressureA = state.config.phase === 'final' ? (state.config.teamA.experience + state.config.teamA.mental) / 180 : 1;
-  const pressureB = state.config.phase === 'final' ? (state.config.teamB.experience + state.config.teamB.mental) / 180 : 1;
-  state.adjustedA = { ...state.config.teamA, power: getMatchDayPower(state.config.teamA, matchDay) + pressureA };
-  state.adjustedB = { ...state.config.teamB, power: getMatchDayPower(state.config.teamB, matchDay) + pressureB };
+  Object.assign(state, matchDayTeams(state.config));
   return state;
 }
 

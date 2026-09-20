@@ -1,10 +1,12 @@
 // tests/collectionRules.test.ts
 // Regras puras da coleção: odds, valor em coins, sorteio determinístico de pacote, sinergia e star player.
+import { courtPower } from '../src/lib/game/courtPower';
+import { collectionCoachById } from '../src/lib/game/online/collection-pool';
 import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
-import { STAR_ROLE_BONUS, aggressivePlanBonus, applyCollectionLineup, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
+import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
@@ -122,7 +124,8 @@ describe('lineup da coleção', () => {
     const riflers = distinct(byRole('rifler', 8)).slice(0, 5);
     const bad = synergyOf({ players: riflers, roles: ['rifler', 'rifler', 'rifler', 'rifler', 'rifler'], starPlayerId: null });
     expect(bad.map((line) => line.key)).toEqual(expect.arrayContaining(['igl_none', 'awp_none', 'support_none']));
-    expect(bad.reduce((sum, line) => sum + line.power, 0)).toBeLessThan(0);
+    // O que falta é pago em pontos de quadra (não em %): sem IGL, sem AWPer e sem suporte.
+    expect(bad.reduce((sum, line) => sum + line.court, 0)).toBe(MISSING_IGL_COURT + MISSING_AWPER_COURT + MISSING_SUPPORT_COURT);
   });
 
   it('função repetida é permitida e posição secundária não custa nada', () => {
@@ -197,7 +200,7 @@ describe('lineup da coleção', () => {
     expect(lines).toMatchObject({ star: 2, star_awper_igl: 1.75 });
     // Só de AWPer o time fica sem caller: o tático não roda e o star cai na linha do equilibrado (1,5 × 1,2).
     const pure = Object.fromEntries(synergyOf({ ...starred, roles: ['awper', 'entry', 'lurker', 'support', 'rifler'] }).map((line) => [line.key, line.power]));
-    expect(pure).toMatchObject({ style_tactical_off: -2, star_awper: 1.75 });
+    expect(pure).toMatchObject({ style_tactical_off: PLAN_OFF_BONUS, star_awper: 1.75 });
   });
 
   it('boost do star: toda função ganha em todo plano, cada uma com o seu, escalado pelo overall', () => {
@@ -225,16 +228,51 @@ describe('lineup da coleção', () => {
     expect([starScale(80), starScale(85), starScale(90), starScale(95), starScale(99)]).toEqual([0.5, 0.5, 1, 1.5, 1.5]);
   });
 
-  it('plano agressivo cresce com o entry: fraco perde do tático, entry de elite passa', () => {
-    const withEntry = (entry: number) => ({ players: lineup.map((player) => (player.id === pick('entry').id ? { ...player, entry } : player)), roles, starPlayerId: null, style: 'aggressive' as const });
-    expect(aggressivePlanBonus(withEntry(70))).toBe(6);
-    expect(aggressivePlanBonus(withEntry(85))).toBe(10);
-    expect(aggressivePlanBonus(withEntry(95))).toBe(14);
-    expect(aggressivePlanBonus(withEntry(99))).toBe(14);
-    expect(synergyOf(withEntry(95)).find((line) => line.key === 'style_aggressive')?.power).toBe(14);
-    // Sem entry o plano não roda e o star cai na linha do equilibrado.
-    const noEntry = synergyOf({ ...withEntry(95), roles: ['igl', 'awper', 'rifler', 'lurker', 'support'] });
-    expect(noEntry.find((line) => line.key === 'style_aggressive_off')?.power).toBe(-1);
+  it('os três planos têm o mesmo teto, e o quanto cada um rende sai das cartas', () => {
+    const base = { roles, starPlayerId: null, coachId: null };
+    const shaped = (over: { entry?: number; igl?: number; consistency?: number }) => lineup.map((player) => ({
+      ...player,
+      ...(over.consistency !== undefined ? { consistency: over.consistency } : {}),
+      ...(player.id === pick('entry').id && over.entry !== undefined ? { entry: over.entry } : {}),
+      ...(player.id === pick('igl').id && over.igl !== undefined ? { igl: over.igl } : {})
+    }));
+    // Agressivo: do entry. Tático: do capitão (e do coach). Equilibrado: do elo mais fraco.
+    expect(planBonus({ ...base, players: shaped({ entry: 70 }), style: 'aggressive' })).toBe(PLAN_BONUS_MIN);
+    expect(planBonus({ ...base, players: shaped({ entry: 85 }), style: 'aggressive' })).toBe((PLAN_BONUS_MIN + PLAN_BONUS_MAX) / 2);
+    expect(planBonus({ ...base, players: shaped({ entry: 99 }), style: 'aggressive' })).toBe(PLAN_BONUS_MAX);
+    expect(planBonus({ ...base, players: shaped({ igl: 75 }), style: 'tactical' })).toBe(PLAN_BONUS_MIN);
+    expect(planBonus({ ...base, players: shaped({ igl: 99 }), style: 'tactical' })).toBeLessThan(PLAN_BONUS_MAX);
+    expect(planBonus({ ...base, players: shaped({ consistency: 70 }), style: 'balanced' })).toBe(BALANCED_PLAN_MIN);
+    expect(planBonus({ ...base, players: shaped({ consistency: 95 }), style: 'balanced' })).toBe(BALANCED_PLAN_MAX);
+    // O teto do tático só fecha com um coach de verdade no banco.
+    const topCoach = [...collectionCoachById.values()].sort((a, b) => b.tactics - a.tactics)[0];
+    expect(planBonus({ ...base, players: shaped({ igl: 99 }), style: 'tactical', coachId: topCoach.id })).toBe(PLAN_BONUS_MAX);
+    // Quem não pede nada começa um pouco acima e termina um pouco abaixo dos planos de especialista.
+    expect(BALANCED_PLAN_MIN).toBeGreaterThan(PLAN_BONUS_MIN);
+    expect(BALANCED_PLAN_MAX).toBeLessThan(PLAN_BONUS_MAX);
+    expect(planQuality({ ...base, players: shaped({ entry: 85 }), style: 'aggressive' })).toBeCloseTo(0.5, 10);
+  });
+
+  it('plano que o time não consegue rodar rende menos que qualquer plano rodado', () => {
+    const noEntry = synergyOf({ players: lineup, roles: ['igl', 'awper', 'rifler', 'lurker', 'support'], starPlayerId: null, style: 'aggressive' });
+    expect(noEntry.find((line) => line.key === 'style_aggressive_off')?.power).toBe(PLAN_OFF_BONUS);
+    expect(PLAN_OFF_BONUS).toBeLessThan(PLAN_BONUS_MIN);
+    expect(PLAN_OFF_BONUS).toBeLessThan(BALANCED_PLAN_MIN);
+  });
+
+  it('o que falta ao time é pago em pontos de quadra: dói igual no time fraco e no time de GOATs', () => {
+    const riflers = distinct(byRole('rifler', 8)).slice(0, 5);
+    const lines = synergyOf({ players: riflers, roles: ['rifler', 'rifler', 'rifler', 'rifler', 'rifler'], starPlayerId: null, style: 'balanced' });
+    expect(lines.find((line) => line.key === 'igl_none')).toMatchObject({ court: MISSING_IGL_COURT, power: 0 });
+    expect(lines.find((line) => line.key === 'awp_none')).toMatchObject({ court: MISSING_AWPER_COURT, power: 0 });
+    expect(lines.find((line) => line.key === 'support_none')).toMatchObject({ court: MISSING_SUPPORT_COURT, power: 0 });
+    const missing = MISSING_IGL_COURT + MISSING_AWPER_COURT + MISSING_SUPPORT_COURT;
+    const input = { players: riflers, roles: ['rifler', 'rifler', 'rifler', 'rifler', 'rifler'] as LineupSlotRole[], starPlayerId: null, style: 'balanced' as const };
+    const percent = 1 + lines.reduce((sum, line) => sum + line.power, 0) / 100;
+    for (const power of [80, 95, 110, 130]) {
+      const team = applyCollectionLineup({ id: 't', name: 't', power, mental: 80, clutch: 80, experience: 80 }, input);
+      expect(courtPower(team.power) - courtPower(power * percent)).toBeCloseTo(missing, 9);
+    }
   });
 });
 

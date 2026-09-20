@@ -199,3 +199,40 @@ describe('live series', () => {
     expect(() => retuneSeriesTeam(state, own, team(own, 91))).toThrow(/veto/);
   });
 });
+
+describe('escala de poder do dia de jogo', () => {
+  const bots = (a: number, b: number, scale?: 'classic' | 'court') =>
+    createLiveSeries(config({ teamA: team('a', a), teamB: team('b', b), strategies: null, controllers: { a: 'bot', b: 'bot' }, ...(scale ? { powerScale: scale } : {}) }));
+
+  it('sem pedir nada, o corte clássico em 110 continua valendo (offline, Dinastia e sandbox dependem dele)', () => {
+    const series = bots(112, 134);
+    expect(series.adjustedA.power).toBeCloseTo(series.adjustedB.power, 10);
+    expect(bots(112, 134, 'classic').adjustedA.power).toBe(series.adjustedA.power);
+  });
+
+  it("em 'court' nada é cortado: times acima de 110 deixam de jogar idênticos, e ninguém chega a 100", () => {
+    const series = bots(112, 134, 'court');
+    expect(series.adjustedB.power).toBeGreaterThan(series.adjustedA.power + 1.5);
+    // 121 é a melhor line montável; nem ela, nem num dia bom, nem com a pressão de uma final, passa muito de 100.
+    const best = bots(106, 121, 'court');
+    expect(best.adjustedB.power).toBeLessThan(100.5);
+  });
+
+  it('abaixo do joelho a escala nova não muda nenhuma série: só renomeia os números', () => {
+    for (let index = 0; index < 25; index += 1) {
+      const seed = `abaixo-${index}`;
+      const classic = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' } }));
+      const court = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' }, powerScale: 'court' }));
+      expect(court.adjustedA.power - court.adjustedB.power).toBeCloseTo(classic.adjustedA.power - classic.adjustedB.power, 9);
+      runSeriesToEnd(classic);
+      runSeriesToEnd(court);
+      expect(toSeriesResult(court).maps.map((map) => [map.scoreA, map.scoreB])).toEqual(toSeriesResult(classic).maps.map((map) => [map.scoreA, map.scoreB]));
+    }
+  });
+
+  it('trocar um time antes do veto respeita a escala da série', () => {
+    const state = createLiveSeries(config({ powerScale: 'court', teamA: team('a', 112), teamB: team('b', 134) }));
+    retuneSeriesTeam(state, 'a', team('a', 139));
+    expect(state.adjustedA.power).toBeGreaterThan(state.adjustedB.power);
+  });
+});

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatRating } from '$lib/game/powerRating';
+  import { formatCourtRating } from '$lib/game/powerRating';
   import { onDestroy, onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
@@ -858,7 +858,7 @@
       name: organization.name,
       avatar: organization.name.slice(0, 2).toUpperCase(),
       eyebrow: organization.human
-        ? `${style.toUpperCase()} · POWER ${formatRating(organization.power)}`
+        ? `${style.toUpperCase()} · POWER ${formatCourtRating(organization.power)}`
         : `${historicalTeam?.game ?? 'CS'} · ${historicalTeam?.year ?? '—'} · ${teamPlacementLabel(historicalTeam)}`,
       subtitle: `${style} · OVR ${averageOverall(roster, organization.power)}`,
       tags: organization.human

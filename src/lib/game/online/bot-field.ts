@@ -1,3 +1,5 @@
+import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
+import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -15,10 +17,10 @@ import type { HistoricalTeam, Player } from '../types';
 export type BotPlacement = 'champion' | 'finalist' | 'semifinal' | 'top8' | 'none';
 
 /**
- * Power buff by placement. Measured against the average champion: a lineup at the match-day ceiling goes from 94% to
- * about 70% in a best-of-three, a mid lineup (104) from 63% to about 30%. Farming the champion is over; beating it is not.
+ * Where each kind of bot sits on the court scale: the tournament's own ladder, from the team with no Major history
+ * (the opening step) up to the champion (the final wall). The numbers live in `src/lib/game/balance.ts`.
  */
-export const BOT_PLACEMENT_BUFF: Readonly<Record<BotPlacement, number>> = { champion: 0.04, finalist: 0.03, semifinal: 0.02, top8: 0.01, none: 0 };
+export { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP };
 
 /** An underdog is a team whose five average this overall or more... */
 export const UNDERDOG_MIN_OVERALL = 80;
@@ -33,8 +35,8 @@ export const ZEBRAS_MAX = 3;
  * lineup. At +20% it wins about 15% of them, is a coin flip against a mid lineup and beats a buffed champion one time in four.
  */
 export const ZEBRA_BOOST = 0.2;
-/** A zebra is dangerous, not a monster: the strongest underdogs would otherwise reach the match-day ceiling. */
-export const ZEBRA_POWER_CAP = 105;
+/** A zebra is dangerous, not a monster: capped around the level of a Major champion, below the best lineups. */
+export const ZEBRA_POWER_CAP = 103;
 /** Champions every full field has at least (a sixteen-team run); smaller fields scale it down. */
 export const GUARANTEED_CHAMPIONS = 2;
 
@@ -92,8 +94,13 @@ export function planBotField(input: { shuffled: readonly HistoricalTeam[]; playe
   return { order: [...opening, ...others.slice(slots - reserved.size)], zebraIds: new Set(zebras.map((team) => team.id)) };
 }
 
-/** Power a bot takes to the run: its placement buff, or the zebra boost (capped) when the run made it one. */
+/**
+ * Power a bot takes to the run: its place on the ladder by Major pedigree, or the zebra boost when the run made it
+ * one. A bot is never made weaker than it already was — the ladder only lifts.
+ */
 export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean): number {
   if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
-  return basePower * (1 + BOT_PLACEMENT_BUFF[botPlacementOf(team)]);
+  const target = COURT_TOP - BOT_GAP_FROM_TOP[botPlacementOf(team)];
+  const ceiling = COURT_TOP - BOT_MIN_GAP_FROM_TOP;
+  return Math.max(basePower, rawFromCourt(Math.min(ceiling, Math.max(courtPower(basePower), target))));
 }
