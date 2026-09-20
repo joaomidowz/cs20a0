@@ -1,54 +1,62 @@
 /**
- * Court power: the real power scale of the online modes. It is the number on screen and the number that plays, and
- * it never reaches 100.
+ * Nível: a escala real dos modos online. É o número na tela e o número que joga, e ele nunca chega a 100.
  *
- * The engine used to cut every team at MAX_TEAM_POWER + 4 (110) on match day, while collection synergy pushes raw
- * power to ~139: lineups of 112, 125 and 134 played exactly the same, so building a lineup well was worth nothing
- * once the cards were strong. Here nothing is cut. Up to the knee every point counts; above it each extra point
- * still counts, only less.
+ * O motor cortava todo time em MAX_TEAM_POWER + 4 (110) no dia do jogo, enquanto a sinergia da coleção leva o poder
+ * cru a ~140: lines de 112, 125 e 134 jogavam exatamente igual, e montar bem não valia nada depois que as cartas
+ * eram boas. Aqui nada é cortado. Até o joelho cada ponto conta; acima dele cada ponto extra ainda conta, só menos.
  *
- * The shift only renames the scale so the top sits below 100: inside a match `rounds.ts` reads power through the
- * DIFFERENCE between the two teams alone, so subtracting the same constant from both changes no result.
+ * Duas conversões, nesta ordem:
+ *   1. COMPRESSÃO (`COURT_SLOPE`): quanto de cada ponto de carta acima do joelho realmente chega à quadra.
+ *   2. RÉGUA (`COURT_SPREAD`): quantos níveis de tela vale um ponto já comprimido. Só o tamanho dos números — anda
+ *      junto com `COURT_WIN_DIVISOR` e por isso não muda resultado nenhum.
  *
- * No imports on purpose: this is a leaf, shared by the engine, the server and the screens.
+ * Dentro da partida, `rounds.ts` lê o poder pela DIFERENÇA entre os dois times, então somar a mesma constante aos
+ * dois não muda nada: o topo em 99 é só onde a régua foi pregada.
  */
 
-import { COURT_KNEE, COURT_SHIFT, COURT_SLOPE, COURT_TOP, PLAYER_GAP_FROM_TOP } from './balance';
+import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
 
-export { COURT_KNEE, COURT_SHIFT, COURT_SLOPE, COURT_TOP };
+export { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR };
 
-/** Raw power never goes below this before the curve (the floor `getMatchDayPower` has always had). */
+/** Poder cru nunca fica abaixo disto antes da curva (o piso que `getMatchDayPower` sempre teve). */
 export const COURT_RAW_FLOOR = 45;
 
-/** Raw engine power to court power. */
+/** Poder cru depois da compressão de carta, antes da régua. Escala interna: não aparece em lugar nenhum. */
+const compressed = (raw: number): number => (raw <= COURT_KNEE ? raw : COURT_KNEE + (raw - COURT_KNEE) * COURT_SLOPE);
+
+/** O poder cru comprimido da melhor line montável hoje: é nele que o topo da escala (99) fica pregado. */
+const COMPRESSED_TOP = compressed(RAW_TOP);
+
+/** Poder cru do motor para o nível da tela. */
 export function courtPower(raw: number): number {
-  return raw <= COURT_KNEE ? raw - COURT_SHIFT : COURT_KNEE - COURT_SHIFT + (raw - COURT_KNEE) * COURT_SLOPE;
+  return COURT_TOP - (COMPRESSED_TOP - compressed(raw)) * COURT_SPREAD;
 }
 
-/** The exact inverse of `courtPower`. */
+/** O inverso exato de `courtPower`. */
 export function rawFromCourt(court: number): number {
-  const knee = COURT_KNEE - COURT_SHIFT;
-  return court <= knee ? court + COURT_SHIFT : COURT_KNEE + (court - knee) / COURT_SLOPE;
+  const compressedValue = COMPRESSED_TOP - (COURT_TOP - court) / COURT_SPREAD;
+  return compressedValue <= COURT_KNEE ? compressedValue : COURT_KNEE + (compressedValue - COURT_KNEE) / COURT_SLOPE;
 }
 
 /**
- * Raw power after adding `points` on the court scale. Structure (no IGL, a bot's Major pedigree) is priced this way
- * instead of as a percentage: under a compressive curve 1% is about one court point near 100 and about 0.12 at the
- * top, so a percentage that stings a lineup of GOATs would erase a beginner's. Court points hurt everybody the same.
+ * Poder cru depois de somar `points` níveis. Estrutura (time sem IGL, a história de Major de um bot) é cobrada
+ * assim, e não em porcentagem: sob uma curva que comprime, 1% vale cerca de um nível perto do topo e quase nada
+ * acima dele, então uma porcentagem que arranha uma line de GOATs apagaria a de um iniciante. Nível dói igual
+ * para todo mundo.
  */
 export const addCourtPoints = (raw: number, points: number): number => rawFromCourt(courtPower(raw) + points);
 
-/** Match-day power from the team power and the day multiplier; the engine's default keeps the old cut at 110. */
+/** Poder do dia a partir do poder do time e do multiplicador do dia; o padrão do motor mantém o corte antigo em 110. */
 export type MatchDayCurve = (power: number, multiplier: number) => number;
 
-/** The curve goes over power × multiplier, where the old cut used to be: a good day still helps, it just helps less at the top. */
+/** A curva passa por poder × multiplicador, onde ficava o corte antigo: um bom dia ainda ajuda, só ajuda menos no topo. */
 export const courtMatchDay: MatchDayCurve = (power, multiplier) => courtPower(Math.max(COURT_RAW_FLOOR, power * multiplier));
 
-/** The lowest a PLAYER's team ever takes the court (`PLAYER_GAP_FROM_TOP`); bots keep their own level. */
+/** O mais baixo que um time de JOGADOR entra em quadra (`PLAYER_GAP_FROM_TOP`); bots mantêm o nível deles. */
 export const COURT_PLAYER_FLOOR = COURT_TOP - PLAYER_GAP_FROM_TOP;
 
-/** A player's team raw power with the floor applied: what someone starting out takes to the court. */
+/** Poder cru de um time de jogador com o piso aplicado: o que quem está começando leva para a quadra. */
 export const withPlayerFloor = (raw: number): number => Math.max(raw, rawFromCourt(COURT_PLAYER_FLOOR));
 
-/** Match-day curve of a player's team: the floor holds on a bad day too. */
+/** Curva do dia de um time de jogador: o piso vale no dia ruim também. */
 export const courtMatchDayPlayer: MatchDayCurve = (power, multiplier) => Math.max(courtMatchDay(power, multiplier), COURT_PLAYER_FLOOR);

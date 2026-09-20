@@ -2,7 +2,8 @@
 // O rating 0-99 mostrado nas telas. É só exibição: nenhuma regra de partida lê isto.
 import { describe, expect, it } from 'vitest';
 import { RATING_CEILING, RATING_FLOOR, RATING_MAX, RATING_MIN, courtRating, courtRatingDelta, formatRating, powerRating, powerRatingDelta } from '../src/lib/game/powerRating';
-import { courtMatchDay } from '../src/lib/game/courtPower';
+import { COURT_TOP } from '../src/lib/game/courtPower';
+import { RAW_TOP } from '../src/lib/game/balance';
 import { collectionPlayers as players, collectionCoaches, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, eligibleRolesOf, isStarEffective, toSelectedPlayer, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -56,10 +57,11 @@ describe('rating de poder (0-99)', () => {
         }
       }
     }
-    // O topo da escala fica logo abaixo de 100: se esta falhar, o conteúdo mudou e COURT_SHIFT precisa ser remedido.
-    expect(courtRating(strongest)).toBeGreaterThan(97);
-    expect(courtRating(strongest)).toBeLessThan(99);
-    expect(courtMatchDay(strongest, 1.085)).toBeLessThan(100);
+    // O topo da escala é a melhor line montável: se esta falhar, o conteúdo (ou uma sinergia) mudou e o RAW_TOP de
+    // `src/lib/game/balance.ts` precisa receber o número que aparece na mensagem.
+    expect(strongest, `RAW_TOP deveria ser ${strongest.toFixed(2)}`).toBeCloseTo(RAW_TOP, 1);
+    expect(courtRating(strongest)).toBeCloseTo(COURT_TOP, 0);
+    expect(courtRating(strongest)).toBeLessThan(100);
     // E os bots seguem abaixo do melhor jogador, na mesma escala.
     const bots = collectionTeams.map((team) => calculateHistoricalTeamPower(team as never, players).power);
     expect(courtRating(Math.max(...bots))).toBeLessThan(courtRating(strongest));

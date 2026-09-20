@@ -3,7 +3,7 @@ import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import { addCourtPoints, courtPower } from '../courtPower';
-import { MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT } from '../balance';
+import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT } from '../balance';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -82,22 +82,11 @@ export function planBonus(input: CollectionLineupInput): number {
  * match day keeps each plan's character (the aggressive good day, the tactical preparation).
  */
 export function collectionBaseTeam(players: Player[], style: OrgStyle, lineup: SelectedPlayer[], seed = ''): CombatTeam {
-  const base = calculateDynastyBaseTeamPower(players, lineup, seed);
-  return { ...base, power: softMotor(base.power), style };
+  // The engine's own numbers, linear: the court curve (`courtPower.ts`) is the ONE place card quality is compressed.
+  // Compressing here too multiplied the two slopes (0.1 x 0.085 = 0.0085) and a 13-point card upgrade moved nothing.
+  return { ...calculateDynastyBaseTeamPower(players, lineup, seed), style };
 }
 
-/**
- * Card quality with diminishing returns, in place of the engine's hard stop at MAX_TEAM_POWER. Up to the knee a better
- * roster is worth every point: that is the road from Commons to Superstars. Above it each point is worth a tenth.
- *
- * Synergy multiplies the motor, so roster and build sit on the same axis: left linear, thirteen points of roster
- * between Superstars and GOATs outweigh any build, and the game is pay-to-win (measured: well-built Superstars won
- * 35% against lazy GOATs). Compressed here, a great roster still helps — and it still unlocks what the plans and the
- * star ask for (an entry of 99, a 95+ star) — but from a good roster on, the build decides.
- */
-export const MOTOR_KNEE = 88;
-export const MOTOR_SLOPE = 0.1;
-export const softMotor = (power: number): number => (power <= MOTOR_KNEE ? power : MOTOR_KNEE + (power - MOTOR_KNEE) * MOTOR_SLOPE);
 
 /** Engine roles a collection slot fills ("awper-igl" → awper and igl). */
 export const slotRolesOf = (role: CollectionSlotRole): LineupSlotRole[] => (role === AWPER_IGL ? ['awper', 'igl'] : [role]);
@@ -153,6 +142,10 @@ export function primaryRoleOf(player: Pick<Player, 'role'>): LineupSlotRole {
   if (first === 'awp') return 'awper';
   return (['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'] as LineupSlotRole[]).includes(first as LineupSlotRole) ? (first as LineupSlotRole) : 'rifler';
 }
+
+/** Every role the dataset gives a card ("awper-igl" → awper and igl, "rifle-support" → rifler and support). */
+export const datasetRolesOf = (player: Pick<Player, 'role'>): LineupSlotRole[] =>
+  (player.role ?? 'rifler').toLowerCase().split('-').map((part) => (part === 'rifle' ? 'rifler' : part === 'awp' ? 'awper' : part) as LineupSlotRole);
 
 export function isStarEffective(players: Player[], starPlayerId: string | null, roles?: readonly CollectionSlotRole[]): boolean {
   if (!starPlayerId) return false;
@@ -243,6 +236,12 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (count('support') === 0) add('support_none', { court: MISSING_SUPPORT_COURT });
   else add('support_present', { power: 0.5 });
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
+  // The core of a CS team: a caller, an AWPer and a support. All three present is worth levels on its own, and each
+  // of them played by a card of that very role is worth a little more: a built team, not five good cards together.
+  if (igls >= 1 && awpers >= 1 && count('support') >= 1) {
+    const natural = (['igl', 'awper', 'support'] as const).filter((role) => input.players.some((player, index) => slotRolesOf(input.roles[index]).includes(role) && datasetRolesOf(player).includes(role))).length;
+    add('core_complete', { court: CORE_COMPLETE_COURT + CORE_NATURAL_COURT * natural });
+  }
   // A secondary position costs nothing: the builder only offers roles the card is eligible for.
   const ready = styleReady(input);
   // A plan the lineup cannot run feeds nobody: the star falls back to the balanced row.

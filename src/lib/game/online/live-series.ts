@@ -15,7 +15,7 @@ import {
   type Controller,
   type MapState
 } from '../rounds';
-import { courtMatchDay } from '../courtPower';
+import { COURT_SPREAD, COURT_WIN_DIVISOR, courtMatchDay } from '../courtPower';
 import { createSeededRng, getMatchDayPower, type SeededRng } from '../simulation';
 import type { CombatTeam, MapId, MapResult, MapSide, MapVetoStep, OnlineGameMode, Roster, SeriesDecision, SeriesResult, TeamSide, TimeoutTiming } from '../types';
 
@@ -109,12 +109,16 @@ const vetoSeedOf = (config: LiveSeriesConfig) => config.vetoSeed ?? `${config.se
 /** Both teams as they take the court: the day's roll from the series seed, then the pressure of a final. */
 function matchDayTeams(config: LiveSeriesConfig): { adjustedA: CombatTeam; adjustedB: CombatTeam } {
   const matchDay = createSeededRng(`${config.seed}:matchday`);
-  const curve = config.powerScale === 'court' ? courtMatchDay : undefined;
-  const pressureA = config.phase === 'final' ? (config.teamA.experience + config.teamA.mental) / 180 : 1;
-  const pressureB = config.phase === 'final' ? (config.teamB.experience + config.teamB.mental) / 180 : 1;
+  const court = config.powerScale === 'court';
+  const curve = court ? courtMatchDay : undefined;
+  // A pressão do dia vale o mesmo em qualquer régua: na escala de níveis ela anda com `COURT_SPREAD`, como todo o resto.
+  const scale = court ? COURT_SPREAD : 1;
+  const pressureA = (config.phase === 'final' ? (config.teamA.experience + config.teamA.mental) / 180 : 1) * scale;
+  const pressureB = (config.phase === 'final' ? (config.teamB.experience + config.teamB.mental) / 180 : 1) * scale;
+  const divisor = court ? { powerDivisor: COURT_WIN_DIVISOR } : {};
   return {
-    adjustedA: { ...config.teamA, power: getMatchDayPower(config.teamA, matchDay, curve) + pressureA },
-    adjustedB: { ...config.teamB, power: getMatchDayPower(config.teamB, matchDay, curve) + pressureB }
+    adjustedA: { ...config.teamA, ...divisor, power: getMatchDayPower(config.teamA, matchDay, curve) + pressureA },
+    adjustedB: { ...config.teamB, ...divisor, power: getMatchDayPower(config.teamB, matchDay, curve) + pressureB }
   };
 }
 

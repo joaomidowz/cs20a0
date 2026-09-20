@@ -1,3 +1,4 @@
+import { COURT_SPREAD } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { MAP_POOL } from '../src/lib/game/maps';
 import type { MapStrategy } from '../src/lib/game/map-veto';
@@ -223,7 +224,8 @@ describe('escala de poder do dia de jogo', () => {
       const seed = `abaixo-${index}`;
       const classic = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' } }));
       const court = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' }, powerScale: 'court' }));
-      expect(court.adjustedA.power - court.adjustedB.power).toBeCloseTo(classic.adjustedA.power - classic.adjustedB.power, 9);
+      // A régua de níveis é COURT_SPREAD vezes mais larga, e a sensibilidade do motor anda junto: os placares não mudam.
+      expect(court.adjustedA.power - court.adjustedB.power).toBeCloseTo((classic.adjustedA.power - classic.adjustedB.power) * COURT_SPREAD, 8);
       runSeriesToEnd(classic);
       runSeriesToEnd(court);
       expect(toSeriesResult(court).maps.map((map) => [map.scoreA, map.scoreB])).toEqual(toSeriesResult(classic).maps.map((map) => [map.scoreA, map.scoreB]));

@@ -71,8 +71,8 @@ import {
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
-import { botFieldPower, planBotField } from '../src/lib/game/online/bot-field';
-import { withPlayerFloor } from '../src/lib/game/courtPower';
+import { botFieldPower, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
+import { courtPower, withPlayerFloor } from '../src/lib/game/courtPower';
 import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -1162,10 +1162,13 @@ export class RoomManager {
     const plan = room.field === 'champions'
       ? { order: shuffledTeams, zebraIds: new Set<string>() }
       : planBotField({ shuffled: shuffledTeams, playerById, seed: room.seed, slots: fieldSize - organizations.length });
+    // Solo against bots: the field comes down as the player's team goes up in level (`SOLO_FIELD_RELIEF`), so the
+    // run is a wall that gives way with progress instead of a bracket of coin flips. Never in a room with two humans.
+    const relief = room.queue?.expected === 1 && organizations.length === 1 ? soloFieldRelief(courtPower(organizations[0].team.power), room.field) : 0;
     const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);
       const id = `bot-${team.id}`;
-      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id)), id }, human: false, sourceTeamId: team.id };
+      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief), id }, human: false, sourceTeamId: team.id };
     }).filter((organization) => !humanIds.has(organization.id));
     const humanSeeds = drawHumanSeeds(room.seed, organizations.length, fieldSize);
     const seedOrder: string[] = Array.from({ length: fieldSize }, () => '');

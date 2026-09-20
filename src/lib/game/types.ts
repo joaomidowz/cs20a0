@@ -312,6 +312,11 @@ export interface CombatTeam {
   coachSidePreference?: number;
   /** Multiplier of this team's tactical timeout edge. */
   timeoutFactor?: number;
+  /**
+   * Sensitivity of the scale `power` is on, for `getWinProbability`. Absent means the raw engine scale; the online
+   * modes stamp `COURT_WIN_DIVISOR` when they hand the match levels instead (`courtPower.ts`).
+   */
+  powerDivisor?: number;
 }
 
 export interface RoundScore {

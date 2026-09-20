@@ -74,13 +74,15 @@ describe('regra do tema', () => {
   it('o coach é o sexto de time e ano, e fica fora de país', () => {
     const players = five({ teamId: 'sk-2017', org: 'sk', year: 2017, country: 'br' });
     const semCoach = themeLines(players, null);
-    expect(powerOf(semCoach, 'theme_team')).toBe(THEME_LADDER[5]);
-    expect(powerOf(semCoach, 'theme_year')).toBe(THEME_LADDER[5]);
+    // O teto total (`balance.ts`) é gasto nas linhas maiores primeiro: país fecha, time vem depois, ano leva o resto.
+    const total = (lines: ReturnType<typeof themeLines>) => lines.reduce((sum, line) => sum + line.power, 0);
     expect(powerOf(semCoach, 'theme_country')).toBe(THEME_LINE_CAP);
+    expect(powerOf(semCoach, 'theme_team')).toBe(THEME_LADDER[5]);
+    expect(total(semCoach)).toBe(Math.min(THEME_TOTAL_CAP, THEME_LADDER[5] * 2 + THEME_LINE_CAP));
     const comCoach = themeLines(players, member({ teamId: 'sk-2017', org: 'sk', year: 2017 }));
     expect(powerOf(comCoach, 'theme_team')).toBe(THEME_LADDER[6]);
-    expect(powerOf(comCoach, 'theme_year')).toBe(THEME_LADDER[6]);
     expect(powerOf(comCoach, 'theme_country')).toBe(THEME_LINE_CAP);
+    expect(total(comCoach)).toBe(THEME_TOTAL_CAP);
   });
 
   it('respeita o teto por linha e o teto total', () => {
@@ -114,8 +116,8 @@ describe('tema aplicado na line da coleção', () => {
     const roles = sk.map((player) => eligibleRolesOf(player)[0]);
     const temas = synergyOf({ players: sk, roles, starPlayerId: null }).filter((line) => line.key.startsWith('theme_'));
     expect(temas.map((line) => line.key).sort()).toEqual(['theme_country', 'theme_team', 'theme_year']);
-    // Sem coach as linhas de time e ano param no quinto degrau: 1,5 + 1,5 + 2 de país.
-    expect(temas.reduce((sum, line) => sum + line.power, 0)).toBe(5);
+    // Sem coach as linhas de time e ano param no quinto degrau (1,5 + 1,5 + 2 de país), e o teto total corta o resto.
+    expect(temas.reduce((sum, line) => sum + line.power, 0)).toBe(Math.min(THEME_TOTAL_CAP, 5));
     // É o coach do próprio time que fecha as três linhas e leva ao teto.
     const coach = [...collectionCoachById.values()].find((item) => item.teamId === 'sk-2017')!;
     const comCoach = synergyOf({ players: sk, roles, starPlayerId: null, coachId: coach.id }).filter((line) => line.key.startsWith('theme_'));

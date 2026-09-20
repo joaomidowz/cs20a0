@@ -51,8 +51,9 @@ describe('escada de progressão dos bots', () => {
   it('o time sem história é o degrau de entrada: vencível, mas não de graça', () => {
     const entrada = courtPower(botFieldPower(82, team(null), false));
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false));
-    expect(campeao - entrada).toBeGreaterThan(1.5);
-    expect(COURT_TOP - entrada).toBeLessThan(4);
+    // Em níveis: o campeão fica bem acima do degrau de entrada, e o degrau de entrada não fica fora de alcance.
+    expect(campeao - entrada).toBeGreaterThan(13);
+    expect(COURT_TOP - entrada).toBeLessThan(36);
   });
 });
 

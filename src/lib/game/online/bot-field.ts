@@ -1,5 +1,5 @@
 import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
-import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP } from '../balance';
+import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -95,12 +95,33 @@ export function planBotField(input: { shuffled: readonly HistoricalTeam[]; playe
 }
 
 /**
- * Power a bot takes to the run: its place on the ladder by Major pedigree, or the zebra boost when the run made it
- * one. A bot is never made weaker than it already was — the ladder only lifts.
+ * How many levels the whole bot field comes down for a solo run, from the level of the player's team
+ * (`SOLO_FIELD_RELIEF` in `balance.ts`, interpolated between its rows). Zero outside the solo modes.
  */
-export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean): number {
-  if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
-  const target = COURT_TOP - BOT_GAP_FROM_TOP[botPlacementOf(team)];
-  const ceiling = COURT_TOP - BOT_MIN_GAP_FROM_TOP;
-  return Math.max(basePower, rawFromCourt(Math.min(ceiling, Math.max(courtPower(basePower), target))));
+export function soloFieldRelief(playerLevel: number, field: 'random' | 'champions' = 'champions'): number {
+  const rows = SOLO_FIELD_RELIEF;
+  const factor = field === 'random' ? SOLO_RANDOM_RELIEF_FACTOR : 1;
+  if (playerLevel <= rows[0][0]) return rows[0][1] * factor;
+  for (let index = 1; index < rows.length; index += 1) {
+    const [level, relief] = rows[index];
+    const [previousLevel, previousRelief] = rows[index - 1];
+    if (playerLevel <= level) return (previousRelief + ((playerLevel - previousLevel) / (level - previousLevel)) * (relief - previousRelief)) * factor;
+  }
+  return rows[rows.length - 1][1] * factor;
+}
+
+/**
+ * Power a bot takes to the run: its place on the ladder by Major pedigree, or the zebra boost when the run made it
+ * one. A bot is never made weaker than it already was — the ladder only lifts. The one exception is `relief`, the
+ * levels the field of a SOLO run comes down as the player's team improves: it is taken off after everything else,
+ * so every bot keeps its place relative to the others.
+ */
+export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief = 0): number {
+  const lifted = (() => {
+    if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
+    const target = COURT_TOP - BOT_GAP_FROM_TOP[botPlacementOf(team)];
+    const ceiling = COURT_TOP - BOT_MIN_GAP_FROM_TOP;
+    return Math.max(basePower, rawFromCourt(Math.min(ceiling, Math.max(courtPower(basePower), target))));
+  })();
+  return relief > 0 ? rawFromCourt(courtPower(lifted) - relief) : lifted;
 }

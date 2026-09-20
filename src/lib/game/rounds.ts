@@ -1,7 +1,7 @@
 import { botEcoCall, botShouldTimeout, botSidePick, styleSidePreference } from './bot-policies';
 import { MAP_SIDE_BIAS } from './maps';
 import { getEligibleSlotRoles } from './roleRules';
-import { getWinProbability, type SeededRng } from './simulation';
+import { RAW_WIN_DIVISOR, getWinProbability, type SeededRng } from './simulation';
 import type {
   BuyType,
   CombatTeam,
@@ -291,8 +291,12 @@ function sideAFor(roundIndex: number, aStartsCt: boolean): MapSide {
   return aIsCt ? 'ct' : 't';
 }
 
+/** What one point of raw power is worth on the scale this team's power is on (levels are `COURT_SPREAD` times wider). */
+const powerUnit = (team: CombatTeam): number => (team.powerDivisor ?? RAW_WIN_DIVISOR) / RAW_WIN_DIVISOR;
+
 const createRuntime = (team: CombatTeam, roster: Roster | undefined, variation: number, bonus: number): TeamRuntime => ({
-  team: { ...team, power: team.power + variation + bonus },
+  // The map swing and the map bonus are raw-power numbers: on the level scale they grow with the ruler, like everything else.
+  team: { ...team, power: team.power + (variation + bonus) * powerUnit(team) },
   roster: roster?.players.length ? roster : null,
   awpers: roster?.players.filter((player) => isAwper(player, roster.roles)) ?? [],
   money: START_MONEY,

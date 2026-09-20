@@ -3,7 +3,7 @@ import { rarityOf } from '../../src/lib/game/online/collection-rules';
 import type { MajorAwards, Player, PlayerRunStats, SelectedPlayer, SeriesResult } from '../../src/lib/game/types';
 
 /** Court points the beaten opponent had over the lineup for the win to count as a giant killing (about one upset in twelve). */
-export const GIANT_KILLER_GAP = 6;
+export const GIANT_KILLER_GAP = 12;
 
 export interface AwardInput {
   participantId: string;

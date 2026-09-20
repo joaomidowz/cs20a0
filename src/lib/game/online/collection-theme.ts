@@ -1,3 +1,4 @@
+import { THEME_TOTAL_CAP } from '../balance';
 /**
  * Thematic synergy of the collection: a lineup built around one team, one country or one year gets a bonus.
  * Pure and shared — the server applies it to the tournament team and the builder previews the same numbers.
@@ -33,8 +34,8 @@ export const THEME_LADDER: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0
 export const THEME_LADDER_PLAYERS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0.25, 3: 0.5, 4: 1, 5: 2 };
 /** Each theme line is worth at most this much power... */
 export const THEME_LINE_CAP = 2;
-/** ...and the three of them together at most this much. */
-export const THEME_TOTAL_CAP = 6;
+/** ...and the three of them together at most this much (`balance.ts`). */
+export { THEME_TOTAL_CAP };
 /** The looser level of a line (same org, same bloc) pays this share of the ladder. */
 export const THEME_LOOSE_RATIO = 0.5;
 

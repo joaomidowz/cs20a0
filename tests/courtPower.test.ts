@@ -1,13 +1,13 @@
 // tests/courtPower.test.ts
 // Poder de quadra: a escala real do online, que nunca passa de 100 e é a mesma na tela e na partida.
 import { describe, expect, it } from 'vitest';
-import { COURT_KNEE, COURT_SHIFT, COURT_SLOPE, addCourtPoints, courtMatchDay, courtPower, rawFromCourt } from '../src/lib/game/courtPower';
+import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, addCourtPoints, courtMatchDay, courtPower, rawFromCourt } from '../src/lib/game/courtPower';
+import { RAW_TOP } from '../src/lib/game/balance';
 
 describe('poder de quadra', () => {
   it('até o joelho tudo conta; acima dele cada ponto conta pouco, mas conta', () => {
-    expect(courtPower(90) - courtPower(80)).toBeCloseTo(10, 10);
-    expect(courtPower(COURT_KNEE)).toBeCloseTo(COURT_KNEE - COURT_SHIFT, 10);
-    expect(courtPower(COURT_KNEE + 10) - courtPower(COURT_KNEE)).toBeCloseTo(10 * COURT_SLOPE, 10);
+    expect(courtPower(90) - courtPower(80)).toBeCloseTo(10 * COURT_SPREAD, 10);
+        expect(courtPower(COURT_KNEE + 10) - courtPower(COURT_KNEE)).toBeCloseTo(10 * COURT_SLOPE * COURT_SPREAD, 10);
     // O bug que isto conserta: 112 e 134 jogavam idênticos.
     expect(courtPower(134)).toBeGreaterThan(courtPower(112));
   });
@@ -29,10 +29,13 @@ describe('poder de quadra', () => {
     expect(addCourtPoints(110, 0)).toBeCloseTo(110, 10);
   });
 
-  it('nunca chega a 100: nem a melhor line possível no melhor dia', () => {
-    // ~121 é a melhor line montável (a busca completa fica em tests/powerRating.test.ts); 1,085 é o melhor dia de um agressivo.
-    expect(courtMatchDay(121.5, 1.085)).toBeLessThan(100);
-    expect(courtMatchDay(121.5, 1.085)).toBeGreaterThan(98.5);
+  it('o topo da escala é a melhor line montável, e ela não chega a 100', () => {
+    // É o nível que aparece na tela: a melhor line possível marca COURT_TOP, e ninguém passa dela.
+    expect(courtPower(RAW_TOP)).toBeCloseTo(COURT_TOP, 10);
+    expect(COURT_TOP).toBeLessThan(100);
+    // O poder DO DIA pode passar do topo (um dia excelente de quem já está no topo). Ninguém vê esse número: ele só
+    // existe dentro da partida, onde só a diferença entre os dois times conta.
+    expect(courtMatchDay(RAW_TOP, 1.085)).toBeGreaterThan(COURT_TOP);
   });
 
   it('o dia de jogo aplica a curva sobre poder × multiplicador, com o piso de sempre', () => {

@@ -218,10 +218,17 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
   };
 }
 
+/** Sensibilidade do motor antigo (Dinastia, sandbox, solo offline), que joga no poder cru. */
+export const RAW_WIN_DIVISOR = 16;
+
 export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number {
   const diff = teamA.power - teamB.power;
+  // The sensitivity belongs to the scale the two powers are on: the online modes hand over levels
+  // (`courtPower.ts`, where the whole field spans ~25 points), the offline engine its own raw power. Both teams of a
+  // match are always on the same scale, so reading it off A is enough.
+  const divisor = teamA.powerDivisor ?? RAW_WIN_DIVISOR;
   // Flat on purpose: economy, sides and momentum add their own edges round by round on top of this base.
-  let probability = 1 / (1 + Math.exp(-diff / 16));
+  let probability = 1 / (1 + Math.exp(-diff / divisor));
   const tacticalStudyBonus = (team: CombatTeam) => {
     if (team.style !== 'tactical') return 0;
     const studyAdvantage = (team.studyPercentage ?? 0) - (team.aggressionPercentage ?? 0);
