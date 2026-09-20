@@ -1332,7 +1332,7 @@ export class RoomManager {
       : selected;
     const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
     const synergized = participant.prepared
-      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map(collectionRoleOf), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style })
+      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map(collectionRoleOf), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style, coachId: participant.prepared.coachId })
       : built;
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
     const base = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;

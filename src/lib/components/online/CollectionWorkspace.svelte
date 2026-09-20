@@ -20,7 +20,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, cardEffects, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -28,6 +28,7 @@
   import { language, theme } from '$lib/game/pageState';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
+  import { countryName } from '$lib/game/visuals/flags';
   import { calculateUserTeamPower } from '$lib/game/simulation';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
@@ -113,13 +114,28 @@
   $: complete = slots.every(Boolean) && roles.every(Boolean);
   $: lineupPlayers = slots.filter((slot): slot is Player => Boolean(slot));
   $: lineupRoles = roles.filter((role): role is CollectionSlotRole => Boolean(role));
-  $: synergy = complete ? synergyOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : [];
+  $: synergy = complete ? synergyOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : [];
   $: starOk = complete && isStarEffective(lineupPlayers, starPlayerId, lineupRoles);
   /** The star is set but plays support or pure IGL: it cannot carry the team from there. */
   $: starRoleBlocked = complete && Boolean(starPlayerId) && !starRoleAllowed(lineupRoles[lineupPlayers.findIndex((player) => player.id === starPlayerId)]);
   $: baseTeam = complete ? calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => toSelectedPlayer(player.id, lineupRoles[index])), 'preview') : null;
-  $: synergized = baseTeam ? applyCollectionLineup(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : null;
+  $: synergized = baseTeam ? applyCollectionLineup(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : null;
   $: readyStyle = styleReady({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style });
+  $: themes = complete ? themeOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : [];
+  /** The tight level names the theme ("Mesmo time"); the loose one says so ("Mesma organização"). */
+  const themeTitle = (key: string, line: { exact: boolean } | undefined): string => {
+    if (line && !line.exact && key === 'theme_team') return t('syn_theme_team_org');
+    if (line && !line.exact && key === 'theme_country') return t('syn_theme_country_bloc');
+    return t(`syn_${key}` as Parameters<typeof t>[0]);
+  };
+  /** "…: SK 2017 · 5 cartas" — the name comes from the data, the label from the language. */
+  const themeLabel = (key: string, line: { theme: string; count: number; exact: boolean } | undefined): string => {
+    if (!line) return '';
+    const name = key === 'theme_country' && line.exact ? countryName(line.theme, $language)
+      : key === 'theme_team' && line.exact ? teamById.get(line.theme)?.name ?? line.theme
+      : line.theme;
+    return `: ${name} · ${line.count} ${t('themeCards')}`;
+  };
   let teamSection: HTMLElement | null = null;
   let shopSection: HTMLElement | null = null;
   let shopTop: HTMLElement | null = null;
@@ -132,7 +148,7 @@
   $: savedPlayers = savedLineup ? savedLineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player)) : [];
   $: savedTeam = (() => {
     if (!savedLineup || savedPlayers.length !== 5) return null;
-    const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style };
+    const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style, coachId: savedLineup.coachId };
     const built = applyCollectionLineup(calculateUserTeamPower(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => toSelectedPlayer(player.id, savedLineup.roles[index])), 'preview'), input);
     const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
     return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
@@ -147,7 +163,7 @@
   ] : [];
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
-  $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : {};
+  $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
   const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
@@ -496,8 +512,9 @@
               {#if synergy.length}
                 <ul class="synergy">
                   {#each synergy as line (line.key)}
+                    {@const theme = line.key.startsWith('theme_') ? themes.find((item) => item.key === line.key) : undefined}
                     <li class:up={line.power > 0 || line.mental > 0 || line.clutch > 0} class:down={line.power < 0 || line.mental < 0 || line.consistency < 0}>
-                      <span>{line.power < 0 || line.mental < 0 || line.consistency < 0 ? '▼' : '▲'} {t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
+                      <span>{line.power < 0 || line.mental < 0 || line.consistency < 0 ? '▼' : '▲'} {line.key.startsWith('theme_') ? themeTitle(line.key, theme) + themeLabel(line.key, theme) : t(`syn_${line.key}` as Parameters<typeof t>[0])}</span>
                       <b>{line.power ? `${line.power > 0 ? '+' : ''}${line.power}% ${t('power').toLowerCase()}` : ''}{line.mental ? ` ${line.mental > 0 ? '+' : ''}${line.mental} mental` : ''}{line.clutch ? ` +${line.clutch} clutch` : ''}{line.consistency ? ` ${line.consistency} cons.` : ''}</b>
                     </li>
                   {/each}
