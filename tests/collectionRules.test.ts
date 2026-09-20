@@ -32,10 +32,11 @@ describe('regras de coins', () => {
     expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * SELL_RATIO));
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
-    expect(matchReward('placementChampion', true)).toBe(1200);
-    expect(matchReward('placementChampion', false)).toBe(600);
-    expect(matchReward('placementRunnerUp', true)).toBe(750);
-    expect(matchReward('placement5to8', true)).toBe(300);
+    expect(matchReward('placementChampion', true)).toBe(2400);
+    expect(matchReward('placementChampion', false)).toBe(1200);
+    expect(matchReward('placementRunnerUp', true)).toBe(1500);
+    expect(matchReward('placement3to4', true)).toBe(1000);
+    expect(matchReward('placement5to8', true)).toBe(600);
     expect(matchReward('placementStage3', true)).toBe(150);
   });
 

@@ -92,8 +92,12 @@ export function coinValue(player: Pick<Player, 'overall' | 'rarity'>): number {
 
 export const sellValue = (player: Pick<Player, 'overall' | 'rarity' | 'role' | 'badges'>) => Math.floor(coinValue(player) * SELL_RATIO);
 
-/** Coins for finishing a run with the collection lineup, by placement in the 16-team field. */
-export const PLACEMENT_COINS: Readonly<Record<string, number>> = { placementChampion: 1200, placementRunnerUp: 750, placement3to4: 500, placement5to8: 300 };
+/**
+ * Coins for finishing a run with the collection lineup, by placement in the 16-team field. The playoffs pay double
+ * what they used to (2026-09-20): reaching them is the hard part, and it is how an account that spends nothing grows.
+ * Going out before the playoffs pays the same as before.
+ */
+export const PLACEMENT_COINS: Readonly<Record<string, number>> = { placementChampion: 2400, placementRunnerUp: 1500, placement3to4: 1000, placement5to8: 600 };
 /** Everyone knocked out before the playoffs (Swiss stage or earlier). */
 export const ELIMINATED_COINS = 150;
 

@@ -189,8 +189,8 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const awards = await db.query<{ kind: string }>('SELECT kind FROM awards ORDER BY kind');
     expect(awards.map((row) => row.kind)).toEqual(['major_title']);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
-    // 1.200 for the title placement + 260 for the major_title award (200 + 30%).
-    expect(wallet.coins).toBe(1200 + 260);
+    // 2.400 for the title placement + 260 for the major_title award (200 + 30%).
+    expect(wallet.coins).toBe(2400 + 260);
     // Three runs a day score: a 3-player runner-up gets half of 7 (rounded up), a 2-player 5th–8th a third of 3.
     await recordMajor(db, { ...event, seed: 'seed-2', lobbySize: 3, entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, now + 60_000);
     await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placement5to8', champion: false }] }, now + 90_000);
