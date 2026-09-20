@@ -162,3 +162,24 @@ Append a `## Resultado` section containing the exact commit hashes, validation c
 git add docs/superpowers/plans/2026-09-20-online-persistent-navigation.md
 git commit -m "docs: registrar validação da navegação online"
 ```
+
+## Resultado
+
+Implementação concluída na branch `feat/online-persistent-navigation`, isolada em `/tmp/cs13a0-online-persistent-navigation` e baseada diretamente em `origin/main` (`77c9c75`). Nenhum arquivo do trabalho paralelo em `feat/poder-de-quadra` foi incorporado.
+
+Commits antes deste registro final:
+
+- `c045dbd` — `docs: definir navegação persistente do online`
+- `974de7d` — `docs: planejar navegação persistente do online`
+- `b7241da` — `feat: manter sessão online entre abas`
+
+Validação executada:
+
+- `npm run check`: passou com 0 erros e 0 avisos.
+- `npm test`: 84 arquivos passaram, 4 foram ignorados; 2.133 testes passaram e 36 foram ignorados.
+- `npm run build`: passou; o aviso já existente de chunks acima de 500 kB permaneceu.
+- `npm run server:build`: passou.
+- Chromium headless/CDP: `/online -> /online/colecao -> /online/store -> /online/conta -> /online` preservou o mesmo marcador em `window`, provando navegação sem reload; todas as páginas tinham conteúdo, sem overlay e sem exceções no console.
+- Runtime autenticado: coberto por testes com transporte e cliente injetados, incluindo heartbeat único, cancelamento explícito, conexão única ao encontrar partida, preservação ao desmontar a tela e buffer de live updates. Não foi usada uma conta real no preview local.
+
+Decisão registrada no vault canônico como `knowledge/adrs/adr-0009-cs13a0-online-navigation-keeps-a-single-client-runtime.md`.
