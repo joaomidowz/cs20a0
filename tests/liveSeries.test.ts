@@ -210,10 +210,12 @@ describe('escala de poder do dia de jogo', () => {
     expect(bots(112, 134, 'classic').adjustedA.power).toBe(series.adjustedA.power);
   });
 
-  it("em 'court' nada é cortado: 112 e 134 deixam de jogar idênticos", () => {
+  it("em 'court' nada é cortado: times acima de 110 deixam de jogar idênticos, e ninguém chega a 100", () => {
     const series = bots(112, 134, 'court');
     expect(series.adjustedB.power).toBeGreaterThan(series.adjustedA.power + 1.5);
-    expect(series.adjustedB.power).toBeLessThan(101);
+    // 121 é a melhor line montável; nem ela, nem num dia bom, nem com a pressão de uma final, passa muito de 100.
+    const best = bots(106, 121, 'court');
+    expect(best.adjustedB.power).toBeLessThan(100.5);
   });
 
   it('abaixo do joelho a escala nova não muda nenhuma série: só renomeia os números', () => {

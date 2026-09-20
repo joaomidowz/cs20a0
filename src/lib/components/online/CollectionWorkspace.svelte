@@ -20,7 +20,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, cardEffects, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -30,7 +30,6 @@
   import { getRoleLabel } from '$lib/game/roleRules';
   import { countryName } from '$lib/game/visuals/flags';
   import { powerRating, powerRatingDelta } from '$lib/game/powerRating';
-  import { calculateUserTeamPower } from '$lib/game/simulation';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
@@ -119,7 +118,7 @@
   $: starOk = complete && isStarEffective(lineupPlayers, starPlayerId, lineupRoles);
   /** The star is set but plays support or pure IGL: it cannot carry the team from there. */
   $: starRoleBlocked = complete && Boolean(starPlayerId) && !starRoleAllowed(lineupRoles[lineupPlayers.findIndex((player) => player.id === starPlayerId)]);
-  $: baseTeam = complete ? calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => toSelectedPlayer(player.id, lineupRoles[index])), 'preview') : null;
+  $: baseTeam = complete ? collectionBaseTeam(lineupPlayers, style, lineupPlayers.map((player, index) => toSelectedPlayer(player.id, lineupRoles[index])), 'preview') : null;
   $: synergized = baseTeam ? applyCollectionLineup(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : null;
   $: readyStyle = styleReady({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style });
   $: themes = complete ? themeOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : [];
@@ -158,7 +157,7 @@
   $: savedTeam = (() => {
     if (!savedLineup || savedPlayers.length !== 5) return null;
     const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style, coachId: savedLineup.coachId };
-    const built = applyCollectionLineup(calculateUserTeamPower(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => toSelectedPlayer(player.id, savedLineup.roles[index])), 'preview'), input);
+    const built = applyCollectionLineup(collectionBaseTeam(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => toSelectedPlayer(player.id, savedLineup.roles[index])), 'preview'), input);
     const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
     return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
   })();

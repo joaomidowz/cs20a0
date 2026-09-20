@@ -16,9 +16,12 @@
 /** Raw power up to here counts in full. */
 export const COURT_KNEE = 104;
 /** Above the knee, how much of each extra raw point reaches the court. */
-export const COURT_SLOPE = 0.12;
-/** Subtracted everywhere so the strongest lineup on its best day stays under 100. Outcome-neutral. */
-export const COURT_SHIFT = 10;
+export const COURT_SLOPE = 0.15;
+/**
+ * Subtracted everywhere so the scale tops out just under 100: the strongest lineup that can be built reads about 98
+ * and reaches about 99.6 on its best day (pinned by `tests/powerRating.test.ts`). Outcome-neutral.
+ */
+export const COURT_SHIFT = 8.5;
 /** Raw power never goes below this before the curve (the floor `getMatchDayPower` has always had). */
 export const COURT_RAW_FLOOR = 45;
 

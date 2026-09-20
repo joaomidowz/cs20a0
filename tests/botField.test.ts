@@ -1,8 +1,9 @@
 // tests/botField.test.ts
 // Campo de bots do online: buff por colocação em Major, campeões garantidos e as zebras da run.
+import { courtPower } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
-import { BOT_PLACEMENT_BUFF, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
+import { BOT_PLACEMENT_COURT, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { HistoricalTeam } from '../src/lib/game/types';
 
@@ -21,15 +22,16 @@ describe('buff por colocação', () => {
   });
 
   it('desce de campeão até quem nunca passou do top 8, e é moderado', () => {
-    const { champion, finalist, semifinal, top8, none } = BOT_PLACEMENT_BUFF;
+    const { champion, finalist, semifinal, top8, none } = BOT_PLACEMENT_COURT;
     expect(champion).toBeGreaterThan(finalist);
     expect(finalist).toBeGreaterThan(semifinal);
     expect(semifinal).toBeGreaterThan(top8);
     expect(top8).toBeGreaterThan(none);
     expect(none).toBe(0);
-    // Dois pontos de poder já são 67/33 numa MD3: acima de 5% o campeão encosta no teto do dia de jogo e vira cara ou coroa.
-    expect(champion).toBeLessThanOrEqual(0.05);
-    expect(botFieldPower(100, team({ titles: 1 }), false)).toBeCloseTo(104, 10);
+    // Dois pontos de quadra já são 67/33 numa MD3: o campeão fica um degrau acima, não vira cara ou coroa.
+    expect(champion).toBeLessThanOrEqual(2);
+    // Em pontos de quadra o buff é o mesmo para o campeão forte (acima do joelho) e para o fraco (abaixo dele).
+    for (const power of [94, 100, 106]) expect(courtPower(botFieldPower(power, team({ titles: 1 }), false)) - courtPower(power)).toBeCloseTo(champion, 9);
     expect(botFieldPower(100, team(null), false)).toBe(100);
   });
 });
@@ -52,7 +54,7 @@ describe('zebra', () => {
   it('o gás é de 20%, travado: perigosa, não monstro, e nunca enfraquece o time', () => {
     const underdog = team(null);
     expect(botFieldPower(80, underdog, true)).toBeCloseTo(80 * (1 + ZEBRA_BOOST), 10);
-    expect(botFieldPower(100, underdog, true)).toBe(ZEBRA_POWER_CAP);
+    expect(botFieldPower(ZEBRA_POWER_CAP - 2, underdog, true)).toBe(ZEBRA_POWER_CAP);
     expect(botFieldPower(ZEBRA_POWER_CAP + 3, underdog, true)).toBe(ZEBRA_POWER_CAP + 3);
   });
 });

@@ -1,3 +1,4 @@
+import { addCourtPoints } from '../courtPower';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -15,10 +16,11 @@ import type { HistoricalTeam, Player } from '../types';
 export type BotPlacement = 'champion' | 'finalist' | 'semifinal' | 'top8' | 'none';
 
 /**
- * Power buff by placement. Measured against the average champion: a lineup at the match-day ceiling goes from 94% to
- * about 70% in a best-of-three, a mid lineup (104) from 63% to about 30%. Farming the champion is over; beating it is not.
+ * Buff by placement, in court points (`courtPower.ts`): a percentage would shrink to nothing above the curve's knee,
+ * where the champions live, and leave them half a point above an ordinary bot. Tuned so a well-built lineup beats the
+ * average champion about three times in four, as it did under the old cut at 110: beatable, never a farm.
  */
-export const BOT_PLACEMENT_BUFF: Readonly<Record<BotPlacement, number>> = { champion: 0.04, finalist: 0.03, semifinal: 0.02, top8: 0.01, none: 0 };
+export const BOT_PLACEMENT_COURT: Readonly<Record<BotPlacement, number>> = { champion: 0.7, finalist: 0.5, semifinal: 0.35, top8: 0.2, none: 0 };
 
 /** An underdog is a team whose five average this overall or more... */
 export const UNDERDOG_MIN_OVERALL = 80;
@@ -33,8 +35,8 @@ export const ZEBRAS_MAX = 3;
  * lineup. At +20% it wins about 15% of them, is a coin flip against a mid lineup and beats a buffed champion one time in four.
  */
 export const ZEBRA_BOOST = 0.2;
-/** A zebra is dangerous, not a monster: the strongest underdogs would otherwise reach the match-day ceiling. */
-export const ZEBRA_POWER_CAP = 105;
+/** A zebra is dangerous, not a monster: capped around the level of a Major champion, below the best lineups. */
+export const ZEBRA_POWER_CAP = 103;
 /** Champions every full field has at least (a sixteen-team run); smaller fields scale it down. */
 export const GUARANTEED_CHAMPIONS = 2;
 
@@ -95,5 +97,5 @@ export function planBotField(input: { shuffled: readonly HistoricalTeam[]; playe
 /** Power a bot takes to the run: its placement buff, or the zebra boost (capped) when the run made it one. */
 export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean): number {
   if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
-  return basePower * (1 + BOT_PLACEMENT_BUFF[botPlacementOf(team)]);
+  return addCourtPoints(basePower, BOT_PLACEMENT_COURT[botPlacementOf(team)]);
 }

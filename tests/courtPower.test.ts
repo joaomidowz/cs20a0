@@ -30,9 +30,9 @@ describe('poder de quadra', () => {
   });
 
   it('nunca chega a 100: nem a melhor line possível no melhor dia', () => {
-    // 139,1 é a melhor line montável hoje (tests/powerRating.test.ts); 1,085 é o melhor dia de um plano agressivo.
-    expect(courtMatchDay(139.1, 1.085)).toBeLessThan(100);
-    expect(courtMatchDay(139.1, 1.085)).toBeGreaterThan(97);
+    // ~121 é a melhor line montável (a busca completa fica em tests/powerRating.test.ts); 1,085 é o melhor dia de um agressivo.
+    expect(courtMatchDay(121.5, 1.085)).toBeLessThan(100);
+    expect(courtMatchDay(121.5, 1.085)).toBeGreaterThan(98.5);
   });
 
   it('o dia de jogo aplica a curva sobre poder × multiplicador, com o piso de sempre', () => {

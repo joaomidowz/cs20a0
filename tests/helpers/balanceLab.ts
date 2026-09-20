@@ -2,16 +2,15 @@
 // Laboratório de equilíbrio: monta as lines de referência pela MESMA cadeia que o servidor usa e joga séries de verdade.
 // Tudo que decide "o jogo está justo?" passa por aqui, para a resposta sair do motor e não de uma fórmula.
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../../src/lib/game/online/collection-pool';
-import { applyCollectionLineup, toSelectedPlayer, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
+import { applyCollectionLineup, collectionBaseTeam, toSelectedPlayer, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { botFieldPower } from '../../src/lib/game/online/bot-field';
 import { createLiveSeries, runSeriesToEnd, toSeriesResult, type PowerScale } from '../../src/lib/game/online/live-series';
 import { createBotMapStrategy, createUserMapStrategy, type MapStrategy } from '../../src/lib/game/map-veto';
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import { applyCoachToTeam, coachAffinity } from '../../src/lib/game/dynasty/coach';
-import { calculateHistoricalTeamPower, calculateUserTeamPower } from '../../src/lib/game/simulation';
+import { calculateHistoricalTeamPower } from '../../src/lib/game/simulation';
 import { players as corePlayers, teams as coreTeams } from '../../server/data';
-import type { Roster } from '../../src/lib/game/rounds';
-import type { CombatTeam, HistoricalTeam, MapId, OrgStyle, Player } from '../../src/lib/game/types';
+import type { CombatTeam, HistoricalTeam, MapId, OrgStyle, Player, Roster } from '../../src/lib/game/types';
 
 export interface LabBuild {
   name: string;
@@ -38,7 +37,7 @@ const cardsOf = (build: LabBuild): Player[] => build.ids.map((id) => {
 export function labLineup(build: LabBuild): LabSide {
   const cards = cardsOf(build);
   const lineup = cards.map((player, index) => toSelectedPlayer(player.id, build.roles[index]));
-  const base = calculateUserTeamPower(cards, build.style, lineup, build.name);
+  const base = collectionBaseTeam(cards, build.style, lineup, build.name);
   const synergized = applyCollectionLineup(base, { players: cards, roles: build.roles, starPlayerId: build.star, style: build.style, coachId: build.coachId });
   const coach = build.coachId ? collectionCoachById.get(build.coachId) : undefined;
   const team = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
@@ -90,9 +89,14 @@ export function winRate(a: LabSide, b: LabSide, scale: PowerScale, series = 500)
 
 /** The reference lineups every balance decision is measured on. Card ids are pinned: a dataset change fails loudly. */
 export const LAB = {
-  goatsThrown: { name: 'goats-jogados', ids: ['s1mple-2021', 'donk-2024', 'coldzera-2017', 'zywoo-2023', 'niko-2017'], roles: ['awper', 'rifler', 'rifler', 'awper', 'rifler'], style: 'balanced', star: null, coachId: null },
+  /** The same five cards as `goatsBuilt`, every role filled, but no thought: any plan, no star, no coach. */
+  goatsLazy: { name: 'goats-preguicosos', ids: ['fallen-2019', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'], roles: ['igl', 'awper', 'awper', 'entry', 'support'], style: 'balanced', star: null, coachId: null },
+  /** `goatsLazy` with the caller swapped for another 98 rifler: the only thing missing is an IGL. */
+  goatsLazyNoIgl: { name: 'goats-preguicosos-sem-igl', ids: ['niko-2017', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'], roles: ['rifler', 'awper', 'awper', 'entry', 'support'], style: 'balanced', star: null, coachId: null },
+  /** Four 99s and a 98 thrown together: no caller, no support, no star, no coach. The owner's "5 GOATs sem IGL". */
+  goatsNoIgl: { name: 'goats-sem-igl', ids: ['s1mple-2021', 'donk-2024', 'coldzera-2017', 'zywoo-2023', 'niko-2017'], roles: ['awper', 'rifler', 'rifler', 'awper', 'rifler'], style: 'balanced', star: null, coachId: null },
   goatsBuilt: { name: 'goats-montados', ids: ['fallen-2019', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'], roles: ['igl', 'awper', 'awper', 'entry', 'support'], style: 'aggressive', star: 'donk-2024', coachId: 'coach-natus-vincere-2021' },
-  superstarsBuilt: { name: 'superstars-montados', ids: ['gla1ve-2021', 'molodoy-2026', 'yekindar-2026', 'niko-2026', 'rpk-2019'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'aggressive', star: 'yekindar-2026', coachId: null },
+  superstarsBuilt: { name: 'superstars-montados', ids: ['gla1ve-2021', 'molodoy-2026', 'yekindar-2026', 'niko-2026', 'rpk-2019'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'aggressive', star: 'yekindar-2026', coachId: 'coach-natus-vincere-2021' },
   superstarsThrown: { name: 'superstars-jogados', ids: ['gla1ve-2021', 'molodoy-2026', 'yekindar-2026', 'niko-2026', 'rpk-2019'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
   beginner: { name: 'iniciante', ids: ['graviti-2026', 'maka-2026', 'grim-2026', 'ex3rcice-2026', 'sjuush-2026'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
   ownerSk: { name: 'sk-do-dono', ids: ['taco-2016', 'fallen-2017', 'coldzera-2017', 'fer-2017', 'fnx-2016'], roles: ['entry', 'awper-igl', 'rifler', 'lurker', 'support'], style: 'aggressive', star: 'coldzera-2017', coachId: 'coach-sk-2017' }
