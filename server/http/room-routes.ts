@@ -1,6 +1,7 @@
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
+import { toSelectedPlayer } from '../../src/lib/game/online/collection-lineup';
 import { awardsOf, currentStandings, lastSeasonPodium, majorResult, publicProfile, roomRewards } from '../collection/seasons';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
@@ -20,7 +21,7 @@ async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
   if (selected.length !== 5) throw new HttpError(409, 'INVALID_LINEUP', 'Time incompleto');
   return {
     userId,
-    lineup: lineup.playerIds.map((playerId, index) => ({ playerId, selectedSlotRole: lineup.roles[index] })),
+    lineup: lineup.playerIds.map((playerId, index) => toSelectedPlayer(playerId, lineup.roles[index])),
     style: lineup.style,
     starPlayerId: lineup.starEffective ? lineup.starPlayerId : null,
     coachId: lineup.coachId,

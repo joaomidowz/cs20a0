@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
-import { applyCollectionLineup, cardEffects, isStarEffective, primaryRoleOf, synergyOf, validateLineup } from '../src/lib/game/online/collection-lineup';
+import { STAR_ROLE_BONUS, aggressivePlanBonus, applyCollectionLineup, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
-import type { LineupSlotRole, Player } from '../src/lib/game/types';
+import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
 
 describe('regras de coins', () => {
   it('odds somam 100 em cada carta de cada pacote; GOAT é raro fora do Ícone', () => {
@@ -156,6 +156,85 @@ describe('lineup da coleção', () => {
     expect(lit[pick('support').id]).toBe('up');
     const check = validateLineup({ players: lineup, roles, starPlayerId: 'nao-existe' }, lookup);
     expect(check.problems).toContain('STAR_NOT_IN_LINEUP');
+  });
+
+  it('suporte e IGL puro não podem ser star; o AWPer-IGL pode', () => {
+    for (const role of ['support', 'igl'] as const) {
+      const star = pick(role);
+      const strong = lineup.map((player) => (player.id === star.id ? { ...player, overall: 95 } : player));
+      expect(isStarEffective(strong, star.id)).toBe(true);
+      expect(isStarEffective(strong, star.id, roles)).toBe(false);
+      expect(synergyOf({ players: strong, roles, starPlayerId: star.id }).some((line) => line.key.startsWith('star'))).toBe(false);
+      expect(validateLineup({ players: strong, roles, starPlayerId: star.id }, lookup).starEffective).toBe(false);
+    }
+  });
+
+  it('AWPer-IGL ocupa as duas funções com metade do bônus e vira o pick duplo do motor', () => {
+    const hybrid = players.find((player) => eligibleRolesOf(player).includes('awper-igl') && (player.igl ?? 0) >= 75)!;
+    expect(hybrid).toBeTruthy();
+    expect(eligibleRolesOf(pick('entry'))).not.toContain('awper-igl');
+    const others = distinct([hybrid, ...byRole('entry', 3), ...byRole('lurker', 3), ...byRole('support', 3), ...byRole('rifler', 3)]).filter((player) => player.id !== hybrid.id);
+    const team = [hybrid, others.find((player) => primaryRoleOf(player) === 'entry')!, others.find((player) => primaryRoleOf(player) === 'lurker')!, others.find((player) => primaryRoleOf(player) === 'support')!, others.find((player) => primaryRoleOf(player) === 'rifler')!];
+    const teamRoles = ['awper-igl', 'entry', 'lurker', 'support', 'rifler'] as const;
+    const input = { players: team, roles: [...teamRoles], starPlayerId: null };
+    expect(validateLineup(input, lookup).ok).toBe(true);
+    // Um rifler puro não pode ocupar o slot híbrido.
+    expect(validateLineup({ ...input, roles: ['awper-igl', 'entry', 'lurker', 'support', 'awper-igl'] }, lookup).ok).toBe(eligibleRolesOf(team[4]).includes('awper-igl'));
+    const keys = synergyOf(input).map((line) => line.key);
+    expect(keys).toContain('igl_hybrid');
+    expect(keys).not.toEqual(expect.arrayContaining(['igl_one']));
+    expect(keys).not.toEqual(expect.arrayContaining(['igl_none']));
+    expect(keys).not.toEqual(expect.arrayContaining(['awp_none']));
+    expect(synergyOf(input).find((line) => line.key === 'igl_hybrid')!.mental).toBe(0.75);
+    expect(styleReady({ ...input, style: 'tactical' })).toBe(true);
+    expect(toSelectedPlayer(hybrid.id, 'awper-igl')).toEqual({ playerId: hybrid.id, selectedSlotRole: 'awper', secondarySlotRole: 'igl' });
+    expect(collectionRoleOf(toSelectedPlayer(hybrid.id, 'awper-igl'))).toBe('awper-igl');
+    expect(collectionRoleOf(toSelectedPlayer(hybrid.id, 'awper'))).toBe('awper');
+    // Star no híbrido vale, com metade da linha de AWPer (tático: 3 × 1,2 de escala aos 92 × 0,5 = 1,75 arredondado em 0,25).
+    const star = { ...hybrid, overall: 92 };
+    const starred = { players: [star, ...team.slice(1)], roles: [...teamRoles], starPlayerId: star.id, style: 'tactical' as const };
+    const lines = Object.fromEntries(synergyOf(starred).map((line) => [line.key, line.power]));
+    expect(lines).toMatchObject({ star: 2, star_awper_igl: 1.75 });
+    // Só de AWPer o time fica sem caller: o tático não roda e o star cai na linha do equilibrado (1,5 × 1,2).
+    const pure = Object.fromEntries(synergyOf({ ...starred, roles: ['awper', 'entry', 'lurker', 'support', 'rifler'] }).map((line) => [line.key, line.power]));
+    expect(pure).toMatchObject({ style_tactical_off: -2, star_awper: 1.75 });
+  });
+
+  it('boost do star: toda função ganha em todo plano, cada uma com o seu, escalado pelo overall', () => {
+    const starLine = (role: 'awper' | 'entry' | 'rifler' | 'lurker', style: OrgStyle, overall = 90) => {
+      const star = { ...pick(role === 'rifler' ? 'lurker' : role), overall };
+      const slot = lineup.findIndex((player) => player.id === star.id);
+      const teamRoles = roles.map((item, index) => (index === slot ? role : item));
+      // Os outros ficam abaixo do star (ele é top-2 mesmo aos 84) e o IGL chama bem: todo plano roda.
+      const team = lineup.map((player) => (player.id === star.id ? star : { ...player, overall: 80, igl: player.id === pick('igl').id ? 90 : player.igl }));
+      const lines = synergyOf({ players: team, roles: teamRoles, starPlayerId: star.id, style });
+      expect(lines.find((line) => line.key === 'star')?.power).toBe(2);
+      return lines.find((line) => line.key === `star_${role}`)!.power;
+    };
+    for (const role of ['awper', 'entry', 'rifler', 'lurker'] as const) {
+      for (const style of ['aggressive', 'balanced', 'tactical'] as const) {
+        expect(starLine(role, style)).toBe(STAR_ROLE_BONUS[role][style]);
+        expect(starLine(role, style)).toBeGreaterThan(0);
+        expect(starLine(role, style, 96)).toBeGreaterThan(starLine(role, style, 90));
+        expect(starLine(role, style, 84)).toBeLessThan(starLine(role, style, 90));
+      }
+    }
+    // Cada função tem o seu plano: entry no agressivo, rifler no equilibrado, AWPer e lurker no tático.
+    const bestStyle = (role: 'awper' | 'entry' | 'rifler' | 'lurker') => (['aggressive', 'balanced', 'tactical'] as const).reduce((best, style) => (STAR_ROLE_BONUS[role][style] > STAR_ROLE_BONUS[role][best] ? style : best));
+    expect([bestStyle('entry'), bestStyle('rifler'), bestStyle('awper'), bestStyle('lurker')]).toEqual(['aggressive', 'balanced', 'tactical', 'tactical']);
+    expect([starScale(80), starScale(85), starScale(90), starScale(95), starScale(99)]).toEqual([0.5, 0.5, 1, 1.5, 1.5]);
+  });
+
+  it('plano agressivo cresce com o entry: fraco perde do tático, entry de elite passa', () => {
+    const withEntry = (entry: number) => ({ players: lineup.map((player) => (player.id === pick('entry').id ? { ...player, entry } : player)), roles, starPlayerId: null, style: 'aggressive' as const });
+    expect(aggressivePlanBonus(withEntry(70))).toBe(6);
+    expect(aggressivePlanBonus(withEntry(85))).toBe(10);
+    expect(aggressivePlanBonus(withEntry(95))).toBe(14);
+    expect(aggressivePlanBonus(withEntry(99))).toBe(14);
+    expect(synergyOf(withEntry(95)).find((line) => line.key === 'style_aggressive')?.power).toBe(14);
+    // Sem entry o plano não roda e o star cai na linha do equilibrado.
+    const noEntry = synergyOf({ ...withEntry(95), roles: ['igl', 'awper', 'rifler', 'lurker', 'support'] });
+    expect(noEntry.find((line) => line.key === 'style_aggressive_off')?.power).toBe(-1);
   });
 });
 

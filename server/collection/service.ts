@@ -1,9 +1,9 @@
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
-import { validateLineup } from '../../src/lib/game/online/collection-lineup';
+import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
-import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
+import type { MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
 import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3 } from './time';
@@ -38,7 +38,7 @@ export interface CollectionView {
 
 export interface LineupView {
   playerIds: string[];
-  roles: LineupSlotRole[];
+  roles: CollectionSlotRole[];
   starPlayerId: string | null;
   coachId: string | null;
   style: OrgStyle;
@@ -53,8 +53,8 @@ const LINEUP_COLUMNS = 'player_ids, roles, star_player_id, coach_id, style, map_
 const lineupView = (row: LineupRow | undefined): LineupView | null => {
   if (!row) return null;
   const chosen = row.player_ids.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
-  const check = validateLineup({ players: chosen, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
-  return { playerIds: row.player_ids, roles: row.roles as LineupSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective,
+  const check = validateLineup({ players: chosen, roles: row.roles as CollectionSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
+  return { playerIds: row.player_ids, roles: row.roles as CollectionSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective,
     // Maps saved for another five (a card sold since) fall back to the default.
     mapPreferences: row.map_preferences && isValidLineupMapSelection(row.map_preferences, chosen, collectionTeams) ? row.map_preferences : null };
 };
@@ -225,7 +225,7 @@ export async function sellPlayer(db: Db, userId: string, playerId: string): Prom
 
 export interface LineupInput {
   playerIds: string[];
-  roles: LineupSlotRole[];
+  roles: CollectionSlotRole[];
   starPlayerId: string | null;
   coachId: string | null;
   style: OrgStyle;

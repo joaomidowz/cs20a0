@@ -2,8 +2,7 @@
   import { onMount } from 'svelte';
   import CollectionCard from './CollectionCard.svelte';
   import { coinValue, rarityOf, sellValue } from '$lib/game/online/collection-rules';
-  import { eligibleRolesOf } from '$lib/game/online/collection-lineup';
-  import { getRoleLabel } from '$lib/game/roleRules';
+  import { collectionRoleLabel, eligibleRolesOf } from '$lib/game/online/collection-lineup';
   import type { Language, Player } from '$lib/game/types';
 
   /** Card details in the collection: the big card on the left, every attribute, roles, awards and value on the right. */
@@ -35,7 +34,7 @@
         {/each}
       </ul>
       <h3>{labels.roles}</h3>
-      <p class="cs-chips">{#each eligibleRolesOf(player) as role}<span>{getRoleLabel(role)}</span>{/each}</p>
+      <p class="cs-chips">{#each eligibleRolesOf(player) as role}<span>{collectionRoleLabel(role)}</span>{/each}</p>
       {#if awards.length}
         <h3>{labels.awards}</h3>
         <p class="cs-chips gold">{#each awards as award}<span>{award}</span>{/each}</p>

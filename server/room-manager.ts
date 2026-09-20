@@ -71,10 +71,10 @@ import {
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
-import { applyCollectionLineup } from '../src/lib/game/online/collection-lineup';
+import { applyCollectionLineup, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
-import type { LineupSlotRole, SelectedPlayer } from '../src/lib/game/types';
+import type { SelectedPlayer } from '../src/lib/game/types';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
@@ -1332,7 +1332,7 @@ export class RoomManager {
       : selected;
     const built: CombatTeam = calculateUserTeamPower(runPlayers, style, participant.draft.lineup, participant.id);
     const synergized = participant.prepared
-      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map((pick) => pick.selectedSlotRole as LineupSlotRole), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style })
+      ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map(collectionRoleOf), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style })
       : built;
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
     const base = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;

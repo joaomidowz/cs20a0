@@ -4,7 +4,7 @@ import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineu
 import type { Db } from '../db/client';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
-const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
+const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler', 'awper-igl']);
 const buySchema = z.object({ tier: z.enum(['prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional() });
 const freeSchema = z.object({ tier: z.enum(['prata', 'ouro']) });
 const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']) });

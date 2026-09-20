@@ -20,7 +20,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
-  import { applyCollectionLineup, cardEffects, eligibleRolesOf, isStarEffective, styleReady, synergyOf, primaryRoleOf } from '$lib/game/online/collection-lineup';
+  import { applyCollectionLineup, cardEffects, collectionRoleLabel, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -76,7 +76,7 @@
 
   // Lineup builder.
   let slots: Array<Player | null> = [null, null, null, null, null];
-  let roles: Array<LineupSlotRole | null> = [null, null, null, null, null];
+  let roles: Array<CollectionSlotRole | null> = [null, null, null, null, null];
   let starPlayerId: string | null = null;
   let style: OrgStyle = 'balanced';
   let eraYear = YEARS.at(-1) ?? 2026;
@@ -112,10 +112,12 @@
     .sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0));
   $: complete = slots.every(Boolean) && roles.every(Boolean);
   $: lineupPlayers = slots.filter((slot): slot is Player => Boolean(slot));
-  $: lineupRoles = roles.filter((role): role is LineupSlotRole => Boolean(role));
+  $: lineupRoles = roles.filter((role): role is CollectionSlotRole => Boolean(role));
   $: synergy = complete ? synergyOf({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : [];
-  $: starOk = complete && isStarEffective(lineupPlayers, starPlayerId);
-  $: baseTeam = complete ? calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => ({ playerId: player.id, selectedSlotRole: lineupRoles[index] })), 'preview') : null;
+  $: starOk = complete && isStarEffective(lineupPlayers, starPlayerId, lineupRoles);
+  /** The star is set but plays support or pure IGL: it cannot carry the team from there. */
+  $: starRoleBlocked = complete && Boolean(starPlayerId) && !starRoleAllowed(lineupRoles[lineupPlayers.findIndex((player) => player.id === starPlayerId)]);
+  $: baseTeam = complete ? calculateUserTeamPower(lineupPlayers, style, lineupPlayers.map((player, index) => toSelectedPlayer(player.id, lineupRoles[index])), 'preview') : null;
   $: synergized = baseTeam ? applyCollectionLineup(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style }) : null;
   $: readyStyle = styleReady({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style });
   let teamSection: HTMLElement | null = null;
@@ -131,7 +133,7 @@
   $: savedTeam = (() => {
     if (!savedLineup || savedPlayers.length !== 5) return null;
     const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style };
-    const built = applyCollectionLineup(calculateUserTeamPower(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => ({ playerId: player.id, selectedSlotRole: savedLineup.roles[index] })), 'preview'), input);
+    const built = applyCollectionLineup(calculateUserTeamPower(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => toSelectedPlayer(player.id, savedLineup.roles[index])), 'preview'), input);
     const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
     return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
   })();
@@ -255,7 +257,7 @@
 
   /** Fast swap: a card waiting for the slot it takes. */
   let swapIn: Player | null = null;
-  const roleFor = (player: Player): LineupSlotRole => { const eligible = eligibleRolesOf(player); return eligible.includes(primaryRoleOf(player)) ? primaryRoleOf(player) : eligible[0] ?? 'rifler'; };
+  const roleFor = (player: Player): CollectionSlotRole => { const eligible = eligibleRolesOf(player); return eligible.includes(primaryRoleOf(player)) ? primaryRoleOf(player) : eligible[0] ?? 'rifler'; };
 
   function startSwap(player: Player) {
     swapIn = player;
@@ -417,7 +419,7 @@
                   <div class="slot-row">
                     <MiniCard id={slot.id} layout="row" star={slot.id === starPlayerId && starOk} onClick={() => detailsPlayer = slot} />
                     <div class="row-actions">
-                      <select aria-label={t('role')} value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select>
+                      <select aria-label={t('role')} value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as CollectionSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{collectionRoleLabel(role)}</option>{/each}</select>
                       <div class="row-buttons">
                         <button class="icon" type="button" class:active={slot.id === starPlayerId} aria-pressed={slot.id === starPlayerId} aria-label={`${t('star')}: ${slot.nickname ?? slot.id}`} title={t('star')} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★</button>
                         <button class="icon" type="button" aria-label={`${u('replace')}: ${slot.nickname ?? slot.id}`} title={u('replace')} on:click={() => openSlot(index)}>⇄</button>
@@ -428,10 +430,10 @@
                   {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')} {slot.nickname ?? slot.id}</button>{/if}
                   <div class="slot-desk">
                     <button class="secondary small" type="button" on:click={() => openSlot(index)}>{u('replace')}</button>
-                    <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as LineupSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+                    <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as CollectionSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{collectionRoleLabel(role)}</option>{/each}</select></label>
                   </div>
                   <p class="slot-notes">
-                    {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : t('noteStarOff')}</span>{/if}
+                    {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : starRoleBlocked ? t('starRoleBlocked') : t('noteStarOff')}</span>{/if}
                   </p>
                 {:else}
                   {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')}</button>{/if}
@@ -441,7 +443,7 @@
             {/each}
           </div>
           <p class="note">{t('starHint')}</p>
-          {#if starPlayerId && complete && !starOk}<p class="warn">{t('starInactive')}</p>{/if}
+          {#if starPlayerId && complete && !starOk}<p class="warn">{starRoleBlocked ? t('starRoleBlocked') : t('starInactive')}</p>{/if}
 
           <div class="details">
             <div class="detail-box coach-slot">

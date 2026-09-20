@@ -1,4 +1,4 @@
-import { getEligibleSlotRoles, validatePlayerPick } from '../roleRules';
+import { getEligibleSlotRoles, getRoleLabel, validatePlayerPick } from '../roleRules';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
 /**
@@ -8,9 +8,63 @@ import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } fro
  */
 export const STAR_MIN_OVERALL = 85;
 
+/** The hybrid slot: one card holds the AWP and calls the game. It fills both roles, at HYBRID_BONUS_RATIO of their bonuses. */
+export const AWPER_IGL = 'awper-igl';
+export type CollectionSlotRole = LineupSlotRole | typeof AWPER_IGL;
+export const HYBRID_BONUS_RATIO = 0.5;
+
+/**
+ * Star bonus (% of power, on top of the flat `star` line) by the role the star plays and the plan, for a 90-overall star:
+ * every role gains under every plan, and each one has the plan that suits it (entry → aggressive, rifler → balanced,
+ * AWPer and lurker → tactical). `starScale` stretches it by the star's overall; the AWPer-IGL gets the AWPer row at
+ * HYBRID_BONUS_RATIO.
+ */
+export const STAR_ROLE_BONUS: Readonly<Record<'awper' | 'entry' | 'rifler' | 'lurker', Readonly<Record<OrgStyle, number>>>> = {
+  awper: { aggressive: 2, balanced: 1.5, tactical: 3 },
+  entry: { aggressive: 3, balanced: 1.5, tactical: 1 },
+  rifler: { aggressive: 1.5, balanced: 2.5, tactical: 1.5 },
+  lurker: { aggressive: 1, balanced: 1.5, tactical: 2 }
+};
+/** Half of the role bonus up to 85 overall, all of it at 90, one and a half from 95 on. */
+export const starScale = (overall: number): number => Math.max(0.5, Math.min(1.5, (overall - 80) / 10));
+
+/**
+ * Plan bonuses (% of power). The simulation already favours the tactical plan (×1.10, balanced ×1.05, aggressive ×1),
+ * so the collection evens it out here: balanced gets a flat lift and the aggressive plan grows with its entry, from
+ * AGGRESSIVE_PLAN_MIN at 75 of the entry attribute to AGGRESSIVE_PLAN_MAX at 95. A really good entry beats a tactical team.
+ */
+export const BALANCED_PLAN_BONUS = 6;
+export const TACTICAL_PLAN_BONUS = 3;
+export const AGGRESSIVE_PLAN_MIN = 6;
+export const AGGRESSIVE_PLAN_MAX = 14;
+const quarter = (value: number) => Math.round(value * 4) / 4;
+
+/** Aggressive plan bonus from the best entry of the lineup. */
+export function aggressivePlanBonus(input: CollectionLineupInput): number {
+  const best = Math.max(0, ...input.players.filter((_, index) => input.roles[index] === 'entry').map((player) => player.entry ?? 0));
+  const quality = Math.max(0, Math.min(1, (best - 75) / 20));
+  return quarter(AGGRESSIVE_PLAN_MIN + (AGGRESSIVE_PLAN_MAX - AGGRESSIVE_PLAN_MIN) * quality);
+}
+
+/** Engine roles a collection slot fills ("awper-igl" → awper and igl). */
+export const slotRolesOf = (role: CollectionSlotRole): LineupSlotRole[] => (role === AWPER_IGL ? ['awper', 'igl'] : [role]);
+
+/** The pick the simulation understands: the hybrid is an AWPer with IGL as the secondary role. */
+export const toSelectedPlayer = (playerId: string, role: CollectionSlotRole): SelectedPlayer =>
+  role === AWPER_IGL ? { playerId, selectedSlotRole: 'awper', secondarySlotRole: 'igl' } : { playerId, selectedSlotRole: role };
+
+/** Back from a simulation pick to the collection slot role. */
+export const collectionRoleOf = (pick: SelectedPlayer): CollectionSlotRole =>
+  pick.selectedSlotRole === 'awper' && pick.secondarySlotRole === 'igl' ? AWPER_IGL : pick.selectedSlotRole;
+
+export const collectionRoleLabel = (role: CollectionSlotRole): string => slotRolesOf(role).map(getRoleLabel).join(' · ');
+
+/** The star carries the team with frags: a support or a pure IGL cannot be the star (an AWPer-IGL can). */
+export const starRoleAllowed = (role: CollectionSlotRole | undefined): boolean => role !== 'support' && role !== 'igl';
+
 export interface CollectionLineupInput {
   players: Player[];
-  roles: LineupSlotRole[];
+  roles: CollectionSlotRole[];
   starPlayerId: string | null;
   /** Game plan: balanced is free, aggressive needs an entry, tactical needs a real caller and a support (and pays the most). */
   style?: OrgStyle;
@@ -21,11 +75,11 @@ export const TACTICAL_MIN_IGL = 75;
 
 /** Whether the lineup can run the chosen plan; the builder shows the requirement next to the style buttons. */
 export function styleReady(input: CollectionLineupInput): boolean {
-  const has = (role: LineupSlotRole) => input.roles.includes(role);
+  const has = (role: LineupSlotRole) => input.roles.some((item) => slotRolesOf(item).includes(role));
   if (input.style === 'aggressive') return has('entry');
   if (input.style === 'tactical') {
-    const igl = input.players.find((_, index) => input.roles[index] === 'igl');
-    return Boolean(igl && (igl.igl ?? 0) >= TACTICAL_MIN_IGL && has('support'));
+    const caller = input.players.some((player, index) => slotRolesOf(input.roles[index]).includes('igl') && (player.igl ?? 0) >= TACTICAL_MIN_IGL);
+    return caller && has('support');
   }
   return true;
 }
@@ -33,7 +87,7 @@ export function styleReady(input: CollectionLineupInput): boolean {
 export interface LineupCheck {
   ok: boolean;
   problems: string[];
-  /** Star only counts when the player is in the top two overalls of the lineup or has 85+. */
+  /** Star only counts when the player is in the top two overalls of the lineup or has 85+, and is not a support or a pure IGL. */
   starEffective: boolean;
 }
 
@@ -45,10 +99,11 @@ export function primaryRoleOf(player: Pick<Player, 'role'>): LineupSlotRole {
   return (['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'] as LineupSlotRole[]).includes(first as LineupSlotRole) ? (first as LineupSlotRole) : 'rifler';
 }
 
-export function isStarEffective(players: Player[], starPlayerId: string | null): boolean {
+export function isStarEffective(players: Player[], starPlayerId: string | null, roles?: readonly CollectionSlotRole[]): boolean {
   if (!starPlayerId) return false;
   const star = players.find((player) => player.id === starPlayerId);
   if (!star) return false;
+  if (roles && !starRoleAllowed(roles[players.indexOf(star)])) return false;
   const overall = star.overall ?? 0;
   if (overall >= STAR_MIN_OVERALL) return true;
   const sorted = [...players].map((player) => player.overall ?? 0).sort((a, b) => b - a);
@@ -62,12 +117,15 @@ export function validateLineup(input: CollectionLineupInput, lookup: (id: string
   input.players.forEach((player, index) => {
     const role = input.roles[index];
     if (!role) return;
-    const check = validatePlayerPick(player, picked, role, lookup, { unlimitedRoles: true });
-    if (!check.ok) problems.push(`${player.id}:${check.reason ?? 'INVALID'}`);
-    picked.push({ playerId: player.id, selectedSlotRole: role });
+    // The hybrid needs the card to be eligible for both of its roles.
+    for (const slotRole of slotRolesOf(role)) {
+      const check = validatePlayerPick(player, picked, slotRole, lookup, { unlimitedRoles: true });
+      if (!check.ok) { problems.push(`${player.id}:${check.reason ?? 'INVALID'}`); break; }
+    }
+    picked.push(toSelectedPlayer(player.id, role));
   });
   if (input.starPlayerId && !input.players.some((player) => player.id === input.starPlayerId)) problems.push('STAR_NOT_IN_LINEUP');
-  return { ok: problems.length === 0, problems, starEffective: isStarEffective(input.players, input.starPlayerId) };
+  return { ok: problems.length === 0, problems, starEffective: isStarEffective(input.players, input.starPlayerId, input.roles) };
 }
 
 export interface SynergyLine {
@@ -82,14 +140,16 @@ export interface SynergyLine {
 export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   const lines: SynergyLine[] = [];
   const add = (key: string, effect: Partial<Omit<SynergyLine, 'key'>>) => lines.push({ key, power: 0, mental: 0, clutch: 0, consistency: 0, ...effect });
-  const count = (role: LineupSlotRole) => input.roles.filter((item) => item === role).length;
+  const count = (role: LineupSlotRole) => input.roles.filter((item) => slotRolesOf(item).includes(role)).length;
   const igls = count('igl');
-  if (igls === 1) add('igl_one', { mental: 1.5 });
+  // A lone caller who also holds the AWP splits the attention: half of the bonus.
+  if (igls === 1 && input.roles.includes(AWPER_IGL)) add('igl_hybrid', { mental: 1.5 * HYBRID_BONUS_RATIO });
+  else if (igls === 1) add('igl_one', { mental: 1.5 });
   else if (igls === 0) add('igl_none', { mental: -2 });
   const awpers = count('awper');
   if (awpers === 0) add('awp_none', { power: -2 });
   else if (awpers >= 2) {
-    const strong = input.players.filter((player, index) => input.roles[index] === 'awper').every((player) => (player.awp ?? 0) >= 80);
+    const strong = input.players.filter((player, index) => slotRolesOf(input.roles[index]).includes('awper')).every((player) => (player.awp ?? 0) >= 80);
     add(strong ? 'awp_double_strong' : 'awp_double_weak', { power: strong ? 1 : -1 });
   }
   const entries = count('entry');
@@ -100,17 +160,19 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
   // A secondary position costs nothing: the builder only offers roles the card is eligible for.
   const ready = styleReady(input);
-  if (input.style === 'balanced') add('style_balanced', { power: 0.5 });
-  else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', ready ? { power: 1.5 } : { power: -1 });
-  else if (input.style === 'tactical') add(ready ? 'style_tactical' : 'style_tactical_off', ready ? { power: 3, mental: 2 } : { power: -2, mental: -1 });
-  if (isStarEffective(input.players, input.starPlayerId)) {
+  // A plan the lineup cannot run feeds nobody: the star falls back to the balanced row.
+  const style: OrgStyle = ready ? input.style ?? 'balanced' : 'balanced';
+  if (input.style === 'balanced') add('style_balanced', { power: BALANCED_PLAN_BONUS });
+  else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', ready ? { power: aggressivePlanBonus(input) } : { power: -1 });
+  else if (input.style === 'tactical') add(ready ? 'style_tactical' : 'style_tactical_off', ready ? { power: TACTICAL_PLAN_BONUS, mental: 2 } : { power: -2, mental: -1 });
+  if (isStarEffective(input.players, input.starPlayerId, input.roles)) {
     const star = input.players.find((player) => player.id === input.starPlayerId)!;
     const role = input.roles[input.players.indexOf(star)];
     add('star', { power: 2 });
-    if (role === 'awper') add('star_awper', { power: 0.5 });
-    if (role === 'support') add('star_support', { mental: 2 });
-    if (role === 'igl') add('star_igl', { mental: 1.5 });
-    if (role === 'lurker') add('star_lurker', { clutch: 3 });
+    // The role the team plays around under the chosen plan, stretched by how good the star is.
+    const scale = starScale(star.overall ?? 0);
+    if (role === AWPER_IGL) add('star_awper_igl', { power: quarter(STAR_ROLE_BONUS.awper[style] * scale * HYBRID_BONUS_RATIO) });
+    else if (role === 'awper' || role === 'entry' || role === 'rifler' || role === 'lurker') add(`star_${role}`, { power: quarter(STAR_ROLE_BONUS[role][style] * scale), ...(role === 'lurker' ? { clutch: 3 } : {}) });
   }
   return lines;
 }
@@ -122,11 +184,12 @@ export function cardEffects(input: CollectionLineupInput): Record<string, 'up' |
   input.players.forEach((player, index) => {
     const role = input.roles[index];
     const up = (role === 'igl' && lines.has('igl_one'))
+      || (role === AWPER_IGL && (lines.has('igl_hybrid') || lines.has('awp_double_strong')))
       || (role === 'awper' && lines.has('awp_double_strong'))
       || (role === 'entry' && lines.has('entry_one'))
       || (role === 'support' && lines.has('support_present'))
       || (role === 'lurker' && lines.has('lurker_present'));
-    const down = role === 'awper' && lines.has('awp_double_weak');
+    const down = slotRolesOf(role).includes('awper') && lines.has('awp_double_weak');
     if (down) effects[player.id] = 'down';
     else if (up) effects[player.id] = 'up';
   });
@@ -147,4 +210,8 @@ export function applyCollectionLineup(team: CombatTeam, input: CollectionLineupI
   };
 }
 
-export const eligibleRolesOf = (player: Player): LineupSlotRole[] => getEligibleSlotRoles(player);
+/** Roles the builder offers for a card; one that can both AWP and call also gets the hybrid slot. */
+export function eligibleRolesOf(player: Player): CollectionSlotRole[] {
+  const roles = getEligibleSlotRoles(player);
+  return roles.includes('awper') && roles.includes('igl') ? [...roles, AWPER_IGL] : roles;
+}

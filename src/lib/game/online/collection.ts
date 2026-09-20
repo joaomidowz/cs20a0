@@ -1,4 +1,5 @@
-import type { LineupSlotRole, MapId, OrgStyle } from '../types';
+import type { CollectionSlotRole } from './collection-lineup';
+import type { MapId, OrgStyle } from '../types';
 import { authFetch } from './account';
 import { patchWalletCoins, setWalletFromCollection } from './wallet';
 
@@ -18,7 +19,7 @@ export interface CollectionState {
 
 export interface SavedLineup {
   playerIds: string[];
-  roles: LineupSlotRole[];
+  roles: CollectionSlotRole[];
   starPlayerId: string | null;
   coachId: string | null;
   style: OrgStyle;
