@@ -128,12 +128,17 @@
     if (line && !line.exact && key === 'theme_country') return t('syn_theme_country_bloc');
     return t(`syn_${key}` as Parameters<typeof t>[0]);
   };
+  /** The org slug back to the name people know it by ("ninjasinpyjamas" → "Ninjas in Pyjamas"). */
+  const orgDisplayName = (slug: string): string =>
+    collectionTeams.find((team) => (team.name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') === slug)?.name ?? slug;
   /** "…: SK 2017 · 5 cartas" — the name comes from the data, the label from the language. */
   const themeLabel = (key: string, line: { theme: string; count: number; exact: boolean } | undefined): string => {
     if (!line) return '';
-    const name = key === 'theme_country' && line.exact ? countryName(line.theme, $language)
-      : key === 'theme_team' && line.exact ? teamById.get(line.theme)?.name ?? line.theme
-      : line.theme;
+    const name = key === 'theme_country'
+      ? (line.exact ? countryName(line.theme, $language) : t(`bloc_${line.theme}` as Parameters<typeof t>[0]))
+      : key === 'theme_team'
+        ? (line.exact ? teamById.get(line.theme)?.name ?? line.theme : orgDisplayName(line.theme))
+        : line.theme;
     return `: ${name} · ${line.count} ${t('themeCards')}`;
   };
   let teamSection: HTMLElement | null = null;
