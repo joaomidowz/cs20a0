@@ -1,3 +1,4 @@
+import type { MatchDayCurve } from './courtPower';
 import { computeMajorAwards } from './majorAwards';
 import { runOnlineTournament } from './online/tournament';
 import type { OnlineTournamentResult } from './online/tournament-engine';
@@ -168,7 +169,11 @@ export function getStarCarry(players: Player[]): number {
 
 const stabilityOf = (team: Pick<CombatTeam, 'consistency'>) => Math.max(0, Math.min(1, (number(team.consistency, 80) - 70) / 30));
 
-export function getMatchDayPower(team: CombatTeam, rng: SeededRng): number {
+/**
+ * Power a team takes to the series. Without `curve` the day's power is cut at MAX_TEAM_POWER + 4, as it always was
+ * (offline, Dinastia and sandbox depend on it); the online modes pass the court curve instead (`courtPower.ts`).
+ */
+export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: MatchDayCurve): number {
   const roll = rng();
   const intensity = rng();
   // Steady lineups barely fluctuate (±1% at consistency 100); shaky ones keep the old ±1.5% swing.
@@ -186,6 +191,7 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng): number {
     multiplier = 1.02 + intensity * 0.025;
   }
 
+  if (curve) return curve(team.power, multiplier);
   return Math.max(45, Math.min(MAX_TEAM_POWER + 4, team.power * multiplier));
 }
 

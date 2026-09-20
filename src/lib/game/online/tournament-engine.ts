@@ -69,6 +69,8 @@ export interface TournamentEngineOptions {
   humanDecisions?: LiveSeriesConfig['humanDecisions'];
   /** Initial seed order by organization id; ids left out keep their field order after the listed ones. */
   seedOrder?: string[];
+  /** Match-day power scale of every series (see `LiveSeriesConfig.powerScale`). Only the online server asks for 'court'. */
+  powerScale?: LiveSeriesConfig['powerScale'];
 }
 
 export interface TournamentRoundState {
@@ -300,7 +302,8 @@ function createSeries(state: TournamentEngineState, left: TournamentOrganization
     rosters: { a: mapContext?.rosters?.get(left.id), b: mapContext?.rosters?.get(right.id) },
     controllers: { a: controllerFor(left), b: controllerFor(right) },
     interactiveVeto: Boolean(strategyA && strategyB) && interactiveVeto(left, right),
-    ...(state.options.humanDecisions ? { humanDecisions: state.options.humanDecisions } : {})
+    ...(state.options.humanDecisions ? { humanDecisions: state.options.humanDecisions } : {}),
+    ...(state.options.powerScale ? { powerScale: state.options.powerScale } : {})
   };
   return createLiveSeries(config);
 }
