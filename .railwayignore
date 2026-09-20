@@ -1,0 +1,13 @@
+# O Railway só constrói o SERVIDOR (Dockerfile: package*.json, tsconfig.json, server/ e src/lib/).
+# Sem isto o `railway up` enviava ~130 MB, quase tudo `static/` do front: o upload estourava o tempo do CLI
+# (o "timeout falso") e, em 2026-09-20, passou a ser recusado com 413 Payload Too Large.
+static
+docs
+tests
+legacy-data-pipeline
+src/routes
+src/app.html
+.svelte-kit
+build
+dist-server
+node_modules
