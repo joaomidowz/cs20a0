@@ -1,8 +1,29 @@
 {
   "version": "2.9",
-  "total": 291,
+  "total": 294,
   "generatedAt": "2026-09-21",
   "entries": [
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "66062e2",
+      "title": "Pós-partida resolve recompensas, fila volta ao idle e Major em largura única",
+      "summary": "- authFetch ganha timeout de 12s: request pendurado não congela mais o   painel de recompensas em 'Calculando…' para sempre - o painel de ganhos re-tenta quando a conta carrega depois do snapshot   completed e quando o jogador volta pra …"
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "541ec05",
+      "title": "Protagonismo da fila — bots caem meio alívio com 2+ humanos",
+      "summary": "Campo de bots desce pela metade do alívio solo (partyFieldRelief, medido pelo humano mais forte) quando a sala tem 2+ jogadores."
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "3fe3e47",
+      "title": "Changelog da versão",
+      "summary": ""
+    },
     {
       "version": "2.9",
       "date": "2026-09-21",
@@ -821,27 +842,6 @@
       "hash": "3f0fa6c",
       "title": "Corrige escopo e regressões do sync de 2013-2015",
       "summary": "O commit anterior (36fe954) tinha 3 problemas achados por revisão/testes: 1."
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "be20710",
-      "title": "Registra status do sync do dataset histórico 2013-2015",
-      "summary": ""
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "e3933e6",
-      "title": "Data: sync Majors 2013-2015 pra camada de expansão (x1)",
-      "summary": "Adiciona os 7 Majors de 2013-2015 (DreamHack Winter 2013, EMS Katowice 2014, ESL Cologne 2014/2015, DreamHack Winter 2014, ESL Katowice 2015, DreamHack Cluj-Napoca 2015) via teams.expansion.game.json/ players.expansion.game.json — 84 tim…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-16",
-      "hash": "9326fe4",
-      "title": "Catálogo versionado para a expansão histórica offline",
-      "summary": "Camada de catálogo sobre o dataset v1 (core) e a expansão (x1, arquivos ainda vazios)."
     }
   ]
 }
