@@ -93,19 +93,18 @@ export const THEME_TOTAL_CAP = 4;
  * É a progressão do chaveamento: o time sem história é o degrau de entrada e o campeão é a parede final.
  *
  * Em 2026-09-20 a escada desceu duas vezes a pedido do dono ("impossível ganhar", "os campeões estão muito fortes"):
- * o campeão saiu do nível 97,4 para 96,7 e o degrau de entrada para 95,0. Medido (melhor de 3, 300 séries):
- * GOATs caprichados × campeão 71% (eram 58%), × degrau de entrada 85%; iniciante × campeão 42% (eram 30%),
- * × degrau de entrada 66%; quatro 99 sem IGL × campeão 49%.
- * Num Major inteiro SEM alívio (a fila ranqueada): iniciante leva 18% dos títulos e um time de 98,6, 52%.
+ * o campeão saiu do nível 97,4 para 97,0 e o degrau de entrada para 95,3. Medido (melhor de 3, 300 séries):
+ * seu time × campeão 71% (eram 58%), GOATs caprichados × degrau de entrada 84%; iniciante × campeão 41% (eram 30%),
+ * × degrau de entrada 64%; quatro 99 sem IGL × campeão 47%.
  *
  * Um bot nunca fica mais fraco do que já era: se o poder próprio dele for maior, vale o próprio.
  */
 export const BOT_GAP_FROM_TOP: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', number>> = {
-  champion: 2.35,
-  finalist: 2.5,
-  semifinal: 2.7,
-  top8: 3,
-  none: 4
+  champion: 2.05,
+  finalist: 2.2,
+  semifinal: 2.4,
+  top8: 2.7,
+  none: 3.7
 };
 
 /** Nenhum bot chega mais perto do topo do que isto: os melhores times da história empatam com uma line perfeita, nunca são favoritos. */
@@ -145,17 +144,18 @@ export const PLAYER_GAP_FROM_TOP = 2.2;
  * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
  * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
  *
- * Medido em 2026-09-20 (60 Majors por linha): nível 96,8 → 13% de título, 97,6 → 53%, 98,0 → 85%, 98,6 → 88%;
+ * Medido em 2026-09-20, depois de o dono pedir de volta ~10% de dificuldade: nível 96,8 → 10% de título,
+ * 96,9 → 16%, 97,6 → 48%, 98,0 → 73%, 98,6 → 78–81%;
  * o time do topo cai na fase suíça em 0–2% das runs (eram 45%). O Major normal usa a mesma tabela e é mais
  * fácil pelo campo. `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
 export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [96.78, 1.3333],
-  [97.44, 3.1111],
-  [98, 5],
-  [98.33, 6.2222],
-  [98.56, 7.1111],
-  [99, 8]
+  [96.78, 1.15],
+  [97.44, 2.5],
+  [98, 4],
+  [98.33, 4.2],
+  [98.56, 4.5],
+  [99, 5]
 ];
 
 /** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */
