@@ -14,7 +14,7 @@
  * dois não muda nada: o topo em 99 é só onde a régua foi pregada.
  */
 
-import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
+import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, DAY_SWING_COURT, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
 
 export { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR };
 
@@ -49,8 +49,14 @@ export const addCourtPoints = (raw: number, points: number): number => rawFromCo
 /** Poder do dia a partir do poder do time e do multiplicador do dia; o padrão do motor mantém o corte antigo em 110. */
 export type MatchDayCurve = (power: number, multiplier: number) => number;
 
-/** A curva passa por poder × multiplicador, onde ficava o corte antigo: um bom dia ainda ajuda, só ajuda menos no topo. */
-export const courtMatchDay: MatchDayCurve = (power, multiplier) => courtPower(Math.max(COURT_RAW_FLOOR, power * multiplier));
+/**
+ * O dia de jogo em NÍVEIS: o time entra no nível dele mais o que o dia deu, e o dia vale o mesmo para todos.
+ *
+ * Era `courtPower(poder × multiplicador)`, uma porcentagem sobre o poder CRU — e aí o mesmo dia bom valia 3 níveis
+ * para um bot (que vive em cima do joelho da curva) e 0,3 para uma line de GOATs. Ver `DAY_SWING_COURT`.
+ */
+export const courtMatchDay: MatchDayCurve = (power, multiplier) =>
+  courtPower(Math.max(COURT_RAW_FLOOR, power)) + (multiplier - 1) * DAY_SWING_COURT;
 
 /** O mais baixo que um time de JOGADOR entra em quadra (`PLAYER_GAP_FROM_TOP`); bots mantêm o nível deles. */
 export const COURT_PLAYER_FLOOR = COURT_TOP - PLAYER_GAP_FROM_TOP;

@@ -65,8 +65,8 @@ describe('justo e estudado', () => {
 });
 
 describe('progressão: cada fase do chaveamento é um degrau', () => {
-  band('o degrau de entrada é vencível para um time caprichado', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.semHistoria), 84);
-  band('...e dá susto em quem montou mal', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.semHistoria), 67);
+  band('o degrau de entrada é formalidade para um time montado', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.semHistoria), 99, 4);
+  band('...e também para quem montou mal: o susto agora vem dos degraus de cima', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.semHistoria), 99, 5);
   band('o campeão é a parede final, mesmo para a melhor line', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.campeao), 66);
   band('quem monta mal é azarão contra o campeão', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.campeao), 43);
 

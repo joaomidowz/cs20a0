@@ -1,5 +1,5 @@
 import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
-import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR } from '../balance';
+import { BOT_LEVEL_BAND, BOT_NATURAL_RANGE, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -20,7 +20,7 @@ export type BotPlacement = 'champion' | 'finalist' | 'semifinal' | 'top8' | 'non
  * Where each kind of bot sits on the court scale: the tournament's own ladder, from the team with no Major history
  * (the opening step) up to the champion (the final wall). The numbers live in `src/lib/game/balance.ts`.
  */
-export { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP };
+export { BOT_LEVEL_BAND, BOT_NATURAL_RANGE };
 
 /** An underdog is a team whose five average this overall or more... */
 export const UNDERDOG_MIN_OVERALL = 80;
@@ -29,7 +29,7 @@ export const UNDERDOG_MAX_OVERALL = 90;
 /** Underdogs of a run that get the boost: at least this many... */
 export const ZEBRAS_MIN = 1;
 /** ...and at most this many, the room seed decides. */
-export const ZEBRAS_MAX = 3;
+export const ZEBRAS_MAX = 2;
 /**
  * Boost of a zebra. Below 20% it never shows: at +15% the average underdog still loses 98% of its series to a strong
  * lineup. At +20% it wins about 15% of them, is a coin flip against a mid lineup and beats a buffed champion one time in four.
@@ -117,11 +117,14 @@ export function soloFieldRelief(playerLevel: number, field: 'random' | 'champion
  * so every bot keeps its place relative to the others.
  */
 export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief = 0): number {
-  const lifted = (() => {
-    if (zebra) return Math.max(basePower, Math.min(ZEBRA_POWER_CAP, basePower * (1 + ZEBRA_BOOST)));
-    const target = COURT_TOP - BOT_GAP_FROM_TOP[botPlacementOf(team)];
-    const ceiling = COURT_TOP - BOT_MIN_GAP_FROM_TOP;
-    return Math.max(basePower, rawFromCourt(Math.min(ceiling, Math.max(courtPower(basePower), target))));
-  })();
-  return relief > 0 ? rawFromCourt(courtPower(lifted) - relief) : lifted;
+  // 1. O nível do bot: a faixa do pedigree dele, e dentro dela o lugar que o elenco merece.
+  const [bandMin, bandMax] = BOT_LEVEL_BAND[botPlacementOf(team)];
+  const [naturalMin, naturalMax] = BOT_NATURAL_RANGE;
+  const natural = courtPower(basePower);
+  const share = Math.max(0, Math.min(1, (natural - naturalMin) / (naturalMax - naturalMin)));
+  const laddered = bandMin + (bandMax - bandMin) * share;
+  // 2. O vento nas costas da zebra, com teto próprio: ela é perigosa, não é campeão de Major disfarçado.
+  const lifted = zebra ? Math.min(ZEBRA_LEVEL_CAP, laddered + ZEBRA_LIFT_COURT) : laddered;
+  // 3. E, por último, o alívio do campo de quem joga sozinho contra bots.
+  return rawFromCourt(lifted - Math.max(0, relief));
 }

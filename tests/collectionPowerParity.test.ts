@@ -18,7 +18,7 @@ import { courtRating } from '../src/lib/game/powerRating';
 import { DEFAULT_ROOM_CONFIG, type RoomConfig } from '../src/lib/game/online/contracts';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
 import { QUEUE_ROOM_CONFIG } from '../server/queue';
-import { BOT_GAP_FROM_TOP } from '../src/lib/game/balance';
+import { BOT_LEVEL_BAND } from '../src/lib/game/balance';
 import { COURT_TOP } from '../src/lib/game/courtPower';
 import type { Player } from '../src/lib/game/types';
 
@@ -96,7 +96,7 @@ describe('quem joga sozinho contra bots pega o campo aliviado', () => {
     const bots = snapshot.organizations!.filter((organization) => !organization.human);
     expect(bots.length).toBeGreaterThan(0);
     // Sem alívio nenhum bot desceria abaixo do degrau de entrada (COURT_TOP − BOT_GAP_FROM_TOP.none).
-    const semAlivio = COURT_TOP - BOT_GAP_FROM_TOP.none;
+    const semAlivio = BOT_LEVEL_BAND.none[0];
     const maisFraco = Math.min(...bots.map((bot) => courtRating(bot.power)));
     expect(maisFraco, `bot mais fraco em ${maisFraco.toFixed(1)}, degrau de entrada é ${semAlivio.toFixed(1)}`).toBeLessThan(semAlivio);
   });

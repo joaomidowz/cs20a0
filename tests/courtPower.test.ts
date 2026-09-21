@@ -38,8 +38,15 @@ describe('poder de quadra', () => {
     expect(courtMatchDay(RAW_TOP, 1.085)).toBeGreaterThan(COURT_TOP);
   });
 
-  it('o dia de jogo aplica a curva sobre poder × multiplicador, com o piso de sempre', () => {
-    expect(courtMatchDay(100, 1.05)).toBeCloseTo(courtPower(105), 10);
+  it('o dia de jogo vale o mesmo para todo mundo, em níveis', () => {
+    // Um dia neutro é o nível do time, e o piso de sempre continua valendo para poder cru absurdo.
+    expect(courtMatchDay(120, 1)).toBeCloseTo(courtPower(120), 10);
     expect(courtMatchDay(10, 1)).toBeCloseTo(courtPower(45), 10);
+    // O MESMO dia bom mexe o mesmo tanto num bot em cima do joelho e numa line de GOATs lá em cima. Era aqui que o
+    // jogo quebrava: em porcentagem de poder cru, +5% valia 5 níveis para um e 0,25 para o outro.
+    const ganhoDoBot = courtMatchDay(99, 1.05) - courtMatchDay(99, 1);
+    const ganhoDoTopo = courtMatchDay(145, 1.05) - courtMatchDay(145, 1);
+    expect(ganhoDoBot).toBeCloseTo(ganhoDoTopo, 10);
+    expect(ganhoDoBot).toBeGreaterThan(0);
   });
 });

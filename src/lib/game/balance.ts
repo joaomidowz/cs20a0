@@ -84,31 +84,59 @@ export const CORE_NATURAL_COURT = 0.1111;
  */
 export const THEME_TOTAL_CAP = 4;
 
+/**
+ * O DIA DE JOGO, em níveis. Quantos níveis vale cada 1% de "dia" que o motor sorteia (`getMatchDayPower`).
+ *
+ * O motor sorteia o dia como uma PORCENTAGEM do poder cru, e isso era um desastre nesta escala: abaixo do joelho
+ * (100 de poder cru) um ponto de poder cru vale um nível inteiro, e acima dele vale um vinte avos. Os bots moram em
+ * 98–104 de poder cru e os times de jogador em 110–150, então os mesmos ±1,5% mexiam 3,1 níveis num bot sem
+ * história e 0,7 no melhor time de jogador: o bot mais fraco do jogo, num dia bom, encostava no campeão de Major, e
+ * um time 98 perdia para 9z 2022 sem entender por quê.
+ *
+ * Aqui o dia é convertido para níveis antes de ser somado, então ele custa o mesmo para todo mundo: dia normal
+ * mexe ~±0,2 nível e um dia excepcional (o +8,5% de um time agressivo) vale ~+1,1, seja de quem for.
+ */
+export const DAY_SWING_COURT = 13;
+
 // ---------------------------------------------------------------------------------------------------------------
 // Os bots: a escada de progressão do campeonato
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
- * Quanto cada tipo de bot fica ABAIXO do topo da escala, em níveis. Número menor = bot mais forte.
- * É a progressão do chaveamento: o time sem história é o degrau de entrada e o campeão é a parede final.
+ * A FAIXA DE NÍVEL DE CADA BOT, por história de Major. É a progressão do chaveamento: o time sem história é o
+ * degrau de entrada e o campeão é a parede final.
  *
- * Em 2026-09-20 a escada desceu duas vezes a pedido do dono ("impossível ganhar", "os campeões estão muito fortes"):
- * o campeão saiu do nível 97,4 para 97,0 e o degrau de entrada para 95,3. Medido (melhor de 3, 300 séries):
- * seu time × campeão 71% (eram 58%), GOATs caprichados × degrau de entrada 84%; iniciante × campeão 41% (eram 30%),
- * × degrau de entrada 64%; quatro 99 sem IGL × campeão 47%.
+ * Era um degrau único por pedigree, e isso achatava o campo: TODO time sem história entrava no mesmo nível, então
+ * 9z 2022 (elenco 76 de overall) jogava igual a OG 2023 (81) e o elenco não dizia nada. Pior, o degrau vivia colado
+ * no topo (94,9 para o mais fraco do jogo) e o dono perdia para times que não deveriam ameaçar ninguém.
  *
- * Um bot nunca fica mais fraco do que já era: se o poder próprio dele for maior, vale o próprio.
+ * Agora cada bot cai DENTRO da faixa do pedigree dele, pelo elenco: o pior elenco do dataset encosta no mínimo da
+ * faixa e o melhor no máximo (`BOT_NATURAL_RANGE`). Um campeão de Major segue sendo parede; um time sem história
+ * fica entre 85 e 90, que é onde um time de jogador já montado tem que passar por cima.
  */
-export const BOT_GAP_FROM_TOP: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', number>> = {
-  champion: 2.05,
-  finalist: 2.2,
-  semifinal: 2.4,
-  top8: 2.7,
-  none: 3.7
+export const BOT_LEVEL_BAND: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', readonly [min: number, max: number]>> = {
+  champion: [94, 96.5],
+  finalist: [92, 95.5],
+  semifinal: [90.5, 94.5],
+  top8: [88.5, 93],
+  none: [85, 90]
 };
 
-/** Nenhum bot chega mais perto do topo do que isto: os melhores times da história empatam com uma line perfeita, nunca são favoritos. */
-export const BOT_MIN_GAP_FROM_TOP = 2;
+/**
+ * De onde a faixa lê o elenco: o nível natural do pior e do melhor time-ano do dataset (medido, sem degrau nenhum:
+ * 70,4 e 96,7). Um bot no fundo dessa régua entra no mínimo da faixa dele, um no topo entra no máximo.
+ */
+export const BOT_NATURAL_RANGE: readonly [min: number, max: number] = [70, 97];
+
+/**
+ * A ZEBRA: o azarão que entra embalado. Quantos NÍVEIS ela ganha em cima da faixa do pedigree dela.
+ *
+ * Já foi uma porcentagem sobre o poder cru (+20%), e aquilo quebrou: um elenco fraco virava zebra e ficava MAIS
+ * fraco do que era. Em níveis o impulso sempre soma.
+ */
+export const ZEBRA_LIFT_COURT = 0.5;
+/** E nenhuma zebra passa disto, por mais embalada que esteja. */
+export const ZEBRA_LEVEL_CAP = 94;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
@@ -144,18 +172,18 @@ export const PLAYER_GAP_FROM_TOP = 2.2;
  * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
  * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
  *
- * Medido em 2026-09-20, depois de o dono pedir de volta ~10% de dificuldade: nível 96,8 → 10% de título,
- * 96,9 → 16%, 97,6 → 48%, 98,0 → 73%, 98,6 → 78–81%;
- * o time do topo cai na fase suíça em 0–2% das runs (eram 45%). O Major normal usa a mesma tabela e é mais
- * fácil pelo campo. `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
+ * Medido em 2026-09-21, com as faixas de bot novas (o alívio encolheu junto, porque o campo já é bem mais fraco):
+ * nível 96,8 → 14% de título, 97,6 → 24%, 98,0 → 53%, 98,6 → 65–74%; o time do topo não cai mais na fase suíça.
+ * O Major normal usa a mesma tabela e é mais fácil pelo campo.
+ * `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
 export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [96.78, 1.15],
-  [97.44, 2.5],
-  [98, 4],
-  [98.33, 4.2],
-  [98.56, 4.5],
-  [99, 5]
+  [96.78, 0.5],
+  [97.44, 1],
+  [98, 1.6],
+  [98.33, 2],
+  [98.56, 2.2],
+  [99, 2.5]
 ];
 
 /** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */

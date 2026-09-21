@@ -4,7 +4,8 @@ import { COURT_SPREAD, COURT_TOP, courtPower } from '../src/lib/game/courtPower'
 import { PLAYER_GAP_FROM_TOP } from '../src/lib/game/balance';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
-import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
+import { BOT_LEVEL_BAND, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
+import { ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../src/lib/game/balance';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { HistoricalTeam } from '../src/lib/game/types';
 
@@ -22,39 +23,38 @@ describe('escada de progressão dos bots', () => {
     expect(botPlacementOf(team(null))).toBe('none');
   });
 
-  it('cada degrau do chaveamento é mais duro que o anterior', () => {
-    const { champion, finalist, semifinal, top8, none } = BOT_GAP_FROM_TOP;
-    // Distância até o topo: quanto menor, mais forte o bot.
-    expect(champion).toBeLessThan(finalist);
-    expect(finalist).toBeLessThan(semifinal);
-    expect(semifinal).toBeLessThan(top8);
-    expect(top8).toBeLessThan(none);
-    expect(champion).toBeGreaterThanOrEqual(BOT_MIN_GAP_FROM_TOP);
+  it('cada faixa do chaveamento é mais dura que a anterior', () => {
+    const { champion, finalist, semifinal, top8, none } = BOT_LEVEL_BAND;
+    for (const [acima, abaixo] of [[champion, finalist], [finalist, semifinal], [semifinal, top8], [top8, none]] as const) {
+      expect(acima[0]).toBeGreaterThan(abaixo[0]);
+      expect(acima[1]).toBeGreaterThan(abaixo[1]);
+    }
+    // Nenhuma faixa alcança o topo da escala: bot nunca é favorito contra uma line perfeita.
+    expect(champion[1]).toBeLessThan(COURT_TOP);
   });
 
-  it('sobe o bot fraco até o degrau dele, e deixa quem já é forte como está', () => {
-    for (const [summary, placement] of [[{ titles: 1 }, 'champion'], [{ finals: 1 }, 'finalist'], [null, 'none']] as const) {
-      const alvo = COURT_TOP - BOT_GAP_FROM_TOP[placement];
-      // Time fraco para o degrau: sobe até ele, venha de onde vier o poder próprio.
-      for (const power of [80, 90]) expect(courtPower(botFieldPower(power, team(summary), false))).toBeCloseTo(alvo, 9);
+  it('dentro da faixa, quem manda é o elenco: dois times do mesmo pedigree não jogam igual', () => {
+    const fraco = courtPower(botFieldPower(75, team(null), false));
+    const forte = courtPower(botFieldPower(100, team(null), false));
+    expect(forte).toBeGreaterThan(fraco);
+    // E os dois ficam dentro da faixa combinada para quem não tem história de Major.
+    for (const nivel of [fraco, forte]) {
+      expect(nivel).toBeGreaterThanOrEqual(BOT_LEVEL_BAND.none[0] - 1e-9);
+      expect(nivel).toBeLessThanOrEqual(BOT_LEVEL_BAND.none[1] + 1e-9);
     }
-    // Poder próprio já acima do degrau: fica com o próprio. A escada só levanta, nunca enfraquece.
-    expect(botFieldPower(106, team(null), false)).toBeCloseTo(106, 9);
   });
 
-  it('a escada nunca passa do nível de uma line perfeita', () => {
-    for (const summary of [{ titles: 1 }, { finals: 1 }, { semifinals: 1 }]) {
-      expect(courtPower(botFieldPower(70, team(summary), false))).toBeLessThanOrEqual(COURT_TOP - BOT_MIN_GAP_FROM_TOP + 1e-9);
-    }
-    expect(botFieldPower(90, team(null), false)).toBeGreaterThan(90);
+  it('um campeão de Major com elenco fraco ainda é parede, e nenhum bot passa da própria faixa', () => {
+    const campeaoFraco = courtPower(botFieldPower(70, team({ titles: 1 }), false));
+    expect(campeaoFraco).toBeGreaterThanOrEqual(BOT_LEVEL_BAND.champion[0] - 1e-9);
+    const semHistoriaForte = courtPower(botFieldPower(106, team(null), false));
+    expect(semHistoriaForte).toBeLessThanOrEqual(BOT_LEVEL_BAND.none[1] + 1e-9);
   });
 
   it('o time sem história é o degrau de entrada: vencível, mas não de graça', () => {
     const entrada = courtPower(botFieldPower(82, team(null), false));
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false));
-    // As margens acompanham a régua (`COURT_SPREAD`): o campeão fica bem acima do degrau de entrada, e o degrau
-    // de entrada não fica fora de alcance de quem chega.
-    expect(campeao - entrada).toBeGreaterThan(0.5 * COURT_SPREAD);
+    expect(campeao - entrada).toBeGreaterThan(4);
     // E o degrau de entrada fica abaixo do piso do jogador: quem acabou de criar a conta entra como favorito nele.
     expect(entrada).toBeLessThan(COURT_TOP - PLAYER_GAP_FROM_TOP);
   });
@@ -75,11 +75,17 @@ describe('zebra', () => {
     }
   });
 
-  it('o gás é de 20%, travado: perigosa, não monstro, e nunca enfraquece o time', () => {
+  it('o gás da zebra soma em níveis e nunca enfraquece o time', () => {
     const underdog = team(null);
-    expect(botFieldPower(80, underdog, true)).toBeCloseTo(80 * (1 + ZEBRA_BOOST), 10);
-    expect(botFieldPower(ZEBRA_POWER_CAP - 2, underdog, true)).toBe(ZEBRA_POWER_CAP);
-    expect(botFieldPower(ZEBRA_POWER_CAP + 3, underdog, true)).toBe(ZEBRA_POWER_CAP + 3);
+    // Em cima da faixa do pedigree dela, some — nunca subtrai (a conta em % de poder cru já derrubou bot fraco).
+    for (const power of [75, 90, 106]) {
+      const normal = courtPower(botFieldPower(power, underdog, false));
+      const zebra = courtPower(botFieldPower(power, underdog, true));
+      expect(zebra).toBeGreaterThan(normal);
+      expect(zebra - normal).toBeCloseTo(Math.min(ZEBRA_LIFT_COURT, ZEBRA_LEVEL_CAP - normal), 9);
+    }
+    // E o teto vale: nem a zebra mais embalada passa dele.
+    expect(courtPower(botFieldPower(106, team({ titles: 1 }), true))).toBeLessThanOrEqual(ZEBRA_LEVEL_CAP + 1e-9);
   });
 });
 
@@ -97,7 +103,7 @@ describe('campo da run', () => {
       counts.add(plan.zebraIds.size);
     }
     // A seed varia a quantidade: não é sempre o mesmo número de zebras.
-    expect([...counts].sort()).toEqual([1, 2, 3]);
+    expect([...counts].sort()).toEqual([ZEBRAS_MIN, ZEBRAS_MAX]);
   });
 
   it('é determinístico, não perde nem repete time, e o resto segue a ordem sorteada', () => {

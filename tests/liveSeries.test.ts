@@ -221,17 +221,24 @@ describe('escala de poder do dia de jogo', () => {
     expect(best.adjustedB.power).toBeLessThan(COURT_TOP + 1.5 * COURT_SPREAD);
   });
 
-  it('abaixo do joelho a escala nova não muda nenhuma série: só renomeia os números', () => {
-    for (let index = 0; index < 25; index += 1) {
-      const seed = `abaixo-${index}`;
-      const classic = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' } }));
-      const court = createLiveSeries(config({ seed, teamA: team('a', 93), teamB: team('b', 90), strategies: null, controllers: { a: 'bot', b: 'bot' }, powerScale: 'court' }));
-      // A régua de níveis é COURT_SPREAD vezes mais larga, e a sensibilidade do motor anda junto: os placares não mudam.
-      expect(court.adjustedA.power - court.adjustedB.power).toBeCloseTo((classic.adjustedA.power - classic.adjustedB.power) * COURT_SPREAD, 8);
-      runSeriesToEnd(classic);
-      runSeriesToEnd(court);
-      expect(toSeriesResult(court).maps.map((map) => [map.scoreA, map.scoreB])).toEqual(toSeriesResult(classic).maps.map((map) => [map.scoreA, map.scoreB]));
-    }
+  it('o dia de jogo mexe o mesmo tanto num bot e numa line de GOATs', () => {
+    // O bug que isto conserta: o dia era uma porcentagem do poder CRU, e os bots moram em cima do joelho da curva
+    // (onde 1 de poder cru = 1 nível) enquanto os times de jogador moram muito acima (onde vale um vinte avos).
+    // O mesmo dia bom levantava um bot sem história 3 níveis e o melhor time do jogo 0,7: o pior bot do jogo
+    // encostava no campeão de Major por um dia, e um time 98 perdia para ele sem entender por quê.
+    const amplitude = (power: number) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let index = 0; index < 400; index += 1) {
+        const state = createLiveSeries(config({ seed: `dia-${power}-${index}`, teamA: team('a', power), teamB: team('b', power), strategies: null, controllers: { a: 'bot', b: 'bot' }, powerScale: 'court' }));
+        min = Math.min(min, state.adjustedA.power);
+        max = Math.max(max, state.adjustedA.power);
+      }
+      return max - min;
+    };
+    const bot = amplitude(99);
+    const goats = amplitude(145);
+    expect(Math.abs(bot - goats), `bot oscila ${bot.toFixed(2)} e GOATs ${goats.toFixed(2)}`).toBeLessThan(0.35);
   });
 
   it('trocar um time antes do veto respeita a escala da série', () => {
