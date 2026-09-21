@@ -1,6 +1,7 @@
 // tests/botField.test.ts
 // Campo de bots do online: buff por colocação em Major, campeões garantidos e as zebras da run.
 import { COURT_SPREAD, COURT_TOP, courtPower } from '../src/lib/game/courtPower';
+import { PLAYER_GAP_FROM_TOP } from '../src/lib/game/balance';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
 import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
@@ -53,8 +54,9 @@ describe('escada de progressão dos bots', () => {
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false));
     // As margens acompanham a régua (`COURT_SPREAD`): o campeão fica bem acima do degrau de entrada, e o degrau
     // de entrada não fica fora de alcance de quem chega.
-    expect(campeao - entrada).toBeGreaterThan(1.4 * COURT_SPREAD);
-    expect(COURT_TOP - entrada).toBeLessThan(4 * COURT_SPREAD);
+    expect(campeao - entrada).toBeGreaterThan(0.5 * COURT_SPREAD);
+    // E o degrau de entrada fica abaixo do piso do jogador: quem acabou de criar a conta entra como favorito nele.
+    expect(entrada).toBeLessThan(COURT_TOP - PLAYER_GAP_FROM_TOP);
   });
 });
 

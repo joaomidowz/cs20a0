@@ -92,23 +92,24 @@ export const THEME_TOTAL_CAP = 4;
  * Quanto cada tipo de bot fica ABAIXO do topo da escala, em níveis. Número menor = bot mais forte.
  * É a progressão do chaveamento: o time sem história é o degrau de entrada e o campeão é a parede final.
  *
- * Em 2026-09-20 a escada inteira desceu ~6 níveis a pedido do dono ("impossível ganhar"): o campeão saiu do nível
- * 91 para o 85. Medido (melhor de 3, 300 séries): GOATs caprichados × sem história 84%, × campeão 66% (eram 58%);
- * iniciante × sem história 64%, × campeão 37% (eram 30%); quatro 99 sem IGL × campeão 43%.
- * Num Major inteiro SEM alívio (a fila ranqueada), um time de nível 95 leva o título em ~32% das runs.
+ * Em 2026-09-20 a escada desceu duas vezes a pedido do dono ("impossível ganhar", "os campeões estão muito fortes"):
+ * o campeão saiu do nível 97,4 para 96,7 e o degrau de entrada para 95,0. Medido (melhor de 3, 300 séries):
+ * GOATs caprichados × campeão 71% (eram 58%), × degrau de entrada 85%; iniciante × campeão 42% (eram 30%),
+ * × degrau de entrada 66%; quatro 99 sem IGL × campeão 49%.
+ * Num Major inteiro SEM alívio (a fila ranqueada): iniciante leva 18% dos títulos e um time de 98,6, 52%.
  *
  * Um bot nunca fica mais fraco do que já era: se o poder próprio dele for maior, vale o próprio.
  */
 export const BOT_GAP_FROM_TOP: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', number>> = {
-  champion: 1.5556,
-  finalist: 1.7778,
-  semifinal: 2.0556,
-  top8: 2.4444,
-  none: 3.6667
+  champion: 2.35,
+  finalist: 2.5,
+  semifinal: 2.7,
+  top8: 3,
+  none: 4
 };
 
 /** Nenhum bot chega mais perto do topo do que isto: os melhores times da história empatam com uma line perfeita, nunca são favoritos. */
-export const BOT_MIN_GAP_FROM_TOP = 1.3167;
+export const BOT_MIN_GAP_FROM_TOP = 2;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
@@ -144,7 +145,7 @@ export const PLAYER_GAP_FROM_TOP = 2.2;
  * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
  * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
  *
- * Medido em 2026-09-20, depois de o dono pedir duas vezes para facilitar: nível 79 → 13%, 86 → 48%, 90 → 75%, 95 → 85–88%;
+ * Medido em 2026-09-20 (60 Majors por linha): nível 96,8 → 13% de título, 97,6 → 53%, 98,0 → 85%, 98,6 → 88%;
  * o time do topo cai na fase suíça em 0–2% das runs (eram 45%). O Major normal usa a mesma tabela e é mais
  * fácil pelo campo. `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
