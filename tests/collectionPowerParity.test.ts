@@ -13,7 +13,7 @@ import { RoomManager, type PreparedLineup } from '../server/room-manager';
 import { applyCollectionLineup, collectionBaseTeam, synergyOf, toSelectedPlayer, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
-import { withPlayerFloor } from '../src/lib/game/courtPower';
+import { COURT_SPREAD, withPlayerFloor } from '../src/lib/game/courtPower';
 import { courtRating } from '../src/lib/game/powerRating';
 import { DEFAULT_ROOM_CONFIG, type RoomConfig } from '../src/lib/game/online/contracts';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -69,6 +69,38 @@ function serverPower(options: { star?: string | null; coachId?: string | null; r
   return mine!.power;
 }
 
+describe('salvar o time troca a line da run que ainda não começou', () => {
+  it('o coach escolhido depois de abrir a sala entra na quadra', () => {
+    const semCoach: PreparedLineup = {
+      userId: 'dono', lineup: cards.map((player, index) => toSelectedPlayer(player.id, ROLES[index])),
+      style: 'tactical', starPlayerId: STAR, coachId: null, mapPreferences: [...getDefaultMapSelection(cards as Player[], teams)]
+    };
+    const manager = new RoomManager();
+    const code = manager.createRoom(CONFIG, 1_000, `refresh-${requestId()}`);
+    const me = manager.join(code, 'Dono', 'SK', 1_001, manager.prepareLineup(code, semCoach, 1_000));
+    const outros = players.filter((player) => !IDS.includes(player.id)).slice(0, 5);
+    manager.join(code, 'Bot', 'Org B', 1_002, manager.prepareLineup(code, { userId: 'outro', lineup: outros.map((player, index) => toSelectedPlayer(player.id, (['igl', 'awper', 'entry', 'support', 'lurker'] as CollectionSlotRole[])[index])), style: 'balanced', starPlayerId: null, coachId: null, mapPreferences: [...getDefaultMapSelection(outros, teams)] }, 1_000));
+    // O jogador salva o time com coach enquanto a sala ainda está no lobby.
+    expect(manager.refreshPreparedLineup({ ...semCoach, coachId: COACH }, 1_005)).toBeGreaterThan(0);
+    manager.execute(code, me.participantId, { type: 'start', requestId: requestId() }, 1_010);
+    const mine = manager.getSnapshot(code, me.participantId, 1_010).organizations!.find((organization) => organization.id === me.participantId)!;
+    expect(courtRating(mine.power), 'a quadra recebeu o time salvo, com coach').toBeCloseTo(courtRating(screenPower()), 1);
+  });
+
+  it('uma run já em andamento mantém o time com que entrou', () => {
+    const manager = new RoomManager();
+    const code = manager.createRoom(CONFIG, 1_000, `frozen-${requestId()}`);
+    const me = manager.join(code, 'Dono', 'SK', 1_001, manager.prepareLineup(code, { userId: 'dono', lineup: cards.map((player, index) => toSelectedPlayer(player.id, ROLES[index])), style: 'tactical', starPlayerId: STAR, coachId: COACH, mapPreferences: [...getDefaultMapSelection(cards as Player[], teams)] }, 1_000));
+    const outros = players.filter((player) => !IDS.includes(player.id)).slice(0, 5);
+    manager.join(code, 'Bot', 'Org B', 1_002, manager.prepareLineup(code, { userId: 'outro', lineup: outros.map((player, index) => toSelectedPlayer(player.id, (['igl', 'awper', 'entry', 'support', 'lurker'] as CollectionSlotRole[])[index])), style: 'balanced', starPlayerId: null, coachId: null, mapPreferences: [...getDefaultMapSelection(outros, teams)] }, 1_000));
+    manager.execute(code, me.participantId, { type: 'start', requestId: requestId() }, 1_010);
+    const antes = manager.getSnapshot(code, me.participantId, 1_010).organizations!.find((organization) => organization.id === me.participantId)!.power;
+    expect(manager.refreshPreparedLineup({ userId: 'dono', lineup: cards.map((player, index) => toSelectedPlayer(player.id, ROLES[index])), style: 'balanced', starPlayerId: null, coachId: null, mapPreferences: [...getDefaultMapSelection(cards as Player[], teams)] }, 1_020)).toBe(0);
+    const depois = manager.getSnapshot(code, me.participantId, 1_020).organizations!.find((organization) => organization.id === me.participantId)!.power;
+    expect(depois).toBe(antes);
+  });
+});
+
 describe('o poder da tela é o poder que joga', () => {
   it('a sala leva para a quadra exatamente o time que a tela mostrou', () => {
     const screen = courtRating(screenPower());
@@ -86,14 +118,15 @@ describe('o poder da tela é o poder que joga', () => {
     expect(lines, 'IGL + AWPer + suporte presentes valem o bônus de núcleo').toContain('core_complete');
     // E o servidor cobra o mesmo: trocar o AWPer-IGL por um AWPer puro tira o capitão e derruba o poder em quadra.
     const semCapitao = serverPower({ roles: ['entry', 'awper', 'rifler', 'support', 'lurker'] });
-    expect(courtRating(semCapitao)).toBeLessThan(courtRating(serverPower()) - 1);
+    // A margem acompanha a régua (`COURT_SPREAD`): o que importa é que jogar sem capitão custe de verdade.
+    expect(courtRating(semCapitao)).toBeLessThan(courtRating(serverPower()) - COURT_SPREAD);
   });
 
   it('o star e o coach contam em jogo, não só na tela', () => {
     const cheio = courtRating(serverPower());
     const semStar = courtRating(serverPower({ star: null }));
     const semCoach = courtRating(serverPower({ coachId: null }));
-    expect(semStar, `com star ${cheio.toFixed(1)} × sem star ${semStar.toFixed(1)}`).toBeLessThan(cheio - 0.5);
-    expect(semCoach, `com coach ${cheio.toFixed(1)} × sem coach ${semCoach.toFixed(1)}`).toBeLessThan(cheio - 0.5);
+    expect(semStar, `com star ${cheio.toFixed(1)} × sem star ${semStar.toFixed(1)}`).toBeLessThan(cheio - 0.15 * COURT_SPREAD);
+    expect(semCoach, `com coach ${cheio.toFixed(1)} × sem coach ${semCoach.toFixed(1)}`).toBeLessThan(cheio - 0.15 * COURT_SPREAD);
   });
 });

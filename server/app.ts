@@ -3,7 +3,7 @@ import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { PROTOCOL_VERSION, clientCommandSchema, roomConfigSchema, type ClientCommand, type ErrorCode, type ServerMessage } from '../src/lib/game/online/contracts';
 import { advanceFeedCursor, initialDelivery, planBroadcast, type DeliveryState } from './broadcast';
 import { ONLINE_DATA_HASH } from './data';
-import { RoomError, RoomManager } from './room-manager';
+import { RoomError, RoomManager, type PreparedLineup } from './room-manager';
 import type { Db } from './db/client';
 import type { Mailer } from './auth/mailer';
 import { createAuthRoutes } from './http/auth-routes';
@@ -71,7 +71,13 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const queue = createQueue(manager, now);
   const supportDeps = auth && options.db && options.mailer && options.supportTo ? { db: options.db, mailer: options.mailer, to: options.supportTo } : null;
   const support = supportDeps && auth ? createSupportRoutes(supportDeps, auth.currentUser, now) : null;
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createTradeRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...createCatalogRoutes(options.db, Boolean(options.payments)), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
+  // O time salvo agora é o time que joga: troca a line em toda run que ainda não começou (bilhete da sala, lobby,
+  // draft) e na fila. Uma run em andamento mantém o time com que entrou.
+  const refreshLineup = (userId: string, prepared: PreparedLineup) => {
+    manager.refreshPreparedLineup(prepared);
+    queue.refreshLineup(userId, prepared);
+  };
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth, refreshLineup), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createTradeRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...createCatalogRoutes(options.db, Boolean(options.payments)), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
   const clientAddress = (request: IncomingMessage) => {
     if (options.trustProxy) {
       const forwarded = request.headers['x-forwarded-for'];

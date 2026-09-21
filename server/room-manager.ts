@@ -463,6 +463,37 @@ export class RoomManager {
     return ticket;
   }
 
+  /**
+   * Swaps the lineup a player takes to a run that has not started yet, everywhere it is held: the ticket of a room
+   * they have not joined, and the participant of a room still in the lobby or in the draft.
+   *
+   * Without this, the run uses the lineup as it was when the room was created (or when the queue was joined), while
+   * the builder shows the one just saved: the owner saw a team of level 96,5 play as 91,4 because the star and the
+   * coach chosen afterwards never reached the court. Once the tournament exists nothing changes — a run in progress
+   * keeps the team it started with.
+   */
+  refreshPreparedLineup(prepared: PreparedLineup, now = Date.now()): number {
+    let changed = 0;
+    for (const room of this.rooms.values()) {
+      if (room.engine) continue;
+      for (const [ticket, entry] of room.pendingLineups) {
+        if (entry.prepared.userId !== prepared.userId || entry.expiresAt <= now) continue;
+        room.pendingLineups.set(ticket, { ...entry, prepared });
+        changed += 1;
+      }
+      for (const participant of room.participants.values()) {
+        if (participant.prepared?.userId !== prepared.userId) continue;
+        participant.prepared = prepared;
+        // In the draft the lineup is already on the table, so it has to be laid out again.
+        if (room.phase === 'draft') participant.draft = this.initialDraft(room, participant);
+        room.version += 1;
+        room.stateVersion += 1;
+        changed += 1;
+      }
+    }
+    return changed;
+  }
+
   hasRoom(code: string): boolean {
     return this.rooms.has(code.toUpperCase());
   }

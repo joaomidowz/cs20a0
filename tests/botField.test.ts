@@ -1,6 +1,6 @@
 // tests/botField.test.ts
 // Campo de bots do online: buff por colocação em Major, campeões garantidos e as zebras da run.
-import { COURT_TOP, courtPower } from '../src/lib/game/courtPower';
+import { COURT_SPREAD, COURT_TOP, courtPower } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
 import { BOT_GAP_FROM_TOP, BOT_MIN_GAP_FROM_TOP, GUARANTEED_CHAMPIONS, ZEBRAS_MAX, ZEBRAS_MIN, ZEBRA_BOOST, ZEBRA_POWER_CAP, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
@@ -51,9 +51,10 @@ describe('escada de progressão dos bots', () => {
   it('o time sem história é o degrau de entrada: vencível, mas não de graça', () => {
     const entrada = courtPower(botFieldPower(82, team(null), false));
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false));
-    // Em níveis: o campeão fica bem acima do degrau de entrada, e o degrau de entrada não fica fora de alcance.
-    expect(campeao - entrada).toBeGreaterThan(13);
-    expect(COURT_TOP - entrada).toBeLessThan(36);
+    // As margens acompanham a régua (`COURT_SPREAD`): o campeão fica bem acima do degrau de entrada, e o degrau
+    // de entrada não fica fora de alcance de quem chega.
+    expect(campeao - entrada).toBeGreaterThan(1.4 * COURT_SPREAD);
+    expect(COURT_TOP - entrada).toBeLessThan(4 * COURT_SPREAD);
   });
 });
 

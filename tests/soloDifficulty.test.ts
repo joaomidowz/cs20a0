@@ -1,7 +1,8 @@
 // tests/soloDifficulty.test.ts
 // A dificuldade do solo contra bots, medida em Majors inteiros pela montagem de campo do servidor.
 // O combinado com o dono: o "Major dos Campeões" é uma parede que CEDE conforme o time sobe de nível — quase
-// impossível para quem está começando, ~1 em 15 no nível 85, 3 a 5 em 10 no nível 90 e 6 a 8 em 10 de 95 para cima.
+// impossível para quem está começando e cada vez mais vencível conforme o time sobe. Em 2026-09-20 o dono pediu
+// duas vezes para facilitar ("joguei 5, perdi todas"): hoje o nível 86 leva ~metade, o 90 três de quatro e o 95+ quase sempre.
 // Antes disto um time quase perfeito levava o título em 3% das runs e caía na fase suíça em 45%.
 //
 // Mexeu em `SOLO_FIELD_RELIEF` (`src/lib/game/balance.ts`)? Rode este arquivo: ele diz, em % de títulos, o que mudou.
@@ -35,7 +36,7 @@ describe('Major dos Campeões: a parede cede conforme o time sobe de nível', ()
 
   it('quem está começando quase nunca leva, mas não é zero para sempre', { timeout: TIMEOUT }, () => {
     const beginner = titleOf('beginner');
-    expect(beginner.title, `iniciante (nível ${beginner.level.toFixed(0)}): ${beginner.title}%`).toBeLessThanOrEqual(10);
+    expect(beginner.title, `iniciante (nível ${beginner.level.toFixed(0)}): ${beginner.title}%`).toBeLessThanOrEqual(25);
   });
 
   it('a partir do nível ~85 o título é possível, e sobe a cada degrau até o topo', { timeout: TIMEOUT }, () => {
@@ -43,14 +44,14 @@ describe('Major dos Campeões: a parede cede conforme o time sobe de nível', ()
     const high = titleOf('goatsLazy');
     const top = titleOf('goatsBuilt');
     const label = `nível ${mid.level.toFixed(0)}: ${mid.title}% · nível ${high.level.toFixed(0)}: ${high.title}% · nível ${top.level.toFixed(0)}: ${top.title}%`;
-    // Nível ~86: por volta de 1 em 6. Nível ~90: perto de 5 em 10 (os bots ficaram ~15% mais fáceis em 2026-09-20).
-    expect(mid.title, label).toBeGreaterThanOrEqual(6);
-    expect(mid.title, label).toBeLessThanOrEqual(32);
-    expect(high.title, label).toBeGreaterThanOrEqual(32);
-    expect(high.title, label).toBeLessThanOrEqual(64);
-    // O topo (95+): 6 a 8 em 10, a dinastia no auge — e ainda perde o bastante para não ser garantido.
-    expect(top.title, label).toBeGreaterThanOrEqual(58);
-    expect(top.title, label).toBeLessThanOrEqual(86);
+    // Nível ~86: perto de metade. Nível ~90: três de cada quatro.
+    expect(mid.title, label).toBeGreaterThanOrEqual(30);
+    expect(mid.title, label).toBeLessThanOrEqual(66);
+    expect(high.title, label).toBeGreaterThanOrEqual(58);
+    expect(high.title, label).toBeLessThanOrEqual(90);
+    // O topo (95+): quase sempre, e ainda assim não é garantido.
+    expect(top.title, label).toBeGreaterThanOrEqual(72);
+    expect(top.title, label).toBeLessThanOrEqual(97);
     expect(high.title, label).toBeGreaterThan(mid.title);
     expect(top.title, label).toBeGreaterThan(high.title);
     // E o time do topo não morre mais na fase suíça (eram 45% das runs).

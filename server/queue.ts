@@ -59,6 +59,14 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
   /** When the queue first had two players (and fewer than the minimum); the pair window runs from here. */
   let pairSince: number | null = null;
 
+  /** Swaps the lineup of someone already waiting, so a team saved during the search is the one that plays. */
+  function refreshLineup(userId: string, prepared: PreparedLineup): boolean {
+    const entry = waiting.get(userId);
+    if (!entry) return false;
+    entry.prepared = prepared;
+    return true;
+  }
+
   function join(userId: string, prepared: PreparedLineup): QueueStatus {
     const current = now();
     matches.delete(userId);
@@ -134,7 +142,7 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
     }
   }
 
-  return { join, leave, status, tick, size: () => waiting.size };
+  return { join, leave, refreshLineup, status, tick, size: () => waiting.size };
 }
 
 export type Queue = ReturnType<typeof createQueue>;

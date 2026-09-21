@@ -14,7 +14,7 @@ const leaveSchema = z.object({ reason: z.enum(['hidden', 'user']).optional() });
 const soloSchema = z.object({ field: z.enum(['random', 'champions']).default('random') });
 
 /** The saved lineup as the room needs it; throws when the collection team is missing or incomplete. */
-async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
+export async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
   const lineup = await getLineup(db, userId);
   if (!lineup) throw new HttpError(409, 'NO_LINEUP', 'Monte e salve seu time na coleção primeiro');
   const selected = lineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));

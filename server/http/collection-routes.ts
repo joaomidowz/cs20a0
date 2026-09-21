@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
 import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineup, openDailyPack, openFreePack, saveLineup, sellPlayer } from '../collection/service';
 import type { Db } from '../db/client';
+import type { PreparedLineup } from '../room-manager';
+import { preparedFor as preparedLineup } from './room-routes';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler', 'awper-igl']);
@@ -23,7 +25,10 @@ const toHttp = (error: unknown): never => {
   throw error;
 };
 
-export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => Handler): Route[] {
+/** Carries a freshly saved lineup to a run that has not started yet (the room's ticket, the lobby, the queue). */
+export type LineupRefresher = (userId: string, prepared: PreparedLineup) => void;
+
+export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => Handler, onLineupSaved?: LineupRefresher): Route[] {
   return [
     route('GET', /^\/collection$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await getCollection(db, userId!, now)) }))),
     route('GET', /^\/packs$/, withAuth(async ({ userId, now }) => {
@@ -51,7 +56,11 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
     route('GET', /^\/lineup$/, withAuth(async ({ userId }) => ({ ok: true, lineup: await getLineup(db, userId!) }))),
     route('PUT', /^\/lineup$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, lineupSchema);
-      return { ok: true, lineup: await saveLineup(db, userId!, body).catch(toHttp) };
+      const lineup = await saveLineup(db, userId!, body).catch(toHttp);
+      // The team just saved is the team that plays: a run waiting to start swaps to it instead of keeping the one
+      // from when the room (or the queue search) began.
+      onLineupSaved?.(userId!, await preparedLineup(db, userId!));
+      return { ok: true, lineup };
     }))
   ];
 }

@@ -434,7 +434,9 @@
 
         {:else}
         <section class="panel team" bind:this={teamSection}>
-          <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {fmt(preview.power)}</strong>{/if}</div>
+          <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {fmt(preview.power)}
+            <!-- O poder que joga é o do time SALVO: sem este aviso, o jogador lê 98 na tela e vê 92 na partida. -->
+            {#if dirty && savedTeam}<em class="unsaved">{t('unsavedPower').replace('{n}', fmt(savedTeam.power))}</em>{/if}</strong>{/if}</div>
           {#if swapIn}<p class="swap-banner" role="status"><span>⇄ {t('swapChoose')} <b>{swapIn.nickname ?? swapIn.id}</b></span><button class="ghost small" type="button" on:click={() => swapIn = null}>{t('cancel')}</button></p>{/if}
           <div class="slots">
             {#each slots as slot, index}
@@ -726,6 +728,7 @@
   .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .74rem; }
   .synergy li.up { border-left-color: var(--accent); } .synergy li.down { border-left-color: var(--danger); } .synergy li.total { border-left-color: #d9a441; font-weight: 800; }
   .power { color: var(--accent); font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; }
+  .power .unsaved { display:block; margin-top:4px; color: var(--accent-2); font: 700 .68rem/1.2 system-ui, sans-serif; font-style: normal; letter-spacing:.04em; }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 12px; padding-top: 8px; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }

@@ -1,4 +1,4 @@
-import { COURT_SPREAD } from '../src/lib/game/courtPower';
+import { COURT_SPREAD, COURT_TOP } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { MAP_POOL } from '../src/lib/game/maps';
 import type { MapStrategy } from '../src/lib/game/map-veto';
@@ -213,10 +213,12 @@ describe('escala de poder do dia de jogo', () => {
 
   it("em 'court' nada é cortado: times acima de 110 deixam de jogar idênticos, e ninguém chega a 100", () => {
     const series = bots(112, 134, 'court');
-    expect(series.adjustedB.power).toBeGreaterThan(series.adjustedA.power + 1.5);
+    // 112 e 134 jogavam idênticos com o corte antigo em 110. Acima do joelho cada ponto de carta vale COURT_SLOPE,
+    // então 22 pontos de poder cru valem ~1,1 na régua de hoje: a margem acompanha a régua.
+    expect(series.adjustedB.power).toBeGreaterThan(series.adjustedA.power + 0.5 * COURT_SPREAD);
     // 121 é a melhor line montável; nem ela, nem num dia bom, nem com a pressão de uma final, passa muito de 100.
     const best = bots(106, 121, 'court');
-    expect(best.adjustedB.power).toBeLessThan(100.5);
+    expect(best.adjustedB.power).toBeLessThan(COURT_TOP + 1.5 * COURT_SPREAD);
   });
 
   it('abaixo do joelho a escala nova não muda nenhuma série: só renomeia os números', () => {

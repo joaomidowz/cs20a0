@@ -10,8 +10,8 @@
  * 1. Tudo aqui é medido em NÍVEIS: a escala de `courtPower.ts`, que vai até 99 e é a que aparece na tela.
  *    Um nível custa o mesmo para um time de GOATs e para um de Comuns; uma porcentagem custaria quase nada no
  *    topo e muito embaixo.
- * 2. O motor é sensível, mas em unidades legíveis: numa série melhor de três, 18 níveis são ~67/33 e 36 são ~82/18.
- *    Mexa de 1 em 1, não de 10 em 10.
+ * 2. O motor é MUITO sensível: numa série melhor de três, 2 pontos já são ~67/33 e 4 são ~82/18.
+ *    Mexa de 0,1 em 0,1, não de 1 em 1.
  * 3. A escala inteira (escada dos bots, piso do jogador, o que falta ao time) é proporcional: multiplicar TODOS os
  *    números daqui e o `COURT_WIN_DIVISOR` pelo mesmo fator não muda um resultado sequer, só o tamanho dos números.
  *
@@ -36,11 +36,14 @@ export const COURT_SLOPE = 0.05;
  * Quantos níveis de tela vale um ponto de poder cru efetivo (já passado pela compressão acima).
  *
  * É só o tamanho da régua: com a sensibilidade do motor (`COURT_WIN_DIVISOR`) andando junto, mudar isto não muda
- * NENHUM resultado — muda só quanto a evolução do time aparece na tela. Em 1 o jogo inteiro cabia entre 95 e 98 e
- * sair de cinco Comuns para uma line de GOATs mexia 1,3 ponto: ninguém via que estava evoluindo. Em 9 o mesmo
- * caminho vai de ~79 a ~97 e cada carta trocada tem um número.
+ * NENHUM resultado — muda só o tamanho dos números na tela.
+ *
+ * Em 2026-09-20 chegou a valer 9, para a evolução do time aparecer (a coleção inteira cabia em 1,3 ponto), e o dono
+ * pediu a régua de sempre de volta: o jogo inteiro mora entre ~96,8 e 99, e trocar uma carta mexe centésimos.
+ * O que a régua larga revelou — o time entrando em quadra sem o coach — virou conserto de verdade
+ * (`RoomManager.refreshPreparedLineup`), e por isso não volta junto com ela.
  */
-export const COURT_SPREAD = 9;
+export const COURT_SPREAD = 1;
 /** Poder cru da melhor line montável hoje (Vitality 2025 com XTQZZZ), medido em 2026-09-20. `tests/powerRating.test.ts` re-mede e falha se mudar. */
 export const RAW_TOP = 152.68;
 /** Onde o topo da escala aparece na tela. Abaixo de 100 de propósito: 100 seria a perfeição, e ela não existe. */
@@ -58,22 +61,22 @@ export const COURT_WIN_DIVISOR = 16 * COURT_SPREAD;
 // ---------------------------------------------------------------------------------------------------------------
 
 /** Time sem capitão. Mais negativo = montar sem IGL dói mais. */
-export const MISSING_IGL_COURT = -5;
+export const MISSING_IGL_COURT = -0.5556;
 /** Time sem AWPer. */
-export const MISSING_AWPER_COURT = -5;
+export const MISSING_AWPER_COURT = -0.5556;
 /** Time sem suporte. */
-export const MISSING_SUPPORT_COURT = -3;
+export const MISSING_SUPPORT_COURT = -0.3333;
 
 /**
  * O NÚCLEO: IGL, AWPer e suporte, os três presentes. É a espinha de um time de CS, e é o que separa um time
  * montado de cinco cartas boas jogadas juntas. Vale em níveis, igual para Comuns e para GOATs.
  */
-export const CORE_COMPLETE_COURT = 2;
+export const CORE_COMPLETE_COURT = 0.2222;
 /**
  * A mais, por cada peça do núcleo jogada por uma carta que é DAQUELA função (o IGL que é IGL de ofício, não um
  * rifler improvisado de capitão). Com os três de ofício o núcleo inteiro vale CORE_COMPLETE_COURT + 3 × isto.
  */
-export const CORE_NATURAL_COURT = 1;
+export const CORE_NATURAL_COURT = 0.1111;
 
 /**
  * Teto da sinergia temática (mesmo time, país, ano), em % de poder. É tempero, não decisão: no topo, o tema cheio
@@ -97,15 +100,15 @@ export const THEME_TOTAL_CAP = 4;
  * Um bot nunca fica mais fraco do que já era: se o poder próprio dele for maior, vale o próprio.
  */
 export const BOT_GAP_FROM_TOP: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', number>> = {
-  champion: 14,
-  finalist: 16,
-  semifinal: 18.5,
-  top8: 22,
-  none: 33
+  champion: 1.5556,
+  finalist: 1.7778,
+  semifinal: 2.0556,
+  top8: 2.4444,
+  none: 3.6667
 };
 
 /** Nenhum bot chega mais perto do topo do que isto: os melhores times da história empatam com uma line perfeita, nunca são favoritos. */
-export const BOT_MIN_GAP_FROM_TOP = 11.85;
+export const BOT_MIN_GAP_FROM_TOP = 1.3167;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
@@ -120,7 +123,7 @@ export const BOT_MIN_GAP_FROM_TOP = 11.85;
  *
  * É por causa dele que o nível na tela começa em ~79 e não em 1: quem tem cinco Comuns joga como 79 de verdade.
  */
-export const PLAYER_GAP_FROM_TOP = 19.8;
+export const PLAYER_GAP_FROM_TOP = 2.2;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O solo contra bots: a parede cede conforme você sobe de nível
@@ -141,17 +144,17 @@ export const PLAYER_GAP_FROM_TOP = 19.8;
  * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
  * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
  *
- * Medido em 2026-09-20 com esta tabela e a escada de bots atual: nível 79 → 3%, 86 → 18%, 90 → 49%, 95 → 69–70%;
+ * Medido em 2026-09-20, depois de o dono pedir duas vezes para facilitar: nível 79 → 13%, 86 → 48%, 90 → 75%, 95 → 85–88%;
  * o time do topo cai na fase suíça em 0–2% das runs (eram 45%). O Major normal usa a mesma tabela e é mais
  * fácil pelo campo. `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
 export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [79, 4],
-  [85, 7],
-  [90, 30],
-  [93, 36],
-  [95, 41],
-  [99, 48]
+  [96.78, 1.3333],
+  [97.44, 3.1111],
+  [98, 5],
+  [98.33, 6.2222],
+  [98.56, 7.1111],
+  [99, 8]
 ];
 
 /** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */
