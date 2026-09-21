@@ -140,12 +140,19 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
     roomState.set({ ...idleRoom(), code: normalizedCode, connection: 'connecting' });
     roomClient = dependencies.createRoomClient(getOnlineServerUrl(), normalizedCode, identity, {
       onConnection: (connection) => {
-        if (connection === 'expired') roomClient = null;
+        if (connection === 'expired') {
+          roomClient = null;
+          // The match was consumed; a stale 'matched' would strip the queue button from the entry screen.
+          resetConsumedQueue();
+        }
         roomState.update((room) => ({ ...room, connection }));
       },
       onSnapshot: (snapshot) => roomState.update((room) => ({ ...room, snapshot, live: null, liveHistory: [], error: null })),
       onLive: (live) => roomState.update((room) => ({ ...room, live, liveHistory: [...room.liveHistory, live].slice(-512) })),
-      onError: (message, code) => roomState.update((room) => ({ ...room, error: { message, code } }))
+      onError: (message, code) => {
+        resetConsumedQueue();
+        roomState.update((room) => ({ ...room, error: { message, code } }));
+      }
     });
     roomClient.connect();
   };
@@ -206,10 +213,17 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
     await dependencies.queueLeave(reason);
   };
 
+  /** A matched room that already connected must never keep the entry screen on "match found": that view has no queue button. */
+  const resetConsumedQueue = () => {
+    if (get(queueState).state !== 'matched') return;
+    queueState.set(idleQueue());
+  };
+
   const leaveRoom = () => {
     roomClient?.stop();
     roomClient = null;
     roomState.set(idleRoom());
+    resetConsumedQueue();
   };
 
   const dispose = () => {

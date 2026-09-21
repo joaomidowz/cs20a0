@@ -40,7 +40,9 @@ export async function authFetch<T = unknown>(serverUrl: string, path: string, in
   const response = await fetch(new URL(path, serverUrl), {
     method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
     headers: { 'content-type': 'application/json', ...(currentToken ? { authorization: `Bearer ${currentToken}` } : {}) },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body)
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    // A request that never settles would freeze whatever awaits it (the rewards panel polls with it): give up instead.
+    signal: AbortSignal.timeout(12_000)
   });
   const payload = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string } & T;
   if (!response.ok) {
