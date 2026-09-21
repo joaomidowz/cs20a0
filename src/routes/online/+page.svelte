@@ -106,6 +106,17 @@
     } catch { collectionOutcome = { rank: null, points: 0, majorsWon: 0, awards: [], result, room, pending: false, missing: !result }; }
   }
   const awardName = (kind: string) => { const key = `award_${kind}` as Parameters<typeof t>[0]; const label = t(key); return label && label !== key ? label : kind.replace(/_/g, " "); };
+  // A run grants the same award kind more than once (two flawless maps, two giants, two top-10 players) and the
+  // keyed each below would crash the whole page on duplicate keys, freezing the panel: merge per kind instead.
+  const mergeAwards = (awards: Array<{ kind: string; coins: number; points: number }>) => {
+    const merged = new Map<string, { kind: string; coins: number; points: number; count: number }>();
+    for (const award of awards) {
+      const found = merged.get(award.kind);
+      if (found) { found.coins += award.coins; found.points += award.points; found.count += 1; }
+      else merged.set(award.kind, { ...award, count: 1 });
+    }
+    return [...merged.values()];
+  };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
   $: if (snapshot?.phase === 'completed' && me?.collection && $accountUser) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
@@ -1207,8 +1218,8 @@
                   <h3>{t('youEarned')}</h3>
                   <ul>
                     <li><span>{t('placementCoins')} · {translatePlacement($language, result.placement)}</span><b>+{result.rewardCoins.toLocaleString($language)} coins</b></li>
-                    {#each result.awards as award (award.kind)}
-                      <li><span>{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
+                    {#each mergeAwards(result.awards) as award (award.kind)}
+                      <li><span>{award.count > 1 ? `${award.count}× ` : ''}{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
                     {/each}
                     <li class="total"><span>{t('totalCoins')}</span><b>+{(result.rewardCoins + result.awardCoins).toLocaleString($language)} coins</b></li>
                     {#if result.lobbySize > 1}<li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b>+{result.points} pts</b></li>{/if}
