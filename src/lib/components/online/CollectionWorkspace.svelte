@@ -82,6 +82,8 @@
 
   // Lineup builder. Each tab is one lineup slot: the builder below edits the tab's team.
   let activeTab = 0;
+  /** Short "what each style is for" cheat sheet, toggled by the info button next to the label. */
+  let stylesHelp = false;
   let slots: Array<Player | null> = [null, null, null, null, null];
   let roles: Array<CollectionSlotRole | null> = [null, null, null, null, null];
   let starPlayerId: string | null = null;
@@ -583,8 +585,16 @@
             </div>
 
             <div class="detail-box">
-              <span class="label">{t('style')}</span>
-              <div class="segmented-control">{#each ORG_STYLES as option}<button type="button" class:active={style === option} on:click={() => style = option}>{gameT(option)}</button>{/each}</div>
+              <span class="label with-info">{t('style')}<button type="button" class="info-btn" aria-expanded={stylesHelp} aria-label={t('style')} title="?" on:click={() => stylesHelp = !stylesHelp}>?</button></span>
+              <!-- Seis estilos: duas linhas de três (o grid de coluna única do app.css cortava o EQUIILIBRADO). -->
+              <div class="segmented-control styles-grid">{#each ORG_STYLES as option}<button type="button" class:active={style === option} on:click={() => style = option}>{gameT(option)}</button>{/each}</div>
+              {#if stylesHelp}
+                <ul class="styles-help">
+                  {#each ORG_STYLES as option}
+                    <li class:active={style === option}><b>{gameT(option)}</b> — {gameT(`${option}Desc` as Parameters<typeof gameT>[0])} <em>{t(`styleReq_${option}` as Parameters<typeof t>[0])}</em></li>
+                  {/each}
+                </ul>
+              {/if}
               <p class="note" class:warn={complete && !readyStyle}>{t(`styleReq_${style}` as Parameters<typeof t>[0])}</p>
               <span class="label">{t('synergy')}</span>
               {#if synergy.length}
@@ -745,6 +755,17 @@
   .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
   .detail-box { display: grid; gap: 12px; align-content: start; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
   .detail-box .label { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .label.with-info { display: flex; align-items: center; gap: 6px; }
+  .info-btn { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: .66rem; font-weight: 800; cursor: pointer; }
+  .info-btn[aria-expanded='true'] { color: var(--accent); border-color: var(--accent); }
+  /* Seis estilos em DUAS linhas de três; o global é uma coluna só e cortava os rótulos longos. */
+  .styles-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row; }
+  .styles-grid button { overflow-wrap: anywhere; }
+  .styles-help { display: grid; gap: 5px; margin: 0; padding: 10px; border: 1px solid var(--line); background: var(--surface); list-style: none; }
+  .styles-help li { color: var(--muted); font-size: .68rem; line-height: 1.45; }
+  .styles-help b { color: var(--text); }
+  .styles-help em { font-style: normal; color: var(--accent); }
+  .styles-help li.active b { color: var(--accent); }
   .stat-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .stat-list li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--surface); font-size: .76rem; }
   .stat-list b.up { color: var(--accent); } .stat-list li.final { border-left: 3px solid #d9a441; font-weight: 900; }
