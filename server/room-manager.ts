@@ -820,7 +820,8 @@ export class RoomManager {
       sourceTeamId: organization.sourceTeamId ?? null,
       style: organization.team.style ?? null,
       power: Number(organization.team.power.toFixed(1)),
-      lineup: organization.team.lineup ?? []
+      lineup: organization.team.lineup ?? [],
+      coachId: organization.team.coachId ?? null
     }));
     return {
       protocolVersion: PROTOCOL_VERSION,
@@ -1382,7 +1383,8 @@ export class RoomManager {
       ? applyCollectionLineup(built, { players: selected, roles: participant.draft.lineup.map(collectionRoleOf), starPlayerId: participant.prepared.starPlayerId, style: participant.prepared.style, coachId: participant.prepared.coachId })
       : built;
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
-    const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)) : synergized;
+    // O coach fica gravado no time para a ficha da partida poder mostrar quem está no banco.
+    const withCoach = coach ? { ...applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)), coachId: coach.id } : synergized;
     // A player's team never takes the court below the floor (`balance.ts`): starting out is a disadvantage, not a
     // sentence. Bots keep their own level, so the opening step of the bracket stays winnable for a new account.
     const base = { ...withCoach, power: withPlayerFloor(withCoach.power) };

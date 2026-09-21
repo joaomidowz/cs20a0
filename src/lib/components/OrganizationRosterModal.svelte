@@ -69,6 +69,23 @@
         <p class="empty-roster">Jogadores ainda não cadastrados para este time.</p>
       {/if}
 
+      <!-- O coach entra em quadra junto (tática, disciplina e preferência de lado), então a ficha diz quem é. -->
+      {#if organization.coach}
+        {@const coach = organization.coach}
+        <div class="org-modal-coach">
+          <span class="eyebrow">COACH</span>
+          <div class="coach-line">
+            <strong>{coach.name}</strong>
+            {#if coach.team}<em>{coach.team}{coach.year ? ` · ${coach.year}` : ''}</em>{/if}
+          </div>
+          <div class="org-stats-grid">
+            <div><small>{translate(language, 'coachTactics')}</small><b>{coach.tactics}</b></div>
+            <div><small>{translate(language, 'coachDiscipline')}</small><b>{coach.discipline}</b></div>
+            <div><small>{translate(language, 'coachSide')}</small><b>{coach.sidePreference >= 0 ? 'CT' : 'T'}</b></div>
+          </div>
+        </div>
+      {/if}
+
       {#if organization.stats.length}
         <div class="org-modal-stats">
           <span class="eyebrow">{translate(language, 'estimatedPower')}</span>

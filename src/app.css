@@ -548,11 +548,28 @@ h2 { line-height: 1; text-transform: uppercase; }
   animation: pulse 2s infinite;
 }
 
-.org-modal-stats {
+.org-modal-stats,
+.org-modal-coach {
   padding-top: 16px;
   margin-top: 16px;
   border-top: 1px solid var(--line);
 }
+
+.org-modal-coach > .eyebrow {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.org-modal-coach .coach-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.org-modal-coach .coach-line strong { font-size: 1.05rem; }
+.org-modal-coach .coach-line em { color: var(--muted); font-style: normal; font-size: .76rem; }
 
 .org-modal-stats > .eyebrow {
   display: block;

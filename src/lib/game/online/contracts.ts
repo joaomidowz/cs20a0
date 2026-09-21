@@ -251,6 +251,8 @@ export interface PublicOrganization {
   style: OrgStyle | null;
   power: number;
   lineup: SelectedPlayer[];
+  /** Coach da coleção que está no banco deste time; null para bot ou para quem joga sem coach. */
+  coachId: string | null;
 }
 
 export interface PublicSelfResult {

@@ -122,6 +122,18 @@ describe('o poder da tela é o poder que joga', () => {
     expect(courtRating(semCapitao)).toBeLessThan(courtRating(serverPower()) - COURT_SPREAD);
   });
 
+  it('a ficha da partida diz quem é o coach do banco', () => {
+    const manager = new RoomManager();
+    const code = manager.createRoom(CONFIG, 1_000, `coach-${requestId()}`);
+    const me = manager.join(code, 'Dono', 'SK', 1_001, manager.prepareLineup(code, { userId: 'dono', lineup: cards.map((player, index) => toSelectedPlayer(player.id, ROLES[index])), style: 'tactical', starPlayerId: STAR, coachId: COACH, mapPreferences: [...getDefaultMapSelection(cards as Player[], teams)] }, 1_000));
+    const outros = players.filter((player) => !IDS.includes(player.id)).slice(0, 5);
+    manager.join(code, 'Bot', 'Org B', 1_002, manager.prepareLineup(code, { userId: 'outro', lineup: outros.map((player, index) => toSelectedPlayer(player.id, (['igl', 'awper', 'entry', 'support', 'lurker'] as CollectionSlotRole[])[index])), style: 'balanced', starPlayerId: null, coachId: null, mapPreferences: [...getDefaultMapSelection(outros, teams)] }, 1_000));
+    manager.execute(code, me.participantId, { type: 'start', requestId: requestId() }, 1_010);
+    const organizations = manager.getSnapshot(code, me.participantId, 1_010).organizations!;
+    expect(organizations.find((organization) => organization.id === me.participantId)!.coachId, 'o coach vai junto para a ficha').toBe(COACH);
+    expect(organizations.find((organization) => !organization.human)!.coachId, 'bot não tem coach da coleção').toBeNull();
+  });
+
   it('o star e o coach contam em jogo, não só na tela', () => {
     const cheio = courtRating(serverPower());
     const semStar = courtRating(serverPower({ star: null }));

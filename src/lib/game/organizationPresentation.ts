@@ -9,6 +9,8 @@ export interface OrganizationRosterView {
   tags: string[];
   roster: Player[];
   stats: Array<{ key: string; value: number }>;
+  /** Quem está no banco: só os times de jogador com coach da coleção têm. */
+  coach?: { name: string; team: string | null; year: number | null; tactics: number; discipline: number; sidePreference: number } | null;
 }
 
 export function getLineupStrengths(players: Player[]) {

@@ -33,7 +33,7 @@
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
   import { playerById as corePlayerById, secretPlayers, teamById as coreTeamById, getTeamPlayers, teams } from '$lib/game/data';
-  import { collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
+  import { collectionCoachById, collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
   import { findSecretOrganization, isSecretPlayerId, secretPoolOf } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -868,7 +868,20 @@
         ? strengths.slice(0, 3).map((stat) => `${stat.key.toUpperCase()} ${stat.value}`)
         : teamTags(historicalTeam),
       roster,
-      stats: strengths
+      stats: strengths,
+      // Quem está no banco: o coach conta na quadra (tática, disciplina e preferência de lado), então ele aparece.
+      coach: (() => {
+        const coach = organization.coachId ? collectionCoachById.get(organization.coachId) : undefined;
+        if (!coach) return null;
+        return {
+          name: coach.name,
+          team: teamById.get(coach.teamId)?.name ?? null,
+          year: coach.year ?? null,
+          tactics: coach.tactics,
+          discipline: coach.discipline,
+          sidePreference: -(coach.aggression - 70) / 1000
+        };
+      })()
     };
   }
 
