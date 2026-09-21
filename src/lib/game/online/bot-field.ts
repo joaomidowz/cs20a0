@@ -166,6 +166,17 @@ export function soloFieldRelief(playerLevel: number, field: 'random' | 'champion
 }
 
 /**
+ * Fila/festa com 2+ humanos: o campo de bots cai pela METADE do alívio solo, medido pelo humano mais forte da sala.
+ * É o "protagonismo" do online — leve, os bots seguem na escada real — e só toca bots: humano contra humano
+ * permanece sem qualquer handicap.
+ */
+export const PARTY_RELIEF_RATIO = 0.5;
+
+export function partyFieldRelief(strongestHumanLevel: number, field: 'random' | 'champions' = 'random'): number {
+  return soloFieldRelief(strongestHumanLevel, field) * PARTY_RELIEF_RATIO;
+}
+
+/**
  * Power a bot takes to the run: its place on the ladder by Major pedigree, or the zebra boost when the run made it
  * one. A bot is never made weaker than it already was — the ladder only lifts. The one exception is `relief`, the
  * levels the field of a SOLO run comes down as the player's team improves: it is taken off after everything else,

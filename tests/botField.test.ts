@@ -5,7 +5,7 @@ import { COURT_TOP, courtPower } from '../src/lib/game/courtPower';
 import { PEDIGREE_LEVEL_BAND, PLAYER_GAP_FROM_TOP, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../src/lib/game/balance';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
-import { GUARANTEED_CHAMPIONS, PEDIGREE_ORDER, ZEBRAS_MAX, ZEBRAS_MIN, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, pedigreeOf, planBotField, rosterAverageOverall } from '../src/lib/game/online/bot-field';
+import { GUARANTEED_CHAMPIONS, PEDIGREE_ORDER, ZEBRAS_MAX, ZEBRAS_MIN, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, partyFieldRelief, PARTY_RELIEF_RATIO, pedigreeOf, planBotField, rosterAverageOverall, soloFieldRelief } from '../src/lib/game/online/bot-field';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { BotPedigree } from '../src/lib/game/balance';
 import type { HistoricalTeam } from '../src/lib/game/types';
@@ -169,5 +169,13 @@ describe('campo da run', () => {
     }
     expect(planBotField({ shuffled: shuffle('q'), playerById, seed: 'q', slots: 3 }).zebraIds.size).toBe(0);
     expect(planBotField({ shuffled: shuffle('q'), playerById, seed: 'q', slots: 4 }).zebraIds.size).toBe(1);
+  });
+});
+
+describe('partyFieldRelief (fila/festa com 2+ humanos)', () => {
+  it('é metade do alívio solo e cresce com o humano mais forte', () => {
+    expect(partyFieldRelief(96.5, 'random')).toBeCloseTo(soloFieldRelief(96.5, 'random') * PARTY_RELIEF_RATIO, 9);
+    expect(partyFieldRelief(96.5, 'random')).toBeGreaterThan(partyFieldRelief(89.9, 'random'));
+    expect(PARTY_RELIEF_RATIO).toBe(0.5);
   });
 });

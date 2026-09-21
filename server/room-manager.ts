@@ -71,7 +71,7 @@ import {
 import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor, secretPlayerId, withSecretPlayers } from '../src/lib/game/online/secret-players';
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
-import { botFieldPower, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
+import { botFieldPower, partyFieldRelief, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
 import { courtPower, withPlayerBand } from '../src/lib/game/courtPower';
 import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
@@ -1221,7 +1221,15 @@ export class RoomManager {
     // Vale para QUALQUER run de um jogador só que não conta pontos, não apenas para a que nasceu no botão do solo:
     // quem entra na fila e fica sem adversário joga a mesma coisa contra os mesmos bots, e sem isto pegava o campo
     // inteiro na força cheia (o dono perdeu três séries seguidas assim).
-    const relief = organizations.length === 1 && !room.competitive ? soloFieldRelief(courtPower(organizations[0].team.power), room.field) : 0;
+    //
+    // Com 2+ humanos (fila/festa), o campo de bots cai pela METADE do alívio (`partyFieldRelief`), medido pelo
+    // humano mais forte: o protagonismo é de quem entrou junto, mas a escada de pedigree segue real. O relief só
+    // entra em `botFieldPower` — humano contra humano nunca tem handicap.
+    const relief = organizations.length === 1 && !room.competitive
+      ? soloFieldRelief(courtPower(organizations[0].team.power), room.field)
+      : organizations.length > 1
+        ? partyFieldRelief(Math.max(...organizations.map((organization) => courtPower(organization.team.power))), room.field)
+        : 0;
     const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);
       const id = `bot-${team.id}`;
