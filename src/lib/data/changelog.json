@@ -1,8 +1,43 @@
 {
-  "version": "2.8",
-  "total": 286,
+  "version": "2.9",
+  "total": 291,
   "generatedAt": "2026-09-21",
   "entries": [
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "9e81d15",
+      "title": "Sinergia vira afinidade — química em níveis, star por raridade e teto 99",
+      "summary": "A sinergia era porcentagem do poder cru e abaixo do joelho da curva valia nível inteiro: time fraco ganhava +15 níveis montando certo e 5 GOATs +1,8 — o time do dono lia 97,4 com base 86,7 e a tela prometia +4,9 entregando +10,7."
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "b5e2a59",
+      "title": "A sala online ganha Sair, Power/Coach de todos os times e pós-major solo limpo",
+      "summary": "Botão de Sair em toda sala (comando leave no servidor: reatribui host, colapsa draft com gente a menos e dissolve sala vazia), chips de PWR e coach no lobby, no draft e na tabela do suíço durante a run, pós-major solo sem 'jogar de novo'…"
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-21",
+      "hash": "9f4140a",
+      "title": "O Major dos Campeões vira o desafio endgame, com alívio próprio",
+      "summary": "A parede dos campeões ganha tabela de alívio separada (SOLO_CHAMPIONS_RELIEF), mais dura que a do Major normal nos níveis médios e mais generosa no topo, calibrada contra a tabela cumulativa combinada com o dono (docs/reports/2026-09-21-…"
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-21",
+      "hash": "34b3a1c",
+      "title": "Escada de pedigree fino — dinastias, campeões ocasionais e merecimento em cada degrau",
+      "summary": "A escada de 5 bandas viram 9 pedigrees combinados com o dono (docs/reports/2026-09-21-taxonomia-pedigree.md): dinastia, campeão forte/underdog, vice merecedor/underdog, semifinalista, top8 e none potencial/filler."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-21",
+      "hash": "1af3d5d",
+      "title": "Versão do jogo na logo e página de novidades",
+      "summary": "A versão sai do próprio histórico: dez mudanças no código valem um décimo (299 commits = 2.9, e o 300 abre a 3.0)."
+    },
     {
       "version": "2.8",
       "date": "2026-09-21",
@@ -190,7 +225,7 @@
       "date": "2026-09-20",
       "hash": "1cd6f22",
       "title": "Design e plano da sinergia temática da coleção",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_016iWjpZPVRdoHRA5pw8RkDf"
+      "summary": ""
     },
     {
       "version": "2.5",
@@ -253,364 +288,364 @@
       "date": "2026-09-19",
       "hash": "bd64a04",
       "title": "Reset da conta do dono — ranking de teste anulado, coleção e time zerados e carteira em 40k",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.5",
       "date": "2026-09-19",
       "hash": "5d63d74",
       "title": "Economia mais difícil — cartas 20% mais caras, GOAT ~100k, tetos no upgrader e caixas grátis",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "ed1ea81",
       "title": "Coach do mesmo tamanho na abertura de pacote e só a melhor carta maior",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "e91b082",
       "title": "Modo draft como opção abaixo de buscar partida",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "7b5e4f7",
       "title": "Lineup do time compacto no celular",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "9b2fc1f",
       "title": "Store com coins no topo e trocas redesenhadas",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "75ccfe0",
       "title": "Upgrader em etapas no celular e polimento de estados",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "4df6d7c",
       "title": "Barra de carteira fixa e promoção diária de 4 cartas",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "ec80c69",
       "title": "Navegação Time, Store e Conta com trocas em página própria",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "cb5a5f3",
       "title": "Derrota do upgrader perde as cartas e dá uma carta rebaixada",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "eeb413e",
       "title": "Upgrader com giro de roleta e provably fair",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.4",
       "date": "2026-09-19",
       "hash": "7f34ec8",
       "title": "Novos preços de cartas, página do upgrader e animação de giro",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-19",
       "hash": "0e665fb",
       "title": "Polimento visual de missões, loja e upgrader",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-19",
       "hash": "9a4beed",
       "title": "Trocas diretas de cartas entre jogadores",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-19",
       "hash": "da14848",
       "title": "Promoções diárias Elite, Superstar e Legend",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-19",
       "hash": "fb82327",
       "title": "Upgrader de cartas com roda de chance",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-19",
       "hash": "cd6ebdb",
       "title": "Missões diárias, semanais, da season e solo",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-18",
       "hash": "dc0aae6",
       "title": "✨ conta do dono fica com 3 títulos: os dois invictos sem mapa perdido e o mais recente",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-18",
       "hash": "4230556",
       "title": "✨ anular títulos por decisão do dono sem apagar histórico (5 do Timidowz, 2 da Peka das Bebe)",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-18",
       "hash": "c9dfc38",
       "title": "✨ prêmios somam no máximo 3 pontos por Major e contam as 10 melhores partidas do dia",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-18",
       "hash": "102864e",
       "title": "✨ quadro de rankeds ao vivo na tela do online",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.3",
       "date": "2026-09-18",
       "hash": "9d3f056",
       "title": "✨ atalhos de saída acima das abas no fim do Major",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "8bede4b",
       "title": "✨ perfil público dos jogadores a partir das tabelas",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "f95cf74",
       "title": "✨ painel final com coins e pontos de cada jogador",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "5f30f21",
       "title": "🐛 mapas do time em accordion pequeno abaixo do coach",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "d58dd48",
       "title": "✨ recalcular a temporada ativa pelas regras atuais de pontos",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "79831a0",
       "title": "✨ mapas do time escolhidos no montador e salvos com o lineup",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "dcf06e2",
       "title": "✨ posição secundária sem penalidade",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "3f6bcf9",
       "title": "✨ troca rápida, comparação antes de salvar, fim de Major com atalhos e IGLs GOAT revisados",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "2a7d421",
       "title": "Data: revisão de overall e raridade espelhada do Studio; hash do online atualizado",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "bc6573c",
       "title": "Data: fotos do fer por ano, espelhadas do Studio",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.2",
       "date": "2026-09-18",
       "hash": "8c061c2",
       "title": "✨ coach revelado no mesmo formato grande do jogador",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "2695fb7",
       "title": "🐛 carta revelada na altura do conteúdo",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "148cea9",
       "title": "🐛 carta revelada sem corte e ficha própria da carta na coleção",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "8df467f",
       "title": "✨ prêmios do jogador na carta revelada, menos partículas e contagem da home atualizada",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "beae71a",
       "title": "🐛 carta aberta e fechada com o mesmo tamanho",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "3764e3b",
       "title": "✨ carta grande na abertura com os 4 melhores stats, uma por vez e layout de celular",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "d2591f5",
       "title": "🐛 renomear classes que batiam com o CSS global",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "67e8b74",
       "title": "🐛 classes da abertura colidiam com o CSS global; roleta sem estourar a largura",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "dc15704",
       "title": "🐛 abertura com roleta e carta abrindo sem virada 3D",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "f16c5c3",
       "title": "✨ caixas estilo CS, faixa premium e abertura com efeitos por raridade",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.1",
       "date": "2026-09-18",
       "hash": "9cbcdf6",
       "title": "✨ chances no ⓘ de cada pacote, loja em uma linha e odds novas",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "b3cc799",
       "title": "✨ prêmios de jogada também valem pontos",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "828160f",
       "title": "⚡ partidas no ultra automático; fila travada nesse modo",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "02511ed",
       "title": "✨ pontos em toda colocação, coins maiores, pacotes Diamante e Ícone e GOAT mais raro",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "16fef65",
       "title": "✨ dupla joga em 30 s, fantasmas saem em 20 s e aba escondida sai em 1 min",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "e39a028",
       "title": "✨ suporte e reclamação de overall por e-mail, termos e privacidade atualizados",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "d390ff0",
       "title": "🔒 compra congela valor, reconciliação de webhook perdido e bloqueio após chargeback",
-      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "5251c96",
       "title": "🐛 reduzir coins dos pacotes",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "86d43e8",
       "title": "✨ pacotes de coins e botão de compra na conta e na coleção",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "17be295",
       "title": "🐛 botão de login visível e Jogar Draft leva ao login",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "2.0",
       "date": "2026-09-18",
       "hash": "ae5035a",
       "title": "✨ time em linha com detalhes, estilo tático exigente e fila com 3 em 10 s",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "1.9",
@@ -764,7 +799,7 @@
       "date": "2026-09-17",
       "hash": "7fbb7e3",
       "title": "Bandeiras reais dos jogadores (Dynasty/premier/faceit/pro)",
-      "summary": "Completa a infraestrutura de bandeiras/avatares/créditos (crest.ts, avatar.ts, flags.ts, licensed.ts, CountryFlag.svelte, PlayerAvatar.svelte, /credits) que já existia pronta e testada, mas sem dado real:"
+      "summary": "Completa a infraestrutura de bandeiras/avatares/créditos (crest.ts, avatar.ts, flags.ts, licensed.ts, CountryFlag.svelte, PlayerAvatar.svelte, /credits) que já existia pronta e testada, mas sem dado real: - identities.game.json populado:…"
     },
     {
       "version": "1.7",
@@ -778,21 +813,21 @@
       "date": "2026-09-17",
       "hash": "2639930",
       "title": "Atualiza status do sync com escopo final e correções",
-      "summary": "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "1.7",
       "date": "2026-09-17",
       "hash": "3f0fa6c",
       "title": "Corrige escopo e regressões do sync de 2013-2015",
-      "summary": "O commit anterior (36fe954) tinha 3 problemas achados por revisão/testes:"
+      "summary": "O commit anterior (36fe954) tinha 3 problemas achados por revisão/testes: 1."
     },
     {
       "version": "1.7",
       "date": "2026-09-17",
       "hash": "be20710",
       "title": "Registra status do sync do dataset histórico 2013-2015",
-      "summary": "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+      "summary": ""
     },
     {
       "version": "1.7",
@@ -807,41 +842,6 @@
       "hash": "9326fe4",
       "title": "Catálogo versionado para a expansão histórica offline",
       "summary": "Camada de catálogo sobre o dataset v1 (core) e a expansão (x1, arquivos ainda vazios)."
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-16",
-      "hash": "f7603b1",
-      "title": "Guardas que congelam o online no dataset v1",
-      "summary": "Antes da expansão do catálogo histórico, o online precisa continuar byte-idêntico ao servidor publicado: hash ONLINE_DATA_HASH e SHA-256 dos players/teams/coaches v1 viram literais, e a fronteira de imports do online (rota, lib/game/onli…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-14",
-      "hash": "b722518",
-      "title": "💄 aba Time com 5 cartas alinhadas e coach em faixa",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
-    },
-    {
-      "version": "1.6",
-      "date": "2026-09-14",
-      "hash": "f940c42",
-      "title": "🐛 roleta do coach com 3 cartas visíveis",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
-    },
-    {
-      "version": "1.6",
-      "date": "2026-09-14",
-      "hash": "fb138eb",
-      "title": "✨ botão de pausar a simulação ao lado da engrenagem",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
-    },
-    {
-      "version": "1.6",
-      "date": "2026-09-14",
-      "hash": "c7e660c",
-      "title": "🐛 roleta do coach gira só entre os 3 coaches ofertados",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
     }
   ]
 }
