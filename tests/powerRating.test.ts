@@ -2,8 +2,7 @@
 // O rating 0-99 mostrado nas telas. É só exibição: nenhuma regra de partida lê isto.
 import { describe, expect, it } from 'vitest';
 import { RATING_CEILING, RATING_FLOOR, RATING_MAX, RATING_MIN, courtRating, courtRatingDelta, formatRating, powerRating, powerRatingDelta } from '../src/lib/game/powerRating';
-import { COURT_TOP } from '../src/lib/game/courtPower';
-import { RAW_TOP } from '../src/lib/game/balance';
+import { COURT_TOP, withPlayerBand } from '../src/lib/game/courtPower';
 import { collectionPlayers as players, collectionCoaches, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, eligibleRolesOf, isStarEffective, toSelectedPlayer, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -36,10 +35,11 @@ describe('rating de poder (0-99)', () => {
     expect(powerRatingDelta(10)).toBeCloseTo(10 * (RATING_MAX - RATING_FLOOR) / (RATING_CEILING - RATING_FLOOR), 10);
   });
 
-  it('online: a melhor line montável lê ~98 e nem no melhor dia chega a 100', { timeout: 120_000 }, () => {
+  it('online: as CARTAS pinam a régua no RAW_TOP, e a química perfeita leva o time ao 99 exato', { timeout: 120_000 }, () => {
     const STYLES: OrgStyle[] = ['aggressive', 'balanced', 'tactical'];
     const topCoach = [...collectionCoaches].sort((a, b) => b.tactics - a.tactics)[0];
-    let strongest = 0;
+    let strongestBase = 0;
+    let strongestBuilt = 0;
     for (const teamId of new Set(players.map((player) => player.teamId))) {
       const squad = players.filter((player) => player.teamId === teamId).sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 5);
       if (squad.length < 5) continue;
@@ -49,22 +49,25 @@ describe('rating de poder (0-99)', () => {
         if (!coach) continue;
         for (const style of STYLES) {
           const base = collectionBaseTeam(squad, style, squad.map((p, i) => toSelectedPlayer(p.id, roles[i])), 'rating');
+          strongestBase = Math.max(strongestBase, base.power);
           for (const star of [null, ...squad.map((p) => p.id)]) {
             if (star && !isStarEffective(squad, star, roles)) continue;
             const synergized = applyCollectionLineup(base, { players: squad, roles, starPlayerId: star, style, coachId: coach.id });
-            strongest = Math.max(strongest, applyCoachToTeam(synergized, coach, coachAffinity(coach, squad, collectionTeams as never)).power);
+            strongestBuilt = Math.max(strongestBuilt, applyCoachToTeam(synergized, coach, coachAffinity(coach, squad, collectionTeams as never)).power);
           }
         }
       }
     }
-    // O topo da escala é a melhor line montável: se esta falhar, o conteúdo (ou uma sinergia) mudou e o RAW_TOP de
-    // `src/lib/game/balance.ts` precisa receber o número que aparece na mensagem.
-    expect(strongest, `RAW_TOP deveria ser ${strongest.toFixed(2)}`).toBeCloseTo(RAW_TOP, 1);
-    expect(courtRating(strongest)).toBeCloseTo(COURT_TOP, 0);
-    expect(courtRating(strongest)).toBeLessThan(100);
+    // O melhor elenco-base das CARTAS mora em ~106 cru (o RAW_TOP de `balance.ts` é a CONSTANTE DE ESCALA — onde
+    // o 99 foi pregado, herdada da época em que a sinergia multiplicava o cru — e não acompanha conteúdo).
+    expect(strongestBase, `melhor base montável: ${strongestBase.toFixed(2)}`).toBeGreaterThan(100);
+    expect(strongestBase).toBeLessThan(115);
+    // A sinergia de afinidade mora ACIMA do pino das cartas (por isso o cru explode lá em cima — detalhe interno);
+    // com a banda do jogador aplicada, o melhor time montável lê exatamente 99: o time perfeito existe, e para nele.
+    expect(courtRating(withPlayerBand(strongestBuilt))).toBe(COURT_TOP);
     // E os bots seguem abaixo do melhor jogador, na mesma escala.
     const bots = collectionTeams.map((team) => calculateHistoricalTeamPower(team as never, players).power);
-    expect(courtRating(Math.max(...bots))).toBeLessThan(courtRating(strongest));
+    expect(courtRating(Math.max(...bots))).toBeLessThan(COURT_TOP);
     expect(courtRatingDelta(100, 110)).toBeCloseTo(courtRating(110) - courtRating(100), 10);
   });
 });

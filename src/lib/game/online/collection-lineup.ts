@@ -3,7 +3,7 @@ import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import { addCourtPoints, courtPower } from '../courtPower';
-import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT } from '../balance';
+import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, NO_CHEMISTRY_COURT, SYNERGY_POWER_TO_COURT } from '../balance';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -20,10 +20,9 @@ export type CollectionSlotRole = LineupSlotRole | typeof AWPER_IGL;
 export const HYBRID_BONUS_RATIO = 0.5;
 
 /**
- * Star bonus (% of power, on top of the flat `star` line) by the role the star plays and the plan, for a 90-overall star:
- * every role gains under every plan, and each one has the plan that suits it (entry → aggressive, rifler → balanced,
- * AWPer and lurker → tactical). `starScale` stretches it by the star's overall; the AWPer-IGL gets the AWPer row at
- * HYBRID_BONUS_RATIO.
+ * Star bonus (% of the shared synergy currency) by the role the star plays and the plan, for an average-rarity
+ * star: every role gains under every plan, and each one has the plan that suits it (entry → aggressive, rifler →
+ * balanced, AWPer and lurker → tactical). The AWPer-IGL gets the AWPer row at HYBRID_BONUS_RATIO.
  */
 export const STAR_ROLE_BONUS: Readonly<Record<'awper' | 'entry' | 'rifler' | 'lurker', Readonly<Record<OrgStyle, number>>>> = {
   awper: { aggressive: 2, balanced: 1.5, tactical: 3 },
@@ -31,8 +30,25 @@ export const STAR_ROLE_BONUS: Readonly<Record<'awper' | 'entry' | 'rifler' | 'lu
   rifler: { aggressive: 1.5, balanced: 2.5, tactical: 1.5 },
   lurker: { aggressive: 1, balanced: 1.5, tactical: 2 }
 };
-/** Half of the role bonus up to 85 overall, all of it at 90, one and a half from 95 on. */
+
+/**
+ * How much MORE the star line pays when the chosen star is a rarer card. Rarity alone builds nothing (a GOAT
+ * surrounded by strangers gets nothing for being a GOAT), but a rarer star stretches what the STRUCTURE gives:
+ * building the team around a GOAT is worth ~3× building it around a common card. The ladder follows the pool's
+ * rarity tiers; a card without rarity falls back to its overall.
+ */
+export const STAR_RARITY_SCALE: Readonly<Record<string, number>> = {
+  common: 0.5,
+  rare: 0.75,
+  elite: 1,
+  legend: 1.15,
+  superstar: 1.35,
+  goat: 1.6
+};
+/** Half of the role bonus up to 85 overall, all of it at 90, one and a half from 95 on (fallback when rarity is missing). */
 export const starScale = (overall: number): number => Math.max(0.5, Math.min(1.5, (overall - 80) / 10));
+export const starRarityScale = (player: Pick<Player, 'rarity' | 'overall'>): number =>
+  STAR_RARITY_SCALE[player.rarity ?? ''] ?? starScale(player.overall ?? 0);
 
 /**
  * Plan bonuses (% of power). The collection builds its team on the plan-neutral motor (`collectionBaseTeam`), so the
@@ -42,13 +58,13 @@ export const starScale = (overall: number): number => Math.max(0.5, Math.min(1.5
  * Every plan has the same ceiling and what it yields comes from the cards: aggressive from the entry, tactical from
  * the caller and the coach, balanced from a lineup with no weak link. The best plan is the one your lineup can run.
  */
-export const PLAN_BONUS_MIN = 12;
-export const PLAN_BONUS_MAX = 18;
+export const PLAN_BONUS_MIN = 8;
+export const PLAN_BONUS_MAX = 12;
 /** Balanced asks for nothing, so it starts a little higher and tops out a little lower than the specialist plans. */
-export const BALANCED_PLAN_MIN = 13;
-export const BALANCED_PLAN_MAX = 17;
+export const BALANCED_PLAN_MIN = 9;
+export const BALANCED_PLAN_MAX = 11;
 /** A plan the lineup cannot run (aggressive without an entry, tactical without a caller and a support). */
-export const PLAN_OFF_BONUS = 8;
+export const PLAN_OFF_BONUS = 3;
 /** Coach tactics that start and finish counting for the tactical plan. */
 const COACH_TACTICS_RANGE: readonly [number, number] = [70, 98];
 const quarter = (value: number) => Math.round(value * 4) / 4;
@@ -178,7 +194,13 @@ export function validateLineup(input: CollectionLineupInput, lookup: (id: string
 
 export interface SynergyLine {
   key: string;
-  /** Percent of power. What a lineup gains by being well built. */
+  /**
+   * The shared currency of composition bonuses. It is NOT a percentage of anything anymore: multiplying the raw
+   * power used to hand +14 court levels to a weak lineup and +1.5 to a GOAT one (the court curve knee), so gains
+   * now enter the court as levels through `SYNERGY_POWER_TO_COURT`, the same for everyone — and the sum the
+   * builder shows is the sum the team gets. Structure lines (roles, plan, star) are worth a few of these;
+   * AFFINITY lines (same core, country, year) are worth the most.
+   */
   power: number;
   /**
    * Court points (`courtPower.ts`). What a lineup loses by missing a piece: priced on the court scale so it stings a
@@ -252,14 +274,19 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (isStarEffective(input.players, input.starPlayerId, input.roles)) {
     const star = input.players.find((player) => player.id === input.starPlayerId)!;
     const role = input.roles[input.players.indexOf(star)];
-    add('star', { power: 2 });
-    // The role the team plays around under the chosen plan, stretched by how good the star is.
-    const scale = starScale(star.overall ?? 0);
+    // The rarer the chosen star, the more the structure built around them pays — never IGL or support.
+    const scale = starRarityScale(star);
+    add('star', { power: 2 * scale });
+    // The role the team plays around under the chosen plan, stretched by the star's rarity.
     if (role === AWPER_IGL) add('star_awper_igl', { power: quarter(STAR_ROLE_BONUS.awper[style] * scale * HYBRID_BONUS_RATIO) });
     else if (role === 'awper' || role === 'entry' || role === 'rifler' || role === 'lurker') add(`star_${role}`, { power: quarter(STAR_ROLE_BONUS[role][style] * scale), ...(role === 'lurker' ? { clutch: 3 } : {}) });
   }
   // The themes the lineup is built around (same team, country or year); the labels come from `themeOf`.
-  for (const line of themeOf(input)) add(line.key, { power: line.power });
+  const themes = themeOf(input);
+  for (const line of themes) add(line.key, { power: line.power });
+  // Five strangers: no bond of three anywhere (a pair that once played together is not chemistry). Paying in
+  // levels is what makes it bite a wall of GOATs as hard as a beginner five — being five good cards is not a team.
+  if (!themes.some((line) => line.count >= 3)) add('no_chemistry', { court: NO_CHEMISTRY_COURT });
   return lines;
 }
 
@@ -303,8 +330,9 @@ function applyLines(team: CombatTeam, lines: readonly SynergyLine[]): CombatTeam
   const total = lines.reduce((sum, line) => ({ power: sum.power + line.power, court: sum.court + line.court, mental: sum.mental + line.mental, clutch: sum.clutch + line.clutch, consistency: sum.consistency + line.consistency }), { power: 0, court: 0, mental: 0, clutch: 0, consistency: 0 });
   return {
     ...team,
-    // What the lineup gains is a share of its power; what it lacks is paid in court points, the same for everybody.
-    power: addCourtPoints(team.power * (1 + total.power / 100), total.court),
+    // Gains and pains are both court points now: what the lineup gains by being well built and what it lacks hit
+    // the same scale, identically for a beginner's five and for a wall of GOATs.
+    power: addCourtPoints(team.power, total.court + total.power * SYNERGY_POWER_TO_COURT),
     mental: clamp99(team.mental + total.mental),
     clutch: clamp99(team.clutch + total.clutch),
     ...(team.consistency !== undefined ? { consistency: clamp99(team.consistency + total.consistency) } : {})

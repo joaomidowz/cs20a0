@@ -13,7 +13,7 @@ import { RoomManager, type PreparedLineup } from '../server/room-manager';
 import { applyCollectionLineup, collectionBaseTeam, synergyOf, toSelectedPlayer, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
-import { COURT_SPREAD, withPlayerFloor } from '../src/lib/game/courtPower';
+import { COURT_SPREAD, withPlayerBand } from '../src/lib/game/courtPower';
 import { courtRating } from '../src/lib/game/powerRating';
 import { DEFAULT_ROOM_CONFIG, type RoomConfig } from '../src/lib/game/online/contracts';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
@@ -26,11 +26,12 @@ const CONFIG: RoomConfig = { ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', cap
 let counter = 0;
 const requestId = () => `parity-${(counter += 1).toString().padStart(8, '0')}`;
 
-/** O time do dono: SK com FalleN de AWPer-IGL e star, e o coach do próprio time. */
-const IDS = ['taco-2018', 'fallen-2016', 'coldzera-2017', 'fnx-2016', 'fer-2017'];
-const ROLES: CollectionSlotRole[] = ['entry', 'awper-igl', 'rifler', 'support', 'lurker'];
-const STAR = 'fallen-2016';
-const COACH = 'coach-sk-2016';
+/** O time do dono (2026-09-21): ropz de star e Jame de AWPer-IGL — um time real, abaixo do teto 99, onde as
+ *  diferenças de capitão/star/coach aparecem no número (o SK de GOATs satura na banda e esconde tudo). */
+const IDS = ['latto-2025', 'ropz-faze-2023', 'jame-2025', 'woxic-2018', 'liazz-2022'];
+const ROLES: CollectionSlotRole[] = ['rifler', 'lurker', 'awper-igl', 'awper', 'support'];
+const STAR = 'ropz-faze-2023';
+const COACH = 'coach-gamerlegion-2023';
 const cards = IDS.map((id) => players.find((player) => player.id === id)!);
 
 /** O que a tela mostra (`CollectionWorkspace.svelte`): base, sinergia, coach e o piso do jogador. */
@@ -43,7 +44,7 @@ function screenPower(options: { star?: string | null; coachId?: string | null; r
   const synergized = applyCollectionLineup(base, { players: cards, roles, starPlayerId: star, style: 'tactical', coachId });
   const coach = coachId ? collectionCoachById.get(coachId) : undefined;
   const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
-  return withPlayerFloor(withCoach.power);
+  return withPlayerBand(withCoach.power);
 }
 
 /** O poder que o SERVIDOR levou para a quadra, por uma sala de verdade. */

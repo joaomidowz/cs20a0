@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { collectionPlayers } from '../src/lib/game/online/collection-pool';
 import { playerCountryOf } from '../src/lib/game/online/collection-countries';
-import { SCENE_BLOCS, THEME_LADDER, THEME_LADDER_PLAYERS, THEME_LINE_CAP, THEME_TOTAL_CAP, blocOf, themeLines, type ThemeMember } from '../src/lib/game/online/collection-theme';
+import { SCENE_BLOCS, THEME_LADDER, THEME_LADDER_PLAYERS, THEME_LADDER_YEAR, THEME_LINE_CAP, THEME_TOTAL_CAP, blocOf, themeLines, type ThemeMember } from '../src/lib/game/online/collection-theme';
 
 describe('dados de país da coleção', () => {
   it('todo jogador do pool tem país, para a linha de país nunca depender de dado faltando', () => {
@@ -42,17 +42,17 @@ const five = (over: Partial<ThemeMember>) => Array.from({ length: 5 }, () => mem
 const powerOf = (lines: ReturnType<typeof themeLines>, key: string) => lines.find((line) => line.key === key)?.power ?? 0;
 
 describe('regra do tema', () => {
-  it('a escada premia fechar o tema', () => {
-    expect(THEME_LADDER).toMatchObject({ 1: 0, 2: 0.25, 3: 0.5, 4: 1, 5: 1.5, 6: 2 });
+  it('a escada premia fechar o tema — e fechar o NÚCLEO é o maior bônus do jogo', () => {
+    expect(THEME_LADDER).toMatchObject({ 1: 0, 2: 1.5, 3: 4, 4: 8, 5: 13, 6: 17 });
     for (let count = 2; count <= 5; count += 1) {
       const players = Array.from({ length: 5 }, (_, index) => member(index < count ? { year: 2017 } : { year: 1900 + index }));
-      expect(powerOf(themeLines(players, null), 'theme_year')).toBe(THEME_LADDER[count]);
+      expect(powerOf(themeLines(players, null), 'theme_year')).toBe(THEME_LADDER_YEAR[count]);
     }
   });
 
   it('vale o maior grupo, não a soma dos grupos', () => {
     const players = [member({ country: 'br' }), member({ country: 'br' }), member({ country: 'br' }), member({ country: 'dk' }), member({ country: 'dk' })];
-    expect(powerOf(themeLines(players, null), 'theme_country')).toBe(THEME_LADDER[3]);
+    expect(powerOf(themeLines(players, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[3]);
   });
 
   it('time-ano exato vale cheio e a organização vale metade', () => {
@@ -67,21 +67,21 @@ describe('regra do tema', () => {
     expect(powerOf(themeLines(navi, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[5] / 2);
     expect(themeLines(navi, null).find((line) => line.key === 'theme_country')?.exact).toBe(false);
     const spirit = five({ country: 'ru' });
-    expect(powerOf(themeLines(spirit, null), 'theme_country')).toBe(THEME_LINE_CAP);
+    expect(powerOf(themeLines(spirit, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[5]);
     expect(themeLines(spirit, null).find((line) => line.key === 'theme_country')?.exact).toBe(true);
   });
 
   it('o coach é o sexto de time e ano, e fica fora de país', () => {
     const players = five({ teamId: 'sk-2017', org: 'sk', year: 2017, country: 'br' });
     const semCoach = themeLines(players, null);
-    // O teto total (`balance.ts`) é gasto nas linhas maiores primeiro: país fecha, time vem depois, ano leva o resto.
+    // O teto total (`balance.ts`) é gasto nas linhas maiores primeiro: time fecha em cinco, país fecha, ano pega o resto.
     const total = (lines: ReturnType<typeof themeLines>) => lines.reduce((sum, line) => sum + line.power, 0);
-    expect(powerOf(semCoach, 'theme_country')).toBe(THEME_LINE_CAP);
+    expect(powerOf(semCoach, 'theme_country')).toBe(THEME_LADDER_PLAYERS[5]);
     expect(powerOf(semCoach, 'theme_team')).toBe(THEME_LADDER[5]);
-    expect(total(semCoach)).toBe(Math.min(THEME_TOTAL_CAP, THEME_LADDER[5] * 2 + THEME_LINE_CAP));
+    expect(total(semCoach)).toBe(Math.min(THEME_TOTAL_CAP, THEME_LADDER[5] + THEME_LADDER_PLAYERS[5] + THEME_LADDER_YEAR[5]));
     const comCoach = themeLines(players, member({ teamId: 'sk-2017', org: 'sk', year: 2017 }));
     expect(powerOf(comCoach, 'theme_team')).toBe(THEME_LADDER[6]);
-    expect(powerOf(comCoach, 'theme_country')).toBe(THEME_LINE_CAP);
+    expect(powerOf(comCoach, 'theme_country')).toBe(THEME_LADDER_PLAYERS[5]);
     expect(total(comCoach)).toBe(THEME_TOTAL_CAP);
   });
 
@@ -116,8 +116,8 @@ describe('tema aplicado na line da coleção', () => {
     const roles = sk.map((player) => eligibleRolesOf(player)[0]);
     const temas = synergyOf({ players: sk, roles, starPlayerId: null }).filter((line) => line.key.startsWith('theme_'));
     expect(temas.map((line) => line.key).sort()).toEqual(['theme_country', 'theme_team', 'theme_year']);
-    // Sem coach as linhas de time e ano param no quinto degrau (1,5 + 1,5 + 2 de país), e o teto total corta o resto.
-    expect(temas.reduce((sum, line) => sum + line.power, 0)).toBe(Math.min(THEME_TOTAL_CAP, 5));
+    // Sem o coach as linhas fecham no quinto degrau (13 de time + 9 de país + 4,5 de ano), abaixo do teto total.
+    expect(temas.reduce((sum, line) => sum + line.power, 0)).toBe(Math.min(THEME_TOTAL_CAP, THEME_LADDER[5] + THEME_LADDER_PLAYERS[5] + THEME_LADDER_YEAR[5]));
     // É o coach do próprio time que fecha as três linhas e leva ao teto.
     const coach = [...collectionCoachById.values()].find((item) => item.teamId === 'sk-2017')!;
     const comCoach = synergyOf({ players: sk, roles, starPlayerId: null, coachId: coach.id }).filter((line) => line.key.startsWith('theme_'));
@@ -126,7 +126,8 @@ describe('tema aplicado na line da coleção', () => {
     expect(soltos).toHaveLength(5);
     const total = synergyOf({ players: soltos, roles: soltos.map((player) => eligibleRolesOf(player)[0]), starPlayerId: null })
       .filter((line) => line.key.startsWith('theme_')).reduce((sum, line) => sum + line.power, 0);
-    expect(total).toBeLessThan(1);
+    // Cinco estrelas soltas: sobra só o rastro (dois de org, um par de ano), quase nada perto de um núcleo.
+    expect(total).toBeLessThan(2);
   });
 
   it('o coach entra na contagem de time e ano da line', async () => {

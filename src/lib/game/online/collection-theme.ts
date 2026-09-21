@@ -26,17 +26,25 @@ export const SCENE_BLOCS: Readonly<Record<string, SceneBloc>> = Object.fromEntri
 export const blocOf = (country: string | null | undefined): SceneBloc | null => (country ? SCENE_BLOCS[country] ?? null : null);
 
 /**
- * How much a shared theme is worth by how many share it: the last member is worth more than the others together.
- * Team and year count the coach, so they close at six; country never does, so it closes at five for the same +2%.
+ * How much a shared theme is worth by how many share it: the closer the group gets to the whole lineup, the more
+ * each extra member is worth — the last one is worth more than the first three together. Team and year count the
+ * coach, so they close at six; country never does, so it closes at five.
+ *
+ * These ladders ARE the affinity: a real core (five of one team plus its coach) is the biggest synergy line in
+ * the game, bigger than any structure bonus. A same-year or same-country group is a real identity too, worth
+ * less than a core but more than any leftover. Values are in the shared "%" currency of synergy lines; see
+ * `SYNERGY_POWER_TO_COURT` for what they are worth on the court.
  */
-export const THEME_LADDER: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0.25, 3: 0.5, 4: 1, 5: 1.5, 6: 2 };
+export const THEME_LADDER: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 1.5, 3: 4, 4: 8, 5: 13, 6: 17 };
 /** The ladder of a line the coach cannot join: the fifth player is the one that closes it. */
-export const THEME_LADDER_PLAYERS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0.25, 3: 0.5, 4: 1, 5: 2 };
+export const THEME_LADDER_PLAYERS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0.5, 3: 2.5, 4: 5.5, 5: 9 };
+/** Same year is a real bond, but the loosest of the three: a squad of one season, not a core. */
+export const THEME_LADDER_YEAR: Readonly<Record<number, number>> = { 0: 0, 1: 0, 2: 0.5, 3: 1.5, 4: 3, 5: 4.5, 6: 5 };
 /** Each theme line is worth at most this much power... */
-export const THEME_LINE_CAP = 2;
+export const THEME_LINE_CAP = 17;
 /** ...and the three of them together at most this much (`balance.ts`). */
 export { THEME_TOTAL_CAP };
-/** The looser level of a line (same org, same bloc) pays this share of the ladder. */
+/** The looser level of a line (same org across eras, same bloc) pays this share of the ladder. */
 export const THEME_LOOSE_RATIO = 0.5;
 
 /** What the rule needs from one card; the coach fills the same shape with `country` null (it never counts for country). */
@@ -91,7 +99,7 @@ export function themeLines(players: readonly ThemeMember[], coach: ThemeMember |
   const withCoach = coach ? [...players, coach] : [...players];
   const team = bestLevel(THEME_LADDER, withCoach.map((member) => member.teamId), withCoach.map((member) => member.org));
   const country = bestLevel(THEME_LADDER_PLAYERS, players.map((member) => member.country), players.map((member) => blocOf(member.country)));
-  const year = bestLevel(THEME_LADDER, withCoach.map((member) => (member.year == null ? null : String(member.year))), []);
+  const year = bestLevel(THEME_LADDER_YEAR, withCoach.map((member) => (member.year == null ? null : String(member.year))), []);
   const lines: ThemeLine[] = [];
   if (team?.power) lines.push({ key: 'theme_team', ...team });
   if (country?.power) lines.push({ key: 'theme_country', ...country });

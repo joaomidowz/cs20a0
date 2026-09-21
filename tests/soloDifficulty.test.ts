@@ -1,8 +1,9 @@
 // tests/soloDifficulty.test.ts
 // A dificuldade do solo contra bots, medida em Majors inteiros pela montagem de campo do servidor.
-// O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major dos
-// Campeões é a PAREDE que não cede (o auge leva ~1 em 3, quem começa não leva e cai na suíça), e o Major normal
-// é a parede que cede (auge 45–60%, medido 56% no nível 98,6; iniciante ~1%).
+// O combinado com o dono em 2026-09-21, com a sinergia de AFINIDADE e o piso do jogador em 85: o Major dos
+// Campeões é a PAREDE que encontra o desafiante (cada fileira da progressão encara uma parede ~2 níveis acima:
+// iniciante 0%, elite com química 6%, superstar 13%, auge 23%, excepcional 33% — a tabela cumulativa dele), e o
+// Major normal é a parede que cede (auge 45–60%, quem começa ~1%).
 //
 // Mexeu em `SOLO_RANDOM_RELIEF`/`SOLO_CHAMPIONS_RELIEF` ou na `PEDIGREE_LEVEL_BAND` (`src/lib/game/balance.ts`)?
 // Rode este arquivo: ele diz, em % de títulos, o que mudou.
@@ -16,11 +17,10 @@ const TIMEOUT = 900_000;
 const RUNS = 80;
 
 describe('as tabelas de alívio (normal e campeões)', () => {
-  it('sobem com o nível, interpola entre as linhas e para nas pontas — e a dos campeões é mais dura', () => {
+  it('interpola entre as linhas e para nas pontas; a normal SOBE com o nível e a dos campeões DESCE', () => {
     for (const [field, rows] of [['random', SOLO_RANDOM_RELIEF], ['champions', SOLO_CHAMPIONS_RELIEF]] as const) {
       for (let index = 1; index < rows.length; index += 1) {
-        expect(rows[index][0]).toBeGreaterThan(rows[index - 1][0]);
-        expect(rows[index][1]).toBeGreaterThanOrEqual(rows[index - 1][1]);
+        expect(rows[index][0], `${field}: níveis em ordem`).toBeGreaterThan(rows[index - 1][0]);
       }
       const [firstLevel, firstRelief] = rows[0];
       const [lastLevel, lastRelief] = rows[rows.length - 1];
@@ -30,14 +30,19 @@ describe('as tabelas de alívio (normal e campeões)', () => {
       const [bLevel, bRelief] = rows[2];
       expect(soloFieldRelief((aLevel + bLevel) / 2, field)).toBeCloseTo((aRelief + bRelief) / 2, 10);
     }
-    // A parede endgame cede MENOS que o campo sorteado em todo o intervalo onde as duas existem.
-    for (const [level] of SOLO_RANDOM_RELIEF.slice(1)) {
-      expect(soloFieldRelief(level, 'champions')).toBeLessThan(soloFieldRelief(level, 'random'));
+    // O Major normal cede CADA VEZ MAIS conforme o time sobe: a parede que se abre para quem progride.
+    for (let index = 1; index < SOLO_RANDOM_RELIEF.length; index += 1) {
+      expect(SOLO_RANDOM_RELIEF[index][1]).toBeGreaterThan(SOLO_RANDOM_RELIEF[index - 1][1]);
+    }
+    // O Major dos Campeões faz o contrário: o campo DESCE para o desafiante de baixo e joga quase à força real
+    // contra quem chegou ao topo — o desafio final não vira farm.
+    for (let index = 1; index < SOLO_CHAMPIONS_RELIEF.length; index += 1) {
+      expect(SOLO_CHAMPIONS_RELIEF[index][1]).toBeLessThan(SOLO_CHAMPIONS_RELIEF[index - 1][1]);
     }
   });
 });
 
-describe('Major dos Campeões: a parede que não cede', () => {
+describe('Major dos Campeões: a parede que encontra o desafiante', () => {
   const titleOf = (build: keyof typeof LAB) => soloMajors(labLineup(LAB[build]), 'champions', RUNS);
 
   it('quem está começando não leva, e quase toda run morre na suíça', { timeout: TIMEOUT }, () => {
@@ -46,19 +51,37 @@ describe('Major dos Campeões: a parede que não cede', () => {
     expect(beginner.swissExit, `iniciante cai na suíça em ${beginner.swissExit}%`).toBeGreaterThanOrEqual(80);
   });
 
-  it('o meio da coleção esbarra na parede, e o auge leva uma em cada três', { timeout: TIMEOUT }, () => {
-    const mid = titleOf('elites');
-    const high = titleOf('superstarsBuilt');
+  it('a tabela cumulativa do dono: elite 6 · superstar 13 · auge 23 · excepcional 33', { timeout: TIMEOUT }, () => {
+    const elite = titleOf('ownerMix');
+    const superstar = titleOf('superstarsBuilt');
+    const auge = titleOf('furiaCore');
     const top = titleOf('goatsBuilt');
-    const label = `nível ${mid.level.toFixed(0)}: ${mid.title}% · nível ${high.level.toFixed(0)}: ${high.title}% · nível ${top.level.toFixed(0)}: ${top.title}%`;
-    expect(mid.title, label).toBeLessThanOrEqual(14);
-    expect(high.title, label).toBeGreaterThanOrEqual(6);
-    expect(high.title, label).toBeLessThanOrEqual(22);
-    expect(top.title, label).toBeGreaterThanOrEqual(24);
-    expect(top.title, label).toBeLessThanOrEqual(44);
-    expect(high.title, label).toBeGreaterThan(mid.title);
-    expect(top.title, label).toBeGreaterThan(high.title);
+    const label = `elite (nível ${elite.level.toFixed(1)}): ${elite.title}% · superstar (${superstar.level.toFixed(1)}): ${superstar.title}% · auge (${auge.level.toFixed(1)}): ${auge.title}% · excepcional (${top.level.toFixed(1)}): ${top.title}%`;
+    expect(elite.title, label).toBeGreaterThanOrEqual(0);
+    expect(elite.title, label).toBeLessThanOrEqual(8);
+    expect(superstar.title, label).toBeGreaterThanOrEqual(8);
+    expect(superstar.title, label).toBeLessThanOrEqual(19);
+    expect(auge.title, label).toBeGreaterThanOrEqual(12);
+    expect(auge.title, label).toBeLessThanOrEqual(30);
+    expect(top.title, label).toBeGreaterThanOrEqual(26);
+    expect(top.title, label).toBeLessThanOrEqual(42);
+    expect(superstar.title, label).toBeGreaterThan(elite.title);
+    expect(auge.title, label).toBeGreaterThan(superstar.title);
+    expect(top.title, label).toBeGreaterThan(auge.title);
     // E nem o auge atravessa a parede de salvador: ainda cai na suíça de vez em quando.
-    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(12);
+    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(15);
+  });
+
+  it('o Major normal é a parede que cede: auge 45-60, quem começa quase nada', { timeout: TIMEOUT }, () => {
+    const beginner = soloMajors(labLineup(LAB.beginner), 'random', RUNS);
+    const elite = soloMajors(labLineup(LAB.ownerMix), 'random', RUNS);
+    const auge = soloMajors(labLineup(LAB.furiaCore), 'random', RUNS);
+    const label = `iniciante ${beginner.title}% · elite ${elite.title}% · auge (nível ${auge.level.toFixed(1)}) ${auge.title}%`;
+    expect(beginner.title, label).toBeLessThanOrEqual(5);
+    expect(elite.title, label).toBeGreaterThanOrEqual(2);
+    expect(elite.title, label).toBeLessThanOrEqual(14);
+    expect(auge.title, label).toBeGreaterThanOrEqual(43);
+    expect(auge.title, label).toBeLessThanOrEqual(63);
+    expect(auge.title, label).toBeGreaterThan(elite.title);
   });
 });

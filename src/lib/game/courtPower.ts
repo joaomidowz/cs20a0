@@ -14,7 +14,7 @@
  * dois não muda nada: o topo em 99 é só onde a régua foi pregada.
  */
 
-import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, DAY_SWING_COURT, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
+import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, DAY_SWING_COURT, PLAYER_CEILING_COURT, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
 
 export { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR };
 
@@ -63,6 +63,14 @@ export const COURT_PLAYER_FLOOR = COURT_TOP - PLAYER_GAP_FROM_TOP;
 
 /** Poder cru de um time de jogador com o piso aplicado: o que quem está começando leva para a quadra. */
 export const withPlayerFloor = (raw: number): number => Math.max(raw, rawFromCourt(COURT_PLAYER_FLOOR));
+
+/**
+ * A FAIXA de um time de jogador: entra entre o piso (93) e o teto (`PLAYER_CEILING_COURT`, o "Excepcional" da
+ * tabela cumulativa). Cartas e química levam até o teto, nunca além — o topo da régua segue sem dono, e a melhor
+ * lineup montável empata com a melhor dinastia de bot.
+ */
+export const withPlayerBand = (raw: number): number =>
+  Math.min(withPlayerFloor(raw), rawFromCourt(PLAYER_CEILING_COURT));
 
 /** Curva do dia de um time de jogador: o piso vale no dia ruim também. */
 export const courtMatchDayPlayer: MatchDayCurve = (power, multiplier) => Math.max(courtMatchDay(power, multiplier), COURT_PLAYER_FLOOR);

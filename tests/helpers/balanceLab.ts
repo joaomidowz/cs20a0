@@ -4,7 +4,7 @@
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, toSelectedPlayer, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { botFieldPower } from '../../src/lib/game/online/bot-field';
-import { withPlayerFloor } from '../../src/lib/game/courtPower';
+import { withPlayerBand } from '../../src/lib/game/courtPower';
 import { createLiveSeries, runSeriesToEnd, toSeriesResult, type PowerScale } from '../../src/lib/game/online/live-series';
 import { createBotMapStrategy, createUserMapStrategy, type MapStrategy } from '../../src/lib/game/map-veto';
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
@@ -42,9 +42,9 @@ export function labLineup(build: LabBuild): LabSide {
   const synergized = applyCollectionLineup(base, { players: cards, roles: build.roles, starPlayerId: build.star, style: build.style, coachId: build.coachId });
   const coach = build.coachId ? collectionCoachById.get(build.coachId) : undefined;
   const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
-  // The floor the server applies before the match (`server/room-manager.ts`): the lab has to mirror it or the
-  // measurements lie about anyone starting out.
-  const team = { ...withCoach, power: withPlayerFloor(withCoach.power) };
+  // The band the server applies before the match (`server/room-manager.ts`): the lab has to mirror it or the
+  // measurements lie about the floor at the start and the ceiling at the top.
+  const team = { ...withCoach, power: withPlayerBand(withCoach.power) };
   const maps = getDefaultMapSelection(cards, collectionTeams) as [MapId, MapId, MapId];
   return {
     team: { ...team, id: build.name, name: build.name },
@@ -107,7 +107,12 @@ export const LAB = {
   beginner: { name: 'iniciante', ids: ['graviti-2026', 'maka-2026', 'grim-2026', 'ex3rcice-2026', 'sjuush-2026'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
   ownerSk: { name: 'sk-do-dono', ids: ['taco-2016', 'fallen-2017', 'coldzera-2017', 'fer-2017', 'fnx-2016'], roles: ['entry', 'awper-igl', 'rifler', 'lurker', 'support'], style: 'aggressive', star: 'coldzera-2017', coachId: 'coach-sk-2017' },
   /** Five Elite cards (~85 overall), every role filled: the middle of the collection. */
-  elites: { name: 'elites', ids: ['msl-2018', 'fox-2016', 'apex-2018', 'naf-2016', 'perfecto-2021'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null }
+  elites: { name: 'elites', ids: ['msl-2018', 'fox-2016', 'apex-2018', 'naf-2016', 'perfecto-2021'], roles: ['igl', 'awper', 'entry', 'rifler', 'support'], style: 'balanced', star: null, coachId: null },
+  /** A REAL core, no GOATs: the FURIA of 2025, same team-year-country with its coach. The "auge" rung — the
+   *  chemistry carries cards that alone sit below superstar level. */
+  furiaCore: { name: 'furia-2025-core', ids: ['fallen-2025', 'molodoy-2025', 'yekindar-2025', 'kscerato-2025', 'yuurih-2025'], roles: ['igl', 'awper', 'entry', 'lurker', 'rifler'], style: 'tactical', star: 'molodoy-2025', coachId: 'coach-furia-2025' },
+  /** The owner's own team (2026-09-21): 1 GOAT (star), an 89 AWPer, an 85 rifler and two role fillers. No chemistry. */
+  ownerMix: { name: 'time-do-dono', ids: ['latto-2025', 'ropz-faze-2023', 'jame-2025', 'woxic-2018', 'liazz-2022'], roles: ['rifler', 'lurker', 'awper-igl', 'awper', 'support'], style: 'tactical', star: 'ropz-faze-2023', coachId: 'coach-gamerlegion-2023' }
 } satisfies Record<string, LabBuild>;
 
 /** The bot of each step of the bracket, from the opening one to the final wall. */

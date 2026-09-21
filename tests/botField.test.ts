@@ -87,8 +87,9 @@ describe('o pedigree fino', () => {
     const entrada = courtPower(botFieldPower(82, team(null), false, 0, playerById));
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false, 0, playerById));
     expect(campeao - entrada).toBeGreaterThan(8);
-    // E o degrau de entrada fica abaixo do piso do jogador: quem acabou de criar a conta entra como favorito nele.
-    expect(entrada).toBeLessThan(COURT_TOP - PLAYER_GAP_FROM_TOP);
+    // E o degrau de entrada encosta no piso do jogador (85): quem começa briga de igual nele — a ascensão é a
+    // própria coleção, não um handicap de nascimento.
+    expect(entrada).toBeLessThanOrEqual(COURT_TOP - PLAYER_GAP_FROM_TOP + 1.5);
   });
 
   it('vale a melhor colocação do time em Major (base da zebra)', () => {

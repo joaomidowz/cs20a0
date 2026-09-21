@@ -2,8 +2,8 @@
 // As faixas de equilíbrio combinadas com o dono, medidas no motor real (MD3 de verdade, pela cadeia do servidor).
 // O objetivo: justo e estudado, não pay-to-win, e com progressão — cada degrau do chaveamento mais duro que o
 // anterior. Desde 2026-09-21 a escada dos bots é a de PEDIGREE fino (9 categorias, ver `pedigreeOf` em
-// `bot-field.ts` e `docs/reports/2026-09-21-taxonomia-pedigree.md`), e o piso do jogador ficou em 93: quem começa
-// vence o degrau de entrada com folga e é azarão claro dos campeões.
+// `bot-field.ts` e `docs/reports/2026-09-21-taxonomia-pedigree.md`). No mesmo dia a sinergia virou AFINIDADE (núcleo/país/ano em níveis) e a faixa do jogador ficou 85–99: quem começa
+// briga no degrau de entrada, e a ascensão até o campeão é a própria coleção (carta + química).
 //
 // Mexeu num número de `src/lib/game/balance.ts`? Rode este arquivo: ele diz, em porcentagem de séries ganhas, o que
 // aquilo fez. Se uma mudança futura fizer carta cara ganhar sozinha, ou fizer montar bem deixar de valer, falha aqui.
@@ -30,7 +30,8 @@ describe('a escala: nada é cortado e o topo fica abaixo de 100', () => {
     // O bug que a escala veio consertar: as mesmas cartas montadas de jeitos diferentes jogavam idênticas, todas
     // cortadas em 110. Agora cada nível de capricho tem o seu número.
     const nivel = (key: keyof typeof LAB) => courtPower(labLineup(LAB[key]).team.power);
-    expect(nivel('goatsBuilt')).toBeGreaterThan(nivel('goatsLazy'));
+    // No teto (99) capricho e preguiça leem o mesmo número — o que separa lá em cima é o elenco nos rounds.
+    expect(nivel('goatsBuilt')).toBeGreaterThanOrEqual(nivel('goatsLazy'));
     expect(nivel('goatsLazy')).toBeGreaterThan(nivel('goatsLazyNoIgl'));
     expect(nivel('goatsLazyNoIgl')).toBeGreaterThan(nivel('goatsNoIgl'));
     expect(nivel('superstarsBuilt')).toBeGreaterThan(nivel('superstarsThrown'));
@@ -46,23 +47,28 @@ describe('a escala: nada é cortado e o topo fica abaixo de 100', () => {
 });
 
 describe('justo e estudado', () => {
-  band('montar bem vale: mesmas cartas, caprichado × preguiçoso', () => labLineup(LAB.goatsBuilt), () => labLineup(LAB.goatsLazy), 59);
-  // Os GOATs "preguiçosos" têm o núcleo inteiro (IGL, AWPer e suporte de ofício): só falta star, coach e plano. É um
-  // time organizado de cartas melhores, então leva um pouco mais da metade — mas o estudo tira quase toda a diferença de carta.
-  band('estudo encosta no dinheiro: Superstars caprichados × GOATs preguiçosos', () => labLineup(LAB.superstarsBuilt), () => labLineup(LAB.goatsLazy), 46);
-  band('carta ajuda, não decide: GOATs × Superstars, os dois caprichados', () => labLineup(LAB.goatsBuilt), () => labLineup(LAB.superstarsBuilt), 60);
-  band('estudo ganha de carta jogada: Elites caprichados × quatro 99 sem IGL', () => labLineup(LAB.elites), () => labLineup(LAB.goatsNoIgl), 58);
-  band('montar bem com carta barata: Superstars caprichados × jogados', () => labLineup(LAB.superstarsBuilt), () => labLineup(LAB.superstarsThrown), 65);
-  band('jogar sem capitão custa, mas não sentencia', () => labLineup(LAB.goatsLazyNoIgl), () => labLineup(LAB.goatsLazy), 44);
-  band('time histórico bem montado × quatro 99 sem IGL', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsNoIgl), 66);
-  band('dois times caprichados de níveis diferentes ficam pau a pau', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsBuilt), 51);
+  // Alvos medidos em 2026-09-21 na régua da SINERGIA DE AFINIDADE (400 séries cada): no topo todos os times
+  // caprichados encostam no teto 99, então o que separa é o ELENCO nos rounds — e a química, um degrau abaixo.
+  band('montar bem no topo: caprichado × preguiçoso (os dois no teto)', () => labLineup(LAB.goatsBuilt), () => labLineup(LAB.goatsLazy), 53);
+  band('montar bem com carta de superstrella: caprichado × jogado fora', () => labLineup(LAB.superstarsBuilt), () => labLineup(LAB.superstarsThrown), 82);
+  // Carta manda entre fileiras: superstrellas caprichadas NÃO encostam num time de GOATs (a química é o caminho delas).
+  band('carta ajuda: GOATs × Superstars, os dois caprichados', () => labLineup(LAB.goatsBuilt), () => labLineup(LAB.superstarsBuilt), 82);
+  band('núcleo real de campeão × quatro 99 sem IGL nem suporte', () => labLineup(LAB.furiaCore), () => labLineup(LAB.goatsNoIgl), 77);
+  band('jogar sem capitão e sem química custa caro — e não sentencia', () => labLineup(LAB.goatsLazyNoIgl), () => labLineup(LAB.goatsLazy), 28);
+  band('time histórico bem montado × quatro 99 sem IGL nem suporte', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsNoIgl), 93);
+  band('no teto, núcleo histórico e melhor line montável ficam pau a pau', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsBuilt), 51);
 
-  it('nenhum confronto entre times competitivos vira atropelo', { timeout: TIMEOUT }, () => {
-    const serios = ['goatsBuilt', 'goatsLazy', 'superstarsBuilt', 'superstarsThrown', 'ownerSk', 'goatsNoIgl'] as const;
-    for (let i = 0; i < serios.length; i += 1) for (let j = i + 1; j < serios.length; j += 1) {
-      const rate = winRate(labLineup(LAB[serios[i]]), labLineup(LAB[serios[j]]), 'court', 200);
-      expect(rate, `${serios[i]} × ${serios[j]}: ${rate}%`).toBeGreaterThanOrEqual(25);
-      expect(rate, `${serios[i]} × ${serios[j]}: ${rate}%`).toBeLessThanOrEqual(75);
+  it('nenhum confronto entre times do MESMO patamar vira atropelo', { timeout: TIMEOUT }, () => {
+    // No topo todos jogam no teto 99: os confrontos são pau a pau por natureza.
+    const topo = ['goatsBuilt', 'goatsLazy', 'ownerSk'] as const;
+    // No meio, times do mesmo patamar (o bicho de 4×99 sem IGL agora mora aqui, 93) também. O time do dono
+    // (89,9, um GOAT e peças médias) ficou 3 níveis abaixo dele — patamar outro, azarão de 1 em 5.
+    const meio = ['goatsNoIgl', 'superstarsThrown'] as const;
+    const grupos = [topo, meio];
+    for (const grupo of grupos) for (let i = 0; i < grupo.length; i += 1) for (let j = i + 1; j < grupo.length; j += 1) {
+      const rate = winRate(labLineup(LAB[grupo[i]]), labLineup(LAB[grupo[j]]), 'court', 200);
+      expect(rate, `${grupo[i]} × ${grupo[j]}: ${rate}%`).toBeGreaterThanOrEqual(25);
+      expect(rate, `${grupo[i]} × ${grupo[j]}: ${rate}%`).toBeLessThanOrEqual(75);
     }
   });
 });
@@ -71,17 +77,16 @@ describe('progressão: cada fase do chaveamento é um degrau', () => {
   band('o degrau de entrada é formalidade para um time montado', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.semHistoria), 99, 4);
   band('...e também para quem montou mal: o susto agora vem dos degraus de cima', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.semHistoria), 99, 5);
   band('o campeão é a parede final, mesmo para a melhor line', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.campeao), 66);
-  band('quem monta mal é azarão contra o campeão', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.campeao), 43);
+  band('quem monta mal é azarão pesado do campeão — cartas não salvam bagunça', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.campeao), 16);
 
-  it('quem está começando tem onde jogar: atropela o degrau de entrada e é azarão claro do campeão', { timeout: TIMEOUT }, () => {
+  it('quem está começando tem onde jogar: briga no degrau de entrada e não existe contra o campeão', { timeout: TIMEOUT }, () => {
     const beginner = labLineup(LAB.beginner);
     const entrada = winRate(beginner, labBot(LAB_BOTS.semHistoria), 'court', SERIES);
     const campeao = winRate(beginner, labBot(LAB_BOTS.campeao), 'court', SERIES);
-    expect(entrada, `iniciante × degrau de entrada: ${entrada}%`).toBeGreaterThan(50);
-    // O piso do jogador em 93 (combinado 2026-09-21): os fracos são fracos de verdade para quem começa, e o
-    // campeão de Major é parede — azarão claro, não coin flip.
-    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeGreaterThanOrEqual(8);
-    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThanOrEqual(20);
+    expect(entrada, `iniciante × degrau de entrada: ${entrada}%`).toBeGreaterThan(40);
+    // O piso em 85 (combinado 2026-09-21, sinergia de afinidade): quem começa briga de igual no degrau de
+    // entrada — a ascensão é a própria coleção — e o campeão de Major é parede inexistente para cartas comuns.
+    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThanOrEqual(6);
     expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThan(entrada);
   });
 });

@@ -60,12 +60,21 @@ export const COURT_WIN_DIVISOR = 16 * COURT_SPREAD;
 // O que falta ao time: peça que não está lá custa níveis
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Time sem capitão. Mais negativo = montar sem IGL dói mais. */
-export const MISSING_IGL_COURT = -0.5556;
-/** Time sem AWPer. */
-export const MISSING_AWPER_COURT = -0.5556;
-/** Time sem suporte. */
-export const MISSING_SUPPORT_COURT = -0.3333;
+/** Time sem capitão. Mais negativo = montar sem IGL dói mais. Sem quem chama o jogo não existe time de CS:
+ *  cinco estrelas sem capitão NÃO são um time — é o anti-pay-to-win na raiz (combinado com o dono, 2026-09-21). */
+export const MISSING_IGL_COURT = -2.5;
+/** Time sem AWPer. Sem a AWP dominante a equipe joga com uma arma a menos em todo mapa. */
+export const MISSING_AWPER_COURT = -1.5;
+/** Time sem suporte. A peça mais barata de ter e a que mais falta quando não está. */
+export const MISSING_SUPPORT_COURT = -0.8;
+
+/**
+ * CINCO ESTRANHOS: nenhum vínculo de trio no elenco (nem núcleo/org, nem país, nem ano — dois que jogaram juntos
+ * não são química). Na vida real, cinco estrelas de épocas, regiões e línguas diferentes não viram time por
+ * decreto — então aqui também não: o elenco paga em NÍVEIS, igual para comum e para GOAT. Quem monta por carta,
+ * sem conceito, joga ABAIXO do que as cartas prometem; quem monta com identidade (núcleo real, país, era) sobe.
+ */
+export const NO_CHEMISTRY_COURT = -2;
 
 /**
  * O NÚCLEO: IGL, AWPer e suporte, os três presentes. É a espinha de um time de CS, e é o que separa um time
@@ -79,10 +88,29 @@ export const CORE_COMPLETE_COURT = 0.2222;
 export const CORE_NATURAL_COURT = 0.1111;
 
 /**
- * Teto da sinergia temática (mesmo time, país, ano), em % de poder. É tempero, não decisão: no topo, o tema cheio
- * vale ~2 níveis, menos que ter capitão. Misturar dois jogadores de outro país custa uma fração disso.
+ * Teto da sinergia temática (mesmo time/núcleo histórico, país/região, ano). A afinidade é a MATERIA-PRIMA da
+ * sinergia da coleção: um núcleo que existiu de verdade (Astralis da era) é o maior bônus do jogo — maior que
+ * qualquer bônus de estrutura — e um conceito coerente (cinco CIS) também paga. No teto, a lineup histórica
+ * perfeita soma ~30% → +7,5 níveis, o suficiente para encostar no teto do jogador.
  */
-export const THEME_TOTAL_CAP = 4;
+export const THEME_TOTAL_CAP = 30;
+
+/**
+ * Conversão das linhas de composição (% → níveis de quadra). As linhas nascem em "%" por legado da época em que
+ * a sinergia multiplicava o poder cru — e abaixo do joelho da curva cada ponto cru valia um nível inteiro, então
+ * o mesmo bônus rendia +14 níveis para um time fraco e +1,5 para um time de GOATs (times médios viravam
+ * "dinastia" e o builder prometia +4 entregando +10). Aqui a % é só a moeda das linhas: entra na quadra como
+ * níveis, o mesmo para todo mundo, e o que a tela soma é o que joga.
+ */
+export const SYNERGY_POWER_TO_COURT = 0.25;
+
+/**
+ * O teto de um time de JOGADOR: 99, o topo da régua — onde ela foi pregada no melhor time montável. Chegar aqui é
+ * montar um time PERFEITO: o núcleo completo de um campeão real (com coach, star e plano) ou cinco GOATs com
+ * estrutura. Cartas e química levam até 99, nunca além — e em 99 o jogador iguala o melhor número do jogo, não
+ * passa por cima dele.
+ */
+export const PLAYER_CEILING_COURT = 99;
 
 /**
  * O DIA DE JOGO, em níveis. Quantos níveis vale cada 1% de "dia" que o motor sorteia (`getMatchDayPower`).
@@ -157,16 +185,19 @@ export const ZEBRA_LEVEL_CAP = 94.5;
 
 /**
  * Nenhum time de JOGADOR entra em quadra mais do que isto abaixo do topo. É o que dá chance a quem está começando:
- * com ele, cinco Comuns entram em ~93 — acima de todo o meio do campo (top8 e potenciais ficam para trás), embaixo
- * de vices e campeões. Começar é ser azarão de parede, não de degrau.
+ * com ele, cinco Comuns coerentes entram em ~85 — o degrau de entrada do campo fica vencível e o meio-campo (top8,
+ * potenciais) é briga de verdade. Começar é ser azarão, não saco de pancadas.
  *
  * Não vale para bots, de propósito: é isso que mantém a escada do chaveamento íntegra para quem chega.
  * Aumentar = mais acolhedor com quem começa e carta importa menos; diminuir = o contrário.
  *
- * Medido em 2026-09-21, com a escada de pedigree fina: iniciante 12–15% contra os campeões-bots e ~97% contra o
- * degrau de entrada — os fracos são fracos de verdade para quem está começando, e os campeões são parede.
+ * Era 93 na época em que a sinergia da coleção multiplicava o poder cru (abaixo do joelho valia nível inteiro) e
+ * subia qualquer time montado a 96–98. Com a sinergia honesta (afinidade + estrutura, em níveis) o range real dos
+ * times de coleção é ~80–98, e um piso em 93 achataria Iniciante e Elite no mesmo número — a régua de progressão
+ * da coleção começaria só depois de "Superstar". Em 85 os degraus existem: Iniciante ~85, Elite ~88, Superstar
+ * ~92–94, Auge ~95–96, Excepcional 98,7.
  */
-export const PLAYER_GAP_FROM_TOP = 6;
+export const PLAYER_GAP_FROM_TOP = 14;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O solo contra bots: a parede cede conforme você sobe de nível
@@ -185,36 +216,43 @@ export const PLAYER_GAP_FROM_TOP = 6;
  * um par e outro a conta interpola, então a progressão é contínua, não em degraus. Fora da tabela, vale a ponta
  * mais próxima. Vale SÓ no solo contra bots: o online entre jogadores não tem handicap nenhum.
  *
- * O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major NORMAL
- * é a parede que cede — título de ~1% para quem começa, ~39% para o meio da coleção (elites), 45–61% para o auge
- * (medido em 200 runs). O MAJOR DOS CAMPEÕES tem tabela própria (abaixo) e é o desafio final.
+ * O combinado com o dono em 2026-09-21 (refeito no mesmo dia com a sinergia de AFINIDADE e o piso em 85): o Major
+ * NORMAL é a parede que cede — título de ~1% para quem começa, ~30% para o meio da coleção (elite com química, o
+ * próprio time do dono), 45–60% para o auge (núcleo real de superstrellas, tipo FURIA 2025). O MAJOR DOS CAMPEÕES
+ * tem tabela própria (abaixo) e é o desafio final.
  * `tests/soloDifficulty.test.ts` re-mede as duas e falha se a curva sair da faixa.
  */
 export const SOLO_RANDOM_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [91, 0],
-  [95, 0.3],
-  [96.8, 0.5],
-  [97.6, 0.7],
-  [98.33, 0.9],
-  [99, 1.1]
+  [85, 0.9],
+  [89, 1.0],
+  [92, 1.75],
+  [95, 2.15],
+  [97, 2.35],
+  [99, 2.5]
 ];
 
 /**
- * O alívio PRÓPRIO do "Major dos Campeões", o desafio endgame: a parede cede menos que no Major normal.
+ * O alívio PRÓPRIO do "Major dos Campeões", o desafio endgame. Aqui a tabela SOBE ao contrário: quanto mais perto
+ * da parede, MENOS o campo desce — o desafio final joga cada vez mais à força real dos campeões.
+ *
+ * Por que o alívio é grande embaixo: os campeões são 96,5–98,2 e um time de 92 (elite com química) não existe
+ * para eles — sem campo ajustado, o Major dos Campeões é conteúdo morto até o fim da coleção. A tabela faz o
+ * campo ENCONTRAR o desafiante: cada fileira da progressão enfrenta uma parede ~2 níveis acima dela, do início ao
+ * fim. A parede continua parede — iniciante segue a 0% —, mas quem sobe de fileira sente o desafio crescer junto.
  *
  * Calibrada em 2026-09-21 contra a tabela cumulativa combinada com o dono (colunas cumulativas: campeão, final,
- * semi, quartas, eliminado no suíço — médias de 300 Majors por nível, cada torneio segue sorteado). O alvo e o
- * medido: iniciante 0/0/0/1/99 (medido 0/0/0/1/99) · elite 6/12/22/40/60 (medido 5/10/24/48/52) · superstar
- * 13/24/43/66/34 (medido 10/23/43/71/29) · auge 23/38/64/84/16 (medido 21/33/53/77/23) · excepcional 33/55/82/94/6
- * (medido 39/52/69/90/10). O que ficou acima da meta nas semis dos topos é o preço pedido da variação: com o swing
- * de mapa de ±2 níveis (que produz os 2-1, viradas e OTs combinados), um favorito de 2 níveis não converte 8 de
- * cada 10 quartas. Para consistência maior, o knob é o swing — à custa da variação.
+ * semi, quartas, eliminado no suíço — médias de Majors sorteados, cada torneio segue variado):
+ *   iniciante (nível 85)  0/0/0/1/99 · elite (92, o time do dono) 6/12/22/40/60 · superstar (95) 13/24/43/66/34 ·
+ *   auge (96,5, núcleo FURIA 2025) 23/38/64/84/16 · excepcional (99, teto do jogador) 33/55/82/94/6.
+ * O que ficar acima da meta nas semis dos topos é o preço pedido da variação: com o swing de mapa de ±2 níveis
+ * (que produz os 2-1, viradas e OTs combinados), um favorito de 2 níveis não converte 8 de cada 10 quartas.
  */
 export const SOLO_CHAMPIONS_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [91, 0],
-  [95, 0.15],
-  [96.8, 0.22],
-  [97.6, 0.4],
-  [98.33, 0.7],
-  [99, 0.95]
+  [85, 4.3],
+  [90, 3.9],
+  [94, 3.4],
+  [96, 2.7],
+  [97.5, 1.3],
+  [98.7, 0.45],
+  [99, 0.25]
 ];

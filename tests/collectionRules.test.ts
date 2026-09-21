@@ -1,12 +1,13 @@
 // tests/collectionRules.test.ts
 // Regras puras da coleção: odds, valor em coins, sorteio determinístico de pacote, sinergia e star player.
 import { courtPower } from '../src/lib/game/courtPower';
+import { SYNERGY_POWER_TO_COURT } from '../src/lib/game/balance';
 import { collectionCoachById } from '../src/lib/game/online/collection-pool';
 import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
 import { rollPack } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
-import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
+import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_RARITY_SCALE, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starRarityScale, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
@@ -194,39 +195,44 @@ describe('lineup da coleção', () => {
     expect(toSelectedPlayer(hybrid.id, 'awper-igl')).toEqual({ playerId: hybrid.id, selectedSlotRole: 'awper', secondarySlotRole: 'igl' });
     expect(collectionRoleOf(toSelectedPlayer(hybrid.id, 'awper-igl'))).toBe('awper-igl');
     expect(collectionRoleOf(toSelectedPlayer(hybrid.id, 'awper'))).toBe('awper');
-    // Star no híbrido vale, com metade da linha de AWPer (tático: 3 × 1,2 de escala aos 92 × 0,5 = 1,75 arredondado em 0,25).
-    const star = { ...hybrid, overall: 92 };
+    // Star no híbrido vale, com metade da linha de AWPer (tático: 3 × 1 de escala elite × 0,5 do híbrido = 1,5).
+    const star = { ...hybrid, overall: 92, rarity: 'elite' };
     const starred = { players: [star, ...team.slice(1)], roles: [...teamRoles], starPlayerId: star.id, style: 'tactical' as const };
     const lines = Object.fromEntries(synergyOf(starred).map((line) => [line.key, line.power]));
-    expect(lines).toMatchObject({ star: 2, star_awper_igl: 1.75 });
-    // Só de AWPer o time fica sem caller: o tático não roda e o star cai na linha do equilibrado (1,5 × 1,2).
+    expect(lines).toMatchObject({ star: 2, star_awper_igl: 1.5 });
+    // Só de AWPer o time fica sem caller: o tático não roda e o star cai na linha do equilibrado (1,5 × 1).
     const pure = Object.fromEntries(synergyOf({ ...starred, roles: ['awper', 'entry', 'lurker', 'support', 'rifler'] }).map((line) => [line.key, line.power]));
-    expect(pure).toMatchObject({ style_tactical_off: PLAN_OFF_BONUS, star_awper: 1.75 });
+    expect(pure).toMatchObject({ style_tactical_off: PLAN_OFF_BONUS, star_awper: 1.5 });
   });
 
-  it('boost do star: toda função ganha em todo plano, cada uma com o seu, escalado pelo overall', () => {
-    const starLine = (role: 'awper' | 'entry' | 'rifler' | 'lurker', style: OrgStyle, overall = 90) => {
-      const star = { ...pick(role === 'rifler' ? 'lurker' : role), overall };
+  it('boost do star: toda função ganha em todo plano, cada uma com o seu, escalado pela RARIDADE da carta', () => {
+    const starLine = (role: 'awper' | 'entry' | 'rifler' | 'lurker', style: OrgStyle, rarity = 'elite') => {
+      const star = { ...pick(role === 'rifler' ? 'lurker' : role), overall: 90, rarity };
       const slot = lineup.findIndex((player) => player.id === star.id);
       const teamRoles = roles.map((item, index) => (index === slot ? role : item));
-      // Os outros ficam abaixo do star (ele é top-2 mesmo aos 84) e o IGL chama bem: todo plano roda.
+      // Os outros ficam abaixo do star (ele é top-2) e o IGL chama bem: todo plano roda.
       const team = lineup.map((player) => (player.id === star.id ? star : { ...player, overall: 80, igl: player.id === pick('igl').id ? 90 : player.igl }));
       const lines = synergyOf({ players: team, roles: teamRoles, starPlayerId: star.id, style });
-      expect(lines.find((line) => line.key === 'star')?.power).toBe(2);
+      expect(lines.find((line) => line.key === 'star')?.power).toBe(2 * STAR_RARITY_SCALE[rarity]);
       return lines.find((line) => line.key === `star_${role}`)!.power;
     };
     for (const role of ['awper', 'entry', 'rifler', 'lurker'] as const) {
       for (const style of ['aggressive', 'balanced', 'tactical'] as const) {
         expect(starLine(role, style)).toBe(STAR_ROLE_BONUS[role][style]);
         expect(starLine(role, style)).toBeGreaterThan(0);
-        expect(starLine(role, style, 96)).toBeGreaterThan(starLine(role, style, 90));
-        expect(starLine(role, style, 84)).toBeLessThan(starLine(role, style, 90));
+        // O mesmo esquema em volta de um GOAT paga mais do que em volta de uma carta comum.
+        expect(starLine(role, style, 'goat')).toBeGreaterThan(starLine(role, style));
+        expect(starLine(role, style, 'common')).toBeLessThan(starLine(role, style));
       }
     }
     // Cada função tem o seu plano: entry no agressivo, rifler no equilibrado, AWPer e lurker no tático.
     const bestStyle = (role: 'awper' | 'entry' | 'rifler' | 'lurker') => (['aggressive', 'balanced', 'tactical'] as const).reduce((best, style) => (STAR_ROLE_BONUS[role][style] > STAR_ROLE_BONUS[role][best] ? style : best));
     expect([bestStyle('entry'), bestStyle('rifler'), bestStyle('awper'), bestStyle('lurker')]).toEqual(['aggressive', 'balanced', 'tactical', 'tactical']);
+    // A escada de raridade, e o fallback por overall quando a carta não tem raridade.
+    expect(Object.fromEntries(['common', 'rare', 'elite', 'legend', 'superstar', 'goat'].map((rarity) => [rarity, starRarityScale({ rarity, overall: 90 })])))
+      .toEqual({ common: 0.5, rare: 0.75, elite: 1, legend: 1.15, superstar: 1.35, goat: 1.6 });
     expect([starScale(80), starScale(85), starScale(90), starScale(95), starScale(99)]).toEqual([0.5, 0.5, 1, 1.5, 1.5]);
+    expect(starRarityScale({ rarity: null, overall: 95 })).toBe(1.5);
   });
 
   it('os três planos têm o mesmo teto, e o quanto cada um rende sai das cartas', () => {
@@ -269,10 +275,11 @@ describe('lineup da coleção', () => {
     expect(lines.find((line) => line.key === 'support_none')).toMatchObject({ court: MISSING_SUPPORT_COURT, power: 0 });
     const missing = MISSING_IGL_COURT + MISSING_AWPER_COURT + MISSING_SUPPORT_COURT;
     const input = { players: riflers, roles: ['rifler', 'rifler', 'rifler', 'rifler', 'rifler'] as LineupSlotRole[], starPlayerId: null, style: 'balanced' as const };
-    const percent = 1 + lines.reduce((sum, line) => sum + line.power, 0) / 100;
+    const total = missing + lines.reduce((sum, line) => sum + line.power, 0) * SYNERGY_POWER_TO_COURT;
     for (const power of [80, 95, 110, 130]) {
       const team = applyCollectionLineup({ id: 't', name: 't', power, mental: 80, clutch: 80, experience: 80 }, input);
-      expect(courtPower(team.power) - courtPower(power * percent)).toBeCloseTo(missing, 9);
+      // A matemática nova é LINEAR em níveis: o mesmo total para qualquer base — e é exatamente o que o builder mostra.
+      expect(courtPower(team.power) - courtPower(power)).toBeCloseTo(total, 9);
     }
   });
 });
