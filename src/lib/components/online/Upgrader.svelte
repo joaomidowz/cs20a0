@@ -9,7 +9,9 @@
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { uiCopy } from '$lib/game/online/ui-copy';
-  import type { Coach, Language, Player } from '$lib/game/types';
+  import { primaryRoleOf } from '$lib/game/online/collection-lineup';
+  import { getRoleLabel } from '$lib/game/roleRules';
+  import type { Coach, Language, LineupSlotRole, Player } from '$lib/game/types';
   import CollectionCard from './CollectionCard.svelte';
   import CoachCard from './CoachCard.svelte';
 
@@ -49,6 +51,10 @@
   let target = '';
   let query = '';
   let targetRarity: Rarity | '' = '';
+  /** Por qual eixo os alvos são filtrados; o jogador alterna entre os dois. */
+  let filterBy: 'rarity' | 'role' = 'rarity';
+  let targetRole: LineupSlotRole | '' = '';
+  const TARGET_ROLES: LineupSlotRole[] = ['igl', 'awper', 'entry', 'rifler', 'lurker', 'support'];
   let busy = false;
   let error = '';
   /** The server's answer: decided before the spin starts, the wheel only acts it out. */
@@ -82,7 +88,7 @@
   $: chance = target && stakeValue && targetValue > stakeValue ? cardUpgradeChance(stake, target) : 0;
   $: needleText = query.trim().toLowerCase();
   $: targets = stakeValue
-    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
+    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!targetRole || (card.player ? primaryRoleOf(card.player) === targetRole : false)) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
     : [];
   $: if (!round && target && (ownedSet.has(target) || cardCoinValue(target) <= stakeValue)) target = '';
   // While a round is on screen the stage shows its cards; picking anything new clears it.
@@ -326,8 +332,17 @@
       <h3 class="subhead">{t('upgraderTargets').toUpperCase()} <small>{targets.length}</small></h3>
       <div class="filters">
         <div class="rarity-filter">
-          <button type="button" class:active={!targetRarity} on:click={() => targetRarity = ''}>{t('all')}</button>
-          {#each RARITIES as rarity}<button type="button" class:active={targetRarity === rarity} on:click={() => targetRarity = rarity}>{rarity}</button>{/each}
+          <!-- Um eixo de cada vez: trocar de eixo limpa o outro, senão o jogador fica sem alvo nenhum e não entende. -->
+          <button type="button" class="axis" on:click={() => { filterBy = filterBy === 'rarity' ? 'role' : 'rarity'; targetRarity = ''; targetRole = ''; }}>
+            {filterBy === 'rarity' ? t('filterRarity') : t('filterRole')} ⇄
+          </button>
+          {#if filterBy === 'rarity'}
+            <button type="button" class:active={!targetRarity} on:click={() => targetRarity = ''}>{t('all')}</button>
+            {#each RARITIES as rarity}<button type="button" class:active={targetRarity === rarity} on:click={() => targetRarity = rarity}>{rarity}</button>{/each}
+          {:else}
+            <button type="button" class:active={!targetRole} on:click={() => targetRole = ''}>{t('all')}</button>
+            {#each TARGET_ROLES as role}<button type="button" class:active={targetRole === role} on:click={() => targetRole = role}>{getRoleLabel(role)}</button>{/each}
+          {/if}
         </div>
         <input type="search" placeholder={t('upgraderSearch')} bind:value={query} disabled={!stakeValue} />
       </div>
@@ -414,6 +429,8 @@
   .empty { display: grid; place-items: center; min-height: 160px; padding: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: .76rem; text-align: center; }
   .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .mini-grid.scroll { max-height: 620px; overflow-y: auto; padding: 4px 4px 4px 0; }
+  .rarity-filter .axis { border-color: var(--accent); color: var(--accent); font-weight: 900; }
+
   .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease, opacity .5s ease, transform .5s ease, filter .5s ease; }
   .pick.picked, .pick.aimed { outline-color: var(--accent); }
   .pick :global(.small) { width: 100%; min-height: 36px; padding: 0 8px; border-radius: 0; font-size: .6rem; }
