@@ -26,6 +26,20 @@ export const PRO_STYLE_MODIFIERS = {
   balanced: {
     correctRoleBoost: 1.02,
     debuffReduction: 0.2
+  },
+  // Os estilos de situação seguem a identidade deles no PRO: tempo acelera as posições de brigas, reativo valoriza
+  // a leitura (suporte/AWPer) e resiliente protege a cabeça do time (IGL/lurker de clutch).
+  tempo: {
+    roleBoost: 1.05,
+    boostedRoles: ['entry', 'lurker', 'awper'] as LineupSlotRole[]
+  },
+  reativo: {
+    roleBoost: 1.05,
+    boostedRoles: ['support', 'awper'] as LineupSlotRole[]
+  },
+  resiliente: {
+    roleBoost: 1.05,
+    boostedRoles: ['igl', 'lurker'] as LineupSlotRole[]
   }
 } as const;
 
@@ -87,9 +101,9 @@ export function getProRoleFit(player: Player, selectedRole: LineupSlotRole): Pro
 
 export function getProStyleMultiplier(style: OrgStyle, selectedRole: LineupSlotRole, fit: ProRoleFit) {
   if (selectedRole === 'rifler') return 1;
-  if (style === 'aggressive' && PRO_STYLE_MODIFIERS.aggressive.boostedRoles.includes(selectedRole)) return PRO_STYLE_MODIFIERS.aggressive.roleBoost;
-  if (style === 'tactical' && PRO_STYLE_MODIFIERS.tactical.boostedRoles.includes(selectedRole)) return PRO_STYLE_MODIFIERS.tactical.roleBoost;
-  if (style === 'balanced' && (fit === 'primary' || fit === 'secondary')) return PRO_STYLE_MODIFIERS.balanced.correctRoleBoost;
+  const boost = (PRO_STYLE_MODIFIERS as Record<string, { roleBoost?: number; boostedRoles?: readonly LineupSlotRole[]; correctRoleBoost?: number; debuffReduction?: number }>)[style];
+  if (boost?.boostedRoles?.includes(selectedRole)) return boost.roleBoost ?? 1;
+  if (style === 'balanced' && (fit === 'primary' || fit === 'secondary')) return boost?.correctRoleBoost ?? PRO_STYLE_MODIFIERS.balanced.correctRoleBoost;
   return 1;
 }
 

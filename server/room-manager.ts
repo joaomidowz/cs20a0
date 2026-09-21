@@ -61,6 +61,7 @@ import {
   autoDecide,
   pendingSeriesDecision,
   requestSeriesTimeout,
+  runSeriesToEnd,
   seriesSideA,
   seriesTimeouts,
   stepSeries,
@@ -72,6 +73,7 @@ import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor,
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
 import { botFieldPower, partyFieldRelief, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
+import { PARTY_VARIANCE_SCALE, PARTY_ZEBRA_LIFT } from '../src/lib/game/balance';
 import { courtPower, withPlayerBand } from '../src/lib/game/courtPower';
 import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
@@ -953,6 +955,7 @@ export class RoomManager {
           changed = true;
         }
       } else {
+        if (this.settleUnwatchedBotSeries(room, now)) changed = true;
         for (const runtime of room.live.values()) {
           if (this.advanceSeries(room, runtime, now)) changed = true;
         }
@@ -1233,7 +1236,7 @@ export class RoomManager {
     const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);
       const id = `bot-${team.id}`;
-      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief, playerById), id }, human: false, sourceTeamId: team.id };
+      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief, playerById, organizations.length > 1 ? PARTY_ZEBRA_LIFT : 1), id }, human: false, sourceTeamId: team.id };
     }).filter((organization) => !humanIds.has(organization.id));
     const humanSeeds = drawHumanSeeds(room.seed, organizations.length, fieldSize);
     const seedOrder: string[] = Array.from({ length: fieldSize }, () => '');
@@ -1274,7 +1277,12 @@ export class RoomManager {
       swissBestOf: 3,
       controllerFor: (organization) => organization.human ? 'human' : 'bot',
       // Only two humans veto by hand; against a bot the veto is settled by the policies, decisions inside the maps stay live.
-      interactiveVeto: (left, right) => left.human && right.human
+      interactiveVeto: (left, right) => left.human && right.human,
+      // Menos underdog na festa (2+ humanos): nas séries COM time de jogador a variância achata (mapa, ruído,
+      // pistola) e a zebra embala menos. Solo segue o alívio de sempre; bot-vs-bot joga com o dado cheio.
+      varianceFor: organizations.length > 1
+        ? (left, right) => left.human || right.human ? PARTY_VARIANCE_SCALE : 1
+        : undefined
     });
     room.deadlineAt = null;
     this.prepareRound(room);
@@ -1295,7 +1303,30 @@ export class RoomManager {
   private launchRound(room: RoomState, now: number) {
     room.roundStarted = true;
     room.nextRoundAt = null;
-    for (const runtime of room.live.values()) runtime.nextRoundAt = now + roundInterval(room.config);
+    // Bot-vs-bot with nobody watching resolves on the spot: the round then closes as soon as the human series are
+    // done instead of gating everyone on the slowest simulated BO3. A watched bot series keeps its round-by-round
+    // pace (and the tick re-settles it if its last watcher leaves).
+    this.settleUnwatchedBotSeries(room, now);
+    for (const runtime of room.live.values()) {
+      if (runtime.state.phase !== 'finished') runtime.nextRoundAt = now + roundInterval(room.config);
+    }
+  }
+
+  /** Finishes any bot-vs-bot series nobody is watching anymore (one stopped watching mid-round); seeded, so the result matches the paced path. */
+  private settleUnwatchedBotSeries(room: RoomState, now: number): boolean {
+    const watching = new Set([...room.participants.values()].map((participant) => participant.watchedSeriesId).filter((id): id is string => Boolean(id)));
+    let changed = false;
+    for (const [seriesId, runtime] of room.live) {
+      if (runtime.state.phase === 'finished') continue;
+      const botsOnly = runtime.state.config.teamA.id.startsWith('bot-') && runtime.state.config.teamB.id.startsWith('bot-');
+      if (botsOnly && !watching.has(seriesId)) {
+        runSeriesToEnd(runtime.state);
+        runtime.finishedAt = now;
+        runtime.nextRoundAt = null;
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   /**

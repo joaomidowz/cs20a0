@@ -10,6 +10,7 @@ import type {
   MapResult,
   MapSide,
   OnlineGameMode,
+  OrgStyle,
   Player,
   Roster,
   RoundDetail,
@@ -49,6 +50,8 @@ export interface MapStateOptions {
   pickedBy?: string | null;
   /** Queue the map is played in; the tactical timeout weighs more in PRO and in the Resenha modes. */
   mode?: OnlineGameMode;
+  /** Variance scale of the series this map belongs to (1 = always; <1 flattens the map swing). */
+  varianceScale?: number;
 }
 
 interface TeamRuntime {
@@ -72,6 +75,8 @@ interface TeamRuntime {
 
 export interface MapState {
   mapNumber: number;
+  /** Variance scale inherited from the series (<1 flattens the map swing, round noise and pistol luck). */
+  varianceScale: number;
   mapId?: MapId;
   mode: OnlineGameMode;
   rng: SeededRng;
@@ -162,13 +167,39 @@ const CLUTCH_ACCEPTANCE: Record<number, number> = { 2: 1, 3: 0.35, 4: 0.14, 5: 0
 const ROLE_KILL_FACTOR: Record<LineupSlotRole, number> = { entry: 1.06, lurker: 1.05, rifler: 1.03, awper: 1, igl: 0.96, support: 0.95 };
 const MOMENTUM_STEP = 0.01;
 const MAX_MOMENTUM = 5;
+// ---------------------------------------------------------------------------------------------------------------
+// Caráter SITUACIONAL dos estilos de 2026 (tempo / reativo / resiliente), round a round. Cada um brilha num lugar
+// e paga noutro — não existe tabela fixa de counters: o confronto nasce daqui, do economy e do momentum.
+// ---------------------------------------------------------------------------------------------------------------
+/** Pistol do Tempo: o ritmo alto começa na pistola. */
+export const TEMPO_PISTOL_EDGE = 0.015;
+/** Sequência de rounds: o momentum positivo do Tempo engata mais forte. */
+export const TEMPO_MOMENTUM_GAIN = 1.25;
+/** Com 2+ rounds de momentum, o Tempo pressiona o plano tático (que precisa de tempo para executar). */
+export const TEMPO_PRESSURE_VS_TACTICAL = 0.02;
+/** O Reativo pune o erro do rival: contra eco/force ele converte melhor. */
+export const REATIVO_PUNISH = 0.015;
+/** E se adapta ao próprio caos: o round quebrado do Reativo dói menos. */
+export const REATIVO_ADAPT = 0.015;
+/** O Resiliente sente menos a penalidade de momentum negativo (mantém a cabeça fria após derrotas). */
+export const RESILIENTE_MOMENTUM_DAMP = 0.6;
+/** Janela de timeout do Resiliente: mais larga que a dos outros (2–6 derrotas seguidas valem efeito cheio). */
+export const RESILIENTE_TIMEOUT_WINDOW = { from: 2, to: 6 } as const;
+/** Aceite de clutch do Resiliente: multiplica a chance de o 1vX ser jogado até o fim. */
+export const RESILIENTE_CLUTCH_ACCEPT = 1.25;
+/** Série longa: no mapa decididor (3º em diante) a cabeça fria do Resiliente vale por si. */
+export const RESILIENTE_DECIDER_EDGE = 0.02;
 /** Round-win edge of a well-timed tactical timeout, by queue: barely felt in Normal/Ranked, decisive in PRO and Resenha. */
 export const TIMEOUT_BONUS_BY_MODE: Record<OnlineGameMode, number> = { premier: 0.03, faceit: 0.03, pro: 0.08, fun: 0.1, max_fun: 0.1, dynasty: 0.03 };
 /** Straight losses in the half during which a timeout has its full effect; earlier or later it keeps a third of it. */
 export const TIMEOUT_WINDOW = { from: 2, to: 4 } as const;
 export const TIMEOUT_OFF_WINDOW_FACTOR = 1 / 3;
-export const timeoutTiming = (consecutiveLosses: number): TimeoutTiming =>
-  consecutiveLosses < TIMEOUT_WINDOW.from ? 'early' : consecutiveLosses <= TIMEOUT_WINDOW.to ? 'window' : 'late';
+/** The Resiliente organization keeps its window open for longer: the pause arrives when it still helps. */
+export const timeoutWindowFor = (style: OrgStyle | undefined) => (style === 'resiliente' ? RESILIENTE_TIMEOUT_WINDOW : TIMEOUT_WINDOW);
+export const timeoutTiming = (consecutiveLosses: number, style?: OrgStyle): TimeoutTiming => {
+  const window = timeoutWindowFor(style);
+  return consecutiveLosses < window.from ? 'early' : consecutiveLosses <= window.to ? 'window' : 'late';
+};
 export const timeoutBonus = (mode: OnlineGameMode, timing: TimeoutTiming) =>
   (TIMEOUT_BONUS_BY_MODE[mode] ?? TIMEOUT_BONUS_BY_MODE.premier) * (timing === 'window' ? 1 : TIMEOUT_OFF_WINDOW_FACTOR);
 const REGULATION_ROUNDS = 24;
@@ -312,13 +343,15 @@ const createRuntime = (team: CombatTeam, roster: Roster | undefined, variation: 
 
 export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: MapStateOptions): MapState {
   const { rng } = options;
-  const swing = (team: CombatTeam) => (rng() - 0.5) * 4 * (1 - stabilityOf(team) * 0.5);
+  const varianceScale = options.varianceScale ?? 1;
+  const swing = (team: CombatTeam) => (rng() - 0.5) * 4 * (1 - stabilityOf(team) * 0.5) * varianceScale;
   const variationA = swing(teamA);
   const variationB = swing(teamB);
   const sidePicker: TeamSide | null = options.sidePickerTeamId === teamA.id ? 'a' : options.sidePickerTeamId === teamB.id ? 'b' : null;
   const coinFlip = rng() < 0.5;
   return {
     mapNumber: options.mapNumber ?? 1,
+    varianceScale,
     mapId: options.mapId,
     mode: options.mode ?? 'premier',
     rng,
@@ -418,7 +451,7 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
   const side: TeamSide | null = teamIdOf(state, 'a') === teamId ? 'a' : teamIdOf(state, 'b') === teamId ? 'b' : null;
   if (!side) throw new MapDecisionError('INVALID_DECISION', 'Unknown team');
   if (state.pendingTimeout || state.teams[side].timeoutsRemaining <= 0) return false;
-  const timing = timeoutTiming(state.teams[side].consecutiveLosses);
+  const timing = timeoutTiming(state.teams[side].consecutiveLosses, state.teams[side].team.style);
   state.teams[side].timeoutsRemaining -= 1;
   state.pendingTimeout = side;
   state.pendingTimeoutBonus = timeoutBonus(state.mode, timing) * (state.teams[side].team.timeoutFactor ?? 1);
@@ -434,22 +467,44 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   const overtime = roundIndex >= REGULATION_ROUNDS;
   // Whoever is CT gets the map's CT tilt; each team's style adds its own preference for the side it is playing.
   const sideBias = (sideA === 'ct' ? 1 : -1) * ((state.mapId ? MAP_SIDE_BIAS[state.mapId] : 0) + styleSidePreference(a.team.style) + styleSidePreference(b.team.style) + (a.team.coachSidePreference ?? 0) + (b.team.coachSidePreference ?? 0));
+  // Situational style edges, written once and applied A−B (no fixed counter table: the matchup is the situation).
+  const tempoPistolEdge = (team: CombatTeam) => (team.style === 'tempo' ? TEMPO_PISTOL_EDGE : 0);
+  const broken = (buy: BuyType) => buy === 'eco' || buy === 'force';
+  const reativoEdge = (own: TeamEconomy, opp: TeamEconomy, style: OrgStyle | undefined) =>
+    style === 'reativo' ? (broken(opp.buy) ? REATIVO_PUNISH : 0) + (broken(own.buy) ? REATIVO_ADAPT : 0) : 0;
+  const deciderEdge = (team: CombatTeam) => (state.mapNumber >= 3 && team.style === 'resiliente' ? RESILIENTE_DECIDER_EDGE : 0);
   let probability: number;
   if (pistolRound) {
     const pistolSkill = (rosterAverage(a.roster, ['firepower', 'entry'], 80) - rosterAverage(b.roster, ['firepower', 'entry'], 80)) * 0.004;
-    probability = 0.5 + (base - 0.5) * 0.3 + pistolSkill + sideBias * 0.5;
+    // A pistola vira menos moeda quando a variância da série está achatada (festa): o skill pesa mais —
+    // por isso o fator de achatamento SOBE quando a escala desce (0,3 na escala 1; 0,45 na 0,5).
+    probability = 0.5 + (base - 0.5) * (0.3 + 0.3 * (1 - state.varianceScale)) + pistolSkill + sideBias * 0.5 + tempoPistolEdge(a.team) - tempoPistolEdge(b.team);
   } else {
     const economyEdge = BUY_EDGE[economy.a.buy] - BUY_EDGE[economy.b.buy];
-    const momentumEdge = (streak: number, opponent: CombatTeam) => MOMENTUM_STEP * streak * (1 - clamp((number(opponent.mental, 80) - 80) / 100, -0.2, 0.2));
-    probability = base + economyEdge + sideBias + momentumEdge(a.momentum, b.team) - momentumEdge(b.momentum, a.team);
+    // Gains scale for the tempo pace, losses are damped for the resilient head — momentum cuts both ways.
+    const momentumEdge = (team: typeof a, opponent: CombatTeam) => {
+      const step = MOMENTUM_STEP
+        * (team.team.style === 'tempo' && team.momentum > 0 ? TEMPO_MOMENTUM_GAIN : 1)
+        * (team.team.style === 'resiliente' && team.momentum < 0 ? RESILIENTE_MOMENTUM_DAMP : 1);
+      return step * team.momentum * (1 - clamp((number(opponent.mental, 80) - 80) / 100, -0.2, 0.2));
+    };
+    const tempoPressure = (team: typeof a, opponent: CombatTeam) =>
+      team.team.style === 'tempo' && team.momentum >= 2 && opponent.style === 'tactical' ? TEMPO_PRESSURE_VS_TACTICAL : 0;
+    probability = base + economyEdge + sideBias
+      + momentumEdge(a, b.team) - momentumEdge(b, a.team)
+      + tempoPressure(a, b.team) - tempoPressure(b, a.team)
+      + reativoEdge(economy.a, economy.b, a.team.style) - reativoEdge(economy.b, economy.a, b.team.style);
   }
+  probability += deciderEdge(a.team) - deciderEdge(b.team);
   if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
   if (overtime) {
-    const mentalA = (number(a.team.mental, 80) + number(a.team.clutch, 80)) / 2;
-    const mentalB = (number(b.team.mental, 80) + number(b.team.clutch, 80)) / 2;
-    probability += (mentalA - mentalB) / 550;
+    // Nerves: mental and clutch decide overtime, and the resilient lineup leans on its clutch a little harder.
+    const overtimeHead = (team: CombatTeam) => team.style === 'resiliente'
+      ? (number(team.mental, 80) + number(team.clutch, 80) * 1.5) / 2.5
+      : (number(team.mental, 80) + number(team.clutch, 80)) / 2;
+    probability += (overtimeHead(a.team) - overtimeHead(b.team)) / 550;
   }
-  const noise = (state.rng() - 0.5) * 0.06;
+  const noise = (state.rng() - 0.5) * 0.06 * state.varianceScale;
   return clamp(probability + noise, 0.03, 0.97);
 }
 
@@ -497,9 +552,11 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
     return 0;
   };
   let order = shuffled();
+  // The Resiliente lineup lives for the 1vX: its acceptance of the clutch is amplified (winning it is still the roll).
+  const clutchAcceptance = () => Math.min(1, CLUTCH_ACCEPTANCE[Math.min(5, clutchSize(order))] * (state.teams[winner].team.style === 'resiliente' ? RESILIENTE_CLUTCH_ACCEPT : 1));
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const against = clutchSize(order);
-    if (against < 3 || rng() < CLUTCH_ACCEPTANCE[Math.min(5, against)]) break;
+    if (against < 3 || rng() < clutchAcceptance()) break;
     order = shuffled();
   }
   const kills: RoundKill[] = [];

@@ -228,11 +228,11 @@ describe('authoritative online server', () => {
     manager.tick(now + 100);
     expect(manager.getSnapshot(code, guest.participantId, now + 100).self?.pendingDecision).toMatchObject({ seriesId, kind: 'veto' });
 
-    // The other series in the round keep playing while the humans veto.
+    // The bot series of the round resolved on the spot at launch: nobody waits on simulated matches anymore.
     now += 1_000;
     manager.tick(now);
     const others = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.overviewSeries.filter((series) => series.id !== seriesId) ?? [];
-    expect(others.some((series) => series.liveMap && series.liveMap.a + series.liveMap.b > 0)).toBe(true);
+    expect(others.every((series) => series.status === 'completed')).toBe(true);
 
     // Every remaining decision expires: the server decides with the bot policy and the series gets under way.
     let hostSnapshot = manager.getSnapshot(code, host.participantId, now);
@@ -305,8 +305,10 @@ describe('authoritative online server', () => {
       manager.tick(now);
       live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
       expect(live?.visibleRounds).toBe(roundsBefore);
+      // The pause is per series: the other human's series is still live and the bot ones are already done.
       const others = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.overviewSeries.filter((series) => series.id !== seriesId) ?? [];
-      expect(others.some((series) => series.liveMap && series.liveMap.a + series.liveMap.b > 0)).toBe(true);
+      expect(others.some((series) => series.status === 'live')).toBe(true);
+      expect(others.filter((series) => series.teamA.id.startsWith('bot-') && series.teamB.id.startsWith('bot-')).every((series) => series.status === 'completed')).toBe(true);
       expect(() => manager.execute(code, guest.participantId, { type: 'pick-side', requestId: 'side-guest', seriesId, side: 'ct' }, now)).toThrowError(/not yours/);
       manager.execute(code, host.participantId, { type: 'pick-side', requestId: 'side-host', seriesId, side: 'ct' }, now);
       live = manager.getSnapshot(code, host.participantId, now).tournament?.liveCursor?.primarySeries;
@@ -364,12 +366,18 @@ describe('authoritative online server', () => {
     expect(() => manager.execute(code, guest.participantId, { type: 'advance-round', requestId: 'advance-guest-01' }, startedAt + 61_010)).toThrowError(RoomError);
     expect(() => manager.execute(code, host.participantId, { type: 'veto-action', requestId: 'veto-before-start', seriesId: 'x', action: 'ban', mapId: 'mirage' }, startedAt + 61_010)).toThrowError(/No series is live/);
 
+    // The host watches a bot series before going live: watched bots keep the round-by-round pace in manual mode.
+    const botSeries = manager.getSnapshot(code, host.participantId, startedAt + 61_000).tournament?.liveCursor?.overviewSeries.find((series) => series.teamA.id.startsWith('bot-') && series.teamB.id.startsWith('bot-'));
+    expect(botSeries).toBeDefined();
+    manager.execute(code, host.participantId, { type: 'watch-match', requestId: 'watch-bot-01', seriesId: botSeries!.id }, startedAt + 61_009);
     manager.execute(code, host.participantId, { type: 'advance-round', requestId: 'advance-host-001' }, startedAt + 61_010);
     const started = manager.getSnapshot(code, guest.participantId, startedAt + 61_010).tournament?.liveCursor;
     expect(started).toMatchObject({ status: 'live', nextRoundAt: null });
-    expect(started?.overviewSeries.every((series) => series.status === 'live')).toBe(true);
-    const botSeries = started?.overviewSeries.find((series) => series.teamA.id.startsWith('bot-') && series.teamB.id.startsWith('bot-'));
-    expect(botSeries).toBeDefined();
+    for (const series of started?.overviewSeries ?? []) {
+      const botsOnly = series.teamA.id.startsWith('bot-') && series.teamB.id.startsWith('bot-');
+      if (botsOnly && series.id === botSeries?.id) { expect(series.status).toBe('live'); continue; }
+      expect(series.status).toBe(botsOnly ? 'completed' : 'live');
+    }
     manager.tick(startedAt + 61_010 + 1_200);
     manager.tick(startedAt + 61_010 + 2_400);
     const later = manager.getSnapshot(code, guest.participantId, startedAt + 61_010 + 2_400).tournament?.liveCursor;

@@ -135,6 +135,15 @@ export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, p
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;
 
+/**
+ * Vagas de lineup: duas grátis por conta e até três extras compradas uma única vez cada (15.000 coins).
+ * Cada vaga guarda um time completo e independente (as cartas podem repetir entre vagas — repetir carta não
+ * muda poder, só preparação); o jogo usa a vaga ATIVA ao entrar em fila ou sala.
+ */
+export const LINEUP_SLOTS_FREE = 2;
+export const LINEUP_SLOTS_MAX = 5;
+export const LINEUP_SLOT_PRICE = 15_000;
+
 /** Coin value of a coach card: COACH_VALUE_RATIO of a player of the same rarity, varied by the coach overall. */
 export function coachCoinValue(coach: Pick<Coach, 'overall' | 'rarity'>): number {
   return bandValue(rarityOf(coach), coach.overall, COACH_OVERALL_SPAN, COACH_VALUE_RATIO);

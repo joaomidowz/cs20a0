@@ -24,6 +24,7 @@ import {
   type SeriesResult,
   type Stage3Result
 } from './types';
+import { ORG_STYLES } from './types';
 import { createMapState, flipMapResult, playMapToEnd } from './rounds';
 import { applyCoachToTeam, coachAffinity } from './dynasty/coach';
 import {
@@ -103,6 +104,11 @@ export function calculatePlayerPower(
   if (style === 'aggressive') power += stats.entry * 0.04 + stats.firepower * 0.02 - stats.consistency * 0.012;
   if (style === 'balanced') power += (stats.consistency + stats.firepower) * 0.015;
   if (style === 'tactical') power += stats.support * 0.03 + (stats.igl + stats.mental) * 0.01 - stats.entry * 0.015;
+  // Os estilos de situação (2026): tempo puxa de ritmo (entry/firepower), reativo de leitura (suporte/consistência)
+  // e resiliente de cabeça (IGL/clutch/mental) — cada um paga em algo que o seu perfil não entrega.
+  if (style === 'tempo') power += stats.entry * 0.045 + stats.firepower * 0.02 - stats.support * 0.012;
+  if (style === 'reativo') power += stats.support * 0.035 + stats.consistency * 0.018 - stats.entry * 0.012;
+  if (style === 'resiliente') power += (stats.igl + stats.clutch) * 0.02 + stats.mental * 0.01 - stats.firepower * 0.01;
   if (player.rarity === 'goat') power += 1.5;
   if (player.rarity === 'legend') power += 0.8;
   return power;
@@ -134,7 +140,7 @@ function calculateUserTeamPowerInternal(players: Player[], style: OrgStyle, line
   const eliteCoreBonus = Math.min(4.5, elitePlayers * 0.9 + Math.max(0, avg('overall') - 92) * 0.35);
   const highFirepowerPlayers = players.filter((player) => number(player.firepower) >= 90).length;
   const aggressiveBoost = legacyStyle && style === 'aggressive' && highFirepowerPlayers >= 3 ? 1.08 : 1;
-  const styleMultiplier = legacyStyle ? (style === 'tactical' ? 1.1 : style === 'balanced' ? 1.05 : 1) * aggressiveBoost : 1;
+  const styleMultiplier = legacyStyle ? (style === 'tactical' ? 1.1 : style === 'balanced' || style === 'reativo' || style === 'resiliente' ? 1.05 : 1) * aggressiveBoost : 1;
   return {
     id: 'user',
     name: 'yourOrg',
@@ -180,7 +186,7 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: Match
   const stability = stabilityOf(team);
   let multiplier = 1 - (0.015 - 0.005 * stability) + intensity * (0.03 - 0.01 * stability);
 
-  if (team.style === 'aggressive') {
+  if (team.style === 'aggressive' || team.style === 'tempo') {
     const goodDayChance = 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
     if (roll < Math.min(0.38, goodDayChance)) multiplier = 1.04 + intensity * 0.045;
   } else if (team.style === 'tactical') {
@@ -190,6 +196,10 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: Match
   } else if (roll < 0.18) {
     multiplier = 1.02 + intensity * 0.025;
   }
+  // O dia ruim também é identidade: o Equilibrado é o plano SEGURO (perde menos no dia ruim) e o Resiliente, mais
+  // ainda — nunca domina o dia bom, mas quase nunca desmorona.
+  const badDayDamping = team.style === 'resiliente' ? 0.75 : team.style === 'balanced' ? 0.8 : 1;
+  if (multiplier < 1) multiplier = 1 - (1 - multiplier) * badDayDamping;
 
   if (curve) return curve(team.power, multiplier);
   return Math.max(45, Math.min(MAX_TEAM_POWER + 4, team.power * multiplier));
@@ -214,7 +224,8 @@ export function calculateHistoricalTeamPower(team: HistoricalTeam, allPlayers: P
     clutch: number(team.teamStats?.clutch, 82),
     experience: number(team.teamStats?.experience, 82),
     consistency: number(team.teamStats?.consistency, rosterConsistency),
-    style: (team.style === 'aggressive' || team.style === 'tactical' || team.style === 'balanced') ? team.style : undefined
+    // Tag explícita do dataset (aggressive/balanced/tactical e, desde 2026-09-21, tempo/reativo/resiliente); fora da régua joga sem estilo.
+    style: ORG_STYLES.includes(team.style as OrgStyle) ? (team.style as OrgStyle) : undefined
   };
 }
 
@@ -229,6 +240,8 @@ export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number 
   const divisor = teamA.powerDivisor ?? RAW_WIN_DIVISOR;
   // Flat on purpose: economy, sides and momentum add their own edges round by round on top of this base.
   let probability = 1 / (1 + Math.exp(-diff / divisor));
+  // The one style-vs-style edge at series level: the tactical plan cuts into raw pace (study vs aggression). Every
+  // other matchup emerges from the round-by-round situations (rounds.ts) — there is no fixed counter table.
   const tacticalStudyBonus = (team: CombatTeam) => {
     if (team.style !== 'tactical') return 0;
     const studyAdvantage = (team.studyPercentage ?? 0) - (team.aggressionPercentage ?? 0);

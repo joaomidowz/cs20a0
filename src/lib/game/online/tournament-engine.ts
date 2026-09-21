@@ -71,6 +71,8 @@ export interface TournamentEngineOptions {
   seedOrder?: string[];
   /** Match-day power scale of every series (see `LiveSeriesConfig.powerScale`). Only the online server asks for 'court'. */
   powerScale?: LiveSeriesConfig['powerScale'];
+  /** Per-series variance scale (see `LiveSeriesConfig.varianceScale`). Defaults to 1 — the online server dents it for human series in party rooms. */
+  varianceFor?: (left: TournamentOrganization, right: TournamentOrganization) => number;
 }
 
 export interface TournamentRoundState {
@@ -303,7 +305,8 @@ function createSeries(state: TournamentEngineState, left: TournamentOrganization
     controllers: { a: controllerFor(left), b: controllerFor(right) },
     interactiveVeto: Boolean(strategyA && strategyB) && interactiveVeto(left, right),
     ...(state.options.humanDecisions ? { humanDecisions: state.options.humanDecisions } : {}),
-    ...(state.options.powerScale ? { powerScale: state.options.powerScale } : {})
+    ...(state.options.powerScale ? { powerScale: state.options.powerScale } : {}),
+    ...(state.options.varianceFor ? { varianceScale: state.options.varianceFor(left, right) } : {})
   };
   return createLiveSeries(config);
 }

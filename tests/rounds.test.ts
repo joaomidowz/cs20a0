@@ -3,6 +3,15 @@ import {
   applyDecision,
   autoDecide,
   createMapState,
+  REATIVO_ADAPT,
+  REATIVO_PUNISH,
+  RESILIENTE_CLUTCH_ACCEPT,
+  RESILIENTE_DECIDER_EDGE,
+  RESILIENTE_MOMENTUM_DAMP,
+  RESILIENTE_TIMEOUT_WINDOW,
+  TEMPO_MOMENTUM_GAIN,
+  TEMPO_PISTOL_EDGE,
+  TEMPO_PRESSURE_VS_TACTICAL,
   getConsecutiveLosses,
   getCurrentSideA,
   getTimeoutsRemaining,
@@ -103,6 +112,23 @@ describe('round engine', () => {
     if (pendingDecision(state)) autoDecide(state);
     playNextRound(state);
     expect(getTimeoutsRemaining(state, 'a')).toBe(1);
+  });
+
+  it('caráter situacional dos estilos de 2026 fica fixado: pistola/momentum do tempo, quebrado do reativo, cabeça do resiliente', () => {
+    expect(TEMPO_PISTOL_EDGE).toBe(0.015);
+    expect(TEMPO_MOMENTUM_GAIN).toBe(1.25);
+    expect(TEMPO_PRESSURE_VS_TACTICAL).toBe(0.02);
+    expect(REATIVO_PUNISH).toBe(0.015);
+    expect(REATIVO_ADAPT).toBe(0.015);
+    expect(RESILIENTE_MOMENTUM_DAMP).toBe(0.6);
+    expect(RESILIENTE_TIMEOUT_WINDOW).toEqual({ from: 2, to: 6 });
+    expect(RESILIENTE_CLUTCH_ACCEPT).toBe(1.25);
+    expect(RESILIENTE_DECIDER_EDGE).toBe(0.02);
+    // A janela do resiliente é mais larga: 5 derrotas seguidas ainda valem pausa com efeito cheio para ele.
+    expect(timeoutTiming(5, 'resiliente')).toBe('window');
+    expect(timeoutTiming(6, 'resiliente')).toBe('window');
+    expect(timeoutTiming(7, 'resiliente')).toBe('late');
+    expect(timeoutTiming(5, 'balanced')).toBe('late');
   });
 
   it('weighs the tactical timeout by queue and by how well it is timed', () => {

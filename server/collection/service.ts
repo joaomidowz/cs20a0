@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
@@ -33,10 +33,17 @@ export interface CollectionView {
   packsToday: { granted: number; opened: number };
   /** Free packs still available this period: Prata once per ISO week, Ouro once per month (Brasília). */
   freePacks: Record<FreePackTier, boolean>;
+  /** The ACTIVE lineup: the one that plays (kept as `lineup` for older clients). */
   lineup: LineupView | null;
+  /** Every saved lineup, by slot; how many slots this account unlocked; which slot plays. */
+  lineups: LineupView[];
+  unlockedSlots: number;
+  activeSlot: number;
 }
 
 export interface LineupView {
+  /** Which lineup slot this team occupies (0..LINEUP_SLOTS_MAX-1). */
+  slotIndex: number;
   playerIds: string[];
   roles: CollectionSlotRole[];
   starPlayerId: string | null;
@@ -47,16 +54,33 @@ export interface LineupView {
   mapPreferences: MapId[] | null;
 }
 
-type LineupRow = { player_ids: string[]; roles: string[]; star_player_id: string | null; coach_id: string | null; style: string; map_preferences: string[] | null };
-const LINEUP_COLUMNS = 'player_ids, roles, star_player_id, coach_id, style, map_preferences';
+type LineupRow = { slot_index: number; player_ids: string[]; roles: string[]; star_player_id: string | null; coach_id: string | null; style: string; map_preferences: string[] | null };
+const LINEUP_COLUMNS = 'slot_index, player_ids, roles, star_player_id, coach_id, style, map_preferences';
 
 const lineupView = (row: LineupRow | undefined): LineupView | null => {
   if (!row) return null;
   const chosen = row.player_ids.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player));
   const check = validateLineup({ players: chosen, roles: row.roles as CollectionSlotRole[], starPlayerId: row.star_player_id }, (id) => playerById.get(id));
-  return { playerIds: row.player_ids, roles: row.roles as CollectionSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective,
+  return { slotIndex: row.slot_index, playerIds: row.player_ids, roles: row.roles as CollectionSlotRole[], starPlayerId: row.star_player_id, coachId: row.coach_id, style: row.style as OrgStyle, starEffective: check.starEffective,
     // Maps saved for another five (a card sold since) fall back to the default.
     mapPreferences: row.map_preferences && isValidLineupMapSelection(row.map_preferences, chosen, collectionTeams) ? row.map_preferences : null };
+};
+
+/** How many slots this account unlocked (contiguous from 0; every account starts with the free ones). */
+const unlockedSlotCount = async (executor: Db | Tx, userId: string): Promise<number> => {
+  const [row] = await executor.query<{ count: number }>('SELECT count(*)::int AS count FROM lineup_slot_unlocks WHERE user_id = $1', [userId]);
+  return Math.min(row?.count ?? LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX);
+};
+
+const activeSlotOf = async (executor: Db | Tx, userId: string): Promise<number> => {
+  const [row] = await executor.query<{ active_lineup_slot: number }>('SELECT active_lineup_slot FROM users WHERE id = $1', [userId]);
+  return row?.active_lineup_slot ?? 0;
+};
+
+/** Throws when the slot does not exist for this account (not unlocked or out of range). */
+const requireUnlockedSlot = async (executor: Db | Tx, userId: string, slotIndex: number): Promise<void> => {
+  const unlocked = await unlockedSlotCount(executor, userId);
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= unlocked) throw new CollectionError(403, 'SLOT_LOCKED', 'Essa vaga de lineup ainda está bloqueada');
 };
 
 /** What a repeated card pays: the same share as selling it. */
@@ -73,7 +97,7 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
   const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
   const rows = await db.query<{ player_id: string; acquired_at: Date }>('SELECT player_id, acquired_at FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
   const [grant] = await db.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2', [userId, day]);
-  const [lineup] = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineups WHERE user_id = $1`, [userId]);
+  const lineups = await getLineups(db, userId);
   const claimed = new Set((await db.query<{ tier: string }>(
     'SELECT tier FROM free_pack_claims WHERE user_id = $1 AND ((tier = $2 AND period_key = $3) OR (tier = $4 AND period_key = $5))',
     [userId, 'prata', freePackPeriod('prata', now), 'ouro', freePackPeriod('ouro', now)]
@@ -84,7 +108,10 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
     players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
     packsToday: { granted: grant?.granted ?? DAILY_BASIC_PACKS, opened: grant?.opened ?? 0 },
     freePacks: { prata: !claimed.has('prata'), ouro: !claimed.has('ouro') },
-    lineup: lineupView(lineup)
+    lineup: lineups.lineups.find((lineup) => lineup.slotIndex === lineups.activeSlot) ?? null,
+    lineups: lineups.lineups,
+    unlockedSlots: lineups.unlockedSlots,
+    activeSlot: lineups.activeSlot
   };
 }
 
@@ -213,8 +240,9 @@ export async function sellPlayer(db: Db, userId: string, playerId: string): Prom
   const player = playerById.get(playerId);
   if (!coach && !player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
   return db.tx(async (tx) => {
-    const [lineup] = await tx.query<{ player_ids: string[]; coach_id: string | null }>('SELECT player_ids, coach_id FROM lineups WHERE user_id = $1', [userId]);
-    if (lineup?.player_ids.includes(playerId) || lineup?.coach_id === playerId) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de vender');
+    // A card used by ANY lineup slot cannot go: lineups are independent teams, and each one holds its own five.
+    const [used] = await tx.query('SELECT 1 FROM lineup_slots WHERE user_id = $1 AND (player_ids @> $2::text[] OR coach_id = $2) LIMIT 1', [userId, [playerId]]);
+    if (used) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de vender');
     const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 RETURNING player_id', [userId, playerId]);
     if (!removed.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
     const coins = coach ? coachSellValue(coach) : sellValue(player!);
@@ -232,7 +260,7 @@ export interface LineupInput {
   mapPreferences?: string[] | null;
 }
 
-export async function saveLineup(db: Db, userId: string, input: LineupInput): Promise<LineupView> {
+export async function saveLineup(db: Db, userId: string, input: LineupInput, slotIndex?: number): Promise<LineupView> {
   if (input.playerIds.length !== 5 || input.roles.length !== 5 || new Set(input.playerIds).size !== 5) throw new CollectionError(400, 'LINEUP_SIZE', 'O time tem cinco cartas');
   const chosen = input.playerIds.map((id) => playerById.get(id));
   if (chosen.some((player) => !player)) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Jogador desconhecido');
@@ -244,17 +272,59 @@ export async function saveLineup(db: Db, userId: string, input: LineupInput): Pr
   if (!check.ok) throw new CollectionError(400, 'INVALID_LINEUP', check.problems.join('; '));
   const maps = input.mapPreferences?.length ? input.mapPreferences : null;
   if (maps && !isValidLineupMapSelection(maps, chosen as Player[], collectionTeams)) throw new CollectionError(400, 'INVALID_MAPS', 'Escolha três mapas que o time conhece');
+  const slot = slotIndex ?? await activeSlotOf(db, userId);
+  await requireUnlockedSlot(db, userId, slot);
   await db.query(
-    `INSERT INTO lineups (user_id, player_ids, roles, star_player_id, style, coach_id, map_preferences) VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (user_id) DO UPDATE SET player_ids = $2, roles = $3, star_player_id = $4, style = $5, coach_id = $6, map_preferences = $7, updated_at = now()`,
-    [userId, input.playerIds, input.roles, input.starPlayerId, input.style, input.coachId, maps]
+    `INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles, star_player_id, style, coach_id, map_preferences) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (user_id, slot_index) DO UPDATE SET player_ids = $3, roles = $4, star_player_id = $5, style = $6, coach_id = $7, map_preferences = $8, updated_at = now()`,
+    [userId, slot, input.playerIds, input.roles, input.starPlayerId, input.style, input.coachId, maps]
   );
-  return { playerIds: input.playerIds, roles: input.roles, starPlayerId: input.starPlayerId, coachId: input.coachId, style: input.style, starEffective: check.starEffective, mapPreferences: maps as MapId[] | null };
+  return { slotIndex: slot, playerIds: input.playerIds, roles: input.roles, starPlayerId: input.starPlayerId, coachId: input.coachId, style: input.style, starEffective: check.starEffective, mapPreferences: maps as MapId[] | null };
 }
 
+/** Every saved lineup, how many slots the account unlocked and which one plays. */
+export async function getLineups(db: Db, userId: string): Promise<{ lineups: LineupView[]; unlockedSlots: number; activeSlot: number }> {
+  const rows = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineup_slots WHERE user_id = $1 ORDER BY slot_index`, [userId]);
+  const [unlocked, activeSlot] = await Promise.all([unlockedSlotCount(db, userId), activeSlotOf(db, userId)]);
+  return { lineups: rows.map((row) => lineupView(row)!), unlockedSlots: unlocked, activeSlot };
+}
+
+/** The ACTIVE lineup: the one the room and the queue consume. */
 export async function getLineup(db: Db, userId: string): Promise<LineupView | null> {
-  const [row] = await db.query<LineupRow>(`SELECT ${LINEUP_COLUMNS} FROM lineups WHERE user_id = $1`, [userId]);
+  const [row] = await db.query<LineupRow>(
+    `SELECT ${LINEUP_COLUMNS} FROM lineup_slots WHERE user_id = $1 AND slot_index = (SELECT active_lineup_slot FROM users WHERE id = $1)`,
+    [userId]
+  );
   return lineupView(row);
+}
+
+/** Switches which slot plays; the slot itself does not need a saved team yet (room entry still asks for one). */
+export async function setActiveLineup(db: Db, userId: string, slotIndex: number): Promise<number> {
+  await requireUnlockedSlot(db, userId, slotIndex);
+  await db.query('UPDATE users SET active_lineup_slot = $2 WHERE id = $1', [userId, slotIndex]);
+  return slotIndex;
+}
+
+export interface LineupSlotBought {
+  slotIndex: number;
+  unlockedSlots: number;
+  wallet: number;
+}
+
+/**
+ * Buys the next lineup slot: one purchase per slot (the primary key is the gate, like the promos), always the next
+ * contiguous index, capped at LINEUP_SLOTS_MAX. The unlock row is inserted before the charge, so a rejected payment
+ * rolls both back and a double request can never pay twice.
+ */
+export async function buyLineupSlot(db: Db, userId: string): Promise<LineupSlotBought> {
+  return db.tx(async (tx) => {
+    const unlocked = await unlockedSlotCount(tx, userId);
+    if (unlocked >= LINEUP_SLOTS_MAX) throw new CollectionError(409, 'SLOTS_MAXED', 'Todas as vagas de lineup já estão liberadas');
+    const inserted = await tx.query('INSERT INTO lineup_slot_unlocks (user_id, slot_index) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING slot_index', [userId, unlocked]);
+    if (!inserted.length) throw new CollectionError(409, 'SLOT_OWNED', 'Essa vaga já está liberada');
+    const wallet = await applyLedger(tx, userId, -LINEUP_SLOT_PRICE, 'purchase', `lineup-slot-${unlocked}`);
+    return { slotIndex: unlocked, unlockedSlots: unlocked + 1, wallet };
+  });
 }
 
 export const CARDS = CARDS_PER_PACK;

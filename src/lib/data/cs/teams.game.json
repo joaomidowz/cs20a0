@@ -2302,7 +2302,7 @@
       }
     },
     "tier": "champion",
-    "style": "aggressive",
+    "style": "resiliente",
     "styleRating": 95,
     "upsetRating": 74,
     "stompRating": 95,
@@ -3563,7 +3563,7 @@
       }
     },
     "tier": "champion",
-    "style": "balanced",
+    "style": "resiliente",
     "styleRating": 95,
     "upsetRating": 74,
     "stompRating": 87,
@@ -5245,7 +5245,7 @@
       ]
     },
     "tier": "finalist",
-    "style": "balanced",
+    "style": "reativo",
     "styleRating": 88,
     "upsetRating": 72,
     "stompRating": 68,
@@ -5592,7 +5592,7 @@
       }
     },
     "tier": "finalist",
-    "style": "balanced",
+    "style": "resiliente",
     "styleRating": 91,
     "upsetRating": 74,
     "stompRating": 70,
@@ -6313,7 +6313,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "balanced",
+    "style": "tempo",
     "styleRating": 88,
     "upsetRating": 77,
     "stompRating": 73,
@@ -10463,7 +10463,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "aggressive",
+    "style": "tempo",
     "styleRating": 98,
     "upsetRating": 77,
     "stompRating": 98,
@@ -10714,7 +10714,7 @@
       }
     },
     "tier": "contender",
-    "style": "aggressive",
+    "style": "tempo",
     "styleRating": 85,
     "upsetRating": 75,
     "stompRating": 85,
@@ -11062,7 +11062,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "tactical",
+    "style": "reativo",
     "styleRating": 99,
     "upsetRating": 82,
     "stompRating": 77,
@@ -11827,7 +11827,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "tactical",
+    "style": "reativo",
     "styleRating": 99,
     "upsetRating": 79,
     "stompRating": 92,
@@ -13994,7 +13994,8 @@
     "upsetResistance": 89,
     "styleRating": 89,
     "upsetRating": 80,
-    "stompRating": 85
+    "stompRating": 85,
+    "style": "reativo"
   },
   {
     "id": "vitality-2023",
@@ -15197,7 +15198,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "balanced",
+    "style": "tempo",
     "styleRating": 93,
     "upsetRating": 82,
     "stompRating": 77,
@@ -16027,7 +16028,7 @@
         "notes": "HLTV final December team ranking applied as collective team-strength layer."
       }
     },
-    "style": "tactical",
+    "style": "resiliente",
     "styleRating": 99,
     "upsetRating": 79,
     "stompRating": 92,

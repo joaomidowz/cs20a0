@@ -4,7 +4,7 @@
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, toSelectedPlayer, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { botFieldPower } from '../../src/lib/game/online/bot-field';
-import { withPlayerBand } from '../../src/lib/game/courtPower';
+import { courtPower, withPlayerBand } from '../../src/lib/game/courtPower';
 import { createLiveSeries, runSeriesToEnd, toSeriesResult, type PowerScale } from '../../src/lib/game/online/live-series';
 import { createBotMapStrategy, createUserMapStrategy, type MapStrategy } from '../../src/lib/game/map-veto';
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
@@ -112,7 +112,15 @@ export const LAB = {
    *  chemistry carries cards that alone sit below superstar level. */
   furiaCore: { name: 'furia-2025-core', ids: ['fallen-2025', 'molodoy-2025', 'yekindar-2025', 'kscerato-2025', 'yuurih-2025'], roles: ['igl', 'awper', 'entry', 'lurker', 'rifler'], style: 'tactical', star: 'molodoy-2025', coachId: 'coach-furia-2025' },
   /** The owner's own team (2026-09-21): 1 GOAT (star), an 89 AWPer, an 85 rifler and two role fillers. No chemistry. */
-  ownerMix: { name: 'time-do-dono', ids: ['latto-2025', 'ropz-faze-2023', 'jame-2025', 'woxic-2018', 'liazz-2022'], roles: ['rifler', 'lurker', 'awper-igl', 'awper', 'support'], style: 'tactical', star: 'ropz-faze-2023', coachId: 'coach-gamerlegion-2023' }
+  ownerMix: { name: 'time-do-dono', ids: ['latto-2025', 'ropz-faze-2023', 'jame-2025', 'woxic-2018', 'liazz-2022'], roles: ['rifler', 'lurker', 'awper-igl', 'awper', 'support'], style: 'tactical', star: 'ropz-faze-2023', coachId: 'coach-gamerlegion-2023' },
+  // Os planos de SITUAÇÃO (2026-09-21), montados sobre os MESMOS conjuntos de cartas dos builds de cima: a
+  // diferença medida contra eles isola o efeito do plano (cartas e papéis idênticos).
+  /** goatsBuilt trocando o plano para tempo: mesma base, identidade de pistol/momentum. */
+  tempoBuilt: { name: 'tempo-montado', ids: ['fallen-2019', 'coldzera-2017', 's1mple-2021', 'donk-2024', 'jl-2024'], roles: ['igl', 'awper', 'awper', 'entry', 'support'], style: 'tempo', star: 'donk-2024', coachId: 'coach-natus-vincere-2021' },
+  /** ownerSk trocando o plano para reativo: mesma base, identidade de CT/round quebrado. */
+  reativoBuilt: { name: 'reativo-montado', ids: ['taco-2016', 'fallen-2017', 'coldzera-2017', 'fer-2017', 'fnx-2016'], roles: ['entry', 'awper-igl', 'rifler', 'lurker', 'support'], style: 'reativo', star: 'coldzera-2017', coachId: 'coach-sk-2017' },
+  /** furiaCore trocando o plano para resiliente: mesma base, identidade de clutch/série longa. */
+  resilienteBuilt: { name: 'resiliente-montado', ids: ['fallen-2025', 'molodoy-2025', 'yekindar-2025', 'kscerato-2025', 'yuurih-2025'], roles: ['igl', 'awper', 'entry', 'lurker', 'rifler'], style: 'resiliente', star: 'molodoy-2025', coachId: 'coach-furia-2025' }
 } satisfies Record<string, LabBuild>;
 
 /** The bot of each step of the bracket, from the opening one to the final wall. */
@@ -127,3 +135,60 @@ export const LAB_BOTS = {
 
 /** The champion bot closest to the average champion (raw 102.2 against a mean of 102.3). */
 export const LAB_CHAMPION_BOT = LAB_BOTS.campeao;
+
+// ---------------------------------------------------------------------------------------------------------------
+// A FESTA (2+ humanos): torneios completos com a variância das séries humanas achatada, como o servidor monta.
+// ---------------------------------------------------------------------------------------------------------------
+import { createSeededRng } from '../../src/lib/game/simulation';
+import { createTournamentEngine, runTournamentToEnd, toResult } from '../../src/lib/game/online/tournament-engine';
+import { planBotField, partyFieldRelief } from '../../src/lib/game/online/bot-field';
+import { PARTY_VARIANCE_SCALE, PARTY_ZEBRA_LIFT } from '../../src/lib/game/balance';
+import type { TournamentOrganization } from '../../src/lib/game/online/tournament';
+
+/** Mounts a 16-team party field exactly like `RoomManager.beginTournament` does for a queue room with two humans. */
+function partyField(measured: LabBuild, buddy: LabBuild, seed: string): { organizations: TournamentOrganization[]; botPool: TournamentOrganization[] } {
+  const measuredSide = labLineup(measured);
+  const buddySide = labLineup(buddy);
+  const organizations: TournamentOrganization[] = [
+    { id: 'h1', name: measured.name, seed: 1, team: { ...measuredSide.team, id: 'h1' }, human: true },
+    { id: 'h2', name: buddy.name, seed: 2, team: { ...buddySide.team, id: 'h2' }, human: true }
+  ];
+  const shuffled = [...coreTeams].sort((left, right) => createSeededRng(`${seed}:bot:${left.id}`)() - createSeededRng(`${seed}:bot:${right.id}`)());
+  const plan = planBotField({ shuffled, playerById: new Map(corePlayers.map((player) => [player.id, player])), seed, slots: 14 });
+  const relief = partyFieldRelief(Math.max(courtPowerOf(measuredSide), courtPowerOf(buddySide)));
+  const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
+    const combat = calculateHistoricalTeamPower(team, corePlayers);
+    return {
+      id: `bot-${team.id}`, name: combat.name, seed: 3 + index,
+      team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief, new Map(corePlayers.map((player) => [player.id, player])), PARTY_ZEBRA_LIFT), id: `bot-${team.id}` },
+      human: false, sourceTeamId: team.id
+    };
+  });
+  return { organizations, botPool };
+}
+
+const courtPowerOf = (side: LabSide): number => courtPower(side.team.power);
+
+/** Share of party runs where `measured` reached the final or the title, with the party variance wired in. */
+export function partyFinalRate(measured: LabBuild, runs = 120): number {
+  let reached = 0;
+  for (let index = 0; index < runs; index += 1) {
+    const seed = `party-lab:${measured.name}:${index}`;
+    const field = partyField(measured, { ...LAB.elites, name: 'festa-colega' }, seed);
+    const engine = createTournamentEngine({
+      organizations: field.organizations,
+      botPool: field.botPool,
+      entryStage: 'stage3',
+      seed,
+      swissBestOf: 3,
+      powerScale: 'court',
+      controllerFor: (organization) => organization.human ? 'human' : 'bot',
+      interactiveVeto: (left, right) => left.human && right.human,
+      varianceFor: (left, right) => left.human || right.human ? PARTY_VARIANCE_SCALE : 1
+    });
+    runTournamentToEnd(engine);
+    const placement = toResult(engine).campaigns.find((campaign) => campaign.organizationId === 'h1')?.placement ?? '';
+    if (placement === 'placementChampion' || placement === 'placementRunnerUp') reached += 1;
+  }
+  return Math.round((reached / runs) * 100);
+}

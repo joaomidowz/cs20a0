@@ -13,26 +13,26 @@
   $: if (initial) { style ??= initial.style; tactic ??= initial.tactic; }
   $: if (studiesLeft <= 0) study = false;
 
-  const STYLES = ['aggressive', 'balanced', 'tactical'] as const;
+  const STYLES = ['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente'] as const;
   const TACTICS = ['standard', 'pressure', 'control', 'antistrat'] as const;
   const copy = {
     'pt-BR': {
       title: 'Plano da série', versus: 'Adversário', style: 'Estilo', tactic: 'Tática do coach', study: 'Estudo do adversário',
       studyOn: 'Estudar este rival', studyHint: 'Gasta 1 estudo e melhora a leitura do adversário.', noStudies: 'Sem estudos neste Major.', left: 'restantes', confirm: 'Confirmar plano',
-      names: { aggressive: 'Agressivo', balanced: 'Controlador', tactical: 'Tático', standard: 'Padrão', pressure: 'Pressão', control: 'Controle', antistrat: 'Anti-strat' },
-      hints: { aggressive: 'Entry e poder de fogo', balanced: 'Consistência e mental', tactical: 'IGL e estudo rendem mais', standard: 'Jogo base, sem ajuste', pressure: 'Ataque forte, defesa arriscada', control: 'Ritmo lento, pausa melhor', antistrat: 'Anula os pontos fortes' }
+      names: { aggressive: 'Agressivo', balanced: 'Controlador', tactical: 'Tático', tempo: 'Tempo', reativo: 'Reativo', resiliente: 'Resiliente', standard: 'Padrão', pressure: 'Pressão', control: 'Controle', antistrat: 'Anti-strat' },
+      hints: { aggressive: 'Entry e poder de fogo', balanced: 'Consistência e mental', tactical: 'IGL e estudo rendem mais', tempo: 'Pistol forte e momentum', reativo: 'CT e round quebrado', resiliente: 'Clutch e série longa', standard: 'Jogo base, sem ajuste', pressure: 'Ataque forte, defesa arriscada', control: 'Ritmo lento, pausa melhor', antistrat: 'Anula os pontos fortes' }
     },
     es: {
       title: 'Plan de la serie', versus: 'Rival', style: 'Estilo', tactic: 'Táctica del coach', study: 'Estudio del rival',
       studyOn: 'Estudiar a este rival', studyHint: 'Gasta 1 estudio y mejora la lectura del rival.', noStudies: 'Sin estudios en este Major.', left: 'restantes', confirm: 'Confirmar plan',
-      names: { aggressive: 'Agresivo', balanced: 'Controlador', tactical: 'Táctico', standard: 'Estándar', pressure: 'Presión', control: 'Control', antistrat: 'Anti-strat' },
-      hints: { aggressive: 'Entry y potencia de fuego', balanced: 'Consistencia y mental', tactical: 'IGL y estudio rinden más', standard: 'Juego base, sin ajuste', pressure: 'Ataque fuerte, defensa arriesgada', control: 'Ritmo lento, mejor pausa', antistrat: 'Anula los puntos fuertes' }
+      names: { aggressive: 'Agresivo', balanced: 'Controlador', tactical: 'Táctico', tempo: 'Tempo', reativo: 'Reactivo', resiliente: 'Resiliente', standard: 'Estándar', pressure: 'Presión', control: 'Control', antistrat: 'Anti-strat' },
+      hints: { aggressive: 'Entry y potencia de fuego', balanced: 'Consistencia y mental', tactical: 'IGL y estudio rinden más', tempo: 'Pistolas fuertes y momentum', reativo: 'CT y round roto', resiliente: 'Clutch y serie larga', standard: 'Juego base, sin ajuste', pressure: 'Ataque fuerte, defensa arriesgada', control: 'Ritmo lento, mejor pausa', antistrat: 'Anula los puntos fuertes' }
     },
     en: {
       title: 'Series plan', versus: 'Opponent', style: 'Style', tactic: 'Coach tactic', study: 'Opponent study',
       studyOn: 'Study this opponent', studyHint: 'Spends 1 study and sharpens the read on the opponent.', noStudies: 'No studies left this Major.', left: 'left', confirm: 'Confirm plan',
-      names: { aggressive: 'Aggressive', balanced: 'Controller', tactical: 'Tactical', standard: 'Standard', pressure: 'Pressure', control: 'Control', antistrat: 'Anti-strat' },
-      hints: { aggressive: 'Entry and firepower', balanced: 'Consistency and mental', tactical: 'IGL and study pay off more', standard: 'Base game, no adjustment', pressure: 'Strong attack, risky defense', control: 'Slow tempo, better timeouts', antistrat: 'Shuts down their strengths' }
+      names: { aggressive: 'Aggressive', balanced: 'Controller', tactical: 'Tactical', tempo: 'Tempo', reativo: 'Reactive', resiliente: 'Resilient', standard: 'Standard', pressure: 'Pressure', control: 'Control', antistrat: 'Anti-strat' },
+      hints: { aggressive: 'Entry and firepower', balanced: 'Consistency and mental', tactical: 'IGL and study pay off more', tempo: 'Strong pistols and momentum', reativo: 'CT and broken rounds', resiliente: 'Clutch and long series', standard: 'Base game, no adjustment', pressure: 'Strong attack, risky defense', control: 'Slow tempo, better timeouts', antistrat: 'Shuts down their strengths' }
     }
   } as const;
   $: c = copy[language];

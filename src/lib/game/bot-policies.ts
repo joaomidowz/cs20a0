@@ -2,8 +2,9 @@ import { MAP_SIDE_BIAS } from './maps';
 import type { SeededRng } from './simulation';
 import type { CombatTeam, MapId, MapSide, OrgStyle } from './types';
 
-/** How much a style likes the CT side (aggressive lineups prefer T, tactical lineups prefer CT). */
-export const styleSidePreference = (style: OrgStyle | undefined) => (style === 'aggressive' ? -0.02 : style === 'tactical' ? 0.02 : 0);
+/** How much a style likes the CT side: aggressive and tempo take space on T, tactical and reativo read from CT. */
+export const styleSidePreference = (style: OrgStyle | undefined) =>
+  style === 'aggressive' || style === 'tempo' ? -0.02 : style === 'tactical' ? 0.02 : style === 'reativo' ? 0.03 : 0;
 
 /** CT preference of a team on a map: map bias plus the team's style. */
 export const sidePreference = (style: OrgStyle | undefined, mapId: MapId | undefined) =>
@@ -21,7 +22,7 @@ export const defaultHumanSide = (style: OrgStyle | undefined, mapId: MapId | und
 
 /** What a bot does after losing the pistol round: force the second round or save for a guaranteed buy in the third. */
 export function botEcoCall(team: Pick<CombatTeam, 'style'>, money: number, rng: SeededRng): 'force' | 'eco' {
-  if (team.style === 'aggressive') return rng() < 0.8 ? 'force' : 'eco';
+  if (team.style === 'aggressive' || team.style === 'tempo') return rng() < 0.8 ? 'force' : 'eco';
   if (team.style === 'tactical') return rng() < 0.75 ? 'eco' : 'force';
   if (money >= 2400) return rng() < 0.65 ? 'force' : 'eco';
   return rng() < 0.3 ? 'force' : 'eco';
@@ -29,7 +30,7 @@ export function botEcoCall(team: Pick<CombatTeam, 'style'>, money: number, rng: 
 
 /** Deterministic default for a human who let the eco-call timer expire. */
 export const defaultHumanEcoCall = (style: OrgStyle | undefined, money = 0): 'force' | 'eco' =>
-  style === 'aggressive' ? 'force' : style === 'tactical' ? 'eco' : money >= 2400 ? 'force' : 'eco';
+  style === 'aggressive' || style === 'tempo' ? 'force' : style === 'tactical' ? 'eco' : money >= 2400 ? 'force' : 'eco';
 
 /** Lost rounds in a row that call for a tactical timeout (bots, and players with the pause on automatic). */
 export const TIMEOUT_LOSS_STREAK = 4;

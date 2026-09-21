@@ -125,6 +125,7 @@
     type MajorStage,
     type MapId,
     type MapSide,
+    ORG_STYLES,
     type OrgStyle,
     type Player,
     type SeriesResult,
@@ -1242,10 +1243,10 @@
           <div class="section-heading"><div><span class="eyebrow">TACTICAL IDENTITY</span><h2>{t('chooseStyle')}</h2></div></div>
           <p class="style-required">{t('chooseStyleBeforeRoll')}</p>
           <div class="segmented">
-            {#each ['aggressive', 'balanced', 'tactical'] as style}
-              <button type="button" on:click={() => update({ style: style as OrgStyle, styleLocked: true })}>
-                <strong>{t(style as 'aggressive' | 'balanced' | 'tactical')}</strong>
-                <small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small>
+            {#each ORG_STYLES as style}
+              <button type="button" on:click={() => update({ style, styleLocked: true })}>
+                <strong>{t(style)}</strong>
+                <small>{t(`${style}Desc` as Parameters<typeof t>[0])}</small>
               </button>
             {/each}
           </div>
@@ -1372,10 +1373,10 @@
       </header>
       <section class="style-block panel">
         <div class="segmented pro-style-choice">
-          {#each ['aggressive', 'balanced', 'tactical'] as style}
-            <button type="button" on:click={() => chooseProStyle(style as OrgStyle)}>
-              <strong>{t(style as 'aggressive' | 'balanced' | 'tactical')}</strong>
-              <small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small>
+          {#each ORG_STYLES as style}
+            <button type="button" on:click={() => chooseProStyle(style)}>
+              <strong>{t(style)}</strong>
+              <small>{t(`${style}Desc` as Parameters<typeof t>[0])}</small>
             </button>
           {/each}
         </div>
@@ -1518,8 +1519,8 @@
       <header class="screen-header"><span class="eyebrow">DINASTIA · IDENTIDADE</span><h1>{t('chooseStyle')} + {t('coachDraftTitle')}</h1><p>{t('coachDraftDesc')}</p></header>
       {#if tipFor('identity', tipState)}{@const tip = tipFor('identity', tipState)}<DynastyTip tip={tip!} language={$game.language} onDismiss={() => dismissTip(tip!.id)} onDisable={turnOffTips} />{/if}
       <section class="style-block panel"><div class="segmented">
-        {#each ['aggressive', 'balanced', 'tactical'] as style}
-          <button class:active={$game.styleLocked && $game.style === style} type="button" on:click={() => chooseDynastyStyle(style as OrgStyle)}><strong>{style === 'balanced' ? ($game.language === 'en' ? 'Controller' : 'Controlador') : t(style as OrgStyle)}</strong><small>{t(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small></button>
+        {#each ORG_STYLES as style}
+          <button class:active={$game.styleLocked && $game.style === style} type="button" on:click={() => chooseDynastyStyle(style)}><strong>{style === 'balanced' ? ($game.language === 'en' ? 'Controller' : 'Controlador') : t(style)}</strong><small>{t(`${style}Desc` as Parameters<typeof t>[0])}</small></button>
         {/each}
       </div></section>
       {#if $game.styleLocked}<CoachDraft offer={coachOffer} language={$game.language} rerollsLeft={COACH_REROLLS - ($game.dynasty?.coachRerollsUsed ?? 0)} teamLabel={coachTeamLabel} onPick={pickCoach} onReroll={rerollCoaches} />{/if}

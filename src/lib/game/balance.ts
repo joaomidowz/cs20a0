@@ -179,6 +179,17 @@ export const ZEBRA_LIFT_COURT = 1;
 /** E nenhuma zebra passa disto, por mais embalada que esteja. */
 export const ZEBRA_LEVEL_CAP = 94.5;
 
+/**
+ * A VARIÂNCIA DA FESTA: quando a sala tem 2+ JOGADORES, as séries que envolvem time de jogador jogam com menos
+ * sorte — swing de mapa, ruído por round e o achatamento da pistola são multiplicados por esta escala (bot-vs-bot
+ * segue em 1, e o SOLO nunca é tocado). Não toca em NÍVEL de ninguém: o favorito converte mais porque o dado vicia
+ * menos, não porque o rival ficou pior. Humano contra humano segue sem qualquer handicap (a variância é simétrica).
+ * Medido em `docs/reports/2026-09-21-variancia-party.md`.
+ */
+export const PARTY_VARIANCE_SCALE = 0.5;
+/** E o vento da ZEBRA cai pela metade na festa: com humanos se destacando, o azarão embalado embala menos. */
+export const PARTY_ZEBRA_LIFT = 0.5;
+
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
 // ---------------------------------------------------------------------------------------------------------------

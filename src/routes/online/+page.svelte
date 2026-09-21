@@ -43,7 +43,7 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import type { LineupSlotRole, MapId, OrgStyle, Player, RoundDetail, SelectedPlayer, SeriesResult, CombatTeam, MajorTournament } from '$lib/game/types';
+  import { ORG_STYLES, type LineupSlotRole, type MapId, type OrgStyle, type Player, type RoundDetail, type SelectedPlayer, type SeriesResult, type CombatTeam, type MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type ClientCommandInput, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
@@ -1093,13 +1093,13 @@
           <section class="style-block panel">
             <div class="section-heading"><div><span class="eyebrow">TACTICAL IDENTITY</span><h2>{gameT('chooseStyle')}</h2></div></div>
             <p class="style-required">{gameT('chooseStyleBeforeRoll')}</p>
-            <div class="segmented">{#each ['aggressive', 'balanced', 'tactical'] as style}<button type="button" on:click={() => setStyle(style as OrgStyle)}><strong>{gameT(style as 'aggressive' | 'balanced' | 'tactical')}</strong><small>{gameT(`${style}Desc` as 'aggressiveDesc' | 'balancedDesc' | 'tacticalDesc')}</small></button>{/each}</div>
+            <div class="segmented">{#each ORG_STYLES as style}<button type="button" on:click={() => setStyle(style)}><strong>{gameT(style)}</strong><small>{gameT(`${style}Desc` as Parameters<typeof gameT>[0])}</small></button>{/each}</div>
           </section>
         {/if}
         {#if snapshot.config.mode === 'pro' && self.proPickedPlayerIds.length === 5 && self.lineup.length < 5}
           <section class="panel pro-config">
             <span class="eyebrow">PRO CONFIG</span><h2>{t('completeRoles')}</h2>
-            <select bind:value={proStyle} aria-label={gameT('chooseStyle')}><option value="aggressive">{gameT('aggressive')}</option><option value="balanced">{gameT('balanced')}</option><option value="tactical">{gameT('tactical')}</option></select>
+            <select bind:value={proStyle} aria-label={gameT('chooseStyle')}>{#each ORG_STYLES as style}<option value={style}>{gameT(style)}</option>{/each}</select>
             <div>
               {#each self.proPickedPlayerIds as playerId}
                 {@const player = playerById.get(playerId)}

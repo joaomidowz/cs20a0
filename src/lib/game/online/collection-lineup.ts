@@ -22,13 +22,15 @@ export const HYBRID_BONUS_RATIO = 0.5;
 /**
  * Star bonus (% of the shared synergy currency) by the role the star plays and the plan, for an average-rarity
  * star: every role gains under every plan, and each one has the plan that suits it (entry → aggressive, rifler →
- * balanced, AWPer and lurker → tactical). The AWPer-IGL gets the AWPer row at HYBRID_BONUS_RATIO.
+ * balanced, AWPer → tactical, lurker → resiliente). The plans of 2026 mirror their identity: tempo pays the entry
+ * almost as much as the aggressive does, reativo anchors on the AWPer, resiliente on the lurker of clutch. The
+ * AWPer-IGL gets the AWPer row at HYBRID_BONUS_RATIO.
  */
 export const STAR_ROLE_BONUS: Readonly<Record<'awper' | 'entry' | 'rifler' | 'lurker', Readonly<Record<OrgStyle, number>>>> = {
-  awper: { aggressive: 2, balanced: 1.5, tactical: 3 },
-  entry: { aggressive: 3, balanced: 1.5, tactical: 1 },
-  rifler: { aggressive: 1.5, balanced: 2.5, tactical: 1.5 },
-  lurker: { aggressive: 1, balanced: 1.5, tactical: 2 }
+  awper: { aggressive: 2, balanced: 1.5, tactical: 3, tempo: 2, reativo: 2.5, resiliente: 2 },
+  entry: { aggressive: 3, balanced: 1.5, tactical: 1, tempo: 2.5, reativo: 1, resiliente: 1 },
+  rifler: { aggressive: 1.5, balanced: 2.5, tactical: 1.5, tempo: 1.5, reativo: 1.5, resiliente: 2 },
+  lurker: { aggressive: 1, balanced: 1.5, tactical: 2, tempo: 1, reativo: 1.5, resiliente: 2.5 }
 };
 
 /**
@@ -81,6 +83,19 @@ export function planQuality(input: CollectionLineupInput): number {
     // Without a coach the caller does it alone; with one, the bench is worth almost a third of the plan.
     return coach ? caller * 0.7 + ramp(coach.tactics, COACH_TACTICS_RANGE[0], COACH_TACTICS_RANGE[1]) * 0.3 : caller * 0.7;
   }
+  if (style === 'tempo') {
+    // Ritmo alto: o entry abre espaço e o firepower médio do elenco sustenta a pressão.
+    const entries = ramp(Math.max(0, ...inSlot('entry').map((player) => player.entry ?? 0)), 75, 95);
+    const fire = ramp(input.players.reduce((sum, player) => sum + (player.firepower ?? 0), 0) / Math.max(1, input.players.length), 80, 92);
+    return entries * 0.7 + fire * 0.3;
+  }
+  if (style === 'reativo') return ramp(Math.max(0, ...inSlot('support').map((player) => player.support ?? 0)), 75, 95);
+  if (style === 'resiliente') {
+    // Cabeça fria: o caller segura o plano e o mental médio evita o desmoronamento.
+    const caller = ramp(Math.max(0, ...inSlot('igl').map((player) => player.igl ?? 0)), TACTICAL_MIN_IGL, 99);
+    const head = ramp(input.players.reduce((sum, player) => sum + (player.mental ?? 0), 0) / Math.max(1, input.players.length), 78, 92);
+    return caller * 0.75 + head * 0.25;
+  }
   // Balanced is only as steady as its shakiest card.
   return ramp(Math.min(...input.players.map((player) => player.consistency ?? 70)), 70, 95);
 }
@@ -130,17 +145,23 @@ export interface CollectionLineupInput {
   coachId?: string | null;
 }
 
-/** Caller strength a tactical plan needs from its IGL. */
+/** Caller strength a tactical (or resilient) plan needs from its IGL. */
 export const TACTICAL_MIN_IGL = 75;
+/** Average firepower a tempo plan needs: pace without firepower is just running around. */
+export const TEMPO_MIN_FIREPOWER = 85;
 
 /** Whether the lineup can run the chosen plan; the builder shows the requirement next to the style buttons. */
 export function styleReady(input: CollectionLineupInput): boolean {
   const has = (role: LineupSlotRole) => input.roles.some((item) => slotRolesOf(item).includes(role));
+  const caller = input.players.some((player, index) => slotRolesOf(input.roles[index]).includes('igl') && (player.igl ?? 0) >= TACTICAL_MIN_IGL);
   if (input.style === 'aggressive') return has('entry');
-  if (input.style === 'tactical') {
-    const caller = input.players.some((player, index) => slotRolesOf(input.roles[index]).includes('igl') && (player.igl ?? 0) >= TACTICAL_MIN_IGL);
-    return caller && has('support');
+  if (input.style === 'tempo') {
+    const firepower = input.players.reduce((sum, player) => sum + (player.firepower ?? 0), 0) / Math.max(1, input.players.length);
+    return has('entry') && firepower >= TEMPO_MIN_FIREPOWER;
   }
+  if (input.style === 'reativo') return has('support');
+  if (input.style === 'tactical') return caller && has('support');
+  if (input.style === 'resiliente') return caller;
   return true;
 }
 
@@ -271,6 +292,9 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   if (input.style === 'balanced') add('style_balanced', { power: planBonus(input) });
   else if (input.style === 'aggressive') add(ready ? 'style_aggressive' : 'style_aggressive_off', { power: planBonus(input) });
   else if (input.style === 'tactical') add(ready ? 'style_tactical' : 'style_tactical_off', { power: planBonus(input), mental: ready ? 2 : -1 });
+  else if (input.style === 'tempo') add(ready ? 'style_tempo' : 'style_tempo_off', { power: planBonus(input) });
+  else if (input.style === 'reativo') add(ready ? 'style_reativo' : 'style_reativo_off', { power: planBonus(input), consistency: ready ? 1 : -1 });
+  else if (input.style === 'resiliente') add(ready ? 'style_resiliente' : 'style_resiliente_off', { power: planBonus(input), clutch: ready ? 2 : -1 });
   if (isStarEffective(input.players, input.starPlayerId, input.roles)) {
     const star = input.players.find((player) => player.id === input.starPlayerId)!;
     const role = input.roles[input.players.indexOf(star)];

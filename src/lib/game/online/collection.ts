@@ -14,10 +14,17 @@ export interface CollectionState {
   packsToday: { granted: number; opened: number };
   /** Free Prata (weekly) and Ouro (monthly) packs still available; missing on an older server. */
   freePacks?: Record<FreePackTier, boolean>;
+  /** The ACTIVE lineup: the one that plays (kept for older servers). */
   lineup: SavedLineup | null;
+  /** Every saved lineup by slot, how many slots are unlocked and which one plays; missing on an older server. */
+  lineups?: SavedLineup[];
+  unlockedSlots?: number;
+  activeSlot?: number;
 }
 
 export interface SavedLineup {
+  /** Which lineup slot this team occupies (absent on an older server: the single slot, 0). */
+  slotIndex?: number;
   playerIds: string[];
   roles: CollectionSlotRole[];
   starPlayerId: string | null;
@@ -41,7 +48,11 @@ export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpe
 export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/free', { body: { tier } }));
 export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } }));
 export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
-export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: lineup });
+export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>, slot?: number) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: slot === undefined ? lineup : { ...lineup, slot } });
+/** Switches which lineup slot plays (queue, solo and rooms use the active one). */
+export const setActiveLineup = (serverUrl: string, slot: number) => authFetch<{ activeSlot: number }>(serverUrl, '/lineup/active', { body: { slot } });
+/** Buys the next locked lineup slot (up to five); the charge is one-off per slot. */
+export const buyLineupSlot = (serverUrl: string) => withWallet(authFetch<{ slotIndex: number; unlockedSlots: number; wallet: number }>(serverUrl, '/lineup/slots/buy', { body: {} }));
 
 export interface MissionState {
   id: string;

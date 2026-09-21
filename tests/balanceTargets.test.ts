@@ -8,7 +8,7 @@
 // Mexeu num número de `src/lib/game/balance.ts`? Rode este arquivo: ele diz, em porcentagem de séries ganhas, o que
 // aquilo fez. Se uma mudança futura fizer carta cara ganhar sozinha, ou fizer montar bem deixar de valer, falha aqui.
 import { describe, expect, it } from 'vitest';
-import { LAB, LAB_BOTS, labBot, labLineup, winRate } from './helpers/balanceLab';
+import { LAB, LAB_BOTS, labBot, labLineup, partyFinalRate, winRate } from './helpers/balanceLab';
 import { COURT_TOP, courtPower } from '../src/lib/game/courtPower';
 
 const TIMEOUT = 300_000;
@@ -70,6 +70,39 @@ describe('justo e estudado', () => {
       expect(rate, `${grupo[i]} × ${grupo[j]}: ${rate}%`).toBeGreaterThanOrEqual(25);
       expect(rate, `${grupo[i]} × ${grupo[j]}: ${rate}%`).toBeLessThanOrEqual(75);
     }
+  });
+});
+
+describe('planos de situação (2026): tempo, reativo e resiliente', () => {
+  // Medido em 2026-09-21 (400 séries) contra o GÊMEO EQUILIBRADO — as mesmas cartas e papéis, só o plano muda —
+  // para isolar a identidade. Nenhum plano de situação pode passar de ~60 contra o neutro: identidade dá o empurrão,
+  // carta e química continuam mandando (o pedido do dono: a lineup importa mais que o nome do estilo).
+  band('tempo × equilibrado, as mesmas cartas (pistol e momentum valem um empurrão)', () => labLineup(LAB.tempoBuilt), () => labLineup({ ...LAB.tempoBuilt, name: 'tempo-gemeo-equilibrado', style: 'balanced' }), 54);
+  band('reativo × equilibrado, as mesmas cartas (pune o round quebrado)', () => labLineup(LAB.reativoBuilt), () => labLineup({ ...LAB.reativoBuilt, name: 'reativo-gemeo-equilibrado', style: 'balanced' }), 59);
+  band('resiliente × equilibrado, as mesmas cartas (cabeça fria)', () => labLineup(LAB.resilienteBuilt), () => labLineup({ ...LAB.resilienteBuilt, name: 'resiliente-gemeo-equilibrado', style: 'balanced' }), 59);
+
+  it('identidades se cruzam pela situação, nunca em atropelo', { timeout: TIMEOUT }, () => {
+    const cruzamentos: Array<[string, keyof typeof LAB, keyof typeof LAB]> = [
+      ['reativo × tempo', 'reativoBuilt', 'tempoBuilt'],
+      ['tempo × resiliente', 'tempoBuilt', 'resilienteBuilt'],
+      ['resiliente × reativo', 'resilienteBuilt', 'reativoBuilt']
+    ];
+    for (const [name, a, b] of cruzamentos) {
+      const rate = winRate(labLineup(LAB[a]), labLineup(LAB[b]), 'court', 300);
+      expect(rate, `${name}: ${rate}%`).toBeGreaterThanOrEqual(25);
+      expect(rate, `${name}: ${rate}%`).toBeLessThanOrEqual(75);
+    }
+  });
+});
+
+describe('a festa: 2+ humanos, menos underdog nas séries com jogador', () => {
+  // Medido em 2026-09-21 (200 torneios, campo de pedigree completo com o alívio de festa de sempre):
+  //   melhor line montável (99): campeão 68→73%, final 83→85% com a variância achatada;
+  //   time do dono (~90): semi+ 26→30%. A variância a 0,5 ajuda o FAVORITO a converter — o que é o pedido:
+  //   skill aparece mais. O alívio de festa segue na METADE do solo (decisão do dono de 2026-09-21, intocada).
+  it('o favorito de nível máximo chega à final da festa na maioria esmagadora das runs', { timeout: 600_000 }, () => {
+    const rate = partyFinalRate(LAB.goatsBuilt, 120);
+    expect(rate, `melhor line em festa 2+ humanos: final+ em ${rate}%`).toBeGreaterThanOrEqual(72);
   });
 });
 

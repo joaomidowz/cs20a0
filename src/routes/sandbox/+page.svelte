@@ -32,7 +32,7 @@
   import { getSandboxCampaignSummary, getSandboxTeamName, getSandboxUserProgress, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxLineupSelection, SandboxMajorState } from '$lib/game/sandbox/types';
   import type { MajorRun, PlayerRunStats } from '$lib/game/types';
-  import type { HistoricalTeam, LineupSlotRole, MapId, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
+  import { ORG_STYLES, type HistoricalTeam, type LineupSlotRole, type MapId, type OrgStyle, type Player, type SelectedPlayer } from '$lib/game/types';
   import '../../app.css';
 
   // The Sandbox always plays on the current catalog (not a stamped run); the roster modal and stats grid read it from context.
@@ -78,11 +78,7 @@
     { value: 'ultra', label: 'Ultra' },
     { value: 'insta', label: 'Insta' }
   ];
-  const styleOptions = [
-    { value: 'aggressive', label: 'Agressivo' },
-    { value: 'balanced', label: 'Equilibrado' },
-    { value: 'tactical', label: 'Tático' }
-  ];
+  const styleOptions = ORG_STYLES.map((style) => ({ value: style, label: { aggressive: 'Agressivo', balanced: 'Equilibrado', tactical: 'Tático', tempo: 'Tempo', reativo: 'Reativo', resiliente: 'Resiliente' }[style] }));
   const modeOptions = [
     { value: 'automatic', label: 'Automático' },
     { value: 'manual', label: 'Manual' }
@@ -150,7 +146,7 @@
         && stored.players.every((pick: SelectedPlayer) => playerById.has(pick?.playerId) && roles.includes(pick?.selectedSlotRole))) {
         selection = {
           organizationId: stored.organizationId,
-          style: ['aggressive', 'balanced', 'tactical'].includes(stored.style) ? stored.style : 'balanced',
+          style: (ORG_STYLES as string[]).includes(stored.style) ? stored.style as OrgStyle : 'balanced',
           players: stored.players.map((pick: SelectedPlayer) => ({ playerId: pick.playerId, selectedSlotRole: pick.selectedSlotRole })),
           mapPreferences: Array.isArray(stored.mapPreferences) ? stored.mapPreferences.filter((mapId: MapId) => MAP_POOL.includes(mapId)).slice(0, 3) : []
         };

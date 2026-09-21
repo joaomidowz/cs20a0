@@ -160,6 +160,55 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(me.body.lineup.playerIds).toEqual(five.map((player) => player.id));
     expect(coinValue(five[0])).toBeGreaterThan(0);
   });
+
+  it('vagas de lineup: duas grátis, compra única por vaga, cap em cinco e a ativa é a que joga', async () => {
+    // Estado inicial: o slot 0 foi salvo pelo teste anterior; a conta começa com duas vagas.
+    const initial = await call('/lineup');
+    expect(initial.body.unlockedSlots).toBe(2);
+    expect(initial.body.activeSlot).toBe(0);
+    expect(initial.body.lineup.slotIndex).toBe(0);
+    expect(initial.body.lineups).toHaveLength(1);
+
+    const base = JSON.parse(JSON.stringify(initial.body.lineup));
+    const saveSlot = async (slot: number) => call('/lineup', { ...base, slot }, 'PUT');
+
+    // Slot bloqueado não salva nem vira ativo; o schema recusa índice fora da régua.
+    expect((await saveSlot(2)).status).toBe(403);
+    expect((await call('/lineup/active', { slot: 2 })).status).toBe(403);
+    expect((await saveSlot(9)).status).toBe(400);
+
+    // Comprar sem coins não libera vaga nem registra débito (a transação volta inteira).
+    await db.query('UPDATE wallets SET coins = 14999');
+    expect((await call('/lineup/slots/buy', {})).status).toBe(402);
+    const [charged] = await db.query<{ count: string }>("SELECT count(*) AS count FROM ledger WHERE reason = 'purchase'");
+    expect(Number(charged.count)).toBe(0);
+
+    // Comprar libera a PRÓXIMA vaga contígua, uma vez cada, até o cap de cinco.
+    await db.query('UPDATE wallets SET coins = 60000');
+    const bought = await call('/lineup/slots/buy', {});
+    expect(bought.status).toBe(200);
+    expect(bought.body).toMatchObject({ slotIndex: 2, unlockedSlots: 3 });
+    expect(bought.body.wallet).toBe(45000);
+    expect((await call('/lineup/slots/buy', {})).body.slotIndex).toBe(3);
+    expect((await call('/lineup/slots/buy', {})).body.slotIndex).toBe(4);
+    expect((await call('/lineup/slots/buy', {})).status).toBe(409);
+    expect((await call('/lineup/slots/buy', {})).body.error).toBe('SLOTS_MAXED');
+    expect((await call('/lineup')).body.unlockedSlots).toBe(5);
+
+    // Cartas podem repetir entre vagas (times independentes); cada slot guarda o seu time.
+    const second = await saveSlot(2);
+    expect(second.status).toBe(200);
+    expect(second.body.lineup.slotIndex).toBe(2);
+    expect((await call('/lineup')).body.lineups).toHaveLength(2);
+
+    // A vaga ATIVA é a que joga; trocar a ativa troca a lineup consumida por fila e sala.
+    expect((await call('/lineup/active', { slot: 2 })).body.activeSlot).toBe(2);
+    const activated = await call('/lineup');
+    expect(activated.body.lineup.slotIndex).toBe(2);
+    expect((await call('/collection')).body.lineup.slotIndex).toBe(2);
+    // Carta em QUALQUER vaga bloqueia a venda.
+    expect((await call('/collection/sell', { playerId: base.playerIds[0] })).status).toBe(409);
+  });
 });
 
 describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {

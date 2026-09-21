@@ -19,9 +19,9 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, type CollectionState, type PackOpened } from '$lib/game/online/collection';
+  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
-  import { PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
+  import { LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
@@ -31,7 +31,7 @@
   import { countryName } from '$lib/game/visuals/flags';
   import { courtRating, courtRatingDelta } from '$lib/game/powerRating';
   import { withPlayerBand } from '$lib/game/courtPower';
-  import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
+  import { ORG_STYLES, type Coach, type LineupSlotRole, type MapId, type OrgStyle, type Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
@@ -66,7 +66,11 @@
     });
   });
   async function saveAndPlay() {
-    if (dirty || !savedLineup) { if (!await persistLineup()) return; }
+    if (dirty || !lineupAt(activeTab)) { if (!await persistLineup()) return; }
+    // Playing takes the team just saved: the tab becomes the active slot before leaving.
+    if (activeSlot !== activeTab) {
+      try { await setActiveLineup(serverUrl, activeTab); await refresh(); } catch (caught) { fail(caught); return; }
+    }
     allowLeave = true; await goto('/online');
   }
   let detailsPlayer: Player | null = null;
@@ -76,7 +80,8 @@
   let reveal: { cards: RevealCard[]; duplicates: Set<string>; coins: number; tier: PackTier; key: number; done: boolean } | null = null;
   let coachId: string | null = null;
 
-  // Lineup builder.
+  // Lineup builder. Each tab is one lineup slot: the builder below edits the tab's team.
+  let activeTab = 0;
   let slots: Array<Player | null> = [null, null, null, null, null];
   let roles: Array<CollectionSlotRole | null> = [null, null, null, null, null];
   let starPlayerId: string | null = null;
@@ -156,8 +161,12 @@
     const withCoach = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
     return withCoach ? { ...withCoach, power: withPlayerBand(withCoach.power) } : withCoach;
   })();
-  // The saved team, built the same way, so the player sees what changes before saving.
-  $: savedLineup = state?.lineup ?? null;
+  // The saved team of the OPEN tab, built the same way, so the player sees what changes before saving.
+  /** The lineup saved in a slot (null: the slot is free). */
+  const lineupAt = (index: number): SavedLineup | null => (state?.lineups ?? []).find((lineup) => (lineup.slotIndex ?? 0) === index) ?? null;
+  $: unlockedSlots = Math.min(state?.unlockedSlots ?? 2, LINEUP_SLOTS_MAX);
+  $: activeSlot = state?.activeSlot ?? 0;
+  $: savedLineup = lineupAt(activeTab);
   $: savedPlayers = savedLineup ? savedLineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player)) : [];
   $: savedTeam = (() => {
     if (!savedLineup || savedPlayers.length !== 5) return null;
@@ -185,8 +194,16 @@
   $: synergyTotal = baseTeam && synergized ? courtRatingDelta(baseTeam.power, synergized.power) : 0;
   $: packsLeft = state ? Math.max(0, state.packsToday.granted - state.packsToday.opened) : 0;
 
-  function hydrateLineup(saved: CollectionState['lineup']) {
-    if (!saved) return;
+  function hydrateLineup(saved: SavedLineup | null) {
+    if (!saved) {
+      slots = [null, null, null, null, null];
+      roles = [null, null, null, null, null];
+      starPlayerId = null;
+      coachId = null;
+      style = 'balanced';
+      mapPicks = [];
+      return;
+    }
     slots = saved.playerIds.map((id) => playerById.get(id) ?? null);
     roles = [...saved.roles];
     starPlayerId = saved.starPlayerId;
@@ -198,8 +215,33 @@
   async function refresh() {
     try {
       state = await fetchCollection(serverUrl);
-      if (!slots.some(Boolean)) hydrateLineup(state.lineup);
+      // First load opens on the ACTIVE slot: the team that plays now.
+      if (!slots.some(Boolean)) { activeTab = state?.activeSlot ?? 0; hydrateLineup(lineupAt(activeTab)); }
     } catch (caught) { fail(caught); }
+  }
+
+  /** Switches the tab being edited; unsaved work is asked about, never silently dropped. */
+  async function switchTab(index: number) {
+    if (index === activeTab || index >= LINEUP_SLOTS_MAX) return;
+    if (dirty && !await confirmDialog({ title: u('leaveTitle'), body: u('leaveBody'), confirmLabel: u('discard'), cancelLabel: t('cancel'), tone: 'danger' })) return;
+    activeTab = index;
+    hydrateLineup(lineupAt(index));
+  }
+
+  /** Buys the next locked slot (one-off charge per slot). */
+  async function buySlot() {
+    if (busy || unlockedSlots >= LINEUP_SLOTS_MAX) return;
+    if (!await confirmDialog({ title: u('confirmBuy'), body: `${t('lineupSlotBuy')} · ${LINEUP_SLOT_PRICE.toLocaleString($language)} coins`, confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
+    error = ''; busy = true;
+    try { await buyLineupSlot(serverUrl); showToast(t('lineupSlotBought')); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  /** Makes this tab's slot the one that plays (queue, solo and rooms take it). */
+  async function useThisLineup() {
+    if (busy || activeSlot === activeTab) return;
+    if (dirty && !await persistLineup()) return;
+    error = ''; busy = true;
+    try { await setActiveLineup(serverUrl, activeTab); showToast(t('lineupInUseToast')); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
   async function runReveal(open: () => Promise<PackOpened>, tier: PackTier, free = false) {
@@ -317,10 +359,10 @@
     if (!complete || busy) { error = t('lineupIncomplete'); return false; }
     error = ''; busy = true;
     try {
-      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style, mapPreferences: mapsValid ? mapPicks : null });
+      await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style, mapPreferences: mapsValid ? mapPicks : null }, activeTab);
       showToast(t('lineupSaved'));
       await refresh();
-      hydrateLineup(state?.lineup ?? null);
+      hydrateLineup(lineupAt(activeTab));
       return true;
     } catch (caught) { fail(caught); return false; } finally { busy = false; }
   }
@@ -437,6 +479,25 @@
           <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {fmt(preview.power)}
             <!-- O poder que joga é o do time SALVO: sem este aviso, o jogador lê 98 na tela e vê 92 na partida. -->
             {#if dirty && savedTeam}<em class="unsaved">{t('unsavedPower').replace('{n}', fmt(savedTeam.power))}</em>{/if}</strong>{/if}</div>
+          <!-- Lineup slots: two free, the rest bought once. Each tab is an independent team; the game plays the active one. -->
+          <div class="lineup-tabs" role="tablist" aria-label={t('lineupSlots')}>
+            {#each Array(LINEUP_SLOTS_MAX) as _, index}
+              {#if index < unlockedSlots}
+                <button type="button" role="tab" aria-selected={activeTab === index} class:active={activeTab === index} on:click={() => switchTab(index)}>
+                  <b>{index + 1}</b>
+                  {#if activeSlot === index}<em class="in-use">{t('lineupInUse')}</em>{/if}
+                  {#if !lineupAt(index)}<small>{t('lineupEmptyTab')}</small>{/if}
+                </button>
+              {:else}
+                <button type="button" class="locked" disabled={busy || state.wallet < LINEUP_SLOT_PRICE} title={`${t('lineupSlotBuy')} · ${LINEUP_SLOT_PRICE.toLocaleString($language)} coins`} on:click={() => buySlot()}>
+                  🔒 {index + 1} · {LINEUP_SLOT_PRICE.toLocaleString($language)}
+                </button>
+              {/if}
+            {/each}
+            {#if activeSlot !== activeTab && (savedLineup || complete)}
+              <button type="button" class="use-here" disabled={busy || (!complete && !savedLineup)} on:click={() => useThisLineup()}>{t('useLineup')}</button>
+            {/if}
+          </div>
           {#if swapIn}<p class="swap-banner" role="status"><span>⇄ {t('swapChoose')} <b>{swapIn.nickname ?? swapIn.id}</b></span><button class="ghost small" type="button" on:click={() => swapIn = null}>{t('cancel')}</button></p>{/if}
           <div class="slots">
             {#each slots as slot, index}
@@ -523,7 +584,7 @@
 
             <div class="detail-box">
               <span class="label">{t('style')}</span>
-              <div class="segmented-control">{#each ['aggressive', 'balanced', 'tactical'] as option}<button type="button" class:active={style === option} on:click={() => style = option as OrgStyle}>{gameT(option as 'aggressive' | 'balanced' | 'tactical')}</button>{/each}</div>
+              <div class="segmented-control">{#each ORG_STYLES as option}<button type="button" class:active={style === option} on:click={() => style = option}>{gameT(option)}</button>{/each}</div>
               <p class="note" class:warn={complete && !readyStyle}>{t(`styleReq_${style}` as Parameters<typeof t>[0])}</p>
               <span class="label">{t('synergy')}</span>
               {#if synergy.length}
@@ -673,6 +734,14 @@
   .era-year { display: grid; gap: 4px; width: 100%; text-align: left; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
   .era-year select, .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
   .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+  .lineup-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .lineup-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+  .lineup-tabs button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+  .lineup-tabs button.locked { color: var(--muted); font-weight: 600; }
+  .lineup-tabs button:disabled { opacity: .45; cursor: default; }
+  .lineup-tabs em.in-use { color: #d9a441; font-size: .56rem; font-weight: 800; font-style: normal; letter-spacing: .08em; }
+  .lineup-tabs small { color: var(--muted); font-size: .6rem; font-weight: 600; }
+  .lineup-tabs .use-here { margin-left: auto; border-color: #d9a441; color: #ffd36b; }
   .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
   .detail-box { display: grid; gap: 12px; align-content: start; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
   .detail-box .label { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }

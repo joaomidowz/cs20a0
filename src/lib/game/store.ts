@@ -8,7 +8,7 @@ import { createRunStats } from './runStats';
 import { buildMajorRun } from './simulation';
 import { isValidLineupMapSelection, isValidMapSelection } from './maps';
 import { ensureDynastyState } from './dynasty/state';
-import type { GameMode, GameState, LineupSlotRole, MapId, OrgStyle } from './types';
+import { ORG_STYLES, type GameMode, type GameState, type LineupSlotRole, type MapId, type OrgStyle } from './types';
 
 const storageKey = 'cs13a0-run-v1';
 
@@ -51,7 +51,7 @@ export const defaultState = (seed = ''): GameState => ({
 
 const slotRoles = new Set<LineupSlotRole>(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
 const gameModes = new Set<GameMode>(['premier', 'faceit', 'pro', 'dynasty']);
-const orgStyles = new Set<OrgStyle>(['aggressive', 'balanced', 'tactical']);
+const orgStyles = new Set<OrgStyle>(ORG_STYLES);
 
 const parseSharedRun = (params: URLSearchParams, preferredSimulation: Pick<GameState, 'simMode' | 'simSpeed'>): GameState | null => {
   if (params.get('result') !== '1') return null;

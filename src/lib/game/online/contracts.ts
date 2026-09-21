@@ -76,7 +76,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   baseCommandSchema.extend({ type: z.literal('leave') }).strict(),
   baseCommandSchema.extend({ type: z.literal('draw-team') }).strict(),
   baseCommandSchema.extend({ type: z.literal('reroll-team') }).strict(),
-  baseCommandSchema.extend({ type: z.literal('set-style'), style: z.enum(['aggressive', 'balanced', 'tactical']) }).strict(),
+  baseCommandSchema.extend({ type: z.literal('set-style'), style: z.enum(['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente']) }).strict(),
   baseCommandSchema.extend({
     type: z.literal('pick-player'),
     playerId: z.string().min(1).max(100),
@@ -85,7 +85,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   baseCommandSchema.extend({
     type: z.literal('configure-pro'),
-    style: z.enum(['aggressive', 'balanced', 'tactical']),
+    style: z.enum(['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente']),
     assignments: z.record(z.string(), z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']))
   }).strict(),
   baseCommandSchema.extend({ type: z.literal('submit-map-preferences'), mapPreferences: z.tuple([mapIdSchema, mapIdSchema, mapIdSchema]) }).strict(),

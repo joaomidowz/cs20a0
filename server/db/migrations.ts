@@ -638,6 +638,39 @@ FROM (
   WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
 `
+  },
+  {
+    id: 26,
+    // Vagas de lineup (2026-09-21): de um time por conta para até cinco slots independentes — dois grátis, três
+    // comprados uma única vez (15.000 coins, motivo 'purchase'). A lineup antiga vira o slot 0; slots 0 e 1 nascem
+    // liberados; a vaga ativa mora em users.active_lineup_slot.
+    sql: `
+CREATE TABLE IF NOT EXISTS lineup_slots (
+  user_id uuid NOT NULL REFERENCES users(id),
+  slot_index int NOT NULL CHECK (slot_index >= 0 AND slot_index < 5),
+  player_ids text[] NOT NULL CHECK (cardinality(player_ids) = 5),
+  roles text[] NOT NULL CHECK (cardinality(roles) = 5),
+  star_player_id text,
+  coach_id text,
+  style text NOT NULL DEFAULT 'balanced',
+  map_preferences text[],
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, slot_index)
+);
+INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles, star_player_id, coach_id, style, map_preferences)
+  SELECT user_id, 0, player_ids, roles, star_player_id, coach_id, style, map_preferences FROM lineups
+  ON CONFLICT DO NOTHING;
+DROP TABLE lineups;
+CREATE TABLE IF NOT EXISTS lineup_slot_unlocks (
+  user_id uuid NOT NULL REFERENCES users(id),
+  slot_index int NOT NULL CHECK (slot_index >= 0 AND slot_index < 5),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, slot_index)
+);
+INSERT INTO lineup_slot_unlocks (user_id, slot_index)
+  SELECT id, s FROM users CROSS JOIN generate_series(0, 1) AS s ON CONFLICT DO NOTHING;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS active_lineup_slot int NOT NULL DEFAULT 0;
+`
   }
 ];
 

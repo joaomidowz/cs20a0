@@ -31,7 +31,15 @@ export const isMajorStage = (phase: string): phase is MajorStage => phase === 's
 export type OnlineGameMode = GameMode | 'fun' | 'max_fun';
 /** When a tactical timeout was called relative to the 2–4 straight-loss window that gives it its full effect. */
 export type TimeoutTiming = 'window' | 'early' | 'late';
-export type OrgStyle = 'aggressive' | 'balanced' | 'tactical';
+/**
+ * Estilos de organização/planos de time. Os três clássicos (agressivo, equilibrado, tático) cobrem identidade de
+ * dia de jogo; os três de 2026 cobrem SITUAÇÃO: tempo vive de pistol e momentum, reativo de lado CT e rounds
+ * quebrados, resiliente de sequência de derrotas, clutch e série longa. Cada um brilha num lugar e paga em outro —
+ * nenhum domina tudo (ver `rounds.ts` e `getMatchDayPower`).
+ */
+export type OrgStyle = 'aggressive' | 'balanced' | 'tactical' | 'tempo' | 'reativo' | 'resiliente';
+/** Ordem canônica dos estilos para a UI (draft, coleção, sandbox). */
+export const ORG_STYLES: readonly OrgStyle[] = ['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente'];
 /**
  * Historical catalog a run was drafted on. `core` is the v1 dataset (Majors 2016–2026) the online mode is frozen on;
  * `x1` is core followed by the expansion. Runs, saves and shared links carry it so results stay reproducible as the

@@ -182,7 +182,7 @@ export function partyFieldRelief(strongestHumanLevel: number, field: 'random' | 
  * levels the field of a SOLO run comes down as the player's team improves: it is taken off after everything else,
  * so every bot keeps its place relative to the others.
  */
-export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief: number, playerById: ReadonlyMap<string, Pick<Player, 'overall'>>): number {
+export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief: number, playerById: ReadonlyMap<string, Pick<Player, 'overall'>>, zebraScale = 1): number {
   // 1. O nível do bot: a faixa do pedigree fino dele, e dentro dela o lugar que o elenco merece.
   const [bandMin, bandMax] = PEDIGREE_LEVEL_BAND[pedigreeOf(team, playerById)];
   const [naturalMin, naturalMax] = BOT_NATURAL_RANGE;
@@ -190,7 +190,7 @@ export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: bo
   const share = Math.max(0, Math.min(1, (natural - naturalMin) / (naturalMax - naturalMin)));
   const laddered = bandMin + (bandMax - bandMin) * share;
   // 2. O vento nas costas da zebra, com teto próprio: ela é perigosa, não é campeão de Major disfarçado.
-  const lifted = zebra ? Math.min(ZEBRA_LEVEL_CAP, laddered + ZEBRA_LIFT_COURT) : laddered;
+  const lifted = zebra ? Math.min(ZEBRA_LEVEL_CAP, laddered + ZEBRA_LIFT_COURT * zebraScale) : laddered;
   // 3. E, por último, o alívio do campo de quem joga sozinho contra bots.
   return rawFromCourt(lifted - Math.max(0, relief));
 }

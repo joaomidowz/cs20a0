@@ -10,6 +10,7 @@ import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf 
 import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_RARITY_SCALE, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starRarityScale, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
+import { ORG_STYLES } from '../src/lib/game/types';
 import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
 
 describe('regras de coins', () => {
@@ -207,17 +208,17 @@ describe('lineup da coleção', () => {
 
   it('boost do star: toda função ganha em todo plano, cada uma com o seu, escalado pela RARIDADE da carta', () => {
     const starLine = (role: 'awper' | 'entry' | 'rifler' | 'lurker', style: OrgStyle, rarity = 'elite') => {
-      const star = { ...pick(role === 'rifler' ? 'lurker' : role), overall: 90, rarity };
+      const star = { ...pick(role === 'rifler' ? 'lurker' : role), overall: 90, rarity, firepower: 90 };
       const slot = lineup.findIndex((player) => player.id === star.id);
       const teamRoles = roles.map((item, index) => (index === slot ? role : item));
-      // Os outros ficam abaixo do star (ele é top-2) e o IGL chama bem: todo plano roda.
-      const team = lineup.map((player) => (player.id === star.id ? star : { ...player, overall: 80, igl: player.id === pick('igl').id ? 90 : player.igl }));
+      // Os outros ficam abaixo do star (ele é top-2), o IGL chama bem e o firepower médio roda o tempo: todo plano roda.
+      const team = lineup.map((player) => (player.id === star.id ? star : { ...player, overall: 80, firepower: 90, igl: player.id === pick('igl').id ? 90 : player.igl }));
       const lines = synergyOf({ players: team, roles: teamRoles, starPlayerId: star.id, style });
       expect(lines.find((line) => line.key === 'star')?.power).toBe(2 * STAR_RARITY_SCALE[rarity]);
       return lines.find((line) => line.key === `star_${role}`)!.power;
     };
     for (const role of ['awper', 'entry', 'rifler', 'lurker'] as const) {
-      for (const style of ['aggressive', 'balanced', 'tactical'] as const) {
+      for (const style of ORG_STYLES) {
         expect(starLine(role, style)).toBe(STAR_ROLE_BONUS[role][style]);
         expect(starLine(role, style)).toBeGreaterThan(0);
         // O mesmo esquema em volta de um GOAT paga mais do que em volta de uma carta comum.
@@ -225,9 +226,10 @@ describe('lineup da coleção', () => {
         expect(starLine(role, style, 'common')).toBeLessThan(starLine(role, style));
       }
     }
-    // Cada função tem o seu plano: entry no agressivo, rifler no equilibrado, AWPer e lurker no tático.
-    const bestStyle = (role: 'awper' | 'entry' | 'rifler' | 'lurker') => (['aggressive', 'balanced', 'tactical'] as const).reduce((best, style) => (STAR_ROLE_BONUS[role][style] > STAR_ROLE_BONUS[role][best] ? style : best));
-    expect([bestStyle('entry'), bestStyle('rifler'), bestStyle('awper'), bestStyle('lurker')]).toEqual(['aggressive', 'balanced', 'tactical', 'tactical']);
+    // Cada função tem o seu plano: entry no agressivo, rifler no equilibrado, AWPer no tático e lurker no
+    // resiliente (a cabeça fria). Os planos de 2026 espelham a identidade deles sem destronar o especialista original.
+    const bestStyle = (role: 'awper' | 'entry' | 'rifler' | 'lurker') => ORG_STYLES.reduce((best, style) => (STAR_ROLE_BONUS[role][style] > STAR_ROLE_BONUS[role][best] ? style : best));
+    expect([bestStyle('entry'), bestStyle('rifler'), bestStyle('awper'), bestStyle('lurker')]).toEqual(['aggressive', 'balanced', 'tactical', 'resiliente']);
     // A escada de raridade, e o fallback por overall quando a carta não tem raridade.
     expect(Object.fromEntries(['common', 'rare', 'elite', 'legend', 'superstar', 'goat'].map((rarity) => [rarity, starRarityScale({ rarity, overall: 90 })])))
       .toEqual({ common: 0.5, rare: 0.75, elite: 1, legend: 1.15, superstar: 1.35, goat: 1.6 });
@@ -265,6 +267,32 @@ describe('lineup da coleção', () => {
     expect(noEntry.find((line) => line.key === 'style_aggressive_off')?.power).toBe(PLAN_OFF_BONUS);
     expect(PLAN_OFF_BONUS).toBeLessThan(PLAN_BONUS_MIN);
     expect(PLAN_OFF_BONUS).toBeLessThan(BALANCED_PLAN_MIN);
+  });
+
+  it('planos de situação (2026): requisito próprio, teto igual aos especialistas e off-plan pobre', () => {
+    const base = { roles, starPlayerId: null, coachId: null };
+    const withFirepower = (value: number) => lineup.map((player) => ({ ...player, firepower: value }));
+    const withIgl = (value: number) => lineup.map((player) => ({ ...player, igl: player.id === pick('igl').id ? value : player.igl }));
+    // Tempo pede entry (o time tem) E firepower médio 85+; reativo pede suporte; resiliente pede caller 75+.
+    expect(styleReady({ ...base, players: withFirepower(60), style: 'tempo' })).toBe(false);
+    expect(styleReady({ ...base, players: withFirepower(95), style: 'tempo' })).toBe(true);
+    expect(styleReady({ ...base, players: withFirepower(95), roles: ['igl', 'awper', 'rifler', 'lurker', 'support'], style: 'tempo' })).toBe(false);
+    expect(styleReady({ ...base, players: lineup, style: 'reativo' })).toBe(true);
+    expect(styleReady({ ...base, players: lineup, roles: ['igl', 'awper', 'entry', 'lurker', 'rifler'], style: 'reativo' })).toBe(false);
+    expect(styleReady({ ...base, players: withIgl(70), style: 'resiliente' })).toBe(false);
+    expect(styleReady({ ...base, players: withIgl(80), style: 'resiliente' })).toBe(true);
+    // Mesmo teto dos especialistas; o resiliente escala com caller (75%) e mental médio (25%): os dois no piso
+    // rendem o mínimo, os dois no teto rendem o máximo.
+    const withHead = (igl: number, mental: number) => lineup.map((player) => ({ ...player, mental, igl: player.id === pick('igl').id ? igl : player.igl }));
+    expect(planBonus({ ...base, players: withHead(75, 78), style: 'resiliente' })).toBe(PLAN_BONUS_MIN);
+    expect(planBonus({ ...base, players: withHead(99, 92), style: 'resiliente' })).toBe(PLAN_BONUS_MAX);
+    // Off-plan rende PLAN_OFF_BONUS com a chave própria, e a linha rodada carrega a estatística da identidade.
+    const off = Object.fromEntries(synergyOf({ ...base, players: withIgl(70), style: 'resiliente' }).map((line) => [line.key, line.power]));
+    expect(off.style_resiliente_off).toBe(PLAN_OFF_BONUS);
+    const tempoLines = Object.fromEntries(synergyOf({ ...base, players: lineup, style: 'tempo' }).map((line) => [line.key, line.power]));
+    expect(tempoLines.style_tempo).toBeGreaterThan(PLAN_OFF_BONUS);
+    expect(synergyOf({ ...base, players: lineup, style: 'reativo' }).find((line) => line.key === 'style_reativo')?.consistency).toBe(1);
+    expect(synergyOf({ ...base, players: lineup, style: 'resiliente' }).find((line) => line.key === 'style_resiliente')?.clutch).toBe(2);
   });
 
   it('o que falta ao time é pago em pontos de quadra: dói igual no time fraco e no time de GOATs', () => {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
-import { CollectionError, buyPack, buyPromo, listPromos, getCollection, getLineup, openDailyPack, openFreePack, saveLineup, sellPlayer } from '../collection/service';
+import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
 import type { Db } from '../db/client';
 import type { PreparedLineup } from '../room-manager';
 import { preparedFor as preparedLineup } from './room-routes';
@@ -17,8 +17,11 @@ const lineupSchema = z.object({
   starPlayerId: z.string().min(1).max(80).nullable(),
   coachId: z.string().min(1).max(80).nullable().default(null),
   style: z.enum(['aggressive', 'balanced', 'tactical']),
-  mapPreferences: z.array(z.string().min(1).max(24)).length(3).nullable().optional()
+  mapPreferences: z.array(z.string().min(1).max(24)).length(3).nullable().optional(),
+  /** Which lineup slot to save into; absent means the active one. */
+  slot: z.number().int().min(0).max(4).optional()
 });
+const lineupSlotSchema = z.object({ slot: z.number().int().min(0).max(4) });
 
 const toHttp = (error: unknown): never => {
   if (error instanceof CollectionError) throw new HttpError(error.status, error.code, error.message);
@@ -53,14 +56,24 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const body = await readBody(request, sellSchema);
       return { ok: true, ...(await sellPlayer(db, userId!, body.playerId).catch(toHttp)) };
     })),
-    route('GET', /^\/lineup$/, withAuth(async ({ userId }) => ({ ok: true, lineup: await getLineup(db, userId!) }))),
+    route('GET', /^\/lineup$/, withAuth(async ({ userId }) => {
+      const view = await getLineups(db, userId!);
+      // `lineup` (the active one) rides along for older clients.
+      return { ok: true, ...view, lineup: view.lineups.find((entry) => entry.slotIndex === view.activeSlot) ?? null };
+    })),
     route('PUT', /^\/lineup$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, lineupSchema);
-      const lineup = await saveLineup(db, userId!, body).catch(toHttp);
+      const lineup = await saveLineup(db, userId!, body, body.slot).catch(toHttp);
       // The team just saved is the team that plays: a run waiting to start swaps to it instead of keeping the one
       // from when the room (or the queue search) began.
       onLineupSaved?.(userId!, await preparedLineup(db, userId!));
       return { ok: true, lineup };
-    }))
+    })),
+    route('POST', /^\/lineup\/active$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, lineupSlotSchema);
+      const activeSlot = await setActiveLineup(db, userId!, body.slot).catch(toHttp);
+      return { ok: true, activeSlot };
+    })),
+    route('POST', /^\/lineup\/slots\/buy$/, withAuth(async ({ userId }) => ({ ok: true, ...(await buyLineupSlot(db, userId!).catch(toHttp)) })))
   ];
 }

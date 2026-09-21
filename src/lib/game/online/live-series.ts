@@ -52,6 +52,12 @@ export interface LiveSeriesConfig {
    * and compared.
    */
   powerScale?: PowerScale;
+  /**
+   * Variance scale of the whole series (1 = the usual game; <1 flattens the map swing, the per-round noise and the
+   * pistol coin flip without touching anyone's level). The online server sets it below 1 for series with a human
+   * team when the room has 2+ players; solo and bot-vs-bot stay at 1.
+   */
+  varianceScale?: number;
 }
 
 export type PowerScale = 'classic' | 'court';
@@ -296,6 +302,7 @@ function startMap(state: LiveSeriesState): void {
     rosterA: state.config.rosters?.a,
     rosterB: state.config.rosters?.b,
     controllers: state.config.controllers,
+    varianceScale: state.config.varianceScale,
     powerBonusA: strategies && mapId ? getStrategyMapBonus(strategies.a, mapId, state.config.mode) : 0,
     powerBonusB: strategies && mapId ? getStrategyMapBonus(strategies.b, mapId, state.config.mode) : 0
   });
