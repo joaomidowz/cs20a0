@@ -16,7 +16,9 @@ const lineupSchema = z.object({
   roles: z.array(roleSchema).length(5),
   starPlayerId: z.string().min(1).max(80).nullable(),
   coachId: z.string().min(1).max(80).nullable().default(null),
-  style: z.enum(['aggressive', 'balanced', 'tactical']),
+  // Os seis planos (contracts.ts `set-style` é a referência): salvar lineup com tempo/reativo/resiliente
+  // era rejeitado aqui em 400 e o builder mostrava "Invalid option" (bug de PRD 2026-09-21).
+  style: z.enum(['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente']),
   mapPreferences: z.array(z.string().min(1).max(24)).length(3).nullable().optional(),
   /** Which lineup slot to save into; absent means the active one. */
   slot: z.number().int().min(0).max(4).optional()
