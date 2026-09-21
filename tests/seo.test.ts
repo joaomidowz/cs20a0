@@ -21,7 +21,8 @@ describe('SEO contract', () => {
       '/contact',
       '/privacy',
       '/terms',
-      '/credits'
+      '/credits',
+      '/changelog'
     ]);
     expect(new Set(PUBLIC_ROUTES.map((path) => SEO_BY_ROUTE[path].title)).size).toBe(PUBLIC_ROUTES.length);
 

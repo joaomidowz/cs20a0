@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Language, Theme } from '$lib/game/types';
+  import changelog from '$lib/data/changelog.json';
 
   export let language: Language;
   export let theme: Theme;
@@ -12,6 +13,8 @@
   <a class="brand" href="/" on:click|preventDefault={onHome}>
     <span class="brand-mark">CS</span><span>13a0</span>
   </a>
+  <!-- A versao sai do historico (`scripts/build-changelog.mjs`): dez mudancas no codigo valem um decimo. -->
+  <a class="version" href="/changelog" title="Ver o que mudou">v{changelog.version}</a>
   <div class="nav-actions">
     <label class="sr-only" for="language">Idioma</label>
     <select id="language" value={language} on:change={(event) => onLanguage((event.currentTarget as HTMLSelectElement).value as Language)}>

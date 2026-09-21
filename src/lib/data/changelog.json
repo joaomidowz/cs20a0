@@ -1,0 +1,847 @@
+{
+  "version": "2.8",
+  "total": 286,
+  "generatedAt": "2026-09-21",
+  "entries": [
+    {
+      "version": "2.8",
+      "date": "2026-09-21",
+      "hash": "7b13abf",
+      "title": "Reboot do campo de bots — dia de jogo justo e faixa de nível por pedigree",
+      "summary": "DUAS COISAS, e a primeira explica o \"Stage 3 amassando time 95+\"."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "d4db5d5",
+      "title": "Quem joga sozinho contra bots pega o campo aliviado, venha do solo ou da fila",
+      "summary": "O alívio do campo (SOLO_FIELD_RELIEF) só valia quando a sala nascia pelo botão do solo."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "1218038",
+      "title": "Painel de ganhos não gira para sempre, e filtro por posição no Upgrader",
+      "summary": "Ganhos: quando o servidor reinicia (ou a conexão cai) no meio de uma run, ela nunca é registrada e o painel ficava em 'Calculando recompensas…' para sempre."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "3812fa3",
+      "title": "~10% mais difícil de volta no solo, a pedido do dono",
+      "summary": "Ficou fácil demais depois do ajuste anterior."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "bd46eae",
+      "title": "Campeões de Major mais fracos em todos os modos",
+      "summary": "A pedido do dono (\"os times campeões estão muito fortes\"): o campeão sai do nível 97,4 para 96,7, o vice para 96,5 e o degrau de entrada para 95,0 — agora abaixo do piso do jogador, então quem acabou de criar a conta entra como favorito …"
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "ddcdded",
+      "title": "A ficha do time na partida mostra o coach do banco",
+      "summary": "O coach conta na quadra (tática, disciplina e preferência de lado) e não aparecia em lugar nenhum durante o Major."
+    },
+    {
+      "version": "2.8",
+      "date": "2026-09-20",
+      "hash": "ac9a46d",
+      "title": "Régua de sempre de volta (até 99), time salvo entra na sala e solo bem mais fácil",
+      "summary": "Régua: COURT_SPREAD volta a 1, com o topo em 99."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "00401d3",
+      "title": "O poder da tela é o poder que joga (AWPer-IGL, star e coach contam em jogo)",
+      "summary": "Joga uma sala de verdade pelo RoomManager e compara o poder que o servidor põe na quadra com o que a tela de montar time mostra."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "a742b7e",
+      "title": "Bots ~15% mais fáceis em todos os modos, e a tela de ganhos sempre aparece",
+      "summary": "A escada inteira dos bots desceu ~6 níveis: o campeão de Major saiu do nível 91 para o 85, e o degrau de entrada do 72 para o 66."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "a70a753",
+      "title": "Playoffs pagam o dobro de coins (campeão 2.400, vice 1.500, 3º–4º 1.000, 5º–8º 600)",
+      "summary": "Chegar aos playoffs é a parte difícil e é por onde cresce a conta de quem não gasta."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "ee6bbbe",
+      "title": ".railwayignore — o deploy do servidor não envia mais os 120 MB de static/",
+      "summary": "O Dockerfile só usa package*.json, tsconfig.json, server/ e src/lib/."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "1a1a470",
+      "title": "Dificuldade do solo por nível, régua 72–99 e núcleo do time pesando mais",
+      "summary": "Major dos Campeões: um time quase perfeito levava o título em 3% das runs e caía na suíça em 45%, porque os 15 bots são campeões no mesmo degrau."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "a7dc007",
+      "title": "Equilíbrio ajustável num arquivo só, com escada de progressão dos bots",
+      "summary": "src/lib/game/balance.ts passa a ser o único lugar onde se mexe em quem ganha de quem: a curva da escala, o que custa faltar peça no time, onde cada bot fica e o piso do jogador."
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "a48fe8e",
+      "title": "Registrar validação da navegação online",
+      "summary": ""
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "b7241da",
+      "title": "Manter sessão online entre abas",
+      "summary": ""
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "974de7d",
+      "title": "Planejar navegação persistente do online",
+      "summary": ""
+    },
+    {
+      "version": "2.7",
+      "date": "2026-09-20",
+      "hash": "c045dbd",
+      "title": "Definir navegação persistente do online",
+      "summary": ""
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "8fdfadb",
+      "title": "Online passa a jogar e a mostrar o poder de quadra",
+      "summary": "O servidor liga powerScale 'court' no motor do torneio: nada mais é cortado em 110, e um time bem montado passa a valer mais que o mesmo time jogado de qualquer jeito."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "0c43cff",
+      "title": "Carta ajuda, montagem decide — motor com curva, planos pelas cartas, estrutura em pontos de quadra",
+      "summary": "Motor da coleção: sai o cálculo com multiplicador escondido por plano (tático x1,10, agressivo x1,00) e entra o motor neutro que a Dinastia já usa, com uma curva no lugar do corte seco em 106: até um bom elenco, carta melhor rende tudo; …"
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "0f831fe",
+      "title": "Definir navegação persistente do online",
+      "summary": ""
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "ef76e6f",
+      "title": "Laboratório de equilíbrio pela cadeia real do servidor",
+      "summary": "Monta as lines de referência (GOATs jogados e montados, Superstars, iniciante, a SK do dono) e um bot campeão exatamente como o servidor monta, com estratégia de mapa e elenco, e joga MD3 de verdade alternando os lados."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "8bc9dfb",
+      "title": "Escala de poder do dia de jogo encanada no motor, desligada",
+      "summary": "getMatchDayPower aceita uma curva opcional; sem ela o corte em 110 é byte-idêntico ao de sempre."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "d45f485",
+      "title": "Poder de quadra — a escala real do online, que nunca chega a 100",
+      "summary": "Curva suave com joelho, a inversa exata e addCourtPoints, para cobrar estrutura em pontos de quadra em vez de porcentagem."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "77c9c75",
+      "title": "Campo de bots com campeões garantidos, buff por colocação e zebras",
+      "summary": "O sorteio do campo era uniforme entre todos os times-ano: três runs em dez saíam sem nenhum campeão de Major e o título virava farm."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "d4662eb",
+      "title": "Run solo contra bots não conta mais como Major jogado",
+      "summary": "No perfil, \"jogados\" era count(*) sem filtro, enquanto \"ganhos\" sempre exigiu lobby_size >= 2 AND NOT voided: toda run offline inflava os jogados e derrubava a taxa de vitória."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "350f1c1",
+      "title": "Poder na tela vira rating de 0 a 99",
+      "summary": "O poder do motor é uma escala aberta: bot trava em 106 e uma line temática de GOATs chega a ~139, porque a sinergia multiplica depois do teto."
+    },
+    {
+      "version": "2.6",
+      "date": "2026-09-20",
+      "hash": "1cd6f22",
+      "title": "Design e plano da sinergia temática da coleção",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_016iWjpZPVRdoHRA5pw8RkDf"
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "938ccbf",
+      "title": "Nomes legíveis no nível frouxo do tema, em vez de identificador interno",
+      "summary": "Conferindo no navegador, a linha do nível frouxo mostrava a chave interna: \"Mesma região: nordic\" e \"Mesma organização: ninjasinpyjamas\"."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "436268a",
+      "title": "Montador e partida mostram e aplicam a sinergia temática",
+      "summary": "O montador passa o coachId em todas as chamadas de sinergia e mostra as três linhas novas com o tema e a contagem (\"Mesmo time: SK 2017 · 5 cartas\"), em pt, en e es, dizendo quando o nível é o mais frouxo (\"Mesma organização\", \"Mesma reg…"
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "ba02db4",
+      "title": "Sinergia temática entra no cálculo da line da coleção",
+      "summary": "synergyOf passa a devolver theme_team, theme_country e theme_year, e CollectionLineupInput ganha coachId para o coach contar como sexto integrante."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "36c4aa7",
+      "title": "Regra da sinergia temática (time, país e ano) com escada e tetos",
+      "summary": "Três linhas de no máximo +2% cada, somando no máximo +6%."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "136f648",
+      "title": "Blocos da cena por país para a sinergia temática",
+      "summary": "Os 52 países do pool em oito blocos (CIS, nórdicos, Brasil/LatAm, Europa Ocidental, Europa Central/Leste, Ásia/Oceania, América do Norte, MENA/África), para que uma line russo-ucraniana conte como tema mesmo sem país igual."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "4fccc59",
+      "title": "País dos 15 jogadores que faltavam na coleção",
+      "summary": "Magisk, Zeus, ScreaM, AdreN, steel, amanek, fox, znajder, adreN (Liquid), MATYS, Lucky, fEAR, Tiger, z4KR e Sonic estavam sem país em identities."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "9465f7a",
+      "title": "AWPer-IGL, star por função e plano, e agressivo competitivo com o tático",
+      "summary": "Função AWPer-IGL: quem pode jogar de AWPer e de IGL ganha o slot híbrido, que conta nas duas funções com metade do bônus de IGL (+0,75 de mental) e entra no motor como AWPer com IGL secundário."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-20",
+      "hash": "98f89dd",
+      "title": "Aposta só de Comuns no upgrader paga coins em vez de devolver outra Comum",
+      "summary": "Apostando só cartas Comuns, a derrota sempre devolvia outra Comum de valor parecido: a aposta não custava nada e dava para girar de novo de graça."
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-19",
+      "hash": "bd64a04",
+      "title": "Reset da conta do dono — ranking de teste anulado, coleção e time zerados e carteira em 40k",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.5",
+      "date": "2026-09-19",
+      "hash": "5d63d74",
+      "title": "Economia mais difícil — cartas 20% mais caras, GOAT ~100k, tetos no upgrader e caixas grátis",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "ed1ea81",
+      "title": "Coach do mesmo tamanho na abertura de pacote e só a melhor carta maior",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "e91b082",
+      "title": "Modo draft como opção abaixo de buscar partida",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "7b5e4f7",
+      "title": "Lineup do time compacto no celular",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "9b2fc1f",
+      "title": "Store com coins no topo e trocas redesenhadas",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "75ccfe0",
+      "title": "Upgrader em etapas no celular e polimento de estados",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "4df6d7c",
+      "title": "Barra de carteira fixa e promoção diária de 4 cartas",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "ec80c69",
+      "title": "Navegação Time, Store e Conta com trocas em página própria",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "cb5a5f3",
+      "title": "Derrota do upgrader perde as cartas e dá uma carta rebaixada",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "eeb413e",
+      "title": "Upgrader com giro de roleta e provably fair",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.4",
+      "date": "2026-09-19",
+      "hash": "7f34ec8",
+      "title": "Novos preços de cartas, página do upgrader e animação de giro",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-19",
+      "hash": "0e665fb",
+      "title": "Polimento visual de missões, loja e upgrader",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-19",
+      "hash": "9a4beed",
+      "title": "Trocas diretas de cartas entre jogadores",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-19",
+      "hash": "da14848",
+      "title": "Promoções diárias Elite, Superstar e Legend",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-19",
+      "hash": "fb82327",
+      "title": "Upgrader de cartas com roda de chance",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-19",
+      "hash": "cd6ebdb",
+      "title": "Missões diárias, semanais, da season e solo",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-18",
+      "hash": "dc0aae6",
+      "title": "✨ conta do dono fica com 3 títulos: os dois invictos sem mapa perdido e o mais recente",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-18",
+      "hash": "4230556",
+      "title": "✨ anular títulos por decisão do dono sem apagar histórico (5 do Timidowz, 2 da Peka das Bebe)",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-18",
+      "hash": "c9dfc38",
+      "title": "✨ prêmios somam no máximo 3 pontos por Major e contam as 10 melhores partidas do dia",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-18",
+      "hash": "102864e",
+      "title": "✨ quadro de rankeds ao vivo na tela do online",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.3",
+      "date": "2026-09-18",
+      "hash": "9d3f056",
+      "title": "✨ atalhos de saída acima das abas no fim do Major",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "8bede4b",
+      "title": "✨ perfil público dos jogadores a partir das tabelas",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "f95cf74",
+      "title": "✨ painel final com coins e pontos de cada jogador",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "5f30f21",
+      "title": "🐛 mapas do time em accordion pequeno abaixo do coach",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "d58dd48",
+      "title": "✨ recalcular a temporada ativa pelas regras atuais de pontos",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "79831a0",
+      "title": "✨ mapas do time escolhidos no montador e salvos com o lineup",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "dcf06e2",
+      "title": "✨ posição secundária sem penalidade",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "3f6bcf9",
+      "title": "✨ troca rápida, comparação antes de salvar, fim de Major com atalhos e IGLs GOAT revisados",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "2a7d421",
+      "title": "Data: revisão de overall e raridade espelhada do Studio; hash do online atualizado",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "bc6573c",
+      "title": "Data: fotos do fer por ano, espelhadas do Studio",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.2",
+      "date": "2026-09-18",
+      "hash": "8c061c2",
+      "title": "✨ coach revelado no mesmo formato grande do jogador",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "2695fb7",
+      "title": "🐛 carta revelada na altura do conteúdo",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "148cea9",
+      "title": "🐛 carta revelada sem corte e ficha própria da carta na coleção",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "8df467f",
+      "title": "✨ prêmios do jogador na carta revelada, menos partículas e contagem da home atualizada",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "beae71a",
+      "title": "🐛 carta aberta e fechada com o mesmo tamanho",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "3764e3b",
+      "title": "✨ carta grande na abertura com os 4 melhores stats, uma por vez e layout de celular",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "d2591f5",
+      "title": "🐛 renomear classes que batiam com o CSS global",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "67e8b74",
+      "title": "🐛 classes da abertura colidiam com o CSS global; roleta sem estourar a largura",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "dc15704",
+      "title": "🐛 abertura com roleta e carta abrindo sem virada 3D",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "f16c5c3",
+      "title": "✨ caixas estilo CS, faixa premium e abertura com efeitos por raridade",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.1",
+      "date": "2026-09-18",
+      "hash": "9cbcdf6",
+      "title": "✨ chances no ⓘ de cada pacote, loja em uma linha e odds novas",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "b3cc799",
+      "title": "✨ prêmios de jogada também valem pontos",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "828160f",
+      "title": "⚡ partidas no ultra automático; fila travada nesse modo",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "02511ed",
+      "title": "✨ pontos em toda colocação, coins maiores, pacotes Diamante e Ícone e GOAT mais raro",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "16fef65",
+      "title": "✨ dupla joga em 30 s, fantasmas saem em 20 s e aba escondida sai em 1 min",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "e39a028",
+      "title": "✨ suporte e reclamação de overall por e-mail, termos e privacidade atualizados",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "d390ff0",
+      "title": "🔒 compra congela valor, reconciliação de webhook perdido e bloqueio após chargeback",
+      "summary": "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "5251c96",
+      "title": "🐛 reduzir coins dos pacotes",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "86d43e8",
+      "title": "✨ pacotes de coins e botão de compra na conta e na coleção",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "17be295",
+      "title": "🐛 botão de login visível e Jogar Draft leva ao login",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "2.0",
+      "date": "2026-09-18",
+      "hash": "ae5035a",
+      "title": "✨ time em linha com detalhes, estilo tático exigente e fila com 3 em 10 s",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "834d8ed",
+      "title": "Pagamento com Mercado Pago preparado (desligado sem credenciais)",
+      "summary": "Checkout Pro no servidor: preço sempre da tabela products, compra pendente criada antes da preferência (external_reference = compra), limite de 5 por dia."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "f4b1e66",
+      "title": "Fila competitiva e regra única de quando o Major vale pontos",
+      "summary": "Fila (POST /queue/join|leave, GET /queue/status): só time da coleção; fecha a sala com 8 na hora ou com 4+ depois de 20 s esperando mais gente; nunca com menos de 4."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "8514887",
+      "title": "10k de boas-vindas, cartas desde 2013 e coach como carta",
+      "summary": "- Boas-vindas: 10.000 coins no primeiro login verificado (uma vez por conta,   registrado no ledger como 'welcome'); migration 5 paga quem já tinha conta."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "1f72462",
+      "title": "Carta da coleção com bandeira e time dentro, brilho de sinergia e star",
+      "summary": "CollectionCard substitui o PlayerCard na coleção, nas vagas do time e na abertura de pacote: moldura pela raridade, foto, OVR, bandeira ao lado do nome, escudo e time dentro da carta e ações no rodapé."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "c8ff96d",
+      "title": "Diálogo de confirmação próprio no lugar do confirm do navegador",
+      "summary": "ConfirmDialog (tema do jogo, foco preso, Esc cancela, tom de perigo) montado no PageLayout e no jogo offline, acionado por confirmDialog() → Promise."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "a30a9bd",
+      "title": "Abertura de pacote com selo acima da carta e carta na largura toda",
+      "summary": "O selo NOVA/REPETIDA ficava por cima da foto e da raridade, e a carta não ocupava a coluna (a faixa de país/time ficava mais larga que ela)."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "0ebf0b6",
+      "title": "E-mail estilizado, perfil com time, awards e temporada, bandeira/time nas cartas, entrada explícita",
+      "summary": "- E-mail do magic link em HTML (tema do jogo, logo em texto, botão, link de   fallback, rodapé de não afiliação) além do texto puro."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "4dd90ee",
+      "title": "Lobby entra com o time da coleção e mostra pontos/awards no fim",
+      "summary": "Na entrada do /online, quem está logado e tem time salvo vê \"Entrar com meu time da coleção\": o cliente pede o ticket em POST /rooms/:code/lineup e manda no join; o participante aparece com selo TIME no lobby e pula o draft."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "43f1d89",
+      "title": "Time da coleção entra na sala sem draft; Major grava pontos, awards e temporada",
+      "summary": "Sala (sem bump de protocolo): POST /rooms/:code/lineup registra o lineup salvo e devolve um ticket de 5 min; o `join` com `lineupTicket` entra já pronto e pula o draft (mistura com quem drafta normalmente)."
+    },
+    {
+      "version": "1.9",
+      "date": "2026-09-18",
+      "hash": "ebb1f52",
+      "title": "Tela da coleção (/online/colecao)",
+      "summary": "Carteira, pacotes do dia, loja (prata/ouro/era com ano), chances por raridade, abertura com a roleta (uma volta por carta) e cartas reveladas com selo nova/repetida, grade da coleção com filtros e venda, e montagem do time: cinco vagas, …"
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-18",
+      "hash": "4b40d91",
+      "title": "Pacotes, coleção, coins e lineup com star player (Fase 1, servidor)",
+      "summary": "Regras puras compartilhadas com o cliente em src/lib/game/online: - collection-rules: odds por tier (básico/prata/ouro/era), preços, valor da   carta em coins (curva do mercado da Dinastia escalada), venda a 60%,   prêmio por colocação."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-18",
+      "hash": "a165f51",
+      "title": "Tela de conta (/online/conta) com magic link",
+      "summary": "account.ts guarda a sessão no localStorage, faz fetch autenticado (Bearer) e limpa a sessão em 401."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-18",
+      "hash": "08f7ac9",
+      "title": "Conta por magic link com Postgres (Fase 0 da coleção)",
+      "summary": "Servidor ganha persistência opcional: com DATABASE_URL sobe o pool `pg`, roda migrations inline (schema completo da coleção, awards, temporadas e prep de pagamento) e liga as rotas de conta; sem a variável continua só com salas anônimas …"
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "b847cef",
+      "title": "Foto por jogador-ano com fallback pra foto geral",
+      "summary": "PlayerAvatar procura primeiro a entrada do jogador-ano (device-2016) e só depois a do baseId, então o Studio pode corrigir a foto de um ano sem mexer nos outros."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "be87283",
+      "title": "Spec da coleção por pacotes no modo online",
+      "summary": "Conta por e-mail (magic link, e-mail único), 2 pacotes/dia com 3 versões de anos distintos, coins e duplicatas, lineup com funções repetíveis, sinergia e star player, estratégia por série reaproveitando o motor, schema Postgres, pontos p…"
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "c11a2cb",
+      "title": "✨ circuito com 4-5 eventos, fase Suíça, times clicáveis, caixa e roleta tensa",
+      "summary": "Circuito entre Majors: - 4 a 5 eventos por temporada em vez de 2 (Lenda: 3 Elite + 2 Open; Stage 3:   2 + 2; Challenger: 4 Open, os dois últimos destravados por final no anterior)."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "d6d62c0",
+      "title": "Ajustes de compilação pós-exclusão do modo Carreira",
+      "summary": "Esta branch traz só dados/visuais + histórico 2013-2015 pra produção, sem o modo Carreira (ainda em desenvolvimento em feat/expansao-jogadores)."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "34422fb",
+      "title": "Foto real de jogador pra 399 baseIds, base legal própria (figura pública)",
+      "summary": "Estende a lógica de imagem real do time pra jogador: baixa da Liquipedia a foto de infobox de cada jogador já pesquisado (nacionalidade) nesta sessão, sob uma base de fair use PRÓPRIA e mais restrita que a do logo de organização (docs/pe…"
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "ead3f40",
+      "title": "Legibilidade do logo real + corrige Spirit/Aurora com foto errada",
+      "summary": "TeamBadge.svelte: os logos baixados da Liquipedia vêm em variações allmode/lightmode/darkmode; algumas ficavam ilegíveis no nosso tema escuro (arte escura sobre fundo transparente)."
+    },
+    {
+      "version": "1.8",
+      "date": "2026-09-17",
+      "hash": "e6befdb",
+      "title": "Logo real pra praticamente todas as orgs (101/112), mesma base de fair use",
+      "summary": "Estende o caso de teste do DENDELE pra escala: baixou da Liquipedia o logo oficial de 93 organizações distintas (101 chaves de crest, incluindo nomes alternativos da mesma org como \"G2\"/\"G2 Esports\" e \"MOUZ\"/\"mousesports\" apontando pro m…"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "7ef6a0f",
+      "title": "Logo real de org via fair use + escudos com bandeira/país nas orgs",
+      "summary": "Conclui a feature de identidades (crestFor com orgId/país, TeamBadge exibindo imagem licenciada quando existir, tamanho xl, flags nos cards de jogador e time) deixada pendente de outra sessão, e adiciona o primeiro caso real de logo lice…"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "7fbb7e3",
+      "title": "Bandeiras reais dos jogadores (Dynasty/premier/faceit/pro)",
+      "summary": "Completa a infraestrutura de bandeiras/avatares/créditos (crest.ts, avatar.ts, flags.ts, licensed.ts, CountryFlag.svelte, PlayerAvatar.svelte, /credits) que já existia pronta e testada, mas sem dado real:"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "f2911ef",
+      "title": "Data: aplica correções reais em times/jogadores 2016-2026 (core v1)",
+      "summary": "Deploy coordenado do dataset v1 (online): o hash congelado (FROZEN_ONLINE_DATA_HASH/FROZEN_V1_FILES em tests/catalogGuards.test.ts) muda de propósito nesta sincronização, por decisão explícita — cliente e servidor calculam o hash dinamic…"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "2639930",
+      "title": "Atualiza status do sync com escopo final e correções",
+      "summary": "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "3f0fa6c",
+      "title": "Corrige escopo e regressões do sync de 2013-2015",
+      "summary": "O commit anterior (36fe954) tinha 3 problemas achados por revisão/testes:"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "be20710",
+      "title": "Registra status do sync do dataset histórico 2013-2015",
+      "summary": "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-17",
+      "hash": "e3933e6",
+      "title": "Data: sync Majors 2013-2015 pra camada de expansão (x1)",
+      "summary": "Adiciona os 7 Majors de 2013-2015 (DreamHack Winter 2013, EMS Katowice 2014, ESL Cologne 2014/2015, DreamHack Winter 2014, ESL Katowice 2015, DreamHack Cluj-Napoca 2015) via teams.expansion.game.json/ players.expansion.game.json — 84 tim…"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-16",
+      "hash": "9326fe4",
+      "title": "Catálogo versionado para a expansão histórica offline",
+      "summary": "Camada de catálogo sobre o dataset v1 (core) e a expansão (x1, arquivos ainda vazios)."
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-16",
+      "hash": "f7603b1",
+      "title": "Guardas que congelam o online no dataset v1",
+      "summary": "Antes da expansão do catálogo histórico, o online precisa continuar byte-idêntico ao servidor publicado: hash ONLINE_DATA_HASH e SHA-256 dos players/teams/coaches v1 viram literais, e a fronteira de imports do online (rota, lib/game/onli…"
+    },
+    {
+      "version": "1.7",
+      "date": "2026-09-14",
+      "hash": "b722518",
+      "title": "💄 aba Time com 5 cartas alinhadas e coach em faixa",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
+    },
+    {
+      "version": "1.6",
+      "date": "2026-09-14",
+      "hash": "f940c42",
+      "title": "🐛 roleta do coach com 3 cartas visíveis",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
+    },
+    {
+      "version": "1.6",
+      "date": "2026-09-14",
+      "hash": "fb138eb",
+      "title": "✨ botão de pausar a simulação ao lado da engrenagem",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
+    },
+    {
+      "version": "1.6",
+      "date": "2026-09-14",
+      "hash": "c7e660c",
+      "title": "🐛 roleta do coach gira só entre os 3 coaches ofertados",
+      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
+    }
+  ]
+}

@@ -9,7 +9,8 @@ export const PUBLIC_ROUTES = [
   '/contact',
   '/privacy',
   '/terms',
-  '/credits'
+  '/credits',
+  '/changelog'
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
@@ -56,6 +57,10 @@ const ROUTE_COPY: Record<PublicRoute, Omit<SeoMetadata, 'canonical'>> = {
   '/credits': {
     title: 'Créditos e licenças · cs13a0',
     description: 'Fontes dos dados históricos (Liquipedia, CC BY-SA 3.0), bandeiras do flag-icons (MIT), escudos e avatares gerados e avisos de não afiliação do cs13a0.'
+  },
+  '/changelog': {
+    title: 'Novidades · cs13a0',
+    description: 'Tudo o que mudou no cs13a0, versão por versão: equilíbrio do online, coleção, modos de jogo e correções.'
   }
 };
 

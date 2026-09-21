@@ -13,6 +13,7 @@
     "server:dev": "tsx watch server/index.ts",
     "server:build": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=cjs --external:pg-native --outfile=dist-server/index.cjs",
     "server:start": "node dist-server/index.cjs",
+    "changelog": "node scripts/build-changelog.mjs",
     "sync:flags": "node scripts/sync-flags.mjs",
     "sync:countries": "node scripts/sync-online-countries.mjs",
     "data:pull": "cp ../cs13a0-management/data/workspace/players.game.json ../cs13a0-management/data/workspace/teams.game.json ../cs13a0-management/data/workspace/coaches.game.json src/lib/data/cs/"

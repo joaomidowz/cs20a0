@@ -11,6 +11,7 @@
     credits: string;
     footerNav: string;
     helpDesk?: string;
+    changelog?: string;
   };
 
   const currentYear = new Date().getFullYear();
@@ -30,6 +31,7 @@
       <a href="/contact">{labels.contactPage}</a>
       <a href="/suporte">{labels.helpDesk ?? 'Suporte'}</a>
       <a href="/credits">{labels.credits}</a>
+      <a href="/changelog">{labels.changelog ?? 'Novidades'}</a>
     </nav>
 
     <div class="footer-actions">
