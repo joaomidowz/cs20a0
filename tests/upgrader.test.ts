@@ -283,7 +283,7 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
   it('recusa carta escalada, carta que não é sua, alvo barato e alvo que já tem', async () => {
     const { upgradeCards } = await import('../server/collection/upgrader');
     const [a, b] = cheap.slice(5, 7);
-    await db.query(`INSERT INTO lineups (user_id, player_ids, roles) VALUES ($1, $2, $3)`, [userId, [a, 'x1', 'x2', 'x3', 'x4'], ['rifler', 'rifler', 'rifler', 'rifler', 'rifler']]);
+    await db.query(`INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles) VALUES ($1, 1, $2, $3)`, [userId, [a, 'x1', 'x2', 'x3', 'x4'], ['rifler', 'rifler', 'rifler', 'rifler', 'rifler']]);
     await expect(upgradeCards(db, userId, [a], byValue.at(-1)!.id, 'seed')).rejects.toMatchObject({ code: 'IN_LINEUP' });
     await expect(upgradeCards(db, userId, [byValue[40].id], byValue.at(-1)!.id, 'seed')).rejects.toMatchObject({ code: 'NOT_OWNED' });
     await expect(upgradeCards(db, userId, [b], cheap[0], 'seed')).rejects.toMatchObject({ code: 'TARGET_TOO_CHEAP' });

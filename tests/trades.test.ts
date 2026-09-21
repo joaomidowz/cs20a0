@@ -48,12 +48,12 @@ describe.skipIf(!url)('trocas (Postgres)', () => {
   it('carta escalada não pode ser oferecida nem aceita', async () => {
     const { acceptTrade, proposeTrade } = await import('../server/collection/trades');
     const { id } = await proposeTrade(db, ana, { teamName: 'Bia Gaming', offeredCard: a2, requestedCard: b2, coins: 0 }, now);
-    await db.query(`INSERT INTO lineups (user_id, player_ids, roles) VALUES ($1, $2, $3)`, [ana, [a2, 'x1', 'x2', 'x3', 'x4'], ['rifler', 'rifler', 'rifler', 'rifler', 'rifler']]);
+    await db.query(`INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles) VALUES ($1, 1, $2, $3)`, [ana, [a2, 'x1', 'x2', 'x3', 'x4'], ['rifler', 'rifler', 'rifler', 'rifler', 'rifler']]);
     await expect(proposeTrade(db, ana, { teamName: 'Bia Gaming', offeredCard: a2, requestedCard: b3, coins: 0 }, now)).rejects.toMatchObject({ code: 'IN_LINEUP' });
     await expect(acceptTrade(db, bia, id, now)).rejects.toMatchObject({ code: 'IN_LINEUP' });
     expect(await cardsOf(ana)).toContain(a2);
     expect(await cardsOf(bia)).toContain(b2);
-    await db.query('DELETE FROM lineups WHERE user_id = $1', [ana]);
+    await db.query('DELETE FROM lineup_slots WHERE user_id = $1', [ana]);
   });
 
   it('expira em 48h, recusa e cancelamento fecham a proposta, e coins sem saldo dão 402', async () => {

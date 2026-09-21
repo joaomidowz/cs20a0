@@ -43,10 +43,10 @@ export const newServerSeed = () => randomBytes(32).toString('hex');
 export const serverRoll = (serverSeed: string, clientSeed: string, nonce: number, suffix: FairSuffix = '') =>
   rollFromHex(createHmac('sha256', serverSeed).update(fairMessage(clientSeed, nonce, suffix)).digest('hex'));
 
-/** Cards the user has on the saved team (five players and the coach): they cannot be staked or traded. */
+/** Cards the user has on ANY saved lineup (five players and the coach of every slot): they cannot be staked or traded. */
 export async function lineupCardIds(tx: Tx | Db, userId: string): Promise<Set<string>> {
-  const [lineup] = await tx.query<{ player_ids: string[]; coach_id: string | null }>('SELECT player_ids, coach_id FROM lineups WHERE user_id = $1', [userId]);
-  return new Set(lineup ? [...lineup.player_ids, ...(lineup.coach_id ? [lineup.coach_id] : [])] : []);
+  const rows = await tx.query<{ player_ids: string[]; coach_id: string | null }>('SELECT player_ids, coach_id FROM lineup_slots WHERE user_id = $1', [userId]);
+  return new Set(rows.flatMap((row) => [...row.player_ids, ...(row.coach_id ? [row.coach_id] : [])]));
 }
 
 async function seedRow(tx: Tx | Db, userId: string, lock: boolean): Promise<{ server_seed: string; nonce: number }> {
