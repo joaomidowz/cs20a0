@@ -58,9 +58,10 @@ export function labBot(teamId: string, zebra = false): LabSide {
   const source = coreTeams.find((team) => team.id === teamId) as HistoricalTeam | undefined;
   if (!source) throw new Error(`balanceLab: time ${teamId} não existe mais`);
   const combat = calculateHistoricalTeamPower(source, corePlayers);
+  const playerById = new Map(corePlayers.map((player) => [player.id, player]));
   const id = `bot-${teamId}`;
   return {
-    team: { ...combat, id, power: botFieldPower(combat.power, source, zebra) },
+    team: { ...combat, id, power: botFieldPower(combat.power, source, zebra, 0, playerById) },
     strategy: { ...createBotMapStrategy(source), teamId: id },
     roster: { players: corePlayers.filter((player) => (source.players ?? []).includes(player.id)) }
   };

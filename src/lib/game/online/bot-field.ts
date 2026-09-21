@@ -1,5 +1,5 @@
 import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
-import { BOT_LEVEL_BAND, BOT_NATURAL_RANGE, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../balance';
+import { BOT_NATURAL_RANGE, PEDIGREE_LEVEL_BAND, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT, type BotPedigree } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -20,7 +20,62 @@ export type BotPlacement = 'champion' | 'finalist' | 'semifinal' | 'top8' | 'non
  * Where each kind of bot sits on the court scale: the tournament's own ladder, from the team with no Major history
  * (the opening step) up to the champion (the final wall). The numbers live in `src/lib/game/balance.ts`.
  */
-export { BOT_LEVEL_BAND, BOT_NATURAL_RANGE };
+export { BOT_NATURAL_RANGE, PEDIGREE_LEVEL_BAND };
+
+/** A escada da taxonomia, do degrau de entrada à parede final. */
+export const PEDIGREE_ORDER: readonly BotPedigree[] = [
+  'noneFiller',
+  'nonePotencial',
+  'top8',
+  'semifinalista',
+  'viceUnderdog',
+  'viceMerecedor',
+  'campeaoUnderdog',
+  'campeaoForte',
+  'dinastia'
+];
+
+/** Elenco médio a partir do qual um time sem colocação deixa de ser mero preenchimento. */
+const POTENTIAL_MIN_OVERALL = 82.5;
+/** Campeão com este ranking ou melhor (ou elenco deste tamanho) dominou o ano, não pegou carona na zebra. */
+const CHAMPION_DOMINANT_RANK = 5;
+const CHAMPION_DOMINANT_OVERALL = 91;
+/** Vice que merecia o título: ranking, recorrência (F+SF) ou elenco de campeão. */
+const VICE_DESERVING_RANK = 6;
+const VICE_DESERVING_RUNS = 3;
+const VICE_DESERVING_OVERALL = 91;
+
+/**
+ * Julgamentos à mão, com o conflito anotado no relatório da taxonomia: o dataset dá rank 2 ao Outsiders do Rio
+ * 2022, mas aquele título foi zebra histórica de um elenco de 88 — o dono classificou como campeão underdog.
+ */
+const PEDIGREE_OVERRIDES: Readonly<Record<string, BotPedigree>> = {
+  'outsiders-2022': 'campeaoUnderdog'
+};
+
+/**
+ * O PEDIGREE fino de um time-ano: nove categorias combinadas com o dono em 2026-09-21
+ * (`docs/reports/2026-09-21-taxonomia-pedigree.md`). As eras vêm das regras gerais: a Astralis pós-títulos só
+ * volta a ameaçar pela força do elenco (tier S/S+, como a de 2020 — o ano sem Major), e a Vitality fora da era
+ * 2023–2025 é só mais um time pelo elenco e ranking.
+ */
+export function pedigreeOf(team: HistoricalTeam, playerById: ReadonlyMap<string, Pick<Player, 'overall'>>): BotPedigree {
+  const override = PEDIGREE_OVERRIDES[team.id];
+  if (override) return override;
+  const summary = team.majorSummary;
+  const titles = summary?.titles ?? 0;
+  const finals = summary?.finals ?? 0;
+  const semis = summary?.semifinals ?? 0;
+  const top8 = summary?.top8 ?? 0;
+  const rank = team.sourceRank ?? Number.POSITIVE_INFINITY;
+  const overall = rosterAverageOverall(team, playerById);
+  if (titles >= 2) return 'dinastia';
+  if (titles === 1) return rank <= CHAMPION_DOMINANT_RANK || overall >= CHAMPION_DOMINANT_OVERALL ? 'campeaoForte' : 'campeaoUnderdog';
+  if (finals >= 1) return rank <= VICE_DESERVING_RANK || finals + semis >= VICE_DESERVING_RUNS || overall >= VICE_DESERVING_OVERALL ? 'viceMerecedor' : 'viceUnderdog';
+  if (semis >= 1) return 'semifinalista';
+  if (top8 >= 1) return 'top8';
+  return (team.tier === 'S' || team.tier === 'S+' || overall >= POTENTIAL_MIN_OVERALL) ? 'nonePotencial' : 'noneFiller';
+}
 
 /** An underdog is a team whose five average this overall or more... */
 export const UNDERDOG_MIN_OVERALL = 80;
@@ -116,9 +171,9 @@ export function soloFieldRelief(playerLevel: number, field: 'random' | 'champion
  * levels the field of a SOLO run comes down as the player's team improves: it is taken off after everything else,
  * so every bot keeps its place relative to the others.
  */
-export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief = 0): number {
-  // 1. O nível do bot: a faixa do pedigree dele, e dentro dela o lugar que o elenco merece.
-  const [bandMin, bandMax] = BOT_LEVEL_BAND[botPlacementOf(team)];
+export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief: number, playerById: ReadonlyMap<string, Pick<Player, 'overall'>>): number {
+  // 1. O nível do bot: a faixa do pedigree fino dele, e dentro dela o lugar que o elenco merece.
+  const [bandMin, bandMax] = PEDIGREE_LEVEL_BAND[pedigreeOf(team, playerById)];
   const [naturalMin, naturalMax] = BOT_NATURAL_RANGE;
   const natural = courtPower(basePower);
   const share = Math.max(0, Math.min(1, (natural - naturalMin) / (naturalMax - naturalMin)));

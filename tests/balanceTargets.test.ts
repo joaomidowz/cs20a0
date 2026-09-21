@@ -1,6 +1,9 @@
 // tests/balanceTargets.test.ts
 // As faixas de equilíbrio combinadas com o dono, medidas no motor real (MD3 de verdade, pela cadeia do servidor).
-// O objetivo: justo e estudado, não pay-to-win, e com progressão — cada degrau do chaveamento mais duro que o anterior.
+// O objetivo: justo e estudado, não pay-to-win, e com progressão — cada degrau do chaveamento mais duro que o
+// anterior. Desde 2026-09-21 a escada dos bots é a de PEDIGREE fino (9 categorias, ver `pedigreeOf` em
+// `bot-field.ts` e `docs/reports/2026-09-21-taxonomia-pedigree.md`), e o piso do jogador ficou em 93: quem começa
+// vence o degrau de entrada com folga e é azarão claro dos campeões.
 //
 // Mexeu num número de `src/lib/game/balance.ts`? Rode este arquivo: ele diz, em porcentagem de séries ganhas, o que
 // aquilo fez. Se uma mudança futura fizer carta cara ganhar sozinha, ou fizer montar bem deixar de valer, falha aqui.
@@ -70,13 +73,15 @@ describe('progressão: cada fase do chaveamento é um degrau', () => {
   band('o campeão é a parede final, mesmo para a melhor line', () => labLineup(LAB.goatsBuilt), () => labBot(LAB_BOTS.campeao), 66);
   band('quem monta mal é azarão contra o campeão', () => labLineup(LAB.goatsNoIgl), () => labBot(LAB_BOTS.campeao), 43);
 
-  it('quem está começando tem onde jogar: perde do campeão, ganha do degrau de entrada', { timeout: TIMEOUT }, () => {
+  it('quem está começando tem onde jogar: atropela o degrau de entrada e é azarão claro do campeão', { timeout: TIMEOUT }, () => {
     const beginner = labLineup(LAB.beginner);
     const entrada = winRate(beginner, labBot(LAB_BOTS.semHistoria), 'court', SERIES);
     const campeao = winRate(beginner, labBot(LAB_BOTS.campeao), 'court', SERIES);
     expect(entrada, `iniciante × degrau de entrada: ${entrada}%`).toBeGreaterThan(50);
-    // O piso do jogador: começar é desvantagem, não sentença.
-    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeGreaterThan(18);
+    // O piso do jogador em 93 (combinado 2026-09-21): os fracos são fracos de verdade para quem começa, e o
+    // campeão de Major é parede — azarão claro, não coin flip.
+    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeGreaterThanOrEqual(8);
+    expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThanOrEqual(20);
     expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThan(entrada);
   });
 });

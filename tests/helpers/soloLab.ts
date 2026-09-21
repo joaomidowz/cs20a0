@@ -46,7 +46,7 @@ export function soloMajors(me: LabSide, field: 'random' | 'champions', runs: num
       const id = `bot-${team.id}`;
       strategies.set(id, { ...createBotMapStrategy(team), teamId: id });
       rosters.set(id, { players: corePlayers.filter((player) => (team.players ?? []).includes(player.id)) });
-      return { id, name: combat.name, seed: index + 2, team: { ...combat, id, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief) }, human: false, sourceTeamId: team.id };
+      return { id, name: combat.name, seed: index + 2, team: { ...combat, id, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief, playerById) }, human: false, sourceTeamId: team.id };
     });
     const engine = createTournamentEngine({ organizations, botPool, entryStage: 'stage3', seed, powerScale: 'court', swissBestOf: 3, mapContext: { mode: 'premier', seed: `${seed}:maps`, strategies, rosters }, controllerFor: () => 'bot', interactiveVeto: () => false });
     const result = toResult(runTournamentToEnd(engine));

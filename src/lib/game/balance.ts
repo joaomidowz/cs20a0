@@ -103,23 +103,36 @@ export const DAY_SWING_COURT = 13;
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
- * A FAIXA DE NÍVEL DE CADA BOT, por história de Major. É a progressão do chaveamento: o time sem história é o
- * degrau de entrada e o campeão é a parede final.
+ * A FAIXA DE NÍVEL DE CADA BOT, pelo PEDIGREE fino. É a progressão do chaveamento: quem completava o Major é o
+ * degrau de entrada, a dinastia é a parede final — e entre os dois existem campeões que dominaram, campeões que a
+ * zebra coroou, vices que mereciam o título e azarões sem colocação mas com elenco para ameaçar.
  *
- * Era um degrau único por pedigree, e isso achatava o campo: TODO time sem história entrava no mesmo nível, então
- * 9z 2022 (elenco 76 de overall) jogava igual a OG 2023 (81) e o elenco não dizia nada. Pior, o degrau vivia colado
- * no topo (94,9 para o mais fraco do jogo) e o dono perdia para times que não deveriam ameaçar ninguém.
- *
- * Agora cada bot cai DENTRO da faixa do pedigree dele, pelo elenco: o pior elenco do dataset encosta no mínimo da
- * faixa e o melhor no máximo (`BOT_NATURAL_RANGE`). Um campeão de Major segue sendo parede; um time sem história
- * fica entre 85 e 90, que é onde um time de jogador já montado tem que passar por cima.
+ * A classificação de cada time-ano (as regras em `pedigreeOf`, `bot-field.ts`) foi combinada com o dono em
+ * 2026-09-21 e está documentada por completo em `docs/reports/2026-09-21-taxonomia-pedigree.md`. Dentro da faixa,
+ * quem posiciona é o elenco (`BOT_NATURAL_RANGE`): o pior encosta no mínimo, o melhor no máximo.
  */
-export const BOT_LEVEL_BAND: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', readonly [min: number, max: number]>> = {
-  champion: [94, 96.5],
-  finalist: [92, 95.5],
-  semifinal: [90.5, 94.5],
-  top8: [88.5, 93],
-  none: [85, 90]
+/** O pedigree fino de um time-ano, da dinastia ao que completava o chaveamento. As regras moram em `pedigreeOf`. */
+export type BotPedigree =
+  | 'dinastia'
+  | 'campeaoForte'
+  | 'campeaoUnderdog'
+  | 'viceMerecedor'
+  | 'viceUnderdog'
+  | 'semifinalista'
+  | 'top8'
+  | 'nonePotencial'
+  | 'noneFiller';
+
+export const PEDIGREE_LEVEL_BAND: Readonly<Record<BotPedigree, readonly [min: number, max: number]>> = {
+  dinastia: [97, 98.2],
+  campeaoForte: [96.2, 97.2],
+  campeaoUnderdog: [95.2, 96.2],
+  viceMerecedor: [94.4, 95.4],
+  viceUnderdog: [93.4, 94.4],
+  semifinalista: [92.2, 94],
+  top8: [89.5, 91.8],
+  nonePotencial: [87.5, 90],
+  noneFiller: [84, 88.2]
 };
 
 /**
@@ -134,9 +147,9 @@ export const BOT_NATURAL_RANGE: readonly [min: number, max: number] = [70, 97];
  * Já foi uma porcentagem sobre o poder cru (+20%), e aquilo quebrou: um elenco fraco virava zebra e ficava MAIS
  * fraco do que era. Em níveis o impulso sempre soma.
  */
-export const ZEBRA_LIFT_COURT = 0.5;
+export const ZEBRA_LIFT_COURT = 1;
 /** E nenhuma zebra passa disto, por mais embalada que esteja. */
-export const ZEBRA_LEVEL_CAP = 94;
+export const ZEBRA_LEVEL_CAP = 94.5;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O piso do jogador
@@ -144,14 +157,16 @@ export const ZEBRA_LEVEL_CAP = 94;
 
 /**
  * Nenhum time de JOGADOR entra em quadra mais do que isto abaixo do topo. É o que dá chance a quem está começando:
- * com ele, cinco Comuns ganham ~30% de um campeão de Major em vez de ~11%.
+ * com ele, cinco Comuns entram em ~93 — acima de todo o meio do campo (top8 e potenciais ficam para trás), embaixo
+ * de vices e campeões. Começar é ser azarão de parede, não de degrau.
  *
- * Não vale para bots, de propósito: é isso que mantém o degrau de entrada do chaveamento vencível para quem chega.
+ * Não vale para bots, de propósito: é isso que mantém a escada do chaveamento íntegra para quem chega.
  * Aumentar = mais acolhedor com quem começa e carta importa menos; diminuir = o contrário.
  *
- * É por causa dele que o nível na tela começa em ~79 e não em 1: quem tem cinco Comuns joga como 79 de verdade.
+ * Medido em 2026-09-21, com a escada de pedigree fina: iniciante 12–15% contra os campeões-bots e ~97% contra o
+ * degrau de entrada — os fracos são fracos de verdade para quem está começando, e os campeões são parede.
  */
-export const PLAYER_GAP_FROM_TOP = 2.2;
+export const PLAYER_GAP_FROM_TOP = 6;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O solo contra bots: a parede cede conforme você sobe de nível
@@ -160,30 +175,27 @@ export const PLAYER_GAP_FROM_TOP = 2.2;
 /**
  * A DIFICULDADE DO SOLO, por nível do seu time. É aqui que se mexe quando "está impossível" ou "virou farm".
  *
- * O problema que isto veio resolver: no "Major dos Campeões" os quinze bots são campeões de Major, todos no mesmo
- * degrau (nível ~91). Um time quase perfeito (97) entrava como favorito de cada série e ainda assim precisava
- * ganhar seis seguidas — dava 3% de título, e quase metade das runs morria na fase suíça. Um campeonato inteiro
- * decidido por moeda não é dificuldade, é ruído.
+ * O problema que isto veio resolver: no "Major dos Campeões" os quinze bots são campeões de Major. Um time quase
+ * perfeito entrava como favorito de cada série e ainda assim precisava ganhar seis seguidas — dava 3% de título,
+ * e quase metade das runs morria na fase suíça. Um campeonato inteiro decidido por moeda não é dificuldade, é ruído.
  *
  * Agora o campo cede conforme você sobe: cada par é (nível do seu time → quantos níveis o campo inteiro desce).
  * Entre um par e outro a conta interpola, então a progressão é contínua, não em degraus. Fora da tabela, vale a
  * ponta mais próxima. Vale SÓ no solo contra bots: o online entre jogadores não tem handicap nenhum.
  *
- * O combinado com o dono, em títulos do Major dos Campeões: nível 85 ~1 em 15, nível 90 de 3 a 5 em 10, entre 90
- * e 95 de 4 a 6 em 10, e de 95 para cima 6 a 8 em 10 (a dinastia no auge).
- *
- * Medido em 2026-09-21, com as faixas de bot novas (o alívio encolheu junto, porque o campo já é bem mais fraco):
- * nível 96,8 → 14% de título, 97,6 → 24%, 98,0 → 53%, 98,6 → 65–74%; o time do topo não cai mais na fase suíça.
- * O Major normal usa a mesma tabela e é mais fácil pelo campo.
+ * O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major NORMAL é
+ * a parede que cede — título de ~1% para quem começa, ~13% para o meio da coleção (elites), e 45–60% para o auge
+ * (medido: 56% no nível 98,6). O MAJOR DOS CAMPEÕES é a parede que não cede: o auge leva ~1 em 3 (medido 33%),
+ * o meio ~6%, e quem está começando não leva (e cai na suíça em quase toda run).
  * `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
  */
 export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: number])[] = [
-  [96.78, 0.5],
-  [97.44, 1],
-  [98, 1.6],
-  [98.33, 2],
-  [98.56, 2.2],
-  [99, 2.5]
+  [91, 0],
+  [95, 0.3],
+  [96.8, 0.5],
+  [97.6, 0.7],
+  [98.33, 0.9],
+  [99, 1.1]
 ];
 
 /** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */

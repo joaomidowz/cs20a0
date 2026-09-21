@@ -1204,7 +1204,7 @@ export class RoomManager {
     const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);
       const id = `bot-${team.id}`;
-      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief), id }, human: false, sourceTeamId: team.id };
+      return { id, name: combat.name, seed: organizations.length + index + 1, team: { ...combat, power: botFieldPower(combat.power, team, plan.zebraIds.has(team.id), relief, playerById), id }, human: false, sourceTeamId: team.id };
     }).filter((organization) => !humanIds.has(organization.id));
     const humanSeeds = drawHumanSeeds(room.seed, organizations.length, fieldSize);
     const seedOrder: string[] = Array.from({ length: fieldSize }, () => '');

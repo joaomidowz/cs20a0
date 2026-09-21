@@ -1,11 +1,11 @@
 // tests/soloDifficulty.test.ts
 // A dificuldade do solo contra bots, medida em Majors inteiros pela montagem de campo do servidor.
-// O combinado com o dono: o "Major dos Campeões" é uma parede que CEDE conforme o time sobe de nível — quase
-// impossível para quem está começando e cada vez mais vencível conforme o time sobe. Em 2026-09-20 o dono pediu
-// duas vezes para facilitar ("joguei 5, perdi todas"): hoje o nível 86 leva ~metade, o 90 três de quatro e o 95+ quase sempre.
-// Antes disto um time quase perfeito levava o título em 3% das runs e caía na fase suíça em 45%.
+// O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major dos
+// Campeões é a PAREDE que não cede (o auge leva ~1 em 3, quem começa não leva e cai na suíça), e o Major normal
+// é a parede que cede (auge 45–60%, medido 56% no nível 98,6; iniciante ~1%).
 //
-// Mexeu em `SOLO_FIELD_RELIEF` (`src/lib/game/balance.ts`)? Rode este arquivo: ele diz, em % de títulos, o que mudou.
+// Mexeu em `SOLO_FIELD_RELIEF` ou na `PEDIGREE_LEVEL_BAND` (`src/lib/game/balance.ts`)? Rode este arquivo: ele
+// diz, em % de títulos, o que mudou.
 import { describe, expect, it } from 'vitest';
 import { LAB, labLineup } from './helpers/balanceLab';
 import { soloMajors } from './helpers/soloLab';
@@ -31,30 +31,28 @@ describe('a tabela de alívio', () => {
   });
 });
 
-describe('Major dos Campeões: a parede cede conforme o time sobe de nível', () => {
+describe('Major dos Campeões: a parede que não cede', () => {
   const titleOf = (build: keyof typeof LAB) => soloMajors(labLineup(LAB[build]), 'champions', RUNS);
 
-  it('quem está começando quase nunca leva, mas não é zero para sempre', { timeout: TIMEOUT }, () => {
+  it('quem está começando não leva, e quase toda run morre na suíça', { timeout: TIMEOUT }, () => {
     const beginner = titleOf('beginner');
-    expect(beginner.title, `iniciante (nível ${beginner.level.toFixed(0)}): ${beginner.title}%`).toBeLessThanOrEqual(25);
+    expect(beginner.title, `iniciante (nível ${beginner.level.toFixed(0)}): ${beginner.title}%`).toBeLessThanOrEqual(4);
+    expect(beginner.swissExit, `iniciante cai na suíça em ${beginner.swissExit}%`).toBeGreaterThanOrEqual(80);
   });
 
-  it('a partir do nível ~85 o título é possível, e sobe a cada degrau até o topo', { timeout: TIMEOUT }, () => {
-    const mid = titleOf('superstarsBuilt');
-    const high = titleOf('goatsLazy');
+  it('o meio da coleção esbarra na parede, e o auge leva uma em cada três', { timeout: TIMEOUT }, () => {
+    const mid = titleOf('elites');
+    const high = titleOf('superstarsBuilt');
     const top = titleOf('goatsBuilt');
     const label = `nível ${mid.level.toFixed(0)}: ${mid.title}% · nível ${high.level.toFixed(0)}: ${high.title}% · nível ${top.level.toFixed(0)}: ${top.title}%`;
-    // Nível ~86: perto de metade. Nível ~90: três de cada quatro.
-    expect(mid.title, label).toBeGreaterThanOrEqual(10);
-    expect(mid.title, label).toBeLessThanOrEqual(42);
-    expect(high.title, label).toBeGreaterThanOrEqual(36);
-    expect(high.title, label).toBeLessThanOrEqual(70);
-    // O topo (95+): quase sempre, e ainda assim não é garantido.
-    expect(top.title, label).toBeGreaterThanOrEqual(52);
-    expect(top.title, label).toBeLessThanOrEqual(88);
+    expect(mid.title, label).toBeLessThanOrEqual(14);
+    expect(high.title, label).toBeGreaterThanOrEqual(6);
+    expect(high.title, label).toBeLessThanOrEqual(22);
+    expect(top.title, label).toBeGreaterThanOrEqual(24);
+    expect(top.title, label).toBeLessThanOrEqual(44);
     expect(high.title, label).toBeGreaterThan(mid.title);
     expect(top.title, label).toBeGreaterThan(high.title);
-    // E o time do topo não morre mais na fase suíça (eram 45% das runs).
-    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(15);
+    // E nem o auge atravessa a parede de salvador: ainda cai na suíça de vez em quando.
+    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(12);
   });
 });
