@@ -118,8 +118,9 @@ export function soloFieldRelief(playerLevel: number, field: 'random' | 'champion
  */
 export function botFieldPower(basePower: number, team: HistoricalTeam, zebra: boolean, relief = 0): number {
   // 1. O nível do bot: a faixa do pedigree dele, e dentro dela o lugar que o elenco merece.
-  const [bandMin, bandMax] = BOT_LEVEL_BAND[botPlacementOf(team)];
-  const [naturalMin, naturalMax] = BOT_NATURAL_RANGE;
+  const placement = botPlacementOf(team);
+  const [bandMin, bandMax] = BOT_LEVEL_BAND[placement];
+  const [naturalMin, naturalMax] = BOT_NATURAL_RANGE[placement];
   const natural = courtPower(basePower);
   const share = Math.max(0, Math.min(1, (natural - naturalMin) / (naturalMax - naturalMin)));
   const laddered = bandMin + (bandMax - bandMin) * share;

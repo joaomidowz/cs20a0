@@ -1,8 +1,15 @@
 {
   "version": "2.8",
-  "total": 286,
+  "total": 287,
   "generatedAt": "2026-09-21",
   "entries": [
+    {
+      "version": "2.8",
+      "date": "2026-09-21",
+      "hash": "1af3d5d",
+      "title": "Versão do jogo na logo e página de novidades",
+      "summary": "A versão sai do próprio histórico: dez mudanças no código valem um décimo (299 commits = 2.9, e o 300 abre a 3.0)."
+    },
     {
       "version": "2.8",
       "date": "2026-09-21",
@@ -834,13 +841,6 @@
       "date": "2026-09-14",
       "hash": "fb138eb",
       "title": "✨ botão de pausar a simulação ao lado da engrenagem",
-      "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
-    },
-    {
-      "version": "1.6",
-      "date": "2026-09-14",
-      "hash": "c7e660c",
-      "title": "🐛 roleta do coach gira só entre os 3 coaches ofertados",
       "summary": "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com> Claude-Session: https://claude.ai/code/session_01TwA74ZcfiRtgYGBxy9sTjM"
     }
   ]

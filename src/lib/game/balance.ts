@@ -123,10 +123,23 @@ export const BOT_LEVEL_BAND: Readonly<Record<'champion' | 'finalist' | 'semifina
 };
 
 /**
- * De onde a faixa lê o elenco: o nível natural do pior e do melhor time-ano do dataset (medido, sem degrau nenhum:
- * 70,4 e 96,7). Um bot no fundo dessa régua entra no mínimo da faixa dele, um no topo entra no máximo.
+ * De onde a faixa lê o elenco, POR PEDIGREE: o nível natural do pior e do melhor time-ano de cada grupo, medido
+ * sem degrau nenhum. Um bot no fundo da régua do grupo dele entra no mínimo da faixa; um no topo, no máximo.
+ *
+ * Era uma régua só para todos (70 a 97), e isso apagava a diferença justamente onde ela mais importa: todo campeão
+ * de Major tem elenco forte, então todos caíam no topo da régua e a faixa inteira virava 0,6 nível — Astralis 2018
+ * (overall 95,2) jogava praticamente igual a Cloud9 2018 (90,4). Com a régua do próprio grupo, a faixa é usada de
+ * ponta a ponta e elenco melhor vale nível.
+ *
+ * Medido em 2026-09-21; `tests/botField.test.ts` re-mede no dataset e falha se algum time sair destes limites.
  */
-export const BOT_NATURAL_RANGE: readonly [min: number, max: number] = [70, 97];
+export const BOT_NATURAL_RANGE: Readonly<Record<'champion' | 'finalist' | 'semifinal' | 'top8' | 'none', readonly [min: number, max: number]>> = {
+  champion: [90, 97],
+  finalist: [83, 97],
+  semifinal: [77.5, 97],
+  top8: [72, 97],
+  none: [70, 97]
+};
 
 /**
  * A ZEBRA: o azarão que entra embalado. Quantos NÍVEIS ela ganha em cima da faixa do pedigree dela.

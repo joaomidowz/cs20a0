@@ -33,6 +33,37 @@ describe('escada de progressão dos bots', () => {
     expect(champion[1]).toBeLessThan(COURT_TOP);
   });
 
+  it('a régua de cada pedigree cobre o dataset de verdade', async () => {
+    // BOT_NATURAL_RANGE é medido no conteúdo. Se uma carta ou um time novo empurrar algum grupo para fora destes
+    // limites, o bot ficaria grudado na ponta da faixa e o elenco dele pararia de contar: aqui isso falha alto.
+    const { players: corePlayers, teams: coreTeams } = await import('../server/data');
+    const { calculateHistoricalTeamPower } = await import('../src/lib/game/simulation');
+    const { BOT_NATURAL_RANGE } = await import('../src/lib/game/balance');
+    const porGrupo = new Map<string, number[]>();
+    for (const historical of coreTeams) {
+      if (!(historical.players ?? []).length) continue;
+      const natural = courtPower(calculateHistoricalTeamPower(historical as never, corePlayers).power);
+      const grupo = botPlacementOf(historical as never);
+      porGrupo.set(grupo, [...(porGrupo.get(grupo) ?? []), natural]);
+    }
+    for (const [grupo, niveis] of porGrupo) {
+      const [min, max] = BOT_NATURAL_RANGE[grupo as keyof typeof BOT_NATURAL_RANGE];
+      expect(Math.min(...niveis), `${grupo}: o mais fraco mede ${Math.min(...niveis).toFixed(1)}, a régua começa em ${min}`).toBeGreaterThanOrEqual(min - 0.5);
+      expect(Math.max(...niveis), `${grupo}: o mais forte mede ${Math.max(...niveis).toFixed(1)}, a régua termina em ${max}`).toBeLessThanOrEqual(max + 0.5);
+    }
+  });
+
+  it('entre campeões de Major, elenco melhor vale nível', async () => {
+    const { players: corePlayers, teams: coreTeams } = await import('../server/data');
+    const { calculateHistoricalTeamPower } = await import('../src/lib/game/simulation');
+    const nivelDe = (id: string) => {
+      const historical = coreTeams.find((item) => item.id === id)!;
+      return courtPower(botFieldPower(calculateHistoricalTeamPower(historical as never, corePlayers).power, historical as never, false));
+    };
+    // O caso do dono: Astralis 2018 (elenco 95,2) tem que ser claramente mais forte que Cloud9 2018 (90,4).
+    expect(nivelDe('astralis-2018') - nivelDe('cloud9-2018')).toBeGreaterThan(1);
+  });
+
   it('dentro da faixa, quem manda é o elenco: dois times do mesmo pedigree não jogam igual', () => {
     const fraco = courtPower(botFieldPower(75, team(null), false));
     const forte = courtPower(botFieldPower(100, team(null), false));
