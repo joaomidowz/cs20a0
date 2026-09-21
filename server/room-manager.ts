@@ -1194,9 +1194,13 @@ export class RoomManager {
     const plan = room.field === 'champions'
       ? { order: shuffledTeams, zebraIds: new Set<string>() }
       : planBotField({ shuffled: shuffledTeams, playerById, seed: room.seed, slots: fieldSize - organizations.length });
-    // Solo against bots: the field comes down as the player's team goes up in level (`SOLO_FIELD_RELIEF`), so the
-    // run is a wall that gives way with progress instead of a bracket of coin flips. Never in a room with two humans.
-    const relief = room.queue?.expected === 1 && organizations.length === 1 ? soloFieldRelief(courtPower(organizations[0].team.power), room.field) : 0;
+    // Alone against bots: the field comes down as the player's team goes up in level (`SOLO_FIELD_RELIEF`), so the
+    // run is a wall that gives way with progress instead of a bracket of coin flips.
+    //
+    // Vale para QUALQUER run de um jogador só que não conta pontos, não apenas para a que nasceu no botão do solo:
+    // quem entra na fila e fica sem adversário joga a mesma coisa contra os mesmos bots, e sem isto pegava o campo
+    // inteiro na força cheia (o dono perdeu três séries seguidas assim).
+    const relief = organizations.length === 1 && !room.competitive ? soloFieldRelief(courtPower(organizations[0].team.power), room.field) : 0;
     const botPool: TournamentOrganization[] = plan.order.map((team, index) => {
       const combat = calculateHistoricalTeamPower(team, players);
       const id = `bot-${team.id}`;

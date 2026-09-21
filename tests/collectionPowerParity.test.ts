@@ -17,6 +17,9 @@ import { COURT_SPREAD, withPlayerFloor } from '../src/lib/game/courtPower';
 import { courtRating } from '../src/lib/game/powerRating';
 import { DEFAULT_ROOM_CONFIG, type RoomConfig } from '../src/lib/game/online/contracts';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
+import { QUEUE_ROOM_CONFIG } from '../server/queue';
+import { BOT_GAP_FROM_TOP } from '../src/lib/game/balance';
+import { COURT_TOP } from '../src/lib/game/courtPower';
 import type { Player } from '../src/lib/game/types';
 
 const CONFIG: RoomConfig = { ...DEFAULT_ROOM_CONFIG, entryStage: 'playoffs', capacity: 4, draftDeadlineSeconds: 60, simulationSpeed: 'ultra', seasonRuns: 1 };
@@ -68,6 +71,36 @@ function serverPower(options: { star?: string | null; coachId?: string | null; r
   expect(mine, 'o servidor precisa ter posto o time do jogador na quadra').toBeTruthy();
   return mine!.power;
 }
+
+describe('quem joga sozinho contra bots pega o campo aliviado', () => {
+  /** A fila ranqueada sem adversário: a run começa com um humano só e não conta pontos, como o solo. */
+  const loneQueueRun = () => {
+    const manager = new RoomManager();
+    const code = manager.createRoom(QUEUE_ROOM_CONFIG, 1_000, `fila-${requestId()}`, { origin: 'queue', expected: 2 });
+    const me = manager.join(code, 'Dono', 'SK', 1_001, manager.prepareLineup(code, {
+      userId: 'dono', lineup: cards.map((player, index) => toSelectedPlayer(player.id, ROLES[index])),
+      style: 'tactical', starPlayerId: STAR, coachId: COACH, mapPreferences: [...getDefaultMapSelection(cards as Player[], teams)]
+    }, 1_000));
+    let now = 1_010;
+    for (let index = 0; index < 60 && manager.getSnapshot(code, me.participantId, now).phase === 'lobby'; index += 1) {
+      now += 5_000;
+      manager.tick(now);
+    }
+    const snapshot = manager.getSnapshot(code, me.participantId, now);
+    expect(snapshot.phase, 'a fila sem adversário começa a run mesmo assim').not.toBe('lobby');
+    return snapshot;
+  };
+
+  it('a fila sem adversário alivia o campo, igual ao solo', () => {
+    const snapshot = loneQueueRun();
+    const bots = snapshot.organizations!.filter((organization) => !organization.human);
+    expect(bots.length).toBeGreaterThan(0);
+    // Sem alívio nenhum bot desceria abaixo do degrau de entrada (COURT_TOP − BOT_GAP_FROM_TOP.none).
+    const semAlivio = COURT_TOP - BOT_GAP_FROM_TOP.none;
+    const maisFraco = Math.min(...bots.map((bot) => courtRating(bot.power)));
+    expect(maisFraco, `bot mais fraco em ${maisFraco.toFixed(1)}, degrau de entrada é ${semAlivio.toFixed(1)}`).toBeLessThan(semAlivio);
+  });
+});
 
 describe('salvar o time troca a line da run que ainda não começou', () => {
   it('o coach escolhido depois de abrir a sala entra na quadra', () => {
