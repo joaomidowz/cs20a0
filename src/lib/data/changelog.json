@@ -1,8 +1,36 @@
 {
   "version": "2.9",
-  "total": 294,
+  "total": 298,
   "generatedAt": "2026-09-21",
   "entries": [
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "29a08b9",
+      "title": "Vagas de lineup, estilos de situação, bots instantâneos e menos underdog na festa",
+      "summary": "- Vagas de lineup: 2 grátis + 3 compráveis a 15.000 (migrations 26, lineup_slots/unlocks,   active_lineup_slot; compra idempotente no padrão buyPromo; venda bloqueia carta em   qualquer vaga; preparedFor lê a vaga ATIVA; abas de slot no …"
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "72d75d5",
+      "title": "Prêmio repetido derrubava o painel de recompensas com each_key_duplicate",
+      "summary": "Uma run concede o mesmo award kind mais de uma vez (flawless_map por mapa, giant_killer por oponente, top10_player por jogador, comeback_series por série) e o servidor grava tudo sem deduplicar — correto para o total, mas o each do paine…"
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "92d90d9",
+      "title": "Data: coaches com escada de campeões do Studio — 6 GOAT, todos os campeões 90+, boost granulado pela identidade do time",
+      "summary": ""
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "205527d",
+      "title": "Changelog da versão",
+      "summary": ""
+    },
     {
       "version": "2.9",
       "date": "2026-09-21",
@@ -814,34 +842,6 @@
       "hash": "7ef6a0f",
       "title": "Logo real de org via fair use + escudos com bandeira/país nas orgs",
       "summary": "Conclui a feature de identidades (crestFor com orgId/país, TeamBadge exibindo imagem licenciada quando existir, tamanho xl, flags nos cards de jogador e time) deixada pendente de outra sessão, e adiciona o primeiro caso real de logo lice…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "7fbb7e3",
-      "title": "Bandeiras reais dos jogadores (Dynasty/premier/faceit/pro)",
-      "summary": "Completa a infraestrutura de bandeiras/avatares/créditos (crest.ts, avatar.ts, flags.ts, licensed.ts, CountryFlag.svelte, PlayerAvatar.svelte, /credits) que já existia pronta e testada, mas sem dado real: - identities.game.json populado:…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "f2911ef",
-      "title": "Data: aplica correções reais em times/jogadores 2016-2026 (core v1)",
-      "summary": "Deploy coordenado do dataset v1 (online): o hash congelado (FROZEN_ONLINE_DATA_HASH/FROZEN_V1_FILES em tests/catalogGuards.test.ts) muda de propósito nesta sincronização, por decisão explícita — cliente e servidor calculam o hash dinamic…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "2639930",
-      "title": "Atualiza status do sync com escopo final e correções",
-      "summary": ""
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "3f0fa6c",
-      "title": "Corrige escopo e regressões do sync de 2013-2015",
-      "summary": "O commit anterior (36fe954) tinha 3 problemas achados por revisão/testes: 1."
     }
   ]
 }
