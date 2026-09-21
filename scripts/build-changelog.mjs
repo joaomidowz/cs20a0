@@ -28,11 +28,15 @@ const commits = raw.map((block) => block.trim()).filter(Boolean).map((block) => 
   return { hash, date, subject, body: (body ?? '').trim() };
 });
 
-/** O título e a frase de cada nota: o assunto do commit sem o prefixo, e a primeira frase do corpo. */
+/** Linhas de rodapé de commit (assinaturas, sessões, e-mails) que não são nota de release. */
+const TRAILER_LINE = /^(co-authored-by|claude-session|signed-off-by|generated with|refs|reviewed-by|🤖)/i;
+
+/** O título e a frase de cada nota: o assunto do commit sem o prefixo, e a primeira frase do corpo sem trailers. */
 function noteOf(commit) {
   const withoutType = commit.subject.replace(/^(feat|fix|chore|docs|test|refactor|perf|style|balance|merge)(\([^)]*\))?:\s*/i, '');
   const title = withoutType.charAt(0).toUpperCase() + withoutType.slice(1);
-  const firstParagraph = commit.body.split('\n\n')[0]?.replace(/\n/g, ' ').trim() ?? '';
+  const bodyWithoutTrailers = commit.body.split('\n').filter((line) => line.trim() && !TRAILER_LINE.test(line.trim()) && !/^https:\/\/claude\.ai\//.test(line.trim())).join('\n');
+  const firstParagraph = bodyWithoutTrailers.split('\n\n')[0]?.replace(/\n/g, ' ').trim() ?? '';
   const sentence = firstParagraph.split(/(?<=\.)\s/)[0] ?? '';
   return { title, summary: sentence.length > 240 ? `${sentence.slice(0, 237)}…` : sentence };
 }

@@ -30,7 +30,7 @@
   import { getRoleLabel } from '$lib/game/roleRules';
   import { countryName } from '$lib/game/visuals/flags';
   import { courtRating, courtRatingDelta } from '$lib/game/powerRating';
-  import { withPlayerFloor } from '$lib/game/courtPower';
+  import { withPlayerBand } from '$lib/game/courtPower';
   import type { Coach, LineupSlotRole, MapId, OrgStyle, Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
@@ -151,10 +151,10 @@
   const oneDecimal = (value: number) => value.toLocaleString($language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const fmt = (value: number) => oneDecimal(courtRating(value));
   const signed = (value: number) => `${value >= 0 ? '+' : ''}${oneDecimal(value)}`;
-  /** The floor the server applies before the match, so the builder shows the number that actually plays. */
+  /** The band the server applies before the match (floor and ceiling), so the builder shows the number that actually plays. */
   $: preview = (() => {
     const withCoach = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
-    return withCoach ? { ...withCoach, power: withPlayerFloor(withCoach.power) } : withCoach;
+    return withCoach ? { ...withCoach, power: withPlayerBand(withCoach.power) } : withCoach;
   })();
   // The saved team, built the same way, so the player sees what changes before saving.
   $: savedLineup = state?.lineup ?? null;

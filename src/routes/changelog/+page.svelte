@@ -39,7 +39,7 @@
       <ul>
         {#each release.notes as note (note.hash)}
           <li>
-            <b>{note.title}</b>
+            <div class="note-title"><b>{note.title}</b><small title={note.hash}>#{note.hash}</small></div>
             {#if note.summary}<span>{note.summary}</span>{/if}
           </li>
         {/each}
@@ -56,12 +56,15 @@
   .changelog-head p { margin: 0; color: var(--muted); }
   .changelog-head strong { color: var(--accent); }
   .release { margin-bottom: 26px; }
-  .release-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .release-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .release-head strong { color: var(--accent); font: 900 1.35rem/1 'Arial Narrow', Impact, sans-serif; }
-  .release-head time { color: var(--muted); font-size: .78rem; }
+  .release-head time { color: var(--muted); font-size: .78rem; letter-spacing: .06em; }
   ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
-  li { display: grid; gap: 3px; padding: 10px 12px; border-left: 2px solid var(--line); background: var(--surface-2); }
-  li b { font-size: .95rem; }
-  li span { color: var(--muted); font-size: .82rem; line-height: 1.5; }
+  li { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--line); background: var(--surface-2); transition: border-color .18s ease; }
+  li:hover { border-left-color: var(--accent); }
+  .note-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  li b { font-size: .95rem; line-height: 1.35; }
+  .note-title small { flex: 0 0 auto; color: color-mix(in srgb, var(--muted) 45%, var(--bg)); font-size: .6rem; letter-spacing: .06em; }
+  li span { color: var(--muted); font-size: .82rem; line-height: 1.55; }
   .foot { margin-top: 18px; color: var(--muted); font-size: .78rem; }
 </style>

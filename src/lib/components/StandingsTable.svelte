@@ -10,6 +10,8 @@
   export let standings: MajorStanding[] = [];
   export let userTeamId = '';
   export let userTeamName: string | undefined = undefined;
+  /** Court power (and bench coach, as tooltip) of each organization — the online room passes it for every team. */
+  export let powerByOrg: Map<string, { power: string; coach: string | null }> | null = null;
   export let labels: { record: string; buchholz: string; active: string; qualified: string; eliminated: string; champion: string; runnerUp?: string; third?: string; fifth?: string; playoffs?: string };
   export let onTeam: (teamId: string) => void = () => {};
 
@@ -46,7 +48,7 @@
       in:fly={{ y: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 160, delay: reducedMotion ? 0 : Math.min(index, 7) * 18, easing: cubicOut }}
       out:fade={{ duration: reducedMotion ? 0 : 90 }}
     >
-      <button type="button" class="standings-team" disabled={standing.organizationId === userTeamId} on:click={() => onTeam(standing.organizationId)}><span class="standings-rank">{rankLabel(standing, index)}</span><TeamBadge id={standing.organizationId} name={standing.name} highlight={standing.organizationId === userTeamId} /><span class="standings-name">{slotName(standing.organizationId, standing.name, userTeamId, userTeamName)}</span></button>
+      <button type="button" class="standings-team" disabled={standing.organizationId === userTeamId} on:click={() => onTeam(standing.organizationId)}><span class="standings-rank">{rankLabel(standing, index)}</span><TeamBadge id={standing.organizationId} name={standing.name} highlight={standing.organizationId === userTeamId} /><span class="standings-name">{slotName(standing.organizationId, standing.name, userTeamId, userTeamName)}{#if powerByOrg?.get(standing.organizationId)}{@const meta = powerByOrg.get(standing.organizationId)!}<i class="standings-power" title={meta.coach ? `Coach: ${meta.coach}` : undefined}>{meta.power}</i>{/if}</span></button>
       <b>{standing.wins}–{standing.losses}</b>
       <small>{standing.buchholz}</small>
       <em>{statusLabel(standing)}</em>
@@ -62,6 +64,8 @@
   .standings-team{display:grid;grid-template-columns:22px auto minmax(0,1fr);align-items:center;gap:7px;min-width:0;padding:2px 0;border:0;color:var(--text);background:transparent;font:inherit;text-align:left;cursor:pointer}
   .standings-team:disabled{cursor:default;opacity:1}.standings-team:not(:disabled):hover span{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
   .standings-name{overflow:hidden;font-size:.7rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+  .standings-power{flex:0 0 auto;margin-left:6px;padding:1px 5px;border:1px solid var(--line);color:var(--muted);font-style:normal;font-size:.52rem;font-weight:900;letter-spacing:.04em}
+  @media(max-width:420px){.standings-power{display:none}}
   .standings-row b,.standings-row small,.standings-row em{display:flex;align-items:center;min-height:100%;line-height:1;white-space:nowrap}
   .standings-row b{justify-content:center;font:900 .95rem 'Arial Narrow',Impact,sans-serif}.standings-row small{justify-content:center;color:var(--muted);font-size:.62rem}
   .standings-row em{justify-content:flex-end;color:var(--muted);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.08em;text-align:right;text-transform:uppercase}

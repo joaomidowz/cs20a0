@@ -72,7 +72,7 @@ import { findSecretAlias, pickSecretPlayer, SecretPickError, secretPicksLeftFor,
 import { ONLINE_DATA_HASH, playerById, players, teams } from './data';
 import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
 import { botFieldPower, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
-import { courtPower, withPlayerFloor } from '../src/lib/game/courtPower';
+import { courtPower, withPlayerBand } from '../src/lib/game/courtPower';
 import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -603,6 +603,11 @@ export class RoomManager {
         if ([...room.participants.values()].filter((candidate) => candidate.connected).length < 2) throw new RoomError('INVALID_ACTION', 'At least two connected participants are required');
         this.startRoom(room, now);
         break;
+      case 'leave':
+        // Sair a pedido: o participante sai na hora (sem esperar o reaper do socket), o host passa adiante e uma
+        // sala que fica vazia — ou um draft que perdeu gente — se resolve no mesmo instante.
+        this.removeParticipant(room, participantId, now);
+        break;
       case 'pick-secret': {
         this.requireDraft(room);
         const alias = findSecretAlias(command.alias);
@@ -782,6 +787,18 @@ export class RoomManager {
     room.stateVersion += 1;
   }
 
+  /** Removes a participant for good (the `leave` command): host passes on, a thinned draft collapses back to the lobby. */
+  private removeParticipant(room: RoomState, participantId: string, now: number) {
+    room.participants.delete(participantId);
+    if (room.hostParticipantId === participantId) {
+      room.hostParticipantId = [...room.participants.values()]
+        .filter((candidate) => candidate.connected)
+        .sort((a, b) => a.joinedAt - b.joinedAt)[0]?.id ?? null;
+    }
+    if (![...room.participants.values()].some((candidate) => candidate.connected)) room.emptySince = now;
+    if (room.phase === 'draft' && room.participants.size < this.minParticipants(room)) this.returnToLobby(room);
+  }
+
   /** What changes round by round: the live cursor (feed pruned to what this connection lacks) and the viewer's own decision. */
   getLiveUpdate(code: string, participantId: string, now = Date.now(), feedCursor: FeedCursor | null = null): LiveUpdate {
     const room = this.requireRoom(code);
@@ -811,7 +828,8 @@ export class RoomManager {
         ready: isDraftComplete(room.config.mode, candidate.draft),
         mapPreferences: candidate.id === participantId ? [...candidate.draft.mapPreferences] : [],
         mapsConfirmed: candidate.draft.mapPreferences.length === 3,
-        ...(candidate.prepared ? { collection: true } : {})
+        ...(candidate.prepared ? { collection: true } : {}),
+        ...this.participantCourtPreview(room, candidate)
       }));
     const organizations = room.organizations?.map((organization): PublicOrganization => ({
       id: organization.id,
@@ -1002,12 +1020,14 @@ export class RoomManager {
     season.run = runNumber;
     if (season.run >= room.config.seasonRuns) season.championName = [...season.results.values()].sort(seasonOrder)[0]?.organizationName ?? null;
     this.emitRunCompleted(room, result, runNumber);
-    room.rematch = {
+    // A janela de revanche é para quem tem com quem revotar (`resolveRematch` exige dois aceites): sozinho contra
+    // bots não existe "jogar de novo com todo mundo" — a saída é voltar e abrir outro Major.
+    room.rematch = room.participants.size >= 2 ? {
       deadlineAt: now + REMATCH_WINDOW_MS,
       eligible: new Set(room.participants.keys()),
       accepted: new Set(),
       declined: new Set()
-    };
+    } : null;
   }
 
   /** Hands the finished run to the persistence hook (collection participants only); a failing hook never touches the room. */
@@ -1372,6 +1392,26 @@ export class RoomManager {
     };
   }
 
+  /**
+   * Power e coach que o time do participante levaria a quadra AGORA — para o lobby e a lista do draft mostrarem
+   * todos os times. Durante o draft o número cresce pick a pick; com time de coleção salvo vale desde o lobby.
+   * Null enquanto os cinco picks não estão fechados.
+   */
+  private participantCourtPreview(room: RoomState, participant: ParticipantState): { power: number | null; coachId: string | null } {
+    const fallback = { power: null as number | null, coachId: participant.prepared?.coachId ?? null };
+    const lineupComplete = participant.draft.lineup.length === 5 || (room.config.mode === 'pro' && participant.draft.proPickedPlayerIds.length === 5);
+    const draft = lineupComplete ? participant.draft : participant.prepared
+      ? { ...participant.draft, lineup: participant.prepared.lineup, style: participant.prepared.style }
+      : null;
+    if (!draft) return fallback;
+    try {
+      const organization = this.toTournamentOrganization({ ...participant, draft }, 1, room.config.mode);
+      return { power: Number(organization.team.power.toFixed(1)), coachId: organization.team.coachId ?? null };
+    } catch {
+      return fallback;
+    }
+  }
+
   private toTournamentOrganization(participant: ParticipantState, seed: number, mode: RoomConfig['mode']): TournamentOrganization {
     const selected = (mode === 'pro' ? participant.draft.proPickedPlayerIds : participant.draft.lineup.map((pick) => pick.playerId))
       .map((id) => lineupPlayer(id))
@@ -1390,9 +1430,10 @@ export class RoomManager {
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
     // O coach fica gravado no time para a ficha da partida poder mostrar quem está no banco.
     const withCoach = coach ? { ...applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)), coachId: coach.id } : synergized;
-    // A player's team never takes the court below the floor (`balance.ts`): starting out is a disadvantage, not a
-    // sentence. Bots keep their own level, so the opening step of the bracket stays winnable for a new account.
-    const base = { ...withCoach, power: withPlayerFloor(withCoach.power) };
+    // A player's team plays inside the band (`balance.ts`): never below the floor — starting out is a disadvantage,
+    // not a sentence — and never above the ceiling, so the best buildable lineup ties the best bot dynasty instead
+    // of lapping the ruler. Bots keep their own level.
+    const base = { ...withCoach, power: withPlayerBand(withCoach.power) };
     return {
       id: participant.id,
       name: participant.organizationName,

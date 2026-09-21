@@ -12,6 +12,8 @@
   export let cursor: RevealCursor = { liveSeriesId: null };
   export let userTeamId = '';
   export let userTeamName: string | undefined = undefined;
+  /** Court power of every organization, shown beside the name in the standings (online rooms pass it). */
+  export let powerByOrg: Map<string, { power: string; coach: string | null }> | null = null;
   export let language: Language = 'pt-BR';
   export let onTeam: (teamId: string) => void = () => {};
   /** Opens a series (online: switches the live viewer to it). Null keeps the cards static. */
@@ -68,7 +70,7 @@
     {/if}
     <section class="panel overview-panel">
       <span class="eyebrow">{t('overviewStandings')}</span>
-      <StandingsTable {standings} {userTeamId} {onTeam} {userTeamName} labels={{ record: t('overviewRecord'), buchholz: t('overviewBuchholz'), active: t('overviewActive'), qualified: t('overviewQualified'), eliminated: t('overviewOut'), champion: t('overviewChampion'), runnerUp: t('placementRunnerUp'), third: t('placement3to4'), fifth: t('placement5to8'), playoffs: t('overviewInPlayoffs') }} />
+      <StandingsTable {standings} {userTeamId} {onTeam} {userTeamName} {powerByOrg} labels={{ record: t('overviewRecord'), buchholz: t('overviewBuchholz'), active: t('overviewActive'), qualified: t('overviewQualified'), eliminated: t('overviewOut'), champion: t('overviewChampion'), runnerUp: t('placementRunnerUp'), third: t('placement3to4'), fifth: t('placement5to8'), playoffs: t('overviewInPlayoffs') }} />
     </section>
   </div>
 {/if}

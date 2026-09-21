@@ -45,7 +45,7 @@
   .rematch-panel{display:grid;gap:12px;margin:0 0 18px;padding:18px;border-color:var(--accent);box-shadow:0 0 22px color-mix(in srgb,var(--accent) 18%,transparent)}
   .rematch-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.rematch-head h2{margin:4px 0 0;font-size:1.6rem}
   .rematch-clock{min-width:64px;font:900 2.4rem 'Arial Narrow',Impact,sans-serif;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}.rematch-clock.urgent{color:var(--danger)}
-  .rematch-actions{display:grid;gap:8px}.rematch-actions button{min-height:52px;font-size:.9rem}.rematch-actions button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+  .rematch-actions{display:grid;gap:8px}.rematch-actions button{min-height:50px;font-size:.9rem}.rematch-actions button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
   .rematch-hint{margin:0;color:var(--muted);font-size:.68rem;line-height:1.45}.rematch-hint b{color:var(--text)}
   .rematch-list{display:grid;gap:6px;margin:0;padding:0;list-style:none}
   .rematch-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);background:var(--surface-2)}

@@ -85,6 +85,9 @@ h2 { line-height: 1; text-transform: uppercase; }
 .nav select, .icon-button { height: 36px; min-height: 36px; border: 1px solid var(--line); color: var(--text); background: var(--surface); font-size: .72rem; }
 .nav select { padding: 0 9px; }
 .icon-button { padding: 0 10px; }
+/* A versão quase some no fundo: é um detalte, não um botão. Passar o mouse devolve a cor. */
+.nav .version { color: color-mix(in srgb, var(--muted) 38%, var(--bg)); font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-decoration: none; transition: color .18s ease; }
+.nav .version:hover, .nav .version:focus-visible { color: var(--muted); outline: 0; }
 
 .hero { min-height: calc(100vh - 68px); display: grid; align-items: center; padding: 70px 0 55px; overflow: hidden; }
 .hero-copy { position: relative; z-index: 2; }

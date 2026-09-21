@@ -72,6 +72,8 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   }).strict(),
   baseCommandSchema.extend({ type: z.literal('configure'), config: roomConfigSchema }).strict(),
   baseCommandSchema.extend({ type: z.literal('start') }).strict(),
+  /** Leaves the room on purpose: the participant is removed at once (a dropped socket waits for the reaper). */
+  baseCommandSchema.extend({ type: z.literal('leave') }).strict(),
   baseCommandSchema.extend({ type: z.literal('draw-team') }).strict(),
   baseCommandSchema.extend({ type: z.literal('reroll-team') }).strict(),
   baseCommandSchema.extend({ type: z.literal('set-style'), style: z.enum(['aggressive', 'balanced', 'tactical']) }).strict(),
@@ -241,6 +243,10 @@ export interface PublicParticipant {
   mapsConfirmed: boolean;
   /** Entered with a collection lineup (online account); the draft is skipped for this participant. */
   collection?: boolean;
+  /** Power (court scale) the lineup would take to the court right now; null while the five picks are not in. */
+  power: number | null;
+  /** Coach da coleção escolhido para este time; null enquanto não houver. */
+  coachId: string | null;
 }
 
 export interface PublicOrganization {
