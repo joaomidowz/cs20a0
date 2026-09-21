@@ -173,23 +173,24 @@ export const PLAYER_GAP_FROM_TOP = 6;
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
- * A DIFICULDADE DO SOLO, por nível do seu time. É aqui que se mexe quando "está impossível" ou "virou farm".
+ * A DIFICULDADE DO SOLO, por nível do seu time, em DUAS tabelas: uma para o "Major normal" (campo sorteado) e
+ * outra, mais dura, para o "Major dos Campeões" (o desafio endgame). É aqui que se mexe quando "está impossível"
+ * ou "virou farm".
  *
- * O problema que isto veio resolver: no "Major dos Campeões" os quinze bots são campeões de Major. Um time quase
- * perfeito entrava como favorito de cada série e ainda assim precisava ganhar seis seguidas — dava 3% de título,
- * e quase metade das runs morria na fase suíça. Um campeonato inteiro decidido por moeda não é dificuldade, é ruído.
+ * O problema que o alívio veio resolver: sozinho contra um campo de bots fortes, um time quase perfeito entrava
+ * como favorito de cada série e ainda assim precisava ganhar seis seguidas — dava 3% de título, e quase metade
+ * das runs morria na fase suíça. Um campeonato inteiro decidido por moeda não é dificuldade, é ruído.
  *
- * Agora o campo cede conforme você sobe: cada par é (nível do seu time → quantos níveis o campo inteiro desce).
- * Entre um par e outro a conta interpola, então a progressão é contínua, não em degraus. Fora da tabela, vale a
- * ponta mais próxima. Vale SÓ no solo contra bots: o online entre jogadores não tem handicap nenhum.
+ * O campo cede conforme você sobe: cada par é (nível do seu time → quantos níveis o campo inteiro desce). Entre
+ * um par e outro a conta interpola, então a progressão é contínua, não em degraus. Fora da tabela, vale a ponta
+ * mais próxima. Vale SÓ no solo contra bots: o online entre jogadores não tem handicap nenhum.
  *
- * O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major NORMAL é
- * a parede que cede — título de ~1% para quem começa, ~13% para o meio da coleção (elites), e 45–60% para o auge
- * (medido: 56% no nível 98,6). O MAJOR DOS CAMPEÕES é a parede que não cede: o auge leva ~1 em 3 (medido 33%),
- * o meio ~6%, e quem está começando não leva (e cai na suíça em quase toda run).
- * `tests/soloDifficulty.test.ts` re-mede e falha se a curva sair da faixa.
+ * O combinado com o dono em 2026-09-21, com a escada de pedigree fina e o piso do jogador em 93: o Major NORMAL
+ * é a parede que cede — título de ~1% para quem começa, ~39% para o meio da coleção (elites), 45–61% para o auge
+ * (medido em 200 runs). O MAJOR DOS CAMPEÕES tem tabela própria (abaixo) e é o desafio final.
+ * `tests/soloDifficulty.test.ts` re-mede as duas e falha se a curva sair da faixa.
  */
-export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: number])[] = [
+export const SOLO_RANDOM_RELIEF: readonly (readonly [level: number, relief: number])[] = [
   [91, 0],
   [95, 0.3],
   [96.8, 0.5],
@@ -198,5 +199,22 @@ export const SOLO_FIELD_RELIEF: readonly (readonly [level: number, relief: numbe
   [99, 1.1]
 ];
 
-/** Multiplicador do alívio no "Major normal" (campo sorteado). Em 1 os dois modos usam a mesma tabela; o normal já é mais fácil pelo campo. */
-export const SOLO_RANDOM_RELIEF_FACTOR = 1;
+/**
+ * O alívio PRÓPRIO do "Major dos Campeões", o desafio endgame: a parede cede menos que no Major normal.
+ *
+ * Calibrada em 2026-09-21 contra a tabela cumulativa combinada com o dono (colunas cumulativas: campeão, final,
+ * semi, quartas, eliminado no suíço — médias de 300 Majors por nível, cada torneio segue sorteado). O alvo e o
+ * medido: iniciante 0/0/0/1/99 (medido 0/0/0/1/99) · elite 6/12/22/40/60 (medido 5/10/24/48/52) · superstar
+ * 13/24/43/66/34 (medido 10/23/43/71/29) · auge 23/38/64/84/16 (medido 21/33/53/77/23) · excepcional 33/55/82/94/6
+ * (medido 39/52/69/90/10). O que ficou acima da meta nas semis dos topos é o preço pedido da variação: com o swing
+ * de mapa de ±2 níveis (que produz os 2-1, viradas e OTs combinados), um favorito de 2 níveis não converte 8 de
+ * cada 10 quartas. Para consistência maior, o knob é o swing — à custa da variação.
+ */
+export const SOLO_CHAMPIONS_RELIEF: readonly (readonly [level: number, relief: number])[] = [
+  [91, 0],
+  [95, 0.15],
+  [96.8, 0.22],
+  [97.6, 0.4],
+  [98.33, 0.7],
+  [99, 0.95]
+];

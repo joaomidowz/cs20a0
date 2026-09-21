@@ -1,5 +1,5 @@
 import { COURT_TOP, courtPower, rawFromCourt } from '../courtPower';
-import { BOT_NATURAL_RANGE, PEDIGREE_LEVEL_BAND, SOLO_FIELD_RELIEF, SOLO_RANDOM_RELIEF_FACTOR, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT, type BotPedigree } from '../balance';
+import { BOT_NATURAL_RANGE, PEDIGREE_LEVEL_BAND, SOLO_CHAMPIONS_RELIEF, SOLO_RANDOM_RELIEF, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT, type BotPedigree } from '../balance';
 import { createSeededRng } from '../simulation';
 import type { HistoricalTeam, Player } from '../types';
 
@@ -150,19 +150,19 @@ export function planBotField(input: { shuffled: readonly HistoricalTeam[]; playe
 }
 
 /**
- * How many levels the whole bot field comes down for a solo run, from the level of the player's team
- * (`SOLO_FIELD_RELIEF` in `balance.ts`, interpolated between its rows). Zero outside the solo modes.
+ * How many levels the whole bot field comes down for a solo run, from the level of the player's team. The "Major
+ * normal" uses `SOLO_RANDOM_RELIEF`; the "Major dos Campeões" — the endgame wall — uses `SOLO_CHAMPIONS_RELIEF`,
+ * both in `balance.ts`, interpolated between their rows. Zero outside the solo modes.
  */
 export function soloFieldRelief(playerLevel: number, field: 'random' | 'champions' = 'champions'): number {
-  const rows = SOLO_FIELD_RELIEF;
-  const factor = field === 'random' ? SOLO_RANDOM_RELIEF_FACTOR : 1;
-  if (playerLevel <= rows[0][0]) return rows[0][1] * factor;
+  const rows = field === 'random' ? SOLO_RANDOM_RELIEF : SOLO_CHAMPIONS_RELIEF;
+  if (playerLevel <= rows[0][0]) return rows[0][1];
   for (let index = 1; index < rows.length; index += 1) {
     const [level, relief] = rows[index];
     const [previousLevel, previousRelief] = rows[index - 1];
-    if (playerLevel <= level) return (previousRelief + ((playerLevel - previousLevel) / (level - previousLevel)) * (relief - previousRelief)) * factor;
+    if (playerLevel <= level) return previousRelief + ((playerLevel - previousLevel) / (level - previousLevel)) * (relief - previousRelief);
   }
-  return rows[rows.length - 1][1] * factor;
+  return rows[rows.length - 1][1];
 }
 
 /**

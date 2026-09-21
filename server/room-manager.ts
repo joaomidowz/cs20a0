@@ -1194,7 +1194,8 @@ export class RoomManager {
     const plan = room.field === 'champions'
       ? { order: shuffledTeams, zebraIds: new Set<string>() }
       : planBotField({ shuffled: shuffledTeams, playerById, seed: room.seed, slots: fieldSize - organizations.length });
-    // Alone against bots: the field comes down as the player's team goes up in level (`SOLO_FIELD_RELIEF`), so the
+    // Alone against bots: the field comes down as the player's team goes up in level (`SOLO_RANDOM_RELIEF` /
+    // `SOLO_CHAMPIONS_RELIEF`), so the
     // run is a wall that gives way with progress instead of a bracket of coin flips.
     //
     // Vale para QUALQUER run de um jogador só que não conta pontos, não apenas para a que nasceu no botão do solo:
