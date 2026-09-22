@@ -1,7 +1,7 @@
-import type { Db } from '../db/client';
+import type { Db, Tx } from '../db/client';
 import type { Mailer } from './mailer';
 import { WELCOME_COINS } from '../../src/lib/game/online/collection-rules';
-import { hashToken, isDisposable, newToken, normalizeEmail } from './tokens';
+import { hashToken, isDisposable, newCode, newToken, normalizeEmail } from './tokens';
 
 export const MAGIC_LINK_TTL_MS = 15 * 60_000;
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60_000;
@@ -15,7 +15,7 @@ export interface AuthUser {
   createdAt: string;
 }
 
-export type AuthErrorCode = 'INVALID_EMAIL' | 'DISPOSABLE_EMAIL' | 'INVALID_TOKEN' | 'UNAUTHORIZED';
+export type AuthErrorCode = 'INVALID_EMAIL' | 'DISPOSABLE_EMAIL' | 'INVALID_TOKEN' | 'INVALID_CODE' | 'UNAUTHORIZED';
 
 export class AuthError extends Error {
   constructor(readonly code: AuthErrorCode, message: string = code) {
@@ -42,12 +42,13 @@ export interface AuthDeps {
 }
 
 /** Creates the user on first request; the response never tells whether the e-mail already existed. */
-export async function requestMagicLink(deps: AuthDeps, rawEmail: string, ip: string): Promise<{ devLink?: string }> {
+export async function requestMagicLink(deps: AuthDeps, rawEmail: string, ip: string): Promise<{ devLink?: string; devCode?: string }> {
   const email = normalizeEmail(rawEmail);
   if (!email) throw new AuthError('INVALID_EMAIL', 'E-mail inválido');
   if (isDisposable(email)) throw new AuthError('DISPOSABLE_EMAIL', 'E-mail descartável não é aceito');
   const now = deps.now?.() ?? Date.now();
   const token = newToken();
+  const code = newCode();
   await deps.db.tx(async (tx) => {
     const [user] = await tx.query<{ id: string }>(
       `INSERT INTO users (email) VALUES ($1)
@@ -55,11 +56,11 @@ export async function requestMagicLink(deps: AuthDeps, rawEmail: string, ip: str
        RETURNING id`,
       [email]
     );
-    await tx.query('INSERT INTO magic_links (token_hash, user_id, expires_at, ip) VALUES ($1, $2, $3, $4)', [hashToken(token), user.id, new Date(now + MAGIC_LINK_TTL_MS), ip]);
+    await tx.query('INSERT INTO magic_links (token_hash, user_id, expires_at, ip, code_hash) VALUES ($1, $2, $3, $4, $5)', [hashToken(token), user.id, new Date(now + MAGIC_LINK_TTL_MS), ip, hashToken(code)]);
   });
   const link = `${deps.siteUrl.replace(/\/$/, '')}/online/conta?token=${token}`;
-  if (deps.mailer.devLink) return { devLink: link };
-  await deps.mailer.send(email, link);
+  if (deps.mailer.devLink) return { devLink: link, devCode: code };
+  await deps.mailer.send(email, link, code);
   return {};
 }
 
@@ -73,25 +74,49 @@ export async function verifyMagicLink(deps: AuthDeps, token: string): Promise<{ 
       [hashToken(token), new Date(now)]
     );
     if (!link) throw new AuthError('INVALID_TOKEN', 'Link inválido ou expirado');
-    const [before] = await tx.query<{ verified_at: Date | null }>('SELECT verified_at FROM users WHERE id = $1 FOR UPDATE', [link.user_id]);
-    const firstLogin = !before.verified_at;
-    const [user] = await tx.query<UserRow>(
-      'UPDATE users SET verified_at = COALESCE(verified_at, $2), last_seen_at = $2 WHERE id = $1 RETURNING id, email, display_name, team_name, verified_at, created_at',
-      [link.user_id, new Date(now)]
-    );
-    await tx.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [hashToken(session), user.id, new Date(now + SESSION_TTL_MS)]);
-    await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
-    await tx.query('INSERT INTO lineup_slot_unlocks (user_id, slot_index) VALUES ($1, 0), ($1, 1) ON CONFLICT DO NOTHING', [user.id]);
-    if (firstLogin) {
-      // Welcome coins, once per account: the ledger row doubles as the guard against paying twice.
-      const [paid] = await tx.query(`SELECT 1 FROM ledger WHERE user_id = $1 AND reason = 'welcome'`, [user.id]);
-      if (!paid) {
-        await tx.query(`INSERT INTO ledger (user_id, delta, reason, ref_id) VALUES ($1, $2, 'welcome', 'welcome')`, [user.id, WELCOME_COINS]);
-        await tx.query('UPDATE wallets SET coins = coins + $2, updated_at = now() WHERE user_id = $1', [user.id, WELCOME_COINS]);
-      }
-    }
-    return { sessionToken: session, user: toUser(user) };
+    return grantSession(tx, link.user_id, now, session);
   });
+}
+
+/** Same 15-minute, single-use window as the link, but typed by hand — works where the link cannot open the right app. */
+export async function verifyMagicCode(deps: AuthDeps, rawEmail: string, code: string): Promise<{ sessionToken: string; user: AuthUser }> {
+  const email = normalizeEmail(rawEmail);
+  if (!email || !/^\d{6}$/.test(code)) throw new AuthError('INVALID_CODE', 'Código inválido ou expirado');
+  const now = deps.now?.() ?? Date.now();
+  const session = newToken();
+  return deps.db.tx(async (tx) => {
+    // The typed code burns its own row; sibling codes from repeat requests stay valid for their window, like the links.
+    const [link] = await tx.query<{ user_id: string }>(
+      `UPDATE magic_links l SET used_at = $4 FROM users u
+       WHERE u.id = l.user_id AND u.email = $1 AND l.code_hash = $2 AND l.used_at IS NULL AND l.expires_at > $3
+       RETURNING l.user_id`,
+      [email, hashToken(code), new Date(now), new Date(now)]
+    );
+    if (!link) throw new AuthError('INVALID_CODE', 'Código inválido ou expirado');
+    return grantSession(tx, link.user_id, now, session);
+  });
+}
+
+/** Session + wallet + welcome coins, once per account; shared by the link and the typed code. */
+async function grantSession(tx: Tx, userId: string, now: number, session: string): Promise<{ sessionToken: string; user: AuthUser }> {
+  const [before] = await tx.query<{ verified_at: Date | null }>('SELECT verified_at FROM users WHERE id = $1 FOR UPDATE', [userId]);
+  const firstLogin = !before.verified_at;
+  const [user] = await tx.query<UserRow>(
+    'UPDATE users SET verified_at = COALESCE(verified_at, $2), last_seen_at = $2 WHERE id = $1 RETURNING id, email, display_name, team_name, verified_at, created_at',
+    [userId, new Date(now)]
+  );
+  await tx.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [hashToken(session), user.id, new Date(now + SESSION_TTL_MS)]);
+  await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
+  await tx.query('INSERT INTO lineup_slot_unlocks (user_id, slot_index) VALUES ($1, 0), ($1, 1) ON CONFLICT DO NOTHING', [user.id]);
+  if (firstLogin) {
+    // Welcome coins, once per account: the ledger row doubles as the guard against paying twice.
+    const [paid] = await tx.query(`SELECT 1 FROM ledger WHERE user_id = $1 AND reason = 'welcome'`, [user.id]);
+    if (!paid) {
+      await tx.query(`INSERT INTO ledger (user_id, delta, reason, ref_id) VALUES ($1, $2, 'welcome', 'welcome')`, [user.id, WELCOME_COINS]);
+      await tx.query('UPDATE wallets SET coins = coins + $2, updated_at = now() WHERE user_id = $1', [user.id, WELCOME_COINS]);
+    }
+  }
+  return { sessionToken: session, user: toUser(user) };
 }
 
 export async function getSession(deps: Pick<AuthDeps, 'db' | 'now'>, sessionToken: string): Promise<AuthUser | null> {

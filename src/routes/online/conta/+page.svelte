@@ -7,7 +7,7 @@
   import { safeOnlineReturn, uiCopy } from '$lib/game/online/ui-copy';
   import MissionsPanel from '$lib/components/online/MissionsPanel.svelte';
   import PublicProfileSheet from '$lib/components/online/PublicProfileSheet.svelte';
-  import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicLink } from '$lib/game/online/account';
+  import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicCode, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { language, theme } from '$lib/game/pageState';
@@ -19,6 +19,7 @@
   type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
 
   let email = '';
+  let code = '';
   let loading = true;
   let returnTo = '/online';
   const returnKey = 'cs13a0:auth-return';
@@ -49,7 +50,7 @@
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
       if (caught.status === 503) { disabled = true; return; }
-      error = caught.code === 'INVALID_EMAIL' ? t('invalidEmail') : caught.code === 'DISPOSABLE_EMAIL' ? t('disposableEmail') : caught.code === 'RATE_LIMITED' ? t('rateLimited') : caught.code === 'INVALID_TOKEN' ? t('linkInvalid') : caught.message;
+      error = caught.code === 'INVALID_EMAIL' ? t('invalidEmail') : caught.code === 'DISPOSABLE_EMAIL' ? t('disposableEmail') : caught.code === 'RATE_LIMITED' ? t('rateLimited') : caught.code === 'INVALID_TOKEN' ? t('linkInvalid') : caught.code === 'INVALID_CODE' ? t('codeInvalid') : caught.message;
       return;
     }
     error = t('connectionFailed');
@@ -64,11 +65,22 @@
   async function submit() {
     if (busy) return;
     rememberReturn();
-    error = ''; busy = true; devLink = null;
+    error = ''; busy = true; devLink = null; sent = false; code = '';
     try {
       const result = await requestMagicLink(serverUrl, email);
       sent = true;
       devLink = result.devLink ?? null;
+    } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  /** Typed code path: where the link cannot open the right app (phone e-mail apps, installed PWA). */
+  async function submitCode() {
+    if (busy || !/^\d{6}$/.test(code)) return;
+    error = ''; busy = true;
+    try {
+      await verifyMagicCode(serverUrl, email, code);
+      const destination = consumeReturn();
+      await goto(destination, { replaceState: true });
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
@@ -191,6 +203,13 @@
         {#if sent}<p class="note">{t('linkSent')}</p>{/if}
         {#if devLink}<p class="note dev">{t('devLink')} <a href={devLink}>{devLink}</a></p>{/if}
       </form>
+      {#if sent}
+        <form class="panel box narrow" on:submit|preventDefault={submitCode}>
+          <p class="note">{t('codeHint')}</p>
+          <label><span>{t('codeLabel')}</span><input class="code-input" bind:value={code} inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder={t('codePlaceholder')} /></label>
+          <button class="primary" type="submit" disabled={busy || code.length !== 6}>{busy ? '…' : t('codeSubmit')}</button>
+        </form>
+      {/if}
     {/if}
     {#if error}<p class="online-error" role="alert">{error}</p>{/if}
   </section>
@@ -212,6 +231,7 @@
   .box input { min-height: 46px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; }
   .note, .muted { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
   .note.dev a { color: var(--accent); overflow-wrap: anywhere; }
+  .code-input { text-align: center; font: 900 1.5rem/1.2 'Courier New', monospace; letter-spacing: .45em; padding-left: 0; }
   .profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end; }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; }
   .link { display: inline-flex; align-items: center; min-height: 50px; padding: 0 20px; text-decoration: none; }

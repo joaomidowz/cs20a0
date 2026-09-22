@@ -1,8 +1,11 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { DISPOSABLE_DOMAINS } from './disposable';
 
 export const newToken = () => randomBytes(32).toString('base64url');
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
+
+/** Six digits, uniform over 0..999999: typed by hand where the link cannot open the right app. */
+export const newCode = () => randomInt(0, 1_000_000).toString().padStart(6, '0');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

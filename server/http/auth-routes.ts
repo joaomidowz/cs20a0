@@ -1,11 +1,14 @@
 import { z } from 'zod';
-import { AuthError, getSession, logout, requestMagicLink, setProfile, verifyMagicLink, type AuthDeps } from '../auth/service';
+import { AuthError, getSession, logout, requestMagicLink, setProfile, verifyMagicCode, verifyMagicLink, type AuthDeps } from '../auth/service';
 import { normalizeEmail } from '../auth/tokens';
 import { createSlidingLimiter } from './rate-limit';
 import { HttpError, bearerOf, readBody, route, type Handler, type HttpContext, type Route } from './router';
 
 const requestSchema = z.object({ email: z.string().min(3).max(254) });
-const verifySchema = z.object({ token: z.string().min(16).max(256) });
+const verifySchema = z.union([
+  z.object({ token: z.string().min(16).max(256) }),
+  z.object({ email: z.string().min(3).max(254), code: z.string().regex(/^\d{6}$/, '6 dígitos') })
+]);
 const profileSchema = z.object({ displayName: z.string().trim().min(2).max(24), teamName: z.string().trim().min(2).max(24) });
 
 const toHttp = (error: unknown): never => {
@@ -19,6 +22,9 @@ const toHttp = (error: unknown): never => {
 export function createAuthRoutes(deps: AuthDeps, now: () => number) {
   const perEmail = createSlidingLimiter(3, 15 * 60_000, now);
   const perIp = createSlidingLimiter(10, 15 * 60_000, now);
+  // Typed codes face online guessing: the 6-digit space with these windows keeps brute force hopeless.
+  const codePerEmail = createSlidingLimiter(10, 15 * 60_000, now);
+  const codePerIp = createSlidingLimiter(20, 15 * 60_000, now);
 
   /** Resolves the bearer session or answers 401; handlers behind it always get `context.userId`. */
   const withAuth = (handler: Handler): Handler => async (context: HttpContext) => {
@@ -43,9 +49,15 @@ export function createAuthRoutes(deps: AuthDeps, now: () => number) {
       const result = await requestMagicLink(deps, body.email, address).catch(toHttp);
       return { ok: true, ...result };
     }),
-    route('POST', /^\/auth\/verify$/, async ({ request }) => {
+    route('POST', /^\/auth\/verify$/, async ({ request, address }) => {
       const body = await readBody(request, verifySchema);
-      const result = await verifyMagicLink(deps, body.token).catch(toHttp);
+      if ('token' in body) {
+        const result = await verifyMagicLink(deps, body.token).catch(toHttp);
+        return { ok: true, ...result };
+      }
+      const key = normalizeEmail(body.email) ?? body.email.toLowerCase();
+      if (!codePerIp.hit(`ip:${address}`) || !codePerEmail.hit(`email:${key}`)) throw new HttpError(429, 'RATE_LIMITED', 'Muitas tentativas; aguarde alguns minutos');
+      const result = await verifyMagicCode(deps, body.email, body.code).catch(toHttp);
       return { ok: true, ...result };
     }),
     route('POST', /^\/auth\/logout$/, async ({ request }) => {

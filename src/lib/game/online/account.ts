@@ -53,10 +53,18 @@ export async function authFetch<T = unknown>(serverUrl: string, path: string, in
 }
 
 export const requestMagicLink = (serverUrl: string, email: string) =>
-  authFetch<{ devLink?: string }>(serverUrl, '/auth/request', { body: { email } });
+  authFetch<{ devLink?: string; devCode?: string }>(serverUrl, '/auth/request', { body: { email } });
 
 export async function verifyMagicLink(serverUrl: string, token: string): Promise<AccountUser> {
   const result = await authFetch<{ sessionToken: string; user: AccountUser }>(serverUrl, '/auth/verify', { body: { token } });
+  sessionToken.set(result.sessionToken);
+  accountUser.set(result.user);
+  return result.user;
+}
+
+/** Typed fallback for where the link cannot open the right app (phone e-mail apps, installed PWA). */
+export async function verifyMagicCode(serverUrl: string, email: string, code: string): Promise<AccountUser> {
+  const result = await authFetch<{ sessionToken: string; user: AccountUser }>(serverUrl, '/auth/verify', { body: { email, code } });
   sessionToken.set(result.sessionToken);
   accountUser.set(result.user);
   return result.user;

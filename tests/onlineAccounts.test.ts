@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createOnlineServer } from '../server/app';
 import { createDevMailer } from '../server/auth/mailer';
-import { hashToken, isDisposable, normalizeEmail } from '../server/auth/tokens';
+import { hashToken, isDisposable, newCode, normalizeEmail } from '../server/auth/tokens';
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 import { MIGRATIONS, runMigrations } from '../server/db/migrations';
@@ -20,6 +20,11 @@ describe('normalizeEmail', () => {
     expect(isDisposable('x@mailinator.com')).toBe(true);
     expect(isDisposable('x@gmail.com')).toBe(false);
     expect(hashToken('a')).toHaveLength(64);
+  });
+
+  it('gera código de 6 dígitos', () => {
+    for (let index = 0; index < 50; index += 1) expect(newCode()).toMatch(/^\d{6}$/);
+    expect(new Set(Array.from({ length: 200 }, () => newCode())).size).toBeGreaterThan(100);
   });
 });
 
@@ -89,6 +94,35 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
 
     expect((await post('/auth/logout', {}, verified.sessionToken)).status).toBe(200);
     expect((await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).status).toBe(401);
+  });
+
+  it('entra por código digitável: errado recusa, certo abre sessão, e nada repete', async () => {
+    const requested = await (await post('/auth/request', { email: 'Code@Tester.com' })).json();
+    expect(requested.devCode).toMatch(/^\d{6}$/);
+    const code: string = requested.devCode;
+    const wrongCode = code === '999999' ? '999998' : '999999';
+
+    const wrong = await post('/auth/verify', { email: 'code@tester.com', code: wrongCode });
+    expect(wrong.status).toBe(400);
+    expect((await wrong.json()).error).toBe('INVALID_CODE');
+
+    // Formato fora do padrão nem chega ao serviço.
+    expect((await post('/auth/verify', { email: 'code@tester.com', code: '12ab' })).status).toBe(400);
+
+    const verified = await (await post('/auth/verify', { email: 'code@tester.com', code })).json();
+    expect(verified.ok).toBe(true);
+    expect(verified.user.email).toBe('code@tester.com');
+    expect(verified.sessionToken.length).toBeGreaterThan(20);
+    const me = await (await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).json();
+    expect(me.user.email).toBe('code@tester.com');
+
+    const reused = await post('/auth/verify', { email: 'code@tester.com', code });
+    expect(reused.status).toBe(400);
+
+    // Código expira junto com o link, na mesma janela de 15 minutos.
+    const lateRequest = await (await post('/auth/request', { email: 'late-code@example.com' })).json();
+    clock += 16 * 60_000;
+    expect((await post('/auth/verify', { email: 'late-code@example.com', code: lateRequest.devCode })).status).toBe(400);
   });
 
   it('expira o link em 15 minutos, recusa descartável e limita por e-mail', async () => {

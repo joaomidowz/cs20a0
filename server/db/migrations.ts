@@ -684,6 +684,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS active_lineup_slot int NOT NULL DEFAU
     sql: `INSERT INTO lineup_slot_unlocks (user_id, slot_index)
       SELECT id, slot_index FROM users CROSS JOIN generate_series(0, 1) AS slot_index
       ON CONFLICT DO NOTHING;`
+  },
+  {
+    id: 29,
+    // Login por código digitável (celular/PWA, onde o link abre no app de e-mail e perde a sessão):
+    // cada pedido de acesso passa a carregar também o hash do código de 6 dígitos, ao lado do link.
+    sql: `ALTER TABLE magic_links ADD COLUMN IF NOT EXISTS code_hash text;`
   }
 ];
 
