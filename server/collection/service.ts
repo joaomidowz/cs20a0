@@ -5,6 +5,7 @@ import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/onli
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
 import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
+import { advanceMissionActivity } from './missions';
 import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3 } from './time';
 
@@ -139,6 +140,8 @@ async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string,
     if (!inserted.length) { duplicates.push(id); coinsFromDupes += duplicateValue(id); }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
+  // Só os caminhos de baú chegam aqui, então cada abertura (diário, grátis, caixa de Major, comprado) conta na missão do dia.
+  await advanceMissionActivity(tx, userId, now);
   return { duplicates, coinsFromDupes, wallet };
 }
 
