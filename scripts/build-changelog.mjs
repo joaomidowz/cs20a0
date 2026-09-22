@@ -49,6 +49,10 @@ function noteOf(commit) {
       title: 'Nova marca visual e modo app',
       summary: 'Ícone, favicon e imagem de compartilhamento renovados com a marca CS, e o jogo agora pode ser instalado como aplicativo na tela inicial do celular; links compartilhados mostram o banner novo.'
     },
+    '808b51b4d28715693a64917dc4de8be952059093': {
+      title: 'Menu estilizado no Time e entrada mais leve no online',
+      summary: 'Função, coach e filtros do Time agora abrem em menu no estilo do jogo; quem está com conta entra no online já com seu nick e organização (sem digitar), o toggle do time da coleção virou chave on/off ao lado do Criar sala, e o card de buscar partida ficou compacto com o detalhe no botão de interrogação.'
+    },
     '1023bbf0ec48d4ecf9334b5835c1079a83c188bf': {
       title: 'Login por código de 6 dígitos, além do link',
       summary: 'O e-mail de acesso passa a trazer um código que dá para digitar na tela de login quando o link não abre o jogo — vale no celular, no app instalado e em qualquer navegador.'

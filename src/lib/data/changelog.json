@@ -1,8 +1,29 @@
 {
   "version": "3.1",
-  "total": 313,
+  "total": 316,
   "generatedAt": "2026-09-22",
   "entries": [
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "808b51b",
+      "title": "Menu estilizado no Time e entrada mais leve no online",
+      "summary": "Função, coach e filtros do Time agora abrem em menu no estilo do jogo; quem está com conta entra no online já com seu nick e organização (sem digitar), o toggle do time da coleção virou chave on/off ao lado do Criar sala, e o card de buscar partida ficou compacto com o detalhe no botão de interrogação."
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "4190fe2",
+      "title": "Changelog da versao",
+      "summary": ""
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "eb4b6dd",
+      "title": "Email de acesso troca o link cru pela faixa do codigo",
+      "summary": "O layout fica o mesmo do e-mail de link; o bloco com a URL crua sai e a faixa com o codigo de 6 digitos entra no lugar, facil de selecionar no celular."
+    },
     {
       "version": "3.1",
       "date": "2026-09-22",
@@ -821,27 +842,6 @@
       "hash": "c8ff96d",
       "title": "Diálogo de confirmação próprio no lugar do confirm do navegador",
       "summary": "ConfirmDialog (tema do jogo, foco preso, Esc cancela, tom de perigo) montado no PageLayout e no jogo offline, acionado por confirmDialog() → Promise."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "a30a9bd",
-      "title": "Abertura de pacote com selo acima da carta e carta na largura toda",
-      "summary": "O selo NOVA/REPETIDA ficava por cima da foto e da raridade, e a carta não ocupava a coluna (a faixa de país/time ficava mais larga que ela)."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "0ebf0b6",
-      "title": "E-mail estilizado, perfil com time, awards e temporada, bandeira/time nas cartas, entrada explícita",
-      "summary": "- E-mail do magic link em HTML (tema do jogo, logo em texto, botão, link de   fallback, rodapé de não afiliação) além do texto puro."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "4dd90ee",
-      "title": "Lobby entra com o time da coleção e mostra pontos/awards no fim",
-      "summary": "Na entrada do /online, quem está logado e tem time salvo vê \"Entrar com meu time da coleção\": o cliente pede o ticket em POST /rooms/:code/lineup e manda no join; o participante aparece com selo TIME no lobby e pula o draft."
     }
   ]
 }
