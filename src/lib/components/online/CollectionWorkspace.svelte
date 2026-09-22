@@ -9,6 +9,7 @@
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
+  import PackSelect from './PackSelect.svelte';
   import TeamPackSelect from './TeamPackSelect.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
@@ -448,7 +449,7 @@
               <PackCase tier="funcao" label={getRoleLabel(functionPackRole)} />
               <strong>{t('packFuncao')}</strong>
               <span class="price"><i></i>{PACK_PRICES.funcao.toLocaleString($language)}</span>
-              <label class="era-year"><span>{t('packFuncaoHint')}</span><select bind:value={functionPackRole}>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+              <PackSelect value={functionPackRole} options={ROLES.map((role) => ({ key: role, name: getRoleLabel(role), caption: t('packFuncao') }))} label={t('packFuncaoHint')} searchLabel={t('search')} emptyLabel={t('selectNoResults')} tone="function" disabled={busy} onSelect={(role) => functionPackRole = role as LineupSlotRole} />
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.funcao} on:click={() => runReveal(() => buyPack(serverUrl, 'funcao', undefined, functionPackRole), 'funcao')}>{t('buy')}</button>
             </article>
             <article class="pack coach">
@@ -472,7 +473,7 @@
               <PackCase tier="era" label={String(eraYear)} />
               <strong>{t('packEra')}</strong>
               <span class="price"><i></i>{PACK_PRICES.era.toLocaleString($language)}</span>
-              <label class="era-year"><span>{t('packEraHint')}</span><select bind:value={eraYear}>{#each YEARS as year}<option value={year}>{year}</option>{/each}</select></label>
+              <PackSelect value={eraYear} options={YEARS.map((year) => ({ key: year, name: String(year), caption: t('packEra') }))} label={t('packEraHint')} searchLabel={t('search')} emptyLabel={t('selectNoResults')} tone="era" disabled={busy} onSelect={(year) => eraYear = Number(year)} />
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear), 'era')}>{t('buy')}</button>
             </article>
           </div>
@@ -779,8 +780,7 @@
   .pack.premium { grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: stretch; gap: 22px; padding: 22px 26px; border-color: color-mix(in srgb, var(--tint) 55%, var(--line)); text-align: left; box-shadow: 0 0 30px color-mix(in srgb, var(--tint) 12%, transparent); }
   .premium-info { display: grid; gap: 10px; justify-items: start; } .premium-info strong { font-size: 2rem; } .premium-info small { color: var(--text); font-size: .85rem; }
   .dupes { text-align: center; padding-top: 8px; }
-  .era-year { display: grid; gap: 4px; width: 100%; text-align: left; } .era-year span { color: var(--muted); font-size: .58rem; text-transform: uppercase; font-weight: 800; }
-  .era-year select, .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
   .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
   .lineup-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .lineup-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
