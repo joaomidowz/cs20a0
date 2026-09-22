@@ -6,7 +6,7 @@
   import StoreNav from '$lib/components/online/StoreNav.svelte';
   import TradesPanel from '$lib/components/online/TradesPanel.svelte';
   import { accountUser, loadAccount } from '$lib/game/online/account';
-  import { fetchCollection, type CollectionState } from '$lib/game/online/collection';
+  import { fetchCollection, lineupLockedIds, type CollectionState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { uiCopy } from '$lib/game/online/ui-copy';
@@ -37,7 +37,7 @@
     {:else if loading}<p class="panel status" role="status" aria-busy="true">{uiCopy($language, 'loading')}</p>
     {:else if !$accountUser}<a class="primary link" href="/online/conta?next=/online/store/trocas">{t('goAccount')}</a>
     {:else if state}
-      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={[...(state.lineup?.playerIds ?? []), ...(state.lineup?.coachId ? [state.lineup.coachId] : [])]} {initialPartner} {initialRequested} onChanged={() => void refresh()} />
+      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={lineupLockedIds(state)} {initialPartner} {initialRequested} onChanged={() => void refresh()} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span><button class="secondary" type="button" on:click={refresh}>{uiCopy($language, 'retry')}</button></p>{/if}
   </section>

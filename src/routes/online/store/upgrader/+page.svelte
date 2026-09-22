@@ -8,7 +8,7 @@
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
   import { collectionTeamById as teamById } from '$lib/game/online/collection-pool';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
-  import { fetchCollection, type CollectionState } from '$lib/game/online/collection';
+  import { fetchCollection, lineupLockedIds, type CollectionState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { UPGRADER_RARITY_CAP, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
@@ -36,7 +36,7 @@
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
   $: ownedIds = state ? state.players.map((item) => item.playerId) : [];
-  $: lockedIds = state?.lineup ? [...state.lineup.playerIds, ...(state.lineup.coachId ? [state.lineup.coachId] : [])] : [];
+  $: lockedIds = lineupLockedIds(state);
 
   async function refresh() {
     try {

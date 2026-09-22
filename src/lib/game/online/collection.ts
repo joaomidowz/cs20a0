@@ -46,6 +46,10 @@ export interface PackOpened {
   wallet: number;
 }
 
+/** Cards fielded on ANY saved lineup (the five players and the coach of every slot): the server refuses to stake, trade or sell them, so the store hides them all — not just the active slot. */
+export const lineupLockedIds = (state: CollectionState | null | undefined): string[] =>
+  (state?.lineups ?? (state?.lineup ? [state.lineup] : [])).flatMap((lineup) => [...lineup.playerIds, ...(lineup.coachId ? [lineup.coachId] : [])]);
+
 export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection').then((state) => { setWalletFromCollection(state); return state; });
 export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} }));
 export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/free', { body: { tier } }));
