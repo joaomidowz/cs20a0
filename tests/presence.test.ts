@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { DEFAULT_ROOM_CONFIG } from '../src/lib/game/online/contracts';
-import { clearPresence, presenceView, startPresencePolling, stopPresencePolling } from '../src/lib/game/online/presence';
+import { clearPresence, presenceRows, presenceView, startPresencePolling, stopPresencePolling } from '../src/lib/game/online/presence';
 import type { authFetch } from '../src/lib/game/online/account';
 import { onlineUserCount, PRESENCE_WINDOW_SECONDS } from '../server/auth/service';
 import { RoomManager } from '../server/room-manager';
@@ -56,6 +56,13 @@ describe('presenceBreakdown (RoomManager)', () => {
     expect(manager.presenceBreakdown()).toEqual({ playing: 0, lobby: 0, final: 1 });
     room.phase = 'completed';
     expect(manager.presenceBreakdown()).toEqual({ playing: 0, lobby: 0, final: 0 });
+  });
+});
+
+describe('presenceRows (cliente)', () => {
+  it('lê como o jogador pensa: em fila é quem espera, em jogo é qualquer sala viva (final incluída)', () => {
+    expect(presenceRows({ online: 5, playing: 2, lobby: 3, final: 1 })).toEqual({ queue: 3, game: 3 });
+    expect(presenceRows({ online: 1, playing: 0, lobby: 1, final: 0 })).toEqual({ queue: 1, game: 0 });
   });
 });
 

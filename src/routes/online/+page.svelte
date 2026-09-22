@@ -439,9 +439,9 @@
   // Competitive queue: poll the server until it matches this account into a room, then connect with the ticket.
   // The 2 s poll is also the heartbeat: a client that stops polling for 20 s is dropped by the server.
   let queueState: 'idle' | 'waiting' | 'matched' = 'idle';
-  /** Social-proof line of the queue card: everyone around and where they are ("12 online · 4 jogando · …"). */
+  /** Social-proof line of the queue card: everyone around, split the way the chip reads it ("12 online · 2 em fila · 4 em jogo"). */
   $: presenceText = $presenceView
-    ? ([[t('onlinePlayers'), $presenceView.online], [t('presencePlaying'), $presenceView.playing], [t('presenceLobby'), $presenceView.lobby], [t('presenceFinal'), $presenceView.final]] as Array<[string, number]>
+    ? ([[t('onlinePlayers'), $presenceView.online], [t('presenceQueue'), $presenceView.lobby], [t('presenceGame'), $presenceView.playing + $presenceView.final]] as Array<[string, number]>
       ).map(([label, value]) => label.replace('{n}', value.toLocaleString($language))).join(' · ')
     : '';
   /** Durante a busca o card fica enxuto; o texto completo abre no botão "?" do header. */

@@ -3,7 +3,7 @@
   import { accountUser } from '$lib/game/online/account';
   import { getOnlineServerUrl } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
-  import { clearPresence, presenceView, startPresencePolling, stopPresencePolling } from '$lib/game/online/presence';
+  import { clearPresence, presenceRows, presenceView, startPresencePolling, stopPresencePolling } from '$lib/game/online/presence';
   import { uiCopy } from '$lib/game/online/ui-copy';
   import { clearWallet, refreshWallet, walletSummary } from '$lib/game/online/wallet';
   import type { Language } from '$lib/game/types';
@@ -35,10 +35,10 @@
           <i></i>{presenceLabel('onlinePlayers', $presenceView.online)}
         </button>
         {#if presenceOpen}
+          {@const rows = presenceRows($presenceView)}
           <div class="presence-pop">
-            <span><i class="play"></i>{presenceLabel('presencePlaying', $presenceView.playing)}</span>
-            <span><i class="lobby"></i>{presenceLabel('presenceLobby', $presenceView.lobby)}</span>
-            <span><i class="final"></i>{presenceLabel('presenceFinal', $presenceView.final)}</span>
+            <span><i class="lobby"></i>{presenceLabel('presenceQueue', rows.queue)}</span>
+            <span><i class="play"></i>{presenceLabel('presenceGame', rows.game)}</span>
           </div>
         {/if}
       </div>
@@ -64,7 +64,6 @@
   .presence-pop i { width: 7px; height: 7px; border-radius: 50%; }
   .presence-pop i.play { background: var(--accent); }
   .presence-pop i.lobby { background: #ffd36b; }
-  .presence-pop i.final { background: #ff5ad8; }
   .add { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; margin-left: auto; padding: 0 16px; border: 1px solid var(--accent); border-radius: 0; background: var(--accent); color: #0a0d08; font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
   .add:hover { background: color-mix(in srgb, var(--accent) 85%, white); }
   .add:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

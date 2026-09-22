@@ -11,6 +11,9 @@ export interface PresenceSnapshot {
 
 export const presenceView = writable<PresenceSnapshot | null>(null);
 
+/** The two rows the chip shows: "em fila" is everyone waiting (matchmaking queue + room lobbies/drafts, the server's `lobby`), "em jogo" is anyone inside a live room, final round included. */
+export const presenceRows = (snapshot: PresenceSnapshot): { queue: number; game: number } => ({ queue: snapshot.lobby, game: snapshot.playing + snapshot.final });
+
 export const clearPresence = () => presenceView.set(null);
 
 type Fetcher = typeof authFetch;
