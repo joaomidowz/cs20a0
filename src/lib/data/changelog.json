@@ -1,8 +1,99 @@
 {
-  "version": "2.9",
-  "total": 298,
-  "generatedAt": "2026-09-21",
+  "version": "3.1",
+  "total": 311,
+  "generatedAt": "2026-09-22",
   "entries": [
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "0939977",
+      "title": "Registra hotfix da economia no changelog",
+      "summary": ""
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "659c2b6",
+      "title": "Hotfix: economia das caixas e venda de cartas",
+      "summary": "Venda de jogadores e coaches ajustada para 40% do valor da carta; caixa Ouro a 12.000 coins e Prata a 5.000 coins para corrigir o lucro médio no ciclo de abrir, vender e recomprar."
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-22",
+      "hash": "ce52c6f",
+      "title": "Aplica nova marca com favicon, icones pwa, manifest e og image",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-22",
+      "hash": "7436da9",
+      "title": "Unifica seletores das caixas de funcao e era",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-22",
+      "hash": "7e22d7c",
+      "title": "Organiza loja e destaca raridade no seletor de times",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-22",
+      "hash": "1b37af5",
+      "title": "Precifica caixas de time por raridade",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "81a5cdd",
+      "title": "Adiciona caixas tematicas e vitrine de trocas",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "ca8dd7c",
+      "title": "Paga 75 por cento na venda de cartas",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "5e5b4f6",
+      "title": "Alonga progressao da colecao",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "da2f015",
+      "title": "Usa lineup_slots na roleta e nas trocas",
+      "summary": ""
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "c5cbf0b",
+      "title": "LineupSchema aceita os seis planos — salvar Tempo/Reativo/Resiliente dava 400",
+      "summary": "O enum zod da rota PUT /lineup ficou nas três tags antigas; os contratos da sala (set-style/confirm-pro) tinham sido estendidos, a rota da coleção não."
+    },
+    {
+      "version": "3.0",
+      "date": "2026-09-21",
+      "hash": "0ec3574",
+      "title": "Seletor de estilo em duas linhas (3+3) e botão '?' com o resumo dos seis estilos",
+      "summary": "O segmented-control global é uma coluna única: com seis estilos o EQUILIBRADO ficava cortado."
+    },
+    {
+      "version": "2.9",
+      "date": "2026-09-21",
+      "hash": "0dba470",
+      "title": "Changelog da versão",
+      "summary": ""
+    },
     {
       "version": "2.9",
       "date": "2026-09-21",
@@ -751,97 +842,6 @@
       "hash": "4dd90ee",
       "title": "Lobby entra com o time da coleção e mostra pontos/awards no fim",
       "summary": "Na entrada do /online, quem está logado e tem time salvo vê \"Entrar com meu time da coleção\": o cliente pede o ticket em POST /rooms/:code/lineup e manda no join; o participante aparece com selo TIME no lobby e pula o draft."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "43f1d89",
-      "title": "Time da coleção entra na sala sem draft; Major grava pontos, awards e temporada",
-      "summary": "Sala (sem bump de protocolo): POST /rooms/:code/lineup registra o lineup salvo e devolve um ticket de 5 min; o `join` com `lineupTicket` entra já pronto e pula o draft (mistura com quem drafta normalmente)."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "ebb1f52",
-      "title": "Tela da coleção (/online/colecao)",
-      "summary": "Carteira, pacotes do dia, loja (prata/ouro/era com ano), chances por raridade, abertura com a roleta (uma volta por carta) e cartas reveladas com selo nova/repetida, grade da coleção com filtros e venda, e montagem do time: cinco vagas, …"
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-18",
-      "hash": "4b40d91",
-      "title": "Pacotes, coleção, coins e lineup com star player (Fase 1, servidor)",
-      "summary": "Regras puras compartilhadas com o cliente em src/lib/game/online: - collection-rules: odds por tier (básico/prata/ouro/era), preços, valor da   carta em coins (curva do mercado da Dinastia escalada), venda a 60%,   prêmio por colocação."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-18",
-      "hash": "a165f51",
-      "title": "Tela de conta (/online/conta) com magic link",
-      "summary": "account.ts guarda a sessão no localStorage, faz fetch autenticado (Bearer) e limpa a sessão em 401."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-18",
-      "hash": "08f7ac9",
-      "title": "Conta por magic link com Postgres (Fase 0 da coleção)",
-      "summary": "Servidor ganha persistência opcional: com DATABASE_URL sobe o pool `pg`, roda migrations inline (schema completo da coleção, awards, temporadas e prep de pagamento) e liga as rotas de conta; sem a variável continua só com salas anônimas …"
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "b847cef",
-      "title": "Foto por jogador-ano com fallback pra foto geral",
-      "summary": "PlayerAvatar procura primeiro a entrada do jogador-ano (device-2016) e só depois a do baseId, então o Studio pode corrigir a foto de um ano sem mexer nos outros."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "be87283",
-      "title": "Spec da coleção por pacotes no modo online",
-      "summary": "Conta por e-mail (magic link, e-mail único), 2 pacotes/dia com 3 versões de anos distintos, coins e duplicatas, lineup com funções repetíveis, sinergia e star player, estratégia por série reaproveitando o motor, schema Postgres, pontos p…"
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "c11a2cb",
-      "title": "✨ circuito com 4-5 eventos, fase Suíça, times clicáveis, caixa e roleta tensa",
-      "summary": "Circuito entre Majors: - 4 a 5 eventos por temporada em vez de 2 (Lenda: 3 Elite + 2 Open; Stage 3:   2 + 2; Challenger: 4 Open, os dois últimos destravados por final no anterior)."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "d6d62c0",
-      "title": "Ajustes de compilação pós-exclusão do modo Carreira",
-      "summary": "Esta branch traz só dados/visuais + histórico 2013-2015 pra produção, sem o modo Carreira (ainda em desenvolvimento em feat/expansao-jogadores)."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "34422fb",
-      "title": "Foto real de jogador pra 399 baseIds, base legal própria (figura pública)",
-      "summary": "Estende a lógica de imagem real do time pra jogador: baixa da Liquipedia a foto de infobox de cada jogador já pesquisado (nacionalidade) nesta sessão, sob uma base de fair use PRÓPRIA e mais restrita que a do logo de organização (docs/pe…"
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "ead3f40",
-      "title": "Legibilidade do logo real + corrige Spirit/Aurora com foto errada",
-      "summary": "TeamBadge.svelte: os logos baixados da Liquipedia vêm em variações allmode/lightmode/darkmode; algumas ficavam ilegíveis no nosso tema escuro (arte escura sobre fundo transparente)."
-    },
-    {
-      "version": "1.8",
-      "date": "2026-09-17",
-      "hash": "e6befdb",
-      "title": "Logo real pra praticamente todas as orgs (101/112), mesma base de fair use",
-      "summary": "Estende o caso de teste do DENDELE pra escala: baixou da Liquipedia o logo oficial de 93 organizações distintas (101 chaves de crest, incluindo nomes alternativos da mesma org como \"G2\"/\"G2 Esports\" e \"MOUZ\"/\"mousesports\" apontando pro m…"
-    },
-    {
-      "version": "1.7",
-      "date": "2026-09-17",
-      "hash": "7ef6a0f",
-      "title": "Logo real de org via fair use + escudos com bandeira/país nas orgs",
-      "summary": "Conclui a feature de identidades (crestFor com orgId/país, TeamBadge exibindo imagem licenciada quando existir, tamanho xl, flags nos cards de jogador e time) deixada pendente de outra sessão, e adiciona o primeiro caso real de logo lice…"
     }
   ]
 }
