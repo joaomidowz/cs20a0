@@ -1,5 +1,7 @@
 <script lang="ts">
   import PageLayout from '$lib/components/PageLayout.svelte';
+  import SeoHead from '$lib/components/SeoHead.svelte';
+  import { SEO_BY_ROUTE } from '$lib/seo';
   import { language, theme } from '$lib/game/pageState';
   import changelog from '$lib/data/changelog.json';
 
@@ -12,10 +14,7 @@
   }, []);
 </script>
 
-<svelte:head>
-  <title>Novidades · cs13a0</title>
-  <meta name="description" content="Tudo o que mudou no cs13a0, versão por versão." />
-</svelte:head>
+<SeoHead metadata={SEO_BY_ROUTE['/changelog']} />
 
 <PageLayout
   language={$language}

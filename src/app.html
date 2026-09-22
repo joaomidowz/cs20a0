@@ -4,7 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#090b0d" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+    <!-- Tags og estáticas: crawlers de preview não executam JS (o app é SPA), então o shell precisa carregá-las. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="cs13a0" />
+    <meta property="og:title" content="cs13a0 · Monte sua line e sobreviva ao Major" />
+    <meta property="og:description" content="Monte uma line histórica de Counter-Strike, escolha funções e dispute um Major simulado por seed no cs13a0." />
+    <meta property="og:url" content="https://cs13a0.com/" />
+    <meta property="og:image" content="https://cs13a0.com/og/cs13a0-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="cs13a0 · Monte sua line e sobreviva ao Major" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="cs13a0 · Monte sua line e sobreviva ao Major" />
+    <meta name="twitter:description" content="Monte uma line histórica de Counter-Strike, escolha funções e dispute um Major simulado por seed no cs13a0." />
+    <meta name="twitter:image" content="https://cs13a0.com/og/cs13a0-og.png" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/icons/cs13a0-icon-180.png" />
+    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+    <meta name="application-name" content="cs13a0" />
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
