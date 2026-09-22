@@ -62,7 +62,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
   });
 
   it('Caixa Coach traz três coaches e Caixa Time aceita uma organização de qualquer época', async () => {
-    await db.query('UPDATE wallets SET coins = 50000');
+    await db.query('UPDATE wallets SET coins = 200000');
     const coach = await call('/packs/buy', { tier: 'coach' });
     expect(coach.status).toBe(200);
     expect(coach.body.players).toHaveLength(3);
@@ -71,9 +71,10 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     const missing = await call('/packs/buy', { tier: 'time' });
     expect(missing.status).toBe(400);
     expect(missing.body.error).toBe('BAD_TEAM');
-    const organization = [...collectionOrganizationByKey.values()].find((item) => item.teamIds.length >= 2)!;
+    const organization = [...collectionOrganizationByKey.values()].find((item) => item.teamIds.length >= 2 && item.rarity === 'legendary')!;
     const team = await call('/packs/buy', { tier: 'time', organization: organization.key });
     expect(team.status).toBe(200);
+    expect(team.body.wallet).toBe(coach.body.wallet - organization.price + team.body.coinsFromDupes);
     expect(team.body.players.every((id: string) => organization.teamIds.includes(collectionPlayerById.get(id)!.teamId!))).toBe(true);
   });
 

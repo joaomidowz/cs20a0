@@ -8,7 +8,7 @@ import { players, playerById } from '../server/data';
 import { rollPack, rollPackWithCoaches } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_RARITY_SCALE, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starRarityScale, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, TEAM_PACK_PRICES, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import { ORG_STYLES } from '../src/lib/game/types';
 import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
@@ -58,6 +58,9 @@ describe('regras de coins', () => {
     expect(PACK_SLOTS.prata[0].goat).toBe(0.2);
     expect(PACK_SLOTS.ouro[0].goat).toBe(0.5);
     expect(DAILY_BASIC_PACKS).toBe(3);
+    expect(TEAM_PACK_PRICES).toEqual({ standard: 15000, elite: 30000, legendary: 50000 });
+    for (const organization of collectionOrganizations) expect(organization.price).toBe(TEAM_PACK_PRICES[organization.rarity]);
+    expect(new Set(collectionOrganizations.map((organization) => organization.rarity))).toEqual(new Set(['standard', 'elite', 'legendary']));
   });
 
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {
@@ -116,9 +119,12 @@ describe('sorteio de pacote', () => {
     expect(coaches).toHaveLength(3);
     expect(coaches.every((card) => card.kind === 'coach')).toBe(true);
     const organization = collectionOrganizations.find((item) => item.teamIds.length >= 2)!;
-    const team = rollPack('time', 'team-box', collectionPlayers, { teamIds: organization.teamIds });
+    const team = rollPack('time', 'team-box', collectionPlayers, { teamIds: organization.teamIds, distinctYears: false });
     expect(team).toHaveLength(3);
     expect(team.every((player) => player.teamId && organization.teamIds.includes(player.teamId))).toBe(true);
+    const oneEra = collectionOrganizations.find((item) => item.teamIds.length === 1)!;
+    const sameEra = rollPack('time', 'one-era-team-box', collectionPlayers, { teamIds: oneEra.teamIds, distinctYears: false });
+    expect(new Set(sameEra.map((player) => player.year)).size).toBe(1);
   });
 
   it('Ícone sempre traz um GOAT e Diamante uma Lenda ou GOAT na primeira carta, sem repetir carta', () => {

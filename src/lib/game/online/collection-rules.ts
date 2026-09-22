@@ -9,6 +9,7 @@ export type PackTier = 'basic' | 'funcao' | 'coach' | 'time' | 'prata' | 'ouro' 
 export type PromoTier = 'promo_elite' | 'promo_superstar' | 'promo_legend' | 'promo_coach';
 export type Rarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
 export type RarityOdds = Readonly<Record<Rarity, number>>;
+export type TeamPackRarity = 'standard' | 'elite' | 'legendary';
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
 export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'coach', 'time', 'prata', 'ouro', 'era', 'diamante', 'icone'];
@@ -48,6 +49,8 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
 export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 2000, era: 10000, ouro: 7500, diamante: 50000, icone: 100000 };
+/** Caixa de Time starts at 15k and rises with the best historical tier available for that organization. */
+export const TEAM_PACK_PRICES: Readonly<Record<TeamPackRarity, number>> = { standard: 15000, elite: 30000, legendary: 50000 };
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {

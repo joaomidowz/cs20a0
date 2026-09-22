@@ -10,6 +10,8 @@ export interface RollOptions {
   role?: LineupSlotRole;
   /** `time` packs: every player belongs to one of the selected organization's historical team ids. */
   teamIds?: readonly string[];
+  /** Team packs may contain cards from the same year; they should not turn a five-card era into two forced premium pulls. */
+  distinctYears?: boolean;
   /** Cards in the pack; defaults to the tier's slot rows (3). */
   size?: number;
 }
@@ -51,7 +53,7 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
     const ladder = ladderOf(pickRarity(PACK_SLOTS[tier][index] ?? PACK_SLOTS[tier][PACK_SLOTS[tier].length - 1], rng()));
     let chosen: Player | null = null;
     for (const rarity of ladder) {
-      const candidates = (byRarity.get(rarity) ?? []).filter((player) => !usedIds.has(player.id) && (options.year || !usedYears.has(player.year ?? 0)));
+      const candidates = (byRarity.get(rarity) ?? []).filter((player) => !usedIds.has(player.id) && (options.year || options.distinctYears === false || !usedYears.has(player.year ?? 0)));
       if (candidates.length) { chosen = candidates[Math.floor(rng() * candidates.length)]; break; }
     }
     if (!chosen) {

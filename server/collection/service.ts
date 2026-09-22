@@ -184,12 +184,12 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
   const selectedOrganization = tier === 'time' ? collectionOrganizationByKey.get(organization ?? '') : undefined;
   if (tier === 'time' && !selectedOrganization) throw new CollectionError(400, 'BAD_TEAM', 'Escolha um time válido');
   return db.tx(async (tx) => {
-    const price = PACK_PRICES[tier];
+    const price = tier === 'time' ? selectedOrganization!.price : PACK_PRICES[tier];
     await applyLedger(tx, userId, -price, 'buy_pack', tier);
     const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
     const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
     const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches,
-      tier === 'era' ? { year } : tier === 'funcao' ? { role } : tier === 'time' ? { teamIds: selectedOrganization!.teamIds } : {});
+      tier === 'era' ? { year } : tier === 'funcao' ? { role } : tier === 'time' ? { teamIds: selectedOrganization!.teamIds, distinctYears: false } : {});
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);

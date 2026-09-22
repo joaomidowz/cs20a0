@@ -192,6 +192,8 @@
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
   const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', coach: 'packCoach', time: 'packTime', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: selectedPackOrganization = collectionOrganizations.find((organization) => organization.key === teamPackOrganization);
+  $: teamPackPrice = selectedPackOrganization?.price ?? PACK_PRICES.time;
+  const teamPackRarityLabel = (rarity: 'standard' | 'elite' | 'legendary') => t(rarity === 'legendary' ? 'packTimeLegendary' : rarity === 'elite' ? 'packTimeElite' : 'packTimeStandard');
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   /** Each line in rating points, measured by taking it away: a percentage says little under the court curve. */
@@ -460,9 +462,9 @@
               <PackOdds tier="time" title={t('packTime')} labels={oddsLabels} />
               <PackCase tier="time" label={selectedPackOrganization?.name ?? t('packTime')} />
               <strong>{t('packTime')}</strong>
-              <span class="price"><i></i>{PACK_PRICES.time.toLocaleString($language)}</span>
-              <label class="era-year"><span>{t('packTimeHint')}</span><select bind:value={teamPackOrganization}>{#each collectionOrganizations as organization}<option value={organization.key}>{organization.name}</option>{/each}</select></label>
-              <button class="secondary" type="button" disabled={busy || !teamPackOrganization || state.wallet < PACK_PRICES.time} on:click={() => runReveal(() => buyPack(serverUrl, 'time', undefined, undefined, teamPackOrganization), 'time')}>{t('buy')}</button>
+              <span class="price"><i></i>{teamPackPrice.toLocaleString($language)} · {selectedPackOrganization ? teamPackRarityLabel(selectedPackOrganization.rarity) : ''}</span>
+              <label class="era-year"><span>{t('packTimeHint')}</span><select bind:value={teamPackOrganization}>{#each collectionOrganizations as organization}<option value={organization.key}>{organization.name} · {teamPackRarityLabel(organization.rarity)} · {organization.price.toLocaleString($language)}</option>{/each}</select></label>
+              <button class="secondary" type="button" disabled={busy || !teamPackOrganization || state.wallet < teamPackPrice} on:click={() => runReveal(() => buyPack(serverUrl, 'time', undefined, undefined, teamPackOrganization), 'time')}>{t('buy')}</button>
             </article>
             <article class="pack era">
               <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
