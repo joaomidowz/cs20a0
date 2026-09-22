@@ -63,15 +63,15 @@ export function magicLinkHtml(link: string, code: string): string {
 </td></tr>
 <tr><td style="padding:28px;">
   <p style="margin:0 0 8px;font:700 11px/1 Arial,Helvetica,sans-serif;color:#c8ff32;letter-spacing:2px;text-transform:uppercase;">Acesso à conta</p>
-  <h1 style="margin:0 0 14px;font:900 28px/1.15 Arial,Helvetica,sans-serif;color:#f2f5f3;">Seu código de acesso</h1>
-  <p style="margin:0 0 18px;font:400 15px/1.6 Arial,Helvetica,sans-serif;color:#a9b3b9;">Digite o código abaixo na tela de login do cs13a0. Vale <strong style="color:#f2f5f3;">15 minutos</strong> e funciona <strong style="color:#f2f5f3;">uma vez só</strong>.</p>
-  <p style="margin:0 0 22px;"><span style="display:inline-block;background:#0e1215;border:1px solid #232b31;color:#c8ff32;font:900 34px/1 'Courier New',monospace;letter-spacing:10px;padding:16px 20px 16px 30px;">${safeCode}</span></p>
-  <p style="margin:0 0 10px;font:400 13px/1.5 Arial,Helvetica,sans-serif;color:#a9b3b9;">No computador, prefira o botão — entra sem digitar nada:</p>
+  <h1 style="margin:0 0 14px;font:900 28px/1.15 Arial,Helvetica,sans-serif;color:#f2f5f3;">Seu link de acesso</h1>
+  <p style="margin:0 0 22px;font:400 15px/1.6 Arial,Helvetica,sans-serif;color:#a9b3b9;">Clique no botão para entrar no cs13a0. Sem senha: o link vale <strong style="color:#f2f5f3;">15 minutos</strong> e funciona <strong style="color:#f2f5f3;">uma vez só</strong>.</p>
   <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#c8ff32;">
     <a href="${href}" style="display:inline-block;padding:15px 28px;font:900 14px/1 Arial,Helvetica,sans-serif;color:#0a0d08;text-decoration:none;letter-spacing:1.5px;text-transform:uppercase;">Entrar no cs13a0</a>
   </td></tr></table>
-  <p style="margin:22px 0 6px;font:400 12px/1.5 Arial,Helvetica,sans-serif;color:#7d878d;">Se o botão não abrir, copie e cole este endereço no navegador:</p>
-  <p style="margin:0;font:400 12px/1.5 'Courier New',monospace;color:#c8ff32;word-break:break-all;">${href}</p>
+  <p style="margin:24px 0 8px;font:400 13px/1.5 Arial,Helvetica,sans-serif;color:#a9b3b9;">No celular, mantenha o dedo sobre o código para copiá-lo e digite na tela de login:</p>
+  <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#0e1215;border:1px solid #232b31;">
+    <span style="display:inline-block;color:#c8ff32;font:900 30px/1 'Courier New',monospace;letter-spacing:9px;padding:18px 14px 18px 23px;">${safeCode}</span>
+  </td></tr></table>
 </td></tr>
 <tr><td style="padding:18px 28px;border-top:1px solid #232b31;background:#0e1215;">
   <p style="margin:0 0 6px;font:400 12px/1.5 Arial,Helvetica,sans-serif;color:#7d878d;">Não pediu este e-mail? Pode ignorar: ninguém entra na sua conta sem o código ou o link.</p>
