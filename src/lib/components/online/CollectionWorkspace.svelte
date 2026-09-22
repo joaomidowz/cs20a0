@@ -9,6 +9,7 @@
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
+  import TeamPackSelect from './TeamPackSelect.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -419,14 +420,14 @@
         <section class="panel shop" bind:this={shopTop}>
           <div class="section-heading"><div><span class="eyebrow">{t('shop').toUpperCase()}</span><h2>{t('shop')}</h2></div></div>
           <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} onBought={() => refresh()} />
-          <div class="shop-grid">
-            <article class="pack basic">
+          <article class="pack basic daily-pack">
               <PackOdds tier="basic" title={t('packBasic')} labels={oddsLabels} />
               <PackCase tier="basic" label={t('packBasic')} />
-              <strong>{t('packBasic')}</strong>
-              <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small>
+              <div class="daily-info"><strong>{t('packBasic')}</strong>
+              <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small></div>
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl), 'basic')}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
             </article>
+          <div class="shop-grid">
             {#each ['prata', 'ouro'] as name}
               {@const tier = name as 'prata' | 'ouro'}
               <article class="pack {tier}">
@@ -458,12 +459,12 @@
               <small>{t('packCoachHint')}</small>
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.coach} on:click={() => runReveal(() => buyPack(serverUrl, 'coach'), 'coach')}>{t('buy')}</button>
             </article>
-            <article class="pack time">
+            <article class="pack time team-{selectedPackOrganization?.rarity ?? 'standard'}">
               <PackOdds tier="time" title={t('packTime')} labels={oddsLabels} />
               <PackCase tier="time" label={selectedPackOrganization?.name ?? t('packTime')} />
               <strong>{t('packTime')}</strong>
               <span class="price"><i></i>{teamPackPrice.toLocaleString($language)} · {selectedPackOrganization ? teamPackRarityLabel(selectedPackOrganization.rarity) : ''}</span>
-              <label class="era-year"><span>{t('packTimeHint')}</span><select bind:value={teamPackOrganization}>{#each collectionOrganizations as organization}<option value={organization.key}>{organization.name} · {teamPackRarityLabel(organization.rarity)} · {organization.price.toLocaleString($language)}</option>{/each}</select></label>
+              <TeamPackSelect bind:value={teamPackOrganization} label={t('packTimeHint')} searchLabel={t('search')} emptyLabel={t('noResults')} rarityLabel={teamPackRarityLabel} disabled={busy} />
               <button class="secondary" type="button" disabled={busy || !teamPackOrganization || state.wallet < teamPackPrice} on:click={() => runReveal(() => buyPack(serverUrl, 'time', undefined, undefined, teamPackOrganization), 'time')}>{t('buy')}</button>
             </article>
             <article class="pack era">
@@ -756,7 +757,15 @@
   .link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 16px; text-decoration: none; }
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
-  .shop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .shop-grid > .pack { display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 330px; padding: 26px 20px 20px; border-top: 2px solid color-mix(in srgb, var(--tint) 65%, var(--line)); }
+  .shop-grid > .pack > button { margin-top: auto; }
+  .pack.funcao { --tint: #5dffbf; } .pack.coach { --tint: #ff9c52; }
+  .pack.time { --tint: #aab8c6; } .pack.time.team-elite { --tint: #b68aff; box-shadow: inset 0 0 32px #b68aff0b; } .pack.time.team-legendary { --tint: #f2c14e; box-shadow: inset 0 0 38px #f2c14e12, 0 0 24px #f2c14e12; }
+  .pack.daily-pack { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; text-align: left; padding: 12px 38px 12px 18px; }
+  .daily-info { display: grid; justify-self: start; gap: 8px; }
+  .pack.daily-pack > button { width: auto; min-width: 200px; margin: 0; }
+  @media (max-width: 600px) { .pack.daily-pack { grid-template-columns: auto minmax(0, 1fr); padding: 16px; } .pack.daily-pack > button { grid-column: 1 / -1; width: 100%; } }
   .premium-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .premium-head { margin-top: 8px; color: #d9a441; }
   .pack { position: relative; display: grid; gap: 10px; align-content: start; justify-items: center; padding: 18px 16px 16px; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--tint, var(--accent)) 12%, var(--surface-2)), var(--surface) 70%); text-align: center; transition: border-color .2s ease, transform .2s ease; }
@@ -853,7 +862,7 @@
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
-  @media (max-width: 1000px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 720px) { .premium-grid { grid-template-columns: 1fr; } .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; } .premium-info { justify-items: center; } }
   @media (max-width: 460px) { .shop-grid { grid-template-columns: 1fr; } }
 
