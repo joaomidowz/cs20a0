@@ -32,7 +32,7 @@ describe('regras de coins', () => {
     expect(high).toBeGreaterThan(low);
     expect(coinValue({ overall: 80, rarity: 'goat' })).toBeGreaterThan(coinValue({ overall: 80, rarity: 'common' }));
     expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * SELL_RATIO));
-    expect(sellValue({ overall: 99, rarity: 'goat' })).toBe(82_500);
+    expect(sellValue({ overall: 99, rarity: 'goat' })).toBe(44_000);
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
     expect(matchReward('placementChampion', true)).toBe(1700);
@@ -44,7 +44,7 @@ describe('regras de coins', () => {
   });
 
   it('pacotes premium: Lenda e GOAT ~40% mais raras, garantias mantidas', () => {
-    expect(PACK_PRICES).toMatchObject({ funcao: 10000, coach: 7500, time: 15000, prata: 2000, ouro: 7500, era: 10000, diamante: 50000, icone: 100000 });
+    expect(PACK_PRICES).toMatchObject({ funcao: 10000, coach: 7500, time: 15000, prata: 5000, ouro: 12000, era: 10000, diamante: 50000, icone: 100000 });
     // Antes: Diamante 10% de GOAT por carta; Ícone 60% Lenda e 20% GOAT nas cartas 2 e 3.
     for (const row of PACK_SLOTS.diamante) expect(row.goat).toBe(6);
     expect(PACK_SLOTS.diamante[1]).toMatchObject({ elite: 14, superstar: 44, legend: 36 });

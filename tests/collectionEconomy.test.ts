@@ -1,11 +1,12 @@
 // tests/collectionEconomy.test.ts
-// Economia da coleção: preço das cartas por raridade, venda direta a 75% e duplicatas baixas para pacotes não
+// Economia da coleção: preço das cartas por raridade, venda direta a 40% e duplicatas baixas para pacotes não
 // imprimirem coins, calculadas com as odds reais de PACK_SLOTS e COACH_CHANCE.
 import { describe, expect, it } from 'vitest';
+import { rollPackWithCoaches } from '../server/collection/packs';
 import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
 import {
   BUYABLE_TIERS, COACH_CHANCE, DUPLICATE_RATIO, PACK_PRICES, PACK_SLOTS, RARITIES, RARITY_BASE_VALUE,
-  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coinValue, rarityOf, sellValue, type Rarity, type RarityOdds
+  RARITY_VALUE_BAND, SELL_RATIO, coachSellValue, coachCoinValue, coinValue, rarityOf, sellValue, type Rarity, type RarityOdds
 } from '../src/lib/game/online/collection-rules';
 
 /** Most a pack may pay back when all its cards are sold, as a share of its price. */
@@ -26,6 +27,24 @@ function packPayback(tier: (typeof BUYABLE_TIERS)[number], player: Map<Rarity, n
 }
 
 describe('preço das cartas', () => {
+  it('vende jogadores e coaches a 40% do valor nominal', () => {
+    for (const card of collectionPlayers) expect(sellValue(card)).toBe(Math.floor(coinValue(card) * 0.4));
+    for (const card of collectionCoaches) expect(coachSellValue(card)).toBe(Math.floor(coachCoinValue(card) * 0.4));
+  });
+
+  it.each(['ouro', 'prata'] as const)('%s: abrir e revender tudo retorna menos de 90% do custo médio', (tier) => {
+    // Pool e sorteador reais: inclui coaches, restrição de anos e fallback de raridade.
+    // Vender tudo antes da próxima compra evita depender do desconto de duplicatas.
+    const samples = 2000;
+    let returned = 0;
+    for (let index = 0; index < samples; index += 1) {
+      const cards = rollPackWithCoaches(tier, `audit-gold:${index}`, collectionPlayers, collectionCoaches);
+      expect(cards).toHaveLength(3);
+      returned += cards.reduce((sum, card) => sum + (card.kind === 'coach' ? coachSellValue(card.coach) : sellValue(card.player)), 0);
+    }
+    expect(returned / samples).toBeLessThan(PACK_PRICES[tier] * 0.9);
+  });
+
   it('fica na faixa da raridade, cresce com o overall e o coach vale 80%', () => {
     for (const player of collectionPlayers) {
       const [low, high] = RARITY_VALUE_BAND[rarityOf(player)];
@@ -53,8 +72,8 @@ describe('preço das cartas', () => {
     }
   });
 
-  it('venda direta paga 75%, mas duplicatas não devolvem 60% do preço do pacote', () => {
-    expect(SELL_RATIO).toBe(0.75);
+  it('venda direta paga 40%, mas duplicatas não devolvem 60% do preço do pacote', () => {
+    expect(SELL_RATIO).toBe(0.4);
     expect(DUPLICATE_RATIO).toBe(0.035);
     const player = byRarity(collectionPlayers, rarityOf, (card) => Math.floor(coinValue(card) * DUPLICATE_RATIO));
     const coach = byRarity(collectionCoaches, rarityOf, (card) => Math.floor(coachCoinValue(card) * DUPLICATE_RATIO));

@@ -48,7 +48,7 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 2000, era: 10000, ouro: 7500, diamante: 50000, icone: 100000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 5000, era: 10000, ouro: 12000, diamante: 50000, icone: 100000 };
 /** Caixa de Time starts at 15k and rises with the best historical tier available for that organization. */
 export const TEAM_PACK_PRICES: Readonly<Record<TeamPackRarity, number>> = { standard: 15000, elite: 30000, legendary: 50000 };
 
@@ -59,7 +59,7 @@ export function packChance(tier: PackTier, rarities: readonly Rarity[]): number 
 }
 
 /** Direct sale back to the site pays this share of the card's displayed value. */
-export const SELL_RATIO = 0.75;
+export const SELL_RATIO = 0.4;
 
 /** Coin value of each rarity, the middle of its band: the upgrader and the trades compare cards by it. */
 export const RARITY_BASE_VALUE: Readonly<Record<Rarity, number>> = { common: 2400, rare: 3600, elite: 6000, superstar: 12000, legend: 24000, goat: 100000 };
