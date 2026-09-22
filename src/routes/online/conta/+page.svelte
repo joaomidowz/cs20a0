@@ -25,6 +25,7 @@
     return tiers;
   }, []);
   const prizeLabel = (tier: { from: number; to: number; coins: number }) => `${tier.from}º${tier.to > tier.from ? `–${tier.to}º` : ''} ${tier.coins >= 1000 ? `${tier.coins / 1000}k` : tier.coins}`;
+  const prizeCoins = (coins: number) => (coins >= 1000 ? `${coins / 1000}k` : `${coins}`);
 
   type Standing = { rank: number; userId: string; displayName: string; teamName: string | null; majorsWon: number; majorsPlayed: number; points: number };
   type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
@@ -200,7 +201,7 @@
             <thead><tr><th>{t('rankCol')}</th><th>{t('teamCol')}</th><th>{t('playerCol')}</th><th>{t('titlesCol')}</th><th>{t('pointsCol')}</th></tr></thead>
             <tbody>
               {#each season.top.slice(0, 20) as row (row.userId)}
-                <tr class:me={row.userId === $accountUser.id}><td>{row.rank}</td><td><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? '—'}</button></td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
+                <tr class:me={row.userId === $accountUser.id}><td>{row.rank}{#if row.rank <= SEASON_PRIZES.length}<span class="prize">{prizeCoins(SEASON_PRIZES[row.rank - 1])}</span>{/if}</td><td><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? '—'}</button></td><td>{row.displayName}</td><td>{row.majorsWon}</td><td><b>{row.points}</b></td></tr>
               {/each}
             </tbody>
           </table></div>
@@ -258,6 +259,7 @@
   .standings th { padding: 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .58rem; letter-spacing: .1em; text-align: left; text-transform: uppercase; }
   .standings td { padding: 9px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
   .standings tr.me td { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
+  .standings .prize { margin-left: 7px; color: #d9a441; font: 900 .72rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .02em; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 </style>
