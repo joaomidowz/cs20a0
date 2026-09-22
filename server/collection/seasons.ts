@@ -10,6 +10,15 @@ import { cardCoinValue } from '../../src/lib/game/online/card-value';
 
 /** Humans needed for a run to score season points at all (two score a third, see `seasonPoints`). */
 export const RANKED_MIN_LOBBY = 2;
+
+/**
+ * Accounts that play the whole game but never appear in any ranking (the owner's own account): they are skipped when
+ * the season table ranks, the closed-season podium fills and end-of-season prizes are granted. Stored e-mails are
+ * already normalized to lower case.
+ */
+const RANKING_EXEMPT_EMAILS = new Set(['jgcustodio2005@gmail.com']);
+export const isRankingExempt = (email: string): boolean => RANKING_EXEMPT_EMAILS.has(email.toLowerCase());
+const rankingExemptEmails = (): string[] => [...RANKING_EXEMPT_EMAILS];
 /** Rules snapshot stored with each season, so a later change never rewrites how an old season was scored. */
 const SEASON_RULES = { byPlacement: PLACEMENT_POINTS, eliminated: ELIMINATED_POINTS, fullLobby: FULL_POINTS_LOBBY, rankedMinLobby: RANKED_MIN_LOBBY, countedPerDay: COUNTED_RUNS_PER_DAY };
 
@@ -193,17 +202,29 @@ export async function currentStandings(db: Db, now: number, userId: string | nul
      ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id`,
     [month]
   );
-  const all: StandingRow[] = rows.map((row, index) => ({
-    rank: index + 1,
-    userId: row.user_id,
-    displayName: row.display_name ?? row.email.split('@')[0],
-    teamName: row.team_name,
-    majorsWon: row.majors_won,
-    majorsPlayed: row.majors_played,
-    points: row.points,
-    avgRating: row.avg_rating === null ? null : Number(row.avg_rating)
-  }));
-  return { month, top: all.slice(0, 50), me: userId ? all.find((row) => row.userId === userId) ?? null : null };
+  // Exempt accounts never occupy a rank: the counter only advances for everyone else, and an exempt viewer still
+  // resolves `me` with the rank they would hold (one more than the non-exempt players ahead of them).
+  const ranked: StandingRow[] = [];
+  const exempt = new Map<string, StandingRow>();
+  let rank = 0;
+  for (const row of rows) {
+    const base = {
+      userId: row.user_id,
+      displayName: row.display_name ?? row.email.split('@')[0],
+      teamName: row.team_name,
+      majorsWon: row.majors_won,
+      majorsPlayed: row.majors_played,
+      points: row.points,
+      avgRating: row.avg_rating === null ? null : Number(row.avg_rating)
+    };
+    if (isRankingExempt(row.email)) {
+      exempt.set(row.user_id, { ...base, rank: rank + 1 });
+      continue;
+    }
+    rank += 1;
+    ranked.push({ ...base, rank });
+  }
+  return { month, top: ranked.slice(0, 50), me: userId ? ranked.find((row) => row.userId === userId) ?? exempt.get(userId) ?? null : null };
 }
 
 export async function awardsOf(db: Db, userId: string): Promise<Array<{ kind: string; count: number; last: string }>> {
@@ -227,9 +248,10 @@ export async function closeFinishedSeasons(db: Db, now: number): Promise<Array<{
       const [locked] = await tx.query<{ id: number }>(`UPDATE seasons SET status = 'closed' WHERE id = $1 AND status = 'active' RETURNING id`, [season.id]);
       if (!locked) return 0;
       const rows = await tx.query<{ user_id: string; points: number; majors_won: number }>(
-        `SELECT user_id, points, majors_won FROM season_standings WHERE season_id = $1 AND points > 0
-         ORDER BY points DESC, majors_won DESC, avg_rating DESC NULLS LAST, user_id LIMIT 10`,
-        [season.id]
+        `SELECT s.user_id, s.points, s.majors_won FROM season_standings s JOIN users u ON u.id = s.user_id
+         WHERE s.season_id = $1 AND s.points > 0 AND u.email <> ANY($2::text[])
+         ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT 10`,
+        [season.id, rankingExemptEmails()]
       );
       const rules = new Map((await tx.query<{ kind: string; coins: number }>(`SELECT kind, coins FROM award_rules WHERE kind LIKE 'season_top%'`)).map((row) => [row.kind, row.coins]));
       let count = 0;
@@ -254,8 +276,8 @@ export async function lastSeasonPodium(db: Db): Promise<{ month: string; podium:
   if (!season) return null;
   const rows = await db.query<{ display_name: string | null; team_name: string | null; email: string; points: number }>(
     `SELECT u.display_name, u.team_name, u.email, s.points FROM season_standings s JOIN users u ON u.id = s.user_id
-     WHERE s.season_id = $1 AND s.points > 0 ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT 3`,
-    [season.id]
+     WHERE s.season_id = $1 AND s.points > 0 AND u.email <> ANY($2::text[]) ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT 3`,
+    [season.id, rankingExemptEmails()]
   );
   return { month: season.month.toISOString().slice(0, 10), podium: rows.map((row, index) => ({ rank: index + 1, displayName: row.display_name ?? row.email.split('@')[0], teamName: row.team_name, points: row.points })) };
 }
