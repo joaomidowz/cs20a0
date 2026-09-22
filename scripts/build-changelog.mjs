@@ -32,12 +32,30 @@ const commits = raw.map((block) => block.trim()).filter(Boolean).map((block) => 
 const TRAILER_LINE = /^(co-authored-by|claude-session|signed-off-by|generated with|refs|reviewed-by|🤖)/i;
 
 /** O título e a frase de cada nota: o assunto do commit sem o prefixo, e a primeira frase do corpo sem trailers. */
+/** Commits de controle do changelog (registrando notas) não são nota de release para o jogador. */
+const META_HASHES = new Set([
+  '09399779cba8dd1ddf2b52f84f03bb96e2dcb1de',
+  '2f07056d7f008d633781099d9edbb29c3601e394'
+]);
+
 function noteOf(commit) {
-  // Nota pública do hotfix: manter os valores aprovados nas próximas regenerações.
-  if (commit.hash === '659c2b6f4f577cf67ee94f39e7ff77be81e1e41f') return {
-    title: 'Hotfix: economia das caixas e venda de cartas',
-    summary: 'Venda de jogadores e coaches ajustada para 40% do valor da carta; caixa Ouro a 12.000 coins e Prata a 5.000 coins para corrigir o lucro médio no ciclo de abrir, vender e recomprar.'
+  // Notas públicas aprovadas: manter os textos nas próximas regenerações.
+  const pinned = {
+    '659c2b6f4f577cf67ee94f39e7ff77be81e1e41f': {
+      title: 'Hotfix: economia das caixas e venda de cartas',
+      summary: 'Venda de jogadores e coaches ajustada para 40% do valor da carta; caixa Ouro a 12.000 coins e Prata a 5.000 coins para corrigir o lucro médio no ciclo de abrir, vender e recomprar.'
+    },
+    'ce52c6fa6fd85f1730e0f6897448d8c5101f3ef6': {
+      title: 'Nova marca visual e modo app',
+      summary: 'Ícone, favicon e imagem de compartilhamento renovados com a marca CS, e o jogo agora pode ser instalado como aplicativo na tela inicial do celular; links compartilhados mostram o banner novo.'
+    },
+    '1023bbf0ec48d4ecf9334b5835c1079a83c188bf': {
+      title: 'Login por código de 6 dígitos, além do link',
+      summary: 'O e-mail de acesso passa a trazer um código que dá para digitar na tela de login quando o link não abre o jogo — vale no celular, no app instalado e em qualquer navegador.'
+    }
   };
+  if (pinned[commit.hash]) return pinned[commit.hash];
+  if (META_HASHES.has(commit.hash)) return { title: '', summary: '' };
   const withoutType = commit.subject.replace(/^(feat|fix|chore|docs|test|refactor|perf|style|balance|merge)(\([^)]*\))?:\s*/i, '');
   const title = withoutType.charAt(0).toUpperCase() + withoutType.slice(1);
   const bodyWithoutTrailers = commit.body.split('\n').filter((line) => line.trim() && !TRAILER_LINE.test(line.trim()) && !/^https:\/\/claude\.ai\//.test(line.trim())).join('\n');
@@ -46,7 +64,7 @@ function noteOf(commit) {
   return { title, summary: sentence.length > 240 ? `${sentence.slice(0, 237)}…` : sentence };
 }
 
-const entries = commits.map((commit, index) => ({
+const entries = commits.filter((commit) => !META_HASHES.has(commit.hash)).map((commit, index) => ({
   version: versionOf(index + 1),
   date: commit.date,
   hash: commit.hash.slice(0, 7),

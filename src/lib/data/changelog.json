@@ -1,14 +1,14 @@
 {
   "version": "3.1",
-  "total": 311,
+  "total": 313,
   "generatedAt": "2026-09-22",
   "entries": [
     {
       "version": "3.1",
       "date": "2026-09-22",
-      "hash": "0939977",
-      "title": "Registra hotfix da economia no changelog",
-      "summary": ""
+      "hash": "1023bbf",
+      "title": "Login por código de 6 dígitos, além do link",
+      "summary": "O e-mail de acesso passa a trazer um código que dá para digitar na tela de login quando o link não abre o jogo — vale no celular, no app instalado e em qualquer navegador."
     },
     {
       "version": "3.1",
@@ -21,8 +21,8 @@
       "version": "3.0",
       "date": "2026-09-22",
       "hash": "ce52c6f",
-      "title": "Aplica nova marca com favicon, icones pwa, manifest e og image",
-      "summary": ""
+      "title": "Nova marca visual e modo app",
+      "summary": "Ícone, favicon e imagem de compartilhamento renovados com a marca CS, e o jogo agora pode ser instalado como aplicativo na tela inicial do celular; links compartilhados mostram o banner novo."
     },
     {
       "version": "3.0",
