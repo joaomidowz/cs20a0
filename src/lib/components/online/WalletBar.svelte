@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { accountUser } from '$lib/game/online/account';
   import { getOnlineServerUrl } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
+  import { clearPresence, presenceView, startPresencePolling, stopPresencePolling } from '$lib/game/online/presence';
   import { uiCopy } from '$lib/game/online/ui-copy';
   import { clearWallet, refreshWallet, walletSummary } from '$lib/game/online/wallet';
   import type { Language } from '$lib/game/types';
@@ -10,12 +12,16 @@
   export let language: Language;
 
   let loadedFor = '';
+  let presenceOpen = false;
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline(language, key);
   $: u = (key: Parameters<typeof uiCopy>[1]) => uiCopy(language, key);
   // First load per account; afterwards the pages keep it fresh (every collection reload and every purchase update the store).
-  $: if ($accountUser && loadedFor !== $accountUser.id) { loadedFor = $accountUser.id; if (!$walletSummary) void refreshWallet(getOnlineServerUrl()); }
-  $: if (!$accountUser && loadedFor) { loadedFor = ''; clearWallet(); }
+  $: if ($accountUser && loadedFor !== $accountUser.id) { loadedFor = $accountUser.id; if (!$walletSummary) void refreshWallet(getOnlineServerUrl()); startPresencePolling(getOnlineServerUrl()); }
+  $: if (!$accountUser && loadedFor) { loadedFor = ''; clearWallet(); clearPresence(); stopPresencePolling(); }
   $: fmt = (value: number) => value.toLocaleString(language);
+  /** The `{n}` texts of the chip and its dropdown, fed by the slow /presence poll. */
+  $: presenceLabel = (key: Parameters<typeof translateOnline>[1], value: number) => t(key).replace('{n}', fmt(value));
+  onDestroy(() => stopPresencePolling());
 </script>
 
 {#if $accountUser}
@@ -23,6 +29,20 @@
     <div class="stat coins"><span class="label">{t('wallet')}</span><strong>{$walletSummary ? fmt($walletSummary.coins) : '…'}</strong><small>coins</small></div>
     <div class="stat"><span class="label">{t('packsToday')}</span><strong>{$walletSummary ? `${$walletSummary.packsLeft}/${$walletSummary.packsGranted}` : '…'}</strong><small class="short">{u('packsShort')}</small></div>
     <div class="stat"><span class="label">{t('myCards')}</span><strong>{$walletSummary ? fmt($walletSummary.cards) : '…'}</strong><small class="short">{u('cardsShort')}</small></div>
+    {#if $presenceView}
+      <div class="presence">
+        <button type="button" class="presence-chip" aria-expanded={presenceOpen} on:click={() => presenceOpen = !presenceOpen}>
+          <i></i>{presenceLabel('onlinePlayers', $presenceView.online)}
+        </button>
+        {#if presenceOpen}
+          <div class="presence-pop">
+            <span><i class="play"></i>{presenceLabel('presencePlaying', $presenceView.playing)}</span>
+            <span><i class="lobby"></i>{presenceLabel('presenceLobby', $presenceView.lobby)}</span>
+            <span><i class="final"></i>{presenceLabel('presenceFinal', $presenceView.final)}</span>
+          </div>
+        {/if}
+      </div>
+    {/if}
     <a class="add" href="/online/store#comprar-coins">{u('addCoins')}</a>
   </div>
 {/if}
@@ -34,6 +54,17 @@
   strong { color: var(--accent); font: 900 1.35rem/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
   small { color: var(--muted); font-size: .66rem; font-weight: 700; }
   .short { display: none; }
+  .presence { position: relative; }
+  .presence-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+  .presence-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: presencePulse 2s ease-in-out infinite; }
+  .presence-chip[aria-expanded='true'] { border-color: var(--accent); color: var(--accent); }
+  @keyframes presencePulse { 50% { opacity: .3; } }
+  .presence-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 50; display: grid; gap: 6px; min-width: 150px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+  .presence-pop span { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .68rem; font-weight: 700; white-space: nowrap; }
+  .presence-pop i { width: 7px; height: 7px; border-radius: 50%; }
+  .presence-pop i.play { background: var(--accent); }
+  .presence-pop i.lobby { background: #ffd36b; }
+  .presence-pop i.final { background: #ff5ad8; }
   .add { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; margin-left: auto; padding: 0 16px; border: 1px solid var(--accent); border-radius: 0; background: var(--accent); color: #0a0d08; font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
   .add:hover { background: color-mix(in srgb, var(--accent) 85%, white); }
   .add:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

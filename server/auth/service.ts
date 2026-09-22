@@ -5,6 +5,8 @@ import { hashToken, isDisposable, newCode, newToken, normalizeEmail } from './to
 
 export const MAGIC_LINK_TTL_MS = 15 * 60_000;
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60_000;
+/** "Online now" for the presence chip: any authenticated request inside this window (getSession bumps last_seen_at). */
+export const PRESENCE_WINDOW_SECONDS = 5 * 60;
 
 export interface AuthUser {
   id: string;
@@ -134,6 +136,12 @@ export async function getSession(deps: Pick<AuthDeps, 'db' | 'now'>, sessionToke
 
 export async function logout(deps: Pick<AuthDeps, 'db'>, sessionToken: string) {
   await deps.db.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(sessionToken)]);
+}
+
+/** Accounts seen inside the window; the /presence poll is itself authenticated, so watching the chip keeps you counted. */
+export async function onlineUserCount(db: Db, windowSeconds: number): Promise<number> {
+  const [row] = await db.query<{ count: number }>('SELECT count(*)::int AS count FROM users WHERE last_seen_at > now() - make_interval(secs => $1)', [windowSeconds]);
+  return row?.count ?? 0;
 }
 
 export async function setProfile(deps: Pick<AuthDeps, 'db'>, userId: string, profile: { displayName: string; teamName: string }) {

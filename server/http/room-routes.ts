@@ -3,6 +3,7 @@ import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
 import { toSelectedPlayer } from '../../src/lib/game/online/collection-lineup';
 import { awardsOf, currentStandings, lastSeasonPodium, majorResult, publicProfile, roomRewards } from '../collection/seasons';
+import { onlineUserCount, PRESENCE_WINDOW_SECONDS } from '../auth/service';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
 import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
@@ -38,6 +39,17 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
       return { ok: true, ...queue.status(userId!) };
     })),
     route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.status(userId!) }))),
+    /** Who is around: recent activity for "online", connected players by room phase for the dropdown. Queue waiters count as lobby. */
+    route('GET', /^\/presence$/, withAuth(async () => {
+      const breakdown = manager.presenceBreakdown();
+      return {
+        ok: true,
+        online: await onlineUserCount(db, PRESENCE_WINDOW_SECONDS),
+        playing: breakdown.playing,
+        lobby: breakdown.lobby + queue.size(),
+        final: breakdown.final
+      };
+    })),
     /** Registers the saved lineup for a room; the ticket goes in the `join` command and skips the draft. */
     route('POST', /^\/rooms\/([A-Z2-9]{8})\/lineup$/i, withAuth(async ({ params, userId, now }) => {
       const prepared = await preparedFor(db, userId!);

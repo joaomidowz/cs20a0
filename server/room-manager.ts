@@ -524,6 +524,27 @@ export class RoomManager {
     return this.rooms.size;
   }
 
+  /**
+   * Connected humans by where they are, for the "online" chip: lobby/draft rooms are waiting, live rounds are playing
+   * and the current round being the final gets its own bucket. Disconnected players and completed rooms never count;
+   * the matchmaking queue joins the lobby number at the route (the manager cannot see it).
+   */
+  presenceBreakdown(): { playing: number; lobby: number; final: number } {
+    let playing = 0;
+    let lobby = 0;
+    let final = 0;
+    for (const room of this.rooms.values()) {
+      if (room.phase === 'completed') continue;
+      let humans = 0;
+      for (const participant of room.participants.values()) if (participant.connected) humans += 1;
+      if (!humans) continue;
+      if (room.phase === 'lobby' || room.phase === 'draft') lobby += humans;
+      else if (room.engine && currentRound(room.engine)?.phase === 'final') final += humans;
+      else playing += humans;
+    }
+    return { playing, lobby, final };
+  }
+
   join(code: string, playerName: string, organizationName: string, now = Date.now(), lineupTicket?: string): JoinResult {
     const room = this.requireRoom(code);
     if (room.phase !== 'lobby') throw new RoomError('ROOM_STARTED', 'The room has already started');
