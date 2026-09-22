@@ -173,7 +173,10 @@
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
-  $: identityValid = playerName.trim().length >= 2 && organizationName.trim().length >= 2;
+  // Logado: identidade vem da conta (banco); deslogado: exige os dois campos digitados.
+  $: resolvedPlayerName = playerName.trim() || $accountUser?.displayName || $accountUser?.email.split('@')[0] || '';
+  $: resolvedOrganizationName = organizationName.trim() || $accountUser?.teamName || (resolvedPlayerName ? `${resolvedPlayerName} Esports` : '');
+  $: identityValid = Boolean($accountUser) || (resolvedPlayerName.length >= 2 && resolvedOrganizationName.length >= 2);
   $: self = snapshot?.self ?? null;
   $: me = snapshot?.participants.find((participant) => participant.id === self?.participantId) ?? null;
   $: freeRoles = snapshot ? hasFreeRoles(snapshot.config.mode) : false;
@@ -419,12 +422,19 @@
   }
 
   function validIdentity() {
-    return playerName.trim().length >= 2 && organizationName.trim().length >= 2;
+    return Boolean($accountUser) || (resolvedPlayerName.length >= 2 && resolvedOrganizationName.length >= 2);
+  }
+
+  /** Deslogado: rola até os campos de nome/org; logado: até os botões de entrada (onde fica o toggle da coleção). */
+  function jumpToIdentity() {
+    document.getElementById($accountUser ? 'online-entry-actions' : 'online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   // Competitive queue: poll the server until it matches this account into a room, then connect with the ticket.
   // The 2 s poll is also the heartbeat: a client that stops polling for 20 s is dropped by the server.
   let queueState: 'idle' | 'waiting' | 'matched' = 'idle';
+  /** Durante a busca o card fica enxuto; o texto completo abre no botão "?" do header. */
+  let queueInfo = false;
   let queueWaiting = 0;
   let queueSince = 0;
   let queueElapsed = 0;
@@ -477,9 +487,8 @@
       try { queueAudio ??= new AudioContext(); void queueAudio.resume(); } catch { queueAudio = null; }
     }
     try {
-      const user = $accountUser;
-      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
-      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+      playerName = resolvedPlayerName || 'Player';
+      organizationName = resolvedOrganizationName || `${playerName} Esports`;
       await onlineSession.joinQueue({ playerName, organizationName });
       if (silent) queueNotice = '';
     } catch (error) {
@@ -495,9 +504,8 @@
     soloBusy = true;
     try {
       const result = await startSolo(getOnlineServerUrl(), field);
-      const user = $accountUser;
-      playerName = playerName.trim() || user?.displayName || user?.email.split('@')[0] || 'Player';
-      organizationName = organizationName.trim() || user?.teamName || `${playerName} Esports`;
+      playerName = resolvedPlayerName || 'Player';
+      organizationName = resolvedOrganizationName || `${playerName} Esports`;
       roomCode = result.roomCode;
       pendingLineupTicket = result.lineupTicket;
       const url = new URL(window.location.href);
@@ -534,7 +542,7 @@
     if (!validIdentity()) return;
     creating = true;
     errorMessage = '';
-    saveOnlineIdentity({ playerName, organizationName });
+    saveOnlineIdentity({ playerName: resolvedPlayerName, organizationName: resolvedOrganizationName });
     saveOnlineConfig(config);
     try {
       roomCode = await createOnlineRoom(getOnlineServerUrl(), config);
@@ -559,7 +567,7 @@
     }
     errorMessage = '';
     creating = true;
-    saveOnlineIdentity({ playerName, organizationName });
+    saveOnlineIdentity({ playerName: resolvedPlayerName, organizationName: resolvedOrganizationName });
     try {
       if (!(await checkOnlineRoom(getOnlineServerUrl(), roomCode))) {
         errorMessage = t('roomNotFound');
@@ -581,7 +589,7 @@
   function connect() {
     const ticket = pendingLineupTicket;
     pendingLineupTicket = undefined;
-    onlineSession.connectRoom(roomCode, { playerName: playerName.trim(), organizationName: organizationName.trim(), ...(ticket ? { lineupTicket: ticket } : {}) });
+    onlineSession.connectRoom(roomCode, { playerName: resolvedPlayerName, organizationName: resolvedOrganizationName, ...(ticket ? { lineupTicket: ticket } : {}) });
   }
 
   function applyPersistentRoom(room: OnlineRoomView) {
@@ -966,9 +974,13 @@
       </header>
       <div class="mode-choice">
         <article class="panel mode-card collection-mode" class:logged={Boolean($accountUser)}>
+          <!-- Header enxuto sempre: a descrição longa fica no botão "?" (hover/click), o card não cresce durante a busca. -->
           <span class="eyebrow">{$accountUser ? t('loggedReady') : 'LOGIN · E-MAIL'} · {t('competitive').toUpperCase()}</span>
-          <h2>{t('findMatch')}</h2>
-          <p>{t('findMatchHint')}</p>
+          <div class="queue-heading">
+            <h2>{t('findMatch')}</h2>
+            <button class="info-btn" type="button" aria-expanded={queueInfo} title={t('findMatchHint')} on:click={() => queueInfo = !queueInfo}>?</button>
+          </div>
+          {#if queueInfo}<p class="queue-hint-info">{t('findMatchHint')}</p>{/if}
           {#if !$accountUser}
             <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
           {:else if queueState === 'waiting' || queueState === 'matched'}
@@ -983,7 +995,7 @@
             <button class="primary" type="button" on:click={() => joinQueue()}>{queueNotice ? t('searchAgain') : t('findMatch')}</button>
           {/if}
           <div class="draft-entry">
-            <button class="secondary" type="button" on:click={() => { useCollectionTeam = false; document.getElementById('online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>{t('playDraft')}</button>
+            <button class="secondary" type="button" on:click={() => { useCollectionTeam = false; jumpToIdentity(); }}>{t('playDraft')}</button>
             <small>{t('draftModeNote')}</small>
           </div>
         </article>
@@ -1001,21 +1013,39 @@
           <span class="eyebrow">{t('notCompetitive').toUpperCase()}</span>
           <h2>{t('friendsRoom')}</h2>
           <p>{t('friendsRoomHint')}</p>
-          <button class="secondary" type="button" on:click={() => document.getElementById('online-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{t('friendsRoom')}</button>
+          <button class="secondary" type="button" on:click={jumpToIdentity}>{t('friendsRoom')}</button>
         </article>
       </div>
-      <div class="identity-grid panel" id="online-identity">
-        <label><span>{t('playerName')}</span><input bind:value={playerName} minlength="2" maxlength="24" autocomplete="nickname" /></label>
-        <label><span>{t('orgName')}</span><input bind:value={organizationName} minlength="2" maxlength="24" /></label>
-        {#if $accountUser}
-          <label class="collection-toggle"><input type="checkbox" bind:checked={useCollectionTeam} disabled={!hasSavedLineup} /><span>{t('useCollectionTeam')}</span><small>{hasSavedLineup ? t('collectionTeamHint') : t('noSavedLineup')} <a href="/online/colecao">{t('viewCollection')}</a></small></label>
-        {/if}
-      </div>
-      <div class="entry-actions">
+      {#if $accountUser}
+        <div class="identity-strip panel">
+          <div class="strip-copy">
+            <span class="eyebrow">{t('playingAs')}</span>
+            <p><strong>{resolvedPlayerName}</strong><small>{resolvedOrganizationName}</small></p>
+          </div>
+          <a href="/online/conta">{t('editProfile')}</a>
+        </div>
+      {:else}
+        <div class="identity-grid panel" id="online-identity">
+          <label><span>{t('playerName')}</span><input bind:value={playerName} minlength="2" maxlength="24" autocomplete="nickname" /></label>
+          <label><span>{t('orgName')}</span><input bind:value={organizationName} minlength="2" maxlength="24" /></label>
+        </div>
+      {/if}
+      <div class="entry-actions" id="online-entry-actions">
         <section class="panel">
           <span class="eyebrow">HOST</span>
           <h2>{t('host')}</h2>
           <button class="primary" type="button" disabled={!identityValid || creating} on:click={hostRoom}>{creating ? '...' : t('host')}</button>
+          {#if $accountUser}
+            <div class="collection-toggle">
+              <div class="toggle-copy">
+                <strong>{t('useCollectionTeam')}</strong>
+                <small>{hasSavedLineup ? t('collectionTeamHint') : t('noSavedLineup')} <a href="/online/colecao">{t('viewCollection')}</a></small>
+              </div>
+              <button class="switch" type="button" role="switch" aria-checked={useCollectionTeam} aria-label={t('useCollectionTeam')} disabled={!hasSavedLineup} on:click={() => useCollectionTeam = !useCollectionTeam}>
+                <em>{useCollectionTeam ? 'ON' : 'OFF'}</em><i><span></span></i>
+              </button>
+            </div>
+          {/if}
         </section>
         <section class="panel">
           <span class="eyebrow">JOIN</span>
@@ -1442,11 +1472,15 @@
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:none;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:50px;margin-top:0;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border-left:3px solid #d9a441}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
-  .collection-toggle{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}.collection-toggle input{width:18px;height:18px;min-height:0}.collection-toggle small{grid-column:2;color:var(--muted);font-size:.7rem;text-transform:none}.collection-toggle small a{color:var(--accent)}.team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:50px;padding:0 20px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
+  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border-left:3px solid #d9a441}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.queue-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.mode-card .info-btn{flex:none;width:26px;height:26px;min-height:0;margin:0;padding:0;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.82rem;font-weight:900;line-height:1;cursor:pointer;transition:.18s ease}.mode-card .info-btn:hover,.mode-card .info-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}.queue-hint-info{margin:-4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
+  .identity-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;margin:28px 0 14px;padding:18px}.identity-strip .strip-copy p{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 0}.identity-strip strong{font-size:1.05rem}.identity-strip small{color:var(--muted);font-size:.82rem;font-weight:700}.identity-strip>a{flex:none;color:var(--muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.identity-strip>a:hover{color:var(--accent)}
+  .collection-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.collection-toggle .toggle-copy{display:grid;gap:3px;min-width:0}.collection-toggle strong{font:800 .72rem/1.2 Inter,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase}.collection-toggle small{color:var(--muted);font-size:.66rem;line-height:1.35;text-transform:none}.collection-toggle small a{color:var(--accent)}
+  .switch{display:inline-flex;align-items:center;gap:8px;padding:0;border:0;background:transparent;color:var(--muted);cursor:pointer}.switch em{min-width:26px;font:800 .62rem/1 Inter,Arial,sans-serif;font-style:normal;letter-spacing:.1em;text-align:right;transition:color .18s ease}.switch i{position:relative;display:block;width:46px;height:26px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2);transition:.18s ease}.switch i span{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.18s ease}.switch[aria-checked="true"]{color:var(--accent)}.switch[aria-checked="true"] i{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--surface-2))}.switch[aria-checked="true"] i span{left:23px;background:var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%,transparent)}.switch:disabled{opacity:.45;cursor:not-allowed}
+  .entry-actions .collection-toggle .switch{width:auto;margin-top:0}
+  .team-badge-tag{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.5rem;font-style:normal;font-weight:900;letter-spacing:.1em;vertical-align:middle}.collection-outcome{display:grid;gap:12px;margin-bottom:14px;padding:18px}.collection-outcome .secondary{display:inline-flex;align-items:center;min-height:50px;padding:0 20px;text-decoration:none}.awards-line{margin:0;color:var(--muted);font-size:.74rem}.awards-line span{color:var(--text);font-weight:800}
   @media(min-width:680px){.mode-choice{grid-template-columns:repeat(3,1fr)}.identity-grid{grid-template-columns:1fr 1fr}.entry-actions,.lobby-grid{grid-template-columns:1fr 1fr}}
   /* Below the sticky navbar and wallet bar; on phones the page nav sits at the bottom. */
-  @media(max-width:720px){.online-entry,.online-room{padding:8px 0 40px}.watch-bar,.live-actions{top:118px}.after-run>*{flex:1 1 160px}.identity-grid{margin:16px 0 12px;padding:14px}.live-board{padding:14px}.collection-outcome{padding:14px}.online-link{justify-content:center}}
+  @media(max-width:720px){.online-entry,.online-room{padding:8px 0 40px}.watch-bar,.live-actions{top:118px}.after-run>*{flex:1 1 160px}.identity-grid,.identity-strip{margin:16px 0 12px;padding:14px}.switch i{width:50px;height:28px}.switch i span{width:20px;height:20px}.switch[aria-checked="true"] i span{left:25px}.live-board{padding:14px}.collection-outcome{padding:14px}.online-link{justify-content:center}}
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}

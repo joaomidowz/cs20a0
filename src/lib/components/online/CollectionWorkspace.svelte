@@ -11,6 +11,7 @@
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
   import PackSelect from './PackSelect.svelte';
   import TeamPackSelect from './TeamPackSelect.svelte';
+  import StyledSelect from './StyledSelect.svelte';
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
@@ -113,6 +114,11 @@
 
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
   $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
+  const roleOptionsOf = (slot: Player) => eligibleRolesOf(slot).map((role) => ({ value: role as string, label: collectionRoleLabel(role) }));
+  $: coachOptions = [{ value: '', label: t('pickCoach') }, ...ownedCoaches.map((coach) => ({ value: coach.id, label: coach.name, caption: `${coach.year} · ${coach.overall}` }))];
+  $: yearOptions = [{ value: '', label: t('all') }, ...YEARS.map((year) => ({ value: String(year), label: String(year) }))];
+  $: roleFilterOptions = [{ value: '', label: t('all') }, ...ROLES.map((role) => ({ value: role, label: getRoleLabel(role) }))];
+  $: rarityOptions = [{ value: '', label: t('all') }, ...RARITIES.map((rarity) => ({ value: rarity, label: rarity }))];
   $: activeCoach = coachId ? collectionCoachById.get(coachId) ?? null : null;
   $: coachBonus = activeCoach && complete ? coachAffinity(activeCoach, lineupPlayers, collectionTeams) : 0;
   $: ownedIds = new Set(owned.map((player) => player.id));
@@ -546,7 +552,7 @@
                   <div class="slot-row">
                     <MiniCard id={slot.id} layout="row" star={slot.id === starPlayerId && starOk} onClick={() => detailsPlayer = slot} />
                     <div class="row-actions">
-                      <select aria-label={t('role')} value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as CollectionSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{collectionRoleLabel(role)}</option>{/each}</select>
+                      <StyledSelect ariaLabel={t('role')} options={roleOptionsOf(slot)} value={roles[index] ?? ''} onSelect={(next) => { roles[index] = next as CollectionSlotRole; roles = [...roles]; }} />
                       <div class="row-buttons">
                         <button class="icon" type="button" class:active={slot.id === starPlayerId} aria-pressed={slot.id === starPlayerId} aria-label={`${t('star')}: ${slot.nickname ?? slot.id}`} title={t('star')} on:click={() => starPlayerId = starPlayerId === slot.id ? null : slot.id}>★</button>
                         <button class="icon" type="button" aria-label={`${u('replace')}: ${slot.nickname ?? slot.id}`} title={u('replace')} on:click={() => openSlot(index)}>⇄</button>
@@ -557,7 +563,7 @@
                   {#if swapIn}<button class="primary small swap-here" type="button" on:click={() => swapInto(index)}>{t('swapHere')} {slot.nickname ?? slot.id}</button>{/if}
                   <div class="slot-desk">
                     <button class="secondary small" type="button" on:click={() => openSlot(index)}>{u('replace')}</button>
-                    <label class="slot-role"><span>{t('role')}</span><select value={roles[index]} on:change={(event) => { roles[index] = (event.currentTarget as HTMLSelectElement).value as CollectionSlotRole; roles = [...roles]; }}>{#each eligibleRolesOf(slot) as role}<option value={role}>{collectionRoleLabel(role)}</option>{/each}</select></label>
+                    <StyledSelect label={t('role')} options={roleOptionsOf(slot)} value={roles[index] ?? ''} onSelect={(next) => { roles[index] = next as CollectionSlotRole; roles = [...roles]; }} />
                   </div>
                   <p class="slot-notes">
                     {#if slot.id === starPlayerId}<span class={starOk ? 'gold' : 'bad'}>★ {starOk ? t('noteStarOn') : starRoleBlocked ? t('starRoleBlocked') : t('noteStarOff')}</span>{/if}
@@ -594,7 +600,7 @@
                   </ul>
                 {/if}
               {:else if ownedCoaches.length}
-                <select on:change={(event) => { coachId = (event.currentTarget as HTMLSelectElement).value || null; }}><option value="">{t('pickCoach')}</option>{#each ownedCoaches as coach (coach.id)}<option value={coach.id}>{coach.name} · {coach.year} · {coach.overall}</option>{/each}</select>
+                <StyledSelect options={coachOptions} value={coachId ?? ''} onSelect={(next) => coachId = next || null} />
                 <p class="note">{t('noCoachBonus')}</p>
               {:else}
                 <p class="note">{t('noCoach')}</p>
@@ -683,9 +689,9 @@
         <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>
         <div class="filters">
           <label><span>{t('search')}</span><input bind:value={query} /></label>
-          <label><span>{t('filterYear')}</span><select bind:value={filterYear}><option value="">{t('all')}</option>{#each YEARS as year}<option value={String(year)}>{year}</option>{/each}</select></label>
-          <label><span>{t('filterRole')}</span><select bind:value={filterRole}><option value="">{t('all')}</option>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
-          <label><span>{t('filterRarity')}</span><select bind:value={filterRarity}><option value="">{t('all')}</option>{#each RARITIES as rarity}<option value={rarity}>{rarity}</option>{/each}</select></label>
+          <StyledSelect label={t('filterYear')} options={yearOptions} value={filterYear} onSelect={(next) => filterYear = next} />
+          <StyledSelect label={t('filterRole')} options={roleFilterOptions} value={filterRole} onSelect={(next) => filterRole = next} />
+          <StyledSelect label={t('filterRarity')} options={rarityOptions} value={filterRarity} onSelect={(next) => filterRarity = next} />
           {#if filtersOn}<button class="ghost small clear-filters" type="button" on:click={clearFilters}>{u('clear')}</button>{/if}
         </div>
         {#if ownedCoaches.length}
@@ -780,8 +786,8 @@
   .pack.premium { grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: stretch; gap: 22px; padding: 22px 26px; border-color: color-mix(in srgb, var(--tint) 55%, var(--line)); text-align: left; box-shadow: 0 0 30px color-mix(in srgb, var(--tint) 12%, transparent); }
   .premium-info { display: grid; gap: 10px; justify-items: start; } .premium-info strong { font-size: 2rem; } .premium-info small { color: var(--text); font-size: .85rem; }
   .dupes { text-align: center; padding-top: 8px; }
-  .filters input, .filters select, .slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
-  .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+  .filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; overflow: visible; }
   .lineup-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .lineup-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
   .lineup-tabs button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
@@ -807,8 +813,7 @@
   .stat-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .stat-list li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--surface); font-size: .76rem; }
   .stat-list b.up { color: var(--accent); } .stat-list li.final { border-left: 3px solid #d9a441; font-weight: 900; }
-  .slot { display: grid; gap: 6px; align-content: start; min-width: 0; }
-  .slot-role { display: grid; gap: 4px; } .slot-role span { color: var(--muted); font-size: .56rem; font-weight: 800; text-transform: uppercase; } .slot-role select { width: 100%; }
+  .slot { display: grid; gap: 6px; align-content: start; min-width: 0; overflow: visible; }
   .empty { display: grid; place-items: center; min-height: 230px; color: var(--muted); font-size: .8rem; border: 1px dashed var(--line); }
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
   .ghost.active { color: #d9a441; border-color: #d9a441; }
@@ -838,7 +843,9 @@
     .slot-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px; align-items: stretch; gap: 6px; min-width: 0; }
     .slot-row.coach-row { grid-template-columns: minmax(0, 1fr) 40px; }
     .row-actions { display: grid; grid-template-rows: auto auto; gap: 4px; min-width: 0; }
-    .row-actions select { width: 100%; min-height: 36px; padding: 0 6px; font-size: .72rem; }
+    .row-actions :global(.styled-select .trigger) { min-height: 36px; padding: 0 6px; }
+    .row-actions :global(.styled-select .value) { font-size: .7rem; }
+    .row-actions :global(.styled-select .menu) { left: auto; right: 0; min-width: 200px; }
     .row-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
     .icon { display: grid; place-items: center; min-width: 0; min-height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: 1rem; font-weight: 900; cursor: pointer; }
     .icon:hover { border-color: var(--accent); }
@@ -850,7 +857,7 @@
   @media (prefers-reduced-motion: reduce) { .swap-here { animation: none; } }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .warn { margin: 0; color: var(--accent-2); font-size: .78rem; font-weight: 700; }
-  .coach-slot { display: grid; gap: 8px; } .coach-slot .label { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; } .coach-slot select { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  .coach-slot { display: grid; gap: 8px; } .coach-slot .label { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .subhead { margin: 6px 0 0; color: var(--muted); font-size: .7rem; letter-spacing: .14em; } .subhead small { color: var(--accent); }
   .synergy { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .74rem; }
