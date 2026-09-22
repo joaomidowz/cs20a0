@@ -2,10 +2,10 @@
 // Regras puras da coleção: odds, valor em coins, sorteio determinístico de pacote, sinergia e star player.
 import { courtPower } from '../src/lib/game/courtPower';
 import { SYNERGY_POWER_TO_COURT } from '../src/lib/game/balance';
-import { collectionCoachById } from '../src/lib/game/online/collection-pool';
+import { collectionCoachById, collectionCoaches, collectionOrganizations, collectionPlayers } from '../src/lib/game/online/collection-pool';
 import { describe, expect, it } from 'vitest';
 import { players, playerById } from '../server/data';
-import { rollPack } from '../server/collection/packs';
+import { rollPack, rollPackWithCoaches } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_RARITY_SCALE, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starRarityScale, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
@@ -44,18 +44,20 @@ describe('regras de coins', () => {
   });
 
   it('pacotes premium: Lenda e GOAT ~40% mais raras, garantias mantidas', () => {
-    expect(PACK_PRICES).toMatchObject({ funcao: 1500, prata: 2000, ouro: 7500, era: 10000, diamante: 50000, icone: 100000 });
+    expect(PACK_PRICES).toMatchObject({ funcao: 10000, coach: 7500, time: 15000, prata: 2000, ouro: 7500, era: 10000, diamante: 50000, icone: 100000 });
     // Antes: Diamante 10% de GOAT por carta; Ícone 60% Lenda e 20% GOAT nas cartas 2 e 3.
     for (const row of PACK_SLOTS.diamante) expect(row.goat).toBe(6);
     expect(PACK_SLOTS.diamante[1]).toMatchObject({ elite: 14, superstar: 44, legend: 36 });
     expect(PACK_SLOTS.icone[1]).toMatchObject({ elite: 12, superstar: 40, legend: 36, goat: 12 });
     expect(packChance('icone', ['goat'])).toBe(1);
     expect(packChance('diamante', ['legend', 'goat'])).toBe(1);
-    expect(PACK_SLOTS.funcao.every((row) => row.legend === 0 && row.goat === 0)).toBe(true);
+    expect(PACK_SLOTS.funcao).toEqual(PACK_SLOTS.era);
+    expect(PACK_SLOTS.coach).toEqual(PACK_SLOTS.ouro);
+    expect(PACK_SLOTS.time).toEqual(PACK_SLOTS.ouro);
     expect(PACK_SLOTS.basic[0]).toMatchObject({ legend: 0.2, goat: 0.02 });
     expect(PACK_SLOTS.prata[0].goat).toBe(0.2);
     expect(PACK_SLOTS.ouro[0].goat).toBe(0.5);
-    expect(DAILY_BASIC_PACKS).toBe(2);
+    expect(DAILY_BASIC_PACKS).toBe(3);
   });
 
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {
@@ -101,13 +103,22 @@ describe('sorteio de pacote', () => {
     expect(score('ouro')).toBeGreaterThan(score('basic') * 1.5);
   });
 
-  it('Caixa Função entrega três cartas elegíveis e nunca Legend ou GOAT', () => {
+  it('Caixa Função entrega três cartas elegíveis com as odds da Era', () => {
     for (const role of ['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'] as const) {
       const cards = rollPack('funcao', `funcao:${role}`, players, { role });
       expect(cards).toHaveLength(3);
       expect(cards.every((player) => eligibleRolesOf(player).includes(role))).toBe(true);
-      expect(cards.every((player) => !['legend', 'goat'].includes(rarityOf(player)))).toBe(true);
     }
+  });
+
+  it('Caixa Coach traz três coaches e Caixa Time restringe à organização em qualquer época', () => {
+    const coaches = rollPackWithCoaches('coach', 'coach-box', collectionPlayers, collectionCoaches);
+    expect(coaches).toHaveLength(3);
+    expect(coaches.every((card) => card.kind === 'coach')).toBe(true);
+    const organization = collectionOrganizations.find((item) => item.teamIds.length >= 2)!;
+    const team = rollPack('time', 'team-box', collectionPlayers, { teamIds: organization.teamIds });
+    expect(team).toHaveLength(3);
+    expect(team.every((player) => player.teamId && organization.teamIds.includes(player.teamId))).toBe(true);
   });
 
   it('Ícone sempre traz um GOAT e Diamante uma Lenda ou GOAT na primeira carta, sem repetir carta', () => {

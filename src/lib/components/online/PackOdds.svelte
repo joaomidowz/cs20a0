@@ -40,7 +40,7 @@
           </ul>
         </div>
       {/each}
-      <p>{labels.coach}: <b>{Math.round(COACH_CHANCE[tier] * 100)}%</b></p>
+      <p>{tier === 'coach' ? title : labels.coach}: <b>{Math.round(COACH_CHANCE[tier] * 100)}%</b>{tier === 'coach' ? ` · ${PACK_SLOTS[tier].length}×` : ''}</p>
       <p>{labels.note}</p>
       <button type="button" class="close" on:click|stopPropagation={() => { pinned = false; hovered = false; }}>{labels.close}</button>
     </div>

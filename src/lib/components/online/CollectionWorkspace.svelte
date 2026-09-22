@@ -14,7 +14,7 @@
   import PackReveal from '$lib/components/online/PackReveal.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
-  import { COLLECTION_YEARS, collectionCoachById, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
+  import { COLLECTION_YEARS, collectionCoachById, collectionOrganizations, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
@@ -90,6 +90,7 @@
   let style: OrgStyle = 'balanced';
   let eraYear = YEARS.at(-1) ?? 2026;
   let functionPackRole: LineupSlotRole = 'rifler';
+  let teamPackOrganization = collectionOrganizations[0]?.key ?? '';
 
   // Filters.
   let query = '';
@@ -189,7 +190,8 @@
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
-  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', coach: 'packCoach', time: 'packTime', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  $: selectedPackOrganization = collectionOrganizations.find((organization) => organization.key === teamPackOrganization);
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   /** Each line in rating points, measured by taking it away: a percentage says little under the court curve. */
@@ -446,6 +448,22 @@
               <label class="era-year"><span>{t('packFuncaoHint')}</span><select bind:value={functionPackRole}>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.funcao} on:click={() => runReveal(() => buyPack(serverUrl, 'funcao', undefined, functionPackRole), 'funcao')}>{t('buy')}</button>
             </article>
+            <article class="pack coach">
+              <PackOdds tier="coach" title={t('packCoach')} labels={oddsLabels} />
+              <PackCase tier="coach" label={t('packCoach')} />
+              <strong>{t('packCoach')}</strong>
+              <span class="price"><i></i>{PACK_PRICES.coach.toLocaleString($language)}</span>
+              <small>{t('packCoachHint')}</small>
+              <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.coach} on:click={() => runReveal(() => buyPack(serverUrl, 'coach'), 'coach')}>{t('buy')}</button>
+            </article>
+            <article class="pack time">
+              <PackOdds tier="time" title={t('packTime')} labels={oddsLabels} />
+              <PackCase tier="time" label={selectedPackOrganization?.name ?? t('packTime')} />
+              <strong>{t('packTime')}</strong>
+              <span class="price"><i></i>{PACK_PRICES.time.toLocaleString($language)}</span>
+              <label class="era-year"><span>{t('packTimeHint')}</span><select bind:value={teamPackOrganization}>{#each collectionOrganizations as organization}<option value={organization.key}>{organization.name}</option>{/each}</select></label>
+              <button class="secondary" type="button" disabled={busy || !teamPackOrganization || state.wallet < PACK_PRICES.time} on:click={() => runReveal(() => buyPack(serverUrl, 'time', undefined, undefined, teamPackOrganization), 'time')}>{t('buy')}</button>
+            </article>
             <article class="pack era">
               <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
               <PackCase tier="era" label={String(eraYear)} />
@@ -476,7 +494,7 @@
           {#if reveal}
             <div bind:this={shopSection}>
               {#key reveal.key}
-                <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : reveal.tier === 'funcao' ? getRoleLabel(functionPackRole) : t(PACK_LABEL[reveal.tier])} language={$language}
+                <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : reveal.tier === 'funcao' ? getRoleLabel(functionPackRole) : reveal.tier === 'time' ? selectedPackOrganization?.name ?? t('packTime') : t(PACK_LABEL[reveal.tier])} language={$language}
                   labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal'), rolling: t('revealing') }} teasers={teaserPool} playerTeam={teamNameOf} coachTeam={coachTeamName}
                   onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; }} />
               {/key}

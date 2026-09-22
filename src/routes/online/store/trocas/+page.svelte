@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../../../../app.css';
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import StoreNav from '$lib/components/online/StoreNav.svelte';
   import TradesPanel from '$lib/components/online/TradesPanel.svelte';
@@ -14,6 +15,8 @@
   let state: CollectionState | null = null;
   let loading = true;
   let error = '';
+  $: initialPartner = $page.url.searchParams.get('partner') ?? '';
+  $: initialRequested = $page.url.searchParams.get('card') ?? '';
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   async function refresh() {
     try { state = await fetchCollection(serverUrl); error = ''; }
@@ -34,7 +37,7 @@
     {:else if loading}<p class="panel status" role="status" aria-busy="true">{uiCopy($language, 'loading')}</p>
     {:else if !$accountUser}<a class="primary link" href="/online/conta?next=/online/store/trocas">{t('goAccount')}</a>
     {:else if state}
-      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={[...(state.lineup?.playerIds ?? []), ...(state.lineup?.coachId ? [state.lineup.coachId] : [])]} onChanged={() => void refresh()} />
+      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={[...(state.lineup?.playerIds ?? []), ...(state.lineup?.coachId ? [state.lineup.coachId] : [])]} {initialPartner} {initialRequested} onChanged={() => void refresh()} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span><button class="secondary" type="button" on:click={refresh}>{uiCopy($language, 'retry')}</button></p>{/if}
   </section>

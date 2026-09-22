@@ -4,14 +4,14 @@ import type { Coach, Player } from '../types';
  * Pack and coin rules of the online collection, shared by the server (source of truth) and the client (previews and
  * odds shown in the shop). Pure: no data imports, so it stays inside the online boundary.
  */
-export type PackTier = 'basic' | 'funcao' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
+export type PackTier = 'basic' | 'funcao' | 'coach' | 'time' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
 /** Daily promotion: four fixed cards of the day, the same for every account, each sold once per account at a discount. */
 export type PromoTier = 'promo_elite' | 'promo_superstar' | 'promo_legend' | 'promo_coach';
 export type Rarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
 export type RarityOdds = Readonly<Record<Rarity, number>>;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
-export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'prata', 'ouro', 'era', 'diamante', 'icone'];
+export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'coach', 'time', 'prata', 'ouro', 'era', 'diamante', 'icone'];
 export const PROMO_TIERS: readonly PromoTier[] = ['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach'];
 /** Discount of each daily offer, in whole percent over the card's coin value. */
 export const PROMO_DISCOUNT: Readonly<Record<PromoTier, number>> = { promo_elite: 30, promo_superstar: 25, promo_legend: 25, promo_coach: 30 };
@@ -19,9 +19,9 @@ export const isPromoTier = (tier: string): tier is PromoTier => (PROMO_TIERS as 
 /** Price of a daily offer: the card value minus the discount, in whole coins (integers only). The server charges exactly this. */
 export const promoFinalPrice = (originalPrice: number, tier: PromoTier): number => originalPrice - Math.floor((originalPrice * PROMO_DISCOUNT[tier]) / 100);
 /** Packs sold for coins, in shop order (the basic pack is the daily grant). */
-export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['funcao', 'prata', 'era', 'ouro', 'diamante', 'icone'];
+export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['funcao', 'coach', 'time', 'prata', 'era', 'ouro', 'diamante', 'icone'];
 export const CARDS_PER_PACK = 3;
-export const DAILY_BASIC_PACKS = 2;
+export const DAILY_BASIC_PACKS = 3;
 /** Free packs per account besides the daily basic ones: one Prata per ISO week and one Ouro per month, both in Brasília time. */
 export type FreePackTier = 'prata' | 'ouro';
 export const FREE_PACK_TIERS: readonly FreePackTier[] = ['prata', 'ouro'];
@@ -36,7 +36,9 @@ const same = (row: RarityOdds): RarityOdds[] => Array.from({ length: CARDS_PER_P
  */
 export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
   basic: same(odds(78, 17, 4.2, 0.58, 0.2, 0.02)),
-  funcao: same(odds(65, 27, 7, 1, 0, 0)),
+  funcao: same(odds(10, 35, 38, 14, 2.5, 0.5)),
+  coach: same(odds(10, 35, 38, 14, 2.5, 0.5)),
+  time: same(odds(10, 35, 38, 14, 2.5, 0.5)),
   prata: same(odds(55, 30, 12, 2.5, 0.3, 0.2)),
   era: same(odds(10, 35, 38, 14, 2.5, 0.5)),
   ouro: same(odds(10, 35, 38, 14, 2.5, 0.5)),
@@ -45,7 +47,7 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 1500, prata: 2000, era: 10000, ouro: 7500, diamante: 50000, icone: 100000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 2000, era: 10000, ouro: 7500, diamante: 50000, icone: 100000 };
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {
@@ -131,7 +133,7 @@ export function seasonPoints(placement: string, lobbySize: number): number {
 export const DUPLICATE_RATIO = 0.035;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player . */
-export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, coach: 1, time: 0, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
 
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;

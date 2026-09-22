@@ -8,7 +8,7 @@ import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler', 'awper-igl']);
 const packRoleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
-const buySchema = z.object({ tier: z.enum(['funcao', 'prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional(), role: packRoleSchema.optional() });
+const buySchema = z.object({ tier: z.enum(['funcao', 'coach', 'time', 'prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional(), role: packRoleSchema.optional(), organization: z.string().min(1).max(80).optional() });
 const freeSchema = z.object({ tier: z.enum(['prata', 'ouro']) });
 const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']) });
 const sellSchema = z.object({ playerId: z.string().min(1).max(80) });
@@ -48,7 +48,7 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
     })),
     route('POST', /^\/packs\/buy$/, withAuth(async ({ request, userId, now }) => {
       const body = await readBody(request, buySchema);
-      return { ok: true, ...(await buyPack(db, userId!, body.tier, now, body.year, body.role).catch(toHttp)) };
+      return { ok: true, ...(await buyPack(db, userId!, body.tier, now, body.year, body.role, body.organization).catch(toHttp)) };
     })),
     route('GET', /^\/promos$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await listPromos(db, userId!, now)) }))),
     route('POST', /^\/promos\/buy$/, withAuth(async ({ request, userId, now }) => {

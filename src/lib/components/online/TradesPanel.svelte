@@ -17,6 +17,8 @@
   export let ownedIds: string[] = [];
   /** Cards on the saved team: they cannot be offered. */
   export let lockedIds: string[] = [];
+  export let initialPartner = '';
+  export let initialRequested = '';
   export let onChanged: () => void = () => {};
 
   type Tab = 'received' | 'sent' | 'new';
@@ -89,10 +91,14 @@
     try { ({ received, sent } = await fetchTrades(serverUrl)); error = ''; } catch (caught) { fail(caught); } finally { loading = false; }
   }
 
-  async function findPartner() {
+  async function findPartner(requestedCard = '') {
     if (busy || !partnerQuery.trim()) return;
     busy = true; error = ''; partner = null; requested = ''; offered = '';
-    try { partner = await fetchTradePartner(serverUrl, partnerQuery.trim()); goStep(2); } catch (caught) { fail(caught); } finally { busy = false; }
+    try {
+      partner = await fetchTradePartner(serverUrl, partnerQuery.trim());
+      if (requestedCard && partner.cards.includes(requestedCard) && !ownedSet.has(requestedCard)) { requested = requestedCard; goStep(3); }
+      else goStep(2);
+    } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
   function pick(id: string) {
@@ -126,7 +132,10 @@
     } catch (caught) { await load(); fail(caught); } finally { busy = false; }
   }
 
-  onMount(() => { void load(); });
+  onMount(() => { void (async () => {
+    await load();
+    if (initialPartner.trim()) { tab = 'new'; partnerQuery = initialPartner.trim(); await findPartner(initialRequested); }
+  })(); });
 </script>
 
 <section class="panel trades" id="trocas" aria-labelledby="trocas-title">
@@ -154,7 +163,7 @@
     </nav>
 
     {#if step === 1}
-      <form class="find" on:submit|preventDefault={findPartner}>
+      <form class="find" on:submit|preventDefault={() => findPartner()}>
         <label><span>{t('tradePartner')}</span><input bind:value={partnerQuery} maxlength="40" autocomplete="off" /></label>
         <button type="submit" class="primary" disabled={busy || !partnerQuery.trim()}>{busy ? u('working') : t('tradeFind')}</button>
       </form>

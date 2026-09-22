@@ -8,6 +8,8 @@ export interface RollOptions {
   year?: number;
   /** `funcao` packs: every player can fill the selected lineup role. */
   role?: LineupSlotRole;
+  /** `time` packs: every player belongs to one of the selected organization's historical team ids. */
+  teamIds?: readonly string[];
   /** Cards in the pack; defaults to the tier's slot rows (3). */
   size?: number;
 }
@@ -31,7 +33,8 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
   const rng = createSeededRng(seed);
   const eligible = pool
     .filter((player) => !options.year || player.year === options.year)
-    .filter((player) => !options.role || getEligibleSlotRoles(player).includes(options.role));
+    .filter((player) => !options.role || getEligibleSlotRoles(player).includes(options.role))
+    .filter((player) => !options.teamIds || (player.teamId ? options.teamIds.includes(player.teamId) : false));
   if (!eligible.length) throw new Error('Empty pack pool');
   const byRarity = new Map<Rarity, Player[]>();
   for (const player of eligible) {
@@ -65,11 +68,37 @@ export function rollPack(tier: PackTier, seed: string, pool: Player[], options: 
 
 export type PackCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
 
+/** Dedicated coach box: three distinct coaches, using the same rarity rows as Gold. */
+function rollCoachPack(tier: PackTier, seed: string, coaches: Coach[]): PackCard[] {
+  const rng = createSeededRng(seed);
+  const sorted = [...coaches].sort((a, b) => a.id.localeCompare(b.id));
+  const byRarity = new Map<Rarity, Coach[]>();
+  for (const coach of sorted) byRarity.set(rarityOf(coach), [...(byRarity.get(rarityOf(coach)) ?? []), coach]);
+  const used = new Set<string>();
+  const cards: PackCard[] = [];
+  for (const row of PACK_SLOTS[tier]) {
+    let chosen: Coach | undefined;
+    for (const rarity of ladderOf(pickRarity(row, rng()))) {
+      const candidates = (byRarity.get(rarity) ?? []).filter((coach) => !used.has(coach.id));
+      if (candidates.length) { chosen = candidates[Math.floor(rng() * candidates.length)]; break; }
+    }
+    if (!chosen) {
+      const rest = sorted.filter((coach) => !used.has(coach.id));
+      if (!rest.length) break;
+      chosen = rest[Math.floor(rng() * rest.length)];
+    }
+    used.add(chosen.id);
+    cards.push({ kind: 'coach', coach: chosen });
+  }
+  return cards;
+}
+
 /**
  * A pack with a chance that its last card is a coach (same seed, same pack); the guaranteed first card is never replaced. Era packs
  * draw the coach from the chosen year.
  */
 export function rollPackWithCoaches(tier: PackTier, seed: string, pool: Player[], coaches: Coach[], options: RollOptions = {}): PackCard[] {
+  if (tier === 'coach') return rollCoachPack(tier, seed, coaches);
   const cards: PackCard[] = rollPack(tier, seed, pool, options).map((player) => ({ kind: 'player', player }));
   const rng = createSeededRng(`${seed}:coach`);
   if (rng() >= COACH_CHANCE[tier]) return cards;

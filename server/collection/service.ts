@@ -1,5 +1,5 @@
 import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
-import { collectionCoachById, collectionCoaches, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
+import { collectionCoachById, collectionCoaches, collectionOrganizationByKey, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
@@ -83,7 +83,7 @@ const requireUnlockedSlot = async (executor: Db | Tx, userId: string, slotIndex:
   if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= unlocked) throw new CollectionError(403, 'SLOT_LOCKED', 'Essa vaga de lineup ainda está bloqueada');
 };
 
-/** What a repeated card pays: the same share as selling it. */
+/** What a repeated card pays; intentionally lower than a voluntary direct sale. */
 export const duplicateValue = (id: string) => {
   const coach = collectionCoachById.get(id);
   if (coach) return Math.floor(coachCoinValue(coach) * DUPLICATE_RATIO);
@@ -106,7 +106,7 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
     wallet: wallet?.coins ?? 0,
     count: rows.length,
     players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
-    packsToday: { granted: grant?.granted ?? DAILY_BASIC_PACKS, opened: grant?.opened ?? 0 },
+    packsToday: { granted: Math.max(grant?.granted ?? 0, DAILY_BASIC_PACKS), opened: grant?.opened ?? 0 },
     freePacks: { prata: !claimed.has('prata'), ouro: !claimed.has('ouro') },
     lineup: lineups.lineups.find((lineup) => lineup.slotIndex === lineups.activeSlot) ?? null,
     lineups: lineups.lineups,
@@ -143,7 +143,7 @@ export const freePackPeriod = (tier: FreePackTier, now: number) => (tier === 'pr
 export async function openDailyPack(db: Db, userId: string, now: number): Promise<PackResult> {
   const day = dayKeyUtcMinus3(now);
   return db.tx(async (tx) => {
-    await tx.query('INSERT INTO pack_grants (user_id, day, granted, opened) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING', [userId, day, DAILY_BASIC_PACKS]);
+    await tx.query('INSERT INTO pack_grants (user_id, day, granted, opened) VALUES ($1, $2, $3, 0) ON CONFLICT (user_id, day) DO UPDATE SET granted = GREATEST(pack_grants.granted, EXCLUDED.granted)', [userId, day, DAILY_BASIC_PACKS]);
     const [grant] = await tx.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2 FOR UPDATE', [userId, day]);
     if (grant.opened >= grant.granted) throw new CollectionError(409, 'NO_PACKS_LEFT', 'Sem pacotes hoje');
     const seed = `${userId}:${day}:${grant.opened + 1}`;
@@ -177,16 +177,19 @@ export async function openFreePack(db: Db, userId: string, tier: FreePackTier, n
   });
 }
 
-export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number, role?: LineupSlotRole): Promise<PackResult> {
+export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number, role?: LineupSlotRole, organization?: string): Promise<PackResult> {
   if (tier === 'basic' || !(tier in PACK_PRICES)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
   if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
   if (tier === 'funcao' && !role) throw new CollectionError(400, 'BAD_ROLE', 'Escolha uma função válida');
+  const selectedOrganization = tier === 'time' ? collectionOrganizationByKey.get(organization ?? '') : undefined;
+  if (tier === 'time' && !selectedOrganization) throw new CollectionError(400, 'BAD_TEAM', 'Escolha um time válido');
   return db.tx(async (tx) => {
     const price = PACK_PRICES[tier];
     await applyLedger(tx, userId, -price, 'buy_pack', tier);
     const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
     const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
-    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches, tier === 'era' ? { year } : tier === 'funcao' ? { role } : {});
+    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches,
+      tier === 'era' ? { year } : tier === 'funcao' ? { role } : tier === 'time' ? { teamIds: selectedOrganization!.teamIds } : {});
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);

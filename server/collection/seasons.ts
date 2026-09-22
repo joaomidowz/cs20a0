@@ -6,6 +6,7 @@ import { detectAwards } from './awards';
 import { advanceMissions } from './missions';
 import { applyLedger } from './service';
 import { dayKeyUtcMinus3, seasonMonthOf } from './time';
+import { cardCoinValue } from '../../src/lib/game/online/card-value';
 
 /** Humans needed for a run to score season points at all (two score a third, see `seasonPoints`). */
 export const RANKED_MIN_LOBBY = 2;
@@ -126,9 +127,14 @@ export async function majorResult(db: Db, userId: string, roomCode: string): Pro
   return { placement: row.placement, lobbySize: row.lobby_size, ranked: row.ranked, counted: row.counted, champion: row.champion, basePoints: row.base_points, points: row.points, rewardCoins: row.reward_coins, awardCoins: row.award_coins, awards };
 }
 
-export interface PublicProfile { userId: string; teamName: string | null; displayName: string; memberSince: string; majorsPlayed: number; majorsWon: number; seasonPoints: number; awards: Array<{ kind: string; count: number }> }
+export interface PublicProfile {
+  userId: string; teamName: string | null; displayName: string; memberSince: string; majorsPlayed: number; majorsWon: number; seasonPoints: number;
+  awards: Array<{ kind: string; count: number }>;
+  activeLineup: { cardIds: string[]; starPlayerId: string | null } | null;
+  bestCards: string[];
+}
 
-/** What anyone may see of another player: names, totals and awards. Never the e-mail, wallet or cards. */
+/** Public profile: names, totals, awards, the active team and a small trade showcase. Never e-mail or wallet. */
 export async function publicProfile(db: Db, userId: string, now: number): Promise<PublicProfile | null> {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
   const [user] = await db.query<{ id: string; team_name: string | null; display_name: string | null; created_at: Date }>('SELECT id, team_name, display_name, created_at FROM users WHERE id = $1 AND verified_at IS NOT NULL', [userId]);
@@ -136,7 +142,21 @@ export async function publicProfile(db: Db, userId: string, now: number): Promis
   const [totals] = await db.query<{ played: string; won: string }>(`SELECT count(*) FILTER (WHERE lobby_size >= 2 AND NOT voided)::text AS played, count(*) FILTER (WHERE champion AND lobby_size >= 2 AND NOT voided)::text AS won FROM majors WHERE user_id = $1`, [userId]);
   const { month } = seasonMonthOf(now);
   const [season] = await db.query<{ points: number }>('SELECT s.points FROM season_standings s JOIN seasons se ON se.id = s.season_id WHERE s.user_id = $1 AND se.month = $2', [userId, month]);
-  return { userId: user.id, teamName: user.team_name, displayName: user.display_name ?? 'Player', memberSince: user.created_at.toISOString(), majorsPlayed: Number(totals.played), majorsWon: Number(totals.won), seasonPoints: season?.points ?? 0, awards: (await awardsOf(db, userId)).map(({ kind, count }) => ({ kind, count })) };
+  const [lineup] = await db.query<{ player_ids: string[]; coach_id: string | null; star_player_id: string | null }>(
+    `SELECT ls.player_ids, ls.coach_id, ls.star_player_id FROM users u
+     LEFT JOIN lineup_slots ls ON ls.user_id = u.id AND ls.slot_index = u.active_lineup_slot WHERE u.id = $1`, [userId]
+  );
+  const activeIds = lineup?.player_ids ? [...lineup.player_ids, ...(lineup.coach_id ? [lineup.coach_id] : [])] : [];
+  const activeSet = new Set(activeIds);
+  const cards = (await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1', [userId])).map((row) => row.player_id);
+  const bestCards = cards.filter((id) => !activeSet.has(id)).sort((a, b) => cardCoinValue(b) - cardCoinValue(a)).slice(0, 12);
+  return {
+    userId: user.id, teamName: user.team_name, displayName: user.display_name ?? 'Player', memberSince: user.created_at.toISOString(),
+    majorsPlayed: Number(totals.played), majorsWon: Number(totals.won), seasonPoints: season?.points ?? 0,
+    awards: (await awardsOf(db, userId)).map(({ kind, count }) => ({ kind, count })),
+    activeLineup: activeIds.length ? { cardIds: activeIds, starPlayerId: lineup.star_player_id } : null,
+    bestCards
+  };
 }
 
 export interface RoomReward { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number }

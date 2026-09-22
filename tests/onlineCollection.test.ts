@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createOnlineServer } from '../server/app';
 import { createDevMailer } from '../server/auth/mailer';
 import { playerById } from '../server/data';
-import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
+import { collectionCoachById, collectionOrganizationByKey, collectionPlayerById } from '../src/lib/game/online/collection-pool';
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 import { runMigrations } from '../server/db/migrations';
@@ -42,7 +42,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
 
   afterAll(async () => { await close(); await db?.close(); });
 
-  it('dá dois pacotes por dia, recusa o terceiro e libera no dia seguinte', async () => {
+  it('dá três pacotes por dia, recusa o quarto e libera no dia seguinte', async () => {
     const first = await call('/packs/open', {});
     expect(first.status).toBe(200);
     expect(first.body.players).toHaveLength(3);
@@ -50,13 +50,31 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(second.status).toBe(200);
     expect(second.body.seed).not.toBe(first.body.seed);
     const third = await call('/packs/open', {});
-    expect(third.status).toBe(409);
-    expect(third.body.error).toBe('NO_PACKS_LEFT');
+    expect(third.status).toBe(200);
+    const fourth = await call('/packs/open', {});
+    expect(fourth.status).toBe(409);
+    expect(fourth.body.error).toBe('NO_PACKS_LEFT');
     const collection = await call('/collection');
-    expect(collection.body.count).toBe(6 - (first.body.duplicates.length + second.body.duplicates.length));
-    expect(collection.body.packsToday).toEqual({ granted: 2, opened: 2 });
+    expect(collection.body.count).toBe(9 - (first.body.duplicates.length + second.body.duplicates.length + third.body.duplicates.length));
+    expect(collection.body.packsToday).toEqual({ granted: 3, opened: 3 });
     clock += 24 * 60 * 60_000;
     expect((await call('/packs/open', {})).status).toBe(200);
+  });
+
+  it('Caixa Coach traz três coaches e Caixa Time aceita uma organização de qualquer época', async () => {
+    await db.query('UPDATE wallets SET coins = 50000');
+    const coach = await call('/packs/buy', { tier: 'coach' });
+    expect(coach.status).toBe(200);
+    expect(coach.body.players).toHaveLength(3);
+    expect(coach.body.players.every((id: string) => collectionCoachById.has(id))).toBe(true);
+
+    const missing = await call('/packs/buy', { tier: 'time' });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error).toBe('BAD_TEAM');
+    const organization = [...collectionOrganizationByKey.values()].find((item) => item.teamIds.length >= 2)!;
+    const team = await call('/packs/buy', { tier: 'time', organization: organization.key });
+    expect(team.status).toBe(200);
+    expect(team.body.players.every((id: string) => organization.teamIds.includes(collectionPlayerById.get(id)!.teamId!))).toBe(true);
   });
 
   it('Caixa Função exige função e entrega três jogadores aptos nela', async () => {
@@ -280,9 +298,12 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(standings.month).toBe('2026-09-01');
     // Twelve ranked runs and one alone against bots ('seed-5'): the solo run is practice, not a Major played.
     expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 12, points: 9 * 10 + 4 });
-    // The profile counts the same way: only runs against other players, and `played` never trails `won`.
+    // The profile counts the same way and exposes the active team plus the best cards outside it for trades.
+    const lineupIds = lineup.map((pick) => pick.playerId);
+    for (const playerId of [...lineupIds, 's1mple-2022']) await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack') ON CONFLICT DO NOTHING`, [user.id, playerId]);
+    await db.query(`INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles, star_player_id, style) VALUES ($1, 0, $2, $3, $4, 'balanced')`, [user.id, lineupIds, lineup.map((pick) => pick.selectedSlotRole), lineupIds[0]]);
     const profile = await publicProfile(db, user.id, now);
-    expect(profile).toMatchObject({ majorsPlayed: 12, majorsWon: 9 });
+    expect(profile).toMatchObject({ majorsPlayed: 12, majorsWon: 9, activeLineup: { cardIds: lineupIds, starPlayerId: lineupIds[0] }, bestCards: ['s1mple-2022'] });
     const [{ total }] = await db.query<{ total: string }>('SELECT count(*)::text AS total FROM majors WHERE user_id = $1', [user.id]);
     expect(Number(total)).toBe(13);
     // Migration 25 repairs the counter of accounts that played before the fix: inflate it, run the SQL, get the truth back.

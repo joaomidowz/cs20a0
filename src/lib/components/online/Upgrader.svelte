@@ -52,8 +52,9 @@
   let query = '';
   let targetRarity: Rarity | '' = '';
   /** Por qual eixo os alvos são filtrados; o jogador alterna entre os dois. */
-  let filterBy: 'rarity' | 'role' = 'rarity';
+  let filterBy: 'rarity' | 'role' | 'type' = 'rarity';
   let targetRole: LineupSlotRole | '' = '';
+  let targetType: 'player' | 'coach' | '' = '';
   const TARGET_ROLES: LineupSlotRole[] = ['igl', 'awper', 'entry', 'rifler', 'lurker', 'support'];
   let busy = false;
   let error = '';
@@ -88,7 +89,7 @@
   $: chance = target && stakeValue && targetValue > stakeValue ? cardUpgradeChance(stake, target) : 0;
   $: needleText = query.trim().toLowerCase();
   $: targets = stakeValue
-    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!targetRole || (card.player ? primaryRoleOf(card.player) === targetRole : false)) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
+    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!targetRole || (card.player ? primaryRoleOf(card.player) === targetRole : false)) && (!targetType || (targetType === 'coach' ? Boolean(card.coach) : Boolean(card.player))) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
     : [];
   $: if (!round && target && (ownedSet.has(target) || cardCoinValue(target) <= stakeValue)) target = '';
   // While a round is on screen the stage shows its cards; picking anything new clears it.
@@ -333,15 +334,19 @@
       <div class="filters">
         <div class="rarity-filter">
           <!-- Um eixo de cada vez: trocar de eixo limpa o outro, senão o jogador fica sem alvo nenhum e não entende. -->
-          <button type="button" class="axis" on:click={() => { filterBy = filterBy === 'rarity' ? 'role' : 'rarity'; targetRarity = ''; targetRole = ''; }}>
-            {filterBy === 'rarity' ? t('filterRarity') : t('filterRole')} ⇄
+          <button type="button" class="axis" on:click={() => { filterBy = filterBy === 'rarity' ? 'role' : filterBy === 'role' ? 'type' : 'rarity'; targetRarity = ''; targetRole = ''; targetType = ''; }}>
+            {filterBy === 'rarity' ? t('filterRarity') : filterBy === 'role' ? t('filterRole') : t('filterType')} ⇄
           </button>
           {#if filterBy === 'rarity'}
             <button type="button" class:active={!targetRarity} on:click={() => targetRarity = ''}>{t('all')}</button>
             {#each RARITIES as rarity}<button type="button" class:active={targetRarity === rarity} on:click={() => targetRarity = rarity}>{rarity}</button>{/each}
-          {:else}
+          {:else if filterBy === 'role'}
             <button type="button" class:active={!targetRole} on:click={() => targetRole = ''}>{t('all')}</button>
             {#each TARGET_ROLES as role}<button type="button" class:active={targetRole === role} on:click={() => targetRole = role}>{getRoleLabel(role)}</button>{/each}
+          {:else}
+            <button type="button" class:active={!targetType} on:click={() => targetType = ''}>{t('all')}</button>
+            <button type="button" class:active={targetType === 'player'} on:click={() => targetType = 'player'}>{t('filterPlayers')}</button>
+            <button type="button" class:active={targetType === 'coach'} on:click={() => targetType = 'coach'}>{t('filterCoaches')}</button>
           {/if}
         </div>
         <input type="search" placeholder={t('upgraderSearch')} bind:value={query} disabled={!stakeValue} />

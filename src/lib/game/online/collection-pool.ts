@@ -21,6 +21,17 @@ export const collectionPlayerById = byId([corePlayersJson as Player[], expansion
 export const collectionPlayers: Player[] = [...collectionPlayerById.values()];
 export const collectionTeamById = byId([coreTeamsJson as HistoricalTeam[], expansionTeamsJson as HistoricalTeam[]]);
 export const collectionTeams: HistoricalTeam[] = [...collectionTeamById.values()];
+export const collectionOrganizationKey = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** Organizations across every era, for packs that let the player choose one badge and draw any of its years. */
+export const collectionOrganizations: Array<{ key: string; name: string; teamIds: string[] }> = [...collectionTeams.reduce((map, team) => {
+  const name = team.name ?? team.id;
+  const key = collectionOrganizationKey(name);
+  const current = map.get(key) ?? { key, name, teamIds: [] as string[] };
+  current.teamIds.push(team.id);
+  map.set(key, current);
+  return map;
+}, new Map<string, { key: string; name: string; teamIds: string[] }>()).values()].sort((a, b) => a.name.localeCompare(b.name));
+export const collectionOrganizationByKey = new Map(collectionOrganizations.map((organization) => [organization.key, organization]));
 /** Placeholder coaches (no confirmed person) never become cards. */
 export const collectionCoachById = byId([(coreCoachesJson as Coach[]), (expansionCoachesJson as Coach[])].map((list) => list.filter((coach) => coach.confidence !== 'placeholder')));
 export const collectionCoaches: Coach[] = [...collectionCoachById.values()];
