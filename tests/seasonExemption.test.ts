@@ -102,4 +102,27 @@ describe.skipIf(!url)('conta do dono fora do ranking (Postgres)', () => {
     const [ecoAward] = await db.query<{ detail: { rank: number } }>('SELECT detail FROM awards WHERE user_id = $1', [eco]);
     expect(ecoAward.detail.rank).toBe(1); // o título vai para o primeiro não-isento
   });
+
+  it('fora do ladder de 16: isento no topo não leva coins nem queima faixa', async () => {
+    const others: string[] = [];
+    for (let i = 1; i <= 16; i += 1) others.push(await insertUser(`faixa${i}@example.com`));
+    const season = await insertSeason('2026-11-01', '2026-11-30T21:00:00Z');
+    await insertStandings(season, owner, 900, 3); // 1º por pontos, mas fora do ranking
+    for (const [index, id] of others.entries()) await insertStandings(season, id, 800 - index, 2);
+
+    const closed = await closeFinishedSeasons(db, Date.UTC(2026, 11, 1, 12));
+    expect(closed.find((row) => row.month === '2026-11-01')).toEqual({ seasonId: season, month: '2026-11-01', awarded: 16 });
+
+    // Nenhum coin de prêmio para o isento, mesmo em 1º por pontos.
+    const [ownerPaid] = await db.query<{ n: string }>(`SELECT count(*)::text AS n FROM ledger WHERE user_id = $1 AND reason = 'season_prize'`, [owner]);
+    expect(Number(ownerPaid.n)).toBe(0);
+
+    // As 16 faixas chegam inteiras para os outros, na ordem do ladder.
+    const prizes = await db.query<{ delta: number }>(`SELECT delta FROM ledger WHERE reason = 'season_prize' AND ref_id LIKE $1 ORDER BY delta DESC, ref_id`, [`season:${season}:rank:%`]);
+    expect(prizes.map((row) => row.delta)).toEqual([150_000, 100_000, 75_000, 60_000, 45_000, 45_000, 45_000, 45_000, 30_000, 30_000, 30_000, 30_000, 20_000, 20_000, 20_000, 20_000]);
+    const [champion] = await db.query<{ user_id: string }>(`SELECT user_id FROM awards WHERE season_id = $1 AND kind = 'season_champion'`, [season]);
+    expect(champion.user_id).toBe(others[0]); // 800 pts: o melhor não-isento é o campeão
+    const [medals] = await db.query<{ n: string }>('SELECT count(*)::text AS n FROM awards WHERE season_id = $1', [season]);
+    expect(Number(medals.n)).toBe(16);
+  });
 });
