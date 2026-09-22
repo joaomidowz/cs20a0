@@ -89,6 +89,7 @@
   let starPlayerId: string | null = null;
   let style: OrgStyle = 'balanced';
   let eraYear = YEARS.at(-1) ?? 2026;
+  let functionPackRole: LineupSlotRole = 'rifler';
 
   // Filters.
   let query = '';
@@ -188,7 +189,7 @@
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
-  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   /** Each line in rating points, measured by taking it away: a percentage says little under the court curve. */
@@ -437,6 +438,14 @@
                 {/if}
               </article>
             {/each}
+            <article class="pack funcao">
+              <PackOdds tier="funcao" title={t('packFuncao')} labels={oddsLabels} />
+              <PackCase tier="funcao" label={getRoleLabel(functionPackRole)} />
+              <strong>{t('packFuncao')}</strong>
+              <span class="price"><i></i>{PACK_PRICES.funcao.toLocaleString($language)}</span>
+              <label class="era-year"><span>{t('packFuncaoHint')}</span><select bind:value={functionPackRole}>{#each ROLES as role}<option value={role}>{getRoleLabel(role)}</option>{/each}</select></label>
+              <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.funcao} on:click={() => runReveal(() => buyPack(serverUrl, 'funcao', undefined, functionPackRole), 'funcao')}>{t('buy')}</button>
+            </article>
             <article class="pack era">
               <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
               <PackCase tier="era" label={String(eraYear)} />
@@ -467,7 +476,7 @@
           {#if reveal}
             <div bind:this={shopSection}>
               {#key reveal.key}
-                <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : t(PACK_LABEL[reveal.tier])} language={$language}
+                <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : reveal.tier === 'funcao' ? getRoleLabel(functionPackRole) : t(PACK_LABEL[reveal.tier])} language={$language}
                   labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal'), rolling: t('revealing') }} teasers={teaserPool} playerTeam={teamNameOf} coachTeam={coachTeamName}
                   onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; }} />
               {/key}

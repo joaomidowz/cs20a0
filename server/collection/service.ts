@@ -3,7 +3,7 @@ import { collectionCoachById, collectionCoaches, collectionPlayerById as playerB
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
-import type { MapId, OrgStyle, Player } from '../../src/lib/game/types';
+import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
 import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3 } from './time';
@@ -177,15 +177,16 @@ export async function openFreePack(db: Db, userId: string, tier: FreePackTier, n
   });
 }
 
-export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number): Promise<PackResult> {
+export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number, role?: LineupSlotRole): Promise<PackResult> {
   if (tier === 'basic' || !(tier in PACK_PRICES)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
   if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
+  if (tier === 'funcao' && !role) throw new CollectionError(400, 'BAD_ROLE', 'Escolha uma função válida');
   return db.tx(async (tx) => {
     const price = PACK_PRICES[tier];
     await applyLedger(tx, userId, -price, 'buy_pack', tier);
     const [{ id }] = await tx.query<{ id: string }>('SELECT max(id)::text AS id FROM ledger WHERE user_id = $1', [userId]);
     const seed = `${userId}:${new Date(now).toISOString()}:${id}`;
-    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches, tier === 'era' ? { year } : {});
+    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches, tier === 'era' ? { year } : tier === 'funcao' ? { role } : {});
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     const added = await addCards(tx, userId, cards, seed);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
@@ -215,6 +216,8 @@ export async function listPromos(db: Db, userId: string, now: number): Promise<{
   const day = dayKeyUtcMinus3(now);
   const offers = dailyPromos(day);
   const bought = new Set((await db.query<{ tier: string }>('SELECT tier FROM promo_purchases WHERE user_id = $1 AND day = $2', [userId, day])).map((row) => row.tier));
+  const [lastLegend] = await db.query<{ day: string }>(`SELECT day::text FROM promo_purchases WHERE user_id = $1 AND tier = 'promo_legend' ORDER BY day DESC LIMIT 1`, [userId]);
+  if (lastLegend && isoWeekKeyUtcMinus3(Date.parse(`${lastLegend.day}T12:00:00-03:00`)) === isoWeekKeyUtcMinus3(now)) bought.add('promo_legend');
   const owned = new Set((await db.query<{ player_id: string }>('SELECT player_id FROM collection WHERE user_id = $1 AND player_id = ANY($2)', [userId, offers.map((offer) => offer.cardId)])).map((row) => row.player_id));
   return { day, endsAt: nextDayStart(day), promos: offers.map((offer) => ({ ...offer, bought: bought.has(offer.tier), owned: owned.has(offer.cardId) })) };
 }
@@ -225,6 +228,10 @@ export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: num
   const offer = dailyPromos(day).find((item) => item.tier === tier);
   if (!offer || offer.price <= 0) throw new CollectionError(400, 'BAD_TIER', 'Promoção desconhecida');
   return db.tx(async (tx) => {
+    if (tier === 'promo_legend') {
+      const [lastLegend] = await tx.query<{ day: string }>(`SELECT day::text FROM promo_purchases WHERE user_id = $1 AND tier = 'promo_legend' ORDER BY day DESC LIMIT 1`, [userId]);
+      if (lastLegend && isoWeekKeyUtcMinus3(Date.parse(`${lastLegend.day}T12:00:00-03:00`)) === isoWeekKeyUtcMinus3(now)) throw new CollectionError(409, 'PROMO_BOUGHT', 'Você já comprou a promoção Legend desta semana');
+    }
     const [owned] = await tx.query('SELECT 1 FROM collection WHERE user_id = $1 AND player_id = $2', [userId, offer.cardId]);
     if (owned) throw new CollectionError(409, 'ALREADY_OWNED', 'Você já tem essa carta');
     const inserted = await tx.query('INSERT INTO promo_purchases (user_id, day, tier, seed, card_id, price) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING RETURNING tier', [userId, day, tier, promoSeed(day), offer.cardId, offer.price]);
@@ -241,7 +248,7 @@ export async function sellPlayer(db: Db, userId: string, playerId: string): Prom
   if (!coach && !player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
   return db.tx(async (tx) => {
     // A card used by ANY lineup slot cannot go: lineups are independent teams, and each one holds its own five.
-    const [used] = await tx.query('SELECT 1 FROM lineup_slots WHERE user_id = $1 AND (player_ids @> $2::text[] OR coach_id = $2) LIMIT 1', [userId, [playerId]]);
+    const [used] = await tx.query('SELECT 1 FROM lineup_slots WHERE user_id = $1 AND (player_ids @> $2::text[] OR coach_id = $3) LIMIT 1', [userId, [playerId], playerId]);
     if (used) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de vender');
     const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 RETURNING player_id', [userId, playerId]);
     if (!removed.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');

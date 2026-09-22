@@ -20,22 +20,22 @@ describe('chance do upgrader', () => {
     expect(upgradeChance(100, 0, 'rare', ['common'])).toBe(0);
   });
 
-  it('teto de 40% em Lenda e 20% em GOAT', () => {
-    expect(upgradeChance(20000, 24000, 'legend', ['legend'])).toBe(0.4);
-    expect(upgradeChance(9000, 24000, 'legend', ['superstar'])).toBeCloseTo(0.3375, 10);
-    expect(upgradeChance(90000, 100000, 'goat', ['legend'])).toBe(0.2);
+  it('teto de 25% em Lenda e 10% em GOAT', () => {
+    expect(upgradeChance(20000, 24000, 'legend', ['legend'])).toBe(0.25);
+    expect(upgradeChance(9000, 24000, 'legend', ['superstar'])).toBeCloseTo(0.25, 10);
+    expect(upgradeChance(90000, 100000, 'goat', ['legend'])).toBe(0.1);
     expect(upgradeChance(10000, 100000, 'goat', ['legend'])).toBeCloseTo(0.09, 10);
   });
 
   it('alvo 2+ raridades acima da melhor carta apostada: metade da chance, depois do teto', () => {
     // Elite → Lenda (2 acima): 6.000/24.000 × 0,9 = 22,5% → 11,25%.
     expect(upgradeChance(6000, 24000, 'legend', ['elite'])).toBeCloseTo(0.1125, 10);
-    // Muitas comuns por uma Lenda: bate no teto de 40% e cai para 20%.
-    expect(upgradeChance(15000, 24000, 'legend', ['common', 'common', 'common', 'common', 'common', 'common'])).toBeCloseTo(0.2, 10);
+    // Muitas comuns por uma Lenda: bate no teto de 25% e cai para 12,5%.
+    expect(upgradeChance(15000, 24000, 'legend', ['common', 'common', 'common', 'common', 'common', 'common'])).toBeCloseTo(0.125, 10);
     // Uma Superstar na aposta tira a penalidade (só 1 acima).
-    expect(upgradeChance(15000, 24000, 'legend', ['common', 'superstar'])).toBe(0.4);
-    // GOAT a partir de Superstar: teto 20% vira 10%.
-    expect(upgradeChance(90000, 100000, 'goat', ['superstar'])).toBeCloseTo(0.1, 10);
+    expect(upgradeChance(15000, 24000, 'legend', ['common', 'superstar'])).toBe(0.25);
+    // GOAT a partir de Superstar: teto 10% vira 5%.
+    expect(upgradeChance(90000, 100000, 'goat', ['superstar'])).toBeCloseTo(0.05, 10);
     // Coach usa a raridade dele: por id, a regra é a mesma do servidor.
     const coach = [...collectionCoachById.values()].find((item) => rarityOf(item) === 'legend');
     const common = collectionPlayers.find((player) => rarityOf(player) === 'common')!;

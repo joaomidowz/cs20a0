@@ -34,23 +34,27 @@ describe('regras de coins', () => {
     expect(sellValue({ overall: 80, rarity: 'rare' })).toBe(Math.floor(coinValue({ overall: 80, rarity: 'rare' }) * SELL_RATIO));
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
-    expect(matchReward('placementChampion', true)).toBe(2400);
-    expect(matchReward('placementChampion', false)).toBe(1200);
-    expect(matchReward('placementRunnerUp', true)).toBe(1500);
-    expect(matchReward('placement3to4', true)).toBe(1000);
-    expect(matchReward('placement5to8', true)).toBe(600);
-    expect(matchReward('placementStage3', true)).toBe(150);
+    expect(matchReward('placementChampion', true)).toBe(1700);
+    expect(matchReward('placementChampion', false)).toBe(850);
+    expect(matchReward('placementRunnerUp', true)).toBe(1050);
+    expect(matchReward('placement3to4', true)).toBe(700);
+    expect(matchReward('placement5to8', true)).toBe(420);
+    expect(matchReward('placementStage3', true)).toBe(100);
   });
 
   it('pacotes premium: Lenda e GOAT ~40% mais raras, garantias mantidas', () => {
-    expect(PACK_PRICES).toMatchObject({ prata: 1200, ouro: 3500, era: 7500, diamante: 30000, icone: 50000 });
+    expect(PACK_PRICES).toMatchObject({ funcao: 1500, prata: 2000, ouro: 7500, era: 10000, diamante: 50000, icone: 100000 });
     // Antes: Diamante 10% de GOAT por carta; Ícone 60% Lenda e 20% GOAT nas cartas 2 e 3.
     for (const row of PACK_SLOTS.diamante) expect(row.goat).toBe(6);
     expect(PACK_SLOTS.diamante[1]).toMatchObject({ elite: 14, superstar: 44, legend: 36 });
     expect(PACK_SLOTS.icone[1]).toMatchObject({ elite: 12, superstar: 40, legend: 36, goat: 12 });
     expect(packChance('icone', ['goat'])).toBe(1);
     expect(packChance('diamante', ['legend', 'goat'])).toBe(1);
-    expect(DAILY_BASIC_PACKS).toBe(3);
+    expect(PACK_SLOTS.funcao.every((row) => row.legend === 0 && row.goat === 0)).toBe(true);
+    expect(PACK_SLOTS.basic[0]).toMatchObject({ legend: 0.2, goat: 0.02 });
+    expect(PACK_SLOTS.prata[0].goat).toBe(0.2);
+    expect(PACK_SLOTS.ouro[0].goat).toBe(0.5);
+    expect(DAILY_BASIC_PACKS).toBe(2);
   });
 
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {
@@ -94,6 +98,15 @@ describe('sorteio de pacote', () => {
       return total;
     };
     expect(score('ouro')).toBeGreaterThan(score('basic') * 1.5);
+  });
+
+  it('Caixa Função entrega três cartas elegíveis e nunca Legend ou GOAT', () => {
+    for (const role of ['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'] as const) {
+      const cards = rollPack('funcao', `funcao:${role}`, players, { role });
+      expect(cards).toHaveLength(3);
+      expect(cards.every((player) => eligibleRolesOf(player).includes(role))).toBe(true);
+      expect(cards.every((player) => !['legend', 'goat'].includes(rarityOf(player)))).toBe(true);
+    }
   });
 
   it('Ícone sempre traz um GOAT e Diamante uma Lenda ou GOAT na primeira carta, sem repetir carta', () => {

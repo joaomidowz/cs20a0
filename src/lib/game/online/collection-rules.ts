@@ -4,24 +4,24 @@ import type { Coach, Player } from '../types';
  * Pack and coin rules of the online collection, shared by the server (source of truth) and the client (previews and
  * odds shown in the shop). Pure: no data imports, so it stays inside the online boundary.
  */
-export type PackTier = 'basic' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
+export type PackTier = 'basic' | 'funcao' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
 /** Daily promotion: four fixed cards of the day, the same for every account, each sold once per account at a discount. */
 export type PromoTier = 'promo_elite' | 'promo_superstar' | 'promo_legend' | 'promo_coach';
 export type Rarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
 export type RarityOdds = Readonly<Record<Rarity, number>>;
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
-export const PACK_TIERS: readonly PackTier[] = ['basic', 'prata', 'ouro', 'era', 'diamante', 'icone'];
+export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'prata', 'ouro', 'era', 'diamante', 'icone'];
 export const PROMO_TIERS: readonly PromoTier[] = ['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach'];
 /** Discount of each daily offer, in whole percent over the card's coin value. */
-export const PROMO_DISCOUNT: Readonly<Record<PromoTier, number>> = { promo_elite: 50, promo_superstar: 60, promo_legend: 60, promo_coach: 50 };
+export const PROMO_DISCOUNT: Readonly<Record<PromoTier, number>> = { promo_elite: 30, promo_superstar: 25, promo_legend: 25, promo_coach: 30 };
 export const isPromoTier = (tier: string): tier is PromoTier => (PROMO_TIERS as readonly string[]).includes(tier);
 /** Price of a daily offer: the card value minus the discount, in whole coins (integers only). The server charges exactly this. */
 export const promoFinalPrice = (originalPrice: number, tier: PromoTier): number => originalPrice - Math.floor((originalPrice * PROMO_DISCOUNT[tier]) / 100);
 /** Packs sold for coins, in shop order (the basic pack is the daily grant). */
-export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['prata', 'era', 'ouro', 'diamante', 'icone'];
+export const BUYABLE_TIERS: readonly Exclude<PackTier, 'basic'>[] = ['funcao', 'prata', 'era', 'ouro', 'diamante', 'icone'];
 export const CARDS_PER_PACK = 3;
-export const DAILY_BASIC_PACKS = 3;
+export const DAILY_BASIC_PACKS = 2;
 /** Free packs per account besides the daily basic ones: one Prata per ISO week and one Ouro per month, both in Brasília time. */
 export type FreePackTier = 'prata' | 'ouro';
 export const FREE_PACK_TIERS: readonly FreePackTier[] = ['prata', 'ouro'];
@@ -35,16 +35,17 @@ const same = (row: RarityOdds): RarityOdds[] => Array.from({ length: CARDS_PER_P
  * odds of the premium packs are ~40% below what they were, moved to Superstar and Elite: a GOAT should feel like a miracle.
  */
 export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
-  basic: same(odds(63.4, 24, 8.5, 2.5, 1.2, 0.4)),
-  prata: same(odds(38.5, 31, 18, 7.5, 4, 1)),
-  era: same(odds(38.5, 31, 18, 7.5, 4, 1)),
-  ouro: same(odds(10, 26, 33, 16, 13, 2)),
+  basic: same(odds(78, 17, 4.2, 0.58, 0.2, 0.02)),
+  funcao: same(odds(65, 27, 7, 1, 0, 0)),
+  prata: same(odds(55, 30, 12, 2.5, 0.3, 0.2)),
+  era: same(odds(10, 35, 38, 14, 2.5, 0.5)),
+  ouro: same(odds(10, 35, 38, 14, 2.5, 0.5)),
   diamante: [odds(0, 0, 0, 0, 94, 6), odds(0, 0, 14, 44, 36, 6), odds(0, 0, 14, 44, 36, 6)],
   icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 12, 40, 36, 12), odds(0, 0, 12, 40, 36, 12)]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, prata: 1200, era: 7500, ouro: 3500, diamante: 30000, icone: 50000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 1500, prata: 2000, era: 10000, ouro: 7500, diamante: 50000, icone: 100000 };
 
 /** Chance of at least one card of `rarities` in a pack (for the shop). */
 export function packChance(tier: PackTier, rarities: readonly Rarity[]): number {
@@ -97,9 +98,9 @@ export const sellValue = (player: Pick<Player, 'overall' | 'rarity' | 'role' | '
  * what they used to (2026-09-20): reaching them is the hard part, and it is how an account that spends nothing grows.
  * Going out before the playoffs pays the same as before.
  */
-export const PLACEMENT_COINS: Readonly<Record<string, number>> = { placementChampion: 2400, placementRunnerUp: 1500, placement3to4: 1000, placement5to8: 600 };
+export const PLACEMENT_COINS: Readonly<Record<string, number>> = { placementChampion: 1700, placementRunnerUp: 1050, placement3to4: 700, placement5to8: 420 };
 /** Everyone knocked out before the playoffs (Swiss stage or earlier). */
-export const ELIMINATED_COINS = 150;
+export const ELIMINATED_COINS = 100;
 
 /** Coins for finishing a run with the collection lineup; halved when the run did not count for the season. */
 export function matchReward(placement: string, ranked: boolean): number {
@@ -130,7 +131,7 @@ export function seasonPoints(placement: string, lobbySize: number): number {
 export const DUPLICATE_RATIO = SELL_RATIO;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player . */
-export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
 
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;
@@ -156,7 +157,7 @@ export const UPGRADER_MAX_STAKE = 6;
 /** Upgrader: the chance never goes above this, however much is staked (the cap of the lower rarities). */
 export const UPGRADER_MAX_CHANCE = 0.75;
 /** Upgrader: cap of the chance by the rarity of the target (a coach uses its own rarity). */
-export const UPGRADER_RARITY_CAP: Readonly<Record<Rarity, number>> = { common: 0.75, rare: 0.75, elite: 0.75, superstar: 0.75, legend: 0.4, goat: 0.2 };
+export const UPGRADER_RARITY_CAP: Readonly<Record<Rarity, number>> = { common: 0.75, rare: 0.75, elite: 0.75, superstar: 0.75, legend: 0.25, goat: 0.1 };
 /** Upgrader: a target this many rarities (or more) above the best staked card... */
 export const UPGRADER_REACH_STEPS = 2;
 /** ...has its chance multiplied by this, after the cap. */

@@ -671,6 +671,19 @@ INSERT INTO lineup_slot_unlocks (user_id, slot_index)
   SELECT id, s FROM users CROSS JOIN generate_series(0, 1) AS s ON CONFLICT DO NOTHING;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS active_lineup_slot int NOT NULL DEFAULT 0;
 `
+  },
+  {
+    id: 27,
+    // Progressão mais longa (2026-09-21): awards pagam 30% menos. Saldo e histórico ficam intactos.
+    sql: `UPDATE award_rules SET coins = GREATEST(0, round(coins * 0.7 / 5) * 5)::int;`
+  },
+  {
+    id: 28,
+    // Migration 26 liberou duas vagas para as contas existentes, mas contas criadas depois dela também precisam
+    // nascer com os slots 0 e 1. O login passa a fazer o mesmo insert; este reparo cobre o intervalo entre deploys.
+    sql: `INSERT INTO lineup_slot_unlocks (user_id, slot_index)
+      SELECT id, slot_index FROM users CROSS JOIN generate_series(0, 1) AS slot_index
+      ON CONFLICT DO NOTHING;`
   }
 ];
 

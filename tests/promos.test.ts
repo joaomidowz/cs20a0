@@ -12,19 +12,19 @@ import { createTestDb } from './helpers/testDb';
 const DAY = '2026-09-19';
 
 describe('regras da promoção diária', () => {
-  it('tem 4 ofertas: Elite -50%, Superstar -60%, Legend -60% e coach -50%', () => {
+  it('tem 4 ofertas com descontos menores e Legend limitada por semana', () => {
     expect(PROMO_TIERS).toEqual(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']);
-    expect(PROMO_DISCOUNT).toEqual({ promo_elite: 50, promo_superstar: 60, promo_legend: 60, promo_coach: 50 });
+    expect(PROMO_DISCOUNT).toEqual({ promo_elite: 30, promo_superstar: 25, promo_legend: 25, promo_coach: 30 });
     expect(isPromoTier('promo_coach')).toBe(true);
     expect(isPromoTier('ouro')).toBe(false);
     expect(promoSeed(DAY)).toBe('promo:2026-09-19');
   });
 
   it('o preço final é inteiro e aplica o desconto sobre o cardCoinValue', () => {
-    expect(promoFinalPrice(10_000, 'promo_elite')).toBe(5_000);
-    expect(promoFinalPrice(12_250, 'promo_superstar')).toBe(4_900);
-    expect(promoFinalPrice(20_500, 'promo_legend')).toBe(8_200);
-    expect(promoFinalPrice(4_001, 'promo_coach')).toBe(2_001);
+    expect(promoFinalPrice(10_000, 'promo_elite')).toBe(7_000);
+    expect(promoFinalPrice(12_250, 'promo_superstar')).toBe(9_188);
+    expect(promoFinalPrice(20_500, 'promo_legend')).toBe(15_375);
+    expect(promoFinalPrice(4_001, 'promo_coach')).toBe(2_801);
     for (const offer of dailyPromos(DAY)) {
       expect(offer.originalPrice).toBe(cardCoinValue(offer.cardId));
       expect(offer.price).toBe(promoFinalPrice(offer.originalPrice, offer.tier));
@@ -58,6 +58,7 @@ describe.skipIf(!url)('compra da promoção diária (Postgres)', () => {
   const now = Date.UTC(2026, 8, 19, 15);
   const offers = dailyPromos(DAY);
   const elite = offers.find((offer) => offer.tier === 'promo_elite')!;
+  const legend = offers.find((offer) => offer.tier === 'promo_legend')!;
   const coach = offers.find((offer) => offer.tier === 'promo_coach')!;
 
   beforeAll(async () => {
@@ -104,6 +105,16 @@ describe.skipIf(!url)('compra da promoção diária (Postgres)', () => {
     await expect(buyPromo(db, userId, 'promo_coach', now)).rejects.toMatchObject({ code: 'PROMO_BOUGHT' });
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     expect(wallet.coins).toBeLessThan(200_000);
+  });
+
+  it('Legend só pode ser comprada uma vez na mesma semana', async () => {
+    const { buyPromo, listPromos, sellPlayer } = await import('../server/collection/service');
+    const userId = await newUser('promo-legend@example.com', 200_000);
+    await buyPromo(db, userId, 'promo_legend', now);
+    await sellPlayer(db, userId, legend.cardId);
+    const tomorrow = now + 86_400_000;
+    expect((await listPromos(db, userId, tomorrow)).promos.find((promo) => promo.tier === 'promo_legend')?.bought).toBe(true);
+    await expect(buyPromo(db, userId, 'promo_legend', tomorrow)).rejects.toMatchObject({ code: 'PROMO_BOUGHT' });
   });
 
   it('quem já tem a carta vê "já tem" e a compra é recusada sem cobrar', async () => {

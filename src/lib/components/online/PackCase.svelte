@@ -47,6 +47,7 @@
   .glow { position: absolute; inset: 22% 12% 4%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--case-glow) 55%, transparent), transparent); opacity: .35; filter: blur(10px); transition: opacity .2s ease; }
   :global(.pack:hover) .case { transform: translateY(-4px); } :global(.pack:hover) .glow { opacity: .7; }
   .prata { --case-hi: #f1f4f6; --case-a: #b4bdc4; --case-b: #7c868e; --case-c: #515a61; --case-glow: #dfe6ea; }
+  .funcao { --case-hi: #b9f5dc; --case-a: #399d78; --case-b: #226b55; --case-c: #123d32; --case-glow: #5dffbf; }
   .era { --case-hi: #d2b6ff; --case-a: #8a55e0; --case-b: #5a31a3; --case-c: #3a1f6c; --case-glow: #a66bff; --case-ink: #fff; }
   .ouro { --case-hi: #ffe9a8; --case-a: #e0ab3c; --case-b: #a87516; --case-c: #6f4a0a; --case-glow: #ffc94d; }
   .diamante { --case-hi: #eafaff; --case-a: #7fdcff; --case-b: #2f9fd1; --case-c: #17607f; --case-glow: #5ad1ff; }

@@ -1,10 +1,13 @@
 import { COACH_CHANCE, PACK_SLOTS, RARITIES, rarityOf, type PackTier, type Rarity, type RarityOdds } from '../../src/lib/game/online/collection-rules';
 import { createSeededRng } from '../../src/lib/game/simulation';
-import type { Coach, Player } from '../../src/lib/game/types';
+import { getEligibleSlotRoles } from '../../src/lib/game/roleRules';
+import type { Coach, LineupSlotRole, Player } from '../../src/lib/game/types';
 
 export interface RollOptions {
   /** `era` packs: every card from this year. Other tiers draw three distinct years. */
   year?: number;
+  /** `funcao` packs: every player can fill the selected lineup role. */
+  role?: LineupSlotRole;
   /** Cards in the pack; defaults to the tier's slot rows (3). */
   size?: number;
 }
@@ -26,7 +29,9 @@ const ladderOf = (wanted: Rarity): Rarity[] => [wanted, ...RARITIES.slice(0, RAR
 /** Deterministic by seed: the same user, day and pack index always reveal the same three cards. */
 export function rollPack(tier: PackTier, seed: string, pool: Player[], options: RollOptions = {}): Player[] {
   const rng = createSeededRng(seed);
-  const eligible = options.year ? pool.filter((player) => player.year === options.year) : pool;
+  const eligible = pool
+    .filter((player) => !options.year || player.year === options.year)
+    .filter((player) => !options.role || getEligibleSlotRoles(player).includes(options.role));
   if (!eligible.length) throw new Error('Empty pack pool');
   const byRarity = new Map<Rarity, Player[]>();
   for (const player of eligible) {

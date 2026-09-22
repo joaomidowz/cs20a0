@@ -81,6 +81,7 @@ export async function verifyMagicLink(deps: AuthDeps, token: string): Promise<{ 
     );
     await tx.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [hashToken(session), user.id, new Date(now + SESSION_TTL_MS)]);
     await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
+    await tx.query('INSERT INTO lineup_slot_unlocks (user_id, slot_index) VALUES ($1, 0), ($1, 1) ON CONFLICT DO NOTHING', [user.id]);
     if (firstLogin) {
       // Welcome coins, once per account: the ledger row doubles as the guard against paying twice.
       const [paid] = await tx.query(`SELECT 1 FROM ledger WHERE user_id = $1 AND reason = 'welcome'`, [user.id]);

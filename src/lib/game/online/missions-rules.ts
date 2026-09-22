@@ -16,19 +16,19 @@ export interface MissionDef {
 }
 
 export const MISSIONS: readonly MissionDef[] = [
-  { id: 'daily_play_1', scope: 'daily', metric: 'played', target: 1, coins: 150, packs: 0 },
-  { id: 'daily_play_3', scope: 'daily', metric: 'played', target: 3, coins: 300, packs: 0 },
-  { id: 'daily_mvp_1', scope: 'daily', metric: 'mvp', target: 1, coins: 250, packs: 0 },
-  { id: 'weekly_play_10', scope: 'weekly', metric: 'played', target: 10, coins: 600, packs: 0 },
-  { id: 'weekly_win_1', scope: 'weekly', metric: 'won', target: 1, coins: 800, packs: 0 },
-  { id: 'weekly_mvp_3', scope: 'weekly', metric: 'mvp', target: 3, coins: 700, packs: 1 },
-  { id: 'season_play_40', scope: 'season', metric: 'played', target: 40, coins: 2000, packs: 1 },
-  { id: 'season_win_5', scope: 'season', metric: 'won', target: 5, coins: 3000, packs: 2 },
-  { id: 'season_mvp_10', scope: 'season', metric: 'mvp', target: 10, coins: 2500, packs: 1 },
-  { id: 'solo_champions', scope: 'solo', metric: 'champions_title', target: 1, coins: 800, packs: 0 },
-  { id: 'solo_streak_2', scope: 'solo', metric: 'solo_streak', target: 2, coins: 300, packs: 0 },
-  { id: 'solo_streak_3', scope: 'solo', metric: 'solo_streak', target: 3, coins: 500, packs: 0 },
-  { id: 'solo_flawless', scope: 'solo', metric: 'flawless_title', target: 1, coins: 600, packs: 0 }
+  { id: 'daily_play_1', scope: 'daily', metric: 'played', target: 1, coins: 100, packs: 0 },
+  { id: 'daily_play_3', scope: 'daily', metric: 'played', target: 3, coins: 210, packs: 0 },
+  { id: 'daily_mvp_1', scope: 'daily', metric: 'mvp', target: 1, coins: 175, packs: 0 },
+  { id: 'weekly_play_10', scope: 'weekly', metric: 'played', target: 10, coins: 420, packs: 0 },
+  { id: 'weekly_win_1', scope: 'weekly', metric: 'won', target: 1, coins: 560, packs: 0 },
+  { id: 'weekly_mvp_3', scope: 'weekly', metric: 'mvp', target: 3, coins: 490, packs: 1 },
+  { id: 'season_play_40', scope: 'season', metric: 'played', target: 40, coins: 1400, packs: 1 },
+  { id: 'season_win_5', scope: 'season', metric: 'won', target: 5, coins: 2100, packs: 2 },
+  { id: 'season_mvp_10', scope: 'season', metric: 'mvp', target: 10, coins: 1750, packs: 1 },
+  { id: 'solo_champions', scope: 'solo', metric: 'champions_title', target: 1, coins: 560, packs: 0 },
+  { id: 'solo_streak_2', scope: 'solo', metric: 'solo_streak', target: 2, coins: 210, packs: 0 },
+  { id: 'solo_streak_3', scope: 'solo', metric: 'solo_streak', target: 3, coins: 350, packs: 0 },
+  { id: 'solo_flawless', scope: 'solo', metric: 'flawless_title', target: 1, coins: 420, packs: 0 }
 ];
 
 export const missionById = new Map(MISSIONS.map((mission) => [mission.id, mission]));

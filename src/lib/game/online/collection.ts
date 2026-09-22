@@ -1,5 +1,5 @@
 import type { CollectionSlotRole } from './collection-lineup';
-import type { MapId, OrgStyle } from '../types';
+import type { LineupSlotRole, MapId, OrgStyle } from '../types';
 import { authFetch } from './account';
 import { patchWalletCoins, setWalletFromCollection } from './wallet';
 
@@ -46,7 +46,7 @@ export interface PackOpened {
 export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection').then((state) => { setWalletFromCollection(state); return state; });
 export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} }));
 export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/free', { body: { tier } }));
-export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}) } }));
+export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number, role?: LineupSlotRole) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}), ...(role ? { role } : {}) } }));
 export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>, slot?: number) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: slot === undefined ? lineup : { ...lineup, slot } });
 /** Switches which lineup slot plays (queue, solo and rooms use the active one). */

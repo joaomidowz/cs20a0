@@ -8,7 +8,8 @@ import { collectionCoachById, collectionPlayerById } from '../src/lib/game/onlin
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 import { runMigrations } from '../server/db/migrations';
-import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
+import { isStarEffective, primaryRoleOf } from '../src/lib/game/online/collection-lineup';
+import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
 import { coachSellValue, coinValue, sellValue } from '../src/lib/game/online/collection-rules';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -41,7 +42,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
 
   afterAll(async () => { await close(); await db?.close(); });
 
-  it('dá três pacotes por dia, recusa o quarto e libera no dia seguinte', async () => {
+  it('dá dois pacotes por dia, recusa o terceiro e libera no dia seguinte', async () => {
     const first = await call('/packs/open', {});
     expect(first.status).toBe(200);
     expect(first.body.players).toHaveLength(3);
@@ -49,15 +50,25 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(second.status).toBe(200);
     expect(second.body.seed).not.toBe(first.body.seed);
     const third = await call('/packs/open', {});
-    expect(third.status).toBe(200);
-    const fourth = await call('/packs/open', {});
-    expect(fourth.status).toBe(409);
-    expect(fourth.body.error).toBe('NO_PACKS_LEFT');
+    expect(third.status).toBe(409);
+    expect(third.body.error).toBe('NO_PACKS_LEFT');
     const collection = await call('/collection');
-    expect(collection.body.count).toBe(9 - (first.body.duplicates.length + second.body.duplicates.length + third.body.duplicates.length));
-    expect(collection.body.packsToday).toEqual({ granted: 3, opened: 3 });
+    expect(collection.body.count).toBe(6 - (first.body.duplicates.length + second.body.duplicates.length));
+    expect(collection.body.packsToday).toEqual({ granted: 2, opened: 2 });
     clock += 24 * 60 * 60_000;
     expect((await call('/packs/open', {})).status).toBe(200);
+  });
+
+  it('Caixa Função exige função e entrega três jogadores aptos nela', async () => {
+    await db.query('UPDATE wallets SET coins = 10000');
+    const missing = await call('/packs/buy', { tier: 'funcao' });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error).toBe('BAD_ROLE');
+
+    const bought = await call('/packs/buy', { tier: 'funcao', role: 'support' });
+    expect(bought.status).toBe(200);
+    expect(bought.body.players).toHaveLength(3);
+    expect(bought.body.players.every((id: string) => getEligibleSlotRoles(collectionPlayerById.get(id)!).includes('support'))).toBe(true);
   });
 
   it('venda paga SELL_RATIO e some da coleção; comprar sem coins dá 402; comprar com coins funciona', async () => {
@@ -68,18 +79,15 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     const soldCoach = collectionCoachById.get(playerId);
     expect(sold.body.coins).toBe(soldCoach ? coachSellValue(soldCoach) : sellValue(collectionPlayerById.get(playerId)!));
     expect((await call('/collection/sell', { playerId })).status).toBe(404);
-    // Welcome coins pay for one gold pack and a bit; the fourth purchase in a row runs out.
-    const [start] = await db.query<{ coins: number }>('SELECT coins FROM wallets');
-    expect(start.coins).toBeGreaterThanOrEqual(10_000);
     await db.query('UPDATE wallets SET coins = 3000');
     expect((await call('/packs/buy', { tier: 'ouro' })).status).toBe(402);
-    await db.query('UPDATE wallets SET coins = coins + 5000');
+    await db.query('UPDATE wallets SET coins = coins + 7000');
     const bought = await call('/packs/buy', { tier: 'era', year: 2014 });
     expect(bought.status).toBe(200);
     const yearOf = (id: string) => collectionPlayerById.get(id)?.year ?? collectionCoachById.get(id)?.year;
     expect(bought.body.players.every((id: string) => yearOf(id) === 2014)).toBe(true);
     const ledger = await db.query<{ reason: string; delta: number }>('SELECT reason, delta FROM ledger ORDER BY id');
-    expect(ledger.some((row) => row.reason === 'buy_pack' && row.delta === -7500)).toBe(true);
+    expect(ledger.some((row) => row.reason === 'buy_pack' && row.delta === -10000)).toBe(true);
     expect(ledger.some((row) => row.reason === 'sell')).toBe(true);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets');
     expect(wallet.coins).toBeGreaterThanOrEqual(0);
@@ -127,8 +135,8 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
   });
 
   it('lineup exige cinco cartas próprias e devolve se o star vale', async () => {
-    await db.query(`INSERT INTO ledger (user_id, delta, reason) SELECT id, 20000, 'award' FROM users`);
-    await db.query('UPDATE wallets SET coins = coins + 20000');
+    await db.query(`INSERT INTO ledger (user_id, delta, reason) SELECT id, 100000, 'award' FROM users`);
+    await db.query('UPDATE wallets SET coins = coins + 100000');
     for (let index = 0; index < 6; index += 1) await call('/packs/buy', { tier: 'ouro' });
     const collection = await call('/collection');
     const owned = (collection.body.players as Array<{ playerId: string }>).map((item) => collectionPlayerById.get(item.playerId)).filter((player): player is NonNullable<typeof player> => Boolean(player));
@@ -136,14 +144,15 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     const five = owned.filter((player) => { const base = player.baseId ?? player.id; if (seen.has(base)) return false; seen.add(base); return true; }).slice(0, 5);
     expect(five).toHaveLength(5);
     const roles = five.map((player) => primaryRoleOf(player));
-    const star = [...five].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))[0];
+    const star = five.find((player) => isStarEffective(five, player.id, roles));
+    expect(star).toBeTruthy();
     const ownedCoach = (collection.body.players as Array<{ playerId: string }>).map((item) => collectionCoachById.get(item.playerId)).find(Boolean) ?? null;
-    const saved = await call('/lineup', { playerIds: five.map((player) => player.id), roles, starPlayerId: star.id, coachId: ownedCoach?.id ?? null, style: 'balanced' }, 'PUT');
+    const saved = await call('/lineup', { playerIds: five.map((player) => player.id), roles, starPlayerId: star!.id, coachId: ownedCoach?.id ?? null, style: 'balanced' }, 'PUT');
     expect(saved.status).toBe(200);
     expect(saved.body.lineup.starEffective).toBe(true);
     expect(saved.body.lineup.coachId).toBe(ownedCoach?.id ?? null);
     const notMine = [...collectionCoachById.values()].find((coach) => !(collection.body.players as Array<{ playerId: string }>).some((item) => item.playerId === coach.id))!;
-    expect((await call('/lineup', { playerIds: five.map((player) => player.id), roles, starPlayerId: star.id, coachId: notMine.id, style: 'balanced' }, 'PUT')).status).toBe(403);
+    expect((await call('/lineup', { playerIds: five.map((player) => player.id), roles, starPlayerId: star!.id, coachId: notMine.id, style: 'balanced' }, 'PUT')).status).toBe(403);
     expect((await call('/collection/sell', { playerId: five[0].id })).status).toBe(409);
     const stolen = await call('/lineup', { playerIds: ['device-2016', 'device-2017', 'device-2018', 'device-2019', 'device-2020'], roles: ['awper', 'awper', 'awper', 'awper', 'awper'], starPlayerId: null, style: 'balanced' }, 'PUT');
     expect([400, 403]).toContain(stolen.status);
@@ -151,7 +160,7 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     const { getDefaultMapSelection } = await import('../src/lib/game/maps');
     const { collectionTeams } = await import('../src/lib/game/online/collection-pool');
     const maps = [...getDefaultMapSelection(five, collectionTeams)];
-    const base = { playerIds: five.map((player) => player.id), roles, starPlayerId: star.id, coachId: ownedCoach?.id ?? null, style: 'balanced' };
+    const base = { playerIds: five.map((player) => player.id), roles, starPlayerId: star!.id, coachId: ownedCoach?.id ?? null, style: 'balanced' };
     const withMaps = await call('/lineup', { ...base, mapPreferences: maps }, 'PUT');
     expect(withMaps.body.lineup.mapPreferences).toEqual(maps);
     expect((await call('/lineup', { ...base, mapPreferences: ['nope', maps[0], maps[1]] }, 'PUT')).status).toBe(400);
@@ -218,10 +227,10 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const db = await createTestDb(url!, 'test_majors');
     await runMigrations(db);
     const rules = new Map((await db.query<{ kind: string; coins: number; points: number }>('SELECT kind, coins, points FROM award_rules')).map((row) => [row.kind, row]));
-    expect(rules.get('major_mvp')).toMatchObject({ coins: 195, points: 2 });
+    expect(rules.get('major_mvp')).toMatchObject({ coins: 135, points: 2 });
     expect(rules.get('streak_3')).toMatchObject({ points: 3 });
-    expect(rules.get('major_title')).toMatchObject({ coins: 260, points: 0 });
-    expect(rules.get('season_top1')).toMatchObject({ coins: 2000 });
+    expect(rules.get('major_title')).toMatchObject({ coins: 180, points: 0 });
+    expect(rules.get('season_top1')).toMatchObject({ coins: 1400 });
     const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('major@example.com', now()) RETURNING id`);
     await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
     const now = Date.UTC(2026, 8, 18, 15);
@@ -238,8 +247,8 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const awards = await db.query<{ kind: string }>('SELECT kind FROM awards ORDER BY kind');
     expect(awards.map((row) => row.kind)).toEqual(['major_title']);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
-    // 2.400 for the title placement + 260 for the major_title award (200 + 30%).
-    expect(wallet.coins).toBe(2400 + 260);
+    // 1.700 for the title placement + 180 for the major_title award.
+    expect(wallet.coins).toBe(1700 + 180);
     // Three runs a day score: a 3-player runner-up gets half of 7 (rounded up), a 2-player 5th–8th a third of 3.
     await recordMajor(db, { ...event, seed: 'seed-2', lobbySize: 3, entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, now + 60_000);
     await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placement5to8', champion: false }] }, now + 90_000);
@@ -284,7 +293,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(repaired.majors_played).toBe(12);
     expect(repaired.avg_rating === null || Number(repaired.avg_rating) !== 0.01).toBe(true);
     // End-of-run summary is the latest run of the room.
-    expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, rewardCoins: 600, awardCoins: 0, lobbySize: 1 });
+    expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, rewardCoins: 850, awardCoins: 0, lobbySize: 1 });
 
     // Month over: the podium is paid once, the season closes and shows up as the last champion.
     const { closeFinishedSeasons, lastSeasonPodium } = await import('../server/collection/seasons');
@@ -294,7 +303,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(await closeFinishedSeasons(db, nextMonth)).toEqual([{ seasonId: expect.any(Number), month: '2026-09-01', awarded: 1 }]);
     expect(await closeFinishedSeasons(db, nextMonth)).toEqual([]);
     const [after] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
-    expect(after.coins - before.coins).toBe(2000);
+    expect(after.coins - before.coins).toBe(1400);
     const top = await db.query<{ kind: string }>(`SELECT kind FROM awards WHERE kind LIKE 'season_%'`);
     expect(top.map((row) => row.kind)).toEqual(['season_top1']);
     const podium = await lastSeasonPodium(db);
