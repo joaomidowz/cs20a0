@@ -58,6 +58,10 @@ function noteOf(commit) {
     '1023bbf0ec48d4ecf9334b5835c1079a83c188bf': {
       title: 'Login por código de 6 dígitos, além do link',
       summary: 'O e-mail de acesso passa a trazer um código que dá para digitar na tela de login quando o link não abre o jogo — vale no celular, no app instalado e em qualquer navegador.'
+    },
+    'd84c27502bfd6bbfa584368a9dc5e7268e821612': {
+      title: 'Caixa do Major: prêmio pela colocação nas patentes do CS',
+      summary: 'Todo Major ranqueado com o time da coleção (2+ jogadores) lacra uma caixa pela colocação final — 5º–8º Prata, 3º–4º Ouro, vice Supremo e campeão Global — e todas abrem no pé da Loja, com um aviso explicando o prêmio.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];

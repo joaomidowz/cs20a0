@@ -1,8 +1,29 @@
 {
-  "version": "3.1",
-  "total": 316,
+  "version": "3.2",
+  "total": 320,
   "generatedAt": "2026-09-22",
   "entries": [
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "d84c275",
+      "title": "Caixa do Major: prêmio pela colocação nas patentes do CS",
+      "summary": "Todo Major ranqueado com o time da coleção (2+ jogadores) lacra uma caixa pela colocação final — 5º–8º Prata, 3º–4º Ouro, vice Supremo e campeão Global — e todas abrem no pé da Loja, com um aviso explicando o prêmio."
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "f87176d",
+      "title": "Nota interna fora do changelog",
+      "summary": ""
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "c8f63d9",
+      "title": "Changelog da versao",
+      "summary": ""
+    },
     {
       "version": "3.1",
       "date": "2026-09-22",
@@ -821,27 +842,6 @@
       "hash": "f4b1e66",
       "title": "Fila competitiva e regra única de quando o Major vale pontos",
       "summary": "Fila (POST /queue/join|leave, GET /queue/status): só time da coleção; fecha a sala com 8 na hora ou com 4+ depois de 20 s esperando mais gente; nunca com menos de 4."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "8514887",
-      "title": "10k de boas-vindas, cartas desde 2013 e coach como carta",
-      "summary": "- Boas-vindas: 10.000 coins no primeiro login verificado (uma vez por conta,   registrado no ledger como 'welcome'); migration 5 paga quem já tinha conta."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "1f72462",
-      "title": "Carta da coleção com bandeira e time dentro, brilho de sinergia e star",
-      "summary": "CollectionCard substitui o PlayerCard na coleção, nas vagas do time e na abertura de pacote: moldura pela raridade, foto, OVR, bandeira ao lado do nome, escudo e time dentro da carta e ações no rodapé."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "c8ff96d",
-      "title": "Diálogo de confirmação próprio no lugar do confirm do navegador",
-      "summary": "ConfirmDialog (tema do jogo, foco preso, Esc cancela, tom de perigo) montado no PageLayout e no jogo offline, acionado por confirmDialog() → Promise."
     }
   ]
 }
