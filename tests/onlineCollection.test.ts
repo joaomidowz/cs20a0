@@ -338,16 +338,20 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const { runMigrations } = await import('../server/db/migrations');
     const { recordMajor } = await import('../server/collection/seasons');
     const { buyPack, openMajorPack, pendingMajorPacks } = await import('../server/collection/service');
+    const { MAJOR_PACK_CUTOFF } = await import('../src/lib/game/online/collection-rules');
     const db = await createTestDb(url!, 'test_majors_crate');
     await runMigrations(db);
     const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('crate@example.com', now()) RETURNING id`);
     await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
-    const now = Date.UTC(2026, 8, 18, 15);
+    // Depois do corte das caixas: majors terminados antes do deploy do recurso não lacram nada.
+    const now = Date.parse(MAJOR_PACK_CUTOFF) + 60 * 60_000;
     const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
     const event = {
       roomCode: 'ROOMCRTE', seed: 'box-1', runNumber: 1, lobbySize: 4, competitive: true, field: 'random' as const, awards: null,
       entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
     };
+    // Sem retroatividade: major ranqueado terminado ANTES do corte não lacra caixa nenhuma.
+    await recordMajor(db, { ...event, seed: 'box-0', entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, Date.parse(MAJOR_PACK_CUTOFF) - 60_000);
     await recordMajor(db, event, now);
     await recordMajor(db, { ...event, seed: 'box-2', entries: [{ ...event.entries[0], placement: 'placement3to4', champion: false }] }, now + 1000);
     // Solo contra bots é treino: roda coins, mas não lacra caixa.

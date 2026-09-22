@@ -133,6 +133,10 @@ export const MAJOR_PACK_BY_PLACEMENT: Readonly<Record<string, PackTier>> = {
   placementStage1: 'basic'
 };
 
+/** Sem retroatividade (dono, 2026-09-22): só major terminado depois do deploy do recurso lacra caixa —
+ * o histórico inteiro de runs passadas nunca vira pilha de caixa. Instante fixo no código, de propósito. */
+export const MAJOR_PACK_CUTOFF = '2026-09-22T18:20:00.000Z';
+
 /** Season points by placement with four or more humans in the run. */
 export const PLACEMENT_POINTS: Readonly<Record<string, number>> = { placementChampion: 10, placementRunnerUp: 7, placement3to4: 5, placement5to8: 3 };
 export const ELIMINATED_POINTS = 1;

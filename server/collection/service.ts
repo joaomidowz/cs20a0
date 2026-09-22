@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, MAJOR_PACK_BY_PLACEMENT, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, MAJOR_PACK_BY_PLACEMENT, MAJOR_PACK_CUTOFF, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionOrganizationByKey, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
@@ -186,14 +186,14 @@ export async function openFreePack(db: Db, userId: string, tier: FreePackTier, n
   });
 }
 
-/** Every ranked Major finished with its crate still sealed: oldest first, tier derived from the placement. */
+/** Every ranked Major finished after the feature's cutoff with its crate still sealed: oldest first, tier derived from the placement. */
 export async function pendingMajorPacks(db: Db, userId: string): Promise<Array<{ roomCode: string; seed: string; tier: PackTier }>> {
   const rows = await db.query<{ room_code: string; seed: string; placement: string }>(
     `SELECT m.room_code, m.seed, m.placement FROM majors m
      LEFT JOIN major_pack_claims c ON c.user_id = m.user_id AND c.room_code = m.room_code AND c.seed = m.seed
-     WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL
+     WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL AND m.played_at >= $2::timestamptz
      ORDER BY m.played_at, m.id`,
-    [userId]
+    [userId, MAJOR_PACK_CUTOFF]
   );
   return rows.map((row) => ({ roomCode: row.room_code, seed: row.seed, tier: MAJOR_PACK_BY_PLACEMENT[row.placement] ?? 'basic' }));
 }
@@ -208,9 +208,9 @@ export async function openMajorPack(db: Db, userId: string): Promise<PackResult 
     const rows = await tx.query<{ room_code: string; seed: string; placement: string }>(
       `SELECT m.room_code, m.seed, m.placement FROM majors m
        LEFT JOIN major_pack_claims c ON c.user_id = m.user_id AND c.room_code = m.room_code AND c.seed = m.seed
-       WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL
+       WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL AND m.played_at >= $2::timestamptz
        ORDER BY m.played_at, m.id FOR UPDATE OF m`,
-      [userId]
+      [userId, MAJOR_PACK_CUTOFF]
     );
     const next = rows[0];
     if (!next) throw new CollectionError(409, 'NO_MAJOR_PACK', 'Nenhuma caixa de Major para abrir');
