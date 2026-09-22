@@ -35,7 +35,9 @@ const TRAILER_LINE = /^(co-authored-by|claude-session|signed-off-by|generated wi
 /** Commits de controle do changelog (registrando notas) não são nota de release para o jogador. */
 const META_HASHES = new Set([
   '09399779cba8dd1ddf2b52f84f03bb96e2dcb1de',
-  '2f07056d7f008d633781099d9edbb29c3601e394'
+  '2f07056d7f008d633781099d9edbb29c3601e394',
+  // Isenção de ranking da conta do dono: interna por decisão dele, nunca vira nota para o jogador.
+  'f74bb3ee81008cf203cb3e5b8df0a08f027e024c'
 ]);
 
 function noteOf(commit) {
