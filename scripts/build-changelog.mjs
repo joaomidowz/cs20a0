@@ -33,6 +33,11 @@ const TRAILER_LINE = /^(co-authored-by|claude-session|signed-off-by|generated wi
 
 /** O título e a frase de cada nota: o assunto do commit sem o prefixo, e a primeira frase do corpo sem trailers. */
 function noteOf(commit) {
+  // Nota pública do hotfix: manter os valores aprovados nas próximas regenerações.
+  if (commit.hash === '659c2b6f4f577cf67ee94f39e7ff77be81e1e41f') return {
+    title: 'Hotfix: economia das caixas e venda de cartas',
+    summary: 'Venda de jogadores e coaches ajustada para 40% do valor da carta; caixa Ouro a 12.000 coins e Prata a 5.000 coins para corrigir o lucro médio no ciclo de abrir, vender e recomprar.'
+  };
   const withoutType = commit.subject.replace(/^(feat|fix|chore|docs|test|refactor|perf|style|balance|merge)(\([^)]*\))?:\s*/i, '');
   const title = withoutType.charAt(0).toUpperCase() + withoutType.slice(1);
   const bodyWithoutTrailers = commit.body.split('\n').filter((line) => line.trim() && !TRAILER_LINE.test(line.trim()) && !/^https:\/\/claude\.ai\//.test(line.trim())).join('\n');
