@@ -1,9 +1,17 @@
 /**
  * Missões: regras puras, compartilhadas por cliente e servidor. Valores ficam nesta tabela, fáceis de ajustar.
- * Online (daily/weekly/season) só conta em run competitivo; solo só em run não competitivo e paga uma vez por season.
+ * Online (daily/weekly/season) só conta em run competitivo; solo só em run não competitivo e reseta junto com o dia.
  */
 export type MissionScope = 'daily' | 'weekly' | 'season' | 'solo';
-export type MissionMetric = 'played' | 'won' | 'mvp' | 'champions_title' | 'solo_streak' | 'flawless_title';
+export type MissionMetric =
+  | 'played'
+  | 'won'
+  | 'mvp'
+  | 'champions_title'
+  | 'solo_streak'
+  | 'flawless_title'
+  | 'lineups_distinct'
+  | 'packs_opened';
 
 export interface MissionDef {
   id: string;
@@ -19,16 +27,18 @@ export const MISSIONS: readonly MissionDef[] = [
   { id: 'daily_play_1', scope: 'daily', metric: 'played', target: 1, coins: 100, packs: 0 },
   { id: 'daily_play_3', scope: 'daily', metric: 'played', target: 3, coins: 210, packs: 0 },
   { id: 'daily_mvp_1', scope: 'daily', metric: 'mvp', target: 1, coins: 175, packs: 0 },
+  { id: 'daily_lineups_3', scope: 'daily', metric: 'lineups_distinct', target: 3, coins: 300, packs: 0 },
+  { id: 'daily_packs_5', scope: 'daily', metric: 'packs_opened', target: 5, coins: 150, packs: 0 },
   { id: 'weekly_play_10', scope: 'weekly', metric: 'played', target: 10, coins: 420, packs: 0 },
   { id: 'weekly_win_1', scope: 'weekly', metric: 'won', target: 1, coins: 560, packs: 0 },
   { id: 'weekly_mvp_3', scope: 'weekly', metric: 'mvp', target: 3, coins: 490, packs: 1 },
   { id: 'season_play_40', scope: 'season', metric: 'played', target: 40, coins: 1400, packs: 1 },
   { id: 'season_win_5', scope: 'season', metric: 'won', target: 5, coins: 2100, packs: 2 },
   { id: 'season_mvp_10', scope: 'season', metric: 'mvp', target: 10, coins: 1750, packs: 1 },
-  { id: 'solo_champions', scope: 'solo', metric: 'champions_title', target: 1, coins: 560, packs: 0 },
-  { id: 'solo_streak_2', scope: 'solo', metric: 'solo_streak', target: 2, coins: 210, packs: 0 },
-  { id: 'solo_streak_3', scope: 'solo', metric: 'solo_streak', target: 3, coins: 350, packs: 0 },
-  { id: 'solo_flawless', scope: 'solo', metric: 'flawless_title', target: 1, coins: 420, packs: 0 }
+  { id: 'solo_champions', scope: 'solo', metric: 'champions_title', target: 1, coins: 1680, packs: 0 },
+  { id: 'solo_streak_2', scope: 'solo', metric: 'solo_streak', target: 2, coins: 630, packs: 0 },
+  { id: 'solo_streak_3', scope: 'solo', metric: 'solo_streak', target: 3, coins: 1050, packs: 0 },
+  { id: 'solo_flawless', scope: 'solo', metric: 'flawless_title', target: 1, coins: 1260, packs: 0 }
 ];
 
 export const missionById = new Map(MISSIONS.map((mission) => [mission.id, mission]));
@@ -46,18 +56,18 @@ export function isoWeekKey(now: number): string {
   return `${day.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
 }
 
-/** Chave do período em que a missão está: `d:2026-09-19`, `w:2026-38` ou `s:<seasonId>` (season e solo). */
+/** Chave do período em que a missão está: `d:2026-09-19`, `w:2026-38` ou `s:<seasonId>` (só season; solo é diário). */
 export function missionPeriodKey(scope: MissionScope, now: number, seasonId: number): string {
-  if (scope === 'daily') return `d:${shifted(now).toISOString().slice(0, 10)}`;
+  if (scope === 'daily' || scope === 'solo') return `d:${shifted(now).toISOString().slice(0, 10)}`;
   if (scope === 'weekly') return `w:${isoWeekKey(now)}`;
   return `s:${seasonId}`;
 }
 
-/** Quando o período atual vira (ms UTC). Season e solo viram com o mês, informado pelo chamador. */
+/** Quando o período atual vira (ms UTC). Season vira com o mês, informado pelo chamador; solo vira com o dia. */
 export function missionPeriodEnd(scope: MissionScope, now: number, seasonEndsAt: number): number {
   const date = shifted(now);
   const midnight = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) + 3 * 60 * 60_000;
-  if (scope === 'daily') return midnight + 86_400_000;
+  if (scope === 'daily' || scope === 'solo') return midnight + 86_400_000;
   if (scope === 'weekly') return midnight + (8 - (date.getUTCDay() || 7)) * 86_400_000;
   return seasonEndsAt;
 }
@@ -70,13 +80,16 @@ export interface MissionRunFacts {
   seriesLost: number;
   /** Sequência solo depois deste run (só run não competitivo). */
   soloStreak: number;
+  /** Lineups diferentes que este jogador levou ao dia (solo e competitivo somam juntos). */
+  lineupsDistinct: number;
 }
 
-/** Quanto um run soma a cada missão. `set` substitui o progresso pelo maior valor (sequência); `add` soma. */
+/** Quanto um run soma a cada missão. `set` substitui o progresso pelo maior valor (sequência, lineups do dia); `add` soma. */
 export function missionIncrements(facts: MissionRunFacts): Array<{ mission: MissionDef; mode: 'add' | 'set'; value: number }> {
   const out: Array<{ mission: MissionDef; mode: 'add' | 'set'; value: number }> = [];
   for (const mission of MISSIONS) {
-    if ((mission.scope === 'solo') === facts.competitive) continue;
+    // `lineups_distinct` é a única que conta nos dois mundos: testar lineup contra bots também é variar de equipe.
+    if ((mission.scope === 'solo') === facts.competitive && mission.metric !== 'lineups_distinct') continue;
     let value = 0;
     let mode: 'add' | 'set' = 'add';
     switch (mission.metric) {
@@ -86,6 +99,8 @@ export function missionIncrements(facts: MissionRunFacts): Array<{ mission: Miss
       case 'champions_title': value = facts.field === 'champions' && facts.champion ? 1 : 0; break;
       case 'flawless_title': value = facts.champion && facts.seriesLost === 0 ? 1 : 0; break;
       case 'solo_streak': value = facts.soloStreak; mode = 'set'; break;
+      case 'lineups_distinct': value = facts.lineupsDistinct; mode = 'set'; break;
+      case 'packs_opened': break; // Não vem de run: o servidor soma via `advanceMissionActivity` a cada baú aberto.
     }
     if (value > 0) out.push({ mission, mode, value });
   }

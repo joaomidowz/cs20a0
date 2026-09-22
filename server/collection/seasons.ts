@@ -1,4 +1,4 @@
-import { AWARD_POINTS_CAP, COUNTED_RUNS_PER_DAY, ELIMINATED_POINTS, FULL_POINTS_LOBBY, PLACEMENT_POINTS, matchReward, seasonPoints } from '../../src/lib/game/online/collection-rules';
+import { AWARD_POINTS_CAP, COUNTED_RUNS_PER_DAY, ELIMINATED_POINTS, FULL_POINTS_LOBBY, PLACEMENT_POINTS, SEASON_PRIZES, matchReward, seasonPoints } from '../../src/lib/game/online/collection-rules';
 import type { Db, Tx } from '../db/client';
 import { collectionPlayerById as playerById } from '../../src/lib/game/online/collection-pool';
 import type { RunCompletedEvent } from '../room-manager';
@@ -68,12 +68,15 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
       const potential = basePoints + Math.min(AWARD_POINTS_CAP, awardPoints);
       const ratings = entry.stats.map((line) => line.runRating).filter((value) => Number.isFinite(value));
       const avgRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : null;
+      // Fingerprint of the lineup that played: sorted card ids, so the daily "vary your lineup" mission can count
+      // distinct teams of the day. Reordering the same five cards is the same lineup; swapping one card is not.
+      const lineupKey = [...entry.lineupIds].sort().join(',');
       await tx.query(
         // `played_at` comes from `now`, like the day key below: left to the database clock, the two could disagree
         // (and a run recorded with a past `now` would never be found among its own day's runs).
-        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, potential_points, played_at)
-         VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14, to_timestamp($15::double precision / 1000))`,
-        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, potential, now]
+        `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, potential_points, lineup_key, played_at)
+         VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, to_timestamp($16::double precision / 1000))`,
+        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, potential, lineupKey, now]
       );
       // The day's best runs count, the rest score nothing: a new run can push an older, weaker one out.
       await tx.query(
@@ -232,13 +235,20 @@ export async function awardsOf(db: Db, userId: string): Promise<Array<{ kind: st
   return rows.map((row) => ({ kind: row.kind, count: Number(row.count), last: row.last.toISOString() }));
 }
 
-/** Tier of a final season rank; only the best tier is granted (top 1 does not also get top 3). */
-const seasonAwardFor = (rank: number): 'season_top1' | 'season_top3' | 'season_top10' | null =>
-  rank === 1 ? 'season_top1' : rank <= 3 ? 'season_top3' : rank <= 10 ? 'season_top10' : null;
+/** Medal of a final season rank; only the best tier is granted (the champion does not also get top 8). */
+const seasonMedalFor = (rank: number): 'season_champion' | 'season_vice' | 'season_third' | 'season_top8' | 'season_top12' | 'season_top16' | null =>
+  rank === 1 ? 'season_champion'
+    : rank === 2 ? 'season_vice'
+    : rank === 3 ? 'season_third'
+    : rank <= 8 ? 'season_top8'
+    : rank <= 12 ? 'season_top12'
+    : rank <= SEASON_PRIZES.length ? 'season_top16'
+    : null;
 
 /**
- * Closes every season whose month is over: final ranks become awards (champion, top 3, top 10) with their coin prize.
- * Runs at boot and hourly; closing is a single UPDATE … WHERE status = 'active', so two runs never pay twice.
+ * Closes every season whose month is over: the final ranks 1º–16º each take their coin prize (`SEASON_PRIZES`) and a
+ * placement medal (champion, vice, third, top 8, top 12, top 16). Runs at boot and hourly; closing is a single
+ * UPDATE … WHERE status = 'active', so two runs never pay twice.
  */
 export async function closeFinishedSeasons(db: Db, now: number): Promise<Array<{ seasonId: number; month: string; awarded: number }>> {
   const due = await db.query<{ id: number; month: Date }>(`SELECT id, month FROM seasons WHERE status = 'active' AND ends_at <= $1 ORDER BY month`, [new Date(now)]);
@@ -249,18 +259,18 @@ export async function closeFinishedSeasons(db: Db, now: number): Promise<Array<{
       if (!locked) return 0;
       const rows = await tx.query<{ user_id: string; points: number; majors_won: number }>(
         `SELECT s.user_id, s.points, s.majors_won FROM season_standings s JOIN users u ON u.id = s.user_id
-         WHERE s.season_id = $1 AND s.points > 0 AND u.email <> ANY($2::text[])
-         ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT 10`,
-        [season.id, rankingExemptEmails()]
+         WHERE s.season_id = $1 AND s.points > 0 AND u.email <> ANY($3::text[])
+         ORDER BY s.points DESC, s.majors_won DESC, s.avg_rating DESC NULLS LAST, s.user_id LIMIT $2`,
+        [season.id, SEASON_PRIZES.length, rankingExemptEmails()]
       );
-      const rules = new Map((await tx.query<{ kind: string; coins: number }>(`SELECT kind, coins FROM award_rules WHERE kind LIKE 'season_top%'`)).map((row) => [row.kind, row.coins]));
       let count = 0;
       for (const [index, row] of rows.entries()) {
-        const kind = seasonAwardFor(index + 1);
+        const rank = index + 1;
+        const kind = seasonMedalFor(rank);
         if (!kind) continue;
-        await tx.query('INSERT INTO awards (user_id, kind, ref_id, season_id, detail) VALUES ($1, $2, $3, $4, $5)', [row.user_id, kind, `season:${season.id}`, season.id, JSON.stringify({ rank: index + 1, points: row.points, majorsWon: row.majors_won })]);
-        const coins = rules.get(kind) ?? 0;
-        if (coins) await applyLedger(tx, row.user_id, coins, 'season_prize', `season:${season.id}`);
+        await tx.query('INSERT INTO awards (user_id, kind, ref_id, season_id, detail) VALUES ($1, $2, $3, $4, $5)', [row.user_id, kind, `season:${season.id}`, season.id, JSON.stringify({ rank, points: row.points, majorsWon: row.majors_won })]);
+        const coins = SEASON_PRIZES[rank - 1] ?? 0;
+        if (coins) await applyLedger(tx, row.user_id, coins, 'season_prize', `season:${season.id}:rank:${rank}`);
         count += 1;
       }
       return count;

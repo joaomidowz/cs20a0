@@ -10,10 +10,21 @@
   import { AccountError, accountUser, authFetch, loadAccount, logoutAccount, requestMagicLink, saveProfile, verifyMagicCode, verifyMagicLink } from '$lib/game/online/account';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
+  import { SEASON_PRIZES } from '$lib/game/online/collection-rules';
   import { language, theme } from '$lib/game/pageState';
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   const serverUrl = getOnlineServerUrl();
+
+  /** Prize ladder collapsed into ranges (1º, 2º, 3º, 4º, 5º–8º, …) for the legend under the season title. */
+  const prizeTiers = SEASON_PRIZES.reduce<Array<{ from: number; to: number; coins: number }>>((tiers, coins, index) => {
+    const rank = index + 1;
+    const last = tiers[tiers.length - 1];
+    if (last && last.coins === coins) last.to = rank;
+    else tiers.push({ from: rank, to: rank, coins });
+    return tiers;
+  }, []);
+  const prizeLabel = (tier: { from: number; to: number; coins: number }) => `${tier.from}º${tier.to > tier.from ? `–${tier.to}º` : ''} ${tier.coins >= 1000 ? `${tier.coins / 1000}k` : tier.coins}`;
 
   type Standing = { rank: number; userId: string; displayName: string; teamName: string | null; majorsWon: number; majorsPlayed: number; points: number };
   type Season = { month: string; top: Standing[]; me: Standing | null; lastSeason: { month: string; podium: Array<{ rank: number; displayName: string; teamName: string | null; points: number }> } | null };
@@ -166,7 +177,7 @@
           {#if awards.length}
             <ul class="awards">
               {#each awards as award (award.kind)}
-                <li class:gold={award.kind === 'major_title' || award.kind.startsWith('season_top')}><span>{awardLabel(award.kind)}</span><b>×{award.count}</b></li>
+                <li class:gold={award.kind === 'major_title' || award.kind.startsWith('season_')}><span>{awardLabel(award.kind)}</span><b>×{award.count}</b></li>
               {/each}
             </ul>
           {:else}
@@ -179,6 +190,7 @@
 
       <section class="panel box">
         <div class="section-heading"><div><span class="eyebrow">{t('season').toUpperCase()}</span><h2>{t('seasonOfMonth')}{#if season} · {monthLabel(season.month)}{/if}</h2></div>{#if season?.me}<strong class="count">#{season.me.rank} · {season.me.points} {t('pointsCol').toLowerCase()}</strong>{/if}</div>
+        <p class="muted prizes">{t('seasonPrizes')}: {prizeTiers.map(prizeLabel).join(' · ')}</p>
         {#if season?.lastSeason?.podium.length}
           <p class="champion"><span>{t('lastChampion')} ({monthLabel(season.lastSeason.month)})</span> <b>{season.lastSeason.podium[0].teamName ?? season.lastSeason.podium[0].displayName}</b> · {season.lastSeason.podium[0].points} {t('pointsCol').toLowerCase()}</p>
         {/if}
@@ -241,6 +253,7 @@
   .awards li.gold { border-left-color: #d9a441; } .awards li.gold b { color: #d9a441; }
   .champion { margin: 0; padding: 10px 12px; border-left: 3px solid #d9a441; background: color-mix(in srgb, #d9a441 8%, var(--surface-2)); font-size: .82rem; }
   .champion span { color: var(--muted); } .champion b { color: #d9a441; }
+  .prizes { margin: -4px 0 0; font-size: .78rem; }
   .standings { width: 100%; border-collapse: collapse; font-size: .82rem; }
   .standings th { padding: 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .58rem; letter-spacing: .1em; text-align: left; text-transform: uppercase; }
   .standings td { padding: 9px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }

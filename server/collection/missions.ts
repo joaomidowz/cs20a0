@@ -23,7 +23,13 @@ export async function advanceMissions(tx: Tx, input: { entry: RunCompletedEntry;
     );
     soloStreak = streak.current;
   }
-  const increments = missionIncrements({ competitive: event.competitive, champion: entry.champion, mvp: input.mvp, field: event.field ?? 'random', seriesLost: entry.seriesLost ?? 0, soloStreak });
+  // O major deste run já foi inserido antes daqui, então a contagem inclui a lineup que acabou de jogar.
+  const [distinct] = await tx.query<{ count: string }>(
+    `SELECT count(DISTINCT lineup_key)::text AS count FROM majors
+     WHERE user_id = $1 AND lineup_key IS NOT NULL AND (played_at AT TIME ZONE 'UTC' - interval '3 hours')::date = $2::date`,
+    [entry.userId, dayKeyUtcMinus3(now)]
+  );
+  const increments = missionIncrements({ competitive: event.competitive, champion: entry.champion, mvp: input.mvp, field: event.field ?? 'random', seriesLost: entry.seriesLost ?? 0, soloStreak, lineupsDistinct: Number(distinct?.count ?? 0) });
   for (const { mission, mode, value } of increments) {
     const period = missionPeriodKey(mission.scope, now, seasonId);
     const capped = Math.min(mission.target, value);
@@ -31,6 +37,24 @@ export async function advanceMissions(tx: Tx, input: { entry: RunCompletedEntry;
       `INSERT INTO mission_progress (user_id, mission_id, period_key, progress) VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, mission_id, period_key) DO UPDATE SET progress = LEAST($5::int, ${mode === 'add' ? 'mission_progress.progress + EXCLUDED.progress' : 'GREATEST(mission_progress.progress, EXCLUDED.progress)'})`,
       [entry.userId, mission.id, period, capped, mission.target]
+    );
+  }
+}
+
+/**
+ * Soma às missões do dia uma atividade que não vem de run — hoje, abrir baú: o chamador é o `addCards`, que só os
+ * caminhos de pacote alcançam (diário, grátis, caixa de Major e comprado). Roda dentro da transação da própria
+ * abertura, então o +1 entra ou não junto com ela. As missões de atividade são diárias, e o `seasonId` da chave de
+ * período é irrelevante aqui (0).
+ */
+export async function advanceMissionActivity(tx: Tx, userId: string, now: number): Promise<void> {
+  for (const mission of MISSIONS) {
+    if (mission.metric !== 'packs_opened') continue;
+    const period = missionPeriodKey(mission.scope, now, 0);
+    await tx.query(
+      `INSERT INTO mission_progress (user_id, mission_id, period_key, progress) VALUES ($1, $2, $3, 1)
+       ON CONFLICT (user_id, mission_id, period_key) DO UPDATE SET progress = LEAST($4::int, mission_progress.progress + EXCLUDED.progress)`,
+      [userId, mission.id, period, mission.target]
     );
   }
 }
