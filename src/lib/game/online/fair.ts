@@ -4,7 +4,7 @@
 
 import { cardCoinValue } from './card-value';
 import { collectionCoaches, collectionPlayers } from './collection-pool';
-import { SELL_RATIO, rarityOf } from './collection-rules';
+import { DUPLICATE_RATIO, rarityOf } from './collection-rules';
 
 /** Hex digits of the HMAC that make the roll: 13 hex = 52 bits, exact in a double. */
 export const FAIR_ROLL_HEX = 13;
@@ -29,8 +29,8 @@ export const CONSOLATION_VALUE_RATIO = 0.2;
 /** Loss: the "value" consolation is drawn among this many cards closest to (and not above) that value. */
 export const CONSOLATION_NEAREST = 5;
 
-/** Loss with only Commons staked: no card comes back, just this share of the staked value in coins (half of selling them). */
-export const CONSOLATION_COINS_RATIO = SELL_RATIO / 2;
+/** Loss with only Commons staked: no card comes back, just a small consolation tied to duplicate value. */
+export const CONSOLATION_COINS_RATIO = DUPLICATE_RATIO / 2;
 
 export type ConsolationKind = 'common' | 'value' | 'coins';
 export interface Consolation {

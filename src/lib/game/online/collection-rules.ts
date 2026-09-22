@@ -53,8 +53,8 @@ export function packChance(tier: PackTier, rarities: readonly Rarity[]): number 
   return 1 - miss;
 }
 
-/** A sold card pays this share of its value (see tests/collectionEconomy.test.ts: selling a pack never pays back its price). */
-export const SELL_RATIO = 0.035;
+/** Direct sale back to the site pays this share of the card's displayed value. */
+export const SELL_RATIO = 0.75;
 
 /** Coin value of each rarity, the middle of its band: the upgrader and the trades compare cards by it. */
 export const RARITY_BASE_VALUE: Readonly<Record<Rarity, number>> = { common: 2400, rare: 3600, elite: 6000, superstar: 12000, legend: 24000, goat: 100000 };
@@ -127,8 +127,8 @@ export function seasonPoints(placement: string, lobbySize: number): number {
   return 0;
 }
 
-/** A repeated card pays this share of its value, like selling it (a higher share let cheap packs print coins). */
-export const DUPLICATE_RATIO = SELL_RATIO;
+/** A repeated card pays a small share: keeping this separate from direct sale prevents packs from printing coins. */
+export const DUPLICATE_RATIO = 0.035;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player . */
 export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };

@@ -1,11 +1,11 @@
 // tests/collectionEconomy.test.ts
-// Economia da coleção: preço das cartas por raridade e a regra de que vender (ou receber duplicata de) um
-// pacote nunca devolve mais que ~60% do que ele custou, calculada com as odds reais de PACK_SLOTS e COACH_CHANCE.
+// Economia da coleção: preço das cartas por raridade, venda direta a 75% e duplicatas baixas para pacotes não
+// imprimirem coins, calculadas com as odds reais de PACK_SLOTS e COACH_CHANCE.
 import { describe, expect, it } from 'vitest';
 import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
 import {
   BUYABLE_TIERS, COACH_CHANCE, DUPLICATE_RATIO, PACK_PRICES, PACK_SLOTS, RARITIES, RARITY_BASE_VALUE,
-  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coachSellValue, coinValue, rarityOf, sellValue, type Rarity, type RarityOdds
+  RARITY_VALUE_BAND, SELL_RATIO, coachCoinValue, coinValue, rarityOf, sellValue, type Rarity, type RarityOdds
 } from '../src/lib/game/online/collection-rules';
 
 /** Most a pack may pay back when all its cards are sold, as a share of its price. */
@@ -53,10 +53,11 @@ describe('preço das cartas', () => {
     }
   });
 
-  it('nenhum pacote comprável devolve 60% ou mais do preço em venda ou duplicata', () => {
-    expect(DUPLICATE_RATIO).toBeLessThanOrEqual(SELL_RATIO);
-    const player = byRarity(collectionPlayers, rarityOf, sellValue);
-    const coach = byRarity(collectionCoaches, rarityOf, coachSellValue);
+  it('venda direta paga 75%, mas duplicatas não devolvem 60% do preço do pacote', () => {
+    expect(SELL_RATIO).toBe(0.75);
+    expect(DUPLICATE_RATIO).toBe(0.035);
+    const player = byRarity(collectionPlayers, rarityOf, (card) => Math.floor(coinValue(card) * DUPLICATE_RATIO));
+    const coach = byRarity(collectionCoaches, rarityOf, (card) => Math.floor(coachCoinValue(card) * DUPLICATE_RATIO));
     for (const tier of BUYABLE_TIERS) {
       const payback = packPayback(tier, player, coach) / PACK_PRICES[tier];
       expect(payback, `${tier}: ${(payback * 100).toFixed(1)}% do preço`).toBeLessThan(MAX_PAYBACK);
