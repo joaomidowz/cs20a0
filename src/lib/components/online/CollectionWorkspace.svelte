@@ -15,6 +15,8 @@
   import PackCase from '$lib/components/online/PackCase.svelte';
   import PackOdds from '$lib/components/online/PackOdds.svelte';
   import PackReveal from '$lib/components/online/PackReveal.svelte';
+  import RankBadge from '$lib/components/online/RankBadge.svelte';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
   import { COLLECTION_YEARS, collectionCoachById, collectionOrganizations, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
@@ -22,7 +24,7 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -198,7 +200,7 @@
   $: leavingPlayers = dirty ? savedPlayers.filter((player) => !lineupIds.has(player.id)) : [];
   $: joiningPlayers = dirty && savedLineup ? lineupPlayers.filter((player) => !savedLineup.playerIds.includes(player.id)) : [];
   $: effects = complete ? cardEffects({ players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
-  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', coach: 'packCoach', time: 'packTime', prata: 'packPrata', ouro: 'packOuro', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
+  const PACK_LABEL: Record<PackTier, Parameters<typeof translateOnline>[1]> = { basic: 'packBasic', funcao: 'packFuncao', coach: 'packCoach', time: 'packTime', prata: 'packPrata', ouro: 'packOuro', supremo: 'packSupremo', global: 'packGlobal', era: 'packEra', diamante: 'packDiamante', icone: 'packIcone' };
   $: selectedPackOrganization = collectionOrganizations.find((organization) => organization.key === teamPackOrganization);
   $: teamPackPrice = selectedPackOrganization?.price ?? PACK_PRICES.time;
   const teamPackRarityLabel = (rarity: 'standard' | 'elite' | 'legendary') => t(rarity === 'legendary' ? 'packTimeLegendary' : rarity === 'elite' ? 'packTimeElite' : 'packTimeStandard');
@@ -266,10 +268,34 @@
     try {
       const result = await open();
       const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => { const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach }]; const player = playerById.get(id); return player ? [{ kind: 'player', player }] : []; });
-      reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, tier, key: Date.now(), done: false };
+      // The tier comes from the RESULT: the Major crate is chosen by the server (the oldest sealed run) and may
+      // differ from what the card showed a moment before.
+      reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, tier: result.tier, key: Date.now(), done: false };
       await tick(); scrollTo(shopSection);
       await refresh();
     } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  /** Caixa do Major: the oldest sealed run decides the tier (Prata/Ouro/Supremo/Global/Básica), never the client. */
+  $: majorPackTier = state?.majorPackTier ?? null;
+  async function openMajorCrate() {
+    if (busy || !majorPackTier) return;
+    await runReveal(() => openMajorPack(serverUrl), majorPackTier, true);
+  }
+
+  /** Aviso do Major: uma vez por CONTA neste navegador, marcado como visto NO MOMENTO em que aparece
+   * (não quando fecha — assim F5 com o modal aberto não o traz de volta). A chave versionada (v1)
+   * permite rearmar o aviso numa campanha futura; outra conta logada no mesmo navegador vê uma vez. */
+  const MAJOR_NOTICE_KEY = 'cs13a0:major-pack-notice:v1';
+  let majorNotice = false;
+  const majorNoticeSeenFor = () => { try { return localStorage.getItem(MAJOR_NOTICE_KEY); } catch { return 'skip'; } };
+  $: if (section === 'store' && $accountUser && state && state.majorPacks === 0 && majorNoticeSeenFor() !== $accountUser.id) {
+    majorNotice = true;
+    try { localStorage.setItem(MAJOR_NOTICE_KEY, $accountUser.id); } catch { /* storage optional */ }
+  }
+  function dismissMajorNotice(goPlay = false) {
+    majorNotice = false;
+    if (goPlay) void goto('/online');
   }
 
   const teaserPool = players.filter((_, index) => index % 7 === 0).map((player) => ({ id: player.id, avatar: (player.nickname ?? '?').slice(0, 2).toUpperCase(), title: player.nickname ?? player.id, subtitle: `${player.year ?? ''} · ${rarityOf(player)}` }));
@@ -499,7 +525,29 @@
               </article>
             {/each}
           </div>
-
+          <!-- Caixa do Major: faixa inteira da loja. O case só pega a cor da patente ganha — sem caixa
+               selada ele fica neutro, o botão fica sob o case e a escada de patentes serve de guia. -->
+          <h3 class="subhead premium-head">{t('majorPack').toUpperCase()}</h3>
+          <article class="pack premium major-pack {majorPackTier ?? ''}" class:sealed={!majorPackTier}>
+            <PackOdds tier={majorPackTier ?? 'global'} title={t(majorPackTier ? PACK_LABEL[majorPackTier] : 'packGlobal')} labels={oddsLabels} />
+            <div class="major-case">
+              <PackCase tier={majorPackTier ?? 'basic'} size="lg" label={majorPackTier ? t(PACK_LABEL[majorPackTier]) : 'MAJOR'} />
+              {#if majorPackTier}
+                <button class="primary" type="button" disabled={busy} on:click={openMajorCrate}>{t('openPack')}</button>
+              {/if}
+            </div>
+            <div class="premium-info">
+              <strong>{t('majorPack')}</strong>
+              <small>{majorPackTier ? `${t(PACK_LABEL[majorPackTier])} · ${t('majorPackReady')}` : t('majorPackEmpty')}</small>
+              <ul class="major-legend">
+                <li class:won={majorPackTier === 'global'}><RankBadge tier="global" />{gameT('placementChampion')} · {t('packGlobal')}</li>
+                <li class:won={majorPackTier === 'supremo'}><RankBadge tier="supremo" />{gameT('placementRunnerUp')} · {t('packSupremo')}</li>
+                <li class:won={majorPackTier === 'ouro'}><RankBadge tier="ouro" />{gameT('placement3to4')} · {t('packOuro')}</li>
+                <li class:won={majorPackTier === 'prata'}><RankBadge tier="prata" />{gameT('placement5to8')} · {t('packPrata')}</li>
+                <li class:won={majorPackTier === 'basic'}><i class="none"></i>{gameT('placementStage3')} · {t('packBasic')}</li>
+              </ul>
+            </div>
+          </article>
 
           {#if reveal}
             <div bind:this={shopSection}>
@@ -756,6 +804,22 @@
 {#if detailsPlayer}
   <CollectionCardSheet player={detailsPlayer} teamName={teamNameOf(detailsPlayer)} language={$language} labels={{ close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') }} onClose={() => detailsPlayer = null} />
 {/if}
+{#if section === 'store'}
+  <Modal open={majorNotice} title={t('majorPack')} onClose={() => dismissMajorNotice()}>
+    <p>{t('majorPackNotice')}</p>
+    <ul class="major-legend">
+      <li><RankBadge tier="global" />{gameT('placementChampion')} · {t('packGlobal')}</li>
+      <li><RankBadge tier="supremo" />{gameT('placementRunnerUp')} · {t('packSupremo')}</li>
+      <li><RankBadge tier="ouro" />{gameT('placement3to4')} · {t('packOuro')}</li>
+      <li><RankBadge tier="prata" />{gameT('placement5to8')} · {t('packPrata')}</li>
+      <li><i class="none"></i>{gameT('placementStage3')} · {t('packBasic')}</li>
+    </ul>
+    <div slot="actions" class="notice-actions">
+      <button class="secondary" type="button" on:click={() => dismissMajorNotice()}>{t('close')}</button>
+      <button class="primary" type="button" on:click={() => dismissMajorNotice(true)}>{t('majorPackNoticeCta')}</button>
+    </div>
+  </Modal>
+{/if}
 {#if toast}<div class="toast">{toast}</div>{/if}
 
 <style>
@@ -778,13 +842,23 @@
   .pack { position: relative; display: grid; gap: 10px; align-content: start; justify-items: center; padding: 18px 16px 16px; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--tint, var(--accent)) 12%, var(--surface-2)), var(--surface) 70%); text-align: center; transition: border-color .2s ease, transform .2s ease; }
   .pack:hover { border-color: var(--tint, var(--accent)); }
   .pack.basic { --tint: var(--accent); }
-  .pack.prata { --tint: #c9d1d9; } .pack.ouro { --tint: #ffc94d; } .pack.era { --tint: #a66bff; } .pack.diamante { --tint: #5ad1ff; } .pack.icone { --tint: #ff5ad8; }
+  .pack.prata { --tint: #c9d1d9; } .pack.ouro { --tint: #ffc94d; } .pack.supremo { --tint: #93a2ff; } .pack.global { --tint: #ffd24d; } .pack.era { --tint: #a66bff; } .pack.diamante { --tint: #5ad1ff; } .pack.icone { --tint: #ff5ad8; }
   .pack strong { font: 900 1.45rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
   .pack small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
   .pack button { width: 100%; margin-top: auto; min-height: 46px; padding: 0 12px; font-size: .72rem; }
   .price { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: .8rem; font-weight: 800; } .price i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
   .pack.premium { grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: stretch; gap: 22px; padding: 22px 26px; border-color: color-mix(in srgb, var(--tint) 55%, var(--line)); text-align: left; box-shadow: 0 0 30px color-mix(in srgb, var(--tint) 12%, transparent); }
   .premium-info { display: grid; gap: 10px; justify-items: start; } .premium-info strong { font-size: 2rem; } .premium-info small { color: var(--text); font-size: .85rem; }
+  .major-case { display: grid; gap: 14px; justify-items: center; align-content: center; }
+  .major-case button { width: min(260px, 100%); margin: 0; }
+  .major-pack.sealed { --tint: #97a1ab; }
+  .major-pack.sealed :global(.case) { --case-hi: #b9c2c9; --case-a: #7e8891; --case-b: #57606a; --case-c: #3a434c; --case-glow: #cdd4da; opacity: .8; }
+  .major-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 4px 0 0; padding: 0; list-style: none; text-align: left; }
+  .major-legend li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .78rem; font-weight: 600; }
+  .major-legend li.won { color: var(--text); }
+  .major-legend i.none { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1.5px dashed currentColor; opacity: .55; }
+  .notice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .notice-actions button { min-height: 46px; }
   .dupes { text-align: center; padding-top: 8px; }
   .filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
   .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; overflow: visible; }

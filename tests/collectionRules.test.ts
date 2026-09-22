@@ -8,7 +8,7 @@ import { players, playerById } from '../server/data';
 import { rollPack, rollPackWithCoaches } from '../server/collection/packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3, seasonMonthOf } from '../server/collection/time';
 import { BALANCED_PLAN_MAX, BALANCED_PLAN_MIN, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, PLAN_BONUS_MAX, PLAN_BONUS_MIN, PLAN_OFF_BONUS, STAR_RARITY_SCALE, STAR_ROLE_BONUS, applyCollectionLineup, planBonus, planQuality, cardEffects, collectionRoleOf, eligibleRolesOf, isStarEffective, primaryRoleOf, starRarityScale, starScale, styleReady, synergyOf, toSelectedPlayer, validateLineup } from '../src/lib/game/online/collection-lineup';
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, TEAM_PACK_PRICES, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
+import { BUYABLE_TIERS, CARDS_PER_PACK, DAILY_BASIC_PACKS, MAJOR_PACK_BY_PLACEMENT, PACK_PRICES, PACK_SLOTS, PACK_TIERS, SELL_RATIO, TEAM_PACK_PRICES, coinValue, matchReward, packChance, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { calculateUserTeamPower } from '../src/lib/game/simulation';
 import { ORG_STYLES } from '../src/lib/game/types';
 import type { LineupSlotRole, OrgStyle, Player } from '../src/lib/game/types';
@@ -61,6 +61,30 @@ describe('regras de coins', () => {
     expect(TEAM_PACK_PRICES).toEqual({ standard: 15000, elite: 30000, legendary: 50000 });
     for (const organization of collectionOrganizations) expect(organization.price).toBe(TEAM_PACK_PRICES[organization.rarity]);
     expect(new Set(collectionOrganizations.map((organization) => organization.rarity))).toEqual(new Set(['standard', 'elite', 'legendary']));
+  });
+
+  it('caixas do Major: Supremo e Global sobem na escada entre Ouro e Diamante e não se compram', () => {
+    // A 1ª carta segue a escada de patentes: Ouro (3% Lenda+) < Supremo (~52%) < Global (~76%) < Diamante (100%).
+    const legendPlus = (tier: Parameters<typeof packChance>[0]) => packChance(tier, ['legend', 'goat']);
+    expect(legendPlus('ouro')).toBeLessThan(legendPlus('supremo'));
+    expect(legendPlus('supremo')).toBeLessThan(legendPlus('global'));
+    expect(legendPlus('global')).toBeLessThan(legendPlus('diamante'));
+    expect(PACK_SLOTS.supremo[0]).toMatchObject({ legend: 48, goat: 3.5 });
+    expect(PACK_SLOTS.global[0]).toMatchObject({ legend: 71, goat: 4.75 });
+    // Caixa do Major nunca se compra: ela só nasce de major ranqueado.
+    expect(PACK_PRICES.supremo).toBe(0);
+    expect(PACK_PRICES.global).toBe(0);
+    expect(BUYABLE_TIERS).not.toContain('supremo');
+    expect(BUYABLE_TIERS).not.toContain('global');
+    expect(MAJOR_PACK_BY_PLACEMENT).toEqual({
+      placementChampion: 'global',
+      placementRunnerUp: 'supremo',
+      placement3to4: 'ouro',
+      placement5to8: 'prata',
+      placementStage3: 'basic',
+      placementStage2: 'basic',
+      placementStage1: 'basic'
+    });
   });
 
   it('dia vira à meia-noite de Brasília e a temporada é mensal', () => {

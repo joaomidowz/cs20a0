@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
-import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
+import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, openMajorPack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
 import type { Db } from '../db/client';
 import type { PreparedLineup } from '../room-manager';
 import { preparedFor as preparedLineup } from './room-routes';
@@ -46,6 +46,7 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const body = await readBody(request, freeSchema);
       return { ok: true, ...(await openFreePack(db, userId!, body.tier, now).catch(toHttp)) };
     })),
+    route('POST', /^\/packs\/major$/, withAuth(async ({ userId }) => ({ ok: true, ...(await openMajorPack(db, userId!).catch(toHttp)) }))),
     route('POST', /^\/packs\/buy$/, withAuth(async ({ request, userId, now }) => {
       const body = await readBody(request, buySchema);
       return { ok: true, ...(await buyPack(db, userId!, body.tier, now, body.year, body.role, body.organization).catch(toHttp)) };

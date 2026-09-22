@@ -325,11 +325,51 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(await closeFinishedSeasons(db, nextMonth)).toEqual([{ seasonId: expect.any(Number), month: '2026-09-01', awarded: 1 }]);
     expect(await closeFinishedSeasons(db, nextMonth)).toEqual([]);
     const [after] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
-    expect(after.coins - before.coins).toBe(1400);
+    // Rank 1 of the ladder: 150k from SEASON_PRIZES and the season_champion medal.
+    expect(after.coins - before.coins).toBe(150_000);
     const top = await db.query<{ kind: string }>(`SELECT kind FROM awards WHERE kind LIKE 'season_%'`);
-    expect(top.map((row) => row.kind)).toEqual(['season_top1']);
+    expect(top.map((row) => row.kind)).toEqual(['season_champion']);
     const podium = await lastSeasonPodium(db);
     expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 94 }] });
+    await db.close();
+  });
+
+  it('major ranqueado lacra a caixa da colocação, abre uma vez por run e solo não lacra', async () => {
+    const { runMigrations } = await import('../server/db/migrations');
+    const { recordMajor } = await import('../server/collection/seasons');
+    const { buyPack, openMajorPack, pendingMajorPacks } = await import('../server/collection/service');
+    const db = await createTestDb(url!, 'test_majors_crate');
+    await runMigrations(db);
+    const [user] = await db.query<{ id: string }>(`INSERT INTO users (email, verified_at) VALUES ('crate@example.com', now()) RETURNING id`);
+    await db.query('INSERT INTO wallets (user_id) VALUES ($1)', [user.id]);
+    const now = Date.UTC(2026, 8, 18, 15);
+    const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
+    const event = {
+      roomCode: 'ROOMCRTE', seed: 'box-1', runNumber: 1, lobbySize: 4, competitive: true, field: 'random' as const, awards: null,
+      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
+    };
+    await recordMajor(db, event, now);
+    await recordMajor(db, { ...event, seed: 'box-2', entries: [{ ...event.entries[0], placement: 'placement3to4', champion: false }] }, now + 1000);
+    // Solo contra bots é treino: roda coins, mas não lacra caixa.
+    await recordMajor(db, { ...event, seed: 'box-3', lobbySize: 1, competitive: false, entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, now + 2000);
+    // FIFO: a caixa do título é a mais antiga na fila.
+    expect((await pendingMajorPacks(db, user.id)).map((pack) => pack.tier)).toEqual(['global', 'ouro']);
+    const first = await openMajorPack(db, user.id);
+    expect(first).toMatchObject({ tier: 'global', roomCode: 'ROOMCRTE' });
+    expect(first.players).toHaveLength(3);
+    const second = await openMajorPack(db, user.id);
+    expect(second.tier).toBe('ouro');
+    expect((await openMajorPack(db, user.id).catch((error: { code: string }) => error.code))).toBe('NO_MAJOR_PACK');
+    const opens = await db.query<{ tier: string }>('SELECT tier FROM pack_opens WHERE user_id = $1 AND seed LIKE $2 ORDER BY id', [user.id, '%:major:ROOMCRTE:%']);
+    expect(opens.map((row) => row.tier)).toEqual(['global', 'ouro']);
+    // Caixa do Major nunca se compra, nem direto no serviço.
+    await expect(buyPack(db, user.id, 'supremo', now)).rejects.toMatchObject({ status: 400 });
+    await expect(buyPack(db, user.id, 'global', now)).rejects.toMatchObject({ status: 400 });
+    // Vice lacra a Supremo; anulada a run, a caixa volta para o lacro.
+    await recordMajor(db, { ...event, seed: 'box-4', entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, now + 3000);
+    expect((await pendingMajorPacks(db, user.id)).map((pack) => pack.tier)).toEqual(['supremo']);
+    await db.query(`UPDATE majors SET voided = true WHERE seed = 'box-4'`);
+    expect(await pendingMajorPacks(db, user.id)).toEqual([]);
     await db.close();
   });
 });

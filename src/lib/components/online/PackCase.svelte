@@ -7,20 +7,24 @@
   export let label = '';
   /** Shakes, then lifts the lid with a beam of light. */
   export let opening = false;
+  // Gradient ids must be unique per instance: two cases of the same tier on one page (daily + Major when
+  // nothing is sealed) would otherwise share `url(#left-basic)` and paint with the first one's palette.
+  const uid = Math.random().toString(36).slice(2, 8);
+  const gid = (base: string) => `${base}-${tier}-${uid}`;
 </script>
 
 <span class="case {tier} {size}" class:opening aria-hidden="true">
   <span class="glow"></span>
   <svg viewBox="0 0 200 190" role="presentation">
     <defs>
-      <linearGradient id="top-{tier}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--case-hi)" /><stop offset="1" stop-color="var(--case-a)" /></linearGradient>
-      <linearGradient id="left-{tier}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--case-a)" /><stop offset="1" stop-color="var(--case-b)" /></linearGradient>
-      <linearGradient id="right-{tier}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--case-b)" /><stop offset="1" stop-color="var(--case-c)" /></linearGradient>
+      <linearGradient id={gid('top')} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--case-hi)" /><stop offset="1" stop-color="var(--case-a)" /></linearGradient>
+      <linearGradient id={gid('left')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--case-a)" /><stop offset="1" stop-color="var(--case-b)" /></linearGradient>
+      <linearGradient id={gid('right')} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--case-b)" /><stop offset="1" stop-color="var(--case-c)" /></linearGradient>
     </defs>
     <polygon class="beam" points="70,96 130,96 170,0 30,0" />
     <!-- body -->
-    <polygon points="20,80 100,120 100,182 20,142" fill="url(#left-{tier})" />
-    <polygon points="180,80 100,120 100,182 180,142" fill="url(#right-{tier})" />
+    <polygon points="20,80 100,120 100,182 20,142" fill="url(#left-{tier}-{uid})" />
+    <polygon points="180,80 100,120 100,182 180,142" fill="url(#right-{tier}-{uid})" />
     <polygon class="rim" points="20,80 100,40 180,80 100,120" />
     <!-- straps and latch -->
     <polygon class="strap" points="44,92 58,99 58,161 44,154" />
@@ -31,9 +35,9 @@
     <g transform="matrix(1 -0.5 0 1 106 150)"><text class="name" x="30" y="16">{label}</text></g>
     <!-- lid -->
     <g class="lid">
-      <polygon points="20,66 100,106 100,120 20,80" fill="url(#left-{tier})" />
-      <polygon points="180,66 100,106 100,120 180,80" fill="url(#right-{tier})" />
-      <polygon points="20,66 100,26 180,66 100,106" fill="url(#top-{tier})" />
+      <polygon points="20,66 100,106 100,120 20,80" fill="url(#left-{tier}-{uid})" />
+      <polygon points="180,66 100,106 100,120 180,80" fill="url(#right-{tier}-{uid})" />
+      <polygon points="20,66 100,26 180,66 100,106" fill="url(#top-{tier}-{uid})" />
       <polygon class="facet" points="100,26 140,46 100,66 60,46" />
       <polygon class="edge" points="20,66 100,26 180,66 100,106" />
     </g>
@@ -52,6 +56,8 @@
   .time { --case-hi: #a9d8ff; --case-a: #437fc1; --case-b: #285485; --case-c: #17324f; --case-glow: #63b7ff; }
   .era { --case-hi: #d2b6ff; --case-a: #8a55e0; --case-b: #5a31a3; --case-c: #3a1f6c; --case-glow: #a66bff; --case-ink: #fff; }
   .ouro { --case-hi: #ffe9a8; --case-a: #e0ab3c; --case-b: #a87516; --case-c: #6f4a0a; --case-glow: #ffc94d; }
+  .supremo { --case-hi: #d9deff; --case-a: #7a86e8; --case-b: #4a55b8; --case-c: #2c3478; --case-glow: #93a2ff; }
+  .global { --case-hi: #ffe2a0; --case-a: #4674bd; --case-b: #2a4d85; --case-c: #182f55; --case-glow: #ffd24d; }
   .diamante { --case-hi: #eafaff; --case-a: #7fdcff; --case-b: #2f9fd1; --case-c: #17607f; --case-glow: #5ad1ff; }
   .icone { --case-hi: #4a3a52; --case-a: #241a2b; --case-b: #150f1a; --case-c: #0a070d; --case-glow: #ff5ad8; --case-ink: #ffd36b; }
   .rim { fill: #07090a; }
@@ -59,7 +65,7 @@
   .latch { fill: var(--case-hi); stroke: var(--case-c); stroke-width: 1.5; }
   .edge { fill: none; stroke: color-mix(in srgb, var(--case-hi) 80%, #fff); stroke-width: 1.4; opacity: .7; }
   .facet { fill: #fff; opacity: .1; }
-  .diamante .facet { opacity: .38; } .icone .facet { fill: #ff5ad8; opacity: .3; }
+  .diamante .facet { opacity: .38; } .global .facet { fill: #ffd24d; opacity: .3; } .icone .facet { fill: #ff5ad8; opacity: .3; }
   .icone .edge, .icone .latch { stroke: #ffd36b; } .icone .latch { fill: #ffd36b; }
   .mark { fill: var(--case-ink); font: 900 30px 'Arial Narrow', Impact, sans-serif; letter-spacing: 1px; opacity: .85; }
   .name { fill: var(--case-ink); font: 900 12px 'Arial Narrow', Impact, sans-serif; letter-spacing: 1.5px; text-anchor: middle; text-transform: uppercase; opacity: .8; }

@@ -4,7 +4,7 @@ import type { Coach, Player } from '../types';
  * Pack and coin rules of the online collection, shared by the server (source of truth) and the client (previews and
  * odds shown in the shop). Pure: no data imports, so it stays inside the online boundary.
  */
-export type PackTier = 'basic' | 'funcao' | 'coach' | 'time' | 'prata' | 'ouro' | 'era' | 'diamante' | 'icone';
+export type PackTier = 'basic' | 'funcao' | 'coach' | 'time' | 'prata' | 'ouro' | 'supremo' | 'global' | 'era' | 'diamante' | 'icone';
 /** Daily promotion: four fixed cards of the day, the same for every account, each sold once per account at a discount. */
 export type PromoTier = 'promo_elite' | 'promo_superstar' | 'promo_legend' | 'promo_coach';
 export type Rarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
@@ -12,7 +12,7 @@ export type RarityOdds = Readonly<Record<Rarity, number>>;
 export type TeamPackRarity = 'standard' | 'elite' | 'legendary';
 
 export const RARITIES: readonly Rarity[] = ['common', 'rare', 'elite', 'superstar', 'legend', 'goat'];
-export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'coach', 'time', 'prata', 'ouro', 'era', 'diamante', 'icone'];
+export const PACK_TIERS: readonly PackTier[] = ['basic', 'funcao', 'coach', 'time', 'prata', 'ouro', 'supremo', 'global', 'era', 'diamante', 'icone'];
 export const PROMO_TIERS: readonly PromoTier[] = ['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach'];
 /** Discount of each daily offer, in whole percent over the card's coin value. */
 export const PROMO_DISCOUNT: Readonly<Record<PromoTier, number>> = { promo_elite: 30, promo_superstar: 25, promo_legend: 25, promo_coach: 30 };
@@ -43,12 +43,16 @@ export const PACK_SLOTS: Readonly<Record<PackTier, readonly RarityOdds[]>> = {
   prata: same(odds(55, 30, 12, 2.5, 0.3, 0.2)),
   era: same(odds(10, 35, 38, 14, 2.5, 0.5)),
   ouro: same(odds(10, 35, 38, 14, 2.5, 0.5)),
+  // Caixas do Major (patentes do CS): Supremo é metade do caminho Ouro→Diamante, Global 75% — a 1ª carta cai de
+  // 100% Lenda+ (Diamante) para ~76% (Global) e ~52% (Supremo), e o resto da linha acompanha a interpolação.
+  supremo: [odds(5, 17.5, 19, 7, 48, 3.5), odds(5, 17.5, 26, 29, 19, 3.5), odds(5, 17.5, 26, 29, 19, 3.5)],
+  global: [odds(2.5, 8.75, 9.5, 3.5, 71, 4.75), odds(2.5, 8.75, 20, 36.5, 27.5, 4.75), odds(2.5, 8.75, 20, 36.5, 27.5, 4.75)],
   diamante: [odds(0, 0, 0, 0, 94, 6), odds(0, 0, 14, 44, 36, 6), odds(0, 0, 14, 44, 36, 6)],
   icone: [odds(0, 0, 0, 0, 0, 100), odds(0, 0, 12, 40, 36, 12), odds(0, 0, 12, 40, 36, 12)]
 };
 
 /** Coins; the basic pack is the daily grant and cannot be bought. */
-export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 5000, era: 10000, ouro: 12000, diamante: 50000, icone: 100000 };
+export const PACK_PRICES: Readonly<Record<PackTier, number>> = { basic: 0, funcao: 10000, coach: 7500, time: 15000, prata: 5000, era: 10000, ouro: 12000, supremo: 0, global: 0, diamante: 50000, icone: 100000 };
 /** Caixa de Time starts at 15k and rises with the best historical tier available for that organization. */
 export const TEAM_PACK_PRICES: Readonly<Record<TeamPackRarity, number>> = { standard: 15000, elite: 30000, legendary: 50000 };
 
@@ -113,6 +117,22 @@ export function matchReward(placement: string, ranked: boolean): number {
   return ranked ? base : Math.floor(base / 2);
 }
 
+/**
+ * Crate sealed for a ranked Major, by final placement, following the CS:GO rank ladder (Prata → Ouro → Supremo →
+ * Global): 5º–8º a Prata, 3º–4º an Ouro, vice a Supremo (~half a Diamante) and the champion a Global (~75% of one).
+ * Knocked out before the playoffs pays the daily basic crate. Stage 1/2 exits never happen online (single Swiss);
+ * they map to the basic crate as a fallback.
+ */
+export const MAJOR_PACK_BY_PLACEMENT: Readonly<Record<string, PackTier>> = {
+  placementChampion: 'global',
+  placementRunnerUp: 'supremo',
+  placement3to4: 'ouro',
+  placement5to8: 'prata',
+  placementStage3: 'basic',
+  placementStage2: 'basic',
+  placementStage1: 'basic'
+};
+
 /** Season points by placement with four or more humans in the run. */
 export const PLACEMENT_POINTS: Readonly<Record<string, number>> = { placementChampion: 10, placementRunnerUp: 7, placement3to4: 5, placement5to8: 3 };
 export const ELIMINATED_POINTS = 1;
@@ -132,11 +152,23 @@ export function seasonPoints(placement: string, lobbySize: number): number {
   return 0;
 }
 
+/**
+ * Prêmio em coins pela colocação final na Season (1º ao 16º), pago uma única vez no fechamento do mês:
+ * 1º 150k, 2º 100k, 3º 75k, 4º 60k, 5º–8º 45k, 9º–12º 30k, 13º–16º 20k — 765k por season no total.
+ * O índice 0 é o campeão.
+ */
+export const SEASON_PRIZES: readonly number[] = [
+  150_000, 100_000, 75_000, 60_000,
+  45_000, 45_000, 45_000, 45_000,
+  30_000, 30_000, 30_000, 30_000,
+  20_000, 20_000, 20_000, 20_000
+];
+
 /** A repeated card pays a small share: keeping this separate from direct sale prevents packs from printing coins. */
 export const DUPLICATE_RATIO = 0.035;
 
 /** Chance that one of the three cards of a pack is a coach instead of a player . */
-export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, coach: 1, time: 0, prata: 0.12, ouro: 0.18, era: 0.12, diamante: 0.15, icone: 0.2 };
+export const COACH_CHANCE: Readonly<Record<PackTier, number>> = { basic: 0.08, funcao: 0, coach: 1, time: 0, prata: 0.12, ouro: 0.18, supremo: 0.16, global: 0.15, era: 0.12, diamante: 0.15, icone: 0.2 };
 
 /** New accounts start with this; paid once on the first verified login. */
 export const WELCOME_COINS = 10_000;

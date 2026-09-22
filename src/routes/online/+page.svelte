@@ -53,6 +53,8 @@
   import { accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { onlineSession, queueView, roomView, type OnlineRoomView } from '$lib/game/online/session';
   import { fetchCollection, startSolo } from '$lib/game/online/collection';
+  import { MAJOR_PACK_BY_PLACEMENT, type PackTier } from '$lib/game/online/collection-rules';
+  import RankBadge from '$lib/components/online/RankBadge.svelte';
   import { refreshWallet } from '$lib/game/online/wallet';
   import '../../app.css';
 
@@ -118,6 +120,9 @@
     return [...merged.values()];
   };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
+  /** The crate this run sealed, on the CS rank ladder of the placement (Básica → Prata → Ouro → Supremo → Global). */
+  const crateOf = (placement: string): PackTier => MAJOR_PACK_BY_PLACEMENT[placement] ?? 'basic';
+  const crateLabel = (tier: PackTier) => tier === 'global' ? t('packGlobal') : tier === 'supremo' ? t('packSupremo') : tier === 'ouro' ? t('packOuro') : tier === 'prata' ? t('packPrata') : t('packBasic');
   $: if (snapshot?.phase === 'completed' && me?.collection && $accountUser) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
   /** Round-by-round state of the tournament; null until the first live update after a snapshot. */
@@ -1248,6 +1253,10 @@
                   <h3>{t('youEarned')}</h3>
                   <ul>
                     <li><span>{t('placementCoins')} · {translatePlacement($language, result.placement)}</span><b>+{result.rewardCoins.toLocaleString($language)} coins</b></li>
+                    {#if result.ranked}
+                      {@const crate = crateOf(result.placement)}
+                      <li><span>{t('majorPack')}</span><b>{#if crate === 'global' || crate === 'supremo' || crate === 'ouro' || crate === 'prata'}<RankBadge tier={crate} size={15} /> {/if}{crateLabel(crate)}</b></li>
+                    {/if}
                     {#each mergeAwards(result.awards) as award (award.kind)}
                       <li><span>{award.count > 1 ? `${award.count}× ` : ''}{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
                     {/each}

@@ -690,6 +690,32 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS active_lineup_slot int NOT NULL DEFAU
     // Login por código digitável (celular/PWA, onde o link abre no app de e-mail e perde a sessão):
     // cada pedido de acesso passa a carregar também o hash do código de 6 dígitos, ao lado do link.
     sql: `ALTER TABLE magic_links ADD COLUMN IF NOT EXISTS code_hash text;`
+  },
+  {
+    id: 30,
+    // Caixa do Major: todo major ranqueado lacra uma caixa pela colocação (Básica/Prata/Ouro/Supremo/Global).
+    // A linha é o cadeado: o PK (usuário, sala, seed) garante uma abertura por run, como no free_pack_claims.
+    sql: `CREATE TABLE IF NOT EXISTS major_pack_claims (
+      user_id uuid NOT NULL REFERENCES users(id),
+      room_code text NOT NULL,
+      seed text NOT NULL,
+      tier text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, room_code, seed)
+    );`
+  },
+  {
+    id: 31,
+    // Missões e prêmios da Season (2026-09-22): o mês fecha pagando do 1º ao 16º (faixas em SEASON_PRIZES, em
+    // collection-rules) e cada faixa vira medalha própria — coins 0 aqui porque quem paga é o ladder. `lineup_key`
+    // guarda a impressão digital da lineup usada no run (ids ordenados), para a diária de variar de equipe.
+    sql: `
+ALTER TABLE majors ADD COLUMN IF NOT EXISTS lineup_key text;
+INSERT INTO award_rules (kind, coins, points, once_per_season) VALUES
+  ('season_champion', 0, 0, true), ('season_vice', 0, 0, true), ('season_third', 0, 0, true),
+  ('season_top8', 0, 0, true), ('season_top12', 0, 0, true), ('season_top16', 0, 0, true)
+ON CONFLICT (kind) DO NOTHING;
+`
   }
 ];
 

@@ -1,10 +1,11 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, MAJOR_PACK_BY_PLACEMENT, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionOrganizationByKey, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
 import { isValidLineupMapSelection } from '../../src/lib/game/maps';
 import type { LineupSlotRole, MapId, OrgStyle, Player } from '../../src/lib/game/types';
 import type { Db, Tx } from '../db/client';
+import { advanceMissionActivity } from './missions';
 import { rollPackWithCoaches, type PackCard } from './packs';
 import { dayKeyUtcMinus3, isoWeekKeyUtcMinus3, monthKeyUtcMinus3 } from './time';
 
@@ -33,6 +34,9 @@ export interface CollectionView {
   packsToday: { granted: number; opened: number };
   /** Free packs still available this period: Prata once per ISO week, Ouro once per month (Brasília). */
   freePacks: Record<FreePackTier, boolean>;
+  /** Sealed Major crates (one per ranked run) and the tier of the oldest one, the next to open. */
+  majorPacks: number;
+  majorPackTier: PackTier | null;
   /** The ACTIVE lineup: the one that plays (kept as `lineup` for older clients). */
   lineup: LineupView | null;
   /** Every saved lineup, by slot; how many slots this account unlocked; which slot plays. */
@@ -102,12 +106,15 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
     'SELECT tier FROM free_pack_claims WHERE user_id = $1 AND ((tier = $2 AND period_key = $3) OR (tier = $4 AND period_key = $5))',
     [userId, 'prata', freePackPeriod('prata', now), 'ouro', freePackPeriod('ouro', now)]
   )).map((row) => row.tier));
+  const majorPacks = await pendingMajorPacks(db, userId);
   return {
     wallet: wallet?.coins ?? 0,
     count: rows.length,
     players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
     packsToday: { granted: Math.max(grant?.granted ?? 0, DAILY_BASIC_PACKS), opened: grant?.opened ?? 0 },
     freePacks: { prata: !claimed.has('prata'), ouro: !claimed.has('ouro') },
+    majorPacks: majorPacks.length,
+    majorPackTier: majorPacks[0]?.tier ?? null,
     lineup: lineups.lineups.find((lineup) => lineup.slotIndex === lineups.activeSlot) ?? null,
     lineups: lineups.lineups,
     unlockedSlots: lineups.unlockedSlots,
@@ -124,7 +131,7 @@ export interface PackResult {
   wallet: number;
 }
 
-async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
+async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string, now: number = Date.now()): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
   const duplicates: string[] = [];
   let coinsFromDupes = 0;
   for (const card of cards) {
@@ -133,6 +140,8 @@ async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string)
     if (!inserted.length) { duplicates.push(id); coinsFromDupes += duplicateValue(id); }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
+  // Só os caminhos de baú chegam aqui, então cada abertura (diário, grátis, caixa de Major, comprado) conta na missão do dia.
+  await advanceMissionActivity(tx, userId, now);
   return { duplicates, coinsFromDupes, wallet };
 }
 
@@ -151,7 +160,7 @@ export async function openDailyPack(db: Db, userId: string, now: number): Promis
     await tx.query('UPDATE pack_grants SET opened = opened + 1 WHERE user_id = $1 AND day = $2', [userId, day]);
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, 'basic', seed, cards.map(cardId)]);
     await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
-    const added = await addCards(tx, userId, cards, seed);
+    const added = await addCards(tx, userId, cards, seed, now);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
     return { tier: 'basic', seed, players: cards.map(cardId), ...added };
   });
@@ -171,14 +180,55 @@ export async function openFreePack(db: Db, userId: string, tier: FreePackTier, n
     const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches);
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
     await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
-    const added = await addCards(tx, userId, cards, seed);
+    const added = await addCards(tx, userId, cards, seed, now);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
     return { tier, seed, players: cards.map(cardId), ...added };
   });
 }
 
+/** Every ranked Major finished with its crate still sealed: oldest first, tier derived from the placement. */
+export async function pendingMajorPacks(db: Db, userId: string): Promise<Array<{ roomCode: string; seed: string; tier: PackTier }>> {
+  const rows = await db.query<{ room_code: string; seed: string; placement: string }>(
+    `SELECT m.room_code, m.seed, m.placement FROM majors m
+     LEFT JOIN major_pack_claims c ON c.user_id = m.user_id AND c.room_code = m.room_code AND c.seed = m.seed
+     WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL
+     ORDER BY m.played_at, m.id`,
+    [userId]
+  );
+  return rows.map((row) => ({ roomCode: row.room_code, seed: row.seed, tier: MAJOR_PACK_BY_PLACEMENT[row.placement] ?? 'basic' }));
+}
+
+/**
+ * Opens the oldest sealed Major crate: the tier comes from that run's placement and the claim row's primary key
+ * (user, room, seed) keeps it to one opening per run, even with two requests racing. The run is re-read inside the
+ * transaction with a lock on the majors row, so the loser of a race moves on to the next crate instead of failing.
+ */
+export async function openMajorPack(db: Db, userId: string): Promise<PackResult & { roomCode: string }> {
+  return db.tx(async (tx) => {
+    const rows = await tx.query<{ room_code: string; seed: string; placement: string }>(
+      `SELECT m.room_code, m.seed, m.placement FROM majors m
+       LEFT JOIN major_pack_claims c ON c.user_id = m.user_id AND c.room_code = m.room_code AND c.seed = m.seed
+       WHERE m.user_id = $1 AND m.ranked AND NOT m.voided AND c.user_id IS NULL
+       ORDER BY m.played_at, m.id FOR UPDATE OF m`,
+      [userId]
+    );
+    const next = rows[0];
+    if (!next) throw new CollectionError(409, 'NO_MAJOR_PACK', 'Nenhuma caixa de Major para abrir');
+    const tier = MAJOR_PACK_BY_PLACEMENT[next.placement] ?? 'basic';
+    const seed = `${userId}:major:${next.room_code}:${next.seed}`;
+    const claimed = await tx.query('INSERT INTO major_pack_claims (user_id, room_code, seed, tier) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING tier', [userId, next.room_code, next.seed, tier]);
+    if (!claimed.length) throw new CollectionError(409, 'NO_MAJOR_PACK', 'Nenhuma caixa de Major para abrir');
+    const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches);
+    await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
+    await tx.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
+    const added = await addCards(tx, userId, cards, seed);
+    await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
+    return { tier, seed, roomCode: next.room_code, players: cards.map(cardId), ...added };
+  });
+}
+
 export async function buyPack(db: Db, userId: string, tier: PackTier, now: number, year?: number, role?: LineupSlotRole, organization?: string): Promise<PackResult> {
-  if (tier === 'basic' || !(tier in PACK_PRICES)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
+  if (tier === 'basic' || tier === 'supremo' || tier === 'global' || !(tier in PACK_PRICES)) throw new CollectionError(400, 'BAD_TIER', 'Esse pacote não se compra por aqui');
   if (tier === 'era' && (!year || !players.some((player) => player.year === year))) throw new CollectionError(400, 'BAD_YEAR', 'Escolha um ano válido');
   if (tier === 'funcao' && !role) throw new CollectionError(400, 'BAD_ROLE', 'Escolha uma função válida');
   const selectedOrganization = tier === 'time' ? collectionOrganizationByKey.get(organization ?? '') : undefined;
@@ -191,7 +241,7 @@ export async function buyPack(db: Db, userId: string, tier: PackTier, now: numbe
     const cards = rollPackWithCoaches(tier, seed, players, collectionCoaches,
       tier === 'era' ? { year } : tier === 'funcao' ? { role } : tier === 'time' ? { teamIds: selectedOrganization!.teamIds, distinctYears: false } : {});
     await tx.query('INSERT INTO pack_opens (user_id, tier, seed, player_ids) VALUES ($1, $2, $3, $4)', [userId, tier, seed, cards.map(cardId)]);
-    const added = await addCards(tx, userId, cards, seed);
+    const added = await addCards(tx, userId, cards, seed, now);
     await tx.query('UPDATE pack_opens SET coins_from_dupes = $2 WHERE seed = $1', [seed, added.coinsFromDupes]);
     return { tier, seed, players: cards.map(cardId), ...added };
   });

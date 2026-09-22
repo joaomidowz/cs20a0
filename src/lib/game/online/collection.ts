@@ -14,6 +14,9 @@ export interface CollectionState {
   packsToday: { granted: number; opened: number };
   /** Free Prata (weekly) and Ouro (monthly) packs still available; missing on an older server. */
   freePacks?: Record<FreePackTier, boolean>;
+  /** Sealed Major crates (one per ranked run) and the oldest one's tier; missing on an older server. */
+  majorPacks?: number;
+  majorPackTier?: PackTier | null;
   /** The ACTIVE lineup: the one that plays (kept for older servers). */
   lineup: SavedLineup | null;
   /** Every saved lineup by slot, how many slots are unlocked and which one plays; missing on an older server. */
@@ -46,6 +49,8 @@ export interface PackOpened {
 export const fetchCollection = (serverUrl: string) => authFetch<CollectionState>(serverUrl, '/collection').then((state) => { setWalletFromCollection(state); return state; });
 export const openDailyPack = (serverUrl: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/open', { body: {} }));
 export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/free', { body: { tier } }));
+/** Opens the oldest sealed Major crate; the server picks the tier from that run's placement. */
+export const openMajorPack = (serverUrl: string) => withWallet(authFetch<PackOpened & { roomCode: string }>(serverUrl, '/packs/major', { body: {} }));
 export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number, role?: LineupSlotRole, organization?: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}), ...(role ? { role } : {}), ...(organization ? { organization } : {}) } }));
 export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>, slot?: number) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: slot === undefined ? lineup : { ...lineup, slot } });
