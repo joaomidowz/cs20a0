@@ -152,6 +152,14 @@ export const DECAYED_RUN_FACTOR = 0.5;
 /** Match awards repeat inside a Major (several perfect series, several top-10 players): together they add at most this. */
 export const AWARD_POINTS_CAP = 3;
 
+/**
+ * Boost de farm (2026-09-22): once per day the player resolves a batch of instant solo majors with the saved lineup —
+ * coins at the solo rate (half), zero season points. The extra pack of runs is a DAILY purchase, not an unlock.
+ */
+export const BOOST_BASE_RUNS = 10;
+export const BOOST_EXTRA_RUNS = 10;
+export const BOOST_EXTRA_PRICE = 3_000;
+
 export function seasonPoints(placement: string, lobbySize: number, stage3Wins = 0): number {
   const full = PLACEMENT_POINTS[placement] ?? (ELIMINATED_POINTS + Math.max(0, Math.min(2, stage3Wins)));
   if (lobbySize >= FULL_POINTS_LOBBY) return full;

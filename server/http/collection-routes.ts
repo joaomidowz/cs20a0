@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
 import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, openMajorPack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
+import { boostState, runBoost } from '../collection/boost';
 import type { Db } from '../db/client';
 import type { PreparedLineup } from '../room-manager';
 import { preparedFor as preparedLineup } from './room-routes';
@@ -25,6 +26,7 @@ const lineupSchema = z.object({
   slot: z.number().int().min(0).max(4).optional()
 });
 const lineupSlotSchema = z.object({ slot: z.number().int().min(0).max(4) });
+const boostSchema = z.object({ field: z.enum(['random', 'champions']).default('random'), extra: z.boolean().default(false) });
 
 const toHttp = (error: unknown): never => {
   if (error instanceof CollectionError) throw new HttpError(error.status, error.code, error.message);
@@ -78,6 +80,15 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const activeSlot = await setActiveLineup(db, userId!, body.slot).catch(toHttp);
       return { ok: true, activeSlot };
     })),
-    route('POST', /^\/lineup\/slots\/buy$/, withAuth(async ({ userId }) => ({ ok: true, ...(await buyLineupSlot(db, userId!).catch(toHttp)) })))
+    route('POST', /^\/lineup\/slots\/buy$/, withAuth(async ({ userId }) => ({ ok: true, ...(await buyLineupSlot(db, userId!).catch(toHttp)) }))),
+    // Boost de farm: uma ativação por dia resolve 10-20 majors solo instantâneos com a lineup salva (zero pontos).
+    route('GET', /^\/boost$/, withAuth(async ({ userId, now }) => ({ ok: true, ...(await boostState(db, userId!, now)) }))),
+    route('POST', /^\/boost\/run$/, withAuth(async ({ request, userId, now }) => {
+      const body = await readBody(request, boostSchema);
+      const prepared = await preparedLineup(db, userId!).catch(toHttp);
+      const summary = await runBoost(db, userId!, prepared, body.field, body.extra, now).catch(toHttp);
+      const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId!]);
+      return { ok: true, ...summary, wallet: wallet?.coins ?? 0 };
+    }))
   ];
 }

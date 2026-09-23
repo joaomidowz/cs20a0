@@ -760,6 +760,22 @@ FROM (
   FROM majors m JOIN seasons s ON s.id = m.season_id WHERE s.status = 'active' GROUP BY m.season_id, m.user_id
 ) agg WHERE agg.season_id = st.season_id AND agg.user_id = st.user_id;
 `
+  },
+  {
+    id: 33,
+    // Boost de farm (2026-09-22): uma ativação por dia (PK user+day como o pack_grants) resolve 10 runs solo
+    // instantâneas (+10 se `extra`, cobradas na ativação a BOOST_EXTRA_PRICE). Zero pontos: as runs gravam
+    // competitive=false no recordMajor — a tabela aqui é só o registro/resumo do dia.
+    sql: `CREATE TABLE IF NOT EXISTS boost_activations (
+      user_id uuid NOT NULL REFERENCES users(id),
+      day date NOT NULL,
+      extra boolean NOT NULL DEFAULT false,
+      runs int NOT NULL DEFAULT 0,
+      coins int NOT NULL DEFAULT 0,
+      titles int NOT NULL DEFAULT 0,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, day)
+    );`
   }
 ];
 
