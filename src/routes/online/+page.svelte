@@ -536,7 +536,8 @@
     boostBusy = true; boostError = ''; boostResult = t('boostResolving').replace('{n}', String(boost?.runsPerItem ?? 10));
     try {
       const outcome = await activateBoost(getOnlineServerUrl(), field);
-      boostModal = { runs: outcome.runs, coins: outcome.coins, titles: outcome.titles, best: outcome.best, placements: outcome.placements, stock: outcome.stock };
+      // O servidor antigo ainda pode responder sem placements (restart pendente): o modal degrada com graça.
+      boostModal = { runs: outcome.runs, coins: outcome.coins, titles: outcome.titles, best: outcome.best, placements: outcome.placements ?? [], stock: outcome.stock };
       boostResult = '';
     } catch (caught) {
       boostResult = '';
