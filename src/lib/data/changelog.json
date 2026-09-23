@@ -1,8 +1,22 @@
 {
   "version": "3.3",
-  "total": 331,
+  "total": 333,
   "generatedAt": "2026-09-23",
   "entries": [
+    {
+      "version": "3.3",
+      "date": "2026-09-22",
+      "hash": "dbbccf9",
+      "title": "Boost de Farm: 10 majors por dia sem ficar online",
+      "summary": "Uma vez por dia, ative o boost na página do online e o servidor joga 10 majors com seu time salvo na hora — dá para fechar o jogo. Coins pela metade (como o solo) e missões de solo contam, mas NÃO vale ponto de temporada. Quer mais? Ative 20 majors por 3.000 coins."
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "e1c79a8",
+      "title": "Changelog da pontuação da temporada",
+      "summary": ""
+    },
     {
       "version": "3.2",
       "date": "2026-09-22",
@@ -827,20 +841,6 @@
       "date": "2026-09-18",
       "hash": "f16c5c3",
       "title": "✨ caixas estilo CS, faixa premium e abertura com efeitos por raridade",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "9cbcdf6",
-      "title": "✨ chances no ⓘ de cada pacote, loja em uma linha e odds novas",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "b3cc799",
-      "title": "✨ prêmios de jogada também valem pontos",
       "summary": ""
     }
   ]

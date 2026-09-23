@@ -66,6 +66,10 @@ function noteOf(commit) {
     'f3d708d7e300fcf0d7a4d3d002a7fbfd609c37af': {
       title: 'Pontuação da Season nova: toda partida conta e dominação paga',
       summary: 'Acabou o limite de 10 melhores por dia: agora toda partida ranqueada pontua (da 11ª do dia em diante vale metade). Campeão pontua mais (12), sair no suíço antes das quartas custa pontos, e mapa de 13 a 0 e série vencida sem perder mapa dão bônus.'
+    },
+    'dbbccf99fc9d1714f3bd60d05796c9f0f0e6514d': {
+      title: 'Boost de Farm: 10 majors por dia sem ficar online',
+      summary: 'Uma vez por dia, ative o boost na página do online e o servidor joga 10 majors com seu time salvo na hora — dá para fechar o jogo. Coins pela metade (como o solo) e missões de solo contam, mas NÃO vale ponto de temporada. Quer mais? Ative 20 majors por 3.000 coins.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
