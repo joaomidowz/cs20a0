@@ -93,8 +93,9 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const body = await readBody(request, boostSchema);
       const prepared = await preparedLineup(db, userId!).catch(toHttp);
       const summary = await runBoost(db, userId!, prepared, body.field, now).catch(toHttp);
+      const state = await boostState(db, userId!, now);
       const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId!]);
-      return { ok: true, ...summary, wallet: wallet?.coins ?? 0 };
+      return { ok: true, ...summary, ...state, wallet: wallet?.coins ?? 0 };
     }))
   ];
 }

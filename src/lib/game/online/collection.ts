@@ -78,18 +78,6 @@ export const fetchMissions = (serverUrl: string) => authFetch<{ missions: Missio
 export const claimMission = (serverUrl: string, missionId: string) => withWallet(authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} }));
 export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });
 
-/** Boost de farm: store consumable — each item resolves 10 instant solo majors (coins at the solo rate, zero points). */
-export interface BoostState {
-  stock: number;
-  runsToday: number;
-  dailyCap: number;
-  price: number;
-  runsPerItem: number;
-}
-export const fetchBoost = (serverUrl: string) => authFetch<BoostState>(serverUrl, '/boost');
-export const activateBoost = (serverUrl: string, field: 'random' | 'champions') => withWallet(authFetch<BoostState & { wallet: number; runs: number; coins: number; titles: number; best: string }>(serverUrl, '/boost/run', { body: { field } }));
-export const buyBoostItems = (serverUrl: string, quantity: number) => withWallet(authFetch<{ stock: number; wallet: number }>(serverUrl, '/boost/buy', { body: { quantity } }));
-
 export interface UpgraderFair {
   serverSeedHash: string;
   nonce: number;

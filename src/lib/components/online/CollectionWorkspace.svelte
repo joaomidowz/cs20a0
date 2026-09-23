@@ -24,7 +24,8 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyLineupSlot, buyPack, fetchBoost, buyBoostItems, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { boostStore, refreshBoost, buyBoostItems } from '$lib/game/online/boost';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
@@ -411,7 +412,7 @@
   onMount(async () => {
     try {
       await loadAccount(serverUrl);
-      if ($accountUser) { await refresh(); loadedLineup = true; if (section === 'store') void loadBoostStock(); }
+      if ($accountUser) { await refresh(); loadedLineup = true; if (section === 'store') void refreshBoost(serverUrl); }
       const payment = new URLSearchParams(window.location.search).get('pagamento');
       if (payment && section === 'team') { allowLeave = true; await goto('/online/store?pagamento=' + encodeURIComponent(payment), { replaceState: true }); return; }
       if (payment) {
@@ -423,17 +424,12 @@
   });
 
   // Boost de farm: item consumível da loja — cada um resolve 10 majors solo instantâneas (zero pontos).
-  let boostStock: number | null = null;
-  async function loadBoostStock() {
-    try { boostStock = (await fetchBoost(serverUrl)).stock; } catch { /* the switch on the hub still reads its own state */ }
-  }
   async function buyBoost(quantity: number) {
     if (busy) return;
     if (!await confirmDialog({ title: t('boostTitle'), body: `${t('buy')} ${quantity} × ${BOOST_ITEM_PRICE.toLocaleString($language)} coins`, confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
     error = ''; busy = true;
     try {
       const result = await buyBoostItems(serverUrl, quantity);
-      boostStock = result.stock;
       showToast(`+${quantity} ${t('boostTitle')} · ${t('boostStock').replace('{n}', String(result.stock))}`);
     } catch (caught) { fail(caught); } finally { busy = false; }
   }
@@ -477,18 +473,6 @@
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl), 'basic')}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
             </article>
           <div class="shop-grid">
-            <article class="pack basic boost-item">
-              <PackCase tier="basic" label="BOOST" />
-              <strong>{t('boostTitle')}</strong>
-              <small>{t('boostHint')}</small>
-              <span class="price"><i></i>{BOOST_ITEM_PRICE.toLocaleString($language)}</span>
-              <small class="boost-stock">{t('boostStock').replace('{n}', String(boostStock ?? 0))} · {t('boostRunsPer').replace('{n}', String(BOOST_RUNS_PER_ITEM))}</small>
-              <div class="boost-buy">
-                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE} on:click={() => void buyBoost(1)}>{t('buy')} 1</button>
-                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE * 5} on:click={() => void buyBoost(5)}>{t('buy')} 5</button>
-              </div>
-              <small class="boost-note">{t('boostNoPoints')}</small>
-            </article>
             {#each ['prata', 'ouro'] as name}
               {@const tier = name as 'prata' | 'ouro'}
               <article class="pack {tier}">
@@ -537,6 +521,30 @@
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear), 'era')}>{t('buy')}</button>
             </article>
           </div>
+          <!-- Consumíveis: itens de uso, não caixas — o boost mora aqui, fora do grid de packs. -->
+          <h3 class="subhead consumables-head">{t('consumables').toUpperCase()}</h3>
+          <article class="consumable boost-item">
+            <div class="boost-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img"><path d="M13 2 3 14h7l-1 8 12-14h-8l0-6z" /></svg>
+              <b>×{BOOST_RUNS_PER_ITEM}</b>
+            </div>
+            <div class="boost-info">
+              <strong>{t('boostTitle')}</strong>
+              <small>{t('boostHint')}</small>
+              <span class="boost-meta">
+                {t('boostStock').replace('{n}', String($boostStore?.stock ?? 0))}
+                {#if $boostStore}<em>· {$boostStore.runsToday}/{$boostStore.dailyCap} hoje</em>{/if}
+              </span>
+            </div>
+            <div class="boost-buy">
+              <span class="price"><i></i>{BOOST_ITEM_PRICE.toLocaleString($language)}</span>
+              <div class="boost-buy-buttons">
+                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE} on:click={() => void buyBoost(1)}>{t('buy')} 1</button>
+                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE * 5} on:click={() => void buyBoost(5)}>{t('buy')} 5</button>
+              </div>
+              <small class="boost-note">{t('boostNoPoints')}</small>
+            </div>
+          </article>
           <h3 class="subhead premium-head">{t('premium').toUpperCase()}</h3>
           <div class="premium-grid">
             {#each ['diamante', 'icone'] as name}
@@ -857,10 +865,20 @@
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-  .boost-item .boost-buy { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-  .boost-item .boost-buy button { min-height: 46px; }
-  .boost-item .boost-stock { color: var(--accent); font-weight: 800; }
-  .boost-item .boost-note { color: #ff9b90; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: .62rem; }
+  .consumables-head { margin-top: 8px; color: #5dffbf; }
+  .consumable { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 18px 20px; border: 1px solid color-mix(in srgb, #5dffbf 45%, var(--line)); background: radial-gradient(ellipse at 0% 50%, color-mix(in srgb, #5dffbf 10%, var(--surface-2)), var(--surface) 65%); }
+  .boost-glyph { position: relative; display: grid; place-items: center; width: 84px; height: 84px; flex: none; border: 1px solid color-mix(in srgb, #5dffbf 55%, var(--line)); background: color-mix(in srgb, #5dffbf 10%, var(--surface)); }
+  .boost-glyph svg { width: 42px; height: 42px; fill: #5dffbf; filter: drop-shadow(0 0 10px color-mix(in srgb, #5dffbf 60%, transparent)); }
+  .boost-glyph b { position: absolute; right: 6px; bottom: 4px; color: #5dffbf; font: 900 .62rem/1 Inter, Arial, sans-serif; letter-spacing: .06em; }
+  .boost-info { display: grid; gap: 6px; flex: 1 1 260px; min-width: 0; }
+  .boost-info strong { font: 900 1.3rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .boost-info small { color: var(--muted); font-size: .72rem; line-height: 1.45; }
+  .boost-meta { color: var(--accent); font-size: .72rem; font-weight: 800; } .boost-meta em { color: var(--muted); font-style: normal; }
+  .boost-buy { display: grid; justify-items: stretch; gap: 10px; margin-left: auto; }
+  .boost-buy-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .boost-buy button { min-width: 110px; min-height: 46px; }
+  .boost-note { color: #ff9b90; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: .6rem; text-align: center; }
+  @media (max-width: 720px) { .consumable { flex-direction: column; align-items: stretch; } .boost-buy { margin-left: 0; } }
   .shop-grid > .pack { display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 330px; padding: 26px 20px 20px; border-top: 2px solid color-mix(in srgb, var(--tint) 65%, var(--line)); }
   .shop-grid > .pack > button { margin-top: auto; }
   .pack.funcao { --tint: #5dffbf; } .pack.coach { --tint: #ff9c52; }

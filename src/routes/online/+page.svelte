@@ -52,7 +52,8 @@
   import { translateOnline, translateOnlineMode, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { onlineSession, queueView, roomView, type OnlineRoomView } from '$lib/game/online/session';
-  import { fetchCollection, startSolo, activateBoost, fetchBoost, type BoostState } from '$lib/game/online/collection';
+  import { fetchCollection, startSolo } from '$lib/game/online/collection';
+  import { boostStore, refreshBoost, activateBoost, type BoostState } from '$lib/game/online/boost';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { MAJOR_PACK_BY_PLACEMENT, type PackTier } from '$lib/game/online/collection-rules';
   import RankBadge from '$lib/components/online/RankBadge.svelte';
@@ -520,26 +521,27 @@
   let boostOn = false;
   let boostResult = '';
   let boostError = '';
+  $: boost = $boostStore;
   $: if ($accountUser && hasSavedLineup && !boostTried) {
     boostTried = true;
     try { boostOn = localStorage.getItem(BOOST_SWITCH_KEY) === '1'; } catch { /* storage optional */ }
-    void fetchBoost(getOnlineServerUrl()).then((state) => boost = state).catch(() => {});
+    void refreshBoost(getOnlineServerUrl());
   }
   async function runBoostedSolo(field: 'random' | 'champions') {
     if (boostBusy) return;
-    if (!await confirmDialog({ title: t('boostTitle'), body: t('boostConsume'), confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
-    boostBusy = true; boostError = ''; boostResult = '';
+    if (!await confirmDialog({ title: t('boostTitle'), body: t('boostConsume').replace('{n}', String(boost?.runsPerItem ?? 10)), confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
+    boostBusy = true; boostError = ''; boostResult = t('boostResolving').replace('{n}', String(boost?.runsPerItem ?? 10));
     try {
       const outcome = await activateBoost(getOnlineServerUrl(), field);
-      boost = outcome;
       boostResult = t('boostSummary').replace('{n}', String(outcome.runs)).replace('{c}', outcome.coins.toLocaleString($language)).replace('{t}', String(outcome.titles));
     } catch (caught) {
+      boostResult = '';
       boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 30)) : t('connectionFailed');
     } finally { boostBusy = false; }
   }
 
   async function playSolo(field: 'random' | 'champions') {
-    if (soloBusy) return;
+    if (soloBusy || boostBusy) return;
     // Boost ON with stock: the solo buttons resolve a whole item (10 majors) on the spot instead of opening a room.
     if (boostOn && (boost?.stock ?? 0) > 0) { await runBoostedSolo(field); return; }
     errorMessage = '';
