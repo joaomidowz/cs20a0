@@ -776,6 +776,25 @@ FROM (
       created_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (user_id, day)
     );`
+  },
+  {
+    id: 34,
+    // Boost v2 (2026-09-22, mesmo dia): virou ITEM CONSUMÍVEL da loja (4.5k, estoque livre) + switch no card de solo;
+    // 1 item = 10 majors instantâneas, teto de USO de 30 runs/dia (BOOST_DAILY_RUN_CAP). A tabela da v1 nunca teve
+    // adoção real (feature no ar por ~1h) — derrubada sem cerimônia.
+    sql: `
+DROP TABLE IF EXISTS boost_activations;
+CREATE TABLE IF NOT EXISTS boost_stock (
+  user_id uuid PRIMARY KEY REFERENCES users(id),
+  items int NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS boost_usage (
+  user_id uuid NOT NULL REFERENCES users(id),
+  day date NOT NULL,
+  runs int NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, day)
+);`
   }
 ];
 

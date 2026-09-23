@@ -10,7 +10,7 @@ import { drawHumanSeeds, type TournamentOrganization } from '../../src/lib/game/
 import { computeMajorAwards } from '../../src/lib/game/majorAwards';
 import { createRunStats } from '../../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, createSeededRng } from '../../src/lib/game/simulation';
-import { BOOST_BASE_RUNS, BOOST_EXTRA_PRICE, BOOST_EXTRA_RUNS, matchReward } from '../../src/lib/game/online/collection-rules';
+import { BOOST_DAILY_RUN_CAP, BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM, matchReward } from '../../src/lib/game/online/collection-rules';
 import type { CombatTeam, MajorRun, MapId, Player, Roster } from '../../src/lib/game/types';
 import type { Db } from '../db/client';
 import { playerById, players, teams } from '../data';
@@ -20,10 +20,11 @@ import { recordMajor } from './seasons';
 import { dayKeyUtcMinus3 } from './time';
 
 /**
- * Boost de farm (2026-09-22): one activation per day resolves 10–20 whole solo Majors in memory — the saved lineup
- * against the same bot field the live solo button builds — and credits each run through `recordMajor` as a
- * non-competitive run: halved match coins, award coins, solo missions, ZERO season points, no crates. It removes the
- * clicking of twenty solo runs, not the ladder's integrity. FIELD NOTE: the field assembly below mirrors
+ * Boost de farm (2026-09-22): a STORE consumable — each 4.5k item resolves 10 whole solo Majors in memory (the saved
+ * lineup against the same bot field the live solo button builds) and credits each run through `recordMajor` as a
+ * non-competitive run: halved match coins, award coins, solo missions, ZERO season points, no crates. Stock is free to
+ * buy; USAGE is capped per Brasília day so a top-tier team cannot mint coins unbounded. It removes the clicking of
+ * twenty solo runs, not the ladder's integrity. FIELD NOTE: the field assembly below mirrors
  * `RoomManager.beginTournament` for the one-human case — keep the two in sync (the solo difficulty pins in
  * `tests/soloDifficulty.test.ts` would catch a drift in the shared balance math, not in this copy).
  */
@@ -149,27 +150,44 @@ export function simulateBoostRun(prepared: PreparedLineup, field: RoomField, see
   return { entry, awards: computeMajorAwards(result.rounds, result.championId, { model: 'hltv1' }), placement: campaign.placement, champion };
 }
 
-export interface BoostSummary { runs: number; coins: number; titles: number; best: string; activated: boolean }
+export interface BoostSummary { runs: number; coins: number; titles: number; best: string; activated: boolean; stock: number }
 
 /**
- * The daily activation: one row per (user, Brasília day) is the gate; the optional extra pack is charged on the same
- * transaction; then each run goes through `recordMajor` like any solo run (halved coins, solo missions, zero points),
- * idempotent by its own seed. The slow part (simulations) runs AFTER the gate commits, so a timeout never re-charges.
+ * Buys consumable Boost items (4.5k each, stock free — the daily cap is on USAGE, not on buying). The stock upsert
+ * commits before the ledger inside the same transaction, so a race can never pay without stock.
  */
-export async function runBoost(db: Db, userId: string, prepared: PreparedLineup, field: RoomField, withExtra: boolean, now: number): Promise<BoostSummary> {
+export async function buyBoost(db: Db, userId: string, quantity: number, now: number): Promise<{ stock: number; wallet: number }> {
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) throw new CollectionError(400, 'BAD_QUANTITY', 'Compre de 1 a 50 itens por vez');
+  return db.tx(async (tx) => {
+    await tx.query('INSERT INTO boost_stock (user_id, items) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET items = boost_stock.items + $2, updated_at = now()', [userId, quantity]);
+    const wallet = await applyLedger(tx, userId, -BOOST_ITEM_PRICE * quantity, 'purchase', `boost-item:${quantity}:${dayKeyUtcMinus3(now)}`);
+    const [row] = await tx.query<{ items: number }>('SELECT items FROM boost_stock WHERE user_id = $1', [userId]);
+    return { stock: row.items, wallet };
+  });
+}
+
+/**
+ * Consumes ONE stock item and resolves its batch of instant solo majors. The daily usage cap (30 runs) is checked and
+ * bumped in the same transaction that consumes the item, so a race can never pass the cap; the slow simulations run
+ * after the gate commits. Each run goes through `recordMajor` like any solo run (zero points by competitive=false).
+ */
+export async function runBoost(db: Db, userId: string, prepared: PreparedLineup, field: RoomField, now: number): Promise<BoostSummary> {
   const day = dayKeyUtcMinus3(now);
-  const runs = BOOST_BASE_RUNS + (withExtra ? BOOST_EXTRA_RUNS : 0);
   await db.tx(async (tx) => {
-    const [activation] = await tx.query('INSERT INTO boost_activations (user_id, day, extra) VALUES ($1, $2, $3) ON CONFLICT (user_id, day) DO NOTHING RETURNING user_id', [userId, day, withExtra]);
-    if (!activation) throw new CollectionError(409, 'BOOST_ALREADY_USED', 'O boost de hoje já foi usado — volte amanhã');
-    if (withExtra) await applyLedger(tx, userId, -BOOST_EXTRA_PRICE, 'purchase', `boost-extra:${day}`);
+    const [usage] = await tx.query<{ runs: number }>(
+      `INSERT INTO boost_usage (user_id, day, runs) VALUES ($1, $2, 0)
+       ON CONFLICT (user_id, day) DO UPDATE SET runs = boost_usage.runs RETURNING runs`, [userId, day]);
+    if (usage.runs + BOOST_RUNS_PER_ITEM > BOOST_DAILY_RUN_CAP) throw new CollectionError(409, 'BOOST_DAILY_CAP', `Teto diário do boost atingido (${BOOST_DAILY_RUN_CAP} runs)`);
+    const [stock] = await tx.query('UPDATE boost_stock SET items = items - 1, updated_at = now() WHERE user_id = $1 AND items > 0 RETURNING items', [userId]);
+    if (!stock) throw new CollectionError(409, 'NO_BOOST_STOCK', 'Você não tem Boost de Farm no estoque — compre na loja');
+    await tx.query('UPDATE boost_usage SET runs = runs + $3 WHERE user_id = $1 AND day = $2', [userId, day, BOOST_RUNS_PER_ITEM]);
   });
   let coins = 0;
   let titles = 0;
   let best = PLACEMENT_ORDER[PLACEMENT_ORDER.length - 1];
   const roomCode = `BOOST-${day}-${field === 'champions' ? 'C' : 'R'}`;
-  for (let index = 0; index < runs; index += 1) {
-    const seed = `${userId}:boost:${day}:${index}`;
+  for (let index = 0; index < BOOST_RUNS_PER_ITEM; index += 1) {
+    const seed = `${userId}:boost:${day}:${field}:${index}`;
     const outcome = simulateBoostRun(prepared, field, seed);
     const event: RunCompletedEvent = {
       roomCode, seed, runNumber: index + 1, lobbySize: 1, competitive: false, field, awards: outcome.awards, entries: [outcome.entry]
@@ -179,15 +197,14 @@ export async function runBoost(db: Db, userId: string, prepared: PreparedLineup,
     if (outcome.champion) titles += 1;
     if (PLACEMENT_ORDER.indexOf(outcome.placement) < PLACEMENT_ORDER.indexOf(best)) best = outcome.placement;
   }
-  await db.tx(async (tx) => {
-    await tx.query('UPDATE boost_activations SET runs = $3, coins = $4, titles = $5 WHERE user_id = $1 AND day = $2', [userId, day, runs, coins, titles]);
-  });
-  return { runs, coins, titles, best, activated: true };
+  const [stockRow] = await db.query<{ items: number }>('SELECT items FROM boost_stock WHERE user_id = $1', [userId]);
+  return { runs: BOOST_RUNS_PER_ITEM, coins, titles, best, activated: true, stock: stockRow?.items ?? 0 };
 }
 
-/** The day's boost state for the hub card. */
-export async function boostState(db: Db, userId: string, now: number): Promise<BoostSummary & { baseRuns: number; extraRuns: number; extraPrice: number }> {
+/** The boost state for the switch on the solo card and the store item. */
+export async function boostState(db: Db, userId: string, now: number): Promise<{ stock: number; runsToday: number; dailyCap: number; price: number; runsPerItem: number }> {
   const day = dayKeyUtcMinus3(now);
-  const [row] = await db.query<{ runs: number; coins: number; titles: number }>('SELECT runs, coins, titles FROM boost_activations WHERE user_id = $1 AND day = $2', [userId, day]);
-  return { activated: Boolean(row), runs: row?.runs ?? 0, coins: row?.coins ?? 0, titles: row?.titles ?? 0, best: '', baseRuns: BOOST_BASE_RUNS, extraRuns: BOOST_EXTRA_RUNS, extraPrice: BOOST_EXTRA_PRICE };
+  const [stock] = await db.query<{ items: number }>('SELECT items FROM boost_stock WHERE user_id = $1', [userId]);
+  const [usage] = await db.query<{ runs: number }>('SELECT runs FROM boost_usage WHERE user_id = $1 AND day = $2', [userId, day]);
+  return { stock: stock?.items ?? 0, runsToday: usage?.runs ?? 0, dailyCap: BOOST_DAILY_RUN_CAP, price: BOOST_ITEM_PRICE, runsPerItem: BOOST_RUNS_PER_ITEM };
 }

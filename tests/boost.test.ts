@@ -52,39 +52,47 @@ describe.skipIf(!url)('runBoost (Postgres)', () => {
     const { runMigrations } = await import('../server/db/migrations');
     db = await createTestDb(url!, 'test_boost');
     await runMigrations(db);
-    await db.query(`INSERT INTO users (email, verified_at) VALUES ('boost@example.com', now()), ('boost2@example.com', now())`);
+    await db.query(`INSERT INTO users (email, verified_at) VALUES ('boost@example.com', now())`);
     await db.query(`INSERT INTO wallets (user_id) SELECT id FROM users`);
     walletOf = async (userId: string) => (await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0].coins;
   });
 
-  it('ativa uma vez por dia: 10 runs sem ponto nenhum, recusa a segunda e cobra o extra uma vez', async () => {
-    const { runBoost, boostState } = await import('../server/collection/boost');
+  it('item consumível: sem estoque recusa, compra cobra 4.5k, run consome 1 item por 10 majors sem ponto e o teto diário segura', async () => {
+    const { runBoost, boostState, buyBoost } = await import('../server/collection/boost');
     const now = Date.UTC(2026, 8, 22, 18);
     const [user] = await db.query<{ id: string }>(`SELECT id FROM users WHERE email = 'boost@example.com'`);
+    const lineup = { ...prepared, userId: user.id };
+    // Sem estoque: recusa antes de simular qualquer coisa.
+    await expect(runBoost(db, user.id, lineup, 'random', now)).rejects.toMatchObject({ code: 'NO_BOOST_STOCK' });
+    // Compra 1 item: -4.500 no ledger, estoque 1.
     const before = await walletOf(user.id);
-    const summary = await runBoost(db, user.id, { ...prepared, userId: user.id }, 'random', false, now);
+    const bought = await buyBoost(db, user.id, 1, now);
+    expect(bought.stock).toBe(1);
+    expect(await walletOf(user.id)).toBe(before - 4500);
+    await expect(buyBoost(db, user.id, 0, now)).rejects.toMatchObject({ code: 'BAD_QUANTITY' });
+    // Consome o item: 10 majors solo, coins pela metade, ZERO pontos, estoque volta a 0.
+    const summary = await runBoost(db, user.id, lineup, 'random', now);
     expect(summary.runs).toBe(10);
     expect(summary.coins).toBeGreaterThan(0);
-    expect((await walletOf(user.id)) - before).toBeGreaterThanOrEqual(summary.coins);
-    const majors = await db.query<{ ranked: boolean; points: number; counted: boolean }>('SELECT ranked, points, counted FROM majors WHERE user_id = $1', [user.id]);
+    expect(summary.stock).toBe(0);
+    expect(await walletOf(user.id)).toBe(before - 4500 + summary.coins);
+    const majors = await db.query<{ ranked: boolean; points: number }>('SELECT ranked, points FROM majors WHERE user_id = $1', [user.id]);
     expect(majors).toHaveLength(10);
     expect(majors.every((row) => !row.ranked && row.points === 0)).toBe(true);
-    // Zero pontos: a standings existe (o recordMajor grava) mas zerada — o ladder não vê o boost.
     const [standings] = await db.query<{ points: number }>('SELECT points FROM season_standings WHERE user_id = $1', [user.id]);
     expect(standings?.points ?? 0).toBe(0);
-    // Segunda ativação no mesmo dia: recusada sem cobrar nem rodar de novo.
-    await expect(runBoost(db, user.id, { ...prepared, userId: user.id }, 'random', false, now)).rejects.toMatchObject({ code: 'BOOST_ALREADY_USED' });
-    expect((await db.query<{ id: string }>('SELECT id FROM majors WHERE user_id = $1', [user.id])).length).toBe(10);
-
-    // O extra é por dia: +10 runs, 3.000 coins de purchase no ledger.
-    const [user2] = await db.query<{ id: string }>(`SELECT id FROM users WHERE email = 'boost2@example.com'`);
-    const before2 = await walletOf(user2.id);
-    const summary2 = await runBoost(db, user2.id, { ...prepared, userId: user2.id }, 'champions', true, now);
-    expect(summary2.runs).toBe(20);
-    const [extra] = await db.query<{ delta: number; ref_id: string }>(`SELECT delta, ref_id FROM ledger WHERE user_id = $1 AND reason = 'purchase'`, [user2.id]);
-    expect(extra).toMatchObject({ delta: -3000 });
-    expect((await walletOf(user2.id)) - before2).toBe(summary2.coins - 3000);
-    const state = await boostState(db, user2.id, now);
-    expect(state).toMatchObject({ activated: true, runs: 20, extraPrice: 3000 });
-  }, 120_000);
+    // Teto diário de USO (30 runs): compra mais 2 itens (20 runs), os dois passam; o 4º item esbarra no teto.
+    for (let item = 0; item < 2; item += 1) {
+      await buyBoost(db, user.id, 1, now);
+      await runBoost(db, user.id, lineup, 'random', now);
+    }
+    await buyBoost(db, user.id, 1, now);
+    await expect(runBoost(db, user.id, lineup, 'random', now)).rejects.toMatchObject({ code: 'BOOST_DAILY_CAP' });
+    const state = await boostState(db, user.id, now);
+    expect(state).toMatchObject({ stock: 1, runsToday: 30, dailyCap: 30, price: 4500, runsPerItem: 10 });
+    // Em outro dia o teto zera.
+    const tomorrow = now + 24 * 60 * 60_000;
+    const nextDay = await runBoost(db, user.id, lineup, 'random', tomorrow);
+    expect(nextDay.runs).toBe(10);
+  }, 180_000);
 });

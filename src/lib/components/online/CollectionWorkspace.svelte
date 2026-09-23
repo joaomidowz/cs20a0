@@ -24,9 +24,9 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { buyLineupSlot, buyPack, fetchBoost, buyBoostItems, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
-  import { LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
+  import { BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { translate } from '$lib/game/i18n';
@@ -411,7 +411,7 @@
   onMount(async () => {
     try {
       await loadAccount(serverUrl);
-      if ($accountUser) { await refresh(); loadedLineup = true; }
+      if ($accountUser) { await refresh(); loadedLineup = true; if (section === 'store') void loadBoostStock(); }
       const payment = new URLSearchParams(window.location.search).get('pagamento');
       if (payment && section === 'team') { allowLeave = true; await goto('/online/store?pagamento=' + encodeURIComponent(payment), { replaceState: true }); return; }
       if (payment) {
@@ -421,6 +421,22 @@
       }
     } catch (caught) { fail(caught); } finally { loading = false; }
   });
+
+  // Boost de farm: item consumível da loja — cada um resolve 10 majors solo instantâneas (zero pontos).
+  let boostStock: number | null = null;
+  async function loadBoostStock() {
+    try { boostStock = (await fetchBoost(serverUrl)).stock; } catch { /* the switch on the hub still reads its own state */ }
+  }
+  async function buyBoost(quantity: number) {
+    if (busy) return;
+    if (!await confirmDialog({ title: t('boostTitle'), body: `${t('buy')} ${quantity} × ${BOOST_ITEM_PRICE.toLocaleString($language)} coins`, confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
+    error = ''; busy = true;
+    try {
+      const result = await buyBoostItems(serverUrl, quantity);
+      boostStock = result.stock;
+      showToast(`+${quantity} ${t('boostTitle')} · ${t('boostStock').replace('{n}', String(result.stock))}`);
+    } catch (caught) { fail(caught); } finally { busy = false; }
+  }
 </script>
 
 <svelte:head>
@@ -461,6 +477,18 @@
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl), 'basic')}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
             </article>
           <div class="shop-grid">
+            <article class="pack basic boost-item">
+              <PackCase tier="basic" label="BOOST" />
+              <strong>{t('boostTitle')}</strong>
+              <small>{t('boostHint')}</small>
+              <span class="price"><i></i>{BOOST_ITEM_PRICE.toLocaleString($language)}</span>
+              <small class="boost-stock">{t('boostStock').replace('{n}', String(boostStock ?? 0))} · {t('boostRunsPer').replace('{n}', String(BOOST_RUNS_PER_ITEM))}</small>
+              <div class="boost-buy">
+                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE} on:click={() => void buyBoost(1)}>{t('buy')} 1</button>
+                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE * 5} on:click={() => void buyBoost(5)}>{t('buy')} 5</button>
+              </div>
+              <small class="boost-note">{t('boostNoPoints')}</small>
+            </article>
             {#each ['prata', 'ouro'] as name}
               {@const tier = name as 'prata' | 'ouro'}
               <article class="pack {tier}">
@@ -829,6 +857,10 @@
   .columns { display: grid; gap: 18px; }
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .boost-item .boost-buy { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .boost-item .boost-buy button { min-height: 46px; }
+  .boost-item .boost-stock { color: var(--accent); font-weight: 800; }
+  .boost-item .boost-note { color: #ff9b90; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: .62rem; }
   .shop-grid > .pack { display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 330px; padding: 26px 20px 20px; border-top: 2px solid color-mix(in srgb, var(--tint) 65%, var(--line)); }
   .shop-grid > .pack > button { margin-top: auto; }
   .pack.funcao { --tint: #5dffbf; } .pack.coach { --tint: #ff9c52; }

@@ -153,12 +153,13 @@ export const DECAYED_RUN_FACTOR = 0.5;
 export const AWARD_POINTS_CAP = 3;
 
 /**
- * Boost de farm (2026-09-22): once per day the player resolves a batch of instant solo majors with the saved lineup —
- * coins at the solo rate (half), zero season points. The extra pack of runs is a DAILY purchase, not an unlock.
+ * Boost de farm (2026-09-22, redesenho): item consumível da loja — cada item resolve 10 majors solo instantâneas com
+ * a lineup salva (coins pela metade, zero pontos de temporada). Estoque livre (compra quantos quiser); o USO tem teto
+ * diário para não virar impressora de coins nos times 96+ (medido: ~15k de lucro por item no campo normal).
  */
-export const BOOST_BASE_RUNS = 10;
-export const BOOST_EXTRA_RUNS = 10;
-export const BOOST_EXTRA_PRICE = 3_000;
+export const BOOST_ITEM_PRICE = 4_500;
+export const BOOST_RUNS_PER_ITEM = 10;
+export const BOOST_DAILY_RUN_CAP = 30;
 
 export function seasonPoints(placement: string, lobbySize: number, stage3Wins = 0): number {
   const full = PLACEMENT_POINTS[placement] ?? (ELIMINATED_POINTS + Math.max(0, Math.min(2, stage3Wins)));
