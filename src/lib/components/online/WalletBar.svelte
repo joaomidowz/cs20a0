@@ -139,7 +139,11 @@
   .coin-delta.spend { background: color-mix(in srgb, var(--danger, #ff7063) 16%, var(--surface)); color: var(--danger, #ff7063); }
   @keyframes coin-delta-in { from { opacity: 0; transform: translateY(7px) scale(.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @media (max-width: 720px) {
-    .wallet-bar { gap: 10px; margin: 0 -14px 12px; padding: 6px 8px 6px 12px; border-width: 0 0 1px; }
+    .wallet-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto; align-items: center; column-gap: 10px; row-gap: 8px; margin: 0 -14px 12px; padding: 6px 8px 8px 12px; border-width: 0 0 1px; }
+    .stat { grid-row: 1; }
+    .presence { grid-column: 1; grid-row: 2; }
+    .sound-toggle { grid-column: 2; grid-row: 2; }
+    .add { grid-column: 3; grid-row: 2; margin-left: 0; }
     .label { display: none; }
     .short { display: inline; }
     strong { font-size: 1.05rem; }
