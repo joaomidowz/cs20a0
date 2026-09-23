@@ -12,6 +12,9 @@
   export let affinity = false;
   /** Pack reveal: laid out like a player's big card (photo, big OVR, the four attributes in a grid). */
   export let showcase = false;
+  /** Compact mode hides attributes until the card is opened; opt-in so other screens keep their current layout. */
+  export let compact = false;
+  export let onOpen: ((coach: Coach, trigger: HTMLButtonElement) => void) | null = null;
 
   $: rarity = rarityOf(coach);
   const ATTRS = [['tactics', 'TAC'], ['discipline', 'DIS'], ['aggression', 'AGR'], ['development', 'DEV']] as const;
@@ -19,7 +22,7 @@
 
 <article class="card rarity-{rarity}" class:active class:affinity class:showcase>
   {#if tag}<b class="tag">{tag}</b>{/if}
-  <div class="face">
+  <button class="face" type="button" disabled={!onOpen} aria-haspopup={onOpen ? 'dialog' : undefined} aria-label={onOpen ? coach.name : undefined} on:click={(event) => onOpen?.(coach, event.currentTarget as HTMLButtonElement)}>
     {#if showcase}
       <span class="top"><span class="photo"><PlayerAvatar player={{ id: coach.id, baseId: coach.baseId }} bare /></span><span class="ovr"><small>OVR</small>{coach.overall}</span></span>
       <span class="rarity">{rarity} · COACH</span>
@@ -31,15 +34,17 @@
       <strong class="name">{coach.name}</strong>
     {/if}
     <span class="team"><TeamBadge id={coach.teamId} name={teamName} size="sm" /><em>{teamName || '—'} · {coach.year}</em></span>
-    <ul class="attrs">{#each ATTRS as [key, label]}<li><span>{label}</span><i style={`--v:${coach[key]}%`}></i><b>{coach[key]}</b></li>{/each}</ul>
-  </div>
+    {#if !compact || showcase}<ul class="attrs">{#each ATTRS as [key, label]}<li><span>{label}</span><i style={`--v:${coach[key]}%`}></i><b>{coach[key]}</b></li>{/each}</ul>{/if}
+  </button>
   {#if $$slots.default}<footer><slot /></footer>{/if}
 </article>
 
 <style>
   .card { --rarity: var(--line); position: relative; display: grid; min-width: 0; border: 1px solid var(--rarity); background: linear-gradient(165deg, color-mix(in srgb, var(--rarity) 14%, var(--surface-2)), var(--surface)); }
   .rarity-rare { --rarity: #4f8cff; } .rarity-elite { --rarity: #a66bff; } .rarity-superstar { --rarity: #ff7a45; } .rarity-legend { --rarity: #f2c14e; } .rarity-goat { --rarity: #ff4d6d; }
-  .face { display: grid; gap: 6px; padding: 12px; }
+  .face { display: grid; width: 100%; gap: 6px; padding: 12px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .face:disabled { cursor: default; }
+  .face:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .top { display: flex; justify-content: space-between; align-items: start; }
   .kind { padding: 3px 7px; border: 1px solid var(--accent); color: var(--accent); font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
   .ovr { display: grid; justify-items: end; color: var(--accent); font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .ovr small { color: var(--muted); font: 700 .5rem Inter, Arial, sans-serif; }
@@ -62,6 +67,7 @@
   .showcase .attrs li { grid-template-columns: 1fr auto; gap: 2px 6px; font-size: .56rem; letter-spacing: .1em; }
   .showcase .attrs i { grid-column: 1 / -1; grid-row: 2; height: 3px; background: linear-gradient(90deg, var(--rarity) var(--v), var(--surface) var(--v)); }
   .showcase .attrs b { font: 900 1.05rem/1 'Arial Narrow', Impact, sans-serif; }
+  .compact:not(.showcase) .attrs { display: none; }
   footer { display: flex; gap: 4px; padding: 0 12px 12px; } footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
   .active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

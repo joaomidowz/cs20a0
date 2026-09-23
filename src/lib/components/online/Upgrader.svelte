@@ -27,6 +27,8 @@
   export let coachTeam: (coach: Coach) => string = () => '';
   /** Opens the big card (the page's CollectionCardSheet). */
   export let onOpen: (player: Player) => void = () => {};
+  /** Opens coach details in the page's CoachCardSheet. */
+  export let onOpenCoach: (coach: Coach, trigger: HTMLButtonElement) => void = () => {};
 
   type Card = { id: string; value: number; rarity: Rarity; player: Player | null; coach: Coach | null };
   const cardOf = (id: string): Card | null => {
@@ -224,7 +226,7 @@
             <div class="pick picked" class:vanish={settled}>
               <span class="value-tag"><i></i>{fmt(card.value)}</span>
               {#if card.coach}
-                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
+                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
               {:else if card.player}
                 <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
               {/if}
@@ -241,7 +243,7 @@
             <div class="pick returned">
               <span class="value-tag"><i></i>{fmt(resultCard.value)}</span>
               {#if resultCard.coach}
-                <CoachCard coach={resultCard.coach} teamName={coachTeam(resultCard.coach)} />
+                <CoachCard coach={resultCard.coach} teamName={coachTeam(resultCard.coach)} compact={true} onOpen={onOpenCoach} />
               {:else if resultCard.player}
                 <CollectionCard player={resultCard.player} teamName={playerTeam(resultCard.player)} {language} compact {onOpen} />
               {/if}
@@ -264,7 +266,7 @@
           <div class="pick" class:picked>
             <span class="value-tag"><i></i>{fmt(card.value)}</span>
             {#if card.coach}
-              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked}>
+              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked} compact={true} onOpen={onOpenCoach}>
                 <button class={picked ? 'secondary small' : 'ghost small'} type="button" disabled={spinning || (!picked && stake.length >= UPGRADER_MAX_STAKE)} on:click={() => toggleStake(card.id)}>{picked ? t('upgraderUnpick') : t('upgraderPick')}</button>
               </CoachCard>
             {:else if card.player}
@@ -321,7 +323,7 @@
         <div class="pick aimed target-card fx-{resultRarity}" class:glow={settled && outcome?.won} class:missed={settled && outcome && !outcome.won}>
           <span class="value-tag"><i></i>{fmt(shownTarget.value)}</span>
           {#if shownTarget.coach}
-            <CoachCard coach={shownTarget.coach} teamName={coachTeam(shownTarget.coach)} active>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
+            <CoachCard coach={shownTarget.coach} teamName={coachTeam(shownTarget.coach)} active compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
           {:else if shownTarget.player}
             <CollectionCard player={shownTarget.player} teamName={playerTeam(shownTarget.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
           {/if}
@@ -358,7 +360,7 @@
           <div class="pick" class:aimed>
             <span class="value-tag"><i></i>{fmt(card.value)}</span>
             {#if card.coach}
-              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={aimed}>
+              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={aimed} compact={true} onOpen={onOpenCoach}>
                 <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, card.id))}</button>
               </CoachCard>
             {:else if card.player}

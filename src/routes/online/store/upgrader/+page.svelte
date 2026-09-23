@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import Upgrader from '$lib/components/online/Upgrader.svelte';
+  import CoachCardSheet from '$lib/components/online/CoachCardSheet.svelte';
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
   import { collectionTeamById as teamById } from '$lib/game/online/collection-pool';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
@@ -22,6 +23,8 @@
   let loading = true;
   let error = '';
   let detailsPlayer: Player | null = null;
+  let detailsCoach: Coach | null = null;
+  let coachReturnFocus: HTMLElement | null = null;
 
   /** FAQ examples, computed with the same rule the server uses. */
   const EXAMPLES = ([[12000, 'superstar', 24000, 'legend'], [6000, 'elite', 24000, 'legend'], [12000, 'superstar', 14400, 'superstar'], [48000, 'legend', 100000, 'goat']] as const)
@@ -35,6 +38,7 @@
 
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
+  const openCoachDetails = (coach: Coach, trigger: HTMLButtonElement) => { detailsCoach = coach; coachReturnFocus = trigger; };
   $: ownedIds = state ? state.players.map((item) => item.playerId) : [];
   $: lockedIds = lineupLockedIds(state);
 
@@ -84,7 +88,7 @@
       <p class="loss-warning" role="note">{t('upgraderLossWarning')}</p>
 
       <Upgrader {serverUrl} language={$language} {ownedIds} {lockedIds} onDone={() => void refresh()}
-        playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} />
+        playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} onOpenCoach={openCoachDetails} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span>{#if !state}<button class="secondary" type="button" on:click={() => refresh()}>{uiCopy($language, 'retry')}</button>{/if}</p>{/if}
 
@@ -130,6 +134,9 @@
 
 {#if detailsPlayer}
   <CollectionCardSheet player={detailsPlayer} teamName={teamNameOf(detailsPlayer)} language={$language} labels={{ close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') }} onClose={() => detailsPlayer = null} />
+{/if}
+{#if detailsCoach}
+  <CoachCardSheet coach={detailsCoach} teamName={coachTeamName(detailsCoach)} closeLabel={t('close')} returnFocus={coachReturnFocus} onClose={() => detailsCoach = null} />
 {/if}
 
 <style>
