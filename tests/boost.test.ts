@@ -74,6 +74,8 @@ describe.skipIf(!url)('runBoost (Postgres)', () => {
     const summary = await runBoost(db, user.id, lineup, 'random', now);
     expect(summary.runs).toBe(10);
     expect(summary.coins).toBeGreaterThan(0);
+    expect(summary.placements).toHaveLength(10);
+    // `coins` é o delta real da wallet (prêmio + awards): bate exato com o saldo.
     expect(summary.stock).toBe(0);
     expect(await walletOf(user.id)).toBe(before - 4500 + summary.coins);
     const majors = await db.query<{ ranked: boolean; points: number }>('SELECT ranked, points FROM majors WHERE user_id = $1', [user.id]);

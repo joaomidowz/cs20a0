@@ -10,7 +10,7 @@ import { drawHumanSeeds, type TournamentOrganization } from '../../src/lib/game/
 import { computeMajorAwards } from '../../src/lib/game/majorAwards';
 import { createRunStats } from '../../src/lib/game/runStats';
 import { calculateHistoricalTeamPower, createSeededRng } from '../../src/lib/game/simulation';
-import { BOOST_DAILY_RUN_CAP, BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM, matchReward } from '../../src/lib/game/online/collection-rules';
+import { BOOST_DAILY_RUN_CAP, BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM } from '../../src/lib/game/online/collection-rules';
 import type { CombatTeam, MajorRun, MapId, Player, Roster } from '../../src/lib/game/types';
 import type { Db } from '../db/client';
 import { playerById, players, teams } from '../data';
@@ -150,7 +150,7 @@ export function simulateBoostRun(prepared: PreparedLineup, field: RoomField, see
   return { entry, awards: computeMajorAwards(result.rounds, result.championId, { model: 'hltv1' }), placement: campaign.placement, champion };
 }
 
-export interface BoostSummary { runs: number; coins: number; titles: number; best: string; activated: boolean; stock: number }
+export interface BoostSummary { runs: number; coins: number; titles: number; best: string; placements: string[]; activated: boolean; stock: number }
 
 /**
  * Buys consumable Boost items (4.5k each, stock free — the daily cap is on USAGE, not on buying). The stock upsert
@@ -182,9 +182,11 @@ export async function runBoost(db: Db, userId: string, prepared: PreparedLineup,
     if (!stock) throw new CollectionError(409, 'NO_BOOST_STOCK', 'Você não tem Boost de Farm no estoque — compre na loja');
     await tx.query('UPDATE boost_usage SET runs = runs + $3 WHERE user_id = $1 AND day = $2', [userId, day, BOOST_RUNS_PER_ITEM]);
   });
-  let coins = 0;
+  // `coins` is the real wallet delta across the batch (match reward + award coins), what the result modal shows.
+  const [beforeRow] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
   let titles = 0;
   let best = PLACEMENT_ORDER[PLACEMENT_ORDER.length - 1];
+  const placements: string[] = [];
   const roomCode = `BOOST-${day}-${field === 'champions' ? 'C' : 'R'}`;
   for (let index = 0; index < BOOST_RUNS_PER_ITEM; index += 1) {
     const seed = `${userId}:boost:${day}:${field}:${index}`;
@@ -193,12 +195,14 @@ export async function runBoost(db: Db, userId: string, prepared: PreparedLineup,
       roomCode, seed, runNumber: index + 1, lobbySize: 1, competitive: false, field, awards: outcome.awards, entries: [outcome.entry]
     };
     await recordMajor(db, event, now);
-    coins += matchReward(outcome.placement, false);
+    placements.push(outcome.placement);
     if (outcome.champion) titles += 1;
     if (PLACEMENT_ORDER.indexOf(outcome.placement) < PLACEMENT_ORDER.indexOf(best)) best = outcome.placement;
   }
+  const [afterRow] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
   const [stockRow] = await db.query<{ items: number }>('SELECT items FROM boost_stock WHERE user_id = $1', [userId]);
-  return { runs: BOOST_RUNS_PER_ITEM, coins, titles, best, activated: true, stock: stockRow?.items ?? 0 };
+  const coins = Math.max(0, (afterRow?.coins ?? 0) - (beforeRow?.coins ?? 0));
+  return { runs: BOOST_RUNS_PER_ITEM, coins, titles, best, placements, activated: true, stock: stockRow?.items ?? 0 };
 }
 
 /** The boost state for the switch on the solo card and the store item. */

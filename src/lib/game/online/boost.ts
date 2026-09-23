@@ -24,7 +24,7 @@ export const refreshBoost = async (serverUrl: string): Promise<BoostState | null
 
 /** Consumes 1 item: resolves 10 instant solo majors; the server answers with the fresh state, wallet included. */
 export const activateBoost = async (serverUrl: string, field: 'random' | 'champions') => {
-  const result = await authFetch<BoostState & { wallet: number; runs: number; coins: number; titles: number; best: string }>(serverUrl, '/boost/run', { body: { field } });
+  const result = await authFetch<BoostState & { wallet: number; runs: number; coins: number; titles: number; best: string; placements: string[] }>(serverUrl, '/boost/run', { body: { field } });
   patchWalletCoins(result.wallet);
   boostStore.set({ stock: result.stock, runsToday: result.runsToday, dailyCap: result.dailyCap, price: result.price, runsPerItem: result.runsPerItem });
   return result;
