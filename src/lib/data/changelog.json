@@ -1,8 +1,85 @@
 {
-  "version": "3.2",
-  "total": 320,
-  "generatedAt": "2026-09-22",
+  "version": "3.3",
+  "total": 331,
+  "generatedAt": "2026-09-23",
   "entries": [
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "f3d708d",
+      "title": "Pontuação da Season nova: toda partida conta e dominação paga",
+      "summary": "Acabou o limite de 10 melhores por dia: agora toda partida ranqueada pontua (da 11ª do dia em diante vale metade). Campeão pontua mais (12), sair no suíço antes das quartas custa pontos, e mapa de 13 a 0 e série vencida sem perder mapa dão bônus."
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "b71da27",
+      "title": "Dropdown de presença com duas linhas, em fila e em jogo",
+      "summary": "Ele achou estranho o 'no lobby' e a 'na final' separada: o dropdown agora lê como o jogador pensa — 'N em fila' (fila de matchmaking + salas esperando, o lobby do server) e 'N em jogo' (qualquer sala viva, final incluída), via presenceRo…"
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "7c82a9e",
+      "title": "Indicador Online X Players com dropdown jogando/lobby/final",
+      "summary": "Novo GET /presence: online = contas com request autenticado nos últimos 5 min (last_seen_at), jogando/lobby/final = conectados por fase da sala no manager (final pega a rodada corrente), fila entra no lobby."
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "bd081ac",
+      "title": "Roleta do upgrader e trocas escondem cartas de TODAS as lineups salvas",
+      "summary": "O servidor recusa apostar/trocar carta escalada em qualquer slot (lineupCardIds consulta lineup_slots inteira), mas o cliente só excluía a lineup ativa: com 3 lineups, as cartas das linhas 2 e 3 apareciam na lista de stake e o giro falha…"
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "4bfe82f",
+      "title": "Premiação em coins ao lado da colocação na tabela da temporada",
+      "summary": ""
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "5397b43",
+      "title": "Caixas do Major sem retroatividade",
+      "summary": "O recurso contava TODOS os majors ranqueados do histórico como caixas pendentes — quem tinha muitas runs via uma pilha infinita."
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "23378bd",
+      "title": "Isento fora do ladder de 16 não leva coins nem queima faixa",
+      "summary": ""
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "59dab80",
+      "title": "Restaura contagem de baús nas missões do serviço da coleção",
+      "summary": "O 80519b9 removeu o hunk de missões por achar que era WIP não commitado, mas 3cc3439 já tinha subido a exportação e os testes; sem a chamada, a missão de baús para de contar."
+    },
+    {
+      "version": "3.2",
+      "date": "2026-09-22",
+      "hash": "80519b9",
+      "title": "Derruba hunk alheio de missões do serviço da coleção",
+      "summary": "O commit das caixas levou, por engano, um import e uma chamada de advanceMissionActivity ainda sem a exportação correspondente em missions.ts (WIP de outra sessão), quebrando o server:build."
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "3cc3439",
+      "title": "Missões solo/lineups/baús diárias e prêmios da Season até o 16º",
+      "summary": "- Solo renova todo dia e paga o triplo (1680/630/1050/1260) - Novas diárias: 3 lineups distintas do dia (majors.lineup_key, solo e competitivo somam) e 5 baús (conta no addCards, vale diário/grátis/caixa/comprado) - Season fecha pagando …"
+    },
+    {
+      "version": "3.1",
+      "date": "2026-09-22",
+      "hash": "923a64c",
+      "title": "Changelog da versao",
+      "summary": ""
+    },
     {
       "version": "3.1",
       "date": "2026-09-22",
@@ -765,83 +842,6 @@
       "hash": "b3cc799",
       "title": "✨ prêmios de jogada também valem pontos",
       "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "828160f",
-      "title": "⚡ partidas no ultra automático; fila travada nesse modo",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "02511ed",
-      "title": "✨ pontos em toda colocação, coins maiores, pacotes Diamante e Ícone e GOAT mais raro",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "16fef65",
-      "title": "✨ dupla joga em 30 s, fantasmas saem em 20 s e aba escondida sai em 1 min",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "e39a028",
-      "title": "✨ suporte e reclamação de overall por e-mail, termos e privacidade atualizados",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "d390ff0",
-      "title": "🔒 compra congela valor, reconciliação de webhook perdido e bloqueio após chargeback",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "5251c96",
-      "title": "🐛 reduzir coins dos pacotes",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "86d43e8",
-      "title": "✨ pacotes de coins e botão de compra na conta e na coleção",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "17be295",
-      "title": "🐛 botão de login visível e Jogar Draft leva ao login",
-      "summary": ""
-    },
-    {
-      "version": "2.0",
-      "date": "2026-09-18",
-      "hash": "ae5035a",
-      "title": "✨ time em linha com detalhes, estilo tático exigente e fila com 3 em 10 s",
-      "summary": ""
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "834d8ed",
-      "title": "Pagamento com Mercado Pago preparado (desligado sem credenciais)",
-      "summary": "Checkout Pro no servidor: preço sempre da tabela products, compra pendente criada antes da preferência (external_reference = compra), limite de 5 por dia."
-    },
-    {
-      "version": "1.9",
-      "date": "2026-09-18",
-      "hash": "f4b1e66",
-      "title": "Fila competitiva e regra única de quando o Major vale pontos",
-      "summary": "Fila (POST /queue/join|leave, GET /queue/status): só time da coleção; fecha a sala com 8 na hora ou com 4+ depois de 20 s esperando mais gente; nunca com menos de 4."
     }
   ]
 }

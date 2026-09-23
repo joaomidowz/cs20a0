@@ -62,6 +62,10 @@ function noteOf(commit) {
     'd84c27502bfd6bbfa584368a9dc5e7268e821612': {
       title: 'Caixa do Major: prêmio pela colocação nas patentes do CS',
       summary: 'Todo Major ranqueado com o time da coleção (2+ jogadores) lacra uma caixa pela colocação final — 5º–8º Prata, 3º–4º Ouro, vice Supremo e campeão Global — e todas abrem no pé da Loja, com um aviso explicando o prêmio.'
+    },
+    'f3d708d7e300fcf0d7a4d3d002a7fbfd609c37af': {
+      title: 'Pontuação da Season nova: toda partida conta e dominação paga',
+      summary: 'Acabou o limite de 10 melhores por dia: agora toda partida ranqueada pontua (da 11ª do dia em diante vale metade). Campeão pontua mais (12), sair no suíço antes das quartas custa pontos, e mapa de 13 a 0 e série vencida sem perder mapa dão bônus.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
