@@ -27,6 +27,7 @@
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
   import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { reconcileLineupOwnership } from '$lib/game/online/collection-reconciliation';
   import { boostStore, refreshBoost, buyBoostItems } from '$lib/game/online/boost';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
   import { BOOST_ITEM_PRICE, BOOST_RUNS_PER_ITEM, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, PACK_PRICES, RARITIES, coachSellValue, rarityOf, sellValue, type PackTier } from '$lib/game/online/collection-rules';
@@ -238,6 +239,15 @@
       state = await fetchCollection(serverUrl);
       // First load opens on the ACTIVE slot: the team that plays now.
       if (!slots.some(Boolean)) { activeTab = state?.activeSlot ?? 0; hydrateLineup(lineupAt(activeTab)); }
+      // A restored page or stale draft must never keep a sold card in the editable lineup.
+      const reconciled = reconcileLineupOwnership({
+        playerIds: slots.map((player) => player?.id ?? null), roles, starPlayerId, coachId, mapPreferences: mapPicks
+      }, new Set(state.players.map((item) => item.playerId)));
+      slots = reconciled.playerIds.map((id) => id ? playerById.get(id) ?? null : null);
+      roles = [...reconciled.roles];
+      starPlayerId = reconciled.starPlayerId;
+      coachId = reconciled.coachId;
+      mapPicks = [...reconciled.mapPreferences];
     } catch (caught) { fail(caught); }
   }
 

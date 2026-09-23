@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
 import { cardCoinValue } from '../src/lib/game/online/card-value';
-import { PROMO_DISCOUNT, PROMO_TIERS, isPromoTier, promoFinalPrice, rarityOf } from '../src/lib/game/online/collection-rules';
+import { PROMO_DISCOUNT, PROMO_TIERS, isPromoTier, promoFinalPrice, rarityOf, sellValue } from '../src/lib/game/online/collection-rules';
 import { PROMO_PLAYER_RARITY, dailyPromos, promoCardId, promoSeed } from '../src/lib/game/online/promos';
 import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
@@ -125,5 +125,21 @@ describe.skipIf(!url)('compra da promoção diária (Postgres)', () => {
     await expect(buyPromo(db, userId, 'promo_elite', now)).rejects.toMatchObject({ code: 'ALREADY_OWNED' });
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     expect(wallet.coins).toBe(200_000);
+  });
+
+  it('a mesma carta só gera crédito de venda uma vez', async () => {
+    const { sellPlayer } = await import('../server/collection/service');
+    const player = collectionPlayerById.values().next().value!;
+    const userId = await newUser('promo-sell-once@example.com', 25_000);
+    await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack')`, [userId, player.id]);
+
+    const sale = await sellPlayer(db, userId, player.id);
+    expect(sale).toEqual({ coins: sellValue(player), wallet: 25_000 + sellValue(player) });
+    await expect(sellPlayer(db, userId, player.id)).rejects.toMatchObject({ status: 404, code: 'NOT_OWNED' });
+
+    const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
+    const [ledger] = await db.query<{ count: number }>("SELECT count(*)::int AS count FROM ledger WHERE user_id = $1 AND reason = 'sell' AND ref_id = $2", [userId, player.id]);
+    expect(wallet.coins).toBe(25_000 + sellValue(player));
+    expect(ledger.count).toBe(1);
   });
 });
