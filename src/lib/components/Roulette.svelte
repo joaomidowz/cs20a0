@@ -12,7 +12,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { playOfflineSound } from '$lib/game/offlineAudio';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import TeamBadge from './TeamBadge.svelte';
 
   export let entries: RouletteEntry[];
@@ -54,7 +54,7 @@
     completed = true;
     cancelAnimationFrame(frame);
     clearTimeout(settleTimer);
-    if (!settled) playOfflineSound('land');
+    if (!settled) playGameSound('land');
     animation?.cancel();
     onComplete();
   }
@@ -93,14 +93,14 @@
         tense = false;
         settled = true;
         cancelAnimationFrame(frame);
-        playOfflineSound('land');
+        playGameSound('land');
         settleTimer = setTimeout(finish, 360);
       };
     };
     let lastIndex = 0;
     const followMarker = () => {
       const index = Math.round((currentX() - 80) / STEP);
-      if (index !== lastIndex) { lastIndex = index; playOfflineSound('tick'); }
+      if (index !== lastIndex) { lastIndex = index; playGameSound('tick'); }
       if (!completed && !settled) frame = requestAnimationFrame(followMarker);
     };
     frame = requestAnimationFrame(followMarker);

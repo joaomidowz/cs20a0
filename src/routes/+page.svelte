@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { showToast as notifyToast } from '$lib/game/notifications';
   import { formatRating } from '$lib/game/powerRating';
   import { onDestroy, onMount, tick } from 'svelte';
   import { dev } from '$app/environment';
@@ -9,7 +10,7 @@
   import PlayerCard from '$lib/components/PlayerCard.svelte';
   import DraftRoulette from '$lib/components/DraftRoulette.svelte';
   import FlyingPick from '$lib/components/FlyingPick.svelte';
-  import { playOfflineSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
+  import { playGameSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
   import PlayerDetailSheet from '$lib/components/PlayerDetailSheet.svelte';
   import HeroLive from '$lib/components/HeroLive.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
@@ -172,8 +173,8 @@
     if (source && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       flight = { id: ++flightId, name: player.nickname ?? '?', source, slot };
     }
-    if (slot === 4) { celebrateLineup = true; playOfflineSound('lineup'); }
-    else playOfflineSound('pick');
+    if (slot === 4) { celebrateLineup = true; playGameSound('lineup'); }
+    else playGameSound('pick');
   }
 
   function beginRoulette(team: HistoricalTeam, excludedIds: string[], rerollsUsed = $game.rerollsUsed) {
@@ -183,7 +184,6 @@
     rouletteSpinning = true;
     update({ rolledTeamId: team.id, rerollsUsed });
   }
-  let toast = '';
   let awaitingAdvance = false;
   let majorTab: 'current' | 'all' | 'team' = 'current';
   let tipState: TipState = DEFAULT_TIP_STATE;
@@ -205,7 +205,6 @@
   let enemyModalPinned = false;
   let enemyHoverTimer: number | null = null;
   let advanceTimer: number | null = null;
-  let toastTimer: number | null = null;
   let showOrgModal = false;
   let expandedTimelineMatch: string | null = null;
   let seedUrlTimer: number | null = null;
@@ -382,7 +381,6 @@
     stopLiveTick();
     stopCircuitTick();
     if (automationTimer !== null) window.clearTimeout(automationTimer);
-    if (toastTimer !== null) window.clearTimeout(toastTimer);
     if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
 
@@ -449,7 +447,7 @@
     const rng = createSeededRng(`${$game.seed}:draft-reroll:${pickCount}:${rerollsUsed}:${excludedIds.join('|')}`);
     const team = pickRandomTeam(catalog.draftTeams, rng, excludedIds);
     if (!team) {
-      showToast(t('noRerollTeams'));
+      showToast(t('noRerollTeams'), 'warning');
       return;
     }
     beginRoulette(team, excludedIds, rerollsUsed);
@@ -516,7 +514,7 @@
     if (!rolledTeam || draftComplete || !$game.mode || (!$game.styleLocked && needsStyleBeforeDraft($game.mode))) return;
     const validation = validatePlayerPick(player, selectedLineup, selectedSlotRole, lookupPlayer);
     if (!validation.ok) {
-      showToast(reasonText(validation.reason));
+      showToast(reasonText(validation.reason), 'warning');
       return;
     }
     pickFeedback(player, selectedLineup.length);
@@ -537,7 +535,7 @@
       return picked ? getPlayerBaseId(picked) === getPlayerBaseId(player) : false;
     });
     if (alreadyPicked) {
-      showToast(t('samePlayerPicked'));
+      showToast(t('samePlayerPicked'), 'warning');
       return;
     }
     pickFeedback(player, $game.proPickedPlayerIds.length);
@@ -565,7 +563,7 @@
   function confirmProRoles() {
     if (!isProMode || !proAssignmentStatus.complete) return;
     celebrateLineup = true;
-    playOfflineSound('lineup');
+    playGameSound('lineup');
     update({
       selectedPlayers: proLineup,
       proRevealed: true,
@@ -601,7 +599,7 @@
       const team = buildDynastyUserTeam({ players: selectedPlayers, lineup: selectedLineup, seed: $game.seed, coach: dynastyCoach, teams, plan });
       commitCampaign(setCampaignSeriesPlan(campaign, team));
       update({ dynasty: { ...$game.dynasty, major }, style: plan.style });
-    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error), 'error'); }
   }
 
   function rerollCoaches() {
@@ -694,7 +692,7 @@
       });
       const expected = Object.keys(played).length;
       const wonBack = restored.run.matches.filter((match) => match.winnerId).length;
-      if (restored.restoredSeriesIds.length !== expected || wonBack < expected) { showToast(t('campaignRestoreFailed')); return; }
+      if (restored.restoredSeriesIds.length !== expected || wonBack < expected) { showToast(t('campaignRestoreFailed'), 'error'); return; }
       campaign = restored;
       const restoredCurrent = currentUserSeries(restored.run.matches, restored.confirmedSeriesIds);
       const restoredPlan = restoredCurrent ? $game.dynasty?.major?.plans[restoredCurrent.id] : null;
@@ -703,7 +701,7 @@
         campaign = setCampaignSeriesPlan(restored, team);
       }
       update({ majorRun: campaign.run, playedSeries: campaignPlayedSeries(campaign) });
-    } catch { showToast(t('campaignRestoreFailed')); }
+    } catch { showToast(t('campaignRestoreFailed'), 'error'); }
   }
 
   function setStrategicPreferences(value: StrategicAutomationPreferences) {
@@ -1116,26 +1114,24 @@
       await saveRunImage('share-card', $game.seed);
       showToast(t('imageDownloaded'));
     } catch {
-      showToast(t('imageDownloadFailed'));
+      showToast(t('imageDownloadFailed'), 'error');
     } finally {
       downloadingImage = false;
     }
   }
 
-  function showToast(message: string) {
-    toast = message;
-    if (toastTimer !== null) window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => { toastTimer = null; toast = ''; }, 1800);
+  function showToast(message: string, kind: 'success' | 'info' | 'warning' | 'error' = 'success') {
+    notifyToast({ message, kind });
   }
 
   function changeSimulationMode(value: string) {
     update({ simMode: value as SimMode });
-    showToast(t('configurationSaved'));
+    showToast(t('configurationSaved'), 'info');
   }
 
   function changeSimulationSpeed(value: string) {
     update({ simSpeed: value as SimSpeed });
-    showToast(t('configurationSaved'));
+    showToast(t('configurationSaved'), 'info');
   }
 
   function phaseLabel() {
@@ -1887,7 +1883,6 @@
 
 <OrganizationRosterModal organization={ownOrganizationView} isOpen={showOrgModal} language={$game.language} showPlayerAwards={shouldShowPlayerAwards($game.mode, 'game')} onClose={() => showOrgModal = false} />
 
-{#if toast}<div class="toast">{toast}</div>{/if}
 <ConfirmDialog />
 
 <style>

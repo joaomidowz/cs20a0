@@ -7,6 +7,10 @@ export interface PresenceSnapshot {
   playing: number;
   lobby: number;
   final: number;
+  /** Matchmaking waiters only; unlike lobby, excludes room lobbies and drafts. */
+  queue?: number;
+  /** Lets the client detect other arrivals without announcing its own queue entry. */
+  queuedByMe?: boolean;
 }
 
 export const presenceView = writable<PresenceSnapshot | null>(null);

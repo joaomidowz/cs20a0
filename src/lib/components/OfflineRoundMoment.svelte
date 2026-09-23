@@ -1,7 +1,7 @@
 <script lang="ts">
   import RoundFlash from './live/RoundFlash.svelte';
   import { createOfflineMomentTracker } from '$lib/game/offlinePresentation';
-  import { playOfflineSound } from '$lib/game/offlineAudio';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import type { RoundFlash as Moment } from '$lib/game/roundPresentation';
   import type { Language, RoundDetail } from '$lib/game/types';
   export let seriesId: string;
@@ -21,7 +21,7 @@
     if (cursor === lastCursor) return;
     lastCursor = cursor;
     moment = track(id, mapIndex, roundNumber, committed, lang);
-    if (moment?.kind === 'ace' || moment?.kind === 'clutch' || moment?.kind === 'comeback') playOfflineSound(moment.kind);
+    if (moment?.kind === 'ace' || moment?.kind === 'clutch' || moment?.kind === 'comeback') playGameSound(moment.kind);
   }
 </script>
 

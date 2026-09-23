@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { showToast as notifyToast } from '$lib/game/notifications';
+  import { insufficientCoinsMessage } from '$lib/game/notificationCopy';
   import { beforeNavigate, goto } from '$app/navigation';
   import { uiCopy } from '$lib/game/online/ui-copy';
   import StoreNav from './StoreNav.svelte';
@@ -49,7 +51,6 @@
   let state: CollectionState | null = null;
   let loading = true;
   let error = '';
-  let toast = '';
   let busy = false;
   let loadedLineup = false;
   let allowLeave = false;
@@ -106,13 +107,15 @@
 
   $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity);
   const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; };
-  const showToast = (message: string) => { toast = message; setTimeout(() => { if (toast === message) toast = ''; }, 2400); };
+  const showToast = (message: string, kind: 'success' | 'info' | 'warning' | 'error' = 'success') => notifyToast({ message, kind });
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
-      error = caught.code === 'NO_PACKS_LEFT' ? t('noPacksLeft') : caught.code === 'INSUFFICIENT_COINS' ? `${t('wallet')}: ${caught.message}` : caught.code === 'IN_LINEUP' ? t('inLineup') : caught.message;
+      error = caught.code === 'NO_PACKS_LEFT' ? t('noPacksLeft') : caught.code === 'INSUFFICIENT_COINS' ? insufficientCoinsMessage($language) : caught.code === 'IN_LINEUP' ? t('inLineup') : caught.message;
+      showToast(error, caught.code === 'INSUFFICIENT_COINS' ? 'warning' : 'error');
       return;
     }
     error = t('connectionFailed');
+    showToast(error, 'error');
   };
 
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
@@ -316,7 +319,7 @@
     confirmingPayment = true;
     const text = PAYMENT_TEXT[paymentLanguage()];
     const before = state?.wallet ?? 0;
-    showToast(text.checking);
+    showToast(text.checking, 'info');
     try {
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const result = await authFetch<{ credited: number; coins: number; pending: number }>(serverUrl, '/shop/reconcile', { method: 'POST', body: {} }).catch(() => null);
@@ -326,7 +329,7 @@
         if (result && result.pending === 0 && attempt > 0) break;
         await new Promise((resolve) => setTimeout(resolve, 6000));
       }
-      showToast(text.waiting);
+      showToast(text.waiting, 'info');
     } finally { confirmingPayment = false; }
   }
 
@@ -418,7 +421,7 @@
       if (payment) {
         // The query string is only a hint of where the buyer came from: the server re-checks the payment itself.
         history.replaceState(null, '', window.location.pathname);
-        if ($accountUser && payment !== 'falhou') void confirmPayment(); else showToast(PAYMENT_TEXT[paymentLanguage()].failed);
+        if ($accountUser && payment !== 'falhou') void confirmPayment(); else showToast(PAYMENT_TEXT[paymentLanguage()].failed, 'error');
       }
     } catch (caught) { fail(caught); } finally { loading = false; }
   });
@@ -856,8 +859,6 @@
     </div>
   </Modal>
 {/if}
-{#if toast}<div class="toast">{toast}</div>{/if}
-
 <style>
   .collection { display: grid; gap: 18px; padding: 28px 0 70px; }
   .box { display: grid; gap: 12px; padding: 22px; }
@@ -976,7 +977,6 @@
     .icon.active { border-color: #d9a441; color: #ffd36b; background: color-mix(in srgb, #d9a441 14%, var(--surface)); }
     .slot .empty { min-height: 56px; }
     .slot-notes:empty { display: none; }
-    .toast { bottom: 70px; }
   }
   @media (prefers-reduced-motion: reduce) { .swap-here { animation: none; } }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
@@ -991,7 +991,6 @@
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .cards :global(.player-grid) { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 12px; padding-top: 8px; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 16px; background: var(--accent); color: #0a0d08; font-weight: 800; z-index: 20; }
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
   @media (max-width: 760px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 720px) { .premium-grid { grid-template-columns: 1fr; } .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; } .premium-info { justify-items: center; } }
@@ -1013,7 +1012,6 @@
     .team, .cards, .shop { padding: 14px; }
     .details { grid-template-columns: minmax(0, 1fr); }
     .slots { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-    .toast { bottom: calc(145px + env(safe-area-inset-bottom)); }
     .team-links > * { flex: 1 1 auto; }
     .picker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   }

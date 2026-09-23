@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { showToast as notifyToast } from '$lib/game/notifications';
+  import { boostResultLabels, boostSummaryMessage, runRewardMessage } from '$lib/game/notificationCopy';
+  import AnimatedCoins from '$lib/components/ui/AnimatedCoins.svelte';
   import { formatCourtRating } from '$lib/game/powerRating';
   import { onDestroy, onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
@@ -18,7 +21,7 @@
   import AutomationGear from '$lib/components/AutomationGear.svelte';
   import DraftRoulette from '$lib/components/DraftRoulette.svelte';
   import FlyingPick from '$lib/components/FlyingPick.svelte';
-  import { playOfflineSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
+  import { playGameSound, unlockOfflineAudio, stopOfflineSounds, loadOfflineSound, disposeOfflineAudio, offlineSoundEnabled, setOfflineSound } from '$lib/game/offlineAudio';
   import { answersDecision, autoEcoCall, autoSidePick, autoVetoMap, decisionKey, shouldAnswerAgain, shouldCallTimeout, timeoutTimingFor, type AutomationAttempt } from '$lib/game/online-automation';
   import { DEFAULT_STRATEGIC_AUTOMATION, loadStrategicPreferences, saveStrategicPreferences, type StrategicAutomationPreferences } from '$lib/game/preferences';
   import VetoBoard from '$lib/components/live/VetoBoard.svelte';
@@ -43,7 +46,7 @@
   import { buildProRoleEvaluations, PRO_REQUIRED_ROLES, validateProAssignments } from '$lib/game/proMode';
   import { shouldShowPlayerAwards, teamPlacementLabel, teamStyle, teamTags } from '$lib/game/teamViews';
   import { language, theme } from '$lib/game/pageState';
-  import { ORG_STYLES, type LineupSlotRole, type MapId, type OrgStyle, type Player, type RoundDetail, type SelectedPlayer, type SeriesResult, type CombatTeam, type MajorTournament } from '$lib/game/types';
+  import { ORG_STYLES, type Language, type LineupSlotRole, type MapId, type OrgStyle, type Player, type RoundDetail, type SelectedPlayer, type SeriesResult, type CombatTeam, type MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type ClientCommandInput, type OnlineClientErrorCode } from '$lib/game/online/client';
   import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
@@ -56,7 +59,7 @@
   import { boostStore, refreshBoost, activateBoost, type BoostState } from '$lib/game/online/boost';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import Modal from '$lib/components/ui/Modal.svelte';
-  import { MAJOR_PACK_BY_PLACEMENT, type PackTier } from '$lib/game/online/collection-rules';
+  import { BOOST_ITEM_PRICE, MAJOR_PACK_BY_PLACEMENT, type PackTier } from '$lib/game/online/collection-rules';
   import RankBadge from '$lib/components/online/RankBadge.svelte';
   import { refreshWallet } from '$lib/game/online/wallet';
   import { presenceView } from '$lib/game/online/presence';
@@ -102,7 +105,17 @@
       result = reply.result; room = reply.room ?? [];
     }
     // The run's coins (and any award prize) land on the wallet bar.
-    if (result) void refreshWallet(getOnlineServerUrl());
+    if (result) {
+      void refreshWallet(getOnlineServerUrl());
+      const rewardKey = `cs13a0:run-reward:${key}`;
+      let alreadyAnnounced = false;
+      try { alreadyAnnounced = sessionStorage.getItem(rewardKey) === '1'; } catch { /* session storage is optional */ }
+      if (!alreadyAnnounced) {
+        try { sessionStorage.setItem(rewardKey, '1'); } catch { /* session storage is optional */ }
+        const totalCoins = result.rewardCoins + result.awardCoins;
+        notifyToast({ message: runRewardMessage($language, totalCoins), kind: 'success', duration: 5_000, key: `run-reward:${key}` });
+      }
+    }
     try {
       const [season, awards] = await Promise.all([
         authFetch<{ me: { rank: number; points: number; majorsWon: number } | null }>(getOnlineServerUrl(), '/seasons/current'),
@@ -137,7 +150,6 @@
   let resyncRequested = false;
   let connection: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
   let errorMessage = '';
-  let toast = '';
   let config: RoomConfig = { ...DEFAULT_ROOM_CONFIG };
   let creating = false;
   let detailsPlayer: Player | null = null;
@@ -181,9 +193,15 @@
   let appliedSnapshotVersion = -1;
   let appliedLiveVersion = -1;
   let appliedRoomError = '';
+  let lastNotifiedOnlineError = '';
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
+  $: if (errorMessage && errorMessage !== lastNotifiedOnlineError) {
+    lastNotifiedOnlineError = errorMessage;
+    notifyToast({ message: errorMessage, kind: 'error', duration: 6_000, key: 'online-action-error' });
+  }
+  $: if (!errorMessage) lastNotifiedOnlineError = '';
   // Logado: identidade vem da conta (banco); deslogado: exige os dois campos digitados.
   $: resolvedPlayerName = playerName.trim() || $accountUser?.displayName || $accountUser?.email.split('@')[0] || '';
   $: resolvedOrganizationName = organizationName.trim() || $accountUser?.teamName || (resolvedPlayerName ? `${resolvedPlayerName} Esports` : '');
@@ -279,8 +297,8 @@
     pendingPickSource = null;
     if (reducedMotion()) return;
     if (source) flight = { id: ++flightId, name: playerById.get(playerId)?.nickname ?? '?', source, slot };
-    if (slot === 4) { celebrateLineup = true; playOfflineSound('lineup'); }
-    else playOfflineSound('pick');
+    if (slot === 4) { celebrateLineup = true; playGameSound('lineup'); }
+    else playGameSound('pick');
   }
 
   function capturePickSource(player: Player) {
@@ -427,9 +445,14 @@
     countdown = `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
   }
 
-  function showToast(message: string) {
-    toast = message;
-    window.setTimeout(() => { if (toast === message) toast = ''; }, 2_200);
+  function showToast(message: string, kind: 'success' | 'info' | 'warning' | 'error' = 'success') {
+    notifyToast({ message, kind });
+  }
+
+  function boostNoStockMessage(language: Language) {
+    if (language === 'pt-BR') return 'Você está sem Boost de Farm no estoque. Compre um item na Loja.';
+    if (language === 'es') return 'No tienes Boost de Farm. Compra un artículo en la tienda.';
+    return 'You are out of Farm Boost items. Buy one in the Store.';
   }
 
   function validIdentity() {
@@ -523,7 +546,7 @@
   let boostResult = '';
   let boostError = '';
   /** The result modal: the boost's whole point is the coins, so they land front and center. */
-  let boostModal: { runs: number; coins: number; titles: number; best: string; placements: string[]; stock: number } | null = null;
+  let boostModal: { runs: number; coins: number; spent: number; net: number; titles: number; best: string; placements: string[]; stock: number } | null = null;
   $: boost = $boostStore;
   $: if ($accountUser && hasSavedLineup && !boostTried) {
     boostTried = true;
@@ -537,11 +560,15 @@
     try {
       const outcome = await activateBoost(getOnlineServerUrl(), field);
       // O servidor antigo ainda pode responder sem placements (restart pendente): o modal degrada com graça.
-      boostModal = { runs: outcome.runs, coins: outcome.coins, titles: outcome.titles, best: outcome.best, placements: outcome.placements ?? [], stock: outcome.stock };
+      const spent = outcome.price ?? boost?.price ?? BOOST_ITEM_PRICE;
+      const net = outcome.coins - spent;
+      boostModal = { runs: outcome.runs, coins: outcome.coins, spent, net, titles: outcome.titles, best: outcome.best, placements: outcome.placements ?? [], stock: outcome.stock };
+      notifyToast({ message: boostSummaryMessage($language, spent, outcome.coins, net), kind: net >= 0 ? 'success' : 'warning', duration: 6_000 });
       boostResult = '';
     } catch (caught) {
       boostResult = '';
-      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 30)) : t('connectionFailed');
+      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 30)) : caught instanceof AccountError && caught.code === 'NO_BOOST_STOCK' ? boostNoStockMessage($language) : t('connectionFailed');
+      showToast(boostError, caught instanceof AccountError && (caught.code === 'BOOST_DAILY_CAP' || caught.code === 'NO_BOOST_STOCK') ? 'warning' : 'error');
     } finally { boostBusy = false; }
   }
 
@@ -996,7 +1023,7 @@
       await saveRunImage('share-card', `${roomCode}-${me.organizationName}`, 'cs13a0-multiplayer');
       showToast(gameT('imageDownloaded'));
     } catch {
-      showToast(gameT('imageDownloadFailed'));
+      showToast(gameT('imageDownloadFailed'), 'error');
     } finally {
       downloadingImage = false;
     }
@@ -1526,11 +1553,15 @@
   onClose={() => selectedOrganizationId = null}
 />
 
-{#if toast}<div class="toast" role="status" aria-live="polite">{toast}</div>{/if}
 {#if boostModal}
   <Modal open title={t('boostTitle')} onClose={() => boostModal = null}>
     <div class="boost-modal">
-      <p class="boost-coins">+{boostModal.coins.toLocaleString($language)}<small>coins</small></p>
+      <p class="boost-coins"><AnimatedCoins value={boostModal.coins} language={$language} /></p>
+      <div class="boost-finances">
+        <span><small>{boostResultLabels($language).spent}</small><b>−{boostModal.spent.toLocaleString($language)} coins</b></span>
+        <span><small>{boostResultLabels($language).earned}</small><b>+{boostModal.coins.toLocaleString($language)} coins</b></span>
+        <span class:negative={boostModal.net < 0}><small>{boostResultLabels($language).net}</small><b>{boostModal.net >= 0 ? '+' : '−'}{Math.abs(boostModal.net).toLocaleString($language)} coins</b></span>
+      </div>
       <p class="boost-lines">
         <span>{t('boostModalRuns').replace('{n}', String(boostModal.runs))}</span>
         <span>{t('boostModalTitles').replace('{n}', String(boostModal.titles))}</span>
@@ -1555,7 +1586,8 @@
   .live-actions{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
   .online-major-screen{max-width:none;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:50px;margin-top:0;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
   .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border-left:3px solid #d9a441}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.boost-switch-row{display:flex;align-items:center;gap:10px}.boost-switch-row small{color:var(--muted);font-size:.7rem;font-weight:700}.boost-done{margin:0;padding:10px 12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));color:var(--accent);font-weight:800;font-size:.8rem}
-.boost-modal{display:grid;gap:14px}.boost-coins{margin:0;color:var(--accent);font:900 2.6rem/1 'Arial Narrow',Impact,sans-serif;text-align:center}.boost-coins small{font:800 .9rem Inter,Arial,sans-serif;margin-left:6px;color:var(--muted)}.boost-lines{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin:0}.boost-lines span{color:var(--text);font-weight:800;font-size:.82rem}.boost-chips{display:flex;flex-wrap:wrap;gap:6px}.boost-chips span{padding:3px 8px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.68rem;font-weight:700}.boost-meta-line{margin:0;text-align:center;color:var(--muted);font-size:.74rem;font-weight:700}.notice-actions{display:grid;grid-template-columns:1fr}.notice-actions :global(button){min-height:46px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.queue-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.mode-card .info-btn{flex:none;width:26px;height:26px;min-height:0;margin:0;padding:0;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.82rem;font-weight:900;line-height:1;cursor:pointer;transition:.18s ease}.mode-card .info-btn:hover,.mode-card .info-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}.queue-hint-info{margin:-4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}.presence-line{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:.74rem;font-weight:700}.presence-line i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:queuePulse 1.6s ease-in-out infinite}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
+  .boost-modal{display:grid;gap:14px}.boost-coins{margin:0;color:var(--accent);font:900 2.6rem/1 'Arial Narrow',Impact,sans-serif;text-align:center}.boost-coins :global(small){font:800 .9rem Inter,Arial,sans-serif;margin-left:6px;color:var(--muted)}.boost-finances{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.boost-finances span{display:grid;gap:5px;padding:10px;border:1px solid var(--line);background:var(--surface-2);text-align:center}.boost-finances small{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.boost-finances b{font-size:.76rem;color:var(--text)}.boost-finances span:nth-child(2) b,.boost-finances span:nth-child(3) b{color:var(--accent)}.boost-finances span.negative b{color:var(--danger,#ff7063)}.boost-lines{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin:0}.boost-lines span{color:var(--text);font-weight:800;font-size:.82rem}.boost-chips{display:flex;flex-wrap:wrap;gap:6px}.boost-chips span{padding:3px 8px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.68rem;font-weight:700}.boost-meta-line{margin:0;text-align:center;color:var(--muted);font-size:.74rem;font-weight:700}.notice-actions{display:grid;grid-template-columns:1fr}.notice-actions :global(button){min-height:46px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.queue-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.mode-card .info-btn{flex:none;width:26px;height:26px;min-height:0;margin:0;padding:0;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.82rem;font-weight:900;line-height:1;cursor:pointer;transition:.18s ease}.mode-card .info-btn:hover,.mode-card .info-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}.queue-hint-info{margin:-4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}.presence-line{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:.74rem;font-weight:700}.presence-line i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:queuePulse 1.6s ease-in-out infinite}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
+  @media(max-width:420px){.boost-finances{grid-template-columns:1fr}.boost-finances span{grid-template-columns:1fr auto;align-items:center;text-align:left}}
   .identity-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;margin:28px 0 14px;padding:18px}.identity-strip .strip-copy p{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 0}.identity-strip strong{font-size:1.05rem}.identity-strip small{color:var(--muted);font-size:.82rem;font-weight:700}.identity-strip>a{flex:none;color:var(--muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.identity-strip>a:hover{color:var(--accent)}
   .collection-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.collection-toggle .toggle-copy{display:grid;gap:3px;min-width:0}.collection-toggle strong{font:800 .72rem/1.2 Inter,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase}.collection-toggle small{color:var(--muted);font-size:.66rem;line-height:1.35;text-transform:none}.collection-toggle small a{color:var(--accent)}
   .switch{display:inline-flex;align-items:center;gap:8px;padding:0;border:0;background:transparent;color:var(--muted);cursor:pointer}.switch em{min-width:26px;font:800 .62rem/1 Inter,Arial,sans-serif;font-style:normal;letter-spacing:.1em;text-align:right;transition:color .18s ease}.switch i{position:relative;display:block;width:46px;height:26px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2);transition:.18s ease}.switch i span{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.18s ease}.switch[aria-checked="true"]{color:var(--accent)}.switch[aria-checked="true"] i{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--surface-2))}.switch[aria-checked="true"] i span{left:23px;background:var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%,transparent)}.switch:disabled{opacity:.45;cursor:not-allowed}

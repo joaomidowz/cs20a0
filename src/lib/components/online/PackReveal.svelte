@@ -4,6 +4,7 @@
   import CollectionCard from './CollectionCard.svelte';
   import PackCase from './PackCase.svelte';
   import Roulette, { type RouletteEntry } from '$lib/components/Roulette.svelte';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import { RARITIES, rarityOf, type PackTier, type Rarity } from '$lib/game/online/collection-rules';
   import type { Coach, Language, Player } from '$lib/game/types';
 
@@ -46,30 +47,17 @@
   let shaking = false;
   let finished = false;
   let timers: number[] = [];
-  let audio: AudioContext | null = null;
   const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const later = (fn: () => void, ms: number) => { timers.push(window.setTimeout(fn, reduced ? Math.min(ms, 120) : ms)); };
 
   function tone(rarity: Rarity) {
-    if (!sound || !audio) return;
-    try {
-      const level = RARITIES.indexOf(rarity);
-      const notes = level >= 5 ? [523, 659, 784, 1047] : level === 4 ? [523, 659, 784] : level === 3 ? [440, 587] : [330 + level * 40];
-      const start = audio.currentTime;
-      notes.forEach((frequency, index) => {
-        const oscillator = audio!.createOscillator();
-        const gain = audio!.createGain();
-        oscillator.type = level >= 4 ? 'triangle' : 'sine';
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.0001, start + index * 0.09);
-        gain.gain.exponentialRampToValueAtTime(0.14, start + index * 0.09 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.09 + (level >= 4 ? 0.5 : 0.22));
-        oscillator.connect(gain).connect(audio!.destination);
-        oscillator.start(start + index * 0.09);
-        oscillator.stop(start + index * 0.09 + 0.6);
-      });
-    } catch { /* sound is a nicety */ }
+    if (!sound) return;
+    const cue = rarity === 'goat' ? 'cardGoat'
+      : rarity === 'legend' ? 'cardLegend'
+        : rarity === 'superstar' ? 'cardSuperstar'
+          : rarity === 'elite' ? 'cardRare' : 'cardCommon';
+    playGameSound(cue);
   }
 
   /** Spins the roulette for the next card; `land` opens the card when it stops. */
@@ -112,11 +100,8 @@
     finish();
   }
 
-  onMount(() => {
-    try { audio = sound ? new AudioContext() : null; } catch { audio = null; }
-    later(() => { stage = 'cards'; later(rollNext, 300); }, 1500);
-  });
-  onDestroy(() => { for (const timer of timers) window.clearTimeout(timer); void audio?.close().catch(() => {}); });
+  onMount(() => { later(() => { stage = 'cards'; later(rollNext, 300); }, 1500); });
+  onDestroy(() => { for (const timer of timers) window.clearTimeout(timer); });
 </script>
 
 <div class="reveal-stage" class:shaking class:dark={flash === 'goat'}>

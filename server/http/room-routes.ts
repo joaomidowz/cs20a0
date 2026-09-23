@@ -40,13 +40,16 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
     })),
     route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.status(userId!) }))),
     /** Who is around: recent activity for "online", connected players by room phase for the dropdown. Queue waiters count as lobby. */
-    route('GET', /^\/presence$/, withAuth(async () => {
+    route('GET', /^\/presence$/, withAuth(async ({ userId }) => {
       const breakdown = manager.presenceBreakdown();
+      const queuedByMe = queue.status(userId!).state === 'waiting';
       return {
         ok: true,
         online: await onlineUserCount(db, PRESENCE_WINDOW_SECONDS),
         playing: breakdown.playing,
         lobby: breakdown.lobby + queue.size(),
+        queue: queue.size(),
+        queuedByMe,
         final: breakdown.final
       };
     })),
