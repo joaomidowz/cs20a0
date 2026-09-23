@@ -6,14 +6,14 @@ export type { OnlineGameMode } from '../types';
 export const PROTOCOL_VERSION = 9 as const;
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
-/** Season points by placement; Stage 3 eliminations score one point per series won (0-2). */
+/** Season points by placement; a Swiss exit scores −2 plus one per series won (0-2) — mirrors the server curve (2026-09-22). */
 export const SEASON_POINTS: Record<string, number> = {
-  placementChampion: 10,
+  placementChampion: 12,
   placementRunnerUp: 7,
   placement3to4: 5,
   placement5to8: 3
 };
-export const seasonPointsFor = (placement: string, stage3Wins: number) => SEASON_POINTS[placement] ?? Math.max(0, Math.min(2, stage3Wins));
+export const seasonPointsFor = (placement: string, stage3Wins: number) => SEASON_POINTS[placement] ?? -2 + Math.max(0, Math.min(2, stage3Wins));
 export const ROOM_CODE_LENGTH = 8;
 
 export const toPresentationGameMode = (mode: OnlineGameMode): GameMode =>

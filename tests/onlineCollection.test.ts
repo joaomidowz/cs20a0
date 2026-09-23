@@ -256,13 +256,13 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
     const event = {
       roomCode: 'ABCDEFGH', seed: 'seed-1', runNumber: 1, lobbySize: 4, competitive: true, field: 'random' as const, awards: null,
-      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
+      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, stage3Wins: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
     };
     await recordMajor(db, event, now);
     await recordMajor(db, event, now);
-    const majors = await db.query<{ points: number; ranked: boolean; counted: boolean }>('SELECT points, ranked, counted FROM majors');
+    const majors = await db.query<{ points: number; ranked: boolean; counted: boolean; dominance_points: number }>('SELECT points, ranked, counted, dominance_points FROM majors');
     expect(majors).toHaveLength(1);
-    expect(majors[0]).toMatchObject({ ranked: true, counted: true, points: 10 });
+    expect(majors[0]).toMatchObject({ ranked: true, counted: true, points: 12, dominance_points: 0 });
     const awards = await db.query<{ kind: string }>('SELECT kind FROM awards ORDER BY kind');
     expect(awards.map((row) => row.kind)).toEqual(['major_title']);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [user.id]);
@@ -273,23 +273,24 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     await recordMajor(db, { ...event, seed: 'seed-3', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placement5to8', champion: false }] }, now + 90_000);
     const scored = await db.query<{ seed: string; points: number; counted: boolean }>(`SELECT seed, points, counted FROM majors WHERE seed IN ('seed-2', 'seed-3') ORDER BY seed`);
     expect(scored).toEqual([{ seed: 'seed-2', points: 4, counted: true }, { seed: 'seed-3', points: 1, counted: true }]);
-    // Up to ten runs a day count, the best ones first: here all four score.
+    // Every ranked run counts now (no more top-10 cut): here all four score in full.
     await recordMajor(db, { ...event, seed: 'seed-4' }, now + 100_000);
     const day = await db.query<{ seed: string; points: number; counted: boolean }>(`SELECT seed, points, counted FROM majors WHERE seed IN ('seed-1', 'seed-2', 'seed-3', 'seed-4') ORDER BY seed`);
     expect(day).toEqual([
-      { seed: 'seed-1', points: 10, counted: true },
+      { seed: 'seed-1', points: 12, counted: true },
       { seed: 'seed-2', points: 4, counted: true },
       { seed: 'seed-3', points: 1, counted: true },
-      { seed: 'seed-4', points: 10, counted: true }
+      { seed: 'seed-4', points: 12, counted: true }
     ]);
-    // The eleventh run of the day only counts if it beats one of the ten: a weak one scores nothing, a title takes a place.
+    // From the eleventh run of the day the worth halves (floor): a weak Swiss exit scores its −1 again, and a title
+    // run past the tenth still lands whole — it enters above the weak ones, which decay instead of zeroing.
     for (let index = 0; index < 6; index += 1) await recordMajor(db, { ...event, seed: `fill-${index}` }, now + 101_000 + index);
     await recordMajor(db, { ...event, seed: 'weak-11', lobbySize: 2, entries: [{ ...event.entries[0], placement: 'placementStage3', champion: false }] }, now + 110_000);
     const [weak] = await db.query<{ points: number; counted: boolean }>(`SELECT points, counted FROM majors WHERE seed = 'weak-11'`);
-    expect(weak).toEqual({ points: 0, counted: false });
+    expect(weak).toEqual({ points: -1, counted: true });
     await recordMajor(db, { ...event, seed: 'title-12' }, now + 111_000);
-    const pushed = await db.query<{ seed: string; counted: boolean }>(`SELECT seed, counted FROM majors WHERE seed IN ('seed-3', 'title-12') ORDER BY seed`);
-    expect(pushed).toEqual([{ seed: 'seed-3', counted: false }, { seed: 'title-12', counted: true }]);
+    const pushed = await db.query<{ seed: string; points: number; counted: boolean }>(`SELECT seed, points, counted FROM majors WHERE seed IN ('seed-3', 'title-12') ORDER BY seed`);
+    expect(pushed).toEqual([{ seed: 'seed-3', points: 0, counted: true }, { seed: 'title-12', points: 12, counted: true }]);
     // Not competitive (private room with drafters, or alone): no points, half reward, no title award.
     await recordMajor(db, { ...event, seed: 'seed-5', lobbySize: 1, competitive: false }, now + 120_000);
     const solo = await db.query<{ points: number; ranked: boolean; awards: string[] }>(`SELECT points, ranked, awards FROM majors WHERE seed = 'seed-5'`);
@@ -298,7 +299,8 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const standings = await currentStandings(db, now, user.id);
     expect(standings.month).toBe('2026-09-01');
     // Twelve ranked runs and one alone against bots ('seed-5'): the solo run is practice, not a Major played.
-    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 12, points: 9 * 10 + 4 });
+    // Points: nine titles × 12 = 108, + 4 (the runner-up), the old 5th–8th decayed to 0, the weak Swiss exit −1 → 111.
+    expect(standings.me).toMatchObject({ rank: 1, majorsWon: 9, majorsPlayed: 12, points: 9 * 12 + 4 - 1 });
     // The profile counts the same way and exposes the active team plus the best cards outside it for trades.
     const lineupIds = lineup.map((pick) => pick.playerId);
     for (const playerId of [...lineupIds, 's1mple-2022']) await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack') ON CONFLICT DO NOTHING`, [user.id, playerId]);
@@ -315,7 +317,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     expect(repaired.majors_played).toBe(12);
     expect(repaired.avg_rating === null || Number(repaired.avg_rating) !== 0.01).toBe(true);
     // End-of-run summary is the latest run of the room.
-    expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, rewardCoins: 850, awardCoins: 0, lobbySize: 1 });
+    expect(await majorResult(db, user.id, 'ABCDEFGH')).toMatchObject({ ranked: false, points: 0, dominancePoints: 0, rewardCoins: 850, awardCoins: 0, lobbySize: 1 });
 
     // Month over: the podium is paid once, the season closes and shows up as the last champion.
     const { closeFinishedSeasons, lastSeasonPodium } = await import('../server/collection/seasons');
@@ -330,7 +332,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const top = await db.query<{ kind: string }>(`SELECT kind FROM awards WHERE kind LIKE 'season_%'`);
     expect(top.map((row) => row.kind)).toEqual(['season_champion']);
     const podium = await lastSeasonPodium(db);
-    expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 94 }] });
+    expect(podium).toMatchObject({ month: '2026-09-01', podium: [{ rank: 1, points: 111 }] });
     await db.close();
   });
 
@@ -348,7 +350,7 @@ describe.skipIf(!url)('registro de Major da coleção (Postgres)', () => {
     const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
     const event = {
       roomCode: 'ROOMCRTE', seed: 'box-1', runNumber: 1, lobbySize: 4, competitive: true, field: 'random' as const, awards: null,
-      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
+      entries: [{ userId: user.id, participantId: 'p1', organizationName: 'Org', placement: 'placementChampion', champion: true, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 0, stage3Wins: 0, lineupIds: lineup.map((pick) => pick.playerId) }]
     };
     // Sem retroatividade: major ranqueado terminado ANTES do corte não lacra caixa nenhuma.
     await recordMajor(db, { ...event, seed: 'box-0', entries: [{ ...event.entries[0], placement: 'placementRunnerUp', champion: false }] }, Date.parse(MAJOR_PACK_CUTOFF) - 60_000);

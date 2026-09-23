@@ -69,7 +69,7 @@
   let hasSavedLineup = false;
   let useCollectionTeam = false;
   let pendingLineupTicket: string | undefined;
-  type MajorResultView = { placement: string; lobbySize: number; ranked: boolean; counted: boolean; champion: boolean; basePoints: number; points: number; rewardCoins: number; awardCoins: number; awards: Array<{ kind: string; coins: number; points: number }> };
+  type MajorResultView = { placement: string; lobbySize: number; ranked: boolean; counted: boolean; champion: boolean; basePoints: number; dominancePoints: number; points: number; rewardCoins: number; awardCoins: number; awards: Array<{ kind: string; coins: number; points: number }> };
   let collectionOutcome: { rank: number | null; points: number; majorsWon: number; awards: Array<{ kind: string; count: number }>; result: MajorResultView | null; room: RoomRewardView[]; pending: boolean; missing: boolean } | null = null;
   type RoomRewardView = { userId: string; teamName: string | null; displayName: string; placement: string; points: number; coins: number };
   let collectionOutcomeFor = '';
@@ -121,6 +121,8 @@
     return [...merged.values()];
   };
   const lobbyShareLabel = (lobby: number) => lobby >= 4 ? '100%' : lobby === 3 ? '1/2' : lobby === 2 ? '1/3' : '0';
+  /** Swiss exits score negative now: −2 shows its minus, positives keep the +. */
+  const signedPoints = (value: number) => value > 0 ? `+${value}` : `${value}`;
   /** The crate this run sealed, on the CS rank ladder of the placement (Básica → Prata → Ouro → Supremo → Global). */
   const crateOf = (placement: string): PackTier => MAJOR_PACK_BY_PLACEMENT[placement] ?? 'basic';
   const crateLabel = (tier: PackTier) => tier === 'global' ? t('packGlobal') : tier === 'supremo' ? t('packSupremo') : tier === 'ouro' ? t('packOuro') : tier === 'prata' ? t('packPrata') : t('packBasic');
@@ -1268,9 +1270,10 @@
                       <li><span>{award.count > 1 ? `${award.count}× ` : ''}{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
                     {/each}
                     <li class="total"><span>{t('totalCoins')}</span><b>+{(result.rewardCoins + result.awardCoins).toLocaleString($language)} coins</b></li>
-                    {#if result.lobbySize > 1}<li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b>+{result.points} pts</b></li>{/if}
+                    {#if result.dominancePoints > 0}<li><span>{t('dominanceBonus')}</span><b>+{result.dominancePoints} pts</b></li>{/if}
+                    {#if result.lobbySize > 1}<li class="total"><span>{t('seasonPointsEarned')} · {t('lobbyShare').replace('{n}', String(result.lobbySize)).replace('{share}', lobbyShareLabel(result.lobbySize))}</span><b class="signed">{signedPoints(result.points)} pts</b></li>{/if}
                   </ul>
-                  {#if !result.ranked}{#if result.lobbySize === 1}<p class="note">{t('soloCoinsOnly')}</p>{:else}<p class="note">{t('notRanked')}</p>{/if}{:else if !result.counted}<p class="note">{t('notCounted')}</p>{/if}
+                  {#if !result.ranked}{#if result.lobbySize === 1}<p class="note">{t('soloCoinsOnly')}</p>{:else}<p class="note">{t('notRanked')}</p>{/if}{/if}
                 </div>
               {:else if collectionOutcome.pending}
                 <div class="earned"><h3>{t('youEarned')}</h3><p class="note">{t('resultPending')}</p></div>
@@ -1283,7 +1286,7 @@
                   <h3>{t('roomRewards')}</h3>
                   <ul>
                     {#each collectionOutcome.room as row (row.userId)}
-                      <li class:total={row.userId === $accountUser?.id}><span><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? row.displayName}</button> · {translatePlacement($language, row.placement)}</span><b>+{row.coins.toLocaleString($language)} coins · +{row.points} pts</b></li>
+                      <li class:total={row.userId === $accountUser?.id}><span><button class="row-link" type="button" on:click={() => profileOf = row.userId}>{row.teamName ?? row.displayName}</button> · {translatePlacement($language, row.placement)}</span><b>+{row.coins.toLocaleString($language)} coins · {signedPoints(row.points)} pts</b></li>
                     {/each}
                   </ul>
                 </div>

@@ -137,19 +137,23 @@ export const MAJOR_PACK_BY_PLACEMENT: Readonly<Record<string, PackTier>> = {
  * o histórico inteiro de runs passadas nunca vira pilha de caixa. Instante fixo no código, de propósito. */
 export const MAJOR_PACK_CUTOFF = '2026-09-22T18:20:00.000Z';
 
-/** Season points by placement with four or more humans in the run. */
-export const PLACEMENT_POINTS: Readonly<Record<string, number>> = { placementChampion: 10, placementRunnerUp: 7, placement3to4: 5, placement5to8: 3 };
-export const ELIMINATED_POINTS = 1;
+/**
+ * Season points by placement with four or more humans in the run. 2026-09-22 reshape (dono): the champion earns a bit
+ * more and a Swiss exit — knocked out before the quarterfinals — now costs points instead of paying one.
+ */
+export const PLACEMENT_POINTS: Readonly<Record<string, number>> = { placementChampion: 12, placementRunnerUp: 7, placement3to4: 5, placement5to8: 3 };
+export const ELIMINATED_POINTS = -2;
 /** Humans in the run for full points; three score half (rounded up), two a third (rounded), one alone scores nothing. */
 export const FULL_POINTS_LOBBY = 4;
-/** Runs per day (Brasília) that score season points: the day's best ones, so a late title replaces an early bad run. */
-export const COUNTED_RUNS_PER_DAY = 10;
+/** Every ranked run scores (FACEIT style, no more top-10 cut): the first runs of the day worth full, later ones decay to half — volume grinds inflate slowly, going deep still pays. */
+export const FULL_SCORE_RUNS_PER_DAY = 10;
+export const DECAYED_RUN_FACTOR = 0.5;
 
 /** Match awards repeat inside a Major (several perfect series, several top-10 players): together they add at most this. */
 export const AWARD_POINTS_CAP = 3;
 
-export function seasonPoints(placement: string, lobbySize: number): number {
-  const full = PLACEMENT_POINTS[placement] ?? ELIMINATED_POINTS;
+export function seasonPoints(placement: string, lobbySize: number, stage3Wins = 0): number {
+  const full = PLACEMENT_POINTS[placement] ?? (ELIMINATED_POINTS + Math.max(0, Math.min(2, stage3Wins)));
   if (lobbySize >= FULL_POINTS_LOBBY) return full;
   if (lobbySize === 3) return Math.ceil(full / 2);
   if (lobbySize === 2) return Math.round(full / 3);

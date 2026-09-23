@@ -15,7 +15,7 @@ describe.skipIf(!url)('missões (Postgres)', () => {
   const lineup = ['device-2016', 'dupreeh-2016', 'xyp9x-2016', 'karrigan-2016', 'kjaerbye-2016'].map((playerId) => ({ playerId, selectedSlotRole: 'rifler' as const }));
   const event = (seed: string, patch: Partial<RunCompletedEvent> = {}, entry: Partial<RunCompletedEvent['entries'][number]> = {}): RunCompletedEvent => ({
     roomCode: 'MISSIONS', seed, runNumber: 1, lobbySize: 3, competitive: true, field: 'random', awards: null,
-    entries: [{ userId, participantId: 'p1', organizationName: 'Org', placement: 'placement5to8', champion: false, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 1, lineupIds: lineup.map((pick) => pick.playerId), ...entry }],
+    entries: [{ userId, participantId: 'p1', organizationName: 'Org', placement: 'placement5to8', champion: false, lineup, starPlayerId: null, matches: [], stats: [], opponents: [], ownPower: 80, seriesLost: 1, stage3Wins: 0, lineupIds: lineup.map((pick) => pick.playerId), ...entry }],
     ...patch
   });
   const progress = async (missionId: string) => (await db.query<{ progress: number }>('SELECT progress FROM mission_progress WHERE user_id = $1 AND mission_id = $2', [userId, missionId]))[0]?.progress ?? 0;

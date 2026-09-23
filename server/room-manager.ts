@@ -147,6 +147,8 @@ export interface RunCompletedEntry {
   ownPower: number;
   /** Series this participant lost in the run (0 with the title = the "13 a 0" run). */
   seriesLost: number;
+  /** Swiss series won before the exit (0-2): softens the season-points penalty of a pre-playoff elimination. */
+  stage3Wins: number;
   /** Player ids of the lineup that played the run. */
   lineupIds: string[];
 }
@@ -1081,6 +1083,7 @@ export class RoomManager {
         }),
         ownPower: powerOf.get(participant.id) ?? 0,
         seriesLost: matches.filter((series) => series.winnerId && series.winnerId !== participant.id).length,
+        stage3Wins: matches.filter((series) => series.phase === 'stage3' && series.winnerId === participant.id).length,
         lineupIds: participant.draft.lineup.map((pick) => pick.playerId)
       });
     }

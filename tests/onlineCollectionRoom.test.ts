@@ -2,7 +2,7 @@
 // Sala com lineup da coleção: pula o draft, aplica star/sinergia e entrega o run terminado ao hook de persistência.
 import { describe, expect, it } from 'vitest';
 import { players, teams, playerById } from '../server/data';
-import { detectAwards } from '../server/collection/awards';
+import { detectAwards, dominancePoints } from '../server/collection/awards';
 import { seasonPoints } from '../src/lib/game/online/collection-rules';
 import { LINEUP_TICKET_TTL_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS, type PreparedLineup, type RunCompletedEvent } from '../server/room-manager';
 import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
@@ -142,12 +142,43 @@ describe('awards e pontos', () => {
     expect(kinds).not.toContain('overtime_king');
   });
 
-  it('pontos por colocação e tamanho do lobby', () => {
-    expect([10, 7, 5, 3, 1]).toEqual(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 8)));
-    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 3))).toEqual([5, 4, 3, 2, 1]);
-    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 2))).toEqual([3, 2, 2, 1, 0]);
-    expect(seasonPoints('placementChampion', 4)).toBe(10);
+  it('pontos por colocação e tamanho do lobby (curva 2026-09-22: campeão 12, suíço pune)', () => {
+    expect([12, 7, 5, 3, -2]).toEqual(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 8)));
+    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 3))).toEqual([6, 4, 3, 2, -1]);
+    expect(['placementChampion', 'placementRunnerUp', 'placement3to4', 'placement5to8', 'placementStage3'].map((placement) => seasonPoints(placement, 2))).toEqual([4, 2, 2, 1, -1]);
+    expect(seasonPoints('placementChampion', 4)).toBe(12);
     expect(seasonPoints('placementChampion', 1)).toBe(0);
-    expect(seasonPoints('placementStage1', 16)).toBe(1);
+    expect(seasonPoints('placementStage1', 16)).toBe(-2);
+    // Vitórias no suíço suavizam a punição: 2-2 sai no zero, 0-3 leva o −2 cheio (no lobby 2 escala pra −1).
+    expect(seasonPoints('placementStage3', 8, 2)).toBe(0);
+    expect(seasonPoints('placementStage3', 8, 1)).toBe(-1);
+    expect(seasonPoints('placementStage3', 2, 0)).toBe(-1);
+  });
+
+  it('dominação: +1 por 13-0 e +1 por série sem perder mapa (BO3/BO5); BO1 não conta', () => {
+    const me = 'part-1';
+    const series = (id: string, bestOf: 1 | 3 | 5, maps: Array<[number, number]>, iWon: boolean): SeriesResult => ({
+      id,
+      phase: 'stage3',
+      bestOf,
+      teamA: { id: me, name: 'me' },
+      teamB: { id: `bot-${id}`, name: 'bot' },
+      scoreA: maps.filter(([a, b]) => a > b).length,
+      scoreB: maps.filter(([a, b]) => b > a).length,
+      winnerId: iWon ? me : `bot-${id}`,
+      maps: maps.map(([a, b], index) => ({ mapId: `map-${index}`, scoreA: a, scoreB: b, winnerId: a > b ? me : `bot-${id}` })),
+      userMatch: true
+    } as unknown as SeriesResult);
+    // 2-0 com um 13-0 no meio: varrida + mapa perfeito.
+    expect(dominancePoints([series('s1', 3, [[13, 0], [13, 5]], true)], me)).toEqual({ points: 2, flawlessMaps: 1, sweptSeries: 1 });
+    // 2-1 vencido sem 13-0: nada.
+    expect(dominancePoints([series('s2', 3, [[13, 9], [8, 13], [13, 2]], true)], me)).toEqual({ points: 0, flawlessMaps: 0, sweptSeries: 0 });
+    // BO5 3-0 com dois 13-0: uma varrida + dois mapas perfeitos.
+    expect(dominancePoints([series('s3', 5, [[13, 0], [13, 0], [16, 14]], true)], me)).toEqual({ points: 3, flawlessMaps: 2, sweptSeries: 1 });
+    // BO1 não dá bônus de varrida (toda win de fila seria "varrida"), mas um 13-0 continua valendo: é dominação pura.
+    expect(dominancePoints([series('s4', 1, [[13, 5]], true)], me)).toEqual({ points: 0, flawlessMaps: 0, sweptSeries: 0 });
+    expect(dominancePoints([series('s4', 1, [[13, 0]], true)], me)).toEqual({ points: 1, flawlessMaps: 1, sweptSeries: 0 });
+    // O 13-0 é meu mapa perfeito mesmo em série perdida; sem varrida, claro.
+    expect(dominancePoints([series('s5', 3, [[13, 0], [5, 13], [5, 13]], false)], me)).toEqual({ points: 1, flawlessMaps: 1, sweptSeries: 0 });
   });
 });

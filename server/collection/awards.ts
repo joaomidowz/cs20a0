@@ -27,6 +27,21 @@ export interface DetectedAward {
 const won = (series: SeriesResult, me: string) => series.winnerId === me;
 const myMaps = (series: SeriesResult, me: string) => series.maps.map((map) => ({ map, mine: map.winnerId === me, myScore: series.teamA.id === me ? map.scoreA : map.scoreB, theirScore: series.teamA.id === me ? map.scoreB : map.scoreA }));
 
+/**
+ * Dominance points of a run (2026-09-22 scoring reshape): one per map won 13-0 and one per best-of-3+ series won
+ * without dropping a map. Separate from the award-points cap on purpose — dominance is part of the run's worth,
+ * not an award; best-of-1 series count nothing or every queue win would pay.
+ */
+export function dominancePoints(matches: SeriesResult[], me: string): { points: number; flawlessMaps: number; sweptSeries: number } {
+  let flawlessMaps = 0;
+  let sweptSeries = 0;
+  for (const series of matches) {
+    if (won(series, me) && series.bestOf >= 3 && myMaps(series, me).every((entry) => entry.mine)) sweptSeries += 1;
+    for (const entry of myMaps(series, me)) if (entry.mine && entry.theirScore === 0 && entry.myScore >= 13) flawlessMaps += 1;
+  }
+  return { points: flawlessMaps + sweptSeries, flawlessMaps, sweptSeries };
+}
+
 /** Pure: every award the run earned, from the participant's own series, stats and the field's awards. */
 export function detectAwards(input: AwardInput): DetectedAward[] {
   const me = input.participantId;
