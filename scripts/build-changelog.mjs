@@ -70,6 +70,10 @@ function noteOf(commit) {
     'dbbccf99fc9d1714f3bd60d05796c9f0f0e6514d': {
       title: 'Boost de Farm: 10 majors por dia sem ficar online',
       summary: 'Uma vez por dia, ative o boost na página do online e o servidor joga 10 majors com seu time salvo na hora — dá para fechar o jogo. Coins pela metade (como o solo) e missões de solo contam, mas NÃO vale ponto de temporada. Quer mais? Ative 20 majors por 3.000 coins.'
+    },
+    '93189983fa3b2c09926b94f4279b8b678d6390f0': {
+      title: 'Boost de Farm agora é item da Loja, com interruptor no Solo',
+      summary: 'Compre o item Boost de Farm na Loja por 4.500 coins (quantos quiser, fica de estoque) e ligue o interruptor abaixo dos botões de Solo: aí cada Major que você iniciar resolve 10 na hora, sem assistir, gastando 1 item. Time forte lucra mais do que gasta; o uso tem teto diário de 30 majors.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
