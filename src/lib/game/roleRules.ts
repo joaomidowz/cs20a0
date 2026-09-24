@@ -92,10 +92,11 @@ export function getPlayerBaseId(player: Player): string {
 const SLOT_ROLES: LineupSlotRole[] = ['awper', 'igl', 'entry', 'lurker', 'rifler', 'support'];
 
 export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {
-  // Secret players (Resenha aliases) carry their positions explicitly: one each, IGL and AWPer for Vargas.
-  if (player.id.startsWith('secret-') && player.eligibleSlotRoles?.length) {
-    return player.eligibleSlotRoles.filter((role): role is LineupSlotRole => SLOT_ROLES.includes(role as LineupSlotRole));
-  }
+  const explicit = (player.eligibleSlotRoles ?? []).filter(
+    (role): role is LineupSlotRole => SLOT_ROLES.includes(role as LineupSlotRole)
+  );
+  if (explicit.length) return explicit;
+
   const baseId = normalize(getPlayerBaseId(player));
   const nickname = normalize(player.nickname);
   const known = KNOWN_ROLE_FALLBACKS[baseId] ?? KNOWN_ROLE_FALLBACKS[nickname];

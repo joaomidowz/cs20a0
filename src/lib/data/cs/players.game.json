@@ -29605,7 +29605,7 @@
     "teamId": "natus-vincere-2021",
     "year": 2021,
     "game": "CSGO",
-    "role": "entry",
+    "role": "rifler",
     "overall": 94,
     "rarity": "legend",
     "traits": [],
@@ -29651,8 +29651,8 @@
       "HLTV Top 20 2021 #9"
     ],
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "roleConfidence": "high",
     "hltvTop20": {
@@ -39496,10 +39496,10 @@
     "teamId": "natus-vincere-2022",
     "year": 2022,
     "game": "CSGO",
-    "role": "entry",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "rarity": "legend",
     "traits": [],
@@ -46897,7 +46897,7 @@
     "teamId": "natus-vincere-2023",
     "year": 2023,
     "game": "CSGO",
-    "role": "entry",
+    "role": "rifler",
     "overall": 84,
     "rarity": "elite",
     "traits": [
@@ -46932,8 +46932,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "support"
     ],
     "roleConfidence": "high",
     "needsReview": false,
@@ -55983,7 +55983,7 @@
     ],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "support"
     ],
     "roleConfidence": "high",
     "hltvTop20": {
@@ -65777,7 +65777,7 @@
     ],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "support"
     ],
     "roleConfidence": "high",
     "needsReview": false,
@@ -74804,7 +74804,7 @@
     "awardBadges": [],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "support"
     ],
     "roleConfidence": "high",
     "needsReview": false,
