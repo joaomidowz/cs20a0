@@ -149,6 +149,7 @@ function calculateUserTeamPowerInternal(players: Player[], style: OrgStyle, line
     clutch: avg('clutch'),
     experience: avg('experience'),
     consistency: avg('consistency'),
+    overallAvg: Math.round(avg('overall') * 10) / 10,
     style,
     studyPercentage,
     aggressionPercentage,
@@ -187,8 +188,12 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: Match
   let multiplier = 1 - (0.015 - 0.005 * stability) + intensity * (0.03 - 0.01 * stability);
 
   if (team.style === 'aggressive' || team.style === 'tempo') {
-    const goodDayChance = 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
-    if (roll < Math.min(0.38, goodDayChance)) multiplier = 1.04 + intensity * 0.045;
+    // Dia bom é identidade: o Agressivo aluga o dia com mais frequência (base 25%, teto 42.5% desde 2026-09-23);
+    // o Tempo mantém o perfil original (base 20%, teto 38%) — o ritmo dele já tem pistola e momentum próprios.
+    const rawChance = team.style === 'aggressive'
+      ? 0.25 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 100
+      : 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
+    if (roll < Math.min(team.style === 'aggressive' ? 0.425 : 0.38, rawChance)) multiplier = 1.04 + intensity * 0.045;
   } else if (team.style === 'tactical') {
     const preparation = team.studyPercentage ?? 60;
     const goodDayChance = 0.16 + Math.max(0, preparation - 60) / 250;
@@ -196,9 +201,9 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: Match
   } else if (roll < 0.18) {
     multiplier = 1.02 + intensity * 0.025;
   }
-  // O dia ruim também é identidade: o Equilibrado é o plano SEGURO (perde menos no dia ruim) e o Resiliente, mais
-  // ainda — nunca domina o dia bom, mas quase nunca desmorona.
-  const badDayDamping = team.style === 'resiliente' ? 0.75 : team.style === 'balanced' ? 0.8 : 1;
+  // O dia ruim também é identidade: o Equilibrado é o plano SEGURO (perde menos no dia ruim), o Resiliente mais
+  // ainda — nunca domina o dia bom, mas quase nunca desmorona — e o Agressivo, desde 2026-09-23, tira cascas (0.9).
+  const badDayDamping = team.style === 'resiliente' ? 0.8 : team.style === 'balanced' ? 0.8 : team.style === 'aggressive' ? 0.9 : 1;
   if (multiplier < 1) multiplier = 1 - (1 - multiplier) * badDayDamping;
 
   if (curve) return curve(team.power, multiplier);
@@ -247,7 +252,16 @@ export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number 
     const studyAdvantage = (team.studyPercentage ?? 0) - (team.aggressionPercentage ?? 0);
     return studyAdvantage > 0 ? Math.min(0.08, studyAdvantage / 500) : 0;
   };
-  probability += tacticalStudyBonus(teamA) - tacticalStudyBonus(teamB);
+  // A zebra (2026-09-23): atrás no somatório poder+elenco, a cabeça fria do Resiliente vira ameaça — rampa até 2%;
+  // o Equilibrado herdou uma versão fraca (rampa até 1%, gap maior) porque o plano seguro também luta por baixo.
+  const underdogEdge = (team: CombatTeam, opponent: CombatTeam) => {
+    if (team.style !== 'resiliente' && team.style !== 'balanced') return 0;
+    const resiliente = team.style === 'resiliente';
+    const gap = opponent.power + (opponent.overallAvg ?? 0) - (team.power + (team.overallAvg ?? 0));
+    const threshold = resiliente ? 4 : 6;
+    return gap > threshold ? Math.min(resiliente ? 0.02 : 0.01, (gap - threshold) / 200) : 0;
+  };
+  probability += tacticalStudyBonus(teamA) - tacticalStudyBonus(teamB) + underdogEdge(teamA, teamB) - underdogEdge(teamB, teamA);
   return Math.max(0.06, Math.min(0.94, probability));
 }
 

@@ -314,6 +314,8 @@ export interface CombatTeam {
   lineup?: SelectedPlayer[];
   /** Average consistency of the lineup (0-100); steadier teams swing less between maps and match days. */
   consistency?: number;
+  /** Average overall of the cards (0-100); with `power`, feeds the Resiliente underdog edge (`getWinProbability`). */
+  overallAvg?: number;
   /** Dinastia: coach of the user's organization. Absent everywhere else. */
   coachId?: string;
   /** CT preference the coach adds to the side bias (negative favours the T side). */

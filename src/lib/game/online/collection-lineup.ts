@@ -96,8 +96,14 @@ export function planQuality(input: CollectionLineupInput): number {
     const head = ramp(input.players.reduce((sum, player) => sum + (player.mental ?? 0), 0) / Math.max(1, input.players.length), 78, 92);
     return caller * 0.75 + head * 0.25;
   }
-  // Balanced is only as steady as its shakiest card.
-  return ramp(Math.min(...input.players.map((player) => player.consistency ?? 70)), 70, 95);
+  // O Equilibrado (2026-09-23): o plano segue sendo a ausência de elo fraco — e o rifler forte com a estrela nele
+  // adiciona por cima (o termo do rifler só entra se superar a régua da consistência: bônus, nunca penalidade).
+  const minConsistency = ramp(Math.min(...input.players.map((player) => player.consistency ?? 70)), 70, 95);
+  const starIndex = input.starPlayerId ? input.players.findIndex((player) => player.id === input.starPlayerId) : -1;
+  const starIsRifler = starIndex >= 0 && slotRolesOf(input.roles[starIndex]).includes('rifler');
+  if (!starIsRifler) return minConsistency;
+  const riflerTerm = ramp(Math.max(0, ...inSlot('rifler').map((player) => player.overall ?? 0), input.players[starIndex].overall ?? 0), 80, 92);
+  return Math.max(minConsistency, minConsistency * 0.6 + riflerTerm * 0.4);
 }
 
 /** Power bonus of the chosen plan, from how well the lineup runs it. */

@@ -183,14 +183,20 @@ export const REATIVO_PUNISH = 0.015;
 export const REATIVO_ADAPT = 0.015;
 /** O Resiliente sente menos a penalidade de momentum negativo (mantém a cabeça fria após derrotas). */
 export const RESILIENTE_MOMENTUM_DAMP = 0.6;
-/** Janela de timeout do Resiliente: mais larga que a dos outros (2–6 derrotas seguidas valem efeito cheio). */
-export const RESILIENTE_TIMEOUT_WINDOW = { from: 2, to: 6 } as const;
-/** Aceite de clutch do Resiliente: multiplica a chance de o 1vX ser jogado até o fim. */
-export const RESILIENTE_CLUTCH_ACCEPT = 1.25;
+/** Janela de timeout do Resiliente: mais larga que a dos outros (2–5 derrotas seguidas valem efeito cheio; era 2–6). */
+export const RESILIENTE_TIMEOUT_WINDOW = { from: 2, to: 5 } as const;
+/** Aceite de clutch do Resiliente: multiplica a chance de o 1vX ser jogado até o fim (era 1.25; aparado em 2026-09-23). */
+export const RESILIENTE_CLUTCH_ACCEPT = 1.15;
 /** Série longa: no mapa decididor (3º em diante) a cabeça fria do Resiliente vale por si. */
 export const RESILIENTE_DECIDER_EDGE = 0.02;
 /** Round-win edge of a well-timed tactical timeout, by queue: barely felt in Normal/Ranked, decisive in PRO and Resenha. */
 export const TIMEOUT_BONUS_BY_MODE: Record<OnlineGameMode, number> = { premier: 0.03, faceit: 0.03, pro: 0.08, fun: 0.1, max_fun: 0.1, dynasty: 0.03 };
+/** O plano Tático trata a pausa como identidade (2026-09-23): efeito de fila PRO mesmo nas filas comuns. */
+export const TACTICAL_TIMEOUT_FLOOR = 0.08;
+/** A pistola do Equilibrado (2026-09-23): o plano seguro começa melhor — edge nos rounds de pistola (era 1.5%). */
+export const BALANCED_PISTOL_EDGE = 0.025;
+/** E converte a começada: cada pistola ganha no mapa vale +1% nos rounds de gun seguintes (as duas = +2%). */
+export const BALANCED_PISTOL_CARRY = 0.01;
 /** Straight losses in the half during which a timeout has its full effect; earlier or later it keeps a third of it. */
 export const TIMEOUT_WINDOW = { from: 2, to: 4 } as const;
 export const TIMEOUT_OFF_WINDOW_FACTOR = 1 / 3;
@@ -200,8 +206,9 @@ export const timeoutTiming = (consecutiveLosses: number, style?: OrgStyle): Time
   const window = timeoutWindowFor(style);
   return consecutiveLosses < window.from ? 'early' : consecutiveLosses <= window.to ? 'window' : 'late';
 };
-export const timeoutBonus = (mode: OnlineGameMode, timing: TimeoutTiming) =>
-  (TIMEOUT_BONUS_BY_MODE[mode] ?? TIMEOUT_BONUS_BY_MODE.premier) * (timing === 'window' ? 1 : TIMEOUT_OFF_WINDOW_FACTOR);
+export const timeoutBonus = (mode: OnlineGameMode, timing: TimeoutTiming, style?: OrgStyle) =>
+  Math.max(TIMEOUT_BONUS_BY_MODE[mode] ?? TIMEOUT_BONUS_BY_MODE.premier, style === 'tactical' ? TACTICAL_TIMEOUT_FLOOR : 0) *
+  (timing === 'window' ? 1 : TIMEOUT_OFF_WINDOW_FACTOR);
 const REGULATION_ROUNDS = 24;
 const HALF_ROUNDS = 12;
 const OVERTIME_HALF_ROUNDS = 3;
@@ -454,7 +461,7 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
   const timing = timeoutTiming(state.teams[side].consecutiveLosses, state.teams[side].team.style);
   state.teams[side].timeoutsRemaining -= 1;
   state.pendingTimeout = side;
-  state.pendingTimeoutBonus = timeoutBonus(state.mode, timing) * (state.teams[side].team.timeoutFactor ?? 1);
+  state.pendingTimeoutBonus = timeoutBonus(state.mode, timing, state.teams[side].team.style) * (state.teams[side].team.timeoutFactor ?? 1);
   state.pendingTimeoutTiming = timing;
   state.decisions.push({ kind: 'timeout', teamId, mapIndex: state.mapNumber - 1, roundNumber: state.rounds.length + 1, auto, timing });
   return true;
@@ -469,16 +476,30 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   const sideBias = (sideA === 'ct' ? 1 : -1) * ((state.mapId ? MAP_SIDE_BIAS[state.mapId] : 0) + styleSidePreference(a.team.style) + styleSidePreference(b.team.style) + (a.team.coachSidePreference ?? 0) + (b.team.coachSidePreference ?? 0));
   // Situational style edges, written once and applied A−B (no fixed counter table: the matchup is the situation).
   const tempoPistolEdge = (team: CombatTeam) => (team.style === 'tempo' ? TEMPO_PISTOL_EDGE : 0);
+  const balancedPistolEdge = (team: CombatTeam) => (team.style === 'balanced' ? BALANCED_PISTOL_EDGE : 0);
   const broken = (buy: BuyType) => buy === 'eco' || buy === 'force';
   const reativoEdge = (own: TeamEconomy, opp: TeamEconomy, style: OrgStyle | undefined) =>
     style === 'reativo' ? (broken(opp.buy) ? REATIVO_PUNISH : 0) + (broken(own.buy) ? REATIVO_ADAPT : 0) : 0;
   const deciderEdge = (team: CombatTeam) => (state.mapNumber >= 3 && team.style === 'resiliente' ? RESILIENTE_DECIDER_EDGE : 0);
+  // O Equilibrado converte a começada (2026-09-23): cada pistola ganha no mapa vale +1% nos guns seguintes.
+  const balancedCarry = (side: 'a' | 'b') => {
+    if (state.teams[side].team.style !== 'balanced') return 0;
+    const wonPistol = (index: number) => {
+      const round = state.rounds[index];
+      if (!round) return false;
+      return round[side] > (index === 0 ? 0 : state.rounds[index - 1][side]);
+    };
+    let carry = 0;
+    if (roundIndex > 0 && roundIndex < HALF_ROUNDS && wonPistol(0)) carry += BALANCED_PISTOL_CARRY;
+    if (roundIndex > HALF_ROUNDS && wonPistol(HALF_ROUNDS)) carry += BALANCED_PISTOL_CARRY;
+    return carry;
+  };
   let probability: number;
   if (pistolRound) {
     const pistolSkill = (rosterAverage(a.roster, ['firepower', 'entry'], 80) - rosterAverage(b.roster, ['firepower', 'entry'], 80)) * 0.004;
     // A pistola vira menos moeda quando a variância da série está achatada (festa): o skill pesa mais —
     // por isso o fator de achatamento SOBE quando a escala desce (0,3 na escala 1; 0,45 na 0,5).
-    probability = 0.5 + (base - 0.5) * (0.3 + 0.3 * (1 - state.varianceScale)) + pistolSkill + sideBias * 0.5 + tempoPistolEdge(a.team) - tempoPistolEdge(b.team);
+    probability = 0.5 + (base - 0.5) * (0.3 + 0.3 * (1 - state.varianceScale)) + pistolSkill + sideBias * 0.5 + tempoPistolEdge(a.team) - tempoPistolEdge(b.team) + balancedPistolEdge(a.team) - balancedPistolEdge(b.team);
   } else {
     const economyEdge = BUY_EDGE[economy.a.buy] - BUY_EDGE[economy.b.buy];
     // Gains scale for the tempo pace, losses are damped for the resilient head — momentum cuts both ways.
@@ -490,7 +511,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
     };
     const tempoPressure = (team: typeof a, opponent: CombatTeam) =>
       team.team.style === 'tempo' && team.momentum >= 2 && opponent.style === 'tactical' ? TEMPO_PRESSURE_VS_TACTICAL : 0;
-    probability = base + economyEdge + sideBias
+    probability = base + economyEdge + sideBias + balancedCarry('a') - balancedCarry('b')
       + momentumEdge(a, b.team) - momentumEdge(b, a.team)
       + tempoPressure(a, b.team) - tempoPressure(b, a.team)
       + reativoEdge(economy.a, economy.b, a.team.style) - reativoEdge(economy.b, economy.a, b.team.style);

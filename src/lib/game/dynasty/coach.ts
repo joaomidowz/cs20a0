@@ -24,6 +24,9 @@ export function applyCoachToTeam(team: CombatTeam, coach: Coach, affinity = 0): 
     mental: Math.max(1, Math.min(99, team.mental + (coach.discipline - 70) * 0.25)),
     coachId: coach.id,
     coachSidePreference: -(coach.aggression - 70) / 1000,
-    timeoutFactor: 1 + (coach.discipline - 70) / 200
+    timeoutFactor: 1 + (coach.discipline - 70) / 200,
+    // O estudo do time vem do banco (2026-09-23): o tactics do coach seta o `studyPercentage` (60→98) que o bônus
+    // de estudo do plano Tático consome. Sem coach, o time mantém o estudo que o motor lhe deu.
+    studyPercentage: Math.round(60 + Math.max(0, Math.min(1, (coach.tactics - 70) / 28)) * 38)
   };
 }

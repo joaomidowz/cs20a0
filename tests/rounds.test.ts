@@ -121,12 +121,13 @@ describe('round engine', () => {
     expect(REATIVO_PUNISH).toBe(0.015);
     expect(REATIVO_ADAPT).toBe(0.015);
     expect(RESILIENTE_MOMENTUM_DAMP).toBe(0.6);
-    expect(RESILIENTE_TIMEOUT_WINDOW).toEqual({ from: 2, to: 6 });
-    expect(RESILIENTE_CLUTCH_ACCEPT).toBe(1.25);
+    // Rebalance competitivo (2026-09-23): janela 2–6 → 2–5 e clutch 1.25 → 1.15; decididor e damp de momentum intactos.
+    expect(RESILIENTE_TIMEOUT_WINDOW).toEqual({ from: 2, to: 5 });
+    expect(RESILIENTE_CLUTCH_ACCEPT).toBe(1.15);
     expect(RESILIENTE_DECIDER_EDGE).toBe(0.02);
-    // A janela do resiliente é mais larga: 5 derrotas seguidas ainda valem pausa com efeito cheio para ele.
+    // A janela do resiliente é mais larga: 5 derrotas seguidas ainda valem pausa com efeito cheio para ele (era 2–6).
     expect(timeoutTiming(5, 'resiliente')).toBe('window');
-    expect(timeoutTiming(6, 'resiliente')).toBe('window');
+    expect(timeoutTiming(6, 'resiliente')).toBe('late');
     expect(timeoutTiming(7, 'resiliente')).toBe('late');
     expect(timeoutTiming(5, 'balanced')).toBe('late');
   });
