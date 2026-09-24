@@ -6,6 +6,7 @@
   import type { Language } from '$lib/game/types';
 
   type Question = { question: string; answer: string };
+  type PlanInsight = { plan: string; helpsWhen: string; watchFor: string };
   type WikiCopy = {
     metaTitle: string;
     metaDescription: string;
@@ -15,7 +16,10 @@
     plansTitle: string;
     plansIntro: string;
     plansCaption: string;
-    plans: Question[];
+    planLabel: string;
+    helpsWhenLabel: string;
+    watchForLabel: string;
+    plans: PlanInsight[];
     contextTitle: string;
     contextCaption: string;
     context: Question[];
@@ -36,17 +40,18 @@
       title: 'Wiki do cs13a0',
       intro: 'Respostas curtas sobre as escolhas que moldam sua line. As tabelas explicam as mecânicas; cada partida ainda depende do contexto do jogo.',
       plansTitle: 'Planos de jogo',
-      plansIntro: 'Um plano orienta como o time tenta jogar. Compare a proposta com as funções e os pontos fortes que sua line consegue colocar em prática.',
-      plansCaption: 'Dúvidas sobre planos de jogo',
+      plansIntro: 'Cada plano tem situações em que pode ajudar e pontos que pedem atenção. Essas tendências não garantem vantagem: economia, mapa, lado e decisões também pesam.',
+      plansCaption: 'Onde cada plano pode ajudar e o que observar',
+      planLabel: 'Plano',
+      helpsWhenLabel: 'Ajuda quando',
+      watchForLabel: 'Exige cuidado quando',
       plans: [
-        { question: 'Existe um plano sempre melhor?', answer: 'Não. O encaixe depende da composição, das cartas e do que acontece durante a partida.' },
-        { question: 'O que o Agressivo prioriza?', answer: 'Tomar espaço e iniciar jogadas. A line precisa conseguir acompanhar a entrada.' },
-        { question: 'O que o Equilibrado valoriza?', answer: 'Uma line consistente, sem depender de uma única função para sustentar o plano.' },
-        { question: 'Como funciona o Tático?', answer: 'A execução se apoia na leitura do IGL e na estrutura do time, incluindo suporte e coach.' },
-        { question: 'O que define o Tempo?', answer: 'Ritmo e iniciativa. Observe se a entrada e o poder de fogo da line sustentam essa proposta.' },
-        { question: 'O que significa jogar Reativo?', answer: 'Adaptar a resposta ao contexto da rodada, como lado, economia e escolhas do adversário.' },
-        { question: 'O que significa jogar Resiliente?', answer: 'Priorizar controle emocional e recuperação ao longo de uma sequência de rounds e mapas.' },
-        { question: 'Um plano countera outro de forma fixa?', answer: 'Não. O confronto surge das situações de jogo; não há uma tabela que garanta quem leva a melhor.' }
+        { plan: 'Agressivo', helpsWhen: 'A line consegue converter entradas em espaço e sustentar sequências de rounds.', watchFor: 'O plano depende de a line acompanhar as entradas; a proposta Tática não é um counter fixo.' },
+        { plan: 'Equilibrado', helpsWhen: 'A consistência importa e o time consegue aproveitar vitórias de pistola nos rounds seguintes.', watchFor: 'Contra o Resiliente, neutraliza parte dos bônus situacionais de recuperação desse plano.' },
+        { plan: 'Tático', helpsWhen: 'O estudo está forte em relação ao perfil de entrada e poder de fogo da própria line, que consegue executar a leitura.', watchFor: 'O Tempo pode pressionar quando embala; essa interação depende do momentum.' },
+        { plan: 'Tempo', helpsWhen: 'O time quer começar forte nas pistolas e pressionar o Tático quando constrói momentum.', watchFor: 'A pressão sobre o Tático depende de uma sequência favorável; não é uma vantagem fixa.' },
+        { plan: 'Reativo', helpsWhen: 'O rival está de eco ou force, ou a própria economia está quebrada e pede adaptação.', watchFor: 'Sua vantagem específica aparece nesses apertos econômicos, não em todo confronto.' },
+        { plan: 'Resiliente', helpsWhen: 'O time precisa absorver derrotas e valoriza clutch, overtime e mapas decisivos.', watchFor: 'O Equilibrado neutraliza parte dos bônus de recuperação do Resiliente.' }
       ],
       contextTitle: 'O contexto da partida',
       contextCaption: 'Dúvidas sobre o andamento da partida',
@@ -76,17 +81,18 @@
       title: 'cs13a0 Wiki',
       intro: 'Quick answers about the choices that shape your lineup. These tables explain the mechanics; each match still depends on the game context.',
       plansTitle: 'Game plans',
-      plansIntro: 'A plan guides how a team tries to play. Compare its approach with the roles and strengths your lineup can put into practice.',
-      plansCaption: 'Questions about game plans',
+      plansIntro: 'Each plan can help in some situations and has tradeoffs to watch. These tendencies do not guarantee an edge: economy, map, side, and decisions matter too.',
+      plansCaption: 'When each plan can help and what to watch for',
+      planLabel: 'Plan',
+      helpsWhenLabel: 'Can help when',
+      watchForLabel: 'Watch for',
       plans: [
-        { question: 'Is one plan always better?', answer: 'No. The fit depends on your lineup, its cards, and what happens during the match.' },
-        { question: 'What does Aggressive prioritize?', answer: 'Taking space and starting plays. The lineup needs to follow up on the entry.' },
-        { question: 'What does Balanced value?', answer: 'A consistent lineup that does not rely on a single role to carry out the plan.' },
-        { question: 'How does Tactical work?', answer: 'Execution relies on the IGL’s read of the game and team structure, including support and coach.' },
-        { question: 'What defines Tempo?', answer: 'Pace and initiative. Check whether the lineup’s entry and firepower can sustain that approach.' },
-        { question: 'What does playing Reactive mean?', answer: 'Adapting to the round context, such as side, economy, and the opponent’s choices.' },
-        { question: 'What does playing Resilient mean?', answer: 'Prioritizing composure and recovery across a run of rounds and maps.' },
-        { question: 'Does one plan always counter another?', answer: 'No. Matchups emerge from game situations; no table guarantees who comes out ahead.' }
+        { plan: 'Aggressive', helpsWhen: 'The lineup can turn entries into space and sustain winning streaks.', watchFor: 'The plan depends on the lineup following up on entries; Tactical is not a fixed counter.' },
+        { plan: 'Balanced', helpsWhen: 'Consistency matters and the team can carry pistol-round wins into later rounds.', watchFor: 'Against Resilient, it suppresses some of that plan’s situational recovery bonuses.' },
+        { plan: 'Tactical', helpsWhen: 'The team’s study is strong relative to its own entry and firepower profile, and the lineup can execute its reads.', watchFor: 'Tempo can apply pressure when it gets rolling; this interaction depends on momentum.' },
+        { plan: 'Tempo', helpsWhen: 'The team wants a strong start in pistol rounds and can pressure Tactical by building momentum.', watchFor: 'Pressure on Tactical depends on a favorable run; it is not a fixed edge.' },
+        { plan: 'Reactive', helpsWhen: 'The opponent is on eco or force, or the team’s own economy is broken and needs adapting.', watchFor: 'Its specific edge appears in these economic situations, not in every matchup.' },
+        { plan: 'Resilient', helpsWhen: 'The team needs to absorb losses and values clutches, overtime, and deciding maps.', watchFor: 'Balanced suppresses some of Resilient’s recovery bonuses.' }
       ],
       contextTitle: 'Match context',
       contextCaption: 'Questions about how a match unfolds',
@@ -116,17 +122,18 @@
       title: 'Wiki de cs13a0',
       intro: 'Respuestas breves sobre las decisiones que definen tu equipo. Las tablas explican las mecánicas; cada partida también depende del contexto del juego.',
       plansTitle: 'Planes de juego',
-      plansIntro: 'Un plan orienta cómo intenta jugar el equipo. Compara su propuesta con los roles y las fortalezas que tu equipo puede poner en práctica.',
-      plansCaption: 'Preguntas sobre los planes de juego',
+      plansIntro: 'Cada plan puede ayudar en ciertas situaciones y tiene aspectos que conviene vigilar. Estas tendencias no garantizan ventaja: también influyen la economía, el mapa, el lado y las decisiones.',
+      plansCaption: 'Cuándo puede ayudar cada plan y qué conviene vigilar',
+      planLabel: 'Plan',
+      helpsWhenLabel: 'Ayuda cuando',
+      watchForLabel: 'Conviene vigilar',
       plans: [
-        { question: '¿Hay un plan siempre mejor?', answer: 'No. El encaje depende de la composición, las cartas y lo que ocurre durante la partida.' },
-        { question: '¿Qué prioriza el Agresivo?', answer: 'Tomar espacio e iniciar jugadas. El equipo debe poder acompañar la entrada.' },
-        { question: '¿Qué valora el Equilibrado?', answer: 'Un equipo constante que no depende de un solo rol para sostener el plan.' },
-        { question: '¿Cómo funciona el Táctico?', answer: 'La ejecución se apoya en la lectura del IGL y en la estructura del equipo, incluido el apoyo y el coach.' },
-        { question: '¿Qué define al Tempo?', answer: 'El ritmo y la iniciativa. Comprueba si la entrada y la potencia de fuego del equipo sostienen la propuesta.' },
-        { question: '¿Qué significa jugar Reactivo?', answer: 'Adaptar la respuesta al contexto de la ronda, como el lado, la economía y las decisiones rivales.' },
-        { question: '¿Qué significa jugar Resiliente?', answer: 'Priorizar la calma y la recuperación a lo largo de una secuencia de rondas y mapas.' },
-        { question: '¿Un plan siempre contrarresta a otro?', answer: 'No. Los enfrentamientos surgen de las situaciones de juego; ninguna tabla garantiza quién tendrá ventaja.' }
+        { plan: 'Agresivo', helpsWhen: 'El equipo puede convertir las entradas en espacio y mantener una racha de rondas.', watchFor: 'El plan depende de que el equipo acompañe las entradas; Táctico no es un counter fijo.' },
+        { plan: 'Equilibrado', helpsWhen: 'La constancia importa y el equipo puede aprovechar las victorias en pistola en las rondas siguientes.', watchFor: 'Contra Resiliente, neutraliza parte de los bonus situacionales de recuperación de ese plan.' },
+        { plan: 'Táctico', helpsWhen: 'El estudio es fuerte en relación con el perfil de entrada y potencia de fuego del propio equipo, que puede ejecutar sus lecturas.', watchFor: 'Tempo puede presionar cuando toma impulso; esta interacción depende del momentum.' },
+        { plan: 'Tempo', helpsWhen: 'El equipo busca empezar fuerte en pistola y puede presionar a Táctico al acumular momentum.', watchFor: 'La presión sobre Táctico depende de una racha favorable; no es una ventaja fija.' },
+        { plan: 'Reactivo', helpsWhen: 'El rival está de eco o force, o la economía propia está quebrada y exige adaptación.', watchFor: 'Su ventaja específica aparece en esas situaciones económicas, no en todos los enfrentamientos.' },
+        { plan: 'Resiliente', helpsWhen: 'El equipo necesita recuperarse de derrotas y valora clutch, overtime y mapas decisivos.', watchFor: 'Equilibrado neutraliza parte de los bonus de recuperación de Resiliente.' }
       ],
       contextTitle: 'El contexto de la partida',
       contextCaption: 'Preguntas sobre el desarrollo de la partida',
@@ -179,12 +186,12 @@
       <h2 id="plans-title">{copy.plansTitle}</h2>
       <p class="section-intro">{copy.plansIntro}</p>
       <div class="wiki-table-wrap" role="region" aria-label={copy.scrollHint}>
-        <table>
+        <table class="plan-matchups">
           <caption>{copy.plansCaption}</caption>
-          <thead><tr><th scope="col">{copy.questionLabel}</th><th scope="col">{copy.explanationLabel}</th></tr></thead>
+          <thead><tr><th scope="col">{copy.planLabel}</th><th scope="col">{copy.helpsWhenLabel}</th><th scope="col">{copy.watchForLabel}</th></tr></thead>
           <tbody>
-            {#each copy.plans as item (item.question)}
-              <tr><th scope="row">{item.question}</th><td>{item.answer}</td></tr>
+            {#each copy.plans as item (item.plan)}
+              <tr><th scope="row">{item.plan}</th><td>{item.helpsWhen}</td><td>{item.watchFor}</td></tr>
             {/each}
           </tbody>
         </table>
@@ -236,6 +243,7 @@
   .section-intro { margin: 0; }
   .wiki-table-wrap { overflow-x: auto; margin: .25rem 0; outline-color: var(--accent); outline-offset: 3px; }
   table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: .9rem; line-height: 1.55; }
+  .plan-matchups { min-width: 760px; }
   caption { padding: .55rem 0; color: var(--muted); font-size: .75rem; font-weight: 700; text-align: left; }
   th, td { border: 1px solid var(--line); padding: .65rem .75rem; text-align: left; vertical-align: top; }
   thead th { color: var(--muted); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
