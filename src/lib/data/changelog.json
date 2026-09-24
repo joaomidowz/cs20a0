@@ -1,8 +1,92 @@
 {
-  "version": "3.3",
-  "total": 335,
-  "generatedAt": "2026-09-23",
+  "version": "3.4",
+  "total": 347,
+  "generatedAt": "2026-09-24",
   "entries": [
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "63613fd",
+      "title": "Planos de jogo rebalanceados: o meta fica plano",
+      "summary": "Todos os seis planos de jogo foram recalibrados no motor real: o Tático voltou a ser opção (o coach agora define o estudo e a pausa tática forte vale em qualquer fila), o Agressivo tem dia bom em ~43% dos dias e não desmorona mais no dia ruim, o Equilibrado joga melhor as pistolas e converte a começada, e o Resiliente continua mortal em série longa — sem dominar tudo: nenhum confronto entre planos passa de 55% de chance."
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-23",
+      "hash": "3ef811e",
+      "title": "Data: buff coaches and jL 2024 ratings",
+      "summary": ""
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-23",
+      "hash": "8771e79",
+      "title": "Open coach details in upgrader",
+      "summary": ""
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-23",
+      "hash": "9e82ee4",
+      "title": "Specify upgrader coach details",
+      "summary": ""
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-23",
+      "hash": "371edd8",
+      "title": "Reconcile sold cards in lineup editor",
+      "summary": ""
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-23",
+      "hash": "95cf9b7",
+      "title": "Specify sold card lineup reconciliation",
+      "summary": ""
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-23",
+      "hash": "c4a273b",
+      "title": "Reflow online wallet on mobile",
+      "summary": ""
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-23",
+      "hash": "05faf32",
+      "title": "Add shared feedback and coin animations",
+      "summary": ""
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-22",
+      "hash": "4c9081b",
+      "title": "Modal do boost degrada sem placements do servidor velho",
+      "summary": ""
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-22",
+      "hash": "6811a24",
+      "title": "Modal de resultado do boost com as coins em destaque",
+      "summary": "runBoost agora mede o ganho real (delta da wallet: prêmio + awards) e devolve as 10 colocações."
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-22",
+      "hash": "f5c04fa",
+      "title": "Boost legível — estado compartilhado, seção de consumíveis e feedback",
+      "summary": "O estoque morava em dois estados locais: comprava na loja e o hub seguia 'Estoque: 0', e usar o boost não mostrava nada acontecendo."
+    },
+    {
+      "version": "3.3",
+      "date": "2026-09-22",
+      "hash": "efec21b",
+      "title": "Changelog do boost como item",
+      "summary": ""
+    },
     {
       "version": "3.3",
       "date": "2026-09-22",
@@ -757,90 +841,6 @@
       "date": "2026-09-18",
       "hash": "79831a0",
       "title": "✨ mapas do time escolhidos no montador e salvos com o lineup",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "dcf06e2",
-      "title": "✨ posição secundária sem penalidade",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "3f6bcf9",
-      "title": "✨ troca rápida, comparação antes de salvar, fim de Major com atalhos e IGLs GOAT revisados",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "2a7d421",
-      "title": "Data: revisão de overall e raridade espelhada do Studio; hash do online atualizado",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "bc6573c",
-      "title": "Data: fotos do fer por ano, espelhadas do Studio",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "8c061c2",
-      "title": "✨ coach revelado no mesmo formato grande do jogador",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "2695fb7",
-      "title": "🐛 carta revelada na altura do conteúdo",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "148cea9",
-      "title": "🐛 carta revelada sem corte e ficha própria da carta na coleção",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "8df467f",
-      "title": "✨ prêmios do jogador na carta revelada, menos partículas e contagem da home atualizada",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "beae71a",
-      "title": "🐛 carta aberta e fechada com o mesmo tamanho",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "3764e3b",
-      "title": "✨ carta grande na abertura com os 4 melhores stats, uma por vez e layout de celular",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "d2591f5",
-      "title": "🐛 renomear classes que batiam com o CSS global",
-      "summary": ""
-    },
-    {
-      "version": "2.1",
-      "date": "2026-09-18",
-      "hash": "67e8b74",
-      "title": "🐛 classes da abertura colidiam com o CSS global; roleta sem estourar a largura",
       "summary": ""
     }
   ]

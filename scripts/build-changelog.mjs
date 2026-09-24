@@ -74,6 +74,10 @@ function noteOf(commit) {
     '93189983fa3b2c09926b94f4279b8b678d6390f0': {
       title: 'Boost de Farm agora é item da Loja, com interruptor no Solo',
       summary: 'Compre o item Boost de Farm na Loja por 4.500 coins (quantos quiser, fica de estoque) e ligue o interruptor abaixo dos botões de Solo: aí cada Major que você iniciar resolve 10 na hora, sem assistir, gastando 1 item. Time forte lucra mais do que gasta; o uso tem teto diário de 30 majors.'
+    },
+    '63613fde6bc7ccac47eb64cf5d59b40867cf83a0': {
+      title: 'Planos de jogo rebalanceados: o meta fica plano',
+      summary: 'Todos os seis planos de jogo foram recalibrados no motor real: o Tático voltou a ser opção (o coach agora define o estudo e a pausa tática forte vale em qualquer fila), o Agressivo tem dia bom em ~43% dos dias e não desmorona mais no dia ruim, o Equilibrado joga melhor as pistolas e converte a começada, e o Resiliente continua mortal em série longa — sem dominar tudo: nenhum confronto entre planos passa de 55% de chance.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
