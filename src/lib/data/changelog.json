@@ -1,8 +1,22 @@
 {
   "version": "3.4",
-  "total": 347,
+  "total": 349,
   "generatedAt": "2026-09-24",
   "entries": [
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "6597df2",
+      "title": "Nevasca do Agressivo e o antídoto da zebra (em testes)",
+      "summary": "Ajustes competitivos em desenvolvimento: o Agressivo que engata 5+ rounds seguidos ganha o dobro de pressão, e um mapa vencido com 6+ seguidos carrega bônus para o próximo mapa da série — menos sorte, mais sequência construída. O Equilibrado virou o antídoto do Resiliente: contra ele, os trunfos de comeback (zebra, clutch, decididor e momentum) não disparam."
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "5b94a05",
+      "title": "Changelog: nota do rebalance dos planos (2026-09-23)",
+      "summary": ""
+    },
     {
       "version": "3.4",
       "date": "2026-09-24",
@@ -827,20 +841,6 @@
       "date": "2026-09-18",
       "hash": "5f30f21",
       "title": "🐛 mapas do time em accordion pequeno abaixo do coach",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "d58dd48",
-      "title": "✨ recalcular a temporada ativa pelas regras atuais de pontos",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "79831a0",
-      "title": "✨ mapas do time escolhidos no montador e salvos com o lineup",
       "summary": ""
     }
   ]

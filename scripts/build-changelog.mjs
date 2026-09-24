@@ -78,6 +78,10 @@ function noteOf(commit) {
     '63613fde6bc7ccac47eb64cf5d59b40867cf83a0': {
       title: 'Planos de jogo rebalanceados: o meta fica plano',
       summary: 'Todos os seis planos de jogo foram recalibrados no motor real: o Tático voltou a ser opção (o coach agora define o estudo e a pausa tática forte vale em qualquer fila), o Agressivo tem dia bom em ~43% dos dias e não desmorona mais no dia ruim, o Equilibrado joga melhor as pistolas e converte a começada, e o Resiliente continua mortal em série longa — sem dominar tudo: nenhum confronto entre planos passa de 55% de chance.'
+    },
+    '6597df2e46c2062741098f798da19f6bc0e14823': {
+      title: 'Nevasca do Agressivo e o antídoto da zebra (em testes)',
+      summary: 'Ajustes competitivos em desenvolvimento: o Agressivo que engata 5+ rounds seguidos ganha o dobro de pressão, e um mapa vencido com 6+ seguidos carrega bônus para o próximo mapa da série — menos sorte, mais sequência construída. O Equilibrado virou o antídoto do Resiliente: contra ele, os trunfos de comeback (zebra, clutch, decididor e momentum) não disparam.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
