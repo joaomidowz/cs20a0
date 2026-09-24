@@ -197,6 +197,11 @@ export const TACTICAL_TIMEOUT_FLOOR = 0.08;
 export const BALANCED_PISTOL_EDGE = 0.025;
 /** E converte a começada: cada pistola ganha no mapa vale +1% nos rounds de gun seguintes (as duas = +2%). */
 export const BALANCED_PISTOL_CARRY = 0.01;
+/** A nevasca conquistada (2026-09-24): Agressivo com 5+ rounds seguidos (momentum no teto) engata o dobro. */
+export const AGGRESSIVE_STREAK_MOMENTUM = 2;
+/** E carrega a nevasca: mapa vencido por um Agressivo com 6+ rounds seguidos vale bônus no mapa seguinte da série. */
+export const MAP_STREAK_CARRY = 0.5;
+export const MAP_STREAK_ROUNDS = 6;
 /** Straight losses in the half during which a timeout has its full effect; earlier or later it keeps a third of it. */
 export const TIMEOUT_WINDOW = { from: 2, to: 4 } as const;
 export const TIMEOUT_OFF_WINDOW_FACTOR = 1 / 3;
@@ -480,7 +485,9 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   const broken = (buy: BuyType) => buy === 'eco' || buy === 'force';
   const reativoEdge = (own: TeamEconomy, opp: TeamEconomy, style: OrgStyle | undefined) =>
     style === 'reativo' ? (broken(opp.buy) ? REATIVO_PUNISH : 0) + (broken(own.buy) ? REATIVO_ADAPT : 0) : 0;
-  const deciderEdge = (team: CombatTeam) => (state.mapNumber >= 3 && team.style === 'resiliente' ? RESILIENTE_DECIDER_EDGE : 0);
+  // O antídoto (2026-09-24): contra o Equilibrado, o Resiliente perde os trunfos situacionais — decididor, clutch
+  // e damp não disparando, o plano seguro devolve o azarão ao chão (a zebra, idem, em getWinProbability).
+  const deciderEdge = (team: CombatTeam, opponent: CombatTeam) => (state.mapNumber >= 3 && team.style === 'resiliente' && opponent.style !== 'balanced' ? RESILIENTE_DECIDER_EDGE : 0);
   // O Equilibrado converte a começada (2026-09-23): cada pistola ganha no mapa vale +1% nos guns seguintes.
   const balancedCarry = (side: 'a' | 'b') => {
     if (state.teams[side].team.style !== 'balanced') return 0;
@@ -502,11 +509,13 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
     probability = 0.5 + (base - 0.5) * (0.3 + 0.3 * (1 - state.varianceScale)) + pistolSkill + sideBias * 0.5 + tempoPistolEdge(a.team) - tempoPistolEdge(b.team) + balancedPistolEdge(a.team) - balancedPistolEdge(b.team);
   } else {
     const economyEdge = BUY_EDGE[economy.a.buy] - BUY_EDGE[economy.b.buy];
-    // Gains scale for the tempo pace, losses are damped for the resilient head — momentum cuts both ways.
+    // Gains scale for the tempo pace and the aggressive full streak; losses are damped for the resilient head
+    // UNLESS the balanced plan is asking (o antídoto, 2026-09-24) — momentum cuts both ways.
     const momentumEdge = (team: typeof a, opponent: CombatTeam) => {
       const step = MOMENTUM_STEP
         * (team.team.style === 'tempo' && team.momentum > 0 ? TEMPO_MOMENTUM_GAIN : 1)
-        * (team.team.style === 'resiliente' && team.momentum < 0 ? RESILIENTE_MOMENTUM_DAMP : 1);
+        * (team.team.style === 'aggressive' && team.momentum >= MAX_MOMENTUM ? AGGRESSIVE_STREAK_MOMENTUM : 1)
+        * (team.team.style === 'resiliente' && team.momentum < 0 && opponent.style !== 'balanced' ? RESILIENTE_MOMENTUM_DAMP : 1);
       return step * team.momentum * (1 - clamp((number(opponent.mental, 80) - 80) / 100, -0.2, 0.2));
     };
     const tempoPressure = (team: typeof a, opponent: CombatTeam) =>
@@ -516,7 +525,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
       + tempoPressure(a, b.team) - tempoPressure(b, a.team)
       + reativoEdge(economy.a, economy.b, a.team.style) - reativoEdge(economy.b, economy.a, b.team.style);
   }
-  probability += deciderEdge(a.team) - deciderEdge(b.team);
+  probability += deciderEdge(a.team, b.team) - deciderEdge(b.team, a.team);
   if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
   if (overtime) {
     // Nerves: mental and clutch decide overtime, and the resilient lineup leans on its clutch a little harder.
@@ -574,7 +583,7 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   };
   let order = shuffled();
   // The Resiliente lineup lives for the 1vX: its acceptance of the clutch is amplified (winning it is still the roll).
-  const clutchAcceptance = () => Math.min(1, CLUTCH_ACCEPTANCE[Math.min(5, clutchSize(order))] * (state.teams[winner].team.style === 'resiliente' ? RESILIENTE_CLUTCH_ACCEPT : 1));
+  const clutchAcceptance = () => Math.min(1, CLUTCH_ACCEPTANCE[Math.min(5, clutchSize(order))] * (state.teams[winner].team.style === 'resiliente' && state.teams[other(winner)].team.style !== 'balanced' ? RESILIENTE_CLUTCH_ACCEPT : 1));
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const against = clutchSize(order);
     if (against < 3 || rng() < clutchAcceptance()) break;

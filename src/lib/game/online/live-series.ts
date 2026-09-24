@@ -16,7 +16,7 @@ import {
   type MapState
 } from '../rounds';
 import { COURT_SPREAD, COURT_WIN_DIVISOR, courtMatchDay } from '../courtPower';
-import { createSeededRng, getMatchDayPower, type SeededRng } from '../simulation';
+import { aggressiveStreakCarry, createSeededRng, getMatchDayPower, type SeededRng } from '../simulation';
 import type { CombatTeam, MapId, MapResult, MapSide, MapVetoStep, OnlineGameMode, Roster, SeriesDecision, SeriesResult, TeamSide, TimeoutTiming } from '../types';
 
 export type { Controller } from '../rounds';
@@ -92,6 +92,8 @@ export interface LiveSeriesState {
   scoreB: number;
   winnerId: string;
   vetoDecisions: SeriesDecision[];
+  /** Carry da nevasca (2026-09-24): bônus do mapa anterior conquistado com 6+ rounds seguidos por um Agressivo. */
+  streakCarry: { a: number; b: number };
 }
 
 export type LiveSeriesErrorCode = 'NOT_YOUR_TURN' | 'DECISION_NOT_PENDING' | 'INVALID_MAP' | 'TIMEOUT_UNAVAILABLE' | 'SERIES_FINISHED';
@@ -140,7 +142,8 @@ export function createLiveSeries(config: LiveSeriesConfig): LiveSeriesState {
     scoreA: 0,
     scoreB: 0,
     winnerId: '',
-    vetoDecisions: []
+    vetoDecisions: [],
+    streakCarry: { a: 0, b: 0 }
   };
   if (config.strategies) {
     const available = getVetoAvailableMaps(config.strategies.a, config.strategies.b);
@@ -303,8 +306,8 @@ function startMap(state: LiveSeriesState): void {
     rosterB: state.config.rosters?.b,
     controllers: state.config.controllers,
     varianceScale: state.config.varianceScale,
-    powerBonusA: strategies && mapId ? getStrategyMapBonus(strategies.a, mapId, state.config.mode) : 0,
-    powerBonusB: strategies && mapId ? getStrategyMapBonus(strategies.b, mapId, state.config.mode) : 0
+    powerBonusA: (strategies && mapId ? getStrategyMapBonus(strategies.a, mapId, state.config.mode) : 0) + state.streakCarry.a,
+    powerBonusB: (strategies && mapId ? getStrategyMapBonus(strategies.b, mapId, state.config.mode) : 0) + state.streakCarry.b
   });
   state.current = { index, state: mapState };
   state.phase = pendingMapDecision(mapState) ? 'side-pick' : 'live';
@@ -334,6 +337,10 @@ export function stepSeries(state: LiveSeriesState): SeriesStepOutcome {
   state.current = null;
   if (result.winnerId === state.config.teamA.id) state.scoreA += 1;
   else state.scoreB += 1;
+  // A nevasca carrega para o mapa seguinte: só o Agressivo converte 6+ rounds seguidos em bônus (2026-09-24).
+  const winnerSide: 'a' | 'b' = result.winnerId === state.config.teamA.id ? 'a' : 'b';
+  const carry = aggressiveStreakCarry(result.rounds, winnerSide, (winnerSide === 'a' ? state.adjustedA : state.adjustedB).style);
+  state.streakCarry = { a: winnerSide === 'a' ? carry : 0, b: winnerSide === 'b' ? carry : 0 };
   const needed = Math.ceil(state.config.bestOf / 2);
   if (state.scoreA >= needed || state.scoreB >= needed) {
     state.phase = 'finished';

@@ -59,10 +59,12 @@ describe('Major dos Campeões: a parede que encontra o desafiante', () => {
     const label = `elite (nível ${elite.level.toFixed(1)}): ${elite.title}% · superstar (${superstar.level.toFixed(1)}): ${superstar.title}% · auge (${auge.level.toFixed(1)}): ${auge.title}% · excepcional (${top.level.toFixed(1)}): ${top.title}%`;
     expect(elite.title, label).toBeGreaterThanOrEqual(0);
     expect(elite.title, label).toBeLessThanOrEqual(8);
-    expect(superstar.title, label).toBeGreaterThanOrEqual(8);
+    // Rebalance onda 2 (2026-09-24): nevasca do agressivo no campo endureceu mais ~2pp (superstar mediu 6).
+    expect(superstar.title, label).toBeGreaterThanOrEqual(5);
     expect(superstar.title, label).toBeLessThanOrEqual(19);
-    // Rebalance competitivo (2026-09-23): a pausa tática forte também serve aos bots do campo — auge mediu 11.
-    expect(auge.title, label).toBeGreaterThanOrEqual(10);
+    // Rebalance competitivo (2026-09-23): a pausa tática forte também serve aos bots do campo — auge mediu 11,
+    // depois 9 na onda 2 (2026-09-24).
+    expect(auge.title, label).toBeGreaterThanOrEqual(8);
     expect(auge.title, label).toBeLessThanOrEqual(30);
     // Rebalance competitivo (2026-09-23): o campo também pausa/estuda melhor — a parede dos campeões endureceu
     // ~3pp para o topo (media 23). A parede segue parede e a ordem da escada se mantém.
@@ -73,8 +75,9 @@ describe('Major dos Campeões: a parede que encontra o desafiante', () => {
     expect(top.title, label).toBeGreaterThan(auge.title);
     // E nem o auge atravessa a parede de salvador: ainda cai na suíça de vez em quando.
     // Rebalance competitivo (2026-09-23): com o campo pausando/estudando melhor, o topo cai na suíça ~25%
-    // (era ≤15%). Se a parede ficar dura demais pro gosto, o knob é o TACTICAL_TIMEOUT_FLOOR (0.08 → 0.05).
-    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(28);
+    // (era ≤15%); onda 2 (2026-09-24) mediu 30%. Se a parede ficar dura demais, o knob é o
+    // TACTICAL_TIMEOUT_FLOOR (0.08 → 0.05) ou o AGGRESSIVE_STREAK_MOMENTUM.
+    expect(top.swissExit, `topo cai na suíça em ${top.swissExit}%`).toBeLessThanOrEqual(32);
   });
 
   it('o Major normal é a parede que cede: auge 45-60, quem começa quase nada', { timeout: TIMEOUT }, () => {

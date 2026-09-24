@@ -60,9 +60,9 @@ describe('contrato de balance: tabela dos planos (2026-09-23)', () => {
     band('aggressive', 'resiliente', 50);
   });
 
-  it('o equilibrado parou de ser saco de pancadas (pistola + carry + zebra fraca)', () => {
+  it('o equilibrado é o antídoto: counter do resiliente (54%) e paridade com o tempo', () => {
+    band('balanced', 'resiliente', 54);
     band('balanced', 'tempo', 51);
-    band('balanced', 'resiliente', 50);
   });
 });
 

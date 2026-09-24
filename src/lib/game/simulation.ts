@@ -20,12 +20,13 @@ import {
   type SelectedPlayer,
   type PlayoffsResult,
   type Roster,
+  type RoundScore,
   type SeriesDecision,
   type SeriesResult,
   type Stage3Result
 } from './types';
 import { ORG_STYLES } from './types';
-import { createMapState, flipMapResult, playMapToEnd } from './rounds';
+import { createMapState, flipMapResult, playMapToEnd, MAP_STREAK_CARRY, MAP_STREAK_ROUNDS } from './rounds';
 import { applyCoachToTeam, coachAffinity } from './dynasty/coach';
 import {
   createBotMapStrategy,
@@ -253,9 +254,11 @@ export function getWinProbability(teamA: CombatTeam, teamB: CombatTeam): number 
     return studyAdvantage > 0 ? Math.min(0.08, studyAdvantage / 500) : 0;
   };
   // A zebra (2026-09-23): atrás no somatório poder+elenco, a cabeça fria do Resiliente vira ameaça — rampa até 2%;
-  // o Equilibrado herdou uma versão fraca (rampa até 1%, gap maior) porque o plano seguro também luta por baixo.
+  // o Equilibrado herdou uma versão fraca (rampa até 1%, gap maior). E o antídoto (2026-09-24): a zebra do
+  // Resiliente NÃO dispara contra o Equilibrado — o plano seguro não compra a lenda.
   const underdogEdge = (team: CombatTeam, opponent: CombatTeam) => {
     if (team.style !== 'resiliente' && team.style !== 'balanced') return 0;
+    if (team.style === 'resiliente' && opponent.style === 'balanced') return 0;
     const resiliente = team.style === 'resiliente';
     const gap = opponent.power + (opponent.overallAvg ?? 0) - (team.power + (team.overallAvg ?? 0));
     const threshold = resiliente ? 4 : 6;
@@ -299,6 +302,27 @@ const seriesRosters = (options: SeriesOptions | undefined, teamA: CombatTeam, te
 
 const collectDecisions = (maps: MapResult[]): SeriesDecision[] => maps.flatMap((map) => map.decisions ?? []);
 
+/** Longest run of consecutive rounds won by `side` in a played map (RoundScore counts are cumulative). */
+export function mapStreakOf(rounds: RoundScore[], side: 'a' | 'b'): number {
+  let previousA = 0;
+  let previousB = 0;
+  let run = 0;
+  let best = 0;
+  for (const round of rounds) {
+    const winner: 'a' | 'b' = round.a > previousA ? 'a' : 'b';
+    previousA = round.a;
+    previousB = round.b;
+    run = winner === side ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
+/** Carry da nevasca (2026-09-24): mapa vencido por um Agressivo com 6+ rounds seguidos vale bônus no mapa seguinte. */
+export function aggressiveStreakCarry(rounds: RoundScore[], winnerSide: 'a' | 'b', style: OrgStyle | undefined): number {
+  return style === 'aggressive' && mapStreakOf(rounds, winnerSide) >= MAP_STREAK_ROUNDS ? MAP_STREAK_CARRY : 0;
+}
+
 export function simulateSeries(
   teamA: CombatTeam,
   teamB: CombatTeam,
@@ -317,11 +341,16 @@ export function simulateSeries(
   const adjustedA = { ...teamA, power: getMatchDayPower(teamA, rng) + pressureA };
   const adjustedB = { ...teamB, power: getMatchDayPower(teamB, rng) + pressureB };
   const rosters = seriesRosters(options, teamA, teamB);
+  const carry = { a: 0, b: 0 };
   while (scoreA < needed && scoreB < needed) {
-    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, rosters);
+    const result = simulateMap(adjustedA, adjustedB, rng, maps.length + 1, { ...rosters, powerBonusA: carry.a, powerBonusB: carry.b });
     maps.push(result);
-    if (result.winnerId === teamA.id) scoreA += 1;
+    const winnerSide: 'a' | 'b' = result.winnerId === teamA.id ? 'a' : 'b';
+    if (winnerSide === 'a') scoreA += 1;
     else scoreB += 1;
+    // A nevasca carrega: só o mapa seguinte, só para quem conquistou a sequência (e apenas o Agressivo a converte).
+    carry.a = aggressiveStreakCarry(result.rounds, winnerSide, adjustedA.style) * (winnerSide === 'a' ? 1 : 0);
+    carry.b = aggressiveStreakCarry(result.rounds, winnerSide, adjustedB.style) * (winnerSide === 'b' ? 1 : 0);
   }
   return {
     id: seriesId,
