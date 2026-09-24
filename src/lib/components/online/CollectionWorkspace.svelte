@@ -74,7 +74,7 @@
     });
   });
   async function saveAndPlay() {
-    if (dirty || !lineupAt(activeTab)) { if (!await persistLineup()) return; }
+    if (dirty || !lineupAt(state, activeTab)) { if (!await persistLineup()) return; }
     // Playing takes the team just saved: the tab becomes the active slot before leaving.
     if (activeSlot !== activeTab) {
       try { await setActiveLineup(serverUrl, activeTab); await refresh(); } catch (caught) { fail(caught); return; }
@@ -182,10 +182,11 @@
   })();
   // The saved team of the OPEN tab, built the same way, so the player sees what changes before saving.
   /** The lineup saved in a slot (null: the slot is free). */
-  const lineupAt = (index: number): SavedLineup | null => (state?.lineups ?? []).find((lineup) => (lineup.slotIndex ?? 0) === index) ?? null;
+  const lineupAt = (collection: CollectionState | null, index: number): SavedLineup | null =>
+    (collection?.lineups ?? (collection?.lineup ? [collection.lineup] : [])).find((lineup) => (lineup.slotIndex ?? 0) === index) ?? null;
   $: unlockedSlots = Math.min(state?.unlockedSlots ?? 2, LINEUP_SLOTS_MAX);
   $: activeSlot = state?.activeSlot ?? 0;
-  $: savedLineup = lineupAt(activeTab);
+  $: savedLineup = lineupAt(state, activeTab);
   $: savedPlayers = savedLineup ? savedLineup.playerIds.map((id) => playerById.get(id)).filter((player): player is Player => Boolean(player)) : [];
   $: savedTeam = (() => {
     if (!savedLineup || savedPlayers.length !== 5) return null;
@@ -238,7 +239,7 @@
     try {
       state = await fetchCollection(serverUrl);
       // First load opens on the ACTIVE slot: the team that plays now.
-      if (!slots.some(Boolean)) { activeTab = state?.activeSlot ?? 0; hydrateLineup(lineupAt(activeTab)); }
+      if (!slots.some(Boolean)) { activeTab = state?.activeSlot ?? 0; hydrateLineup(lineupAt(state, activeTab)); }
       // A restored page or stale draft must never keep a sold card in the editable lineup.
       const reconciled = reconcileLineupOwnership({
         playerIds: slots.map((player) => player?.id ?? null), roles, starPlayerId, coachId, mapPreferences: mapPicks
@@ -256,7 +257,7 @@
     if (index === activeTab || index >= LINEUP_SLOTS_MAX) return;
     if (dirty && !await confirmDialog({ title: u('leaveTitle'), body: u('leaveBody'), confirmLabel: u('discard'), cancelLabel: t('cancel'), tone: 'danger' })) return;
     activeTab = index;
-    hydrateLineup(lineupAt(index));
+    hydrateLineup(lineupAt(state, index));
   }
 
   /** Buys the next locked slot (one-off charge per slot). */
@@ -417,7 +418,7 @@
       await saveLineup(serverUrl, { playerIds: lineupPlayers.map((player) => player.id), roles: lineupRoles, starPlayerId, coachId, style, mapPreferences: mapsValid ? mapPicks : null }, activeTab);
       showToast(t('lineupSaved'));
       await refresh();
-      hydrateLineup(lineupAt(activeTab));
+      hydrateLineup(lineupAt(state, activeTab));
       return true;
     } catch (caught) { fail(caught); return false; } finally { busy = false; }
   }
@@ -622,7 +623,7 @@
                 <button type="button" role="tab" aria-selected={activeTab === index} class:active={activeTab === index} on:click={() => switchTab(index)}>
                   <b>{index + 1}</b>
                   {#if activeSlot === index}<em class="in-use">{t('lineupInUse')}</em>{/if}
-                  {#if !lineupAt(index)}<small>{t('lineupEmptyTab')}</small>{/if}
+                  {#if !lineupAt(state, index)}<small>{t('lineupEmptyTab')}</small>{/if}
                 </button>
               {:else}
                 <button type="button" class="locked" disabled={busy || state.wallet < LINEUP_SLOT_PRICE} title={`${t('lineupSlotBuy')} · ${LINEUP_SLOT_PRICE.toLocaleString($language)} coins`} on:click={() => buySlot()}>
