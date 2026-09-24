@@ -12,6 +12,7 @@
     footerNav: string;
     helpDesk?: string;
     changelog?: string;
+    wiki?: string;
   };
 
   const currentYear = new Date().getFullYear();
@@ -32,6 +33,7 @@
       <a href="/suporte">{labels.helpDesk ?? 'Suporte'}</a>
       <a href="/credits">{labels.credits}</a>
       <a href="/changelog">{labels.changelog ?? 'Novidades'}</a>
+      <a href="/wiki">{labels.wiki ?? 'Wiki'}</a>
     </nav>
 
     <div class="footer-actions">

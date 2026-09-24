@@ -10,7 +10,8 @@ export const PUBLIC_ROUTES = [
   '/privacy',
   '/terms',
   '/credits',
-  '/changelog'
+  '/changelog',
+  '/wiki'
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
@@ -61,6 +62,10 @@ const ROUTE_COPY: Record<PublicRoute, Omit<SeoMetadata, 'canonical'>> = {
   '/changelog': {
     title: 'Novidades · cs13a0',
     description: 'Tudo o que mudou no cs13a0, versão por versão: equilíbrio do online, coleção, modos de jogo e correções.'
+  },
+  '/wiki': {
+    title: 'Wiki do jogo · cs13a0',
+    description: 'Explicações curtas sobre planos de jogo, variação das séries e construção de uma line no cs13a0.'
   }
 };
 
