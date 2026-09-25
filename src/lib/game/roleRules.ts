@@ -78,6 +78,15 @@ const KNOWN_ROLE_FALLBACKS: Record<string, LineupSlotRole[]> = {
   b1t: ['rifler', 'support']
 };
 
+const AUTHORITATIVE_ROLE_OVERRIDES: Record<string, LineupSlotRole[]> = {
+  pronax: ['igl', 'support'],
+  olofmeister: ['entry', 'awper'],
+  jw: ['awper', 'entry'],
+  flusha: ['lurker'],
+  f0rest: ['rifler', 'awper'],
+  getright: ['lurker']
+};
+
 const normalize = (value: string | null | undefined) =>
   (value ?? '')
     .normalize('NFD')
@@ -100,6 +109,8 @@ export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {
 
   const baseId = normalize(getPlayerBaseId(player));
   const nickname = normalize(player.nickname);
+  const explicit = AUTHORITATIVE_ROLE_OVERRIDES[baseId] ?? AUTHORITATIVE_ROLE_OVERRIDES[nickname];
+  if (explicit) return [...explicit];
   const known = KNOWN_ROLE_FALLBACKS[baseId] ?? KNOWN_ROLE_FALLBACKS[nickname];
   const roles: LineupSlotRole[] = [];
   const add = (role: LineupSlotRole) => {

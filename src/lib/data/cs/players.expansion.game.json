@@ -149,9 +149,9 @@
     "teamId": "fnatic-2013",
     "year": 2013,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler"
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -190,7 +190,8 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -256,8 +257,9 @@
     "teamId": "fnatic-2013",
     "year": 2013,
     "game": "CSGO",
-    "role": "support",
+    "role": "igl",
     "eligibleSlotRoles": [
+      "igl",
       "support"
     ],
     "rarity": "goat",
@@ -857,9 +859,9 @@
     "teamId": "fnatic-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler"
+      "lurker"
     ],
     "rarity": "goat",
     "traits": [],
@@ -930,10 +932,9 @@
     "teamId": "ninjas-in-pyjamas-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler",
-      "awper"
+      "lurker"
     ],
     "rarity": "legend",
     "traits": [],
@@ -1011,7 +1012,8 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
     "rarity": "goat",
     "traits": [],
@@ -1225,8 +1227,9 @@
     "teamId": "fnatic-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "support",
+    "role": "igl",
     "eligibleSlotRoles": [
+      "igl",
       "support"
     ],
     "rarity": "elite",
@@ -2502,9 +2505,9 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler"
+      "lurker"
     ],
     "rarity": "legend",
     "traits": [],
@@ -2678,10 +2681,9 @@
     "teamId": "ninjas-in-pyjamas-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler",
-      "awper"
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -2903,7 +2905,8 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -3532,10 +3535,10 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "rifler",
-      "entry"
+      "entry",
+      "awper"
     ],
     "rarity": "goat",
     "traits": [],
@@ -3640,9 +3643,10 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "entry",
+    "role": "igl",
     "eligibleSlotRoles": [
-      "entry"
+      "igl",
+      "support"
     ],
     "rarity": "goat",
     "traits": [],
