@@ -76,7 +76,11 @@ export interface MissionState {
 
 export const fetchMissions = (serverUrl: string) => authFetch<{ missions: MissionState[]; soloStreak: { current: number; best: number } }>(serverUrl, '/missions');
 export const claimMission = (serverUrl: string, missionId: string) => withWallet(authFetch<{ coins: number; packs: number; wallet: number }>(serverUrl, `/missions/${missionId}/claim`, { body: {} }));
-export const startSolo = (serverUrl: string, field: 'random' | 'champions') => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field } });
+export const startSolo = (
+  serverUrl: string,
+  field: 'random' | 'champions',
+  preferences: { simulationMode: 'automatic' | 'manual'; simulationSpeed: 'normal' | 'fast' | 'ultra' } = { simulationMode: 'automatic', simulationSpeed: 'ultra' }
+) => authFetch<{ roomCode: string; lineupTicket: string }>(serverUrl, '/solo', { body: { field, ...preferences } });
 
 export interface UpgraderFair {
   serverSeedHash: string;

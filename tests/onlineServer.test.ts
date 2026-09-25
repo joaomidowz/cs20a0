@@ -384,7 +384,7 @@ describe('authoritative online server', () => {
     expect(later?.overviewSeries.find((series) => series.id === botSeries?.id)?.liveMap?.a).toBeDefined();
   });
 
-  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on protocol 8 with synchronized valid $mode pools', async ({ capacity, mode }) => {
+  it.each([{ capacity: 2, mode: 'max_fun' }, { capacity: 16, mode: 'fun' }] as const)('keeps $capacity clients on the current protocol with synchronized valid $mode pools', async ({ capacity, mode }) => {
     const server = await startServer();
     const roomCode = await createRoom(server, capacity, mode);
     const clients = await Promise.all(Array.from({ length: capacity }, () => TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`)));
@@ -412,7 +412,7 @@ describe('authoritative online server', () => {
       return message.snapshot;
     }));
     expect(snapshots.every((snapshot) => snapshot.version === snapshots[0].version)).toBe(true);
-    expect(snapshots.every((snapshot) => snapshot.protocolVersion === 9 && snapshot.config.mode === mode)).toBe(true);
+    expect(snapshots.every((snapshot) => snapshot.protocolVersion === PROTOCOL_VERSION && snapshot.config.mode === mode)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.capabilities.season === true && snapshot.season === null && snapshot.config.seasonRuns === 1)).toBe(true);
     expect(snapshots.every((snapshot) => snapshot.tournament === null && snapshot.deadlineAt !== null)).toBe(true);
     expect(snapshots.map((snapshot) => snapshot.participants.length)).toEqual(Array(capacity).fill(capacity));
@@ -429,7 +429,7 @@ describe('authoritative online server', () => {
     }
   }, 20_000);
 
-  it('rejects an obsolete protocol after the protocol 8 upgrade', async () => {
+  it('rejects an obsolete protocol version', async () => {
     const server = await startServer();
     const roomCode = await createRoom(server, 2);
     const client = await TestClient.connect(`${server.wsUrl}/rooms/${roomCode}`);

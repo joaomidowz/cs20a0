@@ -3,7 +3,7 @@ import type { GameMode, LineupSlotRole, MajorAwards, MajorStage, MapId, MapSide,
 
 export type { OnlineGameMode } from '../types';
 
-export const PROTOCOL_VERSION = 9 as const;
+export const PROTOCOL_VERSION = 10 as const;
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
 /** Season points by placement; a Swiss exit scores −2 plus one per series won (0-2) — mirrors the server curve (2026-09-22). */
@@ -37,6 +37,13 @@ export const roomConfigSchema = z.object({
 export type RoomConfig = z.infer<typeof roomConfigSchema>;
 /** What a client may send: `seasonRuns` is optional and defaults to a single run. */
 export type RoomConfigInput = z.input<typeof roomConfigSchema>;
+
+export const soloStartSchema = z.object({
+  field: z.enum(['random', 'champions']).default('random'),
+  simulationMode: z.enum(['automatic', 'manual']).default('automatic'),
+  simulationSpeed: z.enum(['normal', 'fast', 'ultra']).default('ultra')
+}).strict();
+export type SoloStartInput = z.input<typeof soloStartSchema>;
 
 export const DEFAULT_ROOM_CONFIG: RoomConfig = {
   mode: 'premier',
@@ -95,6 +102,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     simulationMode: z.enum(['automatic', 'manual']).optional(),
     simulationSpeed: z.enum(['normal', 'fast', 'ultra']).optional()
   }).strict(),
+  baseCommandSchema.extend({ type: z.literal('vote-final-speed') }).strict(),
   baseCommandSchema.extend({ type: z.literal('advance-round') }).strict(),
   // Live decisions (protocol 7). `seriesId` guards against a decision landing after the series moved on.
   baseCommandSchema.extend({
@@ -342,7 +350,9 @@ export interface RoomSnapshot {
   season: PublicSeason | null;
   serverTime: number;
   /** 'queue' rooms come from matchmaking; absent in older servers. */
-  origin?: 'code' | 'queue';
+  origin?: 'code' | 'queue' | 'solo';
+  /** Available only to human finalists during a queue Grand Final. */
+  finalSpeedVote?: { eligible: boolean; voted: boolean; votes: number; applied: boolean };
   /** Whether this run scores season points (known in the lobby, fixed when the Major starts). */
   competitive?: boolean;
 }

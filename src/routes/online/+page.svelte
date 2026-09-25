@@ -144,6 +144,8 @@
   const crateLabel = (tier: PackTier) => tier === 'global' ? t('packGlobal') : tier === 'supremo' ? t('packSupremo') : tier === 'ouro' ? t('packOuro') : tier === 'prata' ? t('packPrata') : t('packBasic');
   $: if (snapshot?.phase === 'completed' && me?.collection && $accountUser) void loadCollectionOutcome(`${roomCode}:${snapshot.season?.run ?? 0}`);
   let snapshot: RoomSnapshot | null = null;
+  let soloSimulationMode: RoomConfig['simulationMode'] = 'automatic';
+  let soloSimulationSpeed: RoomConfig['simulationSpeed'] = 'ultra';
   /** Round-by-round state of the tournament; null until the first live update after a snapshot. */
   let live: LiveUpdate | null = null;
   /** A resync was asked for and the snapshot has not arrived yet, so live updates keep being ignored quietly. */
@@ -579,7 +581,7 @@
     errorMessage = '';
     soloBusy = true;
     try {
-      const result = await startSolo(getOnlineServerUrl(), field);
+      const result = await startSolo(getOnlineServerUrl(), field, { simulationMode: soloSimulationMode, simulationSpeed: soloSimulationSpeed });
       playerName = resolvedPlayerName || 'Player';
       organizationName = resolvedOrganizationName || `${playerName} Esports`;
       roomCode = result.roomCode;
@@ -1081,6 +1083,10 @@
             <span class="eyebrow">{t('notCompetitive').toUpperCase()}</span>
             <h2>{t('soloTitle')}</h2>
             <p>{t('soloHint')}</p>
+            <div class="solo-settings">
+              <label><span>{t('soloSimulationMode')}</span><select bind:value={soloSimulationMode}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
+              <label><span>{t('soloSpeed')}</span><select bind:value={soloSimulationSpeed}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
+            </div>
             <button class="secondary" type="button" disabled={soloBusy || boostBusy} on:click={() => void playSolo('random')}>{t('soloRandom')}{#if boostOn && (boost?.stock ?? 0) > 0} · boost{/if}</button>
             <button class="primary" type="button" disabled={soloBusy || boostBusy} title={boostOn ? t('boostConsume').replace('{n}', String(boost?.runsPerItem ?? 10)) : t('soloChampionsHint')} on:click={() => void playSolo('champions')}>{t('soloChampions')}{#if boostOn && (boost?.stock ?? 0) > 0} · boost{/if}</button>
             <small>{boostOn ? t('boostConsume').replace('{n}', String(boost?.runsPerItem ?? 10)) : t('soloChampionsHint')}</small>
@@ -1199,7 +1205,7 @@
             <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
             <label><span>{t('seasonLength')}</span><select value={String(config.seasonRuns)} disabled={!isHost} on:change={(event) => saveConfig({ seasonRuns: Number((event.currentTarget as HTMLSelectElement).value) as RoomConfig['seasonRuns'] })}><option value="1">{t('seasonSingleRun')}</option><option value="2">2 runs</option><option value="3">3 runs</option><option value="4">4 runs</option></select><small class="mode-description">{t('seasonLengthHint')}</small></label>
-            {#if isHost && snapshot.origin !== 'queue'}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
+            {#if isHost && snapshot.origin !== 'queue' && snapshot.origin !== 'solo'}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
         </div>
       {:else if snapshot.phase === 'draft' && self}
@@ -1315,6 +1321,17 @@
                 </div>
               </div>
             </div>
+            {#if snapshot.finalSpeedVote?.eligible}
+              <button
+                class="final-speed-vote"
+                type="button"
+                disabled={snapshot.finalSpeedVote.voted || snapshot.finalSpeedVote.applied}
+                aria-live="polite"
+                on:click={() => send({ type: 'vote-final-speed' })}
+              >
+                {snapshot.finalSpeedVote.applied ? t('finalNormalApplied') : snapshot.finalSpeedVote.voted ? t('finalNormalWaiting').replace('{votes}', String(snapshot.finalSpeedVote.votes)) : t('voteNormal')}
+              </button>
+            {/if}
           {/if}
 
           {#if snapshot.phase === 'completed' && snapshot.season}
@@ -1580,6 +1597,7 @@
 
 <style>
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
+  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}.mode-card{min-width:0}.solo-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px}.solo-settings label{display:grid;gap:7px;min-width:0}.solo-settings label>span{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.final-speed-vote{justify-self:start;min-height:42px;padding:0 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface-2));color:var(--accent);font-weight:800;cursor:pointer}.final-speed-vote:disabled{cursor:default;opacity:.82}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header-compact{justify-content:flex-end}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-actions{display:flex;align-items:end;gap:12px}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.leave-button{min-height:44px;padding:0 14px;font-size:.58rem}.leave-button.armed{border-color:var(--danger);color:var(--danger)}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-meta{color:var(--accent);font-weight:800;letter-spacing:.04em}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
   .watch-bar{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:50px;padding:0 16px}
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
@@ -1599,4 +1617,5 @@
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
+  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 </style>

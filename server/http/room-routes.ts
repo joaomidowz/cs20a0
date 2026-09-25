@@ -1,6 +1,7 @@
 import { getDefaultMapSelection } from '../../src/lib/game/maps';
 import type { Player } from '../../src/lib/game/types';
 import { getLineup } from '../collection/service';
+import { soloStartSchema } from '../../src/lib/game/online/contracts';
 import { toSelectedPlayer } from '../../src/lib/game/online/collection-lineup';
 import { awardsOf, currentStandings, lastSeasonPodium, majorResult, publicProfile, roomRewards } from '../collection/seasons';
 import { onlineUserCount, PRESENCE_WINDOW_SECONDS } from '../auth/service';
@@ -12,7 +13,6 @@ import { z } from 'zod';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const leaveSchema = z.object({ reason: z.enum(['hidden', 'user']).optional() });
-const soloSchema = z.object({ field: z.enum(['random', 'champions']).default('random') });
 
 /** The saved lineup as the room needs it; throws when the collection team is missing or incomplete. */
 export async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
@@ -65,9 +65,9 @@ export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handle
     })),
     /** Solo contra bots com o time salvo: nunca competitivo; 'champions' monta o campo com campeões de Major. */
     route('POST', /^\/solo$/, withAuth(async ({ request, userId, now }) => {
-      const body = await readBody(request, soloSchema);
+      const body = await readBody(request, soloStartSchema);
       const prepared = await preparedFor(db, userId!);
-      const roomCode = manager.createRoom(QUEUE_ROOM_CONFIG, now, undefined, { origin: 'queue', expected: 1, field: body.field });
+      const roomCode = manager.createRoom({ ...QUEUE_ROOM_CONFIG, simulationMode: body.simulationMode, simulationSpeed: body.simulationSpeed }, now, undefined, { origin: 'solo', field: body.field });
       return { ok: true, roomCode, lineupTicket: manager.prepareLineup(roomCode, prepared, now) };
     })),
     /** Public board of the ranked Majors being played right now. */
