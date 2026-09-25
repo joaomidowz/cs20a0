@@ -1781,9 +1781,10 @@
     "teamId": "fnatic-2016",
     "year": 2016,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "legend",
     "traits": [],
@@ -7868,9 +7869,10 @@
     "teamId": "godsent-2017",
     "year": 2017,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "elite",
     "traits": [],
@@ -12329,9 +12331,10 @@
     "teamId": "fnatic-2018",
     "year": 2018,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "elite",
     "traits": [],
@@ -17260,9 +17263,10 @@
     "teamId": "cloud9-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "legend",
     "traits": [],
@@ -18973,7 +18977,7 @@
     "teamId": "fnatic-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "overall": 84,
     "rarity": "elite",
     "traits": [],
@@ -19000,7 +19004,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "roleConfidence": "low",
     "hltvTeamRankingBoost": {

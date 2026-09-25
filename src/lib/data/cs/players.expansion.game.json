@@ -149,9 +149,10 @@
     "teamId": "fnatic-2013",
     "year": 2013,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -859,9 +860,10 @@
     "teamId": "fnatic-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "legend",
     "traits": [],
@@ -2505,9 +2507,10 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker"
+      "support",
+      "rifler"
     ],
     "rarity": "legend",
     "traits": [],

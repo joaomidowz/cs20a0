@@ -159,7 +159,7 @@ export const AWARD_POINTS_CAP = 3;
  */
 export const BOOST_ITEM_PRICE = 4_500;
 export const BOOST_RUNS_PER_ITEM = 10;
-export const BOOST_DAILY_RUN_CAP = 30;
+export const BOOST_DAILY_RUN_CAP = 50;
 
 export function seasonPoints(placement: string, lobbySize: number, stage3Wins = 0): number {
   const full = PLACEMENT_POINTS[placement] ?? (ELIMINATED_POINTS + Math.max(0, Math.min(2, stage3Wins)));

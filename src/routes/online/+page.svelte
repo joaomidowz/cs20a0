@@ -567,7 +567,7 @@
       boostResult = '';
     } catch (caught) {
       boostResult = '';
-      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 30)) : caught instanceof AccountError && caught.code === 'NO_BOOST_STOCK' ? boostNoStockMessage($language) : t('connectionFailed');
+      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 50)) : caught instanceof AccountError && caught.code === 'NO_BOOST_STOCK' ? boostNoStockMessage($language) : t('connectionFailed');
       showToast(boostError, caught instanceof AccountError && (caught.code === 'BOOST_DAILY_CAP' || caught.code === 'NO_BOOST_STOCK') ? 'warning' : 'error');
     } finally { boostBusy = false; }
   }
@@ -1088,7 +1088,7 @@
               <button class="switch" type="button" role="switch" aria-checked={boostOn} aria-label={t('boostTitle')} disabled={boostBusy || (boost?.stock ?? 0) === 0} title={(boost?.stock ?? 0) === 0 ? t('boostStock').replace('{n}', '0') : t('boostConsume')} on:click={() => { boostOn = !boostOn; try { localStorage.setItem(BOOST_SWITCH_KEY, boostOn ? '1' : '0'); } catch { /* storage optional */ } }}>
                 <em>{boostOn ? 'ON' : 'OFF'}</em><i><span></span></i>
               </button>
-              <small>{t('boostStock').replace('{n}', String(boost?.stock ?? 0))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 30}</small>
+              <small>{t('boostStock').replace('{n}', String(boost?.stock ?? 0))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 50}</small>
             </div>
             {#if boostResult}<p class="boost-done" role="status">{boostResult}</p>{/if}
             {#if boostError}<p class="queue-warn" role="alert">{boostError}</p>{/if}
@@ -1584,7 +1584,7 @@
           <span>{index + 1} · {translatePlacement($language, placement)}</span>
         {/each}
       </div>
-      <p class="boost-meta-line">{t('boostStock').replace('{n}', String(boostModal.stock))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 30}</p>
+      <p class="boost-meta-line">{t('boostStock').replace('{n}', String(boostModal.stock))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 50}</p>
     </div>
     <div slot="actions" class="notice-actions"><button class="primary" type="button" on:click={() => boostModal = null}>{t('close')}</button></div>
   </Modal>
