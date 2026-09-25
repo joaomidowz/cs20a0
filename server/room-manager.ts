@@ -251,7 +251,7 @@ interface RoomState {
   pendingLineups: Map<string, { prepared: PreparedLineup; expiresAt: number }>;
   /** 'queue' rooms come from matchmaking: they start on their own and always score. */
   origin: 'code' | 'queue' | 'solo';
-  finalNormalVotes: Set<string>;
+  finalSpeedVotes: Set<string>;
   /** Queue rooms: how many matched players are expected and until when the room waits for them. */
   queue: { expected: number; startBy: number } | null;
   /** Fixed when the tournament begins; decides season points. */
@@ -456,7 +456,7 @@ export class RoomManager {
       awards: null,
       pendingLineups: new Map(),
       origin: options.origin ?? 'code',
-      finalNormalVotes: new Set(),
+      finalSpeedVotes: new Set(),
       queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS } : null,
       competitive: false,
       field: options.field ?? 'random'
@@ -759,10 +759,10 @@ export class RoomManager {
         const finalists = finalRuntime && finalRuntime.state.phase !== 'finished'
           ? finalHumanIds(round?.phase, [finalRuntime.state.config.teamA.id, finalRuntime.state.config.teamB.id], new Set(room.participants.keys()))
           : null;
-        if (!finalists || !finalists.includes(participantId)) throw new RoomError('INVALID_ACTION', 'Only the two human finalists can vote for Normal speed');
-        room.finalNormalVotes.add(participantId);
-        if (finalists.every((id) => room.finalNormalVotes.has(id))) {
-          room.config = { ...room.config, simulationSpeed: 'normal' };
+        if (!finalists || !finalists.includes(participantId)) throw new RoomError('INVALID_ACTION', 'Only the two human finalists can vote for fast speed');
+        room.finalSpeedVotes.add(participantId);
+        if (finalists.every((id) => room.finalSpeedVotes.has(id))) {
+          room.config = { ...room.config, simulationSpeed: 'fast' };
           for (const runtime of room.live.values()) {
             if (runtime.state.phase !== 'finished' && !pendingSeriesDecision(runtime.state)) runtime.nextRoundAt = now + roundInterval(room.config);
           }
@@ -903,9 +903,9 @@ export class RoomManager {
       origin: room.origin,
       finalSpeedVote: {
         eligible: Boolean(participantId && finalistIds?.includes(participantId)),
-        voted: Boolean(participantId && room.finalNormalVotes.has(participantId)),
-        votes: finalistIds ? finalistIds.filter((id) => room.finalNormalVotes.has(id)).length : 0,
-        applied: room.config.simulationSpeed === 'normal' && Boolean(finalistIds)
+        voted: Boolean(participantId && room.finalSpeedVotes.has(participantId)),
+        votes: finalistIds ? finalistIds.filter((id) => room.finalSpeedVotes.has(id)).length : 0,
+        applied: room.config.simulationSpeed === 'fast' && Boolean(finalistIds)
       },
       competitive: room.engine ? room.competitive : this.isCompetitiveRun(room),
       season: this.publicSeason(room),
@@ -1267,7 +1267,7 @@ export class RoomManager {
 
   private beginTournament(room: RoomState, now: number) {
     if (room.engine) return;
-    room.finalNormalVotes.clear();
+    room.finalSpeedVotes.clear();
     if (room.origin === 'queue') room.config = { ...room.config, simulationMode: 'automatic', simulationSpeed: 'ultra' };
     room.competitive = this.isCompetitiveRun(room);
     const organizations = [...room.participants.values()].map((participant, index) => this.toTournamentOrganization(participant, index + 1, room.config.mode));

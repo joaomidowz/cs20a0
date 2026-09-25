@@ -1302,30 +1302,31 @@
                 />
               </div>
               <div class="control-group">
-                <span>{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
+                <span class="speed-control-label">{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}
+                  {#if snapshot.origin === 'queue' && snapshot.finalSpeedVote?.eligible && snapshot.finalSpeedVote.votes > 0}
+                    <small aria-live="polite">{snapshot.finalSpeedVote.votes}/2</small>
+                  {/if}
+                </span>
                 <div class="control-row">
                   <SegmentedControl
                     value={snapshot.config.simulationSpeed}
                     label={gameT('speed')}
-                    disabled={!isHost || snapshot.origin === 'queue'}
-                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                    disabled={snapshot.origin !== 'queue' && !isHost}
+                    options={[
+                      { value: 'normal', label: gameT('normal'), disabled: snapshot.origin === 'queue' },
+                      { value: 'fast', label: gameT('fast'), disabled: snapshot.origin === 'queue' && (!snapshot.finalSpeedVote?.eligible || snapshot.finalSpeedVote.voted || snapshot.finalSpeedVote.applied) },
+                      { value: 'ultra', label: gameT('ultra'), disabled: snapshot.origin === 'queue' }
+                    ]}
+                    onChange={(value) => {
+                      if (snapshot.origin === 'queue') {
+                        if (value === 'fast') send({ type: 'vote-final-speed' });
+                      } else configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] });
+                    }}
                   />
                   <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
                 </div>
               </div>
             </div>
-            {#if snapshot.finalSpeedVote?.eligible}
-              <button
-                class="final-speed-vote"
-                type="button"
-                disabled={snapshot.finalSpeedVote.voted || snapshot.finalSpeedVote.applied}
-                aria-live="polite"
-                on:click={() => send({ type: 'vote-final-speed' })}
-              >
-                {snapshot.finalSpeedVote.applied ? t('finalNormalApplied') : snapshot.finalSpeedVote.voted ? t('finalNormalWaiting').replace('{votes}', String(snapshot.finalSpeedVote.votes)) : t('voteNormal')}
-              </button>
-            {/if}
           {/if}
 
           {#if snapshot.phase === 'completed' && snapshot.season}
@@ -1590,8 +1591,9 @@
 {/if}
 
 <style>
+  .control-group>.speed-control-label{display:flex;align-items:center;justify-content:space-between;gap:8px}.speed-control-label small{flex:none;color:var(--accent);font-size:.55rem;font-weight:800;letter-spacing:0}
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
-  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}.mode-card{min-width:0}.final-speed-vote{justify-self:start;min-height:42px;padding:0 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface-2));color:var(--accent);font-weight:800;cursor:pointer}.final-speed-vote:disabled{cursor:default;opacity:.82}
+  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}.mode-card{min-width:0}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header-compact{justify-content:flex-end}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-actions{display:flex;align-items:end;gap:12px}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.leave-button{min-height:44px;padding:0 14px;font-size:.58rem}.leave-button.armed{border-color:var(--danger);color:var(--danger)}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-meta{color:var(--accent);font-weight:800;letter-spacing:.04em}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
   .watch-bar{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:50px;padding:0 16px}
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
