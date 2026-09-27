@@ -78,7 +78,7 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
         // (and a run recorded with a past `now` would never be found among its own day's runs).
         `INSERT INTO majors (season_id, user_id, room_code, seed, lobby_size, ranked, counted, placement, champion, points, avg_rating, awards, base_points, reward_coins, award_coins, dominance_points, potential_points, lineup_key, played_at)
          VALUES ($1, $2, $3, $4, $5, $6, false, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $16, to_timestamp($17::double precision / 1000))`,
-        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked), awardCoins, dominance.points, potential, lineupKey, now]
+        [seasonId, entry.userId, event.roomCode, event.seed, event.lobbySize, ranked, entry.placement, entry.champion, avgRating, JSON.stringify(grantedDetail), basePoints, matchReward(entry.placement, ranked, event.field ?? 'random'), awardCoins, dominance.points, potential, lineupKey, now]
       );
       // Every ranked run scores (FACEIT style); the day's first FULL_SCORE_RUNS_PER_DAY worth full and the rest decay
       // to half — volume grinds inflate slowly, and a new run can push an older, weaker one into the decayed band.
@@ -93,7 +93,7 @@ export async function recordMajor(db: Db, event: RunCompletedEvent, now: number)
         [entry.userId, day, FULL_SCORE_RUNS_PER_DAY, DECAYED_RUN_FACTOR]
       );
       await advanceMissions(tx, { entry, event, seasonId, now, mvp: detected.some((award) => award.kind === 'major_mvp') });
-      const reward = matchReward(entry.placement, ranked);
+      const reward = matchReward(entry.placement, ranked, event.field ?? 'random');
       await applyLedger(tx, entry.userId, reward, 'match_reward', `${event.roomCode}:${event.seed}`);
       if (awardCoins) await applyLedger(tx, entry.userId, awardCoins, 'award', `${event.roomCode}:${event.seed}`);
       // Only a ranked run is a Major played: alone against bots (or a friendly room) it is practice, so it neither

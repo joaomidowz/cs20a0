@@ -31,8 +31,10 @@ const labSides = new Map(Object.entries({
   resiliente: labLineup(build('resiliente'))
 }) as Array<[OrgStyle, ReturnType<typeof labLineup>]>);
 
+// 2026-09-27 (teto macio): os planos deixaram de empatar em 99 exato — cada um tem o seu nível (99,1–99,3) — e com
+// 300 séries o ruído de ±7pp passava da banda. Com 600 a tabela mediu 46–54 em todos os cruzamentos, dentro dos alvos.
 const band = (a: OrgStyle, b: OrgStyle, target: number, tolerance = 6) => {
-  const rate = winRate(labSides.get(a)!, labSides.get(b)!, 'court', 300);
+  const rate = winRate(labSides.get(a)!, labSides.get(b)!, 'court', 600);
   expect(rate, `${a} vs ${b} mediu ${rate}%, esperado ~${target}%`).toBeGreaterThanOrEqual(target - tolerance);
   expect(rate, `${a} vs ${b} mediu ${rate}%, esperado ~${target}%`).toBeLessThanOrEqual(target + tolerance);
 };

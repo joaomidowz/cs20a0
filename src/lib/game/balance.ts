@@ -65,8 +65,26 @@ export const COURT_WIN_DIVISOR = 16 * COURT_SPREAD;
 export const MISSING_IGL_COURT = -2.5;
 /** Time sem AWPer. Sem a AWP dominante a equipe joga com uma arma a menos em todo mapa. */
 export const MISSING_AWPER_COURT = -1.5;
-/** Time sem suporte. A peça mais barata de ter e a que mais falta quando não está. */
-export const MISSING_SUPPORT_COURT = -0.8;
+/** Time sem suporte. A peça mais barata de ter e a que mais falta quando não está (era -0,8; dono, 2026-09-27:
+ *  cinco atacantes sem quem segure o bomb não podem ficar a menos de um nível de um time montado). */
+export const MISSING_SUPPORT_COURT = -1.5;
+/**
+ * Dois AWPers na mesma line (dono, 2026-09-27). Pagava +1% quando os dois eram bons; agora custa nível — "não é
+ * B.O., mas é um debuffzinho": duas AWPs competem pelo mesmo dinheiro e pelo mesmo ângulo. Dois AWPers fracos
+ * custam mais.
+ */
+export const DOUBLE_AWP_STRONG_COURT = -1;
+export const DOUBLE_AWP_WEAK_COURT = -1.5;
+/**
+ * O ELENCO conta no topo (dono, 2026-09-27). Acima do joelho da curva só 5% de cada ponto de overall chega à
+ * quadra, e a Vitality 2025 (média 95,8) perdia da SK 2016 (média 92,8) por encaixe de bônus. Esta linha devolve
+ * o elenco: cada ponto de overall acima de `ELITE_ROSTER_FROM_OVERALL`, em cada carta, vale
+ * `ELITE_ROSTER_PER_POINT` nível, com teto `ELITE_ROSTER_CAP`. Só conta com IGL na line: cinco GOATs sem capitão
+ * seguem em ~92, e a mensagem "carta não substitui montagem" continua de pé.
+ */
+export const ELITE_ROSTER_FROM_OVERALL = 92;
+export const ELITE_ROSTER_PER_POINT = 0.3;
+export const ELITE_ROSTER_CAP = 8;
 
 /**
  * CINCO ESTRANHOS: nenhum vínculo de trio no elenco (nem núcleo/org, nem país, nem ano — dois que jogaram juntos
@@ -105,12 +123,21 @@ export const THEME_TOTAL_CAP = 30;
 export const SYNERGY_POWER_TO_COURT = 0.25;
 
 /**
- * O teto de um time de JOGADOR: 99, o topo da régua — onde ela foi pregada no melhor time montável. Chegar aqui é
- * montar um time PERFEITO: o núcleo completo de um campeão real (com coach, star e plano) ou cinco GOATs com
- * estrutura. Cartas e química levam até 99, nunca além — e em 99 o jogador iguala o melhor número do jogo, não
- * passa por cima dele.
+ * O TETO MACIO de um time de JOGADOR (dono, 2026-09-27). Até `PLAYER_SOFT_KNEE` a régua é a de sempre; acima
+ * dele cada nível de montagem passa a valer só uma fração, e `PLAYER_CEILING_COURT` (99,9) é onde a MELHOR line
+ * montável chega. Antes era um corte seco em 99: as cinco vagas do dono (104–106 na régua), a line russa (103) e
+ * cinco GOATs com star (99,5) entravam em quadra com 99 idêntico e jogavam igual — o corte jogava fora de 3 a 7
+ * níveis de montagem. Agora a diferença aparece na tela (uma casa decimal) e vale em quadra.
+ *
+ * `PLAYER_SOFT_TOP_COURT` é o nível na régua (antes do teto) da melhor line montável, medido pelo laboratório
+ * (`tests/helpers/balanceLab.ts`) com a Vitality 2025 completa (coach XTQZZZ, ZywOo de star, plano tático) e as
+ * cartas ajustadas pelo dono (flameZ 97, mezii 95). É uma CONSTANTE DE ESCALA, pregada de propósito: quando o
+ * conteúdo mudar, `tests/powerCeiling.test.ts` re-mede e avisa. Com ela: SK 2016 completa 99,7, seleções de país
+ * 99,1–99,8, vagas do dono 99,1–99,5, cinco GOATs sem pensar 98,5, campeões azarões (Gambit 2017) ~98.
  */
-export const PLAYER_CEILING_COURT = 99;
+export const PLAYER_SOFT_KNEE = 97.5;
+export const PLAYER_SOFT_TOP_COURT = 115.7;
+export const PLAYER_CEILING_COURT = 99.9;
 
 /**
  * O DIA DE JOGO, em níveis. Quantos níveis vale cada 1% de "dia" que o motor sorteia (`getMatchDayPower`).
@@ -152,7 +179,10 @@ export type BotPedigree =
   | 'noneFiller';
 
 export const PEDIGREE_LEVEL_BAND: Readonly<Record<BotPedigree, readonly [min: number, max: number]>> = {
-  dinastia: [97, 98.2],
+  // 2026-09-27: com o teto do jogador em 99,9 a dinastia sobe junto (era 98,2), para a melhor line ser favorita
+  // por um nível e pouco, não por dois — o topo do solo continua parede, não passeio. Medido em 98,8 a parede
+  // ficou dura demais para o 'excepcional' do lab (21% de título); em 98,5 mediu 26%.
+  dinastia: [97.2, 98.5],
   campeaoForte: [96.2, 97.2],
   campeaoUnderdog: [95.2, 96.2],
   viceMerecedor: [94.4, 95.4],
@@ -160,7 +190,9 @@ export const PEDIGREE_LEVEL_BAND: Readonly<Record<BotPedigree, readonly [min: nu
   semifinalista: [92.2, 94],
   top8: [89.5, 91.8],
   nonePotencial: [87.5, 90],
-  noneFiller: [84, 88.2]
+  // 2026-09-27: sem o piso do jogador (85) o degrau de entrada desce junto (era 84), para quem começa (~83)
+  // continuar brigando de igual nele — a promessa de 2026-09-21, agora sem handicap de nascimento.
+  noneFiller: [82, 88.2]
 };
 
 /**
@@ -195,20 +227,11 @@ export const PARTY_ZEBRA_LIFT = 0.5;
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
- * Nenhum time de JOGADOR entra em quadra mais do que isto abaixo do topo. É o que dá chance a quem está começando:
- * com ele, cinco Comuns coerentes entram em ~85 — o degrau de entrada do campo fica vencível e o meio-campo (top8,
- * potenciais) é briga de verdade. Começar é ser azarão, não saco de pancadas.
- *
- * Não vale para bots, de propósito: é isso que mantém a escada do chaveamento íntegra para quem chega.
- * Aumentar = mais acolhedor com quem começa e carta importa menos; diminuir = o contrário.
- *
- * Era 93 na época em que a sinergia da coleção multiplicava o poder cru (abaixo do joelho valia nível inteiro) e
- * subia qualquer time montado a 96–98. Com a sinergia honesta (afinidade + estrutura, em níveis) o range real dos
- * times de coleção é ~80–98, e um piso em 93 achataria Iniciante e Elite no mesmo número — a régua de progressão
- * da coleção começaria só depois de "Superstar". Em 85 os degraus existem: Iniciante ~85, Elite ~88, Superstar
- * ~92–94, Auge ~95–96, Excepcional 98,7.
+ * O PISO do jogador (85) foi removido em 2026-09-27 (dono): um iniciante entra em quadra no nível que as cartas
+ * dão (~83) e a progressão aparece desde o primeiro pacote — antes Iniciante e cinco Elites mostravam o mesmo 85.
+ * O alívio do solo abaixo de 85 segue o da primeira linha da tabela (`soloFieldRelief`), então o campo de abertura
+ * continua vencível. Bots nunca tiveram piso.
  */
-export const PLAYER_GAP_FROM_TOP = 14;
 
 // ---------------------------------------------------------------------------------------------------------------
 // O solo contra bots: a parede cede conforme você sobe de nível

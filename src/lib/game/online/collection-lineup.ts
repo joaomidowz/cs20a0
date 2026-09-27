@@ -3,7 +3,7 @@ import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import { addCourtPoints, courtPower } from '../courtPower';
-import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, NO_CHEMISTRY_COURT, SYNERGY_POWER_TO_COURT } from '../balance';
+import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, DOUBLE_AWP_STRONG_COURT, DOUBLE_AWP_WEAK_COURT, ELITE_ROSTER_CAP, ELITE_ROSTER_FROM_OVERALL, ELITE_ROSTER_PER_POINT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, NO_CHEMISTRY_COURT, SYNERGY_POWER_TO_COURT } from '../balance';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -16,7 +16,10 @@ export const STAR_MIN_OVERALL = 85;
 
 /** The hybrid slot: one card holds the AWP and calls the game. It fills both roles, at HYBRID_BONUS_RATIO of their bonuses. */
 export const AWPER_IGL = 'awper-igl';
-export type CollectionSlotRole = LineupSlotRole | typeof AWPER_IGL;
+/** The other hybrid (2026-09-27): the caller who plays support (gla1ve, karrigan). Both roles, half of each bonus. */
+export const IGL_SUPPORT = 'igl-support';
+export const HYBRID_SLOTS = [AWPER_IGL, IGL_SUPPORT] as const;
+export type CollectionSlotRole = LineupSlotRole | typeof AWPER_IGL | typeof IGL_SUPPORT;
 export const HYBRID_BONUS_RATIO = 0.5;
 
 /**
@@ -125,21 +128,26 @@ export function collectionBaseTeam(players: Player[], style: OrgStyle, lineup: S
 }
 
 
-/** Engine roles a collection slot fills ("awper-igl" → awper and igl). */
-export const slotRolesOf = (role: CollectionSlotRole): LineupSlotRole[] => (role === AWPER_IGL ? ['awper', 'igl'] : [role]);
+/** Engine roles a collection slot fills ("awper-igl" → awper and igl, "igl-support" → igl and support). */
+export const slotRolesOf = (role: CollectionSlotRole): LineupSlotRole[] =>
+  role === AWPER_IGL ? ['awper', 'igl'] : role === IGL_SUPPORT ? ['igl', 'support'] : [role];
 
-/** The pick the simulation understands: the hybrid is an AWPer with IGL as the secondary role. */
+/** The pick the simulation understands: a hybrid is its main role with the other one as the secondary role. */
 export const toSelectedPlayer = (playerId: string, role: CollectionSlotRole): SelectedPlayer =>
-  role === AWPER_IGL ? { playerId, selectedSlotRole: 'awper', secondarySlotRole: 'igl' } : { playerId, selectedSlotRole: role };
+  role === AWPER_IGL ? { playerId, selectedSlotRole: 'awper', secondarySlotRole: 'igl' }
+    : role === IGL_SUPPORT ? { playerId, selectedSlotRole: 'igl', secondarySlotRole: 'support' }
+      : { playerId, selectedSlotRole: role };
 
 /** Back from a simulation pick to the collection slot role. */
 export const collectionRoleOf = (pick: SelectedPlayer): CollectionSlotRole =>
-  pick.selectedSlotRole === 'awper' && pick.secondarySlotRole === 'igl' ? AWPER_IGL : pick.selectedSlotRole;
+  pick.selectedSlotRole === 'awper' && pick.secondarySlotRole === 'igl' ? AWPER_IGL
+    : pick.selectedSlotRole === 'igl' && pick.secondarySlotRole === 'support' ? IGL_SUPPORT
+      : pick.selectedSlotRole;
 
 export const collectionRoleLabel = (role: CollectionSlotRole): string => slotRolesOf(role).map(getRoleLabel).join(' · ');
 
-/** The star carries the team with frags: a support or a pure IGL cannot be the star (an AWPer-IGL can). */
-export const starRoleAllowed = (role: CollectionSlotRole | undefined): boolean => role !== 'support' && role !== 'igl';
+/** The star carries the team with frags: a support or a pure IGL cannot be the star (an AWPer-IGL can, an IGL-support cannot). */
+export const starRoleAllowed = (role: CollectionSlotRole | undefined): boolean => role !== 'support' && role !== 'igl' && role !== IGL_SUPPORT;
 
 export interface CollectionLineupInput {
   players: Player[];
@@ -269,21 +277,31 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   const add = (key: string, effect: Partial<Omit<SynergyLine, 'key'>>) => lines.push({ key, power: 0, court: 0, mental: 0, clutch: 0, consistency: 0, ...effect });
   const count = (role: LineupSlotRole) => input.roles.filter((item) => slotRolesOf(item).includes(role)).length;
   const igls = count('igl');
-  // A lone caller who also holds the AWP splits the attention: half of the bonus.
+  // A lone caller who also holds the AWP (or plays support) splits the attention: half of the bonus.
   if (igls === 1 && input.roles.includes(AWPER_IGL)) add('igl_hybrid', { mental: 1.5 * HYBRID_BONUS_RATIO });
+  else if (igls === 1 && input.roles.includes(IGL_SUPPORT)) add('igl_support_hybrid', { mental: 1.5 * HYBRID_BONUS_RATIO });
   else if (igls === 1) add('igl_one', { mental: 1.5 });
   else if (igls === 0) add('igl_none', { court: MISSING_IGL_COURT, mental: -2 });
   const awpers = count('awper');
   if (awpers === 0) add('awp_none', { court: MISSING_AWPER_COURT });
   else if (awpers >= 2) {
+    // Two AWPs compete for the same money and the same angle: it costs levels even when both are good (2026-09-27).
     const strong = input.players.filter((player, index) => slotRolesOf(input.roles[index]).includes('awper')).every((player) => (player.awp ?? 0) >= 80);
-    add(strong ? 'awp_double_strong' : 'awp_double_weak', { power: strong ? 1 : -1 });
+    add(strong ? 'awp_double_strong' : 'awp_double_weak', { court: strong ? DOUBLE_AWP_STRONG_COURT : DOUBLE_AWP_WEAK_COURT });
   }
   const entries = count('entry');
   if (entries === 1) add('entry_one', { power: 0.5 });
   else if (entries >= 2) add('entry_double', { power: 0.25, consistency: -1 });
   if (count('support') === 0) add('support_none', { court: MISSING_SUPPORT_COURT });
+  else if (input.roles.includes(IGL_SUPPORT) && count('support') === 1) add('support_hybrid', { power: 0.5 * HYBRID_BONUS_RATIO });
   else add('support_present', { power: 0.5 });
+  // The roster counts at the top (2026-09-27): every overall point above ELITE_ROSTER_FROM_OVERALL, on every card, is
+  // worth levels — only with a caller on the floor, so five GOATs without an IGL stay what they are: five cards.
+  if (igls >= 1) {
+    const surplus = input.players.reduce((sum, player) => sum + Math.max(0, (player.overall ?? 0) - ELITE_ROSTER_FROM_OVERALL), 0);
+    const court = Math.min(ELITE_ROSTER_CAP, surplus * ELITE_ROSTER_PER_POINT);
+    if (court > 0) add('elite_roster', { court: Number(court.toFixed(4)) });
+  }
   if (count('lurker') >= 1) add('lurker_present', { clutch: 1 });
   // The core of a CS team: a caller, an AWPer and a support. All three present is worth levels on its own, and each
   // of them played by a card of that very role is worth a little more: a built team, not five good cards together.
@@ -327,12 +345,12 @@ export function cardEffects(input: CollectionLineupInput): Record<string, 'up' |
   input.players.forEach((player, index) => {
     const role = input.roles[index];
     const up = (role === 'igl' && lines.has('igl_one'))
-      || (role === AWPER_IGL && (lines.has('igl_hybrid') || lines.has('awp_double_strong')))
-      || (role === 'awper' && lines.has('awp_double_strong'))
+      || (role === AWPER_IGL && lines.has('igl_hybrid'))
+      || (role === IGL_SUPPORT && lines.has('igl_support_hybrid'))
       || (role === 'entry' && lines.has('entry_one'))
       || (role === 'support' && lines.has('support_present'))
       || (role === 'lurker' && lines.has('lurker_present'));
-    const down = slotRolesOf(role).includes('awper') && lines.has('awp_double_weak');
+    const down = slotRolesOf(role).includes('awper') && (lines.has('awp_double_weak') || lines.has('awp_double_strong'));
     if (down) effects[player.id] = 'down';
     else if (up) effects[player.id] = 'up';
   });
@@ -369,8 +387,10 @@ function applyLines(team: CombatTeam, lines: readonly SynergyLine[]): CombatTeam
   };
 }
 
-/** Roles the builder offers for a card; one that can both AWP and call also gets the hybrid slot. */
+/** Roles the builder offers for a card; one that can both AWP and call (or call and support) also gets the hybrid slot. */
 export function eligibleRolesOf(player: Player): CollectionSlotRole[] {
-  const roles = getEligibleSlotRoles(player);
-  return roles.includes('awper') && roles.includes('igl') ? [...roles, AWPER_IGL] : roles;
+  const roles: CollectionSlotRole[] = getEligibleSlotRoles(player);
+  if (roles.includes('awper') && roles.includes('igl')) roles.push(AWPER_IGL);
+  if (roles.includes('igl') && roles.includes('support')) roles.push(IGL_SUPPORT);
+  return roles;
 }

@@ -35,12 +35,19 @@ describe('regras de coins', () => {
     expect(sellValue({ overall: 99, rarity: 'goat' })).toBe(44_000);
     expect(rarityOf({ rarity: 'GOAT' })).toBe('goat');
     expect(rarityOf({ rarity: 'x' })).toBe('common');
-    expect(matchReward('placementChampion', true)).toBe(1700);
+    // Ranqueado: 2,5x a tabela. Solo: metade. Solo contra campeões: 4x a metade.
+    expect(matchReward('placementChampion', true)).toBe(4250);
     expect(matchReward('placementChampion', false)).toBe(850);
-    expect(matchReward('placementRunnerUp', true)).toBe(1050);
-    expect(matchReward('placement3to4', true)).toBe(700);
-    expect(matchReward('placement5to8', true)).toBe(420);
-    expect(matchReward('placementStage3', true)).toBe(100);
+    expect(matchReward('placementChampion', false, 'champions')).toBe(3400);
+    expect(matchReward('placementRunnerUp', true)).toBe(2625);
+    expect(matchReward('placementRunnerUp', false, 'champions')).toBe(2100);
+    expect(matchReward('placement3to4', true)).toBe(1750);
+    expect(matchReward('placement3to4', false, 'champions')).toBe(1400);
+    expect(matchReward('placement5to8', true)).toBe(1050);
+    expect(matchReward('placement5to8', false, 'champions')).toBe(840);
+    expect(matchReward('placementStage3', true)).toBe(250);
+    expect(matchReward('placementStage3', false)).toBe(50);
+    expect(matchReward('placementStage3', false, 'champions')).toBe(200);
   });
 
   it('pacotes premium: Lenda e GOAT ~40% mais raras, garantias mantidas', () => {

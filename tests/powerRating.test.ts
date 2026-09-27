@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { RATING_CEILING, RATING_FLOOR, RATING_MAX, RATING_MIN, courtRating, courtRatingDelta, formatRating, powerRating, powerRatingDelta } from '../src/lib/game/powerRating';
 import { COURT_TOP, withPlayerBand } from '../src/lib/game/courtPower';
+import { PLAYER_CEILING_COURT } from '../src/lib/game/balance';
 import { collectionPlayers as players, collectionCoaches, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCollectionLineup, collectionBaseTeam, eligibleRolesOf, isStarEffective, toSelectedPlayer, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
@@ -35,7 +36,7 @@ describe('rating de poder (0-99)', () => {
     expect(powerRatingDelta(10)).toBeCloseTo(10 * (RATING_MAX - RATING_FLOOR) / (RATING_CEILING - RATING_FLOOR), 10);
   });
 
-  it('online: as CARTAS pinam a régua no RAW_TOP, e a química perfeita leva o time ao 99 exato', { timeout: 120_000 }, () => {
+  it('online: as CARTAS pinam a régua no RAW_TOP, e a melhor line montável para no teto macio (99,9)', { timeout: 120_000 }, () => {
     const STYLES: OrgStyle[] = ['aggressive', 'balanced', 'tactical'];
     const topCoach = [...collectionCoaches].sort((a, b) => b.tactics - a.tactics)[0];
     let strongestBase = 0;
@@ -63,8 +64,11 @@ describe('rating de poder (0-99)', () => {
     expect(strongestBase, `melhor base montável: ${strongestBase.toFixed(2)}`).toBeGreaterThan(100);
     expect(strongestBase).toBeLessThan(115);
     // A sinergia de afinidade mora ACIMA do pino das cartas (por isso o cru explode lá em cima — detalhe interno);
-    // com a banda do jogador aplicada, o melhor time montável lê exatamente 99: o time perfeito existe, e para nele.
-    expect(courtRating(withPlayerBand(strongestBuilt))).toBe(COURT_TOP);
+    // com o teto macio aplicado (2026-09-27), o melhor time montável fica entre 99 e 99,9: acima do 99 da régua,
+    // nunca acima do teto. `tests/powerCeiling.test.ts` prega onde exatamente.
+    const best = courtRating(withPlayerBand(strongestBuilt));
+    expect(best, `melhor line montável em quadra: ${best.toFixed(2)}`).toBeGreaterThan(COURT_TOP);
+    expect(best).toBeLessThanOrEqual(PLAYER_CEILING_COURT);
     // E os bots seguem abaixo do melhor jogador, na mesma escala.
     const bots = collectionTeams.map((team) => calculateHistoricalTeamPower(team as never, players).power);
     expect(courtRating(Math.max(...bots))).toBeLessThan(COURT_TOP);

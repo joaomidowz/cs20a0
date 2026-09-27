@@ -2,7 +2,7 @@
 // Campo de bots do online: escada por pedigree fino (combinada com o dono em 2026-09-21, ver
 // docs/reports/2026-09-21-taxonomia-pedigree.md), campeões garantidos e as zebras da run.
 import { COURT_TOP, courtPower } from '../src/lib/game/courtPower';
-import { PEDIGREE_LEVEL_BAND, PLAYER_GAP_FROM_TOP, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../src/lib/game/balance';
+import { PEDIGREE_LEVEL_BAND, ZEBRA_LEVEL_CAP, ZEBRA_LIFT_COURT } from '../src/lib/game/balance';
 import { describe, expect, it } from 'vitest';
 import { teams, players } from '../server/data';
 import { GUARANTEED_CHAMPIONS, PEDIGREE_ORDER, ZEBRAS_MAX, ZEBRAS_MIN, botFieldPower, botPlacementOf, isUnderdogAverage, isZebraCandidate, partyFieldRelief, PARTY_RELIEF_RATIO, pedigreeOf, planBotField, rosterAverageOverall, soloFieldRelief } from '../src/lib/game/online/bot-field';
@@ -87,9 +87,9 @@ describe('o pedigree fino', () => {
     const entrada = courtPower(botFieldPower(82, team(null), false, 0, playerById));
     const campeao = courtPower(botFieldPower(82, team({ titles: 1 }), false, 0, playerById));
     expect(campeao - entrada).toBeGreaterThan(8);
-    // E o degrau de entrada encosta no piso do jogador (85): quem começa briga de igual nele — a ascensão é a
-    // própria coleção, não um handicap de nascimento.
-    expect(entrada).toBeLessThanOrEqual(COURT_TOP - PLAYER_GAP_FROM_TOP + 1.5);
+    // E o degrau de entrada fica ao alcance de quem começa (~83–85 sem piso): a ascensão é a própria coleção,
+    // não um handicap de nascimento.
+    expect(entrada).toBeLessThanOrEqual(86.5);
   });
 
   it('vale a melhor colocação do time em Major (base da zebra)', () => {

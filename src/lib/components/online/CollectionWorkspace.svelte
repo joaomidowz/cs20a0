@@ -175,7 +175,7 @@
   const oneDecimal = (value: number) => value.toLocaleString($language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const fmt = (value: number) => oneDecimal(courtRating(value));
   const signed = (value: number) => `${value >= 0 ? '+' : ''}${oneDecimal(value)}`;
-  /** The band the server applies before the match (floor and ceiling), so the builder shows the number that actually plays. */
+  /** The soft ceiling the server applies before the match (no floor, 99.9 at the top), so the builder shows the number that actually plays. */
   $: preview = (() => {
     const withCoach = synergized && activeCoach ? applyCoachToTeam(synergized, activeCoach, coachBonus) : synergized;
     return withCoach ? { ...withCoach, power: withPlayerBand(withCoach.power) } : withCoach;

@@ -1,5 +1,6 @@
 /**
- * Nível: a escala real dos modos online. É o número na tela e o número que joga, e ele nunca chega a 100.
+ * Nível: a escala real dos modos online. É o número na tela e o número que joga, e ele nunca chega a 100
+ * (um time de jogador para em 99,9, o teto macio de `withPlayerBand`).
  *
  * O motor cortava todo time em MAX_TEAM_POWER + 4 (110) no dia do jogo, enquanto a sinergia da coleção leva o poder
  * cru a ~140: lines de 112, 125 e 134 jogavam exatamente igual, e montar bem não valia nada depois que as cartas
@@ -14,7 +15,7 @@
  * dois não muda nada: o topo em 99 é só onde a régua foi pregada.
  */
 
-import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, DAY_SWING_COURT, PLAYER_CEILING_COURT, PLAYER_GAP_FROM_TOP, RAW_TOP } from './balance';
+import { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR, DAY_SWING_COURT, PLAYER_CEILING_COURT, PLAYER_SOFT_KNEE, PLAYER_SOFT_TOP_COURT, RAW_TOP } from './balance';
 
 export { COURT_KNEE, COURT_SLOPE, COURT_SPREAD, COURT_TOP, COURT_WIN_DIVISOR };
 
@@ -58,19 +59,19 @@ export type MatchDayCurve = (power: number, multiplier: number) => number;
 export const courtMatchDay: MatchDayCurve = (power, multiplier) =>
   courtPower(Math.max(COURT_RAW_FLOOR, power)) + (multiplier - 1) * DAY_SWING_COURT;
 
-/** O mais baixo que um time de JOGADOR entra em quadra (`PLAYER_GAP_FROM_TOP`); bots mantêm o nível deles. */
-export const COURT_PLAYER_FLOOR = COURT_TOP - PLAYER_GAP_FROM_TOP;
-
-/** Poder cru de um time de jogador com o piso aplicado: o que quem está começando leva para a quadra. */
-export const withPlayerFloor = (raw: number): number => Math.max(raw, rawFromCourt(COURT_PLAYER_FLOOR));
-
 /**
- * A FAIXA de um time de jogador: entra entre o piso (93) e o teto (`PLAYER_CEILING_COURT`, o "Excepcional" da
- * tabela cumulativa). Cartas e química levam até o teto, nunca além — o topo da régua segue sem dono, e a melhor
- * lineup montável empata com a melhor dinastia de bot.
+ * O TETO MACIO de um time de jogador (`balance.ts`, 2026-09-27). Até `PLAYER_SOFT_KNEE` o nível é o da régua; acima
+ * dele cada nível vale `PLAYER_SOFT_SLOPE`, e `PLAYER_SOFT_TOP_COURT` (a melhor line montável) cai exatamente em
+ * `PLAYER_CEILING_COURT` (99,9). Não há piso: quem começa entra no nível que as cartas dão. Bots nunca passam por
+ * aqui. O número que sai daqui é o que a tela mostra e o que joga.
  */
-export const withPlayerBand = (raw: number): number =>
-  Math.min(withPlayerFloor(raw), rawFromCourt(PLAYER_CEILING_COURT));
+export const PLAYER_SOFT_SLOPE = (PLAYER_CEILING_COURT - PLAYER_SOFT_KNEE) / (PLAYER_SOFT_TOP_COURT - PLAYER_SOFT_KNEE);
 
-/** Curva do dia de um time de jogador: o piso vale no dia ruim também. */
-export const courtMatchDayPlayer: MatchDayCurve = (power, multiplier) => Math.max(courtMatchDay(power, multiplier), COURT_PLAYER_FLOOR);
+/** Nível na régua → nível em quadra de um time de jogador. */
+export function playerCourtLevel(court: number): number {
+  if (court <= PLAYER_SOFT_KNEE) return court;
+  return Math.min(PLAYER_CEILING_COURT, PLAYER_SOFT_KNEE + (court - PLAYER_SOFT_KNEE) * PLAYER_SOFT_SLOPE);
+}
+
+/** Poder cru de um time de jogador com o teto macio aplicado: o que entra em quadra (servidor, Boost e montador). */
+export const withPlayerBand = (raw: number): number => rawFromCourt(playerCourtLevel(courtPower(raw)));

@@ -1493,9 +1493,9 @@ export class RoomManager {
     const coach = participant.prepared?.coachId ? collectionCoachById.get(participant.prepared.coachId) : undefined;
     // O coach fica gravado no time para a ficha da partida poder mostrar quem está no banco.
     const withCoach = coach ? { ...applyCoachToTeam(synergized, coach, coachAffinity(coach, selected, collectionTeams)), coachId: coach.id } : synergized;
-    // A player's team plays inside the band (`balance.ts`): never below the floor — starting out is a disadvantage,
-    // not a sentence — and never above the ceiling, so the best buildable lineup ties the best bot dynasty instead
-    // of lapping the ruler. Bots keep their own level.
+    // A player's team goes through the soft ceiling (`courtPower.ts`, 2026-09-27): no floor, and above 97.5 every
+    // level of building is worth a fraction, so the best buildable lineup lands on 99.9 and everything else spreads
+    // below it instead of being cut at 99. Bots keep their own level.
     const base = { ...withCoach, power: withPlayerBand(withCoach.power) };
     return {
       id: participant.id,

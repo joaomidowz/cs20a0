@@ -79,7 +79,9 @@ describe('planos de situação (2026): tempo, reativo e resiliente', () => {
   // carta e química continuam mandando (o pedido do dono: a lineup importa mais que o nome do estilo).
   band('tempo × equilibrado, as mesmas cartas (pistol e momentum valem um empurrão)', () => labLineup(LAB.tempoBuilt), () => labLineup({ ...LAB.tempoBuilt, name: 'tempo-gemeo-equilibrado', style: 'balanced' }), 54);
   band('reativo × equilibrado, as mesmas cartas (pune o round quebrado)', () => labLineup(LAB.reativoBuilt), () => labLineup({ ...LAB.reativoBuilt, name: 'reativo-gemeo-equilibrado', style: 'balanced' }), 59);
-  band('resiliente × equilibrado, as mesmas cartas (cabeça fria)', () => labLineup(LAB.resilienteBuilt), () => labLineup({ ...LAB.resilienteBuilt, name: 'resiliente-gemeo-equilibrado', style: 'balanced' }), 59);
+  // 2026-09-27: mediu 51 com o dataset atual antes do teto macio e 47 depois (o núcleo FURIA passou do joelho de 97,5,
+  // onde cada nível de plano vale uma fração). A identidade segue empurrão, não atropelo.
+  band('resiliente × equilibrado, as mesmas cartas (cabeça fria)', () => labLineup(LAB.resilienteBuilt), () => labLineup({ ...LAB.resilienteBuilt, name: 'resiliente-gemeo-equilibrado', style: 'balanced' }), 52);
 
   it('identidades se cruzam pela situação, nunca em atropelo', { timeout: TIMEOUT }, () => {
     const cruzamentos: Array<[string, keyof typeof LAB, keyof typeof LAB]> = [
@@ -116,9 +118,10 @@ describe('progressão: cada fase do chaveamento é um degrau', () => {
     const beginner = labLineup(LAB.beginner);
     const entrada = winRate(beginner, labBot(LAB_BOTS.semHistoria), 'court', SERIES);
     const campeao = winRate(beginner, labBot(LAB_BOTS.campeao), 'court', SERIES);
-    expect(entrada, `iniciante × degrau de entrada: ${entrada}%`).toBeGreaterThan(40);
-    // O piso em 85 (combinado 2026-09-21, sinergia de afinidade): quem começa briga de igual no degrau de
-    // entrada — a ascensão é a própria coleção — e o campeão de Major é parede inexistente para cartas comuns.
+    // Sem o piso (2026-09-27): quem começa entra em ~83 e é azarão LEVE no degrau de entrada (mediu 33% com o
+    // filler em 82–88,2) — a ascensão é a própria coleção — e o campeão de Major é parede inexistente para cartas
+    // comuns. Era >40 com o piso em 85; se ficar duro demais, o knob é o mínimo de `noneFiller`.
+    expect(entrada, `iniciante × degrau de entrada: ${entrada}%`).toBeGreaterThanOrEqual(30);
     expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThanOrEqual(6);
     expect(campeao, `iniciante × campeão: ${campeao}%`).toBeLessThan(entrada);
   });

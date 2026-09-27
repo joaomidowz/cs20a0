@@ -7,7 +7,7 @@ import type { PreparedLineup } from '../room-manager';
 import { preparedFor as preparedLineup } from './room-routes';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
-const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler', 'awper-igl']);
+const roleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler', 'awper-igl', 'igl-support']);
 const packRoleSchema = z.enum(['igl', 'awper', 'entry', 'lurker', 'support', 'rifler']);
 const buySchema = z.object({ tier: z.enum(['funcao', 'coach', 'time', 'prata', 'ouro', 'era', 'diamante', 'icone']), year: z.number().int().min(2013).max(2030).optional(), role: packRoleSchema.optional(), organization: z.string().min(1).max(80).optional() });
 const freeSchema = z.object({ tier: z.enum(['prata', 'ouro']) });
