@@ -164,8 +164,8 @@ describe('Major awards with Rating 3.0', () => {
     expect(cached).toEqual(fresh);
   });
 
-  it('asks the online server for HLTV 1.0 explicitly', () => {
+  it('o servidor online pede o Rating 3.0 explicitamente (2026-09-27)', () => {
     const server = readFileSync('server/room-manager.ts', 'utf8');
-    expect(server).toMatch(/computeMajorAwards\([^)]*\{ model: 'hltv1' \}\)/);
+    expect(server).toMatch(/computeMajorAwards\([^)]*\{ model: 'v3' \}\)/);
   });
 });

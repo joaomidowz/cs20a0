@@ -184,6 +184,10 @@ describe('authoritative online server', () => {
     expect(completed.selfResult?.stats.map((stat) => stat.playerId).sort()).toEqual(
       completed.self?.lineup.map((pick) => pick.playerId).sort()
     );
+    // Rating 3.0 no online (2026-09-27): swing e KAST vêm prontos do servidor, com a baseline do campo inteiro.
+    expect(completed.selfResult?.stats.every((stat) => typeof stat.swing === 'number' && typeof stat.kast === 'number')).toBe(true);
+    expect(completed.tournament?.awards?.ratingModel).toBe('v3');
+    expect(completed.tournament?.awards?.ratingBaseline).toBeGreaterThan(0);
     const guestResult = manager.getSnapshot(code, guest.participantId, current).selfResult;
     expect(guestResult?.campaign.organizationId).toBe(guest.participantId);
     expect(guestResult?.campaign.organizationId).not.toBe(completed.selfResult?.campaign.organizationId);

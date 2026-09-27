@@ -1198,6 +1198,10 @@
         </div>
         <p class="curated">{t('curated')}</p>
         <div class="hero-actions">
+          {#if isOnlineEnabled() || dev}
+            <!-- Destaque do modo novo: a conta é a porta da coleção (pacotes, time salvo, temporada). -->
+            <a class="account-cta" href="/online/conta"><span class="account-cta-tag">{t('accountCtaTag')}</span><span class="account-cta-text"><strong>{t('accountCta')}</strong><small>{t('accountCtaHint')}</small></span><span class="account-cta-arrow" aria-hidden="true">→</span></a>
+          {/if}
           <button class="primary" type="button" on:click={beginGame}>{t('play')} <span>→</span></button>
           {#if isOnlineEnabled() || dev}<a class="secondary online-home-button" href="/online">{t('playOnline')} <span>↗</span></a>{/if}
         </div>

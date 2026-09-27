@@ -3,6 +3,9 @@ import type { Language } from './types';
 const pt = {
   play: 'Jogar',
   playOnline: 'Jogar online',
+  accountCta: 'Entrar ou criar conta',
+  accountCtaTag: 'NOVO',
+  accountCtaHint: 'Modo coleção: pacotes, time salvo, temporada e upgrader',
   headline: 'Monte uma line impossível e sobreviva ao Major.',
   subheadline: 'Sorteie times lendários, escolha apenas um jogador por elenco e tente vencer dinastias como SK 2016, Astralis 2018, NaVi 2021, Vitality 2025 e outras.',
   curated: 'Base curada com 311 elencos time-ano, 1.555 versões de jogadores e 14 anos de Majors entre 2013 e 2026. Desafio atual: uma escolha por time sorteado, cinco picks, Stage 3, playoffs e final MD5.',
@@ -583,6 +586,9 @@ Object.assign(dictionaries.es, {
 Object.assign(dictionaries.en, {
   campaignRestoreFailed: 'This campaign could not be restored. Your saved progress was kept.',
   playOnline: 'Play online',
+  accountCta: 'Sign in or create account',
+  accountCtaTag: 'NEW',
+  accountCtaHint: 'Collection mode: packs, saved team, season and upgrader',
   quarterfinal: 'Quarterfinals',
   semifinal: 'Semifinal',
   playSameSeed: 'Play the same seed',
@@ -814,6 +820,9 @@ Object.assign(dictionaries.en, {
 
 Object.assign(dictionaries.es, {
   playOnline: 'Jugar online',
+  accountCta: 'Entrar o crear cuenta',
+  accountCtaTag: 'NUEVO',
+  accountCtaHint: 'Modo colección: sobres, equipo guardado, temporada y upgrader',
   about: 'Sobre',
   privacy: 'Privacidad',
   terms: 'Términos',
