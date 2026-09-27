@@ -587,12 +587,13 @@ h2 { line-height: 1; text-transform: uppercase; }
 .org-modal-coach .coach-line {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
 .org-modal-coach .coach-line strong { font-size: 1.05rem; }
+.org-modal-coach .coach-line .player-avatar { width: 44px; height: 44px; }
 .org-modal-coach .coach-line em { color: var(--muted); font-style: normal; font-size: .76rem; }
 
 .org-modal-stats > .eyebrow {
