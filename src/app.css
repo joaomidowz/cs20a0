@@ -103,7 +103,8 @@ h2 { line-height: 1; text-transform: uppercase; }
 .live-tag { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 25px; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .17em; }
 .live-tag span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 13px var(--accent-2); animation: pulse 1.6s infinite; }
 .hero h1 { max-width: 850px; margin-bottom: 25px; }
-.hero h1::first-line { color: var(--text); }
+.hero-headline span { display: block; }
+.hero-headline .hero-headline-accent { color: var(--accent); }
 .hero-lead { max-width: 730px; color: var(--muted); font-size: clamp(1rem, 2.5vw, 1.25rem); line-height: 1.65; }
 .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 25px 0; }
 .badges span, .badges a, .trait-list span { padding: 8px 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-decoration:none; }
@@ -129,7 +130,7 @@ h2 { line-height: 1; text-transform: uppercase; }
 .radar::before, .radar::after { content: ''; position: absolute; background: var(--line); }
 .radar::before { width: 1px; height: 100%; left: 50%; }.radar::after { height: 1px; width: 100%; top: 50%; }
 .radar i { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 15px var(--accent); }.radar i:nth-child(1){left:28%;top:37%}.radar i:nth-child(2){left:58%;top:25%}.radar i:nth-child(3){left:68%;top:65%}.radar i:nth-child(4){left:36%;top:70%}
-.radar span { position: absolute; inset: 50% 0 0 50%; transform-origin: top left; background: conic-gradient(from 0deg, color-mix(in srgb, var(--accent) 24%, transparent), transparent 45deg); animation: scan 5s linear infinite; }
+.radar span { position: absolute; inset: 0; border-radius: 50%; transform-origin: 50% 50%; background: conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--accent) 24%, transparent) 0deg, transparent 45deg 360deg); animation: scan 5s linear infinite; }
 .floating-score { position: absolute; right: 9vw; bottom: 5vh; display: grid; padding: 18px 25px; border-left: 3px solid var(--accent); background: var(--surface); box-shadow: var(--shadow); }.floating-score small,.floating-score span{color:var(--muted);font-size:.6rem;letter-spacing:.14em}.floating-score b{font-size:3.4rem;line-height:1}
 .crosshair { position:absolute;left:15%;top:55%;width:54px;height:54px;border:1px solid var(--accent);border-radius:50% }.crosshair::before,.crosshair::after{content:'';position:absolute;background:var(--accent)}.crosshair::before{left:50%;top:-15px;width:1px;height:82px}.crosshair::after{top:50%;left:-15px;height:1px;width:82px}
 .feature-strip { display: grid; margin-bottom: 60px; border: 1px solid var(--line); background: var(--surface); }.feature-strip article{display:flex;gap:15px;padding:20px;border-bottom:1px solid var(--line)}.feature-strip article:last-child{border:0}.feature-strip article>span{color:var(--accent);font-family:'Arial Narrow',Impact,sans-serif;font-size:1.5rem;font-weight:800}.feature-strip strong,.feature-strip small{display:block}.feature-strip small{margin-top:4px;color:var(--muted)}

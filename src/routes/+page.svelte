@@ -59,7 +59,7 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import Footer from '$lib/components/Footer.svelte';
   import SupportNudge from '$lib/components/SupportNudge.svelte';
-  import { HOME_SEO_COPY, HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
+  import { HOME_STRUCTURED_DATA, SEO_BY_ROUTE } from '$lib/seo';
   import { catalogStoreOf, CURRENT_CATALOG_VERSION, playerTitle } from '$lib/game/catalog';
   import { setCatalogContext } from '$lib/game/catalogContext';
   import { translate, translatePlacement, translateTitle, translateTeamName, type TranslationKey } from '$lib/game/i18n';
@@ -295,6 +295,7 @@
   });
 
   $: t = (key: TranslationKey) => translate($game.language, key);
+  $: homeStructuredData = { ...HOME_STRUCTURED_DATA, description: t('homeSeoCopy') };
   $: isProMode = $game.mode === 'pro';
   $: isDynasty = $game.mode === 'dynasty';
   /** Dinastia custom org name; undefined everywhere else so other modes keep the translated default. */
@@ -1166,7 +1167,7 @@
 
 <SeoHead metadata={SEO_BY_ROUTE['/']} />
 <svelte:head>
-  <script type="application/ld+json">{JSON.stringify(HOME_STRUCTURED_DATA)}</script>
+  <script type="application/ld+json">{JSON.stringify(homeStructuredData)}</script>
 </svelte:head>
 
 <Navbar
@@ -1188,7 +1189,11 @@
     <section class="hero shell">
       <div class="hero-copy">
         <div class="live-tag"><span></span> MAJOR DRAFT SIMULATOR</div>
-        <h1>{t('headline')}</h1>
+        <h1 class="hero-headline">
+          <span>{t('heroHeadlineLine1')}</span>
+          <span>{t('heroHeadlineLine2')}</span>
+          <span class="hero-headline-accent">{t('heroHeadlineAccent')}</span>
+        </h1>
         <p class="hero-lead">{t('subheadline')}</p>
         <div class="badges">
           <a href="/teams" aria-label="Open all teams">{t('badge55Teams')}</a>
@@ -1214,9 +1219,9 @@
       <article><span>03</span><div><strong>{t('featureRulesTitle')}</strong><small>{t('featureRulesDesc')}</small></div></article>
     </section>
     <section class="seo-intro shell" aria-labelledby="seo-intro-title">
-      <span class="eyebrow">COUNTER-STRIKE ATRAVÉS DAS ERAS</span>
-      <h2 id="seo-intro-title">Seu campeonato, sua line, sua história</h2>
-      <p>{HOME_SEO_COPY}</p>
+      <span class="eyebrow">{t('homeSeoEyebrow')}</span>
+      <h2 id="seo-intro-title">{t('homeSeoTitle')}</h2>
+      <p>{t('homeSeoCopy')}</p>
     </section>
   {:else if $game.phase === 'mode-select'}
     <section class="screen shell narrow">

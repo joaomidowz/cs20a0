@@ -21,7 +21,10 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <strong>cs13a0</strong>
+      <picture class="footer-brand-picture">
+        <source media="(max-width: 679px)" srcset="/brand/cs13a0-mark.png" />
+        <img src="/brand/cs13a0-wordmark.png" alt="cs13a0" />
+      </picture>
       <p>{labels.description}</p>
     </div>
 
@@ -51,7 +54,7 @@
 <style>
   .site-footer{margin-top:48px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface) 82%,transparent)}
   .footer-inner{display:grid;gap:22px;width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0}
-  .footer-brand strong{color:var(--accent);font:900 1.8rem 'Barlow Condensed',sans-serif;text-transform:uppercase}
+  .footer-brand-picture{display:block;width:190px;line-height:0}.footer-brand-picture img{display:block;width:100%;height:auto}
   .footer-brand p,.footer-disclaimer{margin:7px 0 0;color:var(--muted);font-size:.72rem;line-height:1.65}
   .footer-nav{display:flex;flex-wrap:wrap;gap:16px}
   .footer-nav a{color:var(--text);font-size:.7rem;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:.06em}
@@ -70,4 +73,5 @@
     .footer-actions{align-items:flex-end}
     .footer-disclaimer{grid-column:1/-1;margin:0}
   }
+  @media (max-width:679px){.footer-brand-picture{width:42px}}
 </style>
