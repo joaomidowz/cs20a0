@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { accountUser } from '$lib/game/online/account';
   import { getOnlineServerUrl } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
@@ -83,7 +84,7 @@
 {#if $accountUser}
   <div class="wallet-bar" role="region" aria-label={u('walletLabel')}>
     <div class="stat coins"><span class="label">{t('wallet')}</span><strong aria-hidden="true">{$walletSummary && hasWalletBalance ? fmt(coinsShown) : '…'}</strong><span class="sr-only" aria-live="polite">{$walletSummary && hasWalletBalance ? `${fmt($walletSummary.coins)} ${t('coins')}` : ''}</span><small>coins</small>
-      {#if coinDelta}{#key coinDelta.key}<span class="coin-delta" class:gain={coinDelta.amount > 0} class:spend={coinDelta.amount < 0} aria-hidden="true">{coinDelta.amount > 0 ? '+' : '−'}{fmt(Math.abs(coinDelta.amount))}</span>{/key}{/if}
+      {#if coinDelta}{#key coinDelta.key}<span class="coin-delta" class:gain={coinDelta.amount > 0} class:spend={coinDelta.amount < 0} aria-hidden="true" out:fade={{ duration: 160 }}>{coinDelta.amount > 0 ? '+' : '−'}{fmt(Math.abs(coinDelta.amount))}</span>{/key}{/if}
     </div>
     <div class="stat"><span class="label">{t('packsToday')}</span><strong>{$walletSummary ? `${$walletSummary.packsLeft}/${$walletSummary.packsGranted}` : '…'}</strong><small class="short">{u('packsShort')}</small></div>
     <div class="stat"><span class="label">{t('myCards')}</span><strong>{$walletSummary ? fmt($walletSummary.cards) : '…'}</strong><small class="short">{u('cardsShort')}</small></div>

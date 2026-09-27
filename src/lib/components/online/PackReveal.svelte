@@ -27,6 +27,8 @@
   export let coachTeam: (coach: Coach) => string;
   export let onOpen: (player: Player) => void = () => {};
   export let onDone: () => void = () => {};
+  /** A caixa clicada na loja já tremeu e abriu (PackCase `opening`): pula o estágio da caixa e vai direto às cartas. */
+  export let caseAlreadyOpened = false;
 
   const idOf = (card: RevealCard) => (card.kind === 'player' ? card.player.id : card.coach.id);
   const rarityOfCard = (card: RevealCard): Rarity => rarityOf(card.kind === 'player' ? card.player : card.coach);
@@ -38,7 +40,7 @@
     : { id: card.coach.id, avatar: 'C', title: card.coach.name, subtitle: `COACH · ${card.coach.year} · ${rarityOf(card.coach)}` };
   const SPARKS = Array.from({ length: 8 }, (_, index) => index);
 
-  let stage: 'case' | 'cards' = 'case';
+  let stage: 'case' | 'cards' = caseAlreadyOpened ? 'cards' : 'case';
   /** Index of the card whose roulette is spinning now (-1: none). */
   let rolling = -1;
   let flipped = 0;
@@ -74,7 +76,8 @@
     const open = () => {
       charging = -1;
       flipped = index + 1;
-      tone(rarity);
+      // Lenda/GOAT: o cue cai ~300 ms depois, perto do overshoot do flip; a carga (`charge`) já preparou o ouvido.
+      if (big) later(() => tone(rarity), 300); else tone(rarity);
       if (big && !reduced) {
         flash = rarity;
         later(() => { flash = null; }, rarity === 'goat' ? 1500 : 1000);
@@ -83,7 +86,7 @@
       later(rollNext, big ? 2000 : rarity === 'superstar' ? 1200 : 700);
     };
     // A legend or a GOAT holds its breath first: the closed card trembles and glows before it opens.
-    if (big) { charging = index; later(open, rarity === 'goat' ? 1500 : 1000); } else open();
+    if (big) { charging = index; if (sound) playGameSound('charge'); later(open, rarity === 'goat' ? 1500 : 1000); } else open();
   }
 
   function finish() {
@@ -100,14 +103,17 @@
     finish();
   }
 
-  onMount(() => { later(() => { stage = 'cards'; later(rollNext, 300); }, 1500); });
+  onMount(() => {
+    if (caseAlreadyOpened) later(rollNext, 500);
+    else later(() => { stage = 'cards'; later(rollNext, 300); }, 1500);
+  });
   onDestroy(() => { for (const timer of timers) window.clearTimeout(timer); });
 </script>
 
 <div class="reveal-stage" class:shaking class:dark={flash === 'goat'}>
   {#if flash}<span class="flash {flash}" aria-hidden="true"></span>{/if}
   {#if stage === 'case'}
-    <div class="case-stage"><PackCase {tier} size="lg" label={caseLabel} opening /></div>
+    <div class="case-stage"><PackCase {tier} size="lg" label={caseLabel} opening {sound} /></div>
   {:else}
     {#if rolling >= 0}
       {#key rolling}
@@ -153,7 +159,7 @@
   .rv-roll { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; justify-self: stretch; }
   .rv-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), minmax(0, 270px)); gap: 24px; justify-content: center; width: 100%; padding: 16px 0 6px; }
   /* Closed and open cards share one box, so nothing jumps when a card opens. */
-  .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); --fx: var(--common); }
+  .rv-card { position: relative; display: grid; min-width: 0; height: var(--card-h); perspective: 1200px; --fx: var(--common); }
   /* Every card in the row gets the same height (coach cards are shorter than players); only the best one is bigger. */
   .rv-cards { --card-h: auto; align-items: stretch; }
   @media (min-width: 721px) { .rv-card.best { scale: 1.07; transform-origin: center top; z-index: 1; margin-bottom: 22px; } }
@@ -184,7 +190,8 @@
   .flash.goat { background: linear-gradient(90deg, transparent 38%, #ffd6f4 48%, #fff 50%, #ffe7a8 52%, transparent 62%), radial-gradient(circle at center, color-mix(in srgb, var(--goat) 75%, transparent) 0%, transparent 70%); animation-duration: 1.5s; }
   .skip { min-height: 36px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
   .skip:hover { color: var(--text); border-color: var(--accent); }
-  @keyframes open { 0% { transform: scaleX(0) scale(.92); opacity: .4; } 55% { transform: scaleX(1.04) scale(1.04); opacity: 1; } 100% { transform: none; } }
+  /* A carta vira de lado (rotateY) em vez de esticar; o overshoot da curva é intencional. */
+  @keyframes open { 0% { transform: rotateY(90deg) scale(.92); opacity: .4; } 55% { transform: rotateY(-6deg) scale(1.04); opacity: 1; } 100% { transform: none; } }
   @keyframes tremble { 0% { transform: translate(-1.5px, 1px) rotate(-.6deg); } 50% { transform: translate(1.5px, -1px) rotate(.6deg); } 100% { transform: translate(-1px, -1px) rotate(-.3deg); } }
   @keyframes ring { from { transform: scale(.4); opacity: .95; } to { transform: scale(2.1); opacity: 0; } }
   @keyframes spin { to { rotate: 360deg; } }

@@ -226,7 +226,7 @@
       {@const result = decided.result}
       {@const isLive = index === displayActiveMap && displayStarted && !displayFinished}
       {@const done = displayFinished || index < displayActiveMap || (index === displayActiveMap && currentMapFinished)}
-      <article class:live={isLive} class:done class:not-played={displayFinished && !result} class:user-pick={decided.teamId === userTeamId}>
+      <article style="--i:{index}" class:live={isLive} class:done class:not-played={displayFinished && !result} class:user-pick={decided.teamId === userTeamId}>
         <div>
           <small>{decided.action === 'decider' ? 'DECIDER' : `PICK · ${teamNameById[decided.teamId ?? ''] ?? ''}`}</small>
           <strong>{getMapName(decided.mapId)}</strong>
@@ -264,23 +264,29 @@
   .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
-  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease;animation:scorePulse .45s ease-out}
-  @keyframes scorePulse{0%{transform:scale(1.25);color:var(--accent-2)}}
+  .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease;animation:scorePulse var(--dur-ui) var(--ease-out-strong)}
+  @keyframes scorePulse{0%{transform:scale(1.08);color:var(--accent-2)}}
   .live-map small.round-status{min-height:1.2em}.live-map small.in-progress{color:var(--text)}.live-map small.in-progress::after{content:'';display:inline-block;width:6px;height:6px;margin-left:7px;border-radius:50%;background:#ff3b3b;vertical-align:middle;animation:livePulse 1.1s ease-in-out infinite}
   @media (prefers-reduced-motion:reduce){.live-map-score b,.live-map small.in-progress::after{animation:none}}.live-map-score b.leading{color:var(--text)}.live-map-score i{color:var(--line);font:900 2rem/1 'Arial Narrow',Impact,sans-serif;font-style:normal}
   .live-map small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-  .map-headline{justify-self:center;padding:6px 14px;border:1px solid var(--text);color:var(--text);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;animation:headlineIn .4s ease-out}.map-headline.comeback{border-color:var(--accent-2);color:var(--accent-2);box-shadow:0 0 18px color-mix(in srgb,var(--accent-2) 40%,transparent)}.map-headline.mine{border-color:var(--accent);color:var(--accent)}
+  .map-headline{justify-self:center;padding:6px 14px;border:1px solid var(--text);color:var(--text);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;animation:headlineIn .24s var(--ease-out-strong)}.map-headline.comeback{border-color:var(--accent-2);color:var(--accent-2);box-shadow:0 0 18px color-mix(in srgb,var(--accent-2) 40%,transparent)}.map-headline.mine{border-color:var(--accent);color:var(--accent)}
   .decided-map-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:18px 0}
-  .decided-map-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease}
+  .decided-map-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease;animation:mapReveal .3s var(--ease-out-strong) both;animation-delay:calc(var(--i,0) * 40ms)}
+  @keyframes mapReveal{from{clip-path:inset(0 0 100% 0);opacity:0}}
   .decided-map-list article.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.decided-map-list article.not-played{opacity:.5}.decided-map-list article.user-pick small{color:var(--accent)}
   .decided-map-list small,.decided-map-list strong,.decided-map-list span{display:block}.decided-map-list small{min-height:1.2em;color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .decided-map-list strong{margin-top:5px;font-size:1.15rem;text-transform:uppercase}.decided-map-list span{margin-top:7px;color:var(--muted);font-size:.52rem;font-weight:800;letter-spacing:.06em}
-  .decided-map-list b{font:900 1.75rem 'Arial Narrow',Impact,sans-serif;white-space:nowrap}.decided-map-list b.muted{color:var(--line)}.decided-map-list b.won{color:var(--accent)}.decided-map-list b.lostmap{color:var(--danger)}
+  .decided-map-list b{font:900 1.75rem 'Arial Narrow',Impact,sans-serif;white-space:nowrap;transition:color .3s ease}.decided-map-list b.muted{color:var(--line)}.decided-map-list b.won{color:var(--accent)}.decided-map-list b.lostmap{color:var(--danger)}
+  /* Mapa decidido: um único pulso quando o placar vira definitivo. */
+  .decided-map-list b.won,.decided-map-list b.lostmap{animation:scorePulse var(--dur-ui) var(--ease-out-strong)}
   .decided-map-list .map-extra{margin-top:6px;white-space:normal}
   .wide{width:100%}
-  .ot-alert{justify-self:center;padding:5px 12px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .7rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.18em;text-transform:uppercase;animation:otBlink .7s steps(2,start) infinite}
-  @keyframes otBlink{to{visibility:hidden;box-shadow:0 0 16px var(--accent-2)}}
-  @keyframes headlineIn{from{transform:scale(.9);opacity:0}}
+  .ot-alert{justify-self:center;padding:5px 12px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .7rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.18em;text-transform:uppercase;animation:otPulse 1.1s var(--ease-in-out-strong) 3}
+  /* Três pulsos de opacidade e depois fica aceso (fim do keyframe = opacidade 1). */
+  @keyframes otPulse{50%{opacity:.35}}
+  @keyframes softFade{from{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.ot-alert,.decided-map-list b{animation:none}.map-headline,.decided-map-list article{animation-name:softFade}}
+  @keyframes headlineIn{from{transform:scale(.94);opacity:0}}
   @media(max-width:620px){.series-header{align-items:flex-start;flex-direction:column}.sandbox-live{justify-items:start}.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}}
   @media(max-width:400px){.decided-map-list{grid-template-columns:1fr}}
 </style>

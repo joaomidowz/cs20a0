@@ -30,15 +30,19 @@
 <style>
   /* Fixed footprint: the strip keeps its height whether or not a round has something to flash. */
   .round-flash{display:flex;align-items:center;justify-content:center;min-height:44px;overflow:hidden}
-  .flash{display:inline-flex;align-items:center;gap:10px;max-width:100%;padding:7px 16px;border:1px solid var(--accent-2);background:color-mix(in srgb,var(--accent-2) 12%,var(--surface-2));color:var(--accent-2);font:900 .82rem/1 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;animation:flashIn .3s ease-out,flashBlink .45s steps(2,start) 4 .3s,flashOut .5s ease-in 3.2s forwards}
+  .flash{display:inline-flex;align-items:center;gap:10px;max-width:100%;padding:7px 16px;border:1px solid var(--accent-2);background:color-mix(in srgb,var(--accent-2) 12%,var(--surface-2));color:var(--accent-2);font:900 .82rem/1 'Arial Narrow',Impact,sans-serif;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;animation:flashIn var(--dur-ui) var(--ease-out-strong) both,flashOut .4s var(--ease-out-soft) 1.8s forwards}
+  /* Momentos grandes (ace/clutch) ficam um pouco mais: entrada 260 ms e permanência ~2,2 s. */
+  .flash.big{animation:flashIn .26s var(--ease-out-strong) both,flashOut .4s var(--ease-out-soft) 2.46s forwards}
   .flash b{font-weight:900}.flash span{overflow:hidden;color:var(--text);font-size:.7rem;letter-spacing:.1em;text-overflow:ellipsis}
   .flash.big{padding:8px 20px;font-size:1rem;background:var(--accent-2);color:var(--bg);box-shadow:0 0 22px color-mix(in srgb,var(--accent-2) 55%,transparent)}.flash.big span{color:var(--bg)}
   .flash.comeback,.flash.streak-break{border-color:var(--text);background:color-mix(in srgb,var(--text) 8%,var(--surface-2));color:var(--text)}
   .flash.mine{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface-2));color:var(--accent)}
   .flash.mine.big{background:var(--accent);color:var(--bg);box-shadow:0 0 22px color-mix(in srgb,var(--accent) 55%,transparent)}
-  @keyframes flashIn{from{transform:scale(.7);opacity:0}}
-  @keyframes flashBlink{to{visibility:hidden}}
-  @keyframes flashOut{to{opacity:0}}
-  @media (prefers-reduced-motion:reduce){.flash{animation:none}}
+  @keyframes flashIn{from{transform:translateY(20%) scale(.96);opacity:0}}
+  @keyframes flashOut{to{transform:translateY(-15%);opacity:0}}
+  /* Movimento reduzido: só opacidade, mesma permanência. */
+  @keyframes flashFadeIn{from{opacity:0}}
+  @keyframes flashFadeOut{to{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.flash,.flash.big{animation:flashFadeIn var(--dur-ui) linear both,flashFadeOut .4s linear 1.8s forwards}}
   @media(max-width:620px){.flash{padding:6px 12px;font-size:.74rem}.flash.big{font-size:.88rem}}
 </style>

@@ -3,6 +3,9 @@ import { get, writable } from 'svelte/store';
 export type GameSoundCue =
   | 'tick' | 'land' | 'pick' | 'lineup' | 'ace' | 'clutch' | 'comeback'
   | 'uiClick' | 'success' | 'error' | 'coinGain' | 'coinSpend'
+  // 2026-09-27: payoffs e avisos. Vitória/derrota de aposta (derrota ≠ erro), tensão de carga, aviso de decisão,
+  // partida encontrada, começo de partida, mapa e série decididos, campeão e eliminado.
+  | 'betWin' | 'betLoss' | 'charge' | 'attention' | 'matchFound' | 'roomStart' | 'mapWon' | 'mapLost' | 'seriesWon' | 'seriesLost' | 'champion' | 'eliminated' | 'rumble'
   | 'cardCommon' | 'cardRare' | 'cardSuperstar' | 'cardLegend' | 'cardGoat';
 /** @deprecated Use `GameSoundCue`; retained for existing integrations. */
 export type OfflineCue = GameSoundCue;
@@ -70,7 +73,20 @@ const cues: Record<GameSoundCue, { notes: number[]; duration: number; peak: numb
   cardRare: { notes: [440, 587], duration: 0.18, peak: 0.22, type: 'sine', gap: 0.055 },
   cardSuperstar: { notes: [523, 659, 784], duration: 0.2, peak: 0.25, type: 'triangle', gap: 0.05 },
   cardLegend: { notes: [523, 659, 784, 1047], duration: 0.3, peak: 0.28, type: 'triangle', gap: 0.065 },
-  cardGoat: { notes: [392, 523, 659, 784, 1047], duration: 0.34, peak: 0.3, type: 'triangle', gap: 0.07 }
+  cardGoat: { notes: [392, 523, 659, 784, 1047], duration: 0.34, peak: 0.3, type: 'triangle', gap: 0.07 },
+  betWin: { notes: [523, 659, 784, 1047, 1319], duration: 0.3, peak: 0.28, type: 'triangle', gap: 0.06 },
+  betLoss: { notes: [196, 165, 131], duration: 0.34, peak: 0.24, type: 'sine', gap: 0.11 },
+  charge: { notes: [220, 262, 330, 392, 494, 587, 698], duration: 0.16, peak: 0.14, type: 'sine', gap: 0.13 },
+  attention: { notes: [660, 880], duration: 0.16, peak: 0.22, type: 'sine', gap: 0.09 },
+  matchFound: { notes: [660, 880, 1320], duration: 0.2, peak: 0.26, type: 'triangle', gap: 0.1 },
+  roomStart: { notes: [392, 523, 659], duration: 0.2, peak: 0.24, type: 'triangle', gap: 0.05 },
+  mapWon: { notes: [523, 659, 784], duration: 0.22, peak: 0.26, type: 'sine', gap: 0.05 },
+  mapLost: { notes: [330, 262], duration: 0.22, peak: 0.2, type: 'sine', gap: 0.08 },
+  seriesWon: { notes: [392, 494, 587, 784, 988], duration: 0.28, peak: 0.3, type: 'triangle', gap: 0.06 },
+  seriesLost: { notes: [294, 247, 196], duration: 0.3, peak: 0.22, type: 'sine', gap: 0.1 },
+  champion: { notes: [392, 523, 659, 784, 1047, 1319, 1568], duration: 0.4, peak: 0.3, type: 'triangle', gap: 0.09 },
+  eliminated: { notes: [262, 233, 196, 147], duration: 0.36, peak: 0.2, type: 'sine', gap: 0.12 },
+  rumble: { notes: [70, 62, 78, 58], duration: 0.14, peak: 0.3, type: 'triangle', gap: 0.12 }
 };
 
 /** Short synthesized game/UI cues, with capped polyphony and no downloaded audio. */

@@ -17,10 +17,11 @@
 </button>
 
 <style>
-  .timeout-button{display:inline-grid;gap:2px;min-height:48px;padding:8px 14px;text-align:left}.timeout-button span{font-size:.75rem}.timeout-button small{color:var(--muted);font-size:.55rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .timeout-button{position:relative;display:inline-grid;gap:2px;min-height:48px;padding:8px 14px;text-align:left}.timeout-button span{font-size:.75rem}.timeout-button small{color:var(--muted);font-size:.55rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
   .timeout-button:disabled{opacity:.45}
-  /* The ideal window only tints the border, softly: same text and size, nothing that reads as a prediction of the next round. */
-  .timeout-button.ideal{animation:idealPulse 1.6s ease-in-out infinite}
-  @keyframes idealPulse{50%{border-color:color-mix(in srgb,var(--accent-2) 70%,var(--line))}}
-  @media (prefers-reduced-motion:reduce){.timeout-button.ideal{animation:none}}
+  /* The ideal window only tints the border, softly: same text and size, nothing that reads as a prediction of the next round.
+     A borda pulsa num pseudo-elemento por opacity (composição barata), não animando a cor do botão em si. */
+  .timeout-button.ideal::after{content:'';position:absolute;inset:-1px;border:1px solid color-mix(in srgb,var(--accent-2) 70%,var(--line));border-radius:inherit;opacity:0;pointer-events:none;animation:idealPulse 1.6s var(--ease-in-out-strong) infinite}
+  @keyframes idealPulse{50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.timeout-button.ideal::after{animation:none;opacity:.7}}
 </style>

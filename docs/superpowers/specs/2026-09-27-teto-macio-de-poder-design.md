@@ -22,7 +22,7 @@ Dois defeitos: o corte seco apaga de 3 a 7 níveis de montagem, e acima do joelh
 ### Teto macio no lugar do corte
 
 - `withPlayerBand` deixa de cortar em 99. Até `PLAYER_SOFT_KNEE` (97,5) o nível é o da régua; acima, cada nível vale `(99,9 − 97,5) / (PLAYER_SOFT_TOP_COURT − 97,5)`; o teto é `PLAYER_CEILING_COURT` (99,9).
-- `PLAYER_SOFT_TOP_COURT` (115,7) é o nível na régua da melhor line montável, medido com a Vitality 2025 completa e as quatro cartas ajustadas pelo dono (abaixo). É constante de escala, pregada de propósito; `tests/powerCeiling.test.ts` re-mede.
+- `PLAYER_SOFT_TOP_COURT` (115,9) é o nível na régua da melhor line montável, medido com a Vitality 2025 completa e as quatro cartas ajustadas pelo dono (abaixo). É constante de escala, pregada de propósito; `tests/powerCeiling.test.ts` re-mede.
 - Sem piso: o piso de 85 (`PLAYER_GAP_FROM_TOP`) sai. Iniciante entra em ~83, cinco elites em ~84. O degrau de entrada dos bots (`noneFiller`) desce de 84 para 82 para quem começa continuar brigando nele (mediu 33% contra o bot sem história; era >40 com o piso).
 - A tela do montador e o número que joga são o mesmo, com uma casa decimal (`courtRating`, já existente).
 
@@ -54,7 +54,7 @@ O dono recusou tiers de dinastia à mão. A ordem pedida (Vitality 2025 > Astral
 | dupreeh 2019 | 91 | 96 |
 | device 2019 | 97 | 98 |
 
-Enquanto os ajustes não entram, a Astralis 2018 lidera (115,3 na régua, 99,8 em quadra). `tests/powerCeiling.test.ts` aceita as duas fases.
+Com os ajustes feitos no Studio em 2026-09-27 a ordem medida é Vitality 2025 (115,9), Astralis 2019 (115,6), Astralis 2018 (115,3), SK 2016 (114,1). `tests/powerCeiling.test.ts` aceita as duas fases.
 
 ## Resultado esperado em quadra (medido, regras novas)
 

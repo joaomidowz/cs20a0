@@ -164,6 +164,15 @@
     celebrateLineup = false;
     recentPickId = null;
   }
+  // Hino do resultado: toca uma vez ao ENTRAR em `result` nesta sessão (um reload já em `result` fica mudo).
+  let lastSeenPhase: string | undefined;
+  $: announceResult($game.phase, Boolean($game.majorRun?.champion));
+  function announceResult(phase: string, champion: boolean) {
+    const previous = lastSeenPhase;
+    lastSeenPhase = phase;
+    if (phase !== 'result' || previous === undefined || previous === 'result') return;
+    playGameSound(champion ? 'champion' : 'eliminated');
+  }
 
   function pickFeedback(player: Player, slot: number) {
     unlockOfflineAudio();
@@ -1887,6 +1896,15 @@
 
 <style>
   .offline-settings { display: flex; justify-content: flex-end; padding-top: 12px; }
+  /* Tela de resultado (a mais rara do offline): título revelado por clip-path, brilho único no título de campeão e cards em cascata de 60 ms. */
+  .result-screen .result-hero{position:relative;overflow:hidden}.result-screen .result-hero>*{position:relative;z-index:1}
+  .result-screen .result-hero h1{animation:heroTitleIn 600ms var(--ease-out-strong) both}
+  .result-screen .result-hero.success::after{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 50% 100%,color-mix(in srgb,var(--accent) 55%,transparent),transparent 65%);opacity:0;animation:heroGlow 600ms var(--ease-out-soft) both;pointer-events:none}
+  .result-screen>.campaign-grid article{animation:offline-lineup-in var(--dur-reveal) var(--ease-out-strong) backwards;animation-delay:var(--lineup-delay,0ms)}
+  .result-screen>.campaign-grid article:nth-child(2){--lineup-delay:60ms}.result-screen>.campaign-grid article:nth-child(3){--lineup-delay:120ms}.result-screen>.campaign-grid article:nth-child(4){--lineup-delay:180ms}.result-screen>.campaign-grid article:nth-child(5){--lineup-delay:240ms}.result-screen>.campaign-grid article:nth-child(n+6){--lineup-delay:300ms}
+  @keyframes heroTitleIn{from{clip-path:inset(0 100% 0 0);opacity:.4}to{clip-path:inset(0 -2% 0 0);opacity:1}}
+  @keyframes heroGlow{0%{opacity:0}35%{opacity:1}100%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.result-screen .result-hero h1,.result-screen .result-hero.success::after,.result-screen>.campaign-grid article{animation:none}}
   .live-actions{position:sticky;top:8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}
   .live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
   @media (max-width:560px){.live-actions{flex-wrap:wrap}.live-actions small{order:3;flex-basis:100%}}

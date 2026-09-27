@@ -52,9 +52,9 @@
 </article>
 
 <style>
-  .card { --rarity: var(--line); position: relative; display: grid; min-width: 0; border: 1px solid var(--rarity); background: linear-gradient(165deg, color-mix(in srgb, var(--rarity) 14%, var(--surface-2)), var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rarity) 30%, transparent); transition: transform .18s ease, box-shadow .25s ease, border-color .18s ease; }
+  .card { --rarity: var(--line); position: relative; display: grid; min-width: 0; border: 1px solid var(--rarity); background: linear-gradient(165deg, color-mix(in srgb, var(--rarity) 14%, var(--surface-2)), var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rarity) 30%, transparent); transition: transform .18s var(--ease-out-strong), box-shadow .25s ease, border-color .18s ease; }
   .rarity-rare { --rarity: #4f8cff; } .rarity-elite { --rarity: #a66bff; } .rarity-superstar { --rarity: #ff7a45; } .rarity-legend { --rarity: #f2c14e; } .rarity-goat { --rarity: #ff4d6d; }
-  .card:hover { transform: translateY(-2px); }
+  @media (hover: hover) and (pointer: fine) { .card:hover { transform: translateY(-2px); } }
   .face { display: grid; gap: 6px; padding: 12px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
   .face:disabled { cursor: default; }
   .top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
@@ -97,10 +97,14 @@
   .compact .name { font-size: clamp(.95rem, .8rem + .6vw, 1.1rem); }
   footer { min-width: 0; } footer :global(button) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .in-lineup { border-color: var(--accent); }
-  .up { box-shadow: 0 0 0 1px var(--accent), 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent); animation: glow 2.4s ease-in-out infinite; }
+  /* O anel fica na carta; o brilho difuso vive num pseudo-elemento fixo e só a opacidade dele pulsa (barato na grade grande). */
+  .up { box-shadow: 0 0 0 1px var(--accent); }
   .down { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger), 0 0 18px color-mix(in srgb, var(--danger) 22%, transparent); }
-  .star { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441, 0 0 30px color-mix(in srgb, #d9a441 35%, transparent); animation: star 2.2s ease-in-out infinite; }
-  @keyframes glow { 50% { box-shadow: 0 0 0 1px var(--accent), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent); } }
-  @keyframes star { 50% { box-shadow: 0 0 0 1px #f2c14e, 0 0 44px color-mix(in srgb, #d9a441 55%, transparent); } }
-  @media (prefers-reduced-motion: reduce) { .card, .up, .star { animation: none; transition: none; } .card:hover { transform: none; } }
+  .star { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441; }
+  .up::after, .star::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .6; animation: glow-pulse 2.4s ease-in-out infinite; }
+  .up::after { box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .star::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent); animation-duration: 2.2s; }
+  .star.up::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent); }
+  @keyframes glow-pulse { 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .card, .up::after, .star::after { animation: none; transition: none; } .card:hover { transform: none; } }
 </style>

@@ -61,7 +61,9 @@
   .bracket-slot:disabled{cursor:default;opacity:1}.bracket-slot:not(:disabled):hover span{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
   .bracket-slot span{overflow:hidden;font-size:.7rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.bracket-slot b{font:900 1rem 'Arial Narrow',Impact,sans-serif}
   .bracket-slot.loser span,.bracket-slot.loser b{color:var(--muted)}.bracket-slot.winner b{color:var(--accent)}.bracket-slot.user span{color:var(--accent)}
-  .bracket-slot.champion span{color:var(--accent)}.bracket-slot.champion::after{content:'★';color:var(--accent);font-size:.7rem}
+  .bracket-slot.champion span{color:var(--accent)}.bracket-slot.champion::after{content:'★';color:var(--accent);font-size:.7rem;animation:starPop 300ms var(--ease-out-strong) both}
+  @keyframes starPop{from{transform:scale(.6);opacity:0}60%{transform:scale(1.25)}}
+  @media (prefers-reduced-motion:reduce){.bracket-slot.champion::after{animation:none}}
   .bracket-slot.empty i{width:26px;height:26px;border:1px dashed var(--line)}.bracket-slot.empty span{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:.58rem}
   @media(max-width:679px){.bracket{grid-template-columns:repeat(3,200px)}}
 </style>

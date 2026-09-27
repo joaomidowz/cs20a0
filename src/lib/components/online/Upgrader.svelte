@@ -7,6 +7,7 @@
   import { fetchUpgraderFair, upgradeCards, type UpgradeOutcome, type UpgraderFair } from '$lib/game/online/collection';
   import { FAIR_CLIENT_SEED_MAX, isValidClientSeed, rollDegrees, verifyFair } from '$lib/game/online/fair';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { uiCopy } from '$lib/game/online/ui-copy';
   import { primaryRoleOf } from '$lib/game/online/collection-lineup';
@@ -46,6 +47,8 @@
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
   // Spin: a roulette throw, 5 to 7 whole turns on one continuous ease-out curve, landing exactly on the roll.
   const SPIN_MS = 5000;
+  /** Setores sonoros da roda: a agulha "clica" a cada 15°, e o ease-out espaça os cliques sozinho no fim. */
+  const TICK_SECTORS = 24;
   /** Particles of the win burst: fixed spread, the same language as the pack reveal sparks. */
   const SPARKS = Array.from({ length: 18 }, (_, index) => ({ x: `${6 + ((index * 37) % 88)}%`, s: `${4 + (index % 4) * 2}px`, d: `${(index % 6) * 0.12}s` }));
 
@@ -142,11 +145,15 @@
     setNeedle(start);
     return new Promise((resolve) => {
       const began = performance.now();
+      let lastSector = Math.floor(start / (360 / TICK_SECTORS));
       const step = (now: number) => {
         const progress = Math.min(1, (now - began) / SPIN_MS);
         const current = progress < 1 ? start + (final - start) * easeOutQuart(progress) : final;
         setNeedle(current);
         wheel?.classList.toggle('inside', ((current % 360) + 360) % 360 < edgeDeg);
+        // Um clique por setor cruzado: o próprio ease-out desacelera os cliques até parar.
+        const sector = Math.floor(current / (360 / TICK_SECTORS));
+        if (sector !== lastSector) { lastSector = sector; playGameSound('tick'); }
         if (progress < 1) frame = requestAnimationFrame(step);
         else resolve();
       };
@@ -184,6 +191,8 @@
       phase = 'spinning';
       await spin(result);
       phase = 'done';
+      // Derrota tem timbre próprio: não é erro, é o resultado da aposta.
+      playGameSound(result.won ? 'betWin' : 'betLoss');
       revealed = result;
       onDone();
     } catch (caught) {
@@ -297,7 +306,7 @@
           <text x={CENTER} y={CENTER + 4} class="pct">{pct(shownChance)}</text>
           <text x={CENTER} y={CENTER + 30} class="lbl">{t('chance')}</text>
         </svg>
-        <div class="needle" bind:this={needle} aria-hidden="true"><i></i></div>
+        <div class="needle" class:spinning bind:this={needle} aria-hidden="true"><i></i></div>
         {#if settled && outcome}<div class="flash" class:win={outcome.won} aria-hidden="true"></div>{/if}
       </div>
       <p class="result" class:won={settled && outcome?.won} role="status" aria-live="polite">
@@ -438,7 +447,7 @@
   .mini-grid.scroll { max-height: 620px; overflow-y: auto; padding: 4px 4px 4px 0; }
   .rarity-filter .axis { border-color: var(--accent); color: var(--accent); font-weight: 900; }
 
-  .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease, opacity .5s ease, transform .5s ease, filter .5s ease; }
+  .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease, opacity 300ms var(--ease-out-strong), transform 300ms var(--ease-out-strong), filter 300ms var(--ease-out-strong); }
   .pick.picked, .pick.aimed { outline-color: var(--accent); }
   .pick :global(.small) { width: 100%; min-height: 36px; padding: 0 8px; border-radius: 0; font-size: .6rem; }
   .value-tag { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
@@ -476,7 +485,9 @@
   .pct { fill: var(--text); font: 900 40px 'Arial Narrow', Impact, sans-serif; text-anchor: middle; font-variant-numeric: tabular-nums; }
   .lbl { fill: var(--muted); font-size: 12px; font-weight: 800; text-anchor: middle; text-transform: uppercase; letter-spacing: .1em; }
   /* The pointer is the red triangle on the rim; no center pivot, so the percentage stays readable. */
-  .needle { position: absolute; inset: 0; z-index: 2; pointer-events: none; will-change: transform; }
+  .needle { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  /* A camada própria só existe enquanto a roda gira; parada, a agulha volta ao fluxo normal de pintura. */
+  .needle.spinning { will-change: transform; }
   .needle i { position: absolute; top: 0; left: 50%; width: 0; height: 0; margin-left: -11px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 30px solid #ff3b3b; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); transition: border-top-color .15s ease; }
   .dial.spinning .arc { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 50%, transparent)); }
   .dial:global(.inside) .needle i { border-top-color: var(--accent); }

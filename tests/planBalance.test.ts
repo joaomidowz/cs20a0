@@ -40,7 +40,8 @@ const band = (a: OrgStyle, b: OrgStyle, target: number, tolerance = 6) => {
 };
 
 describe('contrato de balance: tabela dos planos (2026-09-23)', () => {
-  it('nenhum confronto entre planos do mesmo patamar vira atropelo', () => {
+  // 15 cruzamentos × 300 séries passam de 5 s com a máquina ocupada (suíte inteira + build): timeout próprio.
+  it('nenhum confronto entre planos do mesmo patamar vira atropelo', { timeout: 60_000 }, () => {
     const styles: OrgStyle[] = ['aggressive', 'balanced', 'tactical', 'tempo', 'reativo', 'resiliente'];
     for (let index = 0; index < styles.length; index += 1) {
       for (let other = index + 1; other < styles.length; other += 1) {

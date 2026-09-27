@@ -5,9 +5,11 @@
    */
   export let tier: 'prata' | 'ouro' | 'supremo' | 'global';
   export let size = 18;
+  /** Num reveal (resultado da run) a insígnia entra com um pop curto; nas listas fica parada. */
+  export let pop = false;
 </script>
 
-<svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" class="rank-badge">
+<svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" class="rank-badge" class:pop>
   {#if tier === 'prata'}
     <path d="M4 10.2 L12 4.2 L20 10.2 L20 11.9 L12 5.9 L4 11.9 Z" fill="#8b969f" opacity="0.7" />
     <path d="M4 16.5 L12 10.5 L20 16.5 L20 19.5 L12 13.5 L4 19.5 Z" fill="#c9d3db" />
@@ -29,4 +31,7 @@
 
 <style>
   .rank-badge { display: inline-block; vertical-align: -3px; flex: none; }
+  .rank-badge.pop { animation: badgePop 300ms var(--ease-out-strong) both; }
+  @keyframes badgePop { from { transform: scale(.8); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .rank-badge.pop { animation: none; } }
 </style>
