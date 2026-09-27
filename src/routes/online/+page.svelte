@@ -37,7 +37,7 @@
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
   import { playerById as corePlayerById, secretPlayers, teamById as coreTeamById, getTeamPlayers, teams } from '$lib/game/data';
-  import { collectionCoachById, collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
+  import { collectionCoachById, collectionCoaches, collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
   import { findSecretOrganization, isSecretPlayerId, secretPoolOf } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -1011,6 +1011,7 @@
       id: organization.id,
       name: organization.name,
       avatar: organization.name.slice(0, 2).toUpperCase(),
+      sourceTeamId: organization.sourceTeamId ?? null,
       eyebrow: organization.human
         ? `${style.toUpperCase()} · POWER ${formatCourtRating(organization.power)}`
         : `${historicalTeam?.game ?? 'CS'} · ${historicalTeam?.year ?? '—'} · ${teamPlacementLabel(historicalTeam)}`,
@@ -1022,9 +1023,13 @@
       stats: strengths,
       // Quem está no banco: o coach conta na quadra (tática, disciplina e preferência de lado), então ele aparece.
       coach: (() => {
-        const coach = organization.coachId ? collectionCoachById.get(organization.coachId) : undefined;
+        const coach = organization.coachId
+          ? collectionCoachById.get(organization.coachId)
+          : (!organization.human && organization.sourceTeamId ? collectionCoaches.find((candidate) => candidate.teamId === organization.sourceTeamId) : undefined);
         if (!coach) return null;
         return {
+          id: coach.id,
+          baseId: coach.baseId,
           name: coach.name,
           team: teamById.get(coach.teamId)?.name ?? null,
           year: coach.year ?? null,

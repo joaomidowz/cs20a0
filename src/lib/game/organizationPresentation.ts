@@ -4,13 +4,15 @@ export interface OrganizationRosterView {
   id: string;
   name: string;
   avatar: string;
+  /** Historical team-year used to key a bot's licensed logo and generated crest. */
+  sourceTeamId?: string | null;
   eyebrow: string;
   subtitle: string;
   tags: string[];
   roster: Player[];
   stats: Array<{ key: string; value: number }>;
   /** Quem está no banco: só os times de jogador com coach da coleção têm. */
-  coach?: { name: string; team: string | null; year: number | null; tactics: number; discipline: number; sidePreference: number } | null;
+  coach?: { id?: string; baseId?: string | null; name: string; team: string | null; year: number | null; tactics: number; discipline: number; sidePreference: number } | null;
 }
 
 export function getLineupStrengths(players: Player[]) {
