@@ -23,6 +23,10 @@ import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from 
 
 const MAX_COMMANDS_PER_10_SECONDS = 40;
 const MAX_ROOM_CREATIONS_PER_MINUTE = 10;
+/** Keep the previous browser release online while the new frontend rolls out. */
+const PREVIOUS_PROTOCOL_VERSION = 10;
+const isSupportedProtocol = (version: unknown): version is number =>
+  version === PROTOCOL_VERSION || version === PREVIOUS_PROTOCOL_VERSION;
 /** Bytes still queued on a socket above which a live update is skipped: the next tick sends the state of that moment instead. */
 const LIVE_BACKPRESSURE_BYTES = 64 * 1024;
 
@@ -120,7 +124,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       if (!roomCreations.hit(address)) return json(response, 429, { error: 'Rate limited' }, origin);
       try {
         const body = await readJsonBody(request) as Record<string, unknown>;
-        if (body.protocolVersion !== PROTOCOL_VERSION) return json(response, 409, { error: 'Protocol mismatch' }, origin);
+        if (!isSupportedProtocol(body.protocolVersion)) return json(response, 409, { error: 'Protocol mismatch' }, origin);
         if (body.dataHash !== ONLINE_DATA_HASH) return json(response, 409, { error: 'Dataset mismatch' }, origin);
         const config = body.config === undefined ? undefined : roomConfigSchema.parse(body.config);
         const roomCode = manager.createRoom(config, current);
@@ -207,7 +211,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       try {
         if (command.type === 'join' || command.type === 'resume') {
           if (session.participantId) throw new RoomError('INVALID_ACTION', 'Connection is already joined');
-          if (command.protocolVersion !== PROTOCOL_VERSION) throw new RoomError('PROTOCOL_MISMATCH', 'Protocol version mismatch');
+          if (!isSupportedProtocol(command.protocolVersion)) throw new RoomError('PROTOCOL_MISMATCH', 'Protocol version mismatch');
           if (command.dataHash !== ONLINE_DATA_HASH) throw new RoomError('DATA_MISMATCH', 'Dataset hash mismatch');
           const joined = command.type === 'join'
             ? manager.join(roomCode, command.playerName, command.organizationName, current, command.lineupTicket)

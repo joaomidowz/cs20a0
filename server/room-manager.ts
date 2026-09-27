@@ -1064,8 +1064,11 @@ export class RoomManager {
    */
   private completeRun(room: RoomState, now: number) {
     const result = toResult(room.engine!);
-    // Online rooms stay on HLTV 1.0: live clients never receive the kill feed of other series (protocol 9).
-    room.awards = computeMajorAwards(result.rounds, result.championId, { model: 'hltv1' });
+    // Rating 3.0 aproximado (Round Swing, KAST, ADR) no online (dono, 2026-09-27): o servidor tem o kill feed de
+    // todas as séries, calcula UMA vez ao fim da run e manda o resultado pronto; o cliente nunca recalcula (o
+    // protocolo 9 só entrega o kill feed da própria série). A nota só explica o desempenho: não mexe em chance de
+    // vitória, coins nem pontos.
+    room.awards = computeMajorAwards(result.rounds, result.championId, { model: 'v3' });
     const season = room.season;
     const runNumber = season.run + 1;
     for (const participant of [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)) {
@@ -1570,7 +1573,9 @@ export class RoomManager {
       },
       matches,
       champion,
-      placement: campaign.placement
+      placement: campaign.placement,
+      // A baseline do Rating 3.0 é a do campo inteiro (prêmios já calculados em `completeRun`), não só das séries do jogador.
+      tournament: { rounds: [], standings: [], championId: tournament.championId, awards: room.awards }
     };
     const selected = participant.draft.lineup
       .map((pick) => lineupPlayer(pick.playerId))
@@ -1581,7 +1586,7 @@ export class RoomManager {
       : selected;
     return {
       campaign,
-      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id, { model: 'hltv1' })
+      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id, { model: 'v3' })
     };
   }
 

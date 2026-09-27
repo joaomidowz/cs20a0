@@ -3,7 +3,7 @@ import type { GameMode, LineupSlotRole, MajorAwards, MajorStage, MapId, MapSide,
 
 export type { OnlineGameMode } from '../types';
 
-export const PROTOCOL_VERSION = 10 as const;
+export const PROTOCOL_VERSION = 11 as const;
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
 /** Season points by placement; a Swiss exit scores −2 plus one per series won (0-2) — mirrors the server curve (2026-09-22). */
