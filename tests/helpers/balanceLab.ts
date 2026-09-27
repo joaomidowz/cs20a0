@@ -42,8 +42,8 @@ export function labLineup(build: LabBuild): LabSide {
   const synergized = applyCollectionLineup(base, { players: cards, roles: build.roles, starPlayerId: build.star, style: build.style, coachId: build.coachId });
   const coach = build.coachId ? collectionCoachById.get(build.coachId) : undefined;
   const withCoach = coach ? applyCoachToTeam(synergized, coach, coachAffinity(coach, cards, collectionTeams)) : synergized;
-  // The band the server applies before the match (`server/room-manager.ts`): the lab has to mirror it or the
-  // measurements lie about the floor at the start and the ceiling at the top.
+  // The soft ceiling the server applies before the match (`server/room-manager.ts`): the lab has to mirror it or
+  // the measurements lie about the top.
   const team = { ...withCoach, power: withPlayerBand(withCoach.power) };
   const maps = getDefaultMapSelection(cards, collectionTeams) as [MapId, MapId, MapId];
   return {

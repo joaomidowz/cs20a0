@@ -36,7 +36,7 @@ const FIELD_SIZE = 16;
 
 const lineupPlayer = (id: string): Player | undefined => playerById.get(id) ?? collectionPlayerById.get(id);
 
-/** The human side, built like `RoomManager.toTournamentOrganization` for a prepared lineup (base → synergy → coach → band). */
+/** The human side, built like `RoomManager.toTournamentOrganization` for a prepared lineup (base → synergy → coach → soft ceiling). */
 function humanOrganization(prepared: PreparedLineup): TournamentOrganization {
   const selected = prepared.lineup.map((pick) => lineupPlayer(pick.playerId)).filter((player): player is Player => Boolean(player));
   const built: CombatTeam = collectionBaseTeam(selected, prepared.style, prepared.lineup, PARTICIPANT_ID);

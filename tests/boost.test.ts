@@ -32,8 +32,9 @@ describe('simulateBoostRun (puro)', () => {
     expect(a.entry.userId).toBe('user-1');
     expect(a.entry.seriesLost + a.entry.matches.filter((series) => series.winnerId === a.entry.participantId).length).toBe(a.entry.matches.length);
     expect(a.entry.stats.length).toBeGreaterThan(0);
-    // Coins de solo = metade do ranqueado, sempre.
-    expect(matchReward(a.entry.placement, false)).toBe(Math.floor(matchReward(a.entry.placement, true) / 2));
+    // Coins de solo = metade da tabela (o ranqueado paga 2,5x a tabela); o campo de campeões paga 4x a metade.
+    expect(matchReward(a.entry.placement, false)).toBe(Math.floor((matchReward(a.entry.placement, true) / 2.5) / 2));
+    expect(matchReward(a.entry.placement, false, 'champions')).toBe(matchReward(a.entry.placement, false) * 4);
   }, 30_000);
 
   it('campo "champions" também resolve de ponta a ponta', () => {

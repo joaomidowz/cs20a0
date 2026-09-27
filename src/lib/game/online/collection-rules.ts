@@ -111,10 +111,22 @@ export const PLACEMENT_COINS: Readonly<Record<string, number>> = { placementCham
 /** Everyone knocked out before the playoffs (Swiss stage or earlier). */
 export const ELIMINATED_COINS = 100;
 
-/** Coins for finishing a run with the collection lineup; halved when the run did not count for the season. */
-export function matchReward(placement: string, ranked: boolean): number {
+/**
+ * Multiplicadores de colocação (dono, 2026-09-26). O ranqueado paga 2,5x a tabela (título 4.250): a run online é a
+ * mais cara de jogar e a que carrega a temporada. O solo segue na metade, mas o "Major dos Campeões" paga 4x essa
+ * metade (título 3.400): o título lá sai de 3 a 5 vezes menos que no campo normal (6% contra ~30% para um time 92,
+ * `SOLO_CHAMPIONS_RELIEF`), e com o mesmo prêmio o modo era prejuízo por run. Vale para o Boost no campo de campeões
+ * também: ele passa pelo mesmo `recordMajor`, e o teto diário de runs segue sendo o freio.
+ */
+export const RANKED_REWARD_MULTIPLIER = 2.5;
+export const CHAMPIONS_FIELD_MULTIPLIER = 4;
+
+/** Coins for finishing a run with the collection lineup: 2,5x the table when ranked, half when solo, and the solo half 4x on the champions field. */
+export function matchReward(placement: string, ranked: boolean, field: 'random' | 'champions' = 'random'): number {
   const base = PLACEMENT_COINS[placement] ?? ELIMINATED_COINS;
-  return ranked ? base : Math.floor(base / 2);
+  if (ranked) return Math.round(base * RANKED_REWARD_MULTIPLIER);
+  const solo = Math.floor(base / 2);
+  return field === 'champions' ? solo * CHAMPIONS_FIELD_MULTIPLIER : solo;
 }
 
 /**

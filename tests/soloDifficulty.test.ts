@@ -60,7 +60,8 @@ describe('Major dos Campeões: a parede que encontra o desafiante', () => {
     expect(elite.title, label).toBeGreaterThanOrEqual(0);
     expect(elite.title, label).toBeLessThanOrEqual(8);
     // Rebalance onda 2 (2026-09-24): nevasca do agressivo no campo endureceu mais ~2pp (superstar mediu 6).
-    expect(superstar.title, label).toBeGreaterThanOrEqual(5);
+    // Teto macio + dinastia em 98,5 (2026-09-27): superstar mediu 4 (8 com a dinastia em 98,8), auge 20, topo 26.
+    expect(superstar.title, label).toBeGreaterThanOrEqual(3);
     expect(superstar.title, label).toBeLessThanOrEqual(19);
     // Rebalance competitivo (2026-09-23): a pausa tática forte também serve aos bots do campo — auge mediu 11,
     // depois 9 na onda 2 (2026-09-24).
