@@ -143,6 +143,10 @@ function noteOf(commit) {
       summary: 'O jogo agora considera as funções secundárias registradas para cada jogador.'
     },
     // Notas de 2026-09-27/28 (chaves curtas: o hash completo é resolvido por prefixo abaixo).
+    '85afe64': {
+      title: 'Filtros de times, dia bom do Agressivo e contratos de cartas',
+      summary: 'A página de times ganhou filtros combináveis por país, ano e organização. Elencos mais consistentes aumentam a frequência de dia bom do Agressivo. No online, repetidas viram fragmentos para trade-ups e contratos de Lenda.'
+    },
     '15e8113': {
       title: 'Animações e sons: o jogo responde ao que acontece',
       summary: 'Fila com radar e aviso de partida encontrada, sons de mapa e série decididos, campeão e eliminado, Upgrader e trade-up com vitória e derrota, pacotes com tremor, tampa e tensão de lenda e GOAT, poder do time deslizando no montador e avisos no canto superior. Botões respondem ao toque e o movimento reduzido do sistema é respeitado.'

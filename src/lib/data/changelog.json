@@ -1,8 +1,15 @@
 {
   "version": "3.6",
-  "total": 367,
+  "total": 368,
   "generatedAt": "2026-09-28",
   "entries": [
+    {
+      "version": "3.6",
+      "date": "2026-09-28",
+      "hash": "85afe64",
+      "title": "Filtros de times, dia bom do Agressivo e contratos de cartas",
+      "summary": "A página de times ganhou filtros combináveis por país, ano e organização. Elencos mais consistentes aumentam a frequência de dia bom do Agressivo. No online, repetidas viram fragmentos para trade-ups e contratos de Lenda."
+    },
     {
       "version": "3.6",
       "date": "2026-09-27",
@@ -834,13 +841,6 @@
       "date": "2026-09-19",
       "hash": "75ccfe0",
       "title": "Upgrader em etapas no celular e polimento de estados",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "4df6d7c",
-      "title": "Barra de carteira fixa e promoção diária de 4 cartas",
       "summary": ""
     }
   ]
