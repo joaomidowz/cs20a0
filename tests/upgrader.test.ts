@@ -236,13 +236,23 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack') ON CONFLICT DO NOTHING`, [userId, expected.card]);
     const [{ coins: before }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     const result = await upgradeCards(db, userId, stake, target, clientSeed);
-    expect(result).toMatchObject({ won: false, consolation: expected.card, consolationCoins: 0, duplicate: true, duplicateCoins: duplicateValue(expected.card!) });
-    expect(result.duplicateCoins).toBeGreaterThan(0);
+    // A repetida de jogador vira 1 fragmento (material dos contratos) em vez de coins; a de coach segue pagando coins.
+    const consolationIsCoach = collectionCoachById.has(expected.card!);
+    expect(result).toMatchObject({
+      won: false, consolation: expected.card, consolationCoins: 0, duplicate: true,
+      duplicateCoins: consolationIsCoach ? duplicateValue(expected.card!) : 0, duplicateFragment: !consolationIsCoach
+    });
+    if (consolationIsCoach) expect(result.duplicateCoins).toBeGreaterThan(0);
     const ids = (await owned()).map((row) => row.player_id);
     for (const id of stake) expect(ids).not.toContain(id);
     const [{ coins: after }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     expect(after).toBe(before + result.duplicateCoins);
+    if (!consolationIsCoach) {
+      const [fragment] = await db.query<{ count: number }>('SELECT count FROM card_fragments WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
+      expect(fragment.count).toBe(1);
+    }
     await db.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 AND NOT (player_id = ANY($3))', [userId, expected.card, [...cheap, ...rares]]);
+    await db.query('DELETE FROM card_fragments WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
   });
 
   it('derrota apostando só Comuns: nenhuma carta entra, só coins no ledger', async () => {

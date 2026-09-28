@@ -177,6 +177,11 @@ export function getStarCarry(players: Player[]): number {
 
 const stabilityOf = (team: Pick<CombatTeam, 'consistency'>) => Math.max(0, Math.min(1, (number(team.consistency, 80) - 70) / 30));
 
+/** Teto do dia bom do Agressivo sem ajuda da consistência (2026-09-23). */
+export const AGGRESSIVE_GOOD_DAY_CAP = 0.425;
+/** Quanto a consistência do elenco pode somar à chance de dia bom do Agressivo (dono, 2026-09-28): 42,5% → 51,5% no máximo. */
+export const AGGRESSIVE_CONSISTENCY_BOOST = 0.09;
+
 /**
  * Power a team takes to the series. Without `curve` the day's power is cut at MAX_TEAM_POWER + 4, as it always was
  * (offline, Dinastia and sandbox depend on it); the online modes pass the court curve instead (`courtPower.ts`).
@@ -191,10 +196,16 @@ export function getMatchDayPower(team: CombatTeam, rng: SeededRng, curve?: Match
   if (team.style === 'aggressive' || team.style === 'tempo') {
     // Dia bom é identidade: o Agressivo aluga o dia com mais frequência (base 25%, teto 42.5% desde 2026-09-23);
     // o Tempo mantém o perfil original (base 20%, teto 38%) — o ritmo dele já tem pistola e momentum próprios.
+    //
+    // Consistência ajuda o Agressivo (dono, 2026-09-28): um elenco constante segura o ritmo alto mais dias. A
+    // consistência do time (`stability`, 0 em 70 → 1 em 100) soma até AGGRESSIVE_CONSISTENCY_BOOST na chance e
+    // levanta o teto de 42,5% até 51,5% — só com elenco 100 de consistência e agressão no máximo. O Tempo não muda.
+    const consistencyBoost = team.style === 'aggressive' ? AGGRESSIVE_CONSISTENCY_BOOST * stability : 0;
     const rawChance = team.style === 'aggressive'
-      ? 0.25 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 100
+      ? 0.25 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 100 + consistencyBoost
       : 0.2 + Math.max(0, (team.aggressionPercentage ?? 75) - 75) / 200;
-    if (roll < Math.min(team.style === 'aggressive' ? 0.425 : 0.38, rawChance)) multiplier = 1.04 + intensity * 0.045;
+    const cap = team.style === 'aggressive' ? AGGRESSIVE_GOOD_DAY_CAP + consistencyBoost : 0.38;
+    if (roll < Math.min(cap, rawChance)) multiplier = 1.04 + intensity * 0.045;
   } else if (team.style === 'tactical') {
     const preparation = team.studyPercentage ?? 60;
     const goodDayChance = 0.16 + Math.max(0, preparation - 60) / 250;

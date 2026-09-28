@@ -7,7 +7,7 @@ const onlinePageSource = readFileSync(new URL('../src/routes/online/+page.svelte
 
 describe('online mode presentation', () => {
   it('uses the current protocol and accepts both online-only modes', () => {
-    expect(PROTOCOL_VERSION).toBe(10);
+    expect(PROTOCOL_VERSION).toBe(11);
     expect(roomConfigSchema.parse({ mode: 'fun', entryStage: 'stage3', capacity: 2, draftDeadlineSeconds: 60, simulationMode: 'automatic', simulationSpeed: 'normal' })).toMatchObject({ mode: 'fun', seasonRuns: 1 });
     expect(roomConfigSchema.parse({ mode: 'max_fun', entryStage: 'stage3', capacity: 16, draftDeadlineSeconds: null, simulationMode: 'manual', simulationSpeed: 'ultra', seasonRuns: 4 })).toMatchObject({ mode: 'max_fun', seasonRuns: 4 });
     for (const seasonRuns of [1, 2, 3, 4] as const) {
@@ -29,7 +29,7 @@ describe('online mode presentation', () => {
 
   it('localizes solo settings and the final speed vote in Portuguese, English, and Spanish', () => {
     for (const language of ['pt-BR', 'en', 'es'] as const) {
-      for (const key of ['soloSimulationMode', 'soloSpeed', 'voteNormal', 'finalNormalWaiting', 'finalNormalApplied'] as const) {
+      for (const key of ['soloSimulationMode', 'soloSpeed', 'voteFast', 'finalFastWaiting', 'finalFastApplied'] as const) {
         expect(translateOnline(language, key).length).toBeGreaterThan(0);
       }
     }

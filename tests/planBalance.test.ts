@@ -73,28 +73,40 @@ describe('contrato de fonte: os dials do rebalance (2026-09-23)', () => {
   const base = (style: OrgStyle, power = 90, overall = 90): CombatTeam => ({
     id: 'a', name: 'a', power, mental: 85, clutch: 85, experience: 85, consistency: 85, overallAvg: overall, style
   });
+  const coachOf = (tactics: number) => ({
+    id: 'c', baseId: 'c', name: 'c', teamId: 't', year: 2026, game: 'cs' as const, tactics, discipline: 70,
+    aggression: 70, development: 70, overall: tactics, rarity: 'legend', confidence: 'high' as const,
+    needsReview: false, source: { page: null, url: null, year: 2026, note: 'test' }
+  });
 
   it('o estudo do time vem do coach: tactics 98 → estudo 98, tactics 70 → 60', () => {
     const team: CombatTeam = { id: 'a', name: 'a', power: 90, mental: 85, clutch: 85, experience: 85 };
-    const top = applyCoachToTeam(team, { id: 'c', baseId: 'c', name: 'c', teamId: 't', year: 2026, game: 'cs', tactics: 98, discipline: 70, aggression: 70, development: 70, overall: 98, confidence: 'high', needsReview: false, source: 'test' } as never);
-    const neutral = applyCoachToTeam(team, { ...({ id: 'c', baseId: 'c', name: 'c', teamId: 't', year: 2026, game: 'cs', tactics: 70, discipline: 70, aggression: 70, development: 70, overall: 70, confidence: 'high', needsReview: false, source: 'test' } as never) });
-    expect(top.studyPercentage).toBe(98);
-    expect(neutral.studyPercentage).toBe(60);
+    expect(applyCoachToTeam(team, coachOf(98)).studyPercentage).toBe(98);
+    expect(applyCoachToTeam(team, coachOf(70)).studyPercentage).toBe(60);
   });
 
-  it('o dia bom do agressivo acontece em ~42.5% dos dias (agressão 94); o do tempo segue em ~29%', () => {
-    const countDays = (style: OrgStyle, aggression: number) => {
+  it('o dia bom do agressivo: ~42.5% com elenco instável, até ~51.5% com consistência 100 (agressão 94); o do tempo segue em ~29%', () => {
+    const countDays = (style: OrgStyle, aggression: number, consistency = 85) => {
       let days = 0;
       for (let seed = 0; seed < 1000; seed += 1) {
-        const team = { ...base(style), aggressionPercentage: aggression };
+        const team = { ...base(style), aggressionPercentage: aggression, consistency };
         if (getMatchDayPower(team, createSeededRng(`dia-${style}-${seed}`)) > 90 * 1.03) days += 1;
       }
       return days / 1000;
     };
-    const aggressive = countDays('aggressive', 94);
-    expect(aggressive).toBeGreaterThanOrEqual(0.36);
-    expect(aggressive).toBeLessThanOrEqual(0.49);
-    const tempo = countDays('tempo', 94);
+    // Consistência ajuda o Agressivo (dono, 2026-09-28): 70 = sem ajuda (teto 42,5%), 85 = metade, 100 = teto 51,5%.
+    const shaky = countDays('aggressive', 94, 70);
+    expect(shaky).toBeGreaterThanOrEqual(0.36);
+    expect(shaky).toBeLessThanOrEqual(0.49);
+    const steady = countDays('aggressive', 94, 100);
+    expect(steady).toBeGreaterThanOrEqual(0.45);
+    expect(steady).toBeLessThanOrEqual(0.58);
+    expect(steady).toBeGreaterThan(shaky);
+    const middle = countDays('aggressive', 94, 85);
+    expect(middle).toBeGreaterThan(shaky - 0.02);
+    expect(middle).toBeLessThan(steady + 0.02);
+    // A consistência não mexe no Tempo.
+    const tempo = countDays('tempo', 94, 100);
     expect(tempo).toBeGreaterThanOrEqual(0.24);
     expect(tempo).toBeLessThanOrEqual(0.35);
   });

@@ -58,7 +58,7 @@ describe.skipIf(!url)('runBoost (Postgres)', () => {
     walletOf = async (userId: string) => (await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0].coins;
   });
 
-  it('item consumível: sem estoque recusa, compra cobra 4.5k, run consome 1 item por 10 majors sem ponto e o teto diário segura', async () => {
+  it('item consumível: sem estoque recusa, compra cobra 4.5k, run consome 1 item por 10 majors sem ponto e permite cinco usos por dia', async () => {
     const { runBoost, boostState, buyBoost } = await import('../server/collection/boost');
     const now = Date.UTC(2026, 8, 22, 18);
     const [user] = await db.query<{ id: string }>(`SELECT id FROM users WHERE email = 'boost@example.com'`);
@@ -84,15 +84,18 @@ describe.skipIf(!url)('runBoost (Postgres)', () => {
     expect(majors.every((row) => !row.ranked && row.points === 0)).toBe(true);
     const [standings] = await db.query<{ points: number }>('SELECT points FROM season_standings WHERE user_id = $1', [user.id]);
     expect(standings?.points ?? 0).toBe(0);
-    // Teto diário de USO (30 runs): compra mais 2 itens (20 runs), os dois passam; o 4º item esbarra no teto.
-    for (let item = 0; item < 2; item += 1) {
-      await buyBoost(db, user.id, 1, now);
-      await runBoost(db, user.id, lineup, 'random', now);
-    }
+    // Simula quatro ativações já usadas; a 5ª passa e soma 50 majors no dia.
+    await db.query('UPDATE boost_usage SET runs = 40 WHERE user_id = $1 AND day = $2', [user.id, '2026-09-22']);
+    await buyBoost(db, user.id, 1, now);
+    const fifthUse = await runBoost(db, user.id, lineup, 'random', now);
+    expect(fifthUse.runs).toBe(10);
+    expect(fifthUse.stock).toBe(0);
+
+    // O 6º item é recusado sem consumir o estoque.
     await buyBoost(db, user.id, 1, now);
     await expect(runBoost(db, user.id, lineup, 'random', now)).rejects.toMatchObject({ code: 'BOOST_DAILY_CAP' });
     const state = await boostState(db, user.id, now);
-    expect(state).toMatchObject({ stock: 1, runsToday: 30, dailyCap: 30, price: 4500, runsPerItem: 10 });
+    expect(state).toMatchObject({ stock: 1, runsToday: 50, dailyCap: 50, price: 4500, runsPerItem: 10 });
     // Em outro dia o teto zera.
     const tomorrow = now + 24 * 60 * 60_000;
     const nextDay = await runBoost(db, user.id, lineup, 'random', tomorrow);

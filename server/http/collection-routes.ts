@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
 import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, openMajorPack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
 import { boostState, buyBoost, runBoost } from '../collection/boost';
+import { claimLenda, deliverLenda, getContractState, runTradeUp } from '../collection/card-contracts';
 import type { Db } from '../db/client';
 import type { PreparedLineup } from '../room-manager';
 import { preparedFor as preparedLineup } from './room-routes';
@@ -28,6 +29,10 @@ const lineupSchema = z.object({
 const lineupSlotSchema = z.object({ slot: z.number().int().min(0).max(4) });
 const boostSchema = z.object({ field: z.enum(['random', 'champions']).default('random') });
 const boostBuySchema = z.object({ quantity: z.number().int().min(1).max(50) });
+// Trade-Up de cartas: 5 repetidas da mesma raridade; entregas parciais da Lenda aceitam de 1 a 50.
+const contractRunSchema = z.object({ inputs: z.array(z.string().min(1).max(80)).length(5), clientSeed: z.string().min(1).max(64) });
+const contractDeliverSchema = z.object({ contractId: z.string().min(1).max(40), donors: z.array(z.string().min(1).max(80)).min(1).max(50) });
+const contractClaimSchema = z.object({ contractId: z.string().min(1).max(40) });
 
 const toHttp = (error: unknown): never => {
   if (error instanceof CollectionError) throw new HttpError(error.status, error.code, error.message);
@@ -96,6 +101,31 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const state = await boostState(db, userId!, now);
       const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId!]);
       return { ok: true, ...summary, ...state, wallet: wallet?.coins ?? 0 };
+    })),
+    // Contratos de cartas: rolagem por fragmentos (escada de evolução, provably fair) + Lendas com entrega parcial.
+    route('GET', /^\/contracts$/, withAuth(async ({ userId }) => ({ ok: true, ...(await getContractState(db, userId!)) }))),
+    route('GET', /^\/contracts\/fair$/, withAuth(async ({ userId }) => {
+      const state = await getContractState(db, userId!);
+      return { ok: true, ...state.fair };
+    })),
+    route('POST', /^\/contracts\/tradeup$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, contractRunSchema);
+      const run = await runTradeUp(db, userId!, body.inputs, body.clientSeed).catch(toHttp);
+      const state = await getContractState(db, userId!);
+      return { ok: true, ...run, fragments: state.fragments, progress: state.progress };
+    })),
+    route('POST', /^\/contracts\/deliver$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, contractDeliverSchema);
+      // `progress` é sempre o mapa das Lendas; o resultado da entrega vai aninhado para não colidir.
+      const delivery = await deliverLenda(db, userId!, body.contractId, body.donors).catch(toHttp);
+      const state = await getContractState(db, userId!);
+      return { ok: true, delivery, fragments: state.fragments, progress: state.progress };
+    })),
+    route('POST', /^\/contracts\/claim$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, contractClaimSchema);
+      const claim = await claimLenda(db, userId!, body.contractId).catch(toHttp);
+      const state = await getContractState(db, userId!);
+      return { ok: true, targetId: claim.targetId, fragments: state.fragments, progress: state.progress };
     }))
   ];
 }

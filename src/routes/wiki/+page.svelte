@@ -46,7 +46,7 @@
       helpsWhenLabel: 'Ajuda quando',
       watchForLabel: 'Exige cuidado quando',
       plans: [
-        { plan: 'Agressivo', helpsWhen: 'A line consegue converter entradas em espaço e sustentar sequências de rounds.', watchFor: 'O plano depende de a line acompanhar as entradas; a proposta Tática não é um counter fixo.' },
+        { plan: 'Agressivo', helpsWhen: 'A line consegue converter entradas em espaço e sustentar sequências de rounds. Um elenco consistente segura o ritmo alto mais dias: a consistência somada dos jogadores aumenta a chance de dia bom.', watchFor: 'O plano depende de a line acompanhar as entradas; a proposta Tática não é um counter fixo.' },
         { plan: 'Equilibrado', helpsWhen: 'A consistência importa e o time consegue aproveitar vitórias de pistola nos rounds seguintes.', watchFor: 'Contra o Resiliente, neutraliza parte dos bônus situacionais de recuperação desse plano.' },
         { plan: 'Tático', helpsWhen: 'O estudo está forte em relação ao perfil de entrada e poder de fogo da própria line, que consegue executar a leitura.', watchFor: 'O Tempo pode pressionar quando embala; essa interação depende do momentum.' },
         { plan: 'Tempo', helpsWhen: 'O time quer começar forte nas pistolas e pressionar o Tático quando constrói momentum.', watchFor: 'A pressão sobre o Tático depende de uma sequência favorável; não é uma vantagem fixa.' },
@@ -87,7 +87,7 @@
       helpsWhenLabel: 'Can help when',
       watchForLabel: 'Watch for',
       plans: [
-        { plan: 'Aggressive', helpsWhen: 'The lineup can turn entries into space and sustain winning streaks.', watchFor: 'The plan depends on the lineup following up on entries; Tactical is not a fixed counter.' },
+        { plan: 'Aggressive', helpsWhen: 'The lineup can turn entries into space and sustain winning streaks. A consistent roster holds the high pace on more days: the players’ combined consistency raises the chance of a good day.', watchFor: 'The plan depends on the lineup following up on entries; Tactical is not a fixed counter.' },
         { plan: 'Balanced', helpsWhen: 'Consistency matters and the team can carry pistol-round wins into later rounds.', watchFor: 'Against Resilient, it suppresses some of that plan’s situational recovery bonuses.' },
         { plan: 'Tactical', helpsWhen: 'The team’s study is strong relative to its own entry and firepower profile, and the lineup can execute its reads.', watchFor: 'Tempo can apply pressure when it gets rolling; this interaction depends on momentum.' },
         { plan: 'Tempo', helpsWhen: 'The team wants a strong start in pistol rounds and can pressure Tactical by building momentum.', watchFor: 'Pressure on Tactical depends on a favorable run; it is not a fixed edge.' },
@@ -128,7 +128,7 @@
       helpsWhenLabel: 'Ayuda cuando',
       watchForLabel: 'Conviene vigilar',
       plans: [
-        { plan: 'Agresivo', helpsWhen: 'El equipo puede convertir las entradas en espacio y mantener una racha de rondas.', watchFor: 'El plan depende de que el equipo acompañe las entradas; Táctico no es un counter fijo.' },
+        { plan: 'Agresivo', helpsWhen: 'El equipo puede convertir las entradas en espacio y mantener una racha de rondas. Un plantel constante sostiene el ritmo alto más días: la constancia sumada de los jugadores aumenta la probabilidad de un buen día.', watchFor: 'El plan depende de que el equipo acompañe las entradas; Táctico no es un counter fijo.' },
         { plan: 'Equilibrado', helpsWhen: 'La constancia importa y el equipo puede aprovechar las victorias en pistola en las rondas siguientes.', watchFor: 'Contra Resiliente, neutraliza parte de los bonus situacionales de recuperación de ese plan.' },
         { plan: 'Táctico', helpsWhen: 'El estudio es fuerte en relación con el perfil de entrada y potencia de fuego del propio equipo, que puede ejecutar sus lecturas.', watchFor: 'Tempo puede presionar cuando toma impulso; esta interacción depende del momentum.' },
         { plan: 'Tempo', helpsWhen: 'El equipo busca empezar fuerte en pistola y puede presionar a Táctico al acumular momentum.', watchFor: 'La presión sobre Táctico depende de una racha favorable; no es una ventaja fija.' },

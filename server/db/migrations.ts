@@ -795,6 +795,57 @@ CREATE TABLE IF NOT EXISTS boost_usage (
   runs int NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, day)
 );`
+  },
+  {
+    id: 35,
+    // Contratos de cartas (2026-09-23): toda duplicata de JOGADOR vira 1 fragmento da carta doadora (card_fragments)
+    // em vez de moedas — coach continua pagando coins. Contratos de rolagem consomem 5 fragmentos e rolam uma escada
+    // de evolução (mesma matemática do upgrader, provably fair igual: contract_seeds guarda a seed/nonce da conta e
+    // contract_runs audita cada rolagem com a seed revelada). Lendas acumulam progresso por entrega parcial até o
+    // resgate garantido. Contratos não movimentam coins: nada muda no ledger nem nos CHECKs existentes.
+    sql: `
+CREATE TABLE IF NOT EXISTS card_fragments (
+  user_id uuid NOT NULL REFERENCES users(id),
+  player_id text NOT NULL,
+  count int NOT NULL DEFAULT 0 CHECK (count >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, player_id)
+);
+CREATE TABLE IF NOT EXISTS card_contract_progress (
+  user_id uuid NOT NULL REFERENCES users(id),
+  contract_id text NOT NULL,
+  progress int NOT NULL DEFAULT 0 CHECK (progress >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, contract_id)
+);
+CREATE TABLE IF NOT EXISTS contract_seeds (
+  user_id uuid PRIMARY KEY REFERENCES users(id),
+  server_seed text NOT NULL UNIQUE,
+  nonce int NOT NULL DEFAULT 0 CHECK (nonce >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS contract_runs (
+  id bigserial PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  contract_id text NOT NULL,
+  donors text[] NOT NULL,
+  stake_value int NOT NULL,
+  floor_tier text NOT NULL,
+  result text NOT NULL,
+  result_tier text NOT NULL,
+  affinity boolean NOT NULL,
+  jumped boolean NOT NULL,
+  roll double precision NOT NULL,
+  aff_roll double precision NOT NULL,
+  pick_roll double precision NOT NULL,
+  server_seed text NOT NULL,
+  server_seed_hash text NOT NULL,
+  client_seed text NOT NULL CHECK (char_length(client_seed) BETWEEN 1 AND 64),
+  nonce int NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contract_runs_user_idx ON contract_runs (user_id, created_at DESC);
+`
   }
 ];
 
