@@ -3,7 +3,7 @@ import { collectionCoachById, collectionTeamById } from './collection-pool';
 import { playerCountryOf } from './collection-countries';
 import { themeLines, type ThemeLine, type ThemeMember } from './collection-theme';
 import { addCourtPoints, courtPower } from '../courtPower';
-import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, DOUBLE_AWP_STRONG_COURT, DOUBLE_AWP_WEAK_COURT, ELITE_ROSTER_CAP, ELITE_ROSTER_FROM_OVERALL, ELITE_ROSTER_PER_POINT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, NO_CHEMISTRY_COURT, SYNERGY_POWER_TO_COURT } from '../balance';
+import { CORE_COMPLETE_COURT, CORE_NATURAL_COURT, DOUBLE_AWP_STRONG_POWER, DOUBLE_AWP_WEAK_COURT, ELITE_ROSTER_CAP, ELITE_ROSTER_FROM_OVERALL, ELITE_ROSTER_PER_POINT, MISSING_AWPER_COURT, MISSING_IGL_COURT, MISSING_SUPPORT_COURT, NO_CHEMISTRY_COURT, SYNERGY_POWER_TO_COURT } from '../balance';
 import { calculateDynastyBaseTeamPower } from '../simulation';
 import type { CombatTeam, LineupSlotRole, OrgStyle, Player, SelectedPlayer } from '../types';
 
@@ -285,9 +285,10 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   const awpers = count('awper');
   if (awpers === 0) add('awp_none', { court: MISSING_AWPER_COURT });
   else if (awpers >= 2) {
-    // Two AWPs compete for the same money and the same angle: it costs levels even when both are good (2026-09-27).
-    const strong = input.players.filter((player, index) => slotRolesOf(input.roles[index]).includes('awper')).every((player) => (player.awp ?? 0) >= 80);
-    add(strong ? 'awp_double_strong' : 'awp_double_weak', { court: strong ? DOUBLE_AWP_STRONG_COURT : DOUBLE_AWP_WEAK_COURT });
+    // Dois AWPers só recebem o bônus se ambos forem 90+; dupla mista e line com 3+ AWPers pagam o custo.
+    const selectedAwpers = input.players.filter((player, index) => slotRolesOf(input.roles[index]).includes('awper'));
+    const strong = awpers === 2 && selectedAwpers.every((player) => (player.awp ?? 0) >= 90);
+    add(strong ? 'awp_double_strong' : 'awp_double_weak', strong ? { power: DOUBLE_AWP_STRONG_POWER } : { court: DOUBLE_AWP_WEAK_COURT });
   }
   const entries = count('entry');
   if (entries === 1) add('entry_one', { power: 0.5 });
@@ -350,8 +351,10 @@ export function cardEffects(input: CollectionLineupInput): Record<string, 'up' |
       || (role === 'entry' && lines.has('entry_one'))
       || (role === 'support' && lines.has('support_present'))
       || (role === 'lurker' && lines.has('lurker_present'));
-    const down = slotRolesOf(role).includes('awper') && (lines.has('awp_double_weak') || lines.has('awp_double_strong'));
-    if (down) effects[player.id] = 'down';
+    const awper = slotRolesOf(role).includes('awper');
+    const down = awper && lines.has('awp_double_weak');
+    if (awper && lines.has('awp_double_strong')) effects[player.id] = 'up';
+    else if (down) effects[player.id] = 'down';
     else if (up) effects[player.id] = 'up';
   });
   return effects;

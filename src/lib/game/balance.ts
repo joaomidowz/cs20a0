@@ -69,11 +69,9 @@ export const MISSING_AWPER_COURT = -1.5;
  *  cinco atacantes sem quem segure o bomb não podem ficar a menos de um nível de um time montado). */
 export const MISSING_SUPPORT_COURT = -1.5;
 /**
- * Dois AWPers na mesma line (dono, 2026-09-27). Pagava +1% quando os dois eram bons; agora custa nível — "não é
- * B.O., mas é um debuffzinho": duas AWPs competem pelo mesmo dinheiro e pelo mesmo ângulo. Dois AWPers fracos
- * custam mais.
+ * Dois AWPers na mesma line: dois AWPers 90+ dão +1% de poder; dupla mista ou line com 3+ AWPers custa 1,5 nível.
  */
-export const DOUBLE_AWP_STRONG_COURT = -1;
+export const DOUBLE_AWP_STRONG_POWER = 1;
 export const DOUBLE_AWP_WEAK_COURT = -1.5;
 /**
  * O ELENCO conta no topo (dono, 2026-09-27). Acima do joelho da curva só 5% de cada ponto de overall chega à
