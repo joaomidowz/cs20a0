@@ -28,7 +28,7 @@
   {:else}
     {@const mvp = awards.mvp}
     <div class="awards-hero">
-      <article class="award-card mvp-card" class:is-user={isUser(mvp.teamId)}>
+      <article class="award-card mvp-card reveal" class:is-user={isUser(mvp.teamId)}>
         <span class="award-eyebrow">{t('majorMvp')}</span>
         <div class="award-player">
           <div class="avatar large">{initials(mvp.name)}</div>
@@ -57,7 +57,7 @@
       </article>
       {#if awards.topTeam}
         {@const team = awards.topTeam}
-        <article class="award-card team-card-award" class:is-user={isUser(team.teamId)}>
+        <article class="award-card team-card-award reveal" class:is-user={isUser(team.teamId)} style="--lineup-delay:60ms">
           <span class="award-eyebrow">{t('bestTeam')}</span>
           <div class="award-team">
             {#if onTeam}
@@ -80,7 +80,7 @@
       <div class="awards-minis">
         {#if awards.clutchKing}
           {@const king = awards.clutchKing}
-          <article class="award-mini" class:is-user={isUser(king.teamId)}>
+          <article class="award-mini reveal" class:is-user={isUser(king.teamId)} style="--lineup-delay:120ms">
             <span class="award-eyebrow">{t('clutchKing')}</span>
             <strong>{king.name}</strong>
             <small>{teamName(king, language)}</small>
@@ -89,7 +89,7 @@
         {/if}
         {#if awards.highlightReel}
           {@const reel = awards.highlightReel}
-          <article class="award-mini" class:is-user={isUser(reel.teamId)}>
+          <article class="award-mini reveal" class:is-user={isUser(reel.teamId)} style="--lineup-delay:180ms">
             <span class="award-eyebrow">{t('highlightReel')}</span>
             <strong>{reel.name}</strong>
             <small>{teamName(reel, language)}</small>
@@ -104,7 +104,7 @@
         <span class="award-eyebrow">{t('topPlayers')}</span>
         <ol>
           {#each awards.topPlayers as award, index (award.playerId + award.teamId)}
-            <li class:is-user={isUser(award.teamId)} class:is-mvp={index === 0} class:has-swing={award.swing !== undefined}>
+            <li class="reveal" class:is-user={isUser(award.teamId)} class:is-mvp={index === 0} class:has-swing={award.swing !== undefined} style={`--lineup-delay:${240 + Math.min(index, 7) * 60}ms`}>
               <span class="rank">{index + 1}</span>
               <span class="who"><strong>{award.name}</strong><small>{teamName(award, language)}</small></span>
               <span class="line"><small>K–D</small>{award.kills}–{award.deaths}</span>
@@ -121,7 +121,7 @@
             <thead><tr><th>#</th><th class="left">{t('team')}</th><th>{ratingLabel}</th><th>{t('maps')}</th><th class="left">{t('placement')}</th></tr></thead>
             <tbody>
               {#each awards.teams as team, index (team.teamId)}
-                <tr class:is-user={isUser(team.teamId)}>
+                <tr class="reveal" class:is-user={isUser(team.teamId)} style={`--lineup-delay:${240 + Math.min(index, 7) * 60}ms`}>
                   <td>{index + 1}</td>
                   <td class="left">
                     {#if onTeam}<button class="team-link" type="button" on:click={() => openTeam(team.teamId)}>{teamName(team, language)}</button>{:else}{teamName(team, language)}{/if}
@@ -142,6 +142,9 @@
 
 <style>
   .major-awards{display:grid;gap:12px;margin-bottom:18px;min-width:0}
+  /* Tela rara (fim do Major): cada linha entra com 60 ms de defasagem, na mesma curva do resto do reveal. */
+  .reveal{animation:offline-lineup-in var(--dur-reveal) var(--ease-out-strong) backwards;animation-delay:var(--lineup-delay,0ms)}
+  @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
   .awards-help{margin:12px 0 0;color:var(--muted);font-size:.72rem;line-height:1.5}
   .awards-empty{margin:0;padding:14px 16px;border:1px solid var(--line);color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
   .award-eyebrow{display:block;color:var(--muted);font-size:.58rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}

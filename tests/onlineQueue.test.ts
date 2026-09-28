@@ -24,6 +24,19 @@ const prepared = (userId: string): PreparedLineup => ({
 });
 
 describe('fila competitiva', () => {
+  it('inicia a sala solo com modo e velocidade escolhidos sem pontuar temporada', () => {
+    const clock = 500_000;
+    const manager = new RoomManager();
+    const code = manager.createRoom({ ...DEFAULT_ROOM_CONFIG, simulationMode: 'manual', simulationSpeed: 'normal' }, clock, 'solo-manual-seed', { origin: 'solo' });
+    const ticket = manager.prepareLineup(code, prepared('solo-user'), clock);
+    const host = manager.join(code, 'Solo player', 'Solo org', clock + 1, ticket);
+    manager.tick(clock + 2);
+
+    const snapshot = manager.getSnapshot(code, host.participantId, clock + 2);
+    expect(snapshot).toMatchObject({ origin: 'solo', competitive: false, config: { simulationMode: 'manual', simulationSpeed: 'normal' } });
+    expect(manager.getLiveUpdate(code, host.participantId, clock + 2).cursor).toMatchObject({ status: 'waiting_host', nextRoundAt: null });
+  });
+
   it('um sozinho espera; o terceiro abre a janela de 10 s e ela fecha a sala', () => {
     let clock = 1_000;
     const manager = new RoomManager();

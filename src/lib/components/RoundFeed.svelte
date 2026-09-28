@@ -120,13 +120,13 @@
   .round-economy .buy.full{color:var(--text)}.round-economy .buy.eco{color:var(--danger)}.round-economy .buy.force{color:var(--accent-2)}
   .round-center{display:flex;align-items:center;gap:6px;min-height:20px}
   .round-number{color:var(--muted);font:900 .8rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.1em}
-  .round-tag{padding:2px 6px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-weight:900;letter-spacing:.08em;white-space:nowrap;animation:tagIn .25s ease-out}
+  .round-tag{padding:2px 6px;border:1px solid var(--accent-2);color:var(--accent-2);font-size:.5rem;font-weight:900;letter-spacing:.08em;white-space:nowrap;animation:tagIn var(--dur-ui) var(--ease-out-strong)}
   .round-tag.mine{border-color:var(--accent);color:var(--accent)}.round-tag.clutch,.round-tag.eco-win{background:var(--accent-2);color:var(--bg)}.round-tag.clutch.mine,.round-tag.eco-win.mine{background:var(--accent)}
   .round-tag.timeout{border-style:dashed}
   /* Fixed footprint: five rows are reserved so the HUD never jumps while kills trickle in and the timeout button stays put. */
   .kill-feed{display:grid;gap:4px;min-height:152px;margin:0;padding:0;list-style:none;align-content:start}
   .compact .kill-feed{min-height:0}
-  .kill-feed li{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 8px;border-left:2px solid var(--line);background:color-mix(in srgb,var(--surface) 75%,transparent);font-size:.78rem;animation:slideIn .3s ease-out}
+  .kill-feed li{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 8px;border-left:2px solid var(--line);background:color-mix(in srgb,var(--surface) 75%,transparent);font-size:.78rem;animation:slideIn var(--dur-ui) var(--ease-out-strong)}
   .kill-feed li.user{border-left-color:var(--accent)}.kill-feed li.enemy{border-left-color:color-mix(in srgb,var(--danger) 70%,var(--line))}
   .kill-feed .killer{overflow:hidden;color:var(--text);text-overflow:ellipsis;white-space:nowrap}.kill-feed li.user .killer{color:var(--accent)}
   .kill-feed .victim{overflow:hidden;color:var(--muted);font-weight:600;text-overflow:ellipsis;white-space:nowrap}
@@ -139,7 +139,8 @@
   .frag-leaders li{display:flex;align-items:baseline;gap:4px;color:var(--muted);font-size:.66rem}.frag-leaders li span{font-weight:800;text-transform:uppercase}.frag-leaders li.user span{color:var(--accent)}.frag-leaders b{color:var(--text);font:900 .95rem 'Arial Narrow',Impact,sans-serif}.frag-leaders small{font-size:.58rem}
   .compact .kill-feed li{font-size:.7rem}
   @keyframes slideIn{from{transform:translateX(-8px);opacity:0}}
-  @keyframes tagIn{from{transform:scale(.8);opacity:0}}
-  @media (prefers-reduced-motion:reduce){.kill-feed li,.round-tag{animation:none}}
+  @keyframes tagIn{from{transform:scale(.9);opacity:0}}
+  @keyframes feedFade{from{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.kill-feed li,.round-tag{animation:feedFade var(--dur-ui) linear}}
   @media(max-width:620px){.kill-feed time{display:none}.kill-feed li{font-size:.72rem}}
 </style>

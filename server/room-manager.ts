@@ -250,7 +250,8 @@ interface RoomState {
   /** Collection lineups registered over HTTP, waiting for their join. */
   pendingLineups: Map<string, { prepared: PreparedLineup; expiresAt: number }>;
   /** 'queue' rooms come from matchmaking: they start on their own and always score. */
-  origin: 'code' | 'queue';
+  origin: 'code' | 'queue' | 'solo';
+  finalSpeedVotes: Set<string>;
   /** Queue rooms: how many matched players are expected and until when the room waits for them. */
   queue: { expected: number; startBy: number } | null;
   /** Fixed when the tournament begins; decides season points. */
@@ -273,6 +274,11 @@ const lookupPlayer = (id: string) => playerById.get(id);
 const lineupPlayer = (id: string) => playerById.get(id) ?? collectionPlayerById.get(id);
 
 const roundInterval = (config: RoomConfig) => config.simulationSpeed === 'normal' ? 2_400 : config.simulationSpeed === 'fast' ? 1_200 : 200;
+export function finalHumanIds(phase: string | undefined, teamIds: readonly string[], participantIds: ReadonlySet<string>): [string, string] | null {
+  if (phase !== 'final' || teamIds.length !== 2 || teamIds[0] === teamIds[1]) return null;
+  const [left, right] = teamIds;
+  return participantIds.has(left) && participantIds.has(right) ? [left, right] : null;
+}
 /** Pause after the last round of a map: the clients play that round's kill feed slower before the map closes. */
 const lastRoundLinger = (config: RoomConfig) => Math.round(roundInterval(config) * LAST_ROUND_FEED_FACTOR) + MAP_GAP_MS;
 
@@ -422,7 +428,7 @@ export class RoomManager {
 
   constructor(private readonly hooks: RoomHooks = {}) {}
 
-  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue'; expected?: number; field?: RoomField } = {}): string {
+  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue' | 'solo'; expected?: number; field?: RoomField } = {}): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
     this.rooms.set(code, {
@@ -450,6 +456,7 @@ export class RoomManager {
       awards: null,
       pendingLineups: new Map(),
       origin: options.origin ?? 'code',
+      finalSpeedVotes: new Set(),
       queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS } : null,
       competitive: false,
       field: options.field ?? 'random'
@@ -617,6 +624,7 @@ export class RoomManager {
     switch (command.type) {
       case 'configure':
         this.requireHost(room, participantId);
+        if (room.origin === 'queue') throw new RoomError('INVALID_ACTION', 'Queue room settings are fixed by matchmaking');
         if (room.phase !== 'lobby') throw new RoomError('INVALID_PHASE', 'Configuration is locked after the lobby');
         if (command.config.capacity < room.participants.size) throw new RoomError('INVALID_ACTION', 'Capacity cannot be lower than the current participant count');
         room.config = command.config;
@@ -744,6 +752,23 @@ export class RoomManager {
         if (!room.roundStarted && room.config.simulationMode === 'automatic' && room.phase !== 'completed') room.nextRoundAt = now + ROUND_GAP_MS;
         if (!room.roundStarted && room.config.simulationMode === 'manual') room.nextRoundAt = null;
         break;
+      case 'vote-final-speed': {
+        if (room.origin !== 'queue' || !room.engine || room.phase === 'completed') throw new RoomError('INVALID_PHASE', 'Final speed voting is only available in a live queue final');
+        const round = currentRound(room.engine);
+        const finalRuntime = room.live.size === 1 ? [...room.live.values()][0] : null;
+        const finalists = finalRuntime && finalRuntime.state.phase !== 'finished'
+          ? finalHumanIds(round?.phase, [finalRuntime.state.config.teamA.id, finalRuntime.state.config.teamB.id], new Set(room.participants.keys()))
+          : null;
+        if (!finalists || !finalists.includes(participantId)) throw new RoomError('INVALID_ACTION', 'Only the two human finalists can vote for fast speed');
+        room.finalSpeedVotes.add(participantId);
+        if (finalists.every((id) => room.finalSpeedVotes.has(id))) {
+          room.config = { ...room.config, simulationSpeed: 'fast' };
+          for (const runtime of room.live.values()) {
+            if (runtime.state.phase !== 'finished' && !pendingSeriesDecision(runtime.state)) runtime.nextRoundAt = now + roundInterval(room.config);
+          }
+        }
+        break;
+      }
       case 'advance-round':
         this.requireHost(room, participantId);
         if (!room.engine || room.phase === 'completed') throw new RoomError('INVALID_PHASE', 'There is no tournament round to start');
@@ -866,10 +891,22 @@ export class RoomManager {
       lineup: organization.team.lineup ?? [],
       coachId: organization.team.coachId ?? null
     }));
+    const voteRuntime = room.origin === 'queue' && room.engine && currentRound(room.engine)?.phase === 'final' && room.live.size === 1 && [...room.live.values()][0].state.phase !== 'finished'
+      ? [...room.live.values()][0]
+      : null;
+    const finalistIds = voteRuntime
+      ? finalHumanIds('final', [voteRuntime.state.config.teamA.id, voteRuntime.state.config.teamB.id], new Set(room.participants.keys()))
+      : null;
     return {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { mapPreferences: true, replayV1: false, liveDecisions: true, interactiveVeto: true, season: true, secretPlayers: true, liveUpdates: true },
       origin: room.origin,
+      finalSpeedVote: {
+        eligible: Boolean(participantId && finalistIds?.includes(participantId)),
+        voted: Boolean(participantId && room.finalSpeedVotes.has(participantId)),
+        votes: finalistIds ? finalistIds.filter((id) => room.finalSpeedVotes.has(id)).length : 0,
+        applied: room.config.simulationSpeed === 'fast' && Boolean(finalistIds)
+      },
       competitive: room.engine ? room.competitive : this.isCompetitiveRun(room),
       season: this.publicSeason(room),
       dataHash: ONLINE_DATA_HASH,
@@ -927,7 +964,12 @@ export class RoomManager {
 
   private tickRoom(room: RoomState, now: number): boolean {
     let changed = false;
-    if (room.origin === 'queue' && room.phase === 'lobby' && room.queue) {
+    if (room.origin === 'solo' && room.phase === 'lobby' && [...room.participants.values()].some((participant) => participant.connected)) {
+      this.startRoom(room, now);
+      room.version += 1;
+      room.stateVersion += 1;
+      changed = true;
+    } else if (room.origin === 'queue' && room.phase === 'lobby' && room.queue) {
       const joined = [...room.participants.values()].filter((participant) => participant.connected).length;
       // After the window it starts with whoever came, even alone (then against bots, not competitive): nobody is left stuck in the lobby.
       if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 1)) {
@@ -1022,8 +1064,11 @@ export class RoomManager {
    */
   private completeRun(room: RoomState, now: number) {
     const result = toResult(room.engine!);
-    // Online rooms stay on HLTV 1.0: live clients never receive the kill feed of other series (protocol 9).
-    room.awards = computeMajorAwards(result.rounds, result.championId, { model: 'hltv1' });
+    // Rating 3.0 aproximado (Round Swing, KAST, ADR) no online (dono, 2026-09-27): o servidor tem o kill feed de
+    // todas as séries, calcula UMA vez ao fim da run e manda o resultado pronto; o cliente nunca recalcula (o
+    // protocolo 9 só entrega o kill feed da própria série). A nota só explica o desempenho: não mexe em chance de
+    // vitória, coins nem pontos.
+    room.awards = computeMajorAwards(result.rounds, result.championId, { model: 'v3' });
     const season = room.season;
     const runNumber = season.run + 1;
     for (const participant of [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt)) {
@@ -1191,6 +1236,7 @@ export class RoomManager {
   isCompetitiveRun(room: RoomState): boolean {
     const humans = [...room.participants.values()];
     if (room.origin === 'queue') return humans.length >= COMPETITIVE_MIN_HUMANS;
+    if (room.origin === 'solo') return false;
     return humans.length >= COMPETITIVE_MIN_HUMANS && humans.every((participant) => participant.prepared);
   }
 
@@ -1214,7 +1260,7 @@ export class RoomManager {
 
   /** Code rooms need two people; a queue room whose other players never showed up still plays, alone against bots. */
   private minParticipants(room: RoomState): number {
-    return room.origin === 'queue' ? 1 : 2;
+    return room.origin === 'queue' || room.origin === 'solo' ? 1 : 2;
   }
 
   private startTournamentIfReady(room: RoomState, now: number) {
@@ -1224,6 +1270,8 @@ export class RoomManager {
 
   private beginTournament(room: RoomState, now: number) {
     if (room.engine) return;
+    room.finalSpeedVotes.clear();
+    if (room.origin === 'queue') room.config = { ...room.config, simulationMode: 'automatic', simulationSpeed: 'ultra' };
     room.competitive = this.isCompetitiveRun(room);
     const organizations = [...room.participants.values()].map((participant, index) => this.toTournamentOrganization(participant, index + 1, room.config.mode));
     const humanIds = new Set(organizations.map((organization) => organization.id));
@@ -1525,7 +1573,9 @@ export class RoomManager {
       },
       matches,
       champion,
-      placement: campaign.placement
+      placement: campaign.placement,
+      // A baseline do Rating 3.0 é a do campo inteiro (prêmios já calculados em `completeRun`), não só das séries do jogador.
+      tournament: { rounds: [], standings: [], championId: tournament.championId, awards: room.awards }
     };
     const selected = participant.draft.lineup
       .map((pick) => lineupPlayer(pick.playerId))
@@ -1536,7 +1586,7 @@ export class RoomManager {
       : selected;
     return {
       campaign,
-      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id, { model: 'hltv1' })
+      stats: createRunStats(runPlayers, run, `${room.seed}:participant-result:${participant.id}`, participant.draft.lineup, participant.id, { model: 'v3' })
     };
   }
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import type { PackTier } from '$lib/game/online/collection-rules';
 
   /** The pack as an object: an isometric weapon-case style box, drawn here (no third-party art). */
@@ -7,6 +9,19 @@
   export let label = '';
   /** Shakes, then lifts the lid with a beam of light. */
   export let opening = false;
+  /** Cues da abertura (tremor grave, depois a tampa). Vivem aqui para valer tanto na loja quanto no PackReveal. */
+  export let sound = true;
+  let cued = false;
+  let timers: number[] = [];
+  // O tremor entra 80 ms depois do clique (fora da trava do `uiClick` do botão); `land` cai quando a tampa levanta (~550 ms).
+  $: if (opening && !cued) {
+    cued = true;
+    if (sound && typeof window !== 'undefined') {
+      timers.push(window.setTimeout(() => playGameSound('rumble'), 80));
+      timers.push(window.setTimeout(() => playGameSound('land'), 550));
+    }
+  } else if (!opening && cued) cued = false;
+  onDestroy(() => { if (typeof window !== 'undefined') for (const timer of timers) window.clearTimeout(timer); });
   // Gradient ids must be unique per instance: two cases of the same tier on one page (daily + Major when
   // nothing is sealed) would otherwise share `url(#left-basic)` and paint with the first one's palette.
   const uid = Math.random().toString(36).slice(2, 8);
@@ -45,11 +60,12 @@
 </span>
 
 <style>
-  .case { position: relative; display: grid; place-items: center; width: 128px; height: 122px; margin: 0 auto; transition: transform .2s ease; --case-hi: #aeb8a0; --case-a: #6f7d52; --case-b: #4b5637; --case-c: #333b26; --case-glow: #c8ff32; --case-ink: #0a0d08; }
+  .case { position: relative; display: grid; place-items: center; width: 128px; height: 122px; margin: 0 auto; transition: transform var(--dur-ui) var(--ease-out-soft); --case-hi: #aeb8a0; --case-a: #6f7d52; --case-b: #4b5637; --case-c: #333b26; --case-glow: #c8ff32; --case-ink: #0a0d08; }
   .case.lg { width: 184px; height: 175px; }
   svg { position: relative; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 14px 14px rgb(0 0 0 / .55)); }
   .glow { position: absolute; inset: 22% 12% 4%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--case-glow) 55%, transparent), transparent); opacity: .35; filter: blur(10px); transition: opacity .2s ease; }
-  :global(.pack:hover) .case { transform: translateY(-4px); } :global(.pack:hover) .glow { opacity: .7; }
+  :global(.pack:hover) .glow { opacity: .7; }
+  @media (hover: hover) and (pointer: fine) { :global(.pack:hover) .case { transform: translateY(-4px); } }
   .prata { --case-hi: #f1f4f6; --case-a: #b4bdc4; --case-b: #7c868e; --case-c: #515a61; --case-glow: #dfe6ea; }
   .funcao { --case-hi: #b9f5dc; --case-a: #399d78; --case-b: #226b55; --case-c: #123d32; --case-glow: #5dffbf; }
   .coach { --case-hi: #ffd3a6; --case-a: #b86e3e; --case-b: #75452d; --case-c: #40251b; --case-glow: #ff9c52; }
@@ -71,7 +87,9 @@
   .name { fill: var(--case-ink); font: 900 12px 'Arial Narrow', Impact, sans-serif; letter-spacing: 1.5px; text-anchor: middle; text-transform: uppercase; opacity: .8; }
   .beam { fill: var(--case-glow); opacity: 0; }
   .icone .glow { animation: pulse 2.2s ease-in-out infinite; }
-  .lid { transform-box: fill-box; transform-origin: 50% 100%; }
+  /* Quando `opening` cai, a tampa volta a fechar em vez de saltar. */
+  .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform 300ms var(--ease-out-soft), opacity 300ms var(--ease-out-soft); }
+  .beam { transition: opacity 300ms var(--ease-out-soft); }
   .opening { animation: shake .6s ease-in-out; }
   .opening .lid { animation: lift .7s .55s cubic-bezier(.2, .9, .3, 1) forwards; }
   .opening .beam { animation: beam 1s .6s ease-out forwards; }
@@ -80,5 +98,5 @@
   @keyframes shake { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-4deg); } 30% { transform: rotate(4deg); } 45% { transform: rotate(-3deg) translateY(-2px); } 60% { transform: rotate(3deg); } 80% { transform: rotate(-1deg); } }
   @keyframes lift { to { transform: translateY(-46px) rotate(-10deg); opacity: .0; } }
   @keyframes beam { 0% { opacity: 0; } 30% { opacity: .75; } 100% { opacity: .25; } }
-  @media (prefers-reduced-motion: reduce) { .case, .opening, .opening .lid, .opening .beam, .icone .glow { animation: none; transition: none; } .opening .lid { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .case, .lid, .beam, .opening, .opening .lid, .opening .beam, .icone .glow { animation: none; transition: none; } .opening .lid { opacity: 0; } }
 </style>

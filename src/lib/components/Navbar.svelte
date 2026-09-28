@@ -11,7 +11,10 @@
 
 <nav class="nav shell" aria-label="Navegação principal">
   <a class="brand" href="/" on:click|preventDefault={onHome}>
-    <span class="brand-mark">CS</span><span>13a0</span>
+    <picture class="brand-picture">
+      <source media="(max-width: 679px)" srcset="/brand/cs13a0-mark.png" />
+      <img class="brand-image" src="/brand/cs13a0-wordmark.png" alt="cs13a0" />
+    </picture>
   </a>
   <!-- A versao sai do historico (`scripts/build-changelog.mjs`): dez mudancas no codigo valem um decimo. -->
   <a class="version" href="/changelog" title="Ver o que mudou">v{changelog.version}</a>
@@ -27,3 +30,9 @@
     </button>
   </div>
 </nav>
+
+<style>
+  .brand-picture { display: block; width: 142px; line-height: 0; }
+  .brand-image { display: block; width: 100%; height: auto; }
+  @media (max-width: 679px) { .brand-picture { width: 40px; } }
+</style>

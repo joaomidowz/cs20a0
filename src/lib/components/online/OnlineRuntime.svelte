@@ -33,6 +33,8 @@
     const otherCount = Math.max(0, presence.queue - (presence.queuedByMe ? 1 : 0));
     if (lastOtherQueueCount !== null && otherCount > lastOtherQueueCount) {
       showToast({ message: queueIncreaseMessage($language, presence.queue), kind: 'info', duration: 5_000, key: 'matchmaking-arrivals' });
+      // Só quem está esperando na fila ouve a chegada; para quem só olha, o toast basta.
+      if (presence.queuedByMe) playGameSound('attention');
     }
     lastOtherQueueCount = otherCount;
   }
@@ -43,6 +45,8 @@
     const button = target.closest('button');
     if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return;
     if (button.matches('[role="tab"], [role="switch"], [aria-pressed], .skip, .info-btn, .presence-chip, .timeline-expand, .row-link, .link-btn, [data-sound="off"]')) return;
+    // Confirmar/cancelar de um diálogo já vem seguido do som da ação (gasto, sucesso): um clique a mais só empilha.
+    if (button.closest('.dialog')) return;
     if (button.matches('.primary, .secondary, [data-sound="action"]')) playGameSound('uiClick');
   }
 

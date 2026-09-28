@@ -6,6 +6,7 @@
   import { refreshWallet } from '$lib/game/online/wallet';
   import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
   import { collectionCoachById, collectionPlayerById } from '$lib/game/online/collection-pool';
   import { answerTrade, fetchTradePartner, fetchTrades, proposeTrade, type TradeItem } from '$lib/game/online/collection';
@@ -115,9 +116,10 @@
     try {
       await proposeTrade(serverUrl, { teamName: partner.teamName, offeredCard: offered, requestedCard: requested, coins: extra });
       notice = t('tradeSentOk');
+      playGameSound('success');
       resetProposal(); tab = 'sent';
       await load();
-    } catch (caught) { fail(caught); } finally { busy = false; }
+    } catch (caught) { playGameSound('error'); fail(caught); } finally { busy = false; }
   }
 
   async function answer(trade: TradeItem, action: 'accept' | 'decline' | 'cancel') {
@@ -126,10 +128,12 @@
     busy = true; error = ''; notice = '';
     try {
       await answerTrade(serverUrl, trade.id, action);
+      // O aviso inline não toca nada: aceitar ganha o `success`; recusar/cancelar seguem mudos.
+      if (action === 'accept') playGameSound('success');
       void refreshWallet(serverUrl);
       await load();
       if (action === 'accept') onChanged();
-    } catch (caught) { await load(); fail(caught); } finally { busy = false; }
+    } catch (caught) { playGameSound('error'); await load(); fail(caught); } finally { busy = false; }
   }
 
   onMount(() => { void (async () => {

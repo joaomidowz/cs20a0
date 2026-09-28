@@ -167,20 +167,24 @@ export async function buyBoost(db: Db, userId: string, quantity: number, now: nu
 }
 
 /**
- * Consumes ONE stock item and resolves its batch of instant solo majors. The daily usage cap (30 runs) is checked and
+ * Consumes ONE stock item and resolves its batch of instant solo majors. The daily usage cap (50 runs) is checked and
  * bumped in the same transaction that consumes the item, so a race can never pass the cap; the slow simulations run
  * after the gate commits. Each run goes through `recordMajor` like any solo run (zero points by competitive=false).
  */
 export async function runBoost(db: Db, userId: string, prepared: PreparedLineup, field: RoomField, now: number): Promise<BoostSummary> {
   const day = dayKeyUtcMinus3(now);
-  await db.tx(async (tx) => {
+  const activationRuns = await db.tx(async (tx) => {
     const [usage] = await tx.query<{ runs: number }>(
       `INSERT INTO boost_usage (user_id, day, runs) VALUES ($1, $2, 0)
        ON CONFLICT (user_id, day) DO UPDATE SET runs = boost_usage.runs RETURNING runs`, [userId, day]);
     if (usage.runs + BOOST_RUNS_PER_ITEM > BOOST_DAILY_RUN_CAP) throw new CollectionError(409, 'BOOST_DAILY_CAP', `Teto diário do boost atingido (${BOOST_DAILY_RUN_CAP} runs)`);
     const [stock] = await tx.query('UPDATE boost_stock SET items = items - 1, updated_at = now() WHERE user_id = $1 AND items > 0 RETURNING items', [userId]);
     if (!stock) throw new CollectionError(409, 'NO_BOOST_STOCK', 'Você não tem Boost de Farm no estoque — compre na loja');
-    await tx.query('UPDATE boost_usage SET runs = runs + $3 WHERE user_id = $1 AND day = $2', [userId, day, BOOST_RUNS_PER_ITEM]);
+    const [updatedUsage] = await tx.query<{ runs: number }>(
+      'UPDATE boost_usage SET runs = runs + $3 WHERE user_id = $1 AND day = $2 RETURNING runs',
+      [userId, day, BOOST_RUNS_PER_ITEM]
+    );
+    return updatedUsage.runs;
   });
   // `coins` is the real wallet delta across the batch (match reward + award coins), what the result modal shows.
   const [beforeRow] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
@@ -189,7 +193,7 @@ export async function runBoost(db: Db, userId: string, prepared: PreparedLineup,
   const placements: string[] = [];
   const roomCode = `BOOST-${day}-${field === 'champions' ? 'C' : 'R'}`;
   for (let index = 0; index < BOOST_RUNS_PER_ITEM; index += 1) {
-    const seed = `${userId}:boost:${day}:${field}:${index}`;
+    const seed = `${userId}:boost:${day}:${field}:activation:${activationRuns}:${index}`;
     const outcome = simulateBoostRun(prepared, field, seed);
     const event: RunCompletedEvent = {
       roomCode, seed, runNumber: index + 1, lobbySize: 1, competitive: false, field, awards: outcome.awards, entries: [outcome.entry]

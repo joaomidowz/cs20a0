@@ -131,12 +131,13 @@ export const SYNERGY_POWER_TO_COURT = 0.25;
  *
  * `PLAYER_SOFT_TOP_COURT` é o nível na régua (antes do teto) da melhor line montável, medido pelo laboratório
  * (`tests/helpers/balanceLab.ts`) com a Vitality 2025 completa (coach XTQZZZ, ZywOo de star, plano tático) e as
- * cartas ajustadas pelo dono (flameZ 97, mezii 95). É uma CONSTANTE DE ESCALA, pregada de propósito: quando o
+ * cartas ajustadas pelo dono no Studio em 2026-09-27 (flameZ 97, mezii 95, dupreeh-2019 96, device-2019 98): mediu
+ * 115,87. É uma CONSTANTE DE ESCALA, pregada de propósito: quando o
  * conteúdo mudar, `tests/powerCeiling.test.ts` re-mede e avisa. Com ela: SK 2016 completa 99,7, seleções de país
  * 99,1–99,8, vagas do dono 99,1–99,5, cinco GOATs sem pensar 98,5, campeões azarões (Gambit 2017) ~98.
  */
 export const PLAYER_SOFT_KNEE = 97.5;
-export const PLAYER_SOFT_TOP_COURT = 115.7;
+export const PLAYER_SOFT_TOP_COURT = 115.9;
 export const PLAYER_CEILING_COURT = 99.9;
 
 /**

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import { translateOnline } from '$lib/game/online/i18n';
   import type { PublicParticipant, PublicSeason } from '$lib/game/online/contracts';
   import type { Language } from '$lib/game/types';
@@ -16,6 +18,17 @@
   $: myVote = selfParticipantId ? (accepted.has(selfParticipantId) ? 'accepted' : declined.has(selfParticipantId) ? 'declined' : null) : null;
   $: stateOf = (id: string): 'accepted' | 'declined' | 'waiting' => accepted.has(id) ? 'accepted' : declined.has(id) ? 'declined' : 'waiting';
   $: open = secondsLeft > 0;
+
+  // Janela com tempo: um chamado quando abre e um "sucesso" único quando a sala inteira aceita.
+  let mounted = false;
+  let wasOpen = false;
+  let allAcceptedPlayed = false;
+  onMount(() => { mounted = true; if (open) { wasOpen = true; playGameSound('attention'); } });
+  $: if (mounted && open && !wasOpen) { wasOpen = true; playGameSound('attention'); }
+  $: if (mounted && !open) wasOpen = false;
+  $: allAccepted = participants.length > 0 && participants.every((participant) => accepted.has(participant.id));
+  $: if (mounted && allAccepted && !allAcceptedPlayed) { allAcceptedPlayed = true; playGameSound('success'); }
+  $: if (!allAccepted) allAcceptedPlayed = false;
 </script>
 
 <section class="panel rematch-panel" aria-live="polite">
@@ -42,7 +55,9 @@
 </section>
 
 <style>
-  .rematch-panel{display:grid;gap:12px;margin:0 0 18px;padding:18px;border-color:var(--accent);box-shadow:0 0 22px color-mix(in srgb,var(--accent) 18%,transparent)}
+  .rematch-panel{display:grid;gap:12px;margin:0 0 18px;padding:18px;border-color:var(--accent);box-shadow:0 0 22px color-mix(in srgb,var(--accent) 18%,transparent);animation:rematchIn 220ms var(--ease-out-strong) both}
+  @keyframes rematchIn{from{transform:translateY(30%) scale(.97);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.rematch-panel{animation:none}}
   .rematch-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.rematch-head h2{margin:4px 0 0;font-size:1.6rem}
   .rematch-clock{min-width:64px;font:900 2.4rem 'Arial Narrow',Impact,sans-serif;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}.rematch-clock.urgent{color:var(--danger)}
   .rematch-actions{display:grid;gap:8px}.rematch-actions button{min-height:50px;font-size:.9rem}.rematch-actions button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}

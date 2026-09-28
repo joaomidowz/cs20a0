@@ -149,8 +149,9 @@
     "teamId": "fnatic-2013",
     "year": 2013,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "support",
     "eligibleSlotRoles": [
+      "support",
       "rifler"
     ],
     "rarity": "superstar",
@@ -190,9 +191,10 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
-    "rarity": "superstar",
+    "rarity": "legend",
     "traits": [],
     "overall": 86,
     "firepower": 89,
@@ -256,11 +258,12 @@
     "teamId": "fnatic-2013",
     "year": 2013,
     "game": "CSGO",
-    "role": "support",
+    "role": "igl",
     "eligibleSlotRoles": [
+      "igl",
       "support"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 84,
@@ -754,9 +757,9 @@
       "rifler",
       "awper"
     ],
-    "rarity": "legend",
+    "rarity": "goat",
     "traits": [],
-    "overall": 91,
+    "overall": 99,
     "firepower": 90,
     "clutch": 85,
     "entry": 80,
@@ -857,11 +860,12 @@
     "teamId": "fnatic-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "support",
     "eligibleSlotRoles": [
+      "support",
       "rifler"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 98,
     "firepower": 97,
@@ -930,14 +934,13 @@
     "teamId": "ninjas-in-pyjamas-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler",
-      "awper"
+      "lurker"
     ],
-    "rarity": "legend",
+    "rarity": "goat",
     "traits": [],
-    "overall": 96,
+    "overall": 98,
     "firepower": 95,
     "clutch": 90,
     "entry": 78,
@@ -1011,9 +1014,10 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 97,
     "firepower": 99,
@@ -1225,11 +1229,12 @@
     "teamId": "fnatic-2014",
     "year": 2014,
     "game": "CSGO",
-    "role": "support",
+    "role": "igl",
     "eligibleSlotRoles": [
+      "igl",
       "support"
     ],
-    "rarity": "elite",
+    "rarity": "legend",
     "traits": [],
     "overall": 81,
     "firepower": 81,
@@ -2502,8 +2507,9 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "support",
     "eligibleSlotRoles": [
+      "support",
       "rifler"
     ],
     "rarity": "legend",
@@ -2678,10 +2684,9 @@
     "teamId": "ninjas-in-pyjamas-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "lurker",
     "eligibleSlotRoles": [
-      "rifler",
-      "awper"
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -2903,9 +2908,10 @@
     "game": "CSGO",
     "role": "awper",
     "eligibleSlotRoles": [
-      "awper"
+      "awper",
+      "entry"
     ],
-    "rarity": "superstar",
+    "rarity": "legend",
     "traits": [],
     "overall": 86,
     "firepower": 89,
@@ -3532,10 +3538,10 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "rifler",
-      "entry"
+      "entry",
+      "awper"
     ],
     "rarity": "goat",
     "traits": [],
@@ -3640,11 +3646,12 @@
     "teamId": "fnatic-2015",
     "year": 2015,
     "game": "CSGO",
-    "role": "entry",
+    "role": "igl",
     "eligibleSlotRoles": [
-      "entry"
+      "igl",
+      "support"
     ],
-    "rarity": "goat",
+    "rarity": "legend",
     "traits": [],
     "overall": 95,
     "firepower": 99,

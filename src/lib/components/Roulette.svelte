@@ -49,12 +49,14 @@
   const overshoot = Math.round(STEP * (0.36 + Math.random() * 0.12)) * side;
   const settleMs = Math.round(Math.max(700, Math.min(1400, duration * 0.42)));
 
-  function finish() {
+  function finish(silent = false) {
     if (completed) return;
     completed = true;
     cancelAnimationFrame(frame);
     clearTimeout(settleTimer);
-    if (!settled) playGameSound('land');
+    // Sem animação (movimento reduzido) o 'land' e o cue da carta cairiam no mesmo instante e a trava global
+    // do motor de som engoliria o segundo — o mais importante. Nesse caso fica só o da carta.
+    if (!settled && !silent) playGameSound('land');
     animation?.cancel();
     onComplete();
   }
@@ -67,7 +69,7 @@
   onMount(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (preference.matches) {
-      finish();
+      finish(true);
       return;
     }
     const spin = track.animate(
@@ -135,7 +137,7 @@
       {/each}
     </div>
   </div>
-  <div class="controls"><span role="status">{labels.spinning}</span><button class="ghost" type="button" on:click={finish}>{labels.skip}</button></div>
+  <div class="controls"><span role="status">{labels.spinning}</span><button class="ghost" type="button" on:click={() => finish()}>{labels.skip}</button></div>
 </div>
 
 <style>

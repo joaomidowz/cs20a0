@@ -4,6 +4,7 @@
   import AnimatedCoins from '$lib/components/ui/AnimatedCoins.svelte';
   import { formatCourtRating } from '$lib/game/powerRating';
   import { onDestroy, onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { replaceState } from '$app/navigation';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
@@ -36,7 +37,7 @@
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
   import { playerById as corePlayerById, secretPlayers, teamById as coreTeamById, getTeamPlayers, teams } from '$lib/game/data';
-  import { collectionCoachById, collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
+  import { collectionCoachById, collectionCoaches, collectionPlayerById, collectionTeamById } from '$lib/game/online/collection-pool';
   import { findSecretOrganization, isSecretPlayerId, secretPoolOf } from '$lib/game/online/secret-players';
   import { MAP_POOL, getDefaultMapSelection, getLineupMapContributors, getLineupMapYears, getMapFamiliarity, getMapName, isValidLineupMapSelection } from '$lib/game/maps';
   import { getPickReasonText } from '$lib/game/pickPresentation';
@@ -295,8 +296,8 @@
     recentPickId = playerId;
     const source = pendingPickSource && Date.now() - pendingPickSource.at < 10_000 ? pendingPickSource.rect : null;
     pendingPickSource = null;
-    if (reducedMotion()) return;
-    if (source) flight = { id: ++flightId, name: playerById.get(playerId)?.nickname ?? '?', source, slot };
+    // Movimento reduzido só pula o voo da carta: o som continua confirmando o pick.
+    if (source && !reducedMotion()) flight = { id: ++flightId, name: playerById.get(playerId)?.nickname ?? '?', source, slot };
     if (slot === 4) { celebrateLineup = true; playGameSound('lineup'); }
     else playGameSound('pick');
   }
@@ -344,6 +345,8 @@
     const unsubscribeQueue = queueView.subscribe((queue) => {
       queueState = queue.state;
       queueWaiting = queue.waiting;
+      // Só destaca subida real durante a busca; a primeira leitura da fila não pisca.
+      if (queueState === 'waiting' && queue.state === 'waiting' && queue.waiting > queueWaiting) flashQueueWaiting();
       queueSince = queue.since ?? queueSince;
       queueElapsed = queue.elapsed;
       queueClosesIn = queue.closesInMs === null ? null : Math.ceil(queue.closesInMs / 1_000);
@@ -400,7 +403,7 @@
   onDestroy(() => {
     if (liveTimer !== null) window.clearInterval(liveTimer);
     stopTitleAlert();
-    void queueAudio?.close().catch(() => {});
+    if (queueWaitingTimer !== null) window.clearTimeout(queueWaitingTimer);
     if (clockTimer !== null) window.clearInterval(clockTimer);
   });
 
@@ -486,7 +489,20 @@
   let queueFailures = 0;
   let titleTimer: number | null = null;
   let titleBeforeAlert = '';
-  let queueAudio: AudioContext | null = null;
+  /** Contador da fila que acabou de subir: acende o destaque breve do número. */
+  let queueWaitingRose = false;
+  let queueWaitingTimer: number | null = null;
+  /** Sala vinda da fila ainda sem snapshot: o primeiro snapshot jogável toca o cue de início. */
+  let roomStartPending = false;
+  /** Sala:run cujo resultado já tocou nesta sessão (um reload não repete o hino). */
+  let resultCueKey = '';
+
+  /** Um jogador a mais na fila: o número rola e fica aceso por um instante. */
+  function flashQueueWaiting() {
+    queueWaitingRose = true;
+    if (queueWaitingTimer !== null) window.clearTimeout(queueWaitingTimer);
+    queueWaitingTimer = window.setTimeout(() => { queueWaitingRose = false; queueWaitingTimer = null; }, 700);
+  }
 
   function stopTitleAlert() {
     if (titleTimer === null) return;
@@ -495,35 +511,26 @@
     document.title = titleBeforeAlert;
   }
 
-  /** Match found while the tab is in the background: blink the tab title and beep until the player comes back. */
+  /**
+   * Partida encontrada: o cue sai pelo motor de som do jogo (respeita a preferência do jogador e só toca com a aba
+   * visível); em segundo plano o título da aba pisca até o jogador voltar.
+   */
   function alertMatchFound() {
+    roomStartPending = true;
+    playGameSound('matchFound');
     if (!document.hidden) return;
     let on = false;
     stopTitleAlert();
     titleBeforeAlert = document.title;
     titleTimer = window.setInterval(() => { on = !on; document.title = on ? t('matchFoundTitle') : titleBeforeAlert; }, 900);
-    try {
-      if (!queueAudio) return;
-      const start = queueAudio.currentTime;
-      for (const offset of [0, 0.22]) {
-        const oscillator = queueAudio.createOscillator();
-        const gain = queueAudio.createGain();
-        oscillator.frequency.value = 880;
-        gain.gain.setValueAtTime(0.18, start + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.18);
-        oscillator.connect(gain).connect(queueAudio.destination);
-        oscillator.start(start + offset);
-        oscillator.stop(start + offset + 0.2);
-      }
-    } catch { /* sound is a nicety */ }
   }
 
   async function joinQueue(silent = false) {
     errorMessage = '';
     if (!silent) {
       queueNotice = '';
-      // Created inside the click, so the browser lets it beep later from a background tab.
-      try { queueAudio ??= new AudioContext(); void queueAudio.resume(); } catch { queueAudio = null; }
+      // O clique de entrar na fila também destrava o motor de som, para o cue de partida encontrada poder tocar.
+      unlockOfflineAudio();
     }
     try {
       playerName = resolvedPlayerName || 'Player';
@@ -567,7 +574,7 @@
       boostResult = '';
     } catch (caught) {
       boostResult = '';
-      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 30)) : caught instanceof AccountError && caught.code === 'NO_BOOST_STOCK' ? boostNoStockMessage($language) : t('connectionFailed');
+      boostError = caught instanceof AccountError && caught.code === 'BOOST_DAILY_CAP' ? t('boostCapHit').replace('{n}', String(boost?.dailyCap ?? 50)) : caught instanceof AccountError && caught.code === 'NO_BOOST_STOCK' ? boostNoStockMessage($language) : t('connectionFailed');
       showToast(boostError, caught instanceof AccountError && (caught.code === 'BOOST_DAILY_CAP' || caught.code === 'NO_BOOST_STOCK') ? 'warning' : 'error');
     } finally { boostBusy = false; }
   }
@@ -714,6 +721,7 @@
     serverOffset = next.serverTime - Date.now();
     config = next.config;
     if (newRun) startNewRun(next);
+    playPhaseCues(previous, next, newRun);
     mergeLiveDetails(next.tournament?.liveCursor?.primarySeries ?? null);
     errorMessage = '';
     if (next.self) {
@@ -733,6 +741,22 @@
       mapLineupKey = nextLineupKey;
     }
     updateCountdown();
+  }
+
+  /**
+   * Cues de transição de fase: `roomStart` quando a sala sai do lobby (ou quando a sala vinda da fila chega já
+   * jogável) e `champion`/`eliminated` uma única vez por sala:run ao fechar em `completed`, nunca num reload.
+   */
+  function playPhaseCues(previous: RoomSnapshot | null, next: RoomSnapshot, newRun: boolean) {
+    const playable = next.phase !== 'lobby' && next.phase !== 'completed';
+    if (playable && (previous?.phase === 'lobby' || newRun || (roomStartPending && !previous))) playGameSound('roomStart');
+    if (next.phase !== 'lobby') roomStartPending = false;
+    if (next.phase !== 'completed' || newRun || !previous || previous.phase === 'completed') return;
+    const key = `${next.roomCode}:${next.season?.run ?? 0}`;
+    if (resultCueKey === key) return;
+    resultCueKey = key;
+    const selfTeamId = next.participants.find((participant) => participant.id === next.self?.participantId)?.id ?? null;
+    playGameSound(selfTeamId && next.tournament?.championId === selfTeamId ? 'champion' : 'eliminated');
   }
 
   function applyPersistentLive(next: LiveUpdate) {
@@ -987,6 +1011,7 @@
       id: organization.id,
       name: organization.name,
       avatar: organization.name.slice(0, 2).toUpperCase(),
+      sourceTeamId: organization.sourceTeamId ?? null,
       eyebrow: organization.human
         ? `${style.toUpperCase()} · POWER ${formatCourtRating(organization.power)}`
         : `${historicalTeam?.game ?? 'CS'} · ${historicalTeam?.year ?? '—'} · ${teamPlacementLabel(historicalTeam)}`,
@@ -998,9 +1023,13 @@
       stats: strengths,
       // Quem está no banco: o coach conta na quadra (tática, disciplina e preferência de lado), então ele aparece.
       coach: (() => {
-        const coach = organization.coachId ? collectionCoachById.get(organization.coachId) : undefined;
+        const coach = organization.coachId
+          ? collectionCoachById.get(organization.coachId)
+          : (!organization.human && organization.sourceTeamId ? collectionCoaches.find((candidate) => candidate.teamId === organization.sourceTeamId) : undefined);
         if (!coach) return null;
         return {
+          id: coach.id,
+          baseId: coach.baseId,
           name: coach.name,
           team: teamById.get(coach.teamId)?.name ?? null,
           year: coach.year ?? null,
@@ -1060,9 +1089,18 @@
           {#if !$accountUser}
             <a class="primary online-link" href="/online/conta">{t('loginToPlay')}</a>
           {:else if queueState === 'waiting' || queueState === 'matched'}
-            <div class="queue-live"><i></i><strong>{queueState === 'matched' ? t('matchFound') : t('searching')}</strong><span>{queueWaiting} {t('inQueue')} · {queueElapsed}s</span></div>
+            <!-- Três estados com cara própria: radar varrendo enquanto busca, número rolando quando a fila cresce, flash único ao encontrar. -->
+            {#key queueState}
+              <div class="queue-live" class:matched={queueState === 'matched'}>
+                <i class="queue-radar" aria-hidden="true"><span></span></i>
+                <div class="queue-text">
+                  <strong class="queue-status">{#if queueState === 'matched'}{t('matchFound')}{:else}{t('searching').replace(/[….]+$/u, '')}<span class="queue-dots" aria-hidden="true"><em>.</em><em>.</em><em>.</em></span>{/if}</strong>
+                  <span class="queue-meta"><span class="queue-count" class:rose={queueWaitingRose}>{#key queueWaiting}<b>{queueWaiting}</b>{/key}</span> {t('inQueue')} · {queueElapsed}s</span>
+                </div>
+              </div>
+            {/key}
             {#if queueState === 'waiting' && queueClosesIn !== null}<p class="queue-hint" class:pair={queuePair}>{(queuePair ? t('queuePairHint') : t('queueStartsIn')).replace('{s}', String(queueClosesIn))}</p>{/if}
-            {#if queueState === 'waiting'}<button class="secondary" type="button" on:click={() => leaveQueue()}>{t('cancelSearch')}</button>{/if}
+            {#if queueState === 'waiting'}<button class="secondary" type="button" out:fade={{ duration: 200 }} on:click={() => leaveQueue()}>{t('cancelSearch')}</button>{/if}
           {:else if !hasSavedLineup}
             <p class="queue-warn">{t('queueNeedsTeam')}</p>
             <a class="primary online-link" href="/online/colecao">{t('collection')}</a>
@@ -1088,7 +1126,7 @@
               <button class="switch" type="button" role="switch" aria-checked={boostOn} aria-label={t('boostTitle')} disabled={boostBusy || (boost?.stock ?? 0) === 0} title={(boost?.stock ?? 0) === 0 ? t('boostStock').replace('{n}', '0') : t('boostConsume')} on:click={() => { boostOn = !boostOn; try { localStorage.setItem(BOOST_SWITCH_KEY, boostOn ? '1' : '0'); } catch { /* storage optional */ } }}>
                 <em>{boostOn ? 'ON' : 'OFF'}</em><i><span></span></i>
               </button>
-              <small>{t('boostStock').replace('{n}', String(boost?.stock ?? 0))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 30}</small>
+              <small>{t('boostStock').replace('{n}', String(boost?.stock ?? 0))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 50}</small>
             </div>
             {#if boostResult}<p class="boost-done" role="status">{boostResult}</p>{/if}
             {#if boostError}<p class="queue-warn" role="alert">{boostError}</p>{/if}
@@ -1199,7 +1237,7 @@
             <label><span>{gameT('simulationMode')}</span><select value={config.simulationMode} disabled={!isHost} on:change={(event) => saveConfig({ simulationMode: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationMode'] })}><option value="automatic">{gameT('automatic')}</option><option value="manual">{gameT('manual')}</option></select></label>
             <label><span>{t('speed')}</span><select value={config.simulationSpeed} disabled={!isHost} on:change={(event) => saveConfig({ simulationSpeed: (event.currentTarget as HTMLSelectElement).value as RoomConfig['simulationSpeed'] })}><option value="normal">{gameT('normal')}</option><option value="fast">{gameT('fast')}</option><option value="ultra">{gameT('ultra')}</option></select></label>
             <label><span>{t('seasonLength')}</span><select value={String(config.seasonRuns)} disabled={!isHost} on:change={(event) => saveConfig({ seasonRuns: Number((event.currentTarget as HTMLSelectElement).value) as RoomConfig['seasonRuns'] })}><option value="1">{t('seasonSingleRun')}</option><option value="2">2 runs</option><option value="3">3 runs</option><option value="4">4 runs</option></select><small class="mode-description">{t('seasonLengthHint')}</small></label>
-            {#if isHost && snapshot.origin !== 'queue'}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
+            {#if isHost && snapshot.origin !== 'queue' && snapshot.origin !== 'solo'}<button class="primary" type="button" disabled={snapshot.participants.filter((participant) => participant.connected).length < 2} on:click={() => send({ type: 'start' })}>{t('start')}</button>{/if}
           </section>
         </div>
       {:else if snapshot.phase === 'draft' && self}
@@ -1302,14 +1340,26 @@
                 />
               </div>
               <div class="control-group">
-                <span>{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
+                <span class="speed-control-label">{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}
+                  {#if snapshot.origin === 'queue' && snapshot.finalSpeedVote?.eligible && snapshot.finalSpeedVote.votes > 0}
+                    <small aria-live="polite">{snapshot.finalSpeedVote.votes}/2</small>
+                  {/if}
+                </span>
                 <div class="control-row">
                   <SegmentedControl
                     value={snapshot.config.simulationSpeed}
                     label={gameT('speed')}
-                    disabled={!isHost || snapshot.origin === 'queue'}
-                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                    disabled={snapshot.origin !== 'queue' && !isHost}
+                    options={[
+                      { value: 'normal', label: gameT('normal'), disabled: snapshot.origin === 'queue' },
+                      { value: 'fast', label: gameT('fast'), disabled: snapshot.origin === 'queue' && (!snapshot.finalSpeedVote?.eligible || snapshot.finalSpeedVote.voted || snapshot.finalSpeedVote.applied) },
+                      { value: 'ultra', label: gameT('ultra'), disabled: snapshot.origin === 'queue' }
+                    ]}
+                    onChange={(value) => {
+                      if (snapshot.origin === 'queue') {
+                        if (value === 'fast') send({ type: 'vote-final-speed' });
+                      } else configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] });
+                    }}
                   />
                   <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
                 </div>
@@ -1335,7 +1385,7 @@
                     <li><span>{t('placementCoins')} · {translatePlacement($language, result.placement)}</span><b>+{result.rewardCoins.toLocaleString($language)} coins</b></li>
                     {#if result.ranked}
                       {@const crate = crateOf(result.placement)}
-                      <li><span>{t('majorPack')}</span><b>{#if crate === 'global' || crate === 'supremo' || crate === 'ouro' || crate === 'prata'}<RankBadge tier={crate} size={15} /> {/if}{crateLabel(crate)}</b></li>
+                      <li><span>{t('majorPack')}</span><b>{#if crate === 'global' || crate === 'supremo' || crate === 'ouro' || crate === 'prata'}<RankBadge tier={crate} size={15} pop /> {/if}{crateLabel(crate)}</b></li>
                     {/if}
                     {#each mergeAwards(result.awards) as award (award.kind)}
                       <li><span>{award.count > 1 ? `${award.count}× ` : ''}{awardName(award.kind)}</span><b>+{award.coins.toLocaleString($language)} coins{award.points ? ` · +${award.points} pts` : ''}</b></li>
@@ -1572,20 +1622,28 @@
           <span>{index + 1} · {translatePlacement($language, placement)}</span>
         {/each}
       </div>
-      <p class="boost-meta-line">{t('boostStock').replace('{n}', String(boostModal.stock))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 30}</p>
+      <p class="boost-meta-line">{t('boostStock').replace('{n}', String(boostModal.stock))} · {boost?.runsToday ?? 0}/{boost?.dailyCap ?? 50}</p>
     </div>
     <div slot="actions" class="notice-actions"><button class="primary" type="button" on:click={() => boostModal = null}>{t('close')}</button></div>
   </Modal>
 {/if}
 
 <style>
+  .control-group>.speed-control-label{display:flex;align-items:center;justify-content:space-between;gap:8px}.speed-control-label small{flex:none;color:var(--accent);font-size:.55rem;font-weight:800;letter-spacing:0}
   .mode-description{color:var(--muted);font-size:.68rem;line-height:1.4}
+  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}.mode-card{min-width:0}
   .online-entry,.online-room{padding:28px 0 70px}.online-unavailable{margin-top:50px;padding:30px}.online-unavailable h1{font-size:clamp(2.5rem,8vw,5rem)}.online-unavailable p{color:var(--muted)}.online-link{display:inline-flex;align-items:center;min-height:48px;margin-top:18px;padding:0 18px;text-decoration:none}.identity-grid{display:grid;gap:12px;margin:28px 0 14px;padding:18px}.identity-grid label,.room-settings label,.entry-actions label,.pro-config label{display:grid;gap:7px}.identity-grid span,.room-settings label>span,.entry-actions label>span{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.identity-grid input,.room-settings input,.room-settings select,.entry-actions input,.pro-config select{min-height:46px;padding:0 12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}.entry-actions{display:grid;gap:14px}.entry-actions section{padding:22px}.entry-actions h2{font-size:2rem}.entry-actions button{width:100%;margin-top:15px}.room-input{text-transform:uppercase;letter-spacing:.2em}.online-error{padding:12px;border:1px solid var(--danger);color:#ff9b90}.online-header{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}.online-header-compact{justify-content:flex-end}.online-header h1{margin:5px 0 0;font-size:clamp(2.6rem,8vw,5rem)}.online-room-title{margin:6px 0 0;font:900 1.3rem 'Arial Narrow',Impact,sans-serif;letter-spacing:.02em;text-transform:uppercase}.room-actions{display:flex;align-items:end;gap:12px}.room-code{display:grid;gap:5px;text-align:right}.room-code span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.room-code button{padding:9px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:900;letter-spacing:.17em}.leave-button{min-height:44px;padding:0 14px;font-size:.58rem}.leave-button.armed{border-color:var(--danger);color:var(--danger)}.lobby-grid{display:grid;gap:14px}.participants-panel,.room-settings{padding:20px}.participant-list{display:grid;gap:8px}.participant-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--surface-2)}.participant-list article>span{display:grid;place-items:center;width:38px;height:38px;background:var(--accent);color:#0a0d08;font-weight:900}.participant-list strong,.participant-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.participant-list small{margin-top:2px;color:var(--muted)}.participant-meta{color:var(--accent);font-weight:800;letter-spacing:.04em}.participant-list b{color:var(--accent);font-size:.55rem}.participant-list .offline{opacity:.55}.room-settings{display:grid;gap:10px}.room-settings h2{margin:2px 0 7px}.draft-status{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:14px}.draft-status div{padding:13px;border-right:1px solid var(--line)}.draft-status div:last-child{border-right:0}.draft-status span,.draft-status strong{display:block}.draft-status span{color:var(--muted);font-size:.55rem;text-transform:uppercase}.draft-status strong{margin-top:5px;color:var(--accent);font-size:1.3rem}.pro-config,.waiting-panel{margin-bottom:14px;padding:20px}.waiting-panel{text-align:center}.waiting-panel .scanner{margin:auto}.online-progress{margin-top:18px}.online-progress article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:8px 0}.online-progress article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-progress article>b{font-size:.62rem;white-space:nowrap}.online-progress i{grid-column:1/-1;height:4px;background:var(--line)}.online-progress em{display:block;height:100%;background:var(--accent)}.pro-config>div{display:grid;gap:8px;margin:14px 0}.pro-config label{grid-template-columns:1fr 1fr;align-items:center}
   .watch-bar{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}.watch-bar>div{display:grid;gap:3px;min-width:0}.watch-bar strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}.watch-bar strong em{color:var(--muted);font-style:normal;font-weight:400}.watch-bar b{color:var(--danger);font-size:.66rem;font-weight:800}.watch-bar.alert{border-color:var(--danger);box-shadow:0 0 18px color-mix(in srgb,var(--danger) 25%,transparent)}.watch-bar button{flex:0 0 auto;min-height:50px;padding:0 16px}
   .secret-zone{display:grid;gap:12px;margin-bottom:14px;padding:20px;border-color:var(--accent-2)}.secret-zone .section-heading>strong{color:var(--accent-2);font-size:1.6rem}
   .live-actions{position:sticky;top:140px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin:0 0 12px;padding:6px 10px;border:1px solid var(--line);background:var(--surface)}.live-actions small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.veto-intro{margin:-6px 0 14px;color:var(--muted);font-size:.72rem;line-height:1.4}.decision-wait{border-style:dashed}
-  .online-major-screen{max-width:none;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{margin-top:18px}.after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:50px;margin-top:0;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border-left:3px solid #d9a441}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2))}.queue-live i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:queuePulse 1s ease-in-out infinite}.queue-live span{color:var(--muted);font-size:.72rem}.queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.boost-switch-row{display:flex;align-items:center;gap:10px}.boost-switch-row small{color:var(--muted);font-size:.7rem;font-weight:700}.boost-done{margin:0;padding:10px 12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));color:var(--accent);font-weight:800;font-size:.8rem}
+  .online-major-screen{max-width:none;margin:24px auto 0}.online-stats{display:grid;gap:12px;margin:18px 0}.online-stats .section-heading h2{margin:6px 0 0;font-size:1.5rem}.major-tabs{margin-bottom:18px}.online-result-hero{position:relative;margin-top:18px;overflow:hidden}.online-result-hero>*{position:relative;z-index:1}.online-result-hero h1{animation:heroTitleIn 600ms var(--ease-out-strong) both}.online-result-hero.success::after{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 50% 100%,color-mix(in srgb,var(--accent) 55%,transparent),transparent 65%);opacity:0;animation:heroGlow 600ms var(--ease-out-soft) both;pointer-events:none}
+  .collection-outcome .earned li,.collection-outcome .campaign-grid article{animation:offline-lineup-in var(--dur-reveal) var(--ease-out-strong) backwards;animation-delay:var(--lineup-delay,0ms)}.collection-outcome .earned li:nth-child(2),.collection-outcome .campaign-grid article:nth-child(2){--lineup-delay:60ms}.collection-outcome .earned li:nth-child(3),.collection-outcome .campaign-grid article:nth-child(3){--lineup-delay:120ms}.collection-outcome .earned li:nth-child(4){--lineup-delay:180ms}.collection-outcome .earned li:nth-child(5){--lineup-delay:240ms}.collection-outcome .earned li:nth-child(6){--lineup-delay:300ms}.collection-outcome .earned li:nth-child(7){--lineup-delay:360ms}.collection-outcome .earned li:nth-child(n+8){--lineup-delay:420ms}
+  @keyframes heroTitleIn{from{clip-path:inset(0 100% 0 0);opacity:.4}to{clip-path:inset(0 -2% 0 0);opacity:1}}@keyframes heroGlow{0%{opacity:0}35%{opacity:1}100%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.online-result-hero h1,.online-result-hero.success::after,.collection-outcome .earned li,.collection-outcome .campaign-grid article{animation:none}}
+  .after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:50px;margin-top:0;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border-left:3px solid #d9a441}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border-left:3px solid #d9a441;font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));overflow:hidden;animation:queueIn var(--dur-ui) var(--ease-out-strong) both}.queue-text{display:grid;gap:3px;min-width:0}.queue-status{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.queue-meta{color:var(--muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* O mesmo radar da home (`.scanner`), menor: um anel graduado com a varredura girando; nada de ponto separado. */.queue-radar{position:relative;flex:none;width:34px;height:34px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px);overflow:hidden;transition:background var(--dur-ui) ease,border-color var(--dur-ui) ease}.queue-radar span{position:absolute;inset:50% 0 0 50%;background:conic-gradient(var(--accent),transparent 60deg);transform-origin:top left;animation:queueSweep 1.6s linear infinite}.queue-dots em{display:inline-block;font-style:normal;animation:queueDot 1.2s var(--ease-in-out-strong) infinite}.queue-dots em:nth-child(2){animation-delay:.2s}.queue-dots em:nth-child(3){animation-delay:.4s}.queue-count{display:inline-grid;overflow:hidden;vertical-align:bottom;line-height:1.15}.queue-count b{grid-area:1/1;color:var(--text);font-weight:900;font-variant-numeric:tabular-nums;animation:queueRoll var(--dur-ui) var(--ease-out-strong) both;transition:color var(--dur-ui) var(--ease-out-soft)}.queue-count.rose b{color:var(--accent)}.queue-live.matched .queue-radar{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 0 30%,transparent 32%),repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px)}.queue-live.matched .queue-radar span{animation:none;opacity:0}.queue-live.matched .queue-status{color:var(--accent);animation:queueTextIn 320ms var(--ease-out-strong) both}.queue-live.matched::after{content:'';position:absolute;inset:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 24%,transparent);opacity:0;animation:queueFlash 320ms var(--ease-out-strong) both;pointer-events:none}@keyframes queueIn{from{transform:translateY(6px);opacity:0}}@keyframes queueSweep{to{transform:rotate(360deg)}}@keyframes queueDot{0%,20%{opacity:.2}50%{opacity:1}100%{opacity:.2}}@keyframes queueRoll{from{transform:translateY(100%);opacity:0}}@keyframes queueTextIn{from{clip-path:inset(0 100% 0 0);transform:translateY(20%)}to{clip-path:inset(0);transform:none}}@keyframes queueFlash{from{opacity:1}to{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.queue-live,.queue-radar span,.queue-dots em,.queue-count b,.queue-live.matched .queue-status,.queue-live.matched::after{animation:none}.queue-radar::before{opacity:.6}.queue-dots em{opacity:1}}
+  .queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;padding:22px}.boost-switch-row{display:flex;align-items:center;gap:10px}.boost-switch-row small{color:var(--muted);font-size:.7rem;font-weight:700}.boost-done{margin:0;padding:10px 12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));color:var(--accent);font-weight:800;font-size:.8rem}
   .boost-modal{display:grid;gap:14px}.boost-coins{margin:0;color:var(--accent);font:900 2.6rem/1 'Arial Narrow',Impact,sans-serif;text-align:center}.boost-coins :global(small){font:800 .9rem Inter,Arial,sans-serif;margin-left:6px;color:var(--muted)}.boost-finances{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.boost-finances span{display:grid;gap:5px;padding:10px;border:1px solid var(--line);background:var(--surface-2);text-align:center}.boost-finances small{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.boost-finances b{font-size:.76rem;color:var(--text)}.boost-finances span:nth-child(2) b,.boost-finances span:nth-child(3) b{color:var(--accent)}.boost-finances span.negative b{color:var(--danger,#ff7063)}.boost-lines{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin:0}.boost-lines span{color:var(--text);font-weight:800;font-size:.82rem}.boost-chips{display:flex;flex-wrap:wrap;gap:6px}.boost-chips span{padding:3px 8px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.68rem;font-weight:700}.boost-meta-line{margin:0;text-align:center;color:var(--muted);font-size:.74rem;font-weight:700}.notice-actions{display:grid;grid-template-columns:1fr}.notice-actions :global(button){min-height:46px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.queue-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.mode-card .info-btn{flex:none;width:26px;height:26px;min-height:0;margin:0;padding:0;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.82rem;font-weight:900;line-height:1;cursor:pointer;transition:.18s ease}.mode-card .info-btn:hover,.mode-card .info-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}.queue-hint-info{margin:-4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}.presence-line{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:.74rem;font-weight:700}.presence-line i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:queuePulse 1.6s ease-in-out infinite}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}
   @media(max-width:420px){.boost-finances{grid-template-columns:1fr}.boost-finances span{grid-template-columns:1fr auto;align-items:center;text-align:left}}
   .identity-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;margin:28px 0 14px;padding:18px}.identity-strip .strip-copy p{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 0}.identity-strip strong{font-size:1.05rem}.identity-strip small{color:var(--muted);font-size:.82rem;font-weight:700}.identity-strip>a{flex:none;color:var(--muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.identity-strip>a:hover{color:var(--accent)}
@@ -1599,4 +1657,5 @@
   @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
+  .mode-choice{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 </style>

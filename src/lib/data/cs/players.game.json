@@ -1781,10 +1781,9 @@
     "teamId": "fnatic-2016",
     "year": 2016,
     "game": "CSGO",
-    "role": "igl",
+    "role": "support",
     "eligibleSlotRoles": [
-      "igl",
-      "lurker",
+      "support",
       "rifler"
     ],
     "rarity": "legend",
@@ -1860,10 +1859,10 @@
     "teamId": "fnatic-2016",
     "year": 2016,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "rifler",
-      "lurker"
+      "entry",
+      "awper"
     ],
     "rarity": "legend",
     "traits": [],
@@ -3902,8 +3901,7 @@
     "game": "CSGO",
     "role": "lurker",
     "eligibleSlotRoles": [
-      "lurker",
-      "rifler"
+      "lurker"
     ],
     "rarity": "legend",
     "traits": [],
@@ -6631,7 +6629,7 @@
     "teamId": "faze-2017",
     "year": 2017,
     "game": "CSGO",
-    "role": "rifle-support",
+    "role": "entry",
     "overall": 90,
     "rarity": "legend",
     "traits": [],
@@ -6669,8 +6667,8 @@
       "HLTV Top 20 2017 #19"
     ],
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "entry",
+      "awper"
     ],
     "roleConfidence": "low",
     "hltvTop20": {
@@ -7067,10 +7065,10 @@
     "teamId": "fnatic-2017",
     "year": 2017,
     "game": "CSGO",
-    "role": "rifler",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "rifler",
-      "lurker"
+      "entry",
+      "awper"
     ],
     "rarity": "legend",
     "traits": [],
@@ -7871,9 +7869,9 @@
     "teamId": "godsent-2017",
     "year": 2017,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker",
+      "support",
       "rifler"
     ],
     "rarity": "elite",
@@ -7931,7 +7929,8 @@
     "game": "CSGO",
     "role": "igl",
     "eligibleSlotRoles": [
-      "igl"
+      "igl",
+      "support"
     ],
     "rarity": "common",
     "traits": [],
@@ -12087,11 +12086,10 @@
     "teamId": "faze-2018",
     "year": 2018,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "lurker",
-      "rifler",
-      "support"
+      "entry",
+      "awper"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -12333,9 +12331,9 @@
     "teamId": "fnatic-2018",
     "year": 2018,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "support",
     "eligibleSlotRoles": [
-      "lurker",
+      "support",
       "rifler"
     ],
     "rarity": "elite",
@@ -14632,9 +14630,7 @@
     "game": "CSGO",
     "role": "lurker",
     "eligibleSlotRoles": [
-      "lurker",
-      "rifler",
-      "support"
+      "lurker"
     ],
     "rarity": "rare",
     "traits": [],
@@ -16579,7 +16575,7 @@
     "year": 2019,
     "game": "CSGO",
     "role": "awper",
-    "overall": 97,
+    "overall": 98,
     "rarity": "goat",
     "traits": [
       "consistencyGod",
@@ -16653,7 +16649,7 @@
     "year": 2019,
     "game": "CSGO",
     "role": "entry",
-    "overall": 91,
+    "overall": 96,
     "rarity": "legend",
     "traits": [],
     "firepower": 96,
@@ -17267,10 +17263,9 @@
     "teamId": "cloud9-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "igl",
+    "role": "support",
     "eligibleSlotRoles": [
-      "igl",
-      "lurker",
+      "support",
       "rifler"
     ],
     "rarity": "legend",
@@ -18827,11 +18822,10 @@
     "teamId": "faze-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "lurker",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "lurker",
-      "rifler",
-      "support"
+      "entry",
+      "awper"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -18983,7 +18977,7 @@
     "teamId": "fnatic-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "rifle-support",
+    "role": "support",
     "overall": 84,
     "rarity": "elite",
     "traits": [],
@@ -22088,9 +22082,7 @@
     "game": "CSGO",
     "role": "lurker",
     "eligibleSlotRoles": [
-      "lurker",
-      "rifler",
-      "support"
+      "lurker"
     ],
     "rarity": "rare",
     "traits": [],
@@ -27081,11 +27073,10 @@
     "teamId": "faze-2021",
     "year": 2021,
     "game": "CSGO",
-    "role": "support",
+    "role": "entry",
     "eligibleSlotRoles": [
-      "support",
-      "lurker",
-      "rifler"
+      "entry",
+      "awper"
     ],
     "rarity": "rare",
     "traits": [],
@@ -69108,7 +69099,7 @@
     "year": 2025,
     "game": "CS2",
     "role": "entry",
-    "overall": 95,
+    "overall": 97,
     "rarity": "legend",
     "traits": [],
     "firepower": 97,
@@ -69190,7 +69181,7 @@
     "year": 2025,
     "game": "CS2",
     "role": "support",
-    "overall": 93,
+    "overall": 95,
     "rarity": "legend",
     "traits": [],
     "firepower": 92,

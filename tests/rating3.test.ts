@@ -141,8 +141,9 @@ describe('fórmulas do Rating 3.0', () => {
 });
 
 describe('servidor online', () => {
-  it('pede HLTV 1.0 para prêmios e stats', () => {
+  it('pede o Rating 3.0 para prêmios e stats, calculado uma vez no fim da run (2026-09-27)', () => {
     const server = readFileSync('server/room-manager.ts', 'utf8');
-    expect(server.match(/\{ model: 'hltv1' \}/g)).toHaveLength(2);
+    expect(server.match(/\{ model: 'v3' \}/g)).toHaveLength(2);
+    expect(server).not.toMatch(/model: 'hltv1'/);
   });
 });

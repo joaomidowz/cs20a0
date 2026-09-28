@@ -4,6 +4,8 @@
   import type { OrganizationRosterView } from '$lib/game/organizationPresentation';
   import type { Language } from '$lib/game/types';
   import PlayerMiniCard from './PlayerMiniCard.svelte';
+  import PlayerAvatar from './PlayerAvatar.svelte';
+  import TeamBadge from './TeamBadge.svelte';
 
   export let organization: OrganizationRosterView | null = null;
   export let isOpen = false;
@@ -57,7 +59,7 @@
     <div bind:this={dialog} class="team-roster-modal" role="dialog" aria-modal="true" aria-label={organization.name} tabindex="-1" on:mousedown|stopPropagation>
       <button bind:this={closeButton} class="sheet-close" type="button" aria-label={translate(language, 'close')} on:click={onClose}>×</button>
       <header class="team-modal-header">
-        <div class="team-avatar">{organization.avatar}</div>
+        <TeamBadge id={organization.sourceTeamId ?? organization.id} name={organization.name} size="xl" />
         <div><span class="eyebrow">{organization.eyebrow}</span><h2>{organization.name}</h2><p>{organization.subtitle}</p></div>
       </header>
 
@@ -75,6 +77,7 @@
         <div class="org-modal-coach">
           <span class="eyebrow">COACH</span>
           <div class="coach-line">
+            {#if coach.id}<PlayerAvatar player={{ id: coach.id, baseId: coach.baseId ?? null }} variant="large" />{/if}
             <strong>{coach.name}</strong>
             {#if coach.team}<em>{coach.team}{coach.year ? ` · ${coach.year}` : ''}</em>{/if}
           </div>

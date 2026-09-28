@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { translate } from '$lib/game/i18n';
   import { MAP_POOL, getMapName } from '$lib/game/maps';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import type { Language, MapId, MapVetoStep } from '$lib/game/types';
 
   export let available: MapId[] = [];
@@ -20,6 +22,20 @@
   $: stepByMap = new Map(steps.map((step) => [step.mapId, step]));
   $: ordered = [...MAP_POOL].filter((mapId) => stepByMap.has(mapId) || available.includes(mapId));
   $: isMine = (teamId: string | null) => Boolean(teamId && teamId === myTeamId);
+
+  // Passo novo do veto (inclusive do oponente) ganha som: pick sobe, ban desce. A hidratação inicial fica muda.
+  let mounted = false;
+  let knownSteps = steps.length;
+  onMount(() => { knownSteps = steps.length; mounted = true; });
+  $: if (mounted) announceSteps(steps);
+  function announceSteps(list: MapVetoStep[]) {
+    if (list.length > knownSteps) {
+      const latest = list[list.length - 1];
+      if (latest?.action === 'pick') playGameSound('pick');
+      else if (latest?.action === 'ban') playGameSound('coinSpend');
+    }
+    knownSteps = list.length;
+  }
 </script>
 
 <section class="veto-board panel" aria-live="polite">
@@ -58,14 +74,15 @@
   .veto-board header{display:flex;align-items:start;justify-content:space-between;gap:12px}.veto-board h2{margin:4px 0 0;font-size:1.5rem}
   .veto-turn{display:grid;justify-items:end;gap:4px;color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.veto-turn.mine{color:var(--accent)}.veto-turn b{font:900 1.6rem 'Arial Narrow',Impact,sans-serif;font-variant-numeric:tabular-nums}
   .veto-steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
-  .veto-steps li{display:grid;gap:2px;min-width:92px;padding:6px 8px;border:1px solid var(--line);background:var(--surface-2);animation:stepIn .25s ease-out}
+  .veto-steps li{display:grid;gap:2px;min-width:92px;padding:6px 8px;border:1px solid var(--line);background:var(--surface-2);animation:stepIn var(--dur-ui) var(--ease-out-strong) both}
   .veto-steps li.ban{opacity:.55}.veto-steps li.ban strong{text-decoration:line-through}.veto-steps li.pick{border-color:var(--accent-2)}.veto-steps li.mine{border-color:var(--accent)}.veto-steps li.decider{border-color:var(--text)}
   .veto-steps small{color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em}.veto-steps strong{font-size:.85rem;text-transform:uppercase}.veto-steps span{overflow:hidden;color:var(--muted);font-size:.55rem;text-overflow:ellipsis;white-space:nowrap}
   .veto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}
-  .veto-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:default;transition:border-color .15s ease,transform .15s ease}
+  .veto-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:default;transition:border-color .15s ease,transform .15s var(--ease-out-strong),opacity .15s ease}
   .veto-grid button strong{font-size:1rem;text-transform:uppercase}.veto-grid button span{color:var(--muted);font-size:.55rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-  .veto-grid button.selectable{cursor:pointer;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.veto-grid button.selectable:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .veto-grid button.selectable{cursor:pointer;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.veto-grid button.selectable:hover{border-color:var(--accent)}@media (hover:hover) and (pointer:fine){.veto-grid button.selectable:hover{transform:translateY(-2px)}}
   .veto-grid button.banned{opacity:.35}.veto-grid button.banned strong{text-decoration:line-through}.veto-grid button.picked{border-color:var(--accent-2)}.veto-grid button.picked span{color:var(--accent-2)}.veto-grid button.mine{border-color:var(--accent)}.veto-grid button.mine span{color:var(--accent)}.veto-grid button.decider{border-color:var(--text)}
   .veto-grid .familiarity{display:block;height:3px;background:var(--line)}.veto-grid .familiarity em{display:block;height:100%;background:var(--accent)}
   @keyframes stepIn{from{transform:translateY(4px);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.veto-steps li{animation:none}.veto-grid button.selectable:hover{transform:none}}
 </style>

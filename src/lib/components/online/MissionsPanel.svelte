@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { flip } from 'svelte/animate';
+  import { cubicOut } from 'svelte/easing';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import { uiCopy } from '$lib/game/online/ui-copy';
   import { refreshWallet } from '$lib/game/online/wallet';
   import { AccountError } from '$lib/game/online/account';
@@ -27,6 +30,7 @@
   let error = '';
   let loading = true;
   let notice = '';
+  let reducedMotion = typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: shown = missions.filter((mission) => mission.scope === tab).sort((a, b) => Number(a.claimed) * 2 + Number(a.progress < a.target) - (Number(b.claimed) * 2 + Number(b.progress < b.target)));
@@ -57,6 +61,7 @@
     try {
       const result = await claimMission(serverUrl, mission.id);
       onClaimed({ wallet: result.wallet, packs: result.packs });
+      playGameSound('success');
       if (result.packs) void refreshWallet(serverUrl);
       notice = `${uiCopy(language, 'received')}: ${mission.coins.toLocaleString(language)} coins${mission.packs ? ` + ${mission.packs} ${t('missionPacks')}` : ''}.`;
       await load();
@@ -67,7 +72,13 @@
     }
   }
 
-  onMount(() => { void load(); });
+  onMount(() => {
+    void load();
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotion = () => reducedMotion = motionQuery.matches;
+    motionQuery.addEventListener('change', updateMotion);
+    return () => motionQuery.removeEventListener('change', updateMotion);
+  });
 </script>
 
 <section class="panel missions-panel" aria-label={t('missions')}>
@@ -89,14 +100,15 @@
   <ul class="missions-list">
     {#each shown as mission (mission.id)}
       {@const done = mission.progress >= mission.target}
-      <li class:ready={done && !mission.claimed} class:claimed={mission.claimed}>
+      <!-- Missão resgatada desce para o fim da lista deslizando (flip), em vez de saltar de posição. -->
+      <li class:ready={done && !mission.claimed} class:claimed={mission.claimed} animate:flip={{ duration: reducedMotion ? 0 : 160, easing: cubicOut }}>
         <div class="missions-text">
           <strong>{label(mission.id)}</strong>
           <small>{t('missionResets')} {resetsIn(mission.resetsAt)}</small>
         </div>
         <div class="missions-progress">
           <div class="missions-bar" role="progressbar" aria-valuemin="0" aria-valuemax={mission.target} aria-label={label(mission.id)} aria-valuenow={Math.min(mission.progress, mission.target)}>
-            <span style={`width: ${Math.min(100, (mission.progress / mission.target) * 100)}%`}></span>
+            <span style={`transform: scaleX(${Math.min(1, mission.progress / mission.target)})`}></span>
           </div>
           <span class="missions-count">{Math.min(mission.progress, mission.target)}/{mission.target}</span>
         </div>
@@ -127,13 +139,15 @@
   .missions-list li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(140px, 1fr) 150px 150px; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid var(--line); background: var(--surface-2); }
   .missions-list li.ready { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
   .missions-list li.claimed { border-left-color: var(--line); background: var(--surface); }
+  .missions-text, .missions-progress, .missions-reward { transition: opacity .2s var(--ease-out-soft); }
   .missions-list li.claimed .missions-text, .missions-list li.claimed .missions-progress, .missions-list li.claimed .missions-reward { opacity: .5; }
   .missions-text { display: grid; gap: 4px; min-width: 0; }
   .missions-text strong { font-size: .86rem; line-height: 1.3; }
   .missions-text small { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .missions-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
   .missions-bar { height: 6px; background: var(--surface); border: 1px solid var(--line); }
-  .missions-bar span { display: block; height: 100%; background: var(--accent); transition: width 300ms ease-out; }
+  .missions-bar { overflow: hidden; }
+  .missions-bar span { display: block; width: 100%; height: 100%; background: var(--accent); transform-origin: left; transition: transform 300ms var(--ease-out-soft); }
   .missions-count { color: var(--text); font: 900 1rem/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
   .missions-reward { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; font-size: .8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
   .missions-reward i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
@@ -145,4 +159,5 @@
     .missions-list li { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
     .missions-text, .missions-progress { grid-column: 1 / -1; }
   }
+  @media (prefers-reduced-motion: reduce) { .missions-bar span, .missions-text, .missions-progress, .missions-reward { transition: none; } }
 </style>

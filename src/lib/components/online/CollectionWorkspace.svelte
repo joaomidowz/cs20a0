@@ -8,6 +8,10 @@
   export let section: 'team' | 'store' = 'team';
   $: u = (key: Parameters<typeof uiCopy>[1]) => uiCopy($language, key);
   import { onMount, tick } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { fade } from 'svelte/transition';
+  import AnimatedNumber from '$lib/components/ui/AnimatedNumber.svelte';
+  import { playGameSound } from '$lib/game/offlineAudio';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import BuyCoins from '$lib/components/online/BuyCoins.svelte';
   import PromosPanel from '$lib/components/online/PromosPanel.svelte';
@@ -46,6 +50,19 @@
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   $: gameT = (key: Parameters<typeof translate>[1]) => translate($language, key);
   const serverUrl = getOnlineServerUrl();
+  let reducedMotion = typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  onMount(() => {
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotion = () => reducedMotion = motionQuery.matches;
+    motionQuery.addEventListener('change', updateMotion);
+    return () => motionQuery.removeEventListener('change', updateMotion);
+  });
+  /** Troca de vaga: a grade que sai desliza 2% e desfoca, a que entra chega do outro lado; a saída não pega clique. */
+  const slotsSwap = (_node: Element, { out = false } = {}) => ({
+    duration: reducedMotion ? 0 : 150,
+    easing: cubicOut,
+    css: (t: number, u: number) => `opacity: ${t}; transform: translateX(${(out ? -u : u) * 2}%); filter: blur(${u * 2}px);${out ? ' pointer-events: none;' : ''}`
+  });
   const ROLES: LineupSlotRole[] = ['igl', 'awper', 'entry', 'lurker', 'support', 'rifler'];
   const YEARS = COLLECTION_YEARS;
 
@@ -276,10 +293,13 @@
     try { await setActiveLineup(serverUrl, activeTab); showToast(t('lineupInUseToast')); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
   }
 
-  async function runReveal(open: () => Promise<PackOpened>, tier: PackTier, free = false) {
+  /** Qual caixa da loja está abrindo (treme e levanta a tampa): a clicada, até o reveal terminar. O PackReveal então pula a caixa dele. */
+  let openingCase: string | null = null;
+  async function runReveal(open: () => Promise<PackOpened>, tier: PackTier, free = false, source: string = tier) {
     if (busy) return;
     if (tier !== 'basic' && !free && !await confirmDialog({ title: u('confirmBuy'), body: t(PACK_LABEL[tier]) + ' · ' + PACK_PRICES[tier].toLocaleString($language) + ' coins', confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
     error = ''; busy = true;
+    openingCase = source;
     try {
       const result = await open();
       const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => { const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach }]; const player = playerById.get(id); return player ? [{ kind: 'player', player }] : []; });
@@ -288,14 +308,14 @@
       reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, tier: result.tier, key: Date.now(), done: false };
       await tick(); scrollTo(shopSection);
       await refresh();
-    } catch (caught) { fail(caught); } finally { busy = false; }
+    } catch (caught) { openingCase = null; fail(caught); } finally { busy = false; }
   }
 
   /** Caixa do Major: the oldest sealed run decides the tier (Prata/Ouro/Supremo/Global/Básica), never the client. */
   $: majorPackTier = state?.majorPackTier ?? null;
   async function openMajorCrate() {
     if (busy || !majorPackTier) return;
-    await runReveal(() => openMajorPack(serverUrl), majorPackTier, true);
+    await runReveal(() => openMajorPack(serverUrl), majorPackTier, true, 'major');
   }
 
   /** Aviso do Major: uma vez por CONTA neste navegador, marcado como visto NO MOMENTO em que aparece
@@ -366,7 +386,9 @@
     const eligible = eligibleRolesOf(player);
     roles[index] = eligible.includes(primaryRoleOf(player)) ? primaryRoleOf(player) : eligible[0] ?? 'rifler';
     slots = [...slots]; roles = [...roles];
-    showToast(t('addToLineup'));
+    // Colocar carta é feedback leve: toast sem som + `pick`; `success` fica para salvar/comprar/vender.
+    showToast(t('addToLineup'), 'info');
+    playGameSound('pick');
   }
 
   // Team maps: three picks among the maps the five cards played in their years. Bans stay automatic (the team bans what
@@ -401,7 +423,8 @@
     slots[index] = swapIn;
     roles[index] = keptRole && eligibleRolesOf(swapIn).includes(keptRole) ? keptRole : roleFor(swapIn);
     slots = [...slots]; roles = [...roles];
-    showToast(`${swapIn.nickname ?? swapIn.id} ⇄ ${leaving?.nickname ?? '—'}`);
+    showToast(`${swapIn.nickname ?? swapIn.id} ⇄ ${leaving?.nickname ?? '—'}`, 'info');
+    playGameSound('pick');
     swapIn = null;
   }
 
@@ -481,7 +504,7 @@
           <PromosPanel {serverUrl} language={$language} wallet={state.wallet} {busy} onBought={() => refresh()} />
           <article class="pack basic daily-pack">
               <PackOdds tier="basic" title={t('packBasic')} labels={oddsLabels} />
-              <PackCase tier="basic" label={t('packBasic')} />
+              <PackCase tier="basic" label={t('packBasic')} opening={openingCase === 'basic'} />
               <div class="daily-info"><strong>{t('packBasic')}</strong>
               <small>{packsLeft}/{state.packsToday.granted} · {t('packsToday').toLowerCase()}</small></div>
               <button class="primary" type="button" disabled={busy || packsLeft <= 0} on:click={() => runReveal(() => openDailyPack(serverUrl), 'basic')}>{packsLeft > 0 ? t('openPack') : t('noPacksLeft')}</button>
@@ -491,7 +514,7 @@
               {@const tier = name as 'prata' | 'ouro'}
               <article class="pack {tier}">
                 <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
-                <PackCase {tier} label={t(PACK_LABEL[tier])} />
+                <PackCase {tier} label={t(PACK_LABEL[tier])} opening={openingCase === tier} />
                 <strong>{t(PACK_LABEL[tier])}</strong>
                 {#if state.freePacks?.[tier]}
                   <span class="price">{t('free')}</span>
@@ -504,7 +527,7 @@
             {/each}
             <article class="pack funcao">
               <PackOdds tier="funcao" title={t('packFuncao')} labels={oddsLabels} />
-              <PackCase tier="funcao" label={getRoleLabel(functionPackRole)} />
+              <PackCase tier="funcao" label={getRoleLabel(functionPackRole)} opening={openingCase === 'funcao'} />
               <strong>{t('packFuncao')}</strong>
               <span class="price"><i></i>{PACK_PRICES.funcao.toLocaleString($language)}</span>
               <PackSelect value={functionPackRole} options={ROLES.map((role) => ({ key: role, name: getRoleLabel(role), caption: t('packFuncao') }))} label={t('packFuncaoHint')} searchLabel={t('search')} emptyLabel={t('selectNoResults')} tone="function" disabled={busy} onSelect={(role) => functionPackRole = role as LineupSlotRole} />
@@ -512,7 +535,7 @@
             </article>
             <article class="pack coach">
               <PackOdds tier="coach" title={t('packCoach')} labels={oddsLabels} />
-              <PackCase tier="coach" label={t('packCoach')} />
+              <PackCase tier="coach" label={t('packCoach')} opening={openingCase === 'coach'} />
               <strong>{t('packCoach')}</strong>
               <span class="price"><i></i>{PACK_PRICES.coach.toLocaleString($language)}</span>
               <small>{t('packCoachHint')}</small>
@@ -520,7 +543,7 @@
             </article>
             <article class="pack time team-{selectedPackOrganization?.rarity ?? 'standard'}">
               <PackOdds tier="time" title={t('packTime')} labels={oddsLabels} />
-              <PackCase tier="time" label={selectedPackOrganization?.name ?? t('packTime')} />
+              <PackCase tier="time" label={selectedPackOrganization?.name ?? t('packTime')} opening={openingCase === 'time'} />
               <strong>{t('packTime')}</strong>
               <span class="price"><i></i>{teamPackPrice.toLocaleString($language)} · {selectedPackOrganization ? teamPackRarityLabel(selectedPackOrganization.rarity) : ''}</span>
               <TeamPackSelect bind:value={teamPackOrganization} label={t('packTimeHint')} searchLabel={t('search')} emptyLabel={t('noResults')} rarityLabel={teamPackRarityLabel} disabled={busy} />
@@ -528,7 +551,7 @@
             </article>
             <article class="pack era">
               <PackOdds tier="era" title={t('packEra')} labels={oddsLabels} />
-              <PackCase tier="era" label={String(eraYear)} />
+              <PackCase tier="era" label={String(eraYear)} opening={openingCase === 'era'} />
               <strong>{t('packEra')}</strong>
               <span class="price"><i></i>{PACK_PRICES.era.toLocaleString($language)}</span>
               <PackSelect value={eraYear} options={YEARS.map((year) => ({ key: year, name: String(year), caption: t('packEra') }))} label={t('packEraHint')} searchLabel={t('search')} emptyLabel={t('selectNoResults')} tone="era" disabled={busy} onSelect={(year) => eraYear = Number(year)} />
@@ -565,7 +588,7 @@
               {@const tier = name as 'diamante' | 'icone'}
               <article class="pack premium {tier}">
                 <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
-                <PackCase {tier} size="lg" label={t(PACK_LABEL[tier])} />
+                <PackCase {tier} size="lg" label={t(PACK_LABEL[tier])} opening={openingCase === tier} />
                 <div class="premium-info">
                   <strong>{t(PACK_LABEL[tier])}</strong>
                   <small>{t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}</small>
@@ -581,7 +604,7 @@
           <article class="pack premium major-pack {majorPackTier ?? ''}" class:sealed={!majorPackTier}>
             <PackOdds tier={majorPackTier ?? 'global'} title={t(majorPackTier ? PACK_LABEL[majorPackTier] : 'packGlobal')} labels={oddsLabels} />
             <div class="major-case">
-              <PackCase tier={majorPackTier ?? 'basic'} size="lg" label={majorPackTier ? t(PACK_LABEL[majorPackTier]) : 'MAJOR'} />
+              <PackCase tier={majorPackTier ?? 'basic'} size="lg" label={majorPackTier ? t(PACK_LABEL[majorPackTier]) : 'MAJOR'} opening={openingCase === 'major'} />
               {#if majorPackTier}
                 <button class="primary" type="button" disabled={busy} on:click={openMajorCrate}>{t('openPack')}</button>
               {/if}
@@ -604,7 +627,8 @@
               {#key reveal.key}
                 <PackReveal cards={reveal.cards} duplicates={reveal.duplicates} tier={reveal.tier} caseLabel={reveal.tier === 'era' ? String(eraYear) : reveal.tier === 'funcao' ? getRoleLabel(functionPackRole) : reveal.tier === 'time' ? selectedPackOrganization?.name ?? t('packTime') : t(PACK_LABEL[reveal.tier])} language={$language}
                   labels={{ fresh: t('newCard'), duplicate: t('duplicateCard'), skip: t('skipReveal'), rolling: t('revealing') }} teasers={teaserPool} playerTeam={teamNameOf} coachTeam={coachTeamName}
-                  onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; }} />
+                  caseAlreadyOpened={openingCase !== null}
+                  onOpen={(selected) => detailsPlayer = selected} onDone={() => { if (reveal) reveal = { ...reveal, done: true }; openingCase = null; }} />
               {/key}
               {#if reveal.done && reveal.coins > 0}<p class="note dupes">{reveal.duplicates.size} {t('dupesToCoins')} +{reveal.coins.toLocaleString($language)} {t('coins')}</p>{/if}
             </div>
@@ -613,9 +637,9 @@
 
         {:else}
         <section class="panel team" bind:this={teamSection}>
-          <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} {fmt(preview.power)}
+          <div class="section-heading"><div><span class="eyebrow">{t('myTeam').toUpperCase()}</span><h2>{t('myTeam')}</h2></div>{#if preview}<strong class="power">{t('power')} <AnimatedNumber value={courtRating(preview.power)} language={$language} />
             <!-- O poder que joga é o do time SALVO: sem este aviso, o jogador lê 98 na tela e vê 92 na partida. -->
-            {#if dirty && savedTeam}<em class="unsaved">{t('unsavedPower').replace('{n}', fmt(savedTeam.power))}</em>{/if}</strong>{/if}</div>
+            {#if dirty && savedTeam}{@const [unsavedBefore, unsavedAfter] = t('unsavedPower').split('{n}')}<em class="unsaved" out:fade={{ duration: reducedMotion ? 0 : 150 }}>{unsavedBefore}<AnimatedNumber value={courtRating(savedTeam.power)} language={$language} />{unsavedAfter ?? ''}</em>{/if}</strong>{/if}</div>
           <!-- Lineup slots: two free, the rest bought once. Each tab is an independent team; the game plays the active one. -->
           <div class="lineup-tabs" role="tablist" aria-label={t('lineupSlots')}>
             {#each Array(LINEUP_SLOTS_MAX) as _, index}
@@ -636,7 +660,9 @@
             {/if}
           </div>
           {#if swapIn}<p class="swap-banner" role="status"><span>⇄ {t('swapChoose')} <b>{swapIn.nickname ?? swapIn.id}</b></span><button class="ghost small" type="button" on:click={() => swapIn = null}>{t('cancel')}</button></p>{/if}
-          <div class="slots">
+          <div class="slots-stage">
+          {#key activeTab}
+          <div class="slots" in:slotsSwap out:slotsSwap={{ out: true }}>
             {#each slots as slot, index}
               <div class="slot" class:filled={Boolean(slot)}>
                 {#if slot}
@@ -672,6 +698,8 @@
                 {/if}
               </div>
             {/each}
+          </div>
+          {/key}
           </div>
           <p class="note">{t('starHint')}</p>
           {#if starPlayerId && complete && !starOk}<p class="warn">{starRoleBlocked ? t('starRoleBlocked') : t('starInactive')}</p>{/if}
@@ -765,6 +793,7 @@
                 <p class="note">{t('lineupIncomplete')}</p>
               {/if}
               {#if comparison.length}
+                <div class="compare-block" out:fade={{ duration: reducedMotion ? 0 : 150 }}>
                 <span class="label">{t('compareTitle')}</span>
                 <ul class="stat-list compare">
                   {#each comparison as row}
@@ -774,6 +803,7 @@
                   {#if leavingPlayers.length}<li><span>{t('compareOut')}</span><b class="down">{leavingPlayers.map((player) => player.nickname ?? player.id).join(', ')}</b></li>{/if}
                   {#if joiningPlayers.length}<li><span>{t('compareIn')}</span><b class="up">{joiningPlayers.map((player) => player.nickname ?? player.id).join(', ')}</b></li>{/if}
                 </ul>
+                </div>
               {/if}
               <button class="primary" type="button" disabled={busy || !complete} on:click={() => persistLineup()}>{t('saveLineup')}</button>
             </div>
@@ -832,7 +862,7 @@
       {/if}
     {/if}
     {#if section === 'team' && state && dirty}
-      <div class="save-bar"><span>{complete ? u('unsaved') : u('remaining')}</span><button type="button" class="primary" disabled={busy || !complete} on:click={() => persistLineup()}>{busy ? u('saving') : t('saveLineup')}</button></div>
+      <div class="save-bar" out:fade={{ duration: reducedMotion ? 0 : 150 }}><span>{complete ? u('unsaved') : u('remaining')}</span><button type="button" class="primary" disabled={busy || !complete} on:click={() => persistLineup()}>{busy ? u('saving') : t('saveLineup')}</button></div>
     {/if}
 
   </section>
@@ -923,7 +953,11 @@
   .notice-actions button { min-height: 46px; }
   .dupes { text-align: center; padding-top: 8px; }
   .filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+  /* As grades que saem e entram ocupam a mesma célula: nada empurra o layout durante o crossfade. */
+  .slots-stage { display: grid; overflow: visible; }
+  .slots-stage > .slots { grid-area: 1 / 1; }
   .slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; overflow: visible; }
+  .compare-block { display: grid; gap: 12px; }
   .lineup-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .lineup-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
   .lineup-tabs button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }

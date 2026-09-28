@@ -1,6 +1,6 @@
 <script lang="ts">
   export let value: string;
-  export let options: Array<{ value: string; label: string }> = [];
+  export let options: Array<{ value: string; label: string; disabled?: boolean }> = [];
   export let label = '';
   export let disabled = false;
   export let onChange: (value: string) => void = () => {};
@@ -11,7 +11,7 @@
     <button
       class:active={value === option.value}
       type="button"
-      {disabled}
+      disabled={disabled || option.disabled}
       aria-pressed={value === option.value}
       on:click={() => onChange(option.value)}
     >{option.label}</button>
