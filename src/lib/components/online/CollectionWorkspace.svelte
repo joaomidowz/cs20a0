@@ -25,7 +25,7 @@
   import Modal from '$lib/components/ui/Modal.svelte';
   import CollectionCard from '$lib/components/online/CollectionCard.svelte';
   import CollectionCardSheet from '$lib/components/online/CollectionCardSheet.svelte';
-  import { COLLECTION_YEARS, collectionCoachById, collectionOrganizations, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
+  import { COLLECTION_YEARS, collectionCoachById, collectionOrganizations, collectionOrganizationKeyByTeamId, collectionPlayerById as playerById, collectionPlayers as players, collectionTeamById as teamById, collectionTeams } from '$lib/game/online/collection-pool';
   import CoachCard from '$lib/components/online/CoachCard.svelte';
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
@@ -74,9 +74,13 @@
   let allowLeave = false;
   let choosingSlot: number | null = null;
   let pickerQuery = '';
+  let pickerTeamFilter = '';
   let pickerCandidate: Player | null = null;
-  $: pickerPlayers = owned.filter(player => !lineupIds.has(player.id) && (!pickerQuery.trim() || (player.nickname ?? player.id).toLowerCase().includes(pickerQuery.trim().toLowerCase())));
-  function openSlot(index: number) { choosingSlot = index; pickerQuery = ''; pickerCandidate = null; }
+  $: pickerTeamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.filter((organization) => owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)).map((organization) => ({ value: organization.key, label: organization.name }))];
+  $: pickerPlayers = owned.filter(player => !lineupIds.has(player.id)
+    && (!pickerTeamFilter || collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === pickerTeamFilter)
+    && (!pickerQuery.trim() || (player.nickname ?? player.id).toLowerCase().includes(pickerQuery.trim().toLowerCase())));
+  function openSlot(index: number) { choosingSlot = index; pickerQuery = ''; pickerTeamFilter = ''; pickerCandidate = null; }
   function applyPick() {
     if (choosingSlot === null || !pickerCandidate) return;
     swapIn = pickerCandidate; swapInto(choosingSlot);
@@ -122,9 +126,10 @@
   let filterYear = '';
   let filterRole = '';
   let filterRarity = '';
+  let filterTeam = '';
 
-  $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity);
-  const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; };
+  $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity || filterTeam);
+  const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; filterTeam = ''; };
   const showToast = (message: string, kind: 'success' | 'info' | 'warning' | 'error' = 'success') => notifyToast({ message, kind });
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
@@ -138,6 +143,11 @@
 
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
   $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
+  $: cardTeamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.filter((organization) =>
+    owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)
+    || ownedCoaches.some((coach) => collectionOrganizationKeyByTeamId.get(coach.teamId) === organization.key)
+  ).map((organization) => ({ value: organization.key, label: organization.name }))];
+  $: visibleCoaches = ownedCoaches.filter((coach) => !filterTeam || collectionOrganizationKeyByTeamId.get(coach.teamId) === filterTeam);
   const roleOptionsOf = (slot: Player) => eligibleRolesOf(slot).map((role) => ({ value: role as string, label: collectionRoleLabel(role) }));
   $: coachOptions = [{ value: '', label: t('pickCoach') }, ...ownedCoaches.map((coach) => ({ value: coach.id, label: coach.name, caption: `${coach.year} · ${coach.overall}` }))];
   $: yearOptions = [{ value: '', label: t('all') }, ...YEARS.map((year) => ({ value: String(year), label: String(year) }))];
@@ -151,6 +161,7 @@
     .filter((player) => !filterYear || String(player.year) === filterYear)
     .filter((player) => !filterRole || primaryRoleOf(player) === filterRole)
     .filter((player) => !filterRarity || rarityOf(player) === filterRarity)
+    .filter((player) => !filterTeam || collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === filterTeam)
     .filter((player) => !query.trim() || (player.nickname ?? player.id).toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0));
   $: complete = slots.every(Boolean) && roles.every(Boolean);
@@ -210,7 +221,9 @@
     const input = { players: savedPlayers, roles: savedLineup.roles, starPlayerId: savedLineup.starPlayerId, style: savedLineup.style, coachId: savedLineup.coachId };
     const built = applyCollectionLineup(collectionBaseTeam(savedPlayers, savedLineup.style, savedPlayers.map((player, index) => toSelectedPlayer(player.id, savedLineup.roles[index])), 'preview'), input);
     const coach = savedLineup.coachId ? collectionCoachById.get(savedLineup.coachId) ?? null : null;
-    return coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
+    const withCoach = coach ? applyCoachToTeam(built, coach, coachAffinity(coach, savedPlayers, collectionTeams)) : built;
+    // O poder salvo usa o mesmo teto macio da prévia e do servidor da partida.
+    return { ...withCoach, power: withPlayerBand(withCoach.power) };
   })();
   const lineupKey = (ids: Array<string | null>, assigned: Array<string | null>, star: string | null, coach: string | null, orgStyle: string, maps: string[]) => JSON.stringify([ids, assigned, star, coach, orgStyle, maps]);
   $: dirty = loadedLineup && section === 'team' && lineupKey(slots.map(slot => slot?.id ?? null), roles, starPlayerId, coachId, style, mapPicks) !== lineupKey(savedLineup?.playerIds ?? [null,null,null,null,null], savedLineup?.roles ?? [null,null,null,null,null], savedLineup?.starPlayerId ?? null, savedLineup?.coachId ?? null, savedLineup?.style ?? 'balanced', savedLineup?.mapPreferences ?? []);
@@ -817,15 +830,16 @@
         <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>
         <div class="filters">
           <label><span>{t('search')}</span><input bind:value={query} /></label>
+          <StyledSelect label={u('team')} options={cardTeamOptions} value={filterTeam} onSelect={(next) => filterTeam = next} />
           <StyledSelect label={t('filterYear')} options={yearOptions} value={filterYear} onSelect={(next) => filterYear = next} />
           <StyledSelect label={t('filterRole')} options={roleFilterOptions} value={filterRole} onSelect={(next) => filterRole = next} />
           <StyledSelect label={t('filterRarity')} options={rarityOptions} value={filterRarity} onSelect={(next) => filterRarity = next} />
           {#if filtersOn}<button class="ghost small clear-filters" type="button" on:click={clearFilters}>{u('clear')}</button>{/if}
         </div>
-        {#if ownedCoaches.length}
-          <h3 class="subhead">COACHES <small>{ownedCoaches.length}</small></h3>
+        {#if visibleCoaches.length}
+          <h3 class="subhead">COACHES <small>{visibleCoaches.length}</small></h3>
           <div class="player-grid">
-            {#each ownedCoaches as coach (coach.id)}
+            {#each visibleCoaches as coach (coach.id)}
               <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId}>
                 {#if coach.id === coachId}
                   <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
@@ -870,6 +884,7 @@
 {#if choosingSlot !== null}
   <SelectionSheet title={u('chooseCard')} closeLabel={t('close')} onClose={() => { choosingSlot = null; pickerCandidate = null; }}>
     <label class="picker-search">{t('search')}<input type="search" bind:value={pickerQuery} /></label>
+    <StyledSelect label={u('team')} options={pickerTeamOptions} value={pickerTeamFilter} onSelect={(next) => pickerTeamFilter = next} />
     {#if pickerCandidate}<div class="pick-review"><span>{slots[choosingSlot]?.nickname ?? t('slotEmpty')} → <b>{pickerCandidate.nickname}</b></span><button class="primary" type="button" on:click={applyPick}>{u('replace')}</button></div>{/if}
     <div class="picker-grid">{#each pickerPlayers as player (player.id)}<CollectionCard {player} teamName={teamNameOf(player)} language={$language} compact><button class="secondary small" type="button" on:click={() => pickerCandidate = player}>{u('chooseCard')}</button></CollectionCard>{/each}</div>
     {#if !pickerPlayers.length}<p>{u('noCards')}</p>{/if}

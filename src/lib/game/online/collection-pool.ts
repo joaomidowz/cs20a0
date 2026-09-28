@@ -43,6 +43,10 @@ export const collectionOrganizations: Array<{ key: string; name: string; teamIds
   .map((organization) => ({ ...organization, price: TEAM_PACK_PRICES[organization.rarity] }))
   .sort((a, b) => a.name.localeCompare(b.name));
 export const collectionOrganizationByKey = new Map(collectionOrganizations.map((organization) => [organization.key, organization]));
+/** Stable organization lookup for team-year IDs, used by collection filters across every card picker. */
+export const collectionOrganizationKeyByTeamId = new Map(
+  collectionOrganizations.flatMap((organization) => organization.teamIds.map((teamId) => [teamId, organization.key] as const))
+);
 /** Placeholder coaches (no confirmed person) never become cards. */
 export const collectionCoachById = byId([(coreCoachesJson as Coach[]), (expansionCoachesJson as Coach[])].map((list) => list.filter((coach) => coach.confidence !== 'placeholder')));
 export const collectionCoaches: Coach[] = [...collectionCoachById.values()];

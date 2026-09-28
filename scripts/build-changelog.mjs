@@ -145,7 +145,7 @@ function noteOf(commit) {
     // Notas de 2026-09-27/28 (chaves curtas: o hash completo é resolvido por prefixo abaixo).
     '85afe64': {
       title: 'Filtros de times, dia bom do Agressivo e contratos de cartas',
-      summary: 'A página de times ganhou filtros combináveis por país, ano e organização. Elencos mais consistentes aumentam a frequência de dia bom do Agressivo. No online, repetidas viram fragmentos para trade-ups e contratos de Lenda.'
+      summary: 'A página de times ganhou filtros combináveis por país, ano e organização. A coleção, o montador, o Upgrader e os Contratos filtram cartas por organização. Elencos mais consistentes aumentam a frequência de dia bom do Agressivo. No online, repetidas viram fragmentos para trade-ups e contratos de Lenda.'
     },
     '15e8113': {
       title: 'Animações e sons: o jogo responde ao que acontece',

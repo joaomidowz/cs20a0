@@ -3,7 +3,7 @@
   import { AccountError } from '$lib/game/online/account';
   import { playGameSound } from '$lib/game/offlineAudio';
   import { cardCoinValue, cardLabel, cardRarity, cardUpgradeChance } from '$lib/game/online/card-value';
-  import { collectionCoachById, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
+  import { collectionCoachById, collectionOrganizations, collectionOrganizationKeyByTeamId, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
   import { TRADE_INPUTS, checkTradeInputs, orgOf, tradeLadder, tradeSources, tradeTierOf, unitsOf, type TradeSource } from '$lib/game/online/card-contracts';
   import { RARITIES, type Rarity } from '$lib/game/online/collection-rules';
   import { riskUpgrade, runTradeUp, type ContractsState, type TradeUpOutcome, type UpgradeOutcome } from '$lib/game/online/collection';
@@ -16,6 +16,8 @@
   import type { Language, LineupSlotRole, Player } from '$lib/game/types';
   import CountryFlag from '../CountryFlag.svelte';
   import CollectionCard from './CollectionCard.svelte';
+  import StyledSelect from './StyledSelect.svelte';
+  import { uiCopy } from '$lib/game/online/ui-copy';
 
   export let serverUrl: string;
   export let language: Language = 'pt-BR';
@@ -34,6 +36,9 @@
   const TARGETS_SHOWN = 24;
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
+  $: u = (key: Parameters<typeof uiCopy>[1]) => uiCopy(language, key);
+  $: teamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.map((organization) => ({ value: organization.key, label: organization.name }))];
+  const teamOf = (player: Player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') ?? '';
   $: ownedSet = new Set(ownedIds);
   $: locked = new Set(lockedIds);
 
@@ -55,6 +60,9 @@
   let sacrifice = '';
   let target = '';
   let riskQuery = '';
+  let fragmentTeamFilter = '';
+  let sacrificeTeamFilter = '';
+  let riskTargetTeamFilter = '';
   let riskResult: UpgradeOutcome | null = null;
   /** Cena do risco: a carta-alvo entra de costas, vira (ganhou ou não) e fica; escolher outro sacrifício esconde a cena. */
   let riskPhase: 'idle' | 'ready' | 'flip' | 'done' = 'idle';
@@ -68,6 +76,7 @@
   $: fragmentPlayers = [...fragmentCounts.entries()]
     .map(([id, count]) => ({ player: collectionPlayerById.get(id) ?? null, id, count }))
     .filter((entry): entry is { player: Player; id: string; count: number } => Boolean(entry.player))
+    .filter((entry) => !fragmentTeamFilter || teamOf(entry.player) === fragmentTeamFilter)
     .sort((a, b) => b.count - a.count || (b.player.overall ?? 0) - (a.player.overall ?? 0));
   $: rarityAvailability = RARITIES.map((rarity) => ({ rarity, donors: fragmentPlayers.filter((entry) => cardRarity(entry.id) === rarity) })).filter((row) => row.donors.length > 0);
   /** A raridade tranca a entrega a partir da primeira unidade: sem mistura de níveis no trade-up. */
@@ -90,14 +99,15 @@
     : [];
   $: canTrade = inputCheck.ok && !busy && phase === 'pick';
   $: sacrificeCard = sacrifice ? collectionPlayerById.get(sacrifice) ?? null : null;
-  $: sacrificeable = ownedIds
+  $: allSacrificeable = ownedIds
     .filter((id) => !locked.has(id) && id !== sacrifice && collectionPlayerById.has(id))
     .map((id) => ({ id, player: collectionPlayerById.get(id)! }));
+  $: sacrificeable = allSacrificeable.filter((entry) => !sacrificeTeamFilter || teamOf(entry.player) === sacrificeTeamFilter);
   /** Pesos por coleção: a composição da entrega vira a % visível (3 Vitality em 5 = 60%). */
   $: needle = riskQuery.trim().toLowerCase();
   $: riskTargets = sacrificeCard
     ? collectionPlayers
-        .filter((player) => cardCoinValue(player.id) > cardCoinValue(sacrificeCard.id) && !ownedSet.has(player.id) && (!needle || cardLabel(player.id).toLowerCase().includes(needle)))
+        .filter((player) => cardCoinValue(player.id) > cardCoinValue(sacrificeCard.id) && !ownedSet.has(player.id) && (!riskTargetTeamFilter || teamOf(player) === riskTargetTeamFilter) && (!needle || cardLabel(player.id).toLowerCase().includes(needle)))
         .sort((a, b) => cardCoinValue(a.id) - cardCoinValue(b.id))
         .slice(0, TARGETS_SHOWN)
     : [];
@@ -285,6 +295,7 @@
       <span class="label">{t('contractsFragmentTitle')}</span>
       <strong class="count">{fmt(fragmentPlayers.reduce((sum, entry) => sum + entry.count, 0))} <small>· {fragmentPlayers.length}</small></strong>
     </div>
+    <StyledSelect label={u('team')} options={teamOptions} value={fragmentTeamFilter} onSelect={(next) => fragmentTeamFilter = next} />
     {#if fragmentPlayers.length}
       <div class="fragment-strip" role="list">
         {#each fragmentPlayers as entry (entry.id)}
@@ -415,6 +426,7 @@
     <div class="board">
       <div class="column stake-col">
         <div class="col-head"><span class="label">{t('riskPick')}</span>{#if sacrificeCard}<strong class="count">{fmt(cardCoinValue(sacrificeCard.id))} <small>coins</small></strong>{/if}</div>
+        <StyledSelect label={u('team')} options={teamOptions} value={sacrificeTeamFilter} onSelect={(next) => sacrificeTeamFilter = next} />
         <div class="mini-grid scroll">
           {#each sacrificeable.slice(0, 40) as entry (entry.id)}
             {@const picked = sacrifice === entry.id}
@@ -455,6 +467,7 @@
           </div>
         {/if}
         <div class="col-head"><span class="label">{t('riskTarget')}</span></div>
+        <StyledSelect label={u('team')} options={teamOptions} value={riskTargetTeamFilter} onSelect={(next) => riskTargetTeamFilter = next} disabled={!sacrificeCard} />
         <input type="search" placeholder={t('riskSearch')} bind:value={riskQuery} disabled={!sacrificeCard} />
         <div class="mini-grid scroll targets">
           {#each riskTargets as player (player.id)}

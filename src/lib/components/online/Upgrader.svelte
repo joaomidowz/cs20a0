@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
   import { cardCoinValue, cardLabel, cardUpgradeChance } from '$lib/game/online/card-value';
-  import { collectionCoachById, collectionCoaches, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
+  import { collectionCoachById, collectionCoaches, collectionOrganizationKeyByTeamId, collectionOrganizations, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
   import { RARITIES, UPGRADER_MAX_STAKE, rarityOf, type Rarity } from '$lib/game/online/collection-rules';
   import { fetchUpgraderFair, upgradeCards, type UpgradeOutcome, type UpgraderFair } from '$lib/game/online/collection';
   import { FAIR_CLIENT_SEED_MAX, isValidClientSeed, rollDegrees, verifyFair } from '$lib/game/online/fair';
@@ -15,6 +15,7 @@
   import type { Coach, Language, LineupSlotRole, Player } from '$lib/game/types';
   import CollectionCard from './CollectionCard.svelte';
   import CoachCard from './CoachCard.svelte';
+  import StyledSelect from './StyledSelect.svelte';
 
   export let serverUrl: string;
   export let language: Language = 'pt-BR';
@@ -55,6 +56,8 @@
   let stake: string[] = [];
   let target = '';
   let query = '';
+  let stakeTeamFilter = '';
+  let targetTeamFilter = '';
   let targetRarity: Rarity | '' = '';
   /** Por qual eixo os alvos são filtrados; o jogador alterna entre os dois. */
   let filterBy: 'rarity' | 'role' | 'type' = 'rarity';
@@ -86,7 +89,10 @@
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: locked = new Set(lockedIds);
   $: ownedSet = new Set(ownedIds);
-  $: stakeable = ownedIds.filter((id) => !locked.has(id)).map(cardOf).filter((card): card is Card => Boolean(card)).sort((a, b) => b.value - a.value);
+  const organizationOfCard = (card: Card) => collectionOrganizationKeyByTeamId.get(card.player?.teamId ?? card.coach?.teamId ?? '') ?? '';
+  $: teamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.map((organization) => ({ value: organization.key, label: organization.name }))];
+  $: allStakeable = ownedIds.filter((id) => !locked.has(id)).map(cardOf).filter((card): card is Card => Boolean(card)).sort((a, b) => b.value - a.value);
+  $: stakeable = allStakeable.filter((card) => !stakeTeamFilter || organizationOfCard(card) === stakeTeamFilter);
   $: stakeCards = stake.map(cardOf).filter((card): card is Card => Boolean(card));
   $: stakeValue = stakeCards.reduce((sum, card) => sum + card.value, 0);
   $: targetCard = target ? cardOf(target) : null;
@@ -94,7 +100,7 @@
   $: chance = target && stakeValue && targetValue > stakeValue ? cardUpgradeChance(stake, target) : 0;
   $: needleText = query.trim().toLowerCase();
   $: targets = stakeValue
-    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetRarity || card.rarity === targetRarity) && (!targetRole || (card.player ? primaryRoleOf(card.player) === targetRole : false)) && (!targetType || (targetType === 'coach' ? Boolean(card.coach) : Boolean(card.player))) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
+    ? ALL.filter((card) => card.value > stakeValue && !ownedSet.has(card.id) && (!targetTeamFilter || organizationOfCard(card) === targetTeamFilter) && (!targetRarity || card.rarity === targetRarity) && (!targetRole || (card.player ? primaryRoleOf(card.player) === targetRole : false)) && (!targetType || (targetType === 'coach' ? Boolean(card.coach) : Boolean(card.player))) && (!needleText || cardLabel(card.id).toLowerCase().includes(needleText))).slice(0, TARGETS_SHOWN)
     : [];
   $: if (!round && target && (ownedSet.has(target) || cardCoinValue(target) <= stakeValue)) target = '';
   // While a round is on screen the stage shows its cards; picking anything new clears it.
@@ -269,6 +275,7 @@
       {/if}
 
       <h3 class="subhead">{t('upgraderYourCards').toUpperCase()} <small>{stakeable.length}</small></h3>
+      <StyledSelect label={u('team')} options={teamOptions} value={stakeTeamFilter} onSelect={(next) => stakeTeamFilter = next} />
       <div class="mini-grid scroll">
         {#each stakeable as card (card.id)}
           {@const picked = stake.includes(card.id)}
@@ -343,6 +350,7 @@
 
       <h3 class="subhead">{t('upgraderTargets').toUpperCase()} <small>{targets.length}</small></h3>
       <div class="filters">
+        <StyledSelect label={u('team')} options={teamOptions} value={targetTeamFilter} onSelect={(next) => targetTeamFilter = next} disabled={!stakeValue} />
         <div class="rarity-filter">
           <!-- Um eixo de cada vez: trocar de eixo limpa o outro, senão o jogador fica sem alvo nenhum e não entende. -->
           <button type="button" class="axis" on:click={() => { filterBy = filterBy === 'rarity' ? 'role' : filterBy === 'role' ? 'type' : 'rarity'; targetRarity = ''; targetRole = ''; targetType = ''; }}>
