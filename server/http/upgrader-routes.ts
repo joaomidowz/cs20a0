@@ -2,12 +2,18 @@ import { z } from 'zod';
 import { UPGRADER_MAX_STAKE } from '../../src/lib/game/online/collection-rules';
 import { FAIR_CLIENT_SEED_MAX } from '../../src/lib/game/online/fair';
 import { CollectionError } from '../collection/service';
-import { getFairState, upgradeCards } from '../collection/upgrader';
+import { getFairState, riskUpgrade, upgradeCards } from '../collection/upgrader';
 import type { Db } from '../db/client';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const upgradeSchema = z.object({
   stake: z.array(z.string().min(1).max(80)).min(1).max(UPGRADER_MAX_STAKE),
+  target: z.string().min(1).max(80),
+  clientSeed: z.string().min(1).max(FAIR_CLIENT_SEED_MAX)
+});
+
+const riskSchema = z.object({
+  cardId: z.string().min(1).max(80),
   target: z.string().min(1).max(80),
   clientSeed: z.string().min(1).max(FAIR_CLIENT_SEED_MAX)
 });
@@ -23,6 +29,11 @@ export function createUpgraderRoutes(db: Db, withAuth: (handler: Handler) => Han
     route('POST', /^\/upgrader$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, upgradeSchema);
       return { ok: true, ...(await upgradeCards(db, userId!, body.stake, body.target, body.clientSeed).catch(toHttp)) };
+    })),
+    // Upgrade de Risco: 1 carta sacrificada por um alvo; na derrota ela volta como fragmento.
+    route('POST', /^\/upgrader\/risk$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, riskSchema);
+      return { ok: true, ...(await riskUpgrade(db, userId!, body.cardId, body.target, body.clientSeed).catch(toHttp)) };
     }))
   ];
 }

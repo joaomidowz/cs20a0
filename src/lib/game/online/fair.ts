@@ -10,8 +10,11 @@ import { DUPLICATE_RATIO, rarityOf } from './collection-rules';
 export const FAIR_ROLL_HEX = 13;
 export const FAIR_CLIENT_SEED_MAX = 64;
 
-/** Suffix of the HMAC message: '' is the main draw; on a loss ':refund' picks the consolation branch and ':refund-pick' the card. */
-export type FairSuffix = '' | 'refund' | 'refund-pick';
+/**
+ * Suffix of the HMAC message: '' is the main draw; on a loss ':refund' picks the consolation branch and ':refund-pick'
+ * the card. The card contracts draw on the same scheme: ':aff' picks the affinity branch and ':pick' the card.
+ */
+export type FairSuffix = '' | 'refund' | 'refund-pick' | 'aff' | 'pick';
 
 /** HMAC message of the main draw; the consolation draws on a loss use the same message plus ':refund' / ':refund-pick'. */
 export const fairMessage = (clientSeed: string, nonce: number, suffix: FairSuffix = '') => `${clientSeed}:${nonce}${suffix ? `:${suffix}` : ''}`;

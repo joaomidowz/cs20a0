@@ -1,8 +1,127 @@
 {
-  "version": "3.4",
-  "total": 349,
-  "generatedAt": "2026-09-24",
+  "version": "3.6",
+  "total": 367,
+  "generatedAt": "2026-09-28",
   "entries": [
+    {
+      "version": "3.6",
+      "date": "2026-09-27",
+      "hash": "deba36d",
+      "title": "Publica marca da home e protocolo online v11",
+      "summary": "Atualiza as logos, o texto da home, o radar e a compatibilidade do protocolo online."
+    },
+    {
+      "version": "3.6",
+      "date": "2026-09-27",
+      "hash": "10c7b13",
+      "title": "Rating 3.0 nas partidas online, loading entre telas e chamada de conta",
+      "summary": "As estatísticas do online passam a mostrar Rating 3.0 com Round Swing, KAST, assistências, trocas e multi-kills, calculados no servidor com a média do campo inteiro. A nota só explica o desempenho: não muda chance de vitória, coins nem pontos. A fila ganhou um radar único, as trocas de tela mostram o radar da home e a home destaca a entrada na conta."
+    },
+    {
+      "version": "3.6",
+      "date": "2026-09-27",
+      "hash": "15e8113",
+      "title": "Animações e sons: o jogo responde ao que acontece",
+      "summary": "Fila com radar e aviso de partida encontrada, sons de mapa e série decididos, campeão e eliminado, Upgrader e trade-up com vitória e derrota, pacotes com tremor, tampa e tensão de lenda e GOAT, poder do time deslizando no montador e avisos no canto superior. Botões respondem ao toque e o movimento reduzido do sistema é respeitado."
+    },
+    {
+      "version": "3.6",
+      "date": "2026-09-27",
+      "hash": "73add0b",
+      "title": "Poder, escalação, bots e coins rebalanceados",
+      "summary": "Removemos o piso de 85 e o corte em 99: a nota agora acompanha o poder real até 99,9. Ajustamos os bônus e custos da escalação, incluímos a vaga IGL-Suporte, recalibramos os bots e aumentamos os prêmios do ranqueado (2,5×) e do Solo dos Campeões (4×)."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "25a94ec",
+      "title": "Correção nos prêmios do Boost e na função de flusha",
+      "summary": "Corrigimos a publicação dos prêmios do Boost e a função de flusha."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "22c0c43",
+      "title": "Raridade GOAT de olofmeister restaurada",
+      "summary": "Restauramos a raridade GOAT de olofmeister em 2015."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "1217445",
+      "title": "Raridades históricas ajustadas",
+      "summary": "Ajustamos as raridades de jogadores entre 2013 e 2015."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "5d1556e",
+      "title": "Overalls de f0rest e GeT_RiGhT atualizados",
+      "summary": "Atualizamos os overalls de f0rest e GeT_RiGhT na temporada de 2014."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "8774445",
+      "title": "Funções de jogadores históricos corrigidas",
+      "summary": "Corrigimos funções de jogadores no catálogo histórico."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "fe3d9ec",
+      "title": "Correção do voto de velocidade da final",
+      "summary": "Corrigimos a votação da velocidade da final na fila rápida."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "86b5222",
+      "title": "Controles de Solo movidos para a partida",
+      "summary": "Os controles de velocidade e voto da final agora ficam dentro da partida Solo."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "772ca76",
+      "title": "Velocidade do Solo e voto da final configuráveis",
+      "summary": "Adicionamos controles para a velocidade do Solo e a votação da final."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-24",
+      "hash": "4efd548",
+      "title": "Confrontos entre planos explicados na wiki",
+      "summary": "Esclarecemos como os planos de jogo se enfrentam no guia."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-24",
+      "hash": "50d7078",
+      "title": "Wiki do jogo em três idiomas",
+      "summary": "Publicamos uma wiki concisa em português, inglês e espanhol."
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "07887f8",
+      "title": "Correção da atualização de escalações salvas",
+      "summary": "A escalação agora é atualizada corretamente depois de salvar as alterações."
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "f7d3a64",
+      "title": "Correção de funções múltiplas do b1t",
+      "summary": "Limitamos a alteração de funções múltiplas ao b1t, sem mudar outros jogadores."
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "63228f0",
+      "title": "Funções secundárias respeitadas",
+      "summary": "O jogo agora considera as funções secundárias registradas para cada jogador."
+    },
     {
       "version": "3.4",
       "date": "2026-09-24",
@@ -722,125 +841,6 @@
       "date": "2026-09-19",
       "hash": "4df6d7c",
       "title": "Barra de carteira fixa e promoção diária de 4 cartas",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "ec80c69",
-      "title": "Navegação Time, Store e Conta com trocas em página própria",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "cb5a5f3",
-      "title": "Derrota do upgrader perde as cartas e dá uma carta rebaixada",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "eeb413e",
-      "title": "Upgrader com giro de roleta e provably fair",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "7f34ec8",
-      "title": "Novos preços de cartas, página do upgrader e animação de giro",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-19",
-      "hash": "0e665fb",
-      "title": "Polimento visual de missões, loja e upgrader",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-19",
-      "hash": "9a4beed",
-      "title": "Trocas diretas de cartas entre jogadores",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-19",
-      "hash": "da14848",
-      "title": "Promoções diárias Elite, Superstar e Legend",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-19",
-      "hash": "fb82327",
-      "title": "Upgrader de cartas com roda de chance",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-19",
-      "hash": "cd6ebdb",
-      "title": "Missões diárias, semanais, da season e solo",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-18",
-      "hash": "dc0aae6",
-      "title": "✨ conta do dono fica com 3 títulos: os dois invictos sem mapa perdido e o mais recente",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-18",
-      "hash": "4230556",
-      "title": "✨ anular títulos por decisão do dono sem apagar histórico (5 do Timidowz, 2 da Peka das Bebe)",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-18",
-      "hash": "c9dfc38",
-      "title": "✨ prêmios somam no máximo 3 pontos por Major e contam as 10 melhores partidas do dia",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-18",
-      "hash": "102864e",
-      "title": "✨ quadro de rankeds ao vivo na tela do online",
-      "summary": ""
-    },
-    {
-      "version": "2.3",
-      "date": "2026-09-18",
-      "hash": "9d3f056",
-      "title": "✨ atalhos de saída acima das abas no fim do Major",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "8bede4b",
-      "title": "✨ perfil público dos jogadores a partir das tabelas",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "f95cf74",
-      "title": "✨ painel final com coins e pontos de cada jogador",
-      "summary": ""
-    },
-    {
-      "version": "2.2",
-      "date": "2026-09-18",
-      "hash": "5f30f21",
-      "title": "🐛 mapas do time em accordion pequeno abaixo do coach",
       "summary": ""
     }
   ]

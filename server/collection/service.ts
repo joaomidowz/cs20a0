@@ -94,6 +94,19 @@ export const duplicateValue = (id: string) => {
   const player = playerById.get(id);
   return player ? Math.floor(coinValue(player) * DUPLICATE_RATIO) : 0;
 };
+
+/**
+ * A repeated PLAYER card becomes one fragment of that card (the material of the card contracts) instead of coins;
+ * coaches have no country or role, so they keep paying coins. Returns false for anything that is not a player card.
+ */
+export async function grantFragment(tx: Tx, userId: string, playerId: string): Promise<boolean> {
+  if (!playerById.has(playerId)) return false;
+  await tx.query(
+    'INSERT INTO card_fragments (user_id, player_id, count) VALUES ($1, $2, 1) ON CONFLICT (user_id, player_id) DO UPDATE SET count = card_fragments.count + 1, updated_at = now()',
+    [userId, playerId]
+  );
+  return true;
+}
 const cardId = (card: PackCard) => (card.kind === 'coach' ? card.coach.id : card.player.id);
 
 export async function getCollection(db: Db, userId: string, now: number): Promise<CollectionView> {
@@ -127,22 +140,30 @@ export interface PackResult {
   seed: string;
   players: string[];
   duplicates: string[];
+  /** Repeated PLAYER cards became one fragment each (the contracts' material); coaches still pay coins. */
+  fragments: string[];
   coinsFromDupes: number;
   wallet: number;
 }
 
-async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string, now: number = Date.now()): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
+async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string, now: number = Date.now()): Promise<{ duplicates: string[]; fragments: string[]; coinsFromDupes: number; wallet: number }> {
   const duplicates: string[] = [];
+  const fragments: string[] = [];
   let coinsFromDupes = 0;
   for (const card of cards) {
     const id = cardId(card);
     const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, id, 'pack']);
-    if (!inserted.length) { duplicates.push(id); coinsFromDupes += duplicateValue(id); }
+    if (!inserted.length) {
+      duplicates.push(id);
+      // A repetida de jogador vira fragmento (material dos contratos) no lugar das moedas; coach segue pagando coins.
+      if (await grantFragment(tx, userId, id)) fragments.push(id);
+      else coinsFromDupes += duplicateValue(id);
+    }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
   // Só os caminhos de baú chegam aqui, então cada abertura (diário, grátis, caixa de Major, comprado) conta na missão do dia.
   await advanceMissionActivity(tx, userId, now);
-  return { duplicates, coinsFromDupes, wallet };
+  return { duplicates, fragments, coinsFromDupes, wallet };
 }
 
 /** Period a free pack belongs to: the ISO week for Prata, the month for Ouro, both in Brasília time. */

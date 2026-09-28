@@ -42,6 +42,8 @@ export interface PackOpened {
   seed: string;
   players: string[];
   duplicates: string[];
+  /** Repeated PLAYER cards became one fragment each — the contracts' material (missing on an older server). */
+  fragments?: string[];
   coinsFromDupes: number;
   wallet: number;
 }
@@ -98,9 +100,13 @@ export interface UpgradeOutcome {
   consolationKind: 'common' | 'value' | 'coins' | null;
   /** Loss with only Commons staked: coins paid instead of a card. */
   consolationCoins: number;
-  /** The consolation card was already owned: it turned into `duplicateCoins` coins. */
+  /** The consolation card was already owned: it turned into `duplicateCoins` coins (coach) or one `duplicateFragment` (player). */
   duplicate: boolean;
   duplicateCoins: number;
+  /** A repeated PLAYER consolation became a fragment of that card instead of coins. */
+  duplicateFragment?: boolean;
+  /** Risk upgrade only: the sacrificed card came back as one fragment of itself. */
+  risk?: boolean;
   serverSeed: string;
   serverSeedHash: string;
   clientSeed: string;
@@ -110,6 +116,8 @@ export interface UpgradeOutcome {
 
 export const fetchUpgraderFair = (serverUrl: string) => authFetch<UpgraderFair>(serverUrl, '/upgrader/fair');
 export const upgradeCards = (serverUrl: string, stake: string[], target: string, clientSeed: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target, clientSeed } });
+/** Upgrade de Risco: sacrifica uma carta por um alvo; na derrota ela volta como fragmento. */
+export const riskUpgrade = (serverUrl: string, cardId: string, target: string, clientSeed: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader/risk', { body: { cardId, target, clientSeed } });
 
 export interface PromoOffer {
   tier: PromoTier;
@@ -141,3 +149,68 @@ export const fetchTrades = (serverUrl: string) => authFetch<{ received: TradeIte
 export const fetchTradePartner = (serverUrl: string, teamName: string) => authFetch<{ teamName: string; cards: string[] }>(serverUrl, `/trades/partner?teamName=${encodeURIComponent(teamName)}`);
 export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
 export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} }).then((result) => { if (typeof result.wallet === 'number') patchWalletCoins(result.wallet); return result; });
+
+// ——— Contratos de cartas: fragmentos, escada de evolução e Lendas ———
+
+export interface ContractFair {
+  serverSeedHash: string;
+  nonce: number;
+}
+
+export interface ContractFragmentView {
+  playerId: string;
+  count: number;
+}
+
+export interface ContractsState {
+  fragments: ContractFragmentView[];
+  /** Progresso de cada Lenda por id; ausente = não começou. */
+  progress: Record<string, number>;
+  fair: ContractFair;
+}
+
+export interface TradeUpOutcome {
+  contractId: 'tradeup';
+  inputs: string[];
+  /** A carta entregue. */
+  result: string;
+  resultTier: string;
+  inputTier: string;
+  /** Degrau sorteado da tabela visível (down/same/up/double). */
+  step: 'down' | 'same' | 'up' | 'double';
+  /** De qual pool saiu: a coleção sorteada, o país, ou o pool geral. */
+  scope: 'org' | 'country' | 'any';
+  /** Qual das 5 entregas deu o peso (0..4). */
+  sourceIndex: number;
+  /** O resultado já era possuído: virou fragmento de volta. */
+  duplicate: boolean;
+  roll: number;
+  sourceRoll: number;
+  pickRoll: number;
+  serverSeed: string;
+  serverSeedHash: string;
+  clientSeed: string;
+  nonce: number;
+  next: ContractFair;
+  /** Estado fresco de fragmentos e Lendas, já com o consumo da rodada. */
+  fragments?: ContractFragmentView[];
+  progress?: Record<string, number>;
+}
+
+export interface ContractDelivery {
+  delivery: { progress: number; target: number; complete: boolean; delivered: number };
+  fragments: ContractFragmentView[];
+  progress: Record<string, number>;
+}
+
+export interface ContractClaim {
+  targetId: string;
+  fragments: ContractFragmentView[];
+  progress: Record<string, number>;
+}
+
+export const fetchContracts = (serverUrl: string) => authFetch<ContractsState>(serverUrl, '/contracts');
+export const fetchContractFair = (serverUrl: string) => authFetch<ContractFair>(serverUrl, '/contracts/fair');
+export const runTradeUp = (serverUrl: string, inputs: string[], clientSeed: string) => authFetch<TradeUpOutcome>(serverUrl, '/contracts/tradeup', { body: { inputs, clientSeed } });
+export const deliverContract = (serverUrl: string, contractId: string, donors: string[]) => authFetch<ContractDelivery>(serverUrl, '/contracts/deliver', { body: { contractId, donors } });
+export const claimContract = (serverUrl: string, contractId: string) => authFetch<ContractClaim>(serverUrl, '/contracts/claim', { body: { contractId } });

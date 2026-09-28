@@ -36,9 +36,12 @@ const TRAILER_LINE = /^(co-authored-by|claude-session|signed-off-by|generated wi
 const META_HASHES = new Set([
   '09399779cba8dd1ddf2b52f84f03bb96e2dcb1de',
   '2f07056d7f008d633781099d9edbb29c3601e394',
+  // Anotação interna do changelog: mudanças seguintes ainda não estavam prontas para publicar.
+  '85dbb7a28ef172ec6197e279c5341227cb226d6d',
   // Isenção de ranking da conta do dono: interna por decisão dele, nunca vira nota para o jogador.
   'f74bb3ee81008cf203cb3e5b8df0a08f027e024c'
 ]);
+const isMetaCommit = (commit) => META_HASHES.has(commit.hash) || /^chore\(changelog\):/.test(commit.subject);
 
 function noteOf(commit) {
   // Notas públicas aprovadas: manter os textos nas próximas regenerações.
@@ -82,10 +85,77 @@ function noteOf(commit) {
     '6597df2e46c2062741098f798da19f6bc0e14823': {
       title: 'Nevasca do Agressivo e o antídoto da zebra (em testes)',
       summary: 'Ajustes competitivos em desenvolvimento: o Agressivo que engata 5+ rounds seguidos ganha o dobro de pressão, e um mapa vencido com 6+ seguidos carrega bônus para o próximo mapa da série — menos sorte, mais sequência construída. O Equilibrado virou o antídoto do Resiliente: contra ele, os trunfos de comeback (zebra, clutch, decididor e momentum) não disparam.'
+    },
+    '73add0b5f236b1b9bcd59144cbb37aa0d11fe0c3': {
+      title: 'Poder, escalação, bots e coins rebalanceados',
+      summary: 'Removemos o piso de 85 e o corte em 99: a nota agora acompanha o poder real até 99,9. Ajustamos os bônus e custos da escalação, incluímos a vaga IGL-Suporte, recalibramos os bots e aumentamos os prêmios do ranqueado (2,5×) e do Solo dos Campeões (4×).'
+    },
+    '25a94ec1d1c87cc57c64e9f1c8153a23914145c6': {
+      title: 'Correção nos prêmios do Boost e na função de flusha',
+      summary: 'Corrigimos a publicação dos prêmios do Boost e a função de flusha.'
+    },
+    '22c0c43defe84eed43711f83478de871ae0260bc': {
+      title: 'Raridade GOAT de olofmeister restaurada',
+      summary: 'Restauramos a raridade GOAT de olofmeister em 2015.'
+    },
+    '1217445cd449ebd4314359b66c3be73237a8b477': {
+      title: 'Raridades históricas ajustadas',
+      summary: 'Ajustamos as raridades de jogadores entre 2013 e 2015.'
+    },
+    '5d1556e7933129009051b1fc63d2e834f7ac69e8': {
+      title: 'Overalls de f0rest e GeT_RiGhT atualizados',
+      summary: 'Atualizamos os overalls de f0rest e GeT_RiGhT na temporada de 2014.'
+    },
+    '877444536f3fd2784ea5e7b89f021bf3ad2ed1db': {
+      title: 'Funções de jogadores históricos corrigidas',
+      summary: 'Corrigimos funções de jogadores no catálogo histórico.'
+    },
+    'fe3d9ecbf64c1709bec7ec479f0c47354ef69446': {
+      title: 'Correção do voto de velocidade da final',
+      summary: 'Corrigimos a votação da velocidade da final na fila rápida.'
+    },
+    '86b52226ac3acde49d9d2acdf9fe728be8c0e2a0': {
+      title: 'Controles de Solo movidos para a partida',
+      summary: 'Os controles de velocidade e voto da final agora ficam dentro da partida Solo.'
+    },
+    '772ca765cda4595adf87bd1e62c62cace822bb93': {
+      title: 'Velocidade do Solo e voto da final configuráveis',
+      summary: 'Adicionamos controles para a velocidade do Solo e a votação da final.'
+    },
+    '4efd54881f80e6bce288f4281665b435dff3ff75': {
+      title: 'Confrontos entre planos explicados na wiki',
+      summary: 'Esclarecemos como os planos de jogo se enfrentam no guia.'
+    },
+    '50d7078b4f3f797b974d394da4db67c5e2132ea9': {
+      title: 'Wiki do jogo em três idiomas',
+      summary: 'Publicamos uma wiki concisa em português, inglês e espanhol.'
+    },
+    '07887f82a7011698a4b2b84513bc0e5c44d2cf0e': {
+      title: 'Correção da atualização de escalações salvas',
+      summary: 'A escalação agora é atualizada corretamente depois de salvar as alterações.'
+    },
+    'f7d3a640f6266efcc7be9fd2b4897556c6189e76': {
+      title: 'Correção de funções múltiplas do b1t',
+      summary: 'Limitamos a alteração de funções múltiplas ao b1t, sem mudar outros jogadores.'
+    },
+    '63228f00e5b7aea74bf0d2dc66baca073957f578': {
+      title: 'Funções secundárias respeitadas',
+      summary: 'O jogo agora considera as funções secundárias registradas para cada jogador.'
+    },
+    // Notas de 2026-09-27/28 (chaves curtas: o hash completo é resolvido por prefixo abaixo).
+    '15e8113': {
+      title: 'Animações e sons: o jogo responde ao que acontece',
+      summary: 'Fila com radar e aviso de partida encontrada, sons de mapa e série decididos, campeão e eliminado, Upgrader e trade-up com vitória e derrota, pacotes com tremor, tampa e tensão de lenda e GOAT, poder do time deslizando no montador e avisos no canto superior. Botões respondem ao toque e o movimento reduzido do sistema é respeitado.'
+    },
+    '10c7b13': {
+      title: 'Rating 3.0 nas partidas online, loading entre telas e chamada de conta',
+      summary: 'As estatísticas do online passam a mostrar Rating 3.0 com Round Swing, KAST, assistências, trocas e multi-kills, calculados no servidor com a média do campo inteiro. A nota só explica o desempenho: não muda chance de vitória, coins nem pontos. A fila ganhou um radar único, as trocas de tela mostram o radar da home e a home destaca a entrada na conta.'
     }
   };
   if (pinned[commit.hash]) return pinned[commit.hash];
-  if (META_HASHES.has(commit.hash)) return { title: '', summary: '' };
+  const pinnedByPrefix = Object.keys(pinned).find((key) => key.length < 40 && commit.hash.startsWith(key));
+  if (pinnedByPrefix) return pinned[pinnedByPrefix];
+  if (isMetaCommit(commit)) return { title: '', summary: '' };
   const withoutType = commit.subject.replace(/^(feat|fix|chore|docs|test|refactor|perf|style|balance|merge)(\([^)]*\))?:\s*/i, '');
   const title = withoutType.charAt(0).toUpperCase() + withoutType.slice(1);
   const bodyWithoutTrailers = commit.body.split('\n').filter((line) => line.trim() && !TRAILER_LINE.test(line.trim()) && !/^https:\/\/claude\.ai\//.test(line.trim())).join('\n');
@@ -94,7 +164,7 @@ function noteOf(commit) {
   return { title, summary: sentence.length > 240 ? `${sentence.slice(0, 237)}…` : sentence };
 }
 
-const entries = commits.filter((commit) => !META_HASHES.has(commit.hash)).map((commit, index) => ({
+const entries = commits.filter((commit) => !isMetaCommit(commit)).map((commit, index) => ({
   version: versionOf(index + 1),
   date: commit.date,
   hash: commit.hash.slice(0, 7),

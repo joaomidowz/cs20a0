@@ -19,14 +19,15 @@ import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
  * time/jogador foi removido; só conteúdo de entradas já existentes mudou (contagem 286/1430 preservada).
  * Atualizado em 2026-09-18: revisão de overall/raridade (scripts/apply-overall-review.mjs): escada do top 20 HLTV,
  * pisos de MVP/EVP, teto 89 fora do top 20 e IGLs campeões de Major como GOAT. Só overall, raridade e atributos mudaram.
+ * Atualizado em 2026-09-28 para o deploy coordenado do protocolo online v11 e das revisões de catálogo já na branch.
  */
-const FROZEN_ONLINE_DATA_HASH = '6f28e817e5eafc33';
+const FROZEN_ONLINE_DATA_HASH = 'ca3e0866b59fa60e';
 
 /** SHA-256 dos bytes crus dos arquivos v1. Só mudam no deploy coordenado do online v2. */
 const FROZEN_V1_FILES: Record<string, string> = {
-  'src/lib/data/cs/players.game.json': 'd071b2615e71a9d5e360b38a1074a3bbd0e24fd5845dd71ce0717a401f51c960',
+  'src/lib/data/cs/players.game.json': '9a72712b28747c69f63080eb2d145f98b27074b8628818cc0ba0297ed01e8bd8',
   'src/lib/data/cs/teams.game.json': 'df9f5863139e702a16d10943ca2e5178e002de7c2d65889344cb23fcc4d34aa8',
-  'src/lib/data/cs/coaches.game.json': '0a6b807f3eaf224ec072bc1d18ee936ba9009fab41eb388ae2e21a109dd3a600'
+  'src/lib/data/cs/coaches.game.json': 'cdcddae7c1653d2faf5d606c8f7b833a2e7da84faeee1e90a6d128ffd64afa8a'
 };
 
 /** Diretórios cujo grafo de imports define o que o online (cliente + servidor) enxerga. */
