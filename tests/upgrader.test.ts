@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cardCoinValue, cardUpgradeChance } from '../src/lib/game/online/card-value';
 import { collectionPlayers } from '../src/lib/game/online/collection-pool';
-import { UPGRADER_MAX_CHANCE, UPGRADER_RARITY_CAP, upgradeChance } from '../src/lib/game/online/collection-rules';
+import { UPGRADER_MAX_CHANCE, UPGRADER_REACH_PENALTY, upgradeChance } from '../src/lib/game/online/collection-rules';
 import { CONSOLATION_COINS_RATIO, CONSOLATION_COMMON_CHANCE, CONSOLATION_VALUE_RATIO, consolationCard, fairConsolation, fairRoll, rollDegrees, rollFromHex, sha256Hex, verifyFair } from '../src/lib/game/online/fair';
 import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
 import { rarityOf } from '../src/lib/game/online/collection-rules';
@@ -11,31 +11,25 @@ import type { Db } from '../server/db/client';
 import { createTestDb } from './helpers/testDb';
 
 describe('chance do upgrader', () => {
-  it('é aposta/alvo × 0,9, com teto de 75% até Superstar', () => {
+  it('é aposta/alvo × 0,9, com teto geral de 75% para todas as raridades', () => {
     expect(upgradeChance(100, 1000, 'rare', ['common'])).toBeCloseTo(0.09, 10);
     expect(upgradeChance(500, 1000, 'elite', ['rare'])).toBeCloseTo(0.45, 10);
     expect(upgradeChance(990, 1000, 'superstar', ['elite'])).toBe(UPGRADER_MAX_CHANCE);
-    for (const rarity of ['common', 'rare', 'elite', 'superstar'] as const) expect(UPGRADER_RARITY_CAP[rarity]).toBe(0.75);
+    expect(upgradeChance(20000, 24000, 'legend', ['legend'])).toBe(UPGRADER_MAX_CHANCE);
+    expect(upgradeChance(90000, 100000, 'goat', ['legend'])).toBe(UPGRADER_MAX_CHANCE);
     expect(upgradeChance(0, 1000, 'rare', ['common'])).toBe(0);
     expect(upgradeChance(100, 0, 'rare', ['common'])).toBe(0);
-  });
-
-  it('teto de 25% em Lenda e 10% em GOAT', () => {
-    expect(upgradeChance(20000, 24000, 'legend', ['legend'])).toBe(0.25);
-    expect(upgradeChance(9000, 24000, 'legend', ['superstar'])).toBeCloseTo(0.25, 10);
-    expect(upgradeChance(90000, 100000, 'goat', ['legend'])).toBe(0.1);
-    expect(upgradeChance(10000, 100000, 'goat', ['legend'])).toBeCloseTo(0.09, 10);
   });
 
   it('alvo 2+ raridades acima da melhor carta apostada: metade da chance, depois do teto', () => {
     // Elite → Lenda (2 acima): 6.000/24.000 × 0,9 = 22,5% → 11,25%.
     expect(upgradeChance(6000, 24000, 'legend', ['elite'])).toBeCloseTo(0.1125, 10);
-    // Muitas comuns por uma Lenda: bate no teto de 25% e cai para 12,5%.
-    expect(upgradeChance(15000, 24000, 'legend', ['common', 'common', 'common', 'common', 'common', 'common'])).toBeCloseTo(0.125, 10);
+    // O teto geral vale para Lenda e GOAT; saltar duas raridades reduz a chance pela metade.
+    expect(upgradeChance(20000, 24000, 'legend', ['common', 'common', 'common', 'common', 'common', 'common'])).toBe(UPGRADER_MAX_CHANCE * UPGRADER_REACH_PENALTY);
     // Uma Superstar na aposta tira a penalidade (só 1 acima).
-    expect(upgradeChance(15000, 24000, 'legend', ['common', 'superstar'])).toBe(0.25);
-    // GOAT a partir de Superstar: teto 10% vira 5%.
-    expect(upgradeChance(90000, 100000, 'goat', ['superstar'])).toBeCloseTo(0.05, 10);
+    expect(upgradeChance(20000, 24000, 'legend', ['common', 'superstar'])).toBe(UPGRADER_MAX_CHANCE);
+    // GOAT a partir de Superstar: o salto de raridade leva o teto de 75% a 37,5%.
+    expect(upgradeChance(90000, 100000, 'goat', ['superstar'])).toBe(UPGRADER_MAX_CHANCE * UPGRADER_REACH_PENALTY);
     // Coach usa a raridade dele: por id, a regra é a mesma do servidor.
     const coach = [...collectionCoachById.values()].find((item) => rarityOf(item) === 'legend');
     const common = collectionPlayers.find((player) => rarityOf(player) === 'common')!;

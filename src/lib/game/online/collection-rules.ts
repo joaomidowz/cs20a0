@@ -220,10 +220,8 @@ export const coachSellValue = (coach: Pick<Coach, 'overall' | 'rarity'>) => Math
 
 /** Upgrader: at most this many cards staked at once. */
 export const UPGRADER_MAX_STAKE = 6;
-/** Upgrader: the chance never goes above this, however much is staked (the cap of the lower rarities). */
+/** Upgrader: the chance never goes above this, however much is staked. */
 export const UPGRADER_MAX_CHANCE = 0.75;
-/** Upgrader: cap of the chance by the rarity of the target (a coach uses its own rarity). */
-export const UPGRADER_RARITY_CAP: Readonly<Record<Rarity, number>> = { common: 0.75, rare: 0.75, elite: 0.75, superstar: 0.75, legend: 0.25, goat: 0.1 };
 /** Upgrader: a target this many rarities (or more) above the best staked card... */
 export const UPGRADER_REACH_STEPS = 2;
 /** ...has its chance multiplied by this, after the cap. */
@@ -232,13 +230,13 @@ export const UPGRADER_REACH_PENALTY = 0.5;
 export const UPGRADER_EDGE = 0.9;
 
 /**
- * Chance of turning cards worth `stakeValue` coins into one worth `targetValue`: stake/target × UPGRADER_EDGE, capped by
- * the target rarity (UPGRADER_RARITY_CAP), then halved when the target is UPGRADER_REACH_STEPS or more rarities above the
- * best staked card. Server and client call this same function.
+ * Chance of turning cards worth `stakeValue` coins into one worth `targetValue`: stake/target × UPGRADER_EDGE, capped at
+ * UPGRADER_MAX_CHANCE for every target rarity, then halved when the target is UPGRADER_REACH_STEPS or more rarities above
+ * the best staked card. Server and client call this same function.
  */
 export function upgradeChance(stakeValue: number, targetValue: number, targetRarity: Rarity, stakeRarities: readonly Rarity[]): number {
   if (targetValue <= 0 || stakeValue <= 0) return 0;
-  const capped = Math.min(UPGRADER_RARITY_CAP[targetRarity], (stakeValue / targetValue) * UPGRADER_EDGE);
+  const capped = Math.min(UPGRADER_MAX_CHANCE, (stakeValue / targetValue) * UPGRADER_EDGE);
   const best = Math.max(...stakeRarities.map((rarity) => RARITIES.indexOf(rarity)));
   return RARITIES.indexOf(targetRarity) - best >= UPGRADER_REACH_STEPS ? capped * UPGRADER_REACH_PENALTY : capped;
 }

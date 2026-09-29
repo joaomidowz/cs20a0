@@ -12,7 +12,7 @@
   import { fetchCollection, lineupLockedIds, type CollectionState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
-  import { UPGRADER_RARITY_CAP, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
+  import { UPGRADER_MAX_CHANCE, upgradeChance, type Rarity } from '$lib/game/online/collection-rules';
   import { language, theme } from '$lib/game/pageState';
   import type { Coach, Player } from '$lib/game/types';
 
@@ -28,7 +28,7 @@
 
   /** FAQ examples, computed with the same rule the server uses. */
   const EXAMPLES = ([[12000, 'superstar', 24000, 'legend'], [6000, 'elite', 24000, 'legend'], [12000, 'superstar', 14400, 'superstar'], [48000, 'legend', 100000, 'goat']] as const)
-    .map(([stake, from, target, to]) => ({ stake, target, chance: upgradeChance(stake, target, to, [from as Rarity]), cap: UPGRADER_RARITY_CAP[to] }));
+    .map(([stake, from, target, to]) => ({ stake, target, chance: upgradeChance(stake, target, to, [from as Rarity]), cap: UPGRADER_MAX_CHANCE }));
   const VERIFY_SNIPPET = [
     "const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(serverSeed), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);",
     "const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${clientSeed}:${nonce}`)));",
