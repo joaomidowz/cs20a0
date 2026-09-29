@@ -62,6 +62,8 @@
 <style>
   .case { position: relative; display: grid; place-items: center; width: 128px; height: 122px; margin: 0 auto; transition: transform var(--dur-ui) var(--ease-out-soft); --case-hi: #aeb8a0; --case-a: #6f7d52; --case-b: #4b5637; --case-c: #333b26; --case-glow: #c8ff32; --case-ink: #0a0d08; }
   .case.lg { width: 184px; height: 175px; }
+  /* Phone: two cases per row, so each shrinks to about two thirds; the drop shadow shrinks with it. */
+  @media (max-width: 720px) { .case { width: 84px; height: 80px; } .case.lg { width: 128px; height: 122px; } svg { filter: drop-shadow(0 8px 8px rgb(0 0 0 / .5)); } }
   svg { position: relative; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 14px 14px rgb(0 0 0 / .55)); }
   .glow { position: absolute; inset: 22% 12% 4%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--case-glow) 55%, transparent), transparent); opacity: .35; filter: blur(10px); transition: opacity .2s ease; }
   :global(.pack:hover) .glow { opacity: .7; }

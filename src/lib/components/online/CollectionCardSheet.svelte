@@ -11,6 +11,8 @@
   export let language: Language = 'en';
   export let labels: { close: string; attributes: string; roles: string; awards: string; value: string; sell: string; coins: string };
   export let onClose: () => void = () => {};
+  /** Renders the `actions` slot row (lineup/sell buttons). Off when the card is only being looked at, e.g. after a pack reveal. */
+  export let showActions = false;
 
   const ATTRIBUTES: Array<[keyof Player, string]> = [['firepower', 'Firepower'], ['entry', 'Entry'], ['awp', 'AWP'], ['clutch', 'Clutch'], ['support', 'Support'], ['igl', 'IGL'], ['consistency', 'Consistency'], ['mental', 'Mental'], ['experience', 'Experience']];
   $: rarity = rarityOf(player);
@@ -24,8 +26,11 @@
 <div class="cs-backdrop" role="presentation" on:click={onClose}>
   <div class="cs-sheet rarity-{rarity}" role="dialog" aria-modal="true" aria-label={player.nickname ?? player.id} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <button class="cs-close" type="button" bind:this={closeButton} aria-label={labels.close} on:click={onClose}>×</button>
-    <div class="cs-card"><CollectionCard showcase {player} {teamName} {language} /></div>
+    <!-- Desk: the tall showcase card. Phone: a compact one so the actions and attributes stay above the fold of the bottom sheet. -->
+    <div class="cs-card cs-desk"><CollectionCard showcase {player} {teamName} {language} /></div>
+    <div class="cs-card cs-phone"><CollectionCard compact {player} {teamName} {language} /></div>
     <div class="cs-info">
+      {#if showActions && $$slots.actions}<div class="cs-actions"><slot name="actions" /></div>{/if}
       <h3>{labels.attributes}</h3>
       <ul class="cs-attributes">
         {#each ATTRIBUTES as [key, label]}
@@ -61,6 +66,18 @@
   .cs-chips.gold span { border-color: #d9a441; color: #ffd36b; background: color-mix(in srgb, #d9a441 12%, transparent); }
   .cs-value { margin: 6px 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; } .cs-value b { color: var(--accent); }
   @keyframes cs-in { from { transform: translateY(14px) scale(.98); opacity: 0; } }
-  @media (max-width: 680px) { .cs-sheet { grid-template-columns: 1fr; padding: 18px 14px; } .cs-card { justify-self: center; width: min(100%, 300px); } .cs-info { padding-right: 0; } }
+  .cs-phone { display: none; }
+  .cs-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+  .cs-actions :global(button) { min-width: 0; min-height: 44px; white-space: normal; line-height: 1.2; }
+  /* Phone: a bottom sheet — compact card on top, the actions right under it, attributes scroll below. */
+  @media (max-width: 680px) {
+    .cs-backdrop { place-items: end stretch; padding: 0; }
+    .cs-sheet { grid-template-columns: 1fr; gap: 12px; width: 100%; max-height: min(88dvh, 100%); padding: 14px 14px calc(16px + env(safe-area-inset-bottom)); border-width: 1px 0 0; overflow-y: auto; animation-name: cs-up; }
+    .cs-desk { display: none; } .cs-phone { display: block; }
+    .cs-card { justify-self: stretch; width: auto; padding-right: 44px; }
+    .cs-info { padding-right: 0; }
+    .cs-actions { position: sticky; top: -14px; z-index: 1; margin: 0 -14px; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  }
+  @keyframes cs-up { from { transform: translateY(24px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .cs-sheet { animation: none; } }
 </style>

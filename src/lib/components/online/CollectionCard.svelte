@@ -22,6 +22,11 @@
   /** Pack reveal: a tall card with a big photo, the country by name and the four best attributes. */
   export let showcase = false;
   export let onOpen: ((player: Player) => void) | null = null;
+  /**
+   * Collection grid on a phone (≤679px): four per row, Clash Royale style — photo, OVR, nick, ×copies and the rarity
+   * border. Everything else (role, team, footer buttons) lives in the card sheet that opens on tap. Desktop is untouched.
+   */
+  export let dense = false;
 
   $: rarity = rarityOf(player);
   $: country = playerCountryOf(player);
@@ -32,7 +37,7 @@
   $: bestStats = showcase ? STATS.map(([key, label]) => ({ label, value: Number(player[key] ?? 0) })).filter((stat) => stat.value > 0).sort((a, b) => b.value - a.value).slice(0, 4) : [];
 </script>
 
-<article class="card rarity-{rarity}" class:compact class:showcase class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
+<article class="card rarity-{rarity}" class:compact class:showcase class:dense class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
   {#if quantity > 1}<b class="quantity" aria-label={`${quantity} cópias`}>×{quantity}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
   <button class="face" type="button" on:click={() => onOpen?.(player)} disabled={!onOpen}>
@@ -109,5 +114,23 @@
   .star::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent); animation-duration: 2.2s; }
   .star.up::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent); }
   @keyframes glow-pulse { 50% { opacity: 1; } }
+  /* Dense (phone, four per row): the photo is the card; OVR and ×copies sit on it like Clash Royale's cost and level. */
+  @media (max-width: 679px) {
+    .dense .face { gap: 0; padding: 0; }
+    .dense .top { position: relative; display: block; }
+    .dense .photo { width: 100%; height: auto; aspect-ratio: 1; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--rarity) 45%, var(--line)); }
+    .dense .ovr { position: absolute; top: 3px; left: 3px; justify-items: start; padding: 1px 4px 0; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: clamp(.95rem, 4.2vw, 1.15rem); }
+    .dense .ovr small { display: none; }
+    .dense .rarity, .dense .role, .dense .team, .dense footer { display: none; }
+    .dense .name { display: block; padding: 4px 4px 5px; font-size: clamp(.68rem, 3.1vw, .82rem); line-height: 1.15; text-align: center; }
+    .dense .name > :global(:not(span)) { display: none; }
+    .dense .quantity { top: 3px; right: 3px; bottom: auto; min-width: 0; padding: 2px 4px; font-size: .58rem; }
+    .dense .tag { top: -7px; left: 4px; padding: 2px 5px; font-size: .48rem; letter-spacing: .08em; }
+    /* In the lineup: a corner check instead of the accent border only, so the state reads at thumbnail size. */
+    .dense.in-lineup .top::after { content: '✓'; position: absolute; right: 3px; bottom: 3px; display: grid; place-items: center; width: 16px; height: 16px; background: var(--accent); color: #0a0d08; font-size: .62rem; font-weight: 900; line-height: 1; }
+    .dense.has-quantity.in-lineup .top::after { right: auto; left: 3px; }
+    .dense.up::after, .dense.star::after { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+    .dense.star::after { box-shadow: 0 0 16px color-mix(in srgb, #d9a441 60%, transparent); }
+  }
   @media (prefers-reduced-motion: reduce) { .card, .up::after, .star::after { animation: none; transition: none; } .card:hover { transform: none; } }
 </style>

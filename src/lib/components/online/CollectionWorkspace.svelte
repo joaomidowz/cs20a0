@@ -864,9 +864,10 @@
         {#if !visible.length}
           <p class="note">{u('noCards')}</p>{#if filtersOn}<button class="secondary" type="button" on:click={clearFilters}>{u('clear')}</button>{:else}<a class="secondary link" href="/online/store">Store →</a>{/if}
         {:else}
-          <div class="player-grid">
+          <!-- Phone: four dense cards per row; the footer buttons hide and the same actions open in the card sheet. -->
+          <div class="player-grid dense-grid">
             {#each visible as player (player.id)}
-              <CollectionCard {player} teamName={teamNameOf(player)} language={$language} quantity={quantityById.get(player.id) ?? 1} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
+              <CollectionCard {player} dense teamName={teamNameOf(player)} language={$language} quantity={quantityById.get(player.id) ?? 1} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
                 {#if lineupIds.has(player.id)}
                   <button class="ghost small" type="button" on:click={() => removeFromLineup(slots.findIndex((slot) => slot?.id === player.id))}>{t('removeFromLineup')}</button>
                   {#if (quantityById.get(player.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>{/if}
@@ -907,7 +908,28 @@
 {/if}
 
 {#if detailsPlayer}
-  <CollectionCardSheet player={detailsPlayer} teamName={teamNameOf(detailsPlayer)} language={$language} labels={{ close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') }} onClose={() => detailsPlayer = null} />
+  {@const sheetPlayer = detailsPlayer}
+  {@const sheetInLineup = lineupIds.has(sheetPlayer.id)}
+  {@const sheetCopies = quantityById.get(sheetPlayer.id) ?? 0}
+  {@const sheetActions = section === 'team' && Boolean(state) && sheetCopies > 0}
+  <CollectionCardSheet player={sheetPlayer} teamName={teamNameOf(sheetPlayer)} language={$language} showActions={sheetActions} labels={{ close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') }} onClose={() => detailsPlayer = null}>
+    <!-- Same actions as the card footer; on a phone the dense grid hides the footer, so this is the only place they live. -->
+    <svelte:fragment slot="actions">
+      {#if sheetActions}
+        {#if sheetInLineup}
+          <button class="secondary small" type="button" on:click={() => { removeFromLineup(slots.findIndex((slot) => slot?.id === sheetPlayer.id)); detailsPlayer = null; }}>{t('removeFromLineup')}</button>
+          {#if sheetCopies > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>{/if}
+        {:else}
+          {#if slots.every(Boolean)}
+            <button class="primary small" type="button" disabled={busy} on:click={() => { startSwap(sheetPlayer); detailsPlayer = null; scrollTo(teamSection); }}>⇄ {t('swap')}</button>
+          {:else}
+            <button class="primary small" type="button" disabled={busy} on:click={() => { addToLineup(sheetPlayer); detailsPlayer = null; }}>{t('addToLineup')}</button>
+          {/if}
+          <button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
+        {/if}
+      {/if}
+    </svelte:fragment>
+  </CollectionCardSheet>
 {/if}
 {#if section === 'store'}
   <Modal open={majorNotice} title={t('majorPack')} onClose={() => dismissMajorNotice()}>
@@ -1064,7 +1086,6 @@
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
   @media (max-width: 760px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 720px) { .premium-grid { grid-template-columns: 1fr; } .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; } .premium-info { justify-items: center; } }
-  @media (max-width: 460px) { .shop-grid { grid-template-columns: 1fr; } }
 
   .team-links { display: flex; flex-wrap: wrap; gap: 8px; }
   .save-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--accent); background: var(--surface); }
@@ -1084,5 +1105,15 @@
     .slots { grid-template-columns: minmax(0, 1fr); gap: 8px; }
     .team-links > * { flex: 1 1 auto; }
     .picker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    /* Collection like a card game: four thumbnails per row, coaches two. Actions live in the sheet. */
+    .cards :global(.player-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 4px; }
+    .cards :global(.player-grid.dense-grid) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .cards .filters { gap: 6px; }
+    /* Store: smaller cases, two per row down to the narrowest phones, no fixed height pushing the buttons apart. */
+    .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .shop-grid > .pack { gap: 8px; min-height: 0; padding: 16px 8px 10px; }
+    .shop-grid > .pack > strong { font-size: .8rem; text-align: center; }
+    .shop-grid > .pack > button { width: 100%; min-height: 40px; }
+    .daily-pack { gap: 8px; padding: 14px 10px; }
   }
 </style>
