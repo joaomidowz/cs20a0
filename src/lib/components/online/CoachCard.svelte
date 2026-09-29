@@ -15,13 +15,15 @@
   /** Compact mode hides attributes until the card is opened; opt-in so other screens keep their current layout. */
   export let compact = false;
   export let quantity = 1;
+  /** Phone grid (≤720px): photo, OVR, name and ×copies only, like the dense player card; the rest lives in the sheet. */
+  export let dense = false;
   export let onOpen: ((coach: Coach, trigger: HTMLButtonElement) => void) | null = null;
 
   $: rarity = rarityOf(coach);
   const ATTRS = [['tactics', 'TAC'], ['discipline', 'DIS'], ['aggression', 'AGR'], ['development', 'DEV']] as const;
 </script>
 
-<article class="card rarity-{rarity}" class:active class:affinity class:showcase>
+<article class="card rarity-{rarity}" class:active class:affinity class:showcase class:dense class:has-quantity={quantity > 1}>
   {#if quantity > 1}<b class="quantity" aria-label={`×${quantity}`}>×{quantity}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
   <button class="face" type="button" disabled={!onOpen} aria-haspopup={onOpen ? 'dialog' : undefined} aria-label={onOpen ? coach.name : undefined} on:click={(event) => onOpen?.(coach, event.currentTarget as HTMLButtonElement)}>
@@ -31,7 +33,7 @@
       <strong class="name">{coach.name}</strong>
       <span class="role">COACH · {coach.year}</span>
     {:else}
-      <span class="top"><span class="kind">COACH</span><span class="ovr"><small>OVR</small>{coach.overall}</span></span>
+      <span class="top">{#if dense}<span class="photo"><PlayerAvatar player={{ id: coach.id, baseId: coach.baseId }} bare /></span>{/if}<span class="kind">COACH</span><span class="ovr"><small>OVR</small>{coach.overall}</span></span>
       <span class="rarity">{rarity}</span>
       <strong class="name">{coach.name}</strong>
     {/if}
@@ -75,4 +77,20 @@
   .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
   .active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .affinity { box-shadow: 0 0 0 1px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 30%, transparent); }
+  /* The ×N badge sits over the footer's right edge; keep the buttons clear of it, as the player card does. */
+  .has-quantity footer { padding-right: 42px; }
+  /* Dense (phone, four per row): mirrors CollectionCard's dense rules — the photo is the card, OVR top-left, COACH bottom-left. */
+  .dense:not(.showcase) .photo { display: none; }
+  @media (max-width: 720px) {
+    .dense .face { gap: 0; padding: 0; }
+    .dense .top { position: relative; display: block; }
+    .dense:not(.showcase) .photo { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--rarity) 45%, var(--line)); }
+    .dense .ovr { position: absolute; top: 3px; left: 3px; justify-items: start; padding: 1px 4px 0; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: clamp(.95rem, 4.2vw, 1.15rem); }
+    .dense .ovr small { display: none; }
+    .dense .kind { position: absolute; left: 3px; bottom: 3px; padding: 1px 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .46rem; letter-spacing: .08em; }
+    .dense .rarity, .dense .team, .dense .attrs, .dense footer { display: none; }
+    .dense .name { padding: 4px 4px 5px; font-size: clamp(.68rem, 3.1vw, .82rem); line-height: 1.15; text-align: center; }
+    .dense .quantity { top: 3px; right: 3px; bottom: auto; min-width: 0; padding: 2px 4px; font-size: .58rem; }
+    .dense .tag { top: -7px; left: 4px; padding: 2px 5px; font-size: .48rem; letter-spacing: .08em; }
+  }
 </style>

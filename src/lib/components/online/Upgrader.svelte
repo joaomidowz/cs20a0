@@ -14,7 +14,9 @@
   import { getRoleLabel } from '$lib/game/roleRules';
   import type { Coach, Language, LineupSlotRole, Player } from '$lib/game/types';
   import CollectionCard from './CollectionCard.svelte';
+  import CollectionCardSheet from './CollectionCardSheet.svelte';
   import CoachCard from './CoachCard.svelte';
+  import CoachCardSheet from './CoachCardSheet.svelte';
   import StyledSelect from './StyledSelect.svelte';
 
   export let serverUrl: string;
@@ -29,10 +31,6 @@
   /** Team names, the same the collection grid shows. */
   export let playerTeam: (player: Player) => string = () => '';
   export let coachTeam: (coach: Coach) => string = () => '';
-  /** Opens the big card (the page's CollectionCardSheet). */
-  export let onOpen: (player: Player) => void = () => {};
-  /** Opens coach details in the page's CoachCardSheet. */
-  export let onOpenCoach: (coach: Coach, trigger: HTMLButtonElement) => void = () => {};
 
   type Card = { id: string; value: number; rarity: Rarity; player: Player | null; coach: Coach | null; quantity: number };
   const cardOf = (id: string): Card | null => {
@@ -123,7 +121,23 @@
   $: if (!round && step > 1 && !stake.length) step = 1;
   $: if (!round && step > 2 && !target) step = 2;
   $: canStep = (value: 1 | 2 | 3) => value === 1 || Boolean(round) || (value === 2 ? stake.length > 0 : stake.length > 0 && Boolean(target));
-  const goStep = (value: 1 | 2 | 3) => { if (spinning || !canStep(value)) return; if (round && value < 3) clearRound(); step = value; if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  let board: HTMLDivElement | null = null;
+  // Step changes land on the board (scroll-margin-top clears the sticky bars), not on the top of the whole page.
+  const goStep = (value: 1 | 2 | 3) => { if (spinning || !canStep(value)) return; closeSheet(); if (round && value < 3) clearRound(); step = value; board?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' }); };
+
+  /**
+   * The card sheet: on a phone the pickable lists are dense thumbnails with no footer, so the −/+ stepper (stake) and
+   * the aim button (target) live here. `view` is a staged/aimed card opened from the review lists.
+   */
+  let sheet: { card: Card; mode: 'stake' | 'target' | 'view'; trigger: HTMLElement | null } | null = null;
+  const openSheet = (card: Card, mode: 'stake' | 'target' | 'view', trigger: HTMLElement | null = null) => { sheet = { card, mode, trigger }; };
+  const closeSheet = () => { sheet = null; };
+  $: if (spinning) sheet = null;
+  $: sheetPicked = sheet ? stake.filter((id) => id === sheet?.card.id).length : 0;
+  $: sheetAvailable = sheet ? allStakeable.find((card) => card.id === sheet?.card.id)?.quantity ?? 0 : 0;
+  $: sheetAimed = Boolean(sheet && target === sheet.card.id);
+  $: sheetShowsActions = Boolean(sheet && (sheet.mode !== 'view' || (!round && (sheetPicked > 0 || sheetAimed))));
+  $: sheetLabels = { close: t('close'), attributes: t('sheetAttributes'), roles: t('sheetRoles'), awards: t('sheetAwards'), value: t('sheetValue'), sell: t('sell'), coins: t('coins') };
 
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
@@ -239,8 +253,10 @@
       <button type="button" aria-current={step === value ? 'step' : undefined} disabled={spinning || !canStep(value as 1 | 2 | 3)} on:click={() => goStep(value as 1 | 2 | 3)}><b>{value}</b>{u(key as 'chooseStake')}</button>
     {/each}
   </nav>
+  <!-- Phone: the stake → target → chance line under the steps, so steps 1 and 2 also show where the spin stands. -->
+  <p class="summary steps-summary" aria-hidden="true"><span>{shownStake.length}/{UPGRADER_MAX_STAKE} {u('cardsShort')} · <b>{fmt(shownStakeValue)}</b></span><i>→</i><span>{shownTarget ? `${fmt(shownTarget.value)} coins` : '—'}</span><span class="pct">{pct(shownChance)} {t('chance')}</span></p>
 
-  <div class="board step-{step}">
+  <div class="board step-{step}" bind:this={board}>
     <div class="column stake-col">
       <div class="col-head">
         <span class="label">{t('upgraderStake')}</span>
@@ -250,11 +266,10 @@
         <div class="mini-grid staked">
           {#each shownStake as card, index (card.id + ':' + index)}
             <div class="pick picked" class:vanish={settled}>
-              <span class="value-tag"><i></i>{fmt(card.value)}</span>
               {#if card.coach}
-                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
+                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} compact={true} onOpen={(_, trigger) => openSheet(card, 'view', trigger)}><div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</div></CoachCard>
               {:else if card.player}
-                <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
+                <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact onOpen={() => openSheet(card, 'view')}><div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</div></CollectionCard>
               {/if}
             </div>
           {/each}
@@ -264,14 +279,14 @@
       {/if}
       {#if settled && outcome && !outcome.won && resultCard}
         <!-- Loss: every staked card is gone; the downgraded consolation card comes in their place. -->
+        {@const returned = resultCard}
         <div class="consolation" role="status">
           <div class="mini-grid">
             <div class="pick returned">
-              <span class="value-tag"><i></i>{fmt(resultCard.value)}</span>
-              {#if resultCard.coach}
-                <CoachCard coach={resultCard.coach} teamName={coachTeam(resultCard.coach)} compact={true} onOpen={onOpenCoach} />
-              {:else if resultCard.player}
-                <CollectionCard player={resultCard.player} teamName={playerTeam(resultCard.player)} {language} compact {onOpen} />
+              {#if returned.coach}
+                <CoachCard coach={returned.coach} teamName={coachTeam(returned.coach)} compact={true} onOpen={(_, trigger) => openSheet(returned, 'view', trigger)}><div class="foot"><span class="value-tag"><i></i>{fmt(returned.value)}</span></div></CoachCard>
+              {:else if returned.player}
+                <CollectionCard player={returned.player} teamName={playerTeam(returned.player)} {language} compact onOpen={() => openSheet(returned, 'view')}><div class="foot"><span class="value-tag"><i></i>{fmt(returned.value)}</span></div></CollectionCard>
               {/if}
               <b class="back-tag">{t('upgraderDowngraded')}</b>
             </div>
@@ -290,15 +305,16 @@
       <div class="mini-grid scroll">
         {#each stakeable as card (card.id)}
           {@const picked = stake.filter((item) => item === card.id).length}
+          <!-- Phone: dense thumbnail, the picked count in the ×N corner, the stepper in the sheet. Desk: value + stepper in the footer. -->
           <div class="pick" class:picked>
-            <span class="value-tag"><i></i>{fmt(card.value)}</span>
+            {#if picked}<b class="pick-count">{picked}/{card.quantity}</b>{/if}
             {#if card.coach}
-              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked > 0} compact={true} onOpen={onOpenCoach} quantity={ownedCounts[card.id] ?? 1}>
-                <div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div>
+              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked > 0} compact={true} dense onOpen={(_, trigger) => openSheet(card, 'stake', trigger)} quantity={ownedCounts[card.id] ?? 1}>
+                <div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span><div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div></div>
               </CoachCard>
             {:else if card.player}
-              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen} quantity={ownedCounts[card.id] ?? 1}>
-                <div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div>
+              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact dense onOpen={() => openSheet(card, 'stake')} quantity={ownedCounts[card.id] ?? 1}>
+                <div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span><div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div></div>
               </CollectionCard>
             {/if}
           </div>
@@ -308,9 +324,8 @@
     </div>
 
     <div class="column wheel-col">
-      {#if !round && stakeCards.length && targetCard}
-        <p class="review-line"><span>{stakeCards.length} · {fmt(stakeValue)} coins</span> → <b>{cardLabel(targetCard.id)}</b></p>
-      {/if}
+      <!-- What is on the table, at every width: the dial alone hides the numbers behind the chance. -->
+      <p class="summary" aria-live="polite"><span>{shownStake.length}/{UPGRADER_MAX_STAKE} {u('cardsShort')} · <b>{fmt(shownStakeValue)}</b></span><i>→</i><span>{shownTarget ? `${cardLabel(shownTarget.id)} · ${fmt(shownTarget.value)} coins` : '—'}</span><span class="pct">{pct(shownChance)} {t('chance')}</span></p>
       <div class="dial fx-{resultRarity}" bind:this={wheel} class:spinning class:won={settled && outcome?.won} class:lost={settled && outcome && !outcome.won}>
         {#if settled && outcome?.won}
           <div class="rays" aria-hidden="true"></div>
@@ -347,12 +362,12 @@
         {#if shownTarget}<strong class="count">{fmt(shownTarget.value)} <small>coins</small></strong>{/if}
       </div>
       {#if shownTarget}
+        {@const aimedCard = shownTarget}
         <div class="pick aimed target-card fx-{resultRarity}" class:glow={settled && outcome?.won} class:missed={settled && outcome && !outcome.won}>
-          <span class="value-tag"><i></i>{fmt(shownTarget.value)}</span>
-          {#if shownTarget.coach}
-            <CoachCard coach={shownTarget.coach} teamName={coachTeam(shownTarget.coach)} active compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
-          {:else if shownTarget.player}
-            <CollectionCard player={shownTarget.player} teamName={playerTeam(shownTarget.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => shownTarget && aim(shownTarget.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
+          {#if aimedCard.coach}
+            <CoachCard coach={aimedCard.coach} teamName={coachTeam(aimedCard.coach)} active compact={true} onOpen={(_, trigger) => openSheet(aimedCard, 'view', trigger)}><div class="foot"><span class="value-tag"><i></i>{fmt(aimedCard.value)}</span>{#if !round}<button class="ghost small" type="button" on:click={() => aim(aimedCard.id)}>{t('upgraderUnpick')}</button>{/if}</div></CoachCard>
+          {:else if aimedCard.player}
+            <CollectionCard player={aimedCard.player} teamName={playerTeam(aimedCard.player)} {language} compact onOpen={() => openSheet(aimedCard, 'view')}><div class="foot"><span class="value-tag"><i></i>{fmt(aimedCard.value)}</span>{#if !round}<button class="ghost small" type="button" on:click={() => aim(aimedCard.id)}>{t('upgraderUnpick')}</button>{/if}</div></CollectionCard>
           {/if}
         </div>
       {:else}
@@ -385,15 +400,16 @@
       <div class="mini-grid scroll">
         {#each targets as card (card.id)}
           {@const aimed = target === card.id}
+          {@const cardChance = pct(cardUpgradeChance(stake, card.id))}
           <div class="pick" class:aimed>
-            <span class="value-tag"><i></i>{fmt(card.value)}</span>
+            <b class="pick-count chance">{cardChance}</b>
             {#if card.coach}
-              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={aimed} compact={true} onOpen={onOpenCoach}>
-                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, card.id))}</button>
+              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={aimed} compact={true} dense onOpen={(_, trigger) => openSheet(card, 'target', trigger)}>
+                <div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span><button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {cardChance}</button></div>
               </CoachCard>
             {:else if card.player}
-              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>
-                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, card.id))}</button>
+              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact dense onOpen={() => openSheet(card, 'target')}>
+                <div class="foot"><span class="value-tag"><i></i>{fmt(card.value)}</span><button class={aimed ? 'secondary small' : 'ghost small'} type="button" disabled={spinning} on:click={() => aim(card.id)}>{aimed ? t('upgraderAimed') : t('upgraderAim')} · {cardChance}</button></div>
               </CollectionCard>
             {/if}
           </div>
@@ -405,6 +421,40 @@
       </div>
     </div>
   </div>
+
+  {#if sheet}
+    {@const open = sheet}
+    {@const sheetCard = open.card}
+    {#if sheetCard.player}
+      <CollectionCardSheet player={sheetCard.player} teamName={playerTeam(sheetCard.player)} {language} labels={sheetLabels} showActions={sheetShowsActions} onClose={closeSheet}>
+        <svelte:fragment slot="actions">
+          {#if open.mode === 'stake'}
+            <span class="sheet-line"><i class="coin"></i>{fmt(sheetCard.value)} coins · {sheetPicked}/{sheetAvailable} {t('upgraderInStake')}</span>
+            <div class="stepper sheet-stepper" role="group" aria-label={t('upgraderPickCount')}><button class="ghost small" type="button" disabled={spinning || sheetPicked === 0} on:click={() => removeStake(sheetCard.id)}>−</button><b>{sheetPicked}/{sheetAvailable}</b><button class="ghost small" type="button" disabled={spinning || sheetPicked >= sheetAvailable || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(sheetCard.id, sheetAvailable)}>+</button></div>
+            <button class="primary small" type="button" disabled={!stake.length || spinning} on:click={() => goStep(2)}>{u('next')} · {u('chooseTarget')}</button>
+          {:else if open.mode === 'target'}
+            <button class={sheetAimed ? 'secondary small' : 'primary small'} type="button" disabled={spinning} on:click={() => { aim(sheetCard.id); closeSheet(); }}>{sheetAimed ? t('upgraderUnpick') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, sheetCard.id))}</button>
+          {:else if !round}
+            <button class="secondary small" type="button" on:click={() => { if (sheetAimed) aim(sheetCard.id); else removeStake(sheetCard.id); closeSheet(); }}>{t('upgraderRemoveStake')}</button>
+          {/if}
+        </svelte:fragment>
+      </CollectionCardSheet>
+    {:else if sheetCard.coach}
+      <CoachCardSheet coach={sheetCard.coach} teamName={coachTeam(sheetCard.coach)} closeLabel={t('close')} returnFocus={open.trigger} showActions={sheetShowsActions} onClose={closeSheet}>
+        <svelte:fragment slot="actions">
+          {#if open.mode === 'stake'}
+            <span class="sheet-line"><i class="coin"></i>{fmt(sheetCard.value)} coins · {sheetPicked}/{sheetAvailable} {t('upgraderInStake')}</span>
+            <div class="stepper sheet-stepper" role="group" aria-label={t('upgraderPickCount')}><button class="ghost small" type="button" disabled={spinning || sheetPicked === 0} on:click={() => removeStake(sheetCard.id)}>−</button><b>{sheetPicked}/{sheetAvailable}</b><button class="ghost small" type="button" disabled={spinning || sheetPicked >= sheetAvailable || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(sheetCard.id, sheetAvailable)}>+</button></div>
+            <button class="primary small" type="button" disabled={!stake.length || spinning} on:click={() => goStep(2)}>{u('next')} · {u('chooseTarget')}</button>
+          {:else if open.mode === 'target'}
+            <button class={sheetAimed ? 'secondary small' : 'primary small'} type="button" disabled={spinning} on:click={() => { aim(sheetCard.id); closeSheet(); }}>{sheetAimed ? t('upgraderUnpick') : t('upgraderAim')} · {pct(cardUpgradeChance(stake, sheetCard.id))}</button>
+          {:else if !round}
+            <button class="secondary small" type="button" on:click={() => { if (sheetAimed) aim(sheetCard.id); else removeStake(sheetCard.id); closeSheet(); }}>{t('upgraderRemoveStake')}</button>
+          {/if}
+        </svelte:fragment>
+      </CoachCardSheet>
+    {/if}
+  {/if}
 
   <section class="fair" aria-labelledby="fair-title">
     <div class="fair-head">
@@ -462,7 +512,7 @@
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .subhead { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .7rem; letter-spacing: .14em; } .subhead small { color: var(--accent); }
   .empty { display: grid; place-items: center; min-height: 160px; padding: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: .76rem; text-align: center; }
-  .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
   .mini-grid.scroll { max-height: 620px; overflow-y: auto; padding: 4px 4px 4px 0; }
   .rarity-filter .axis { border-color: var(--accent); color: var(--accent); font-weight: 900; }
 
@@ -473,8 +523,20 @@
   .stepper { display: grid; grid-template-columns: 34px minmax(35px, 1fr) 34px; gap: 4px; align-items: center; }
   .stepper b { color: var(--muted); font-size: .65rem; text-align: center; font-variant-numeric: tabular-nums; }
   .stepper :global(button.small) { width: auto; min-width: 0; padding: 0; }
-  .value-tag { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
-  .value-tag i { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  /* The coin value sits in the footer, above the stepper/aim button: as an overlay it used to cover the card's OVR. */
+  .foot { display: grid; gap: 6px; width: 100%; min-width: 0; }
+  .value-tag { display: inline-flex; justify-self: start; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .value-tag i, .coin { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  .pick-count { display: none; }
+  .summary { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; text-align: center; }
+  .summary b, .summary .pct { color: var(--accent); font-weight: 800; }
+  .summary i { font-style: normal; }
+  .steps-summary { display: none; }
+  .sheet-line { display: flex; align-items: center; gap: 6px; grid-column: 1 / -1; color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+  .sheet-stepper { grid-column: 1 / -1; grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .sheet-stepper :global(button.small) { min-height: 44px; font-size: 1rem; }
+  .sheet-stepper b { font-size: .9rem; }
+  .board { scroll-margin-top: 130px; }
   .pick.vanish { opacity: 0; transform: scale(.85); filter: grayscale(1); }
   .consolation { display: grid; gap: 8px; }
   .consolation .mini-grid { grid-template-columns: minmax(150px, 190px); }
@@ -557,7 +619,7 @@
   .rarity-filter button.active { border-color: var(--accent); color: var(--accent); }
   .filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font: inherit; }
 
-  .steps, .step-next, .review-line { display: none; }
+  .steps, .step-next { display: none; }
   .step-actions { display: contents; }
   @media (max-width: 720px) {
     .steps { position: sticky; top: 118px; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); background: var(--surface); }
@@ -568,9 +630,20 @@
     .board.step-1 .column:not(.stake-col), .board.step-2 .column:not(.target-col), .board.step-3 .column:not(.wheel-col) { display: none; }
     .step-next { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border-radius: 0; }
     .step-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
-    .review-line { display: flex; flex-wrap: wrap; gap: 4px 8px; justify-content: center; margin: 0; font-size: .8rem; text-align: center; }
-    .review-line span { color: var(--muted); } .review-line b { color: var(--accent); }
     .board .mini-grid.scroll { max-height: none; overflow: visible; }
+    /* Sticky stack above the board: nav 68 + wallet bar ~50 + steps ~62. */
+    .board { scroll-margin-top: 190px; }
+    .steps-summary { display: flex; }
+    /* Pickable lists: four dense thumbnails per row, like the collection; review lists stay two-up and readable. */
+    .board .mini-grid.scroll { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 2px; }
+    .mini-grid.staked, .consolation .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mini-grid.scroll .foot { display: none; }
+    .pick { outline-offset: 1px; }
+    .pick-count { display: inline-block; position: absolute; top: 3px; right: 3px; z-index: 3; padding: 2px 4px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .58rem/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
+    .pick-count.chance { border-color: var(--line); color: var(--text); background: color-mix(in srgb, var(--surface) 88%, transparent); }
+    .pick.aimed .pick-count.chance { border-color: var(--accent); color: var(--accent); }
+    /* The picked count takes the ×N corner. */
+    .pick.picked :global(.card .quantity) { display: none; }
   }
   @media (max-width: 980px) {
     .board { grid-template-columns: 1fr; }
