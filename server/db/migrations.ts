@@ -846,6 +846,22 @@ CREATE TABLE IF NOT EXISTS contract_runs (
 );
 CREATE INDEX IF NOT EXISTS contract_runs_user_idx ON contract_runs (user_id, created_at DESC);
 `
+  },
+  {
+    id: 36,
+    // Repetidas são cópias empilhadas; migra fragmentos já acumulados para cópias negociáveis.
+    sql: `
+ALTER TABLE collection ADD COLUMN IF NOT EXISTS quantity int NOT NULL DEFAULT 1 CHECK (quantity > 0);
+UPDATE collection c SET quantity = c.quantity + f.count
+  FROM card_fragments f WHERE f.user_id = c.user_id AND f.player_id = c.player_id AND f.count > 0;
+INSERT INTO collection (user_id, player_id, quantity, source)
+  SELECT f.user_id, f.player_id, f.count, 'reward'
+  FROM card_fragments f
+  WHERE f.count > 0 AND NOT EXISTS (
+    SELECT 1 FROM collection c WHERE c.user_id = f.user_id AND c.player_id = f.player_id
+  );
+DELETE FROM card_fragments;
+`
   }
 ];
 

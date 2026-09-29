@@ -1,31 +1,23 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
   import { playGameSound } from '$lib/game/offlineAudio';
-  import { cardCoinValue, cardLabel, cardRarity, cardUpgradeChance } from '$lib/game/online/card-value';
-  import { collectionCoachById, collectionOrganizations, collectionOrganizationKeyByTeamId, collectionPlayerById, collectionPlayers } from '$lib/game/online/collection-pool';
+  import { cardLabel, cardRarity } from '$lib/game/online/card-value';
+  import { collectionOrganizations, collectionOrganizationKeyByTeamId, collectionPlayerById } from '$lib/game/online/collection-pool';
   import { TRADE_INPUTS, checkTradeInputs, orgOf, tradeLadder, tradeSources, tradeTierOf, unitsOf, type TradeSource } from '$lib/game/online/card-contracts';
   import { RARITIES, type Rarity } from '$lib/game/online/collection-rules';
-  import { riskUpgrade, runTradeUp, type ContractsState, type TradeUpOutcome, type UpgradeOutcome } from '$lib/game/online/collection';
+  import { runTradeUp, type ContractsState, type TradeUpOutcome } from '$lib/game/online/collection';
   import { FAIR_CLIENT_SEED_MAX, fairRoll, isValidClientSeed, sha256Hex } from '$lib/game/online/fair';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { confirmDialog } from '$lib/game/ui/dialog';
-  import { getRoleLabel } from '$lib/game/roleRules';
-  import { primaryRoleOf } from '$lib/game/online/collection-lineup';
-  import { playerCountryOf } from '$lib/game/online/collection-countries';
-  import type { Language, LineupSlotRole, Player } from '$lib/game/types';
-  import CountryFlag from '../CountryFlag.svelte';
+  import type { Language, Player } from '$lib/game/types';
   import CollectionCard from './CollectionCard.svelte';
   import StyledSelect from './StyledSelect.svelte';
   import { uiCopy } from '$lib/game/online/ui-copy';
 
   export let serverUrl: string;
   export let language: Language = 'pt-BR';
-  /** Cards in the collection: trade-ups prefer handing out the ones the account does not own yet. */
-  export let ownedIds: string[] = [];
-  /** Cards on ANY saved team: they cannot be sacrificed in the risk upgrade. */
-  export let lockedIds: string[] = [];
-  /** Live state from GET /contracts (fragments, fair commitment). */
+  /** Live state from GET /contracts (duplicate copies and fair commitment). */
   export let contracts: ContractsState | null = null;
   export let onRefresh: () => void = () => {};
   /** Team names, the same the collection grid shows. */
@@ -33,16 +25,11 @@
 
   const STEP_KEY: Record<string, OnlineTranslationKey> = { down: 'tradeupStepDown', same: 'tradeupStepSame', up: 'tradeupStepUp', double: 'tradeupStepDouble' };
   const SCOPE_KEY: Record<string, OnlineTranslationKey> = { org: 'tradeupScopeOrg', country: 'tradeupScopeCountry', any: 'tradeupScopeAny' };
-  const TARGETS_SHOWN = 24;
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: u = (key: Parameters<typeof uiCopy>[1]) => uiCopy(language, key);
   $: teamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.map((organization) => ({ value: organization.key, label: organization.name }))];
   const teamOf = (player: Player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') ?? '';
-  $: ownedSet = new Set(ownedIds);
-  $: locked = new Set(lockedIds);
-
-  let tab: 'tradeup' | 'risk' = 'tradeup';
   let busy = false;
   let error = '';
   let reducedMotion = false;
@@ -56,29 +43,20 @@
   let phase: 'pick' | 'shuffle' | 'flip' | 'done' = 'pick';
   let outcome: TradeUpOutcome | null = null;
 
-  // ——— Upgrade de Risco ———
-  let sacrifice = '';
-  let target = '';
-  let riskQuery = '';
-  let fragmentTeamFilter = '';
-  let sacrificeTeamFilter = '';
-  let riskTargetTeamFilter = '';
-  let riskResult: UpgradeOutcome | null = null;
-  /** Cena do risco: a carta-alvo entra de costas, vira (ganhou ou não) e fica; escolher outro sacrifício esconde a cena. */
-  let riskPhase: 'idle' | 'ready' | 'flip' | 'done' = 'idle';
+  let teamFilter = '';
   let timers: number[] = [];
   const later = (fn: () => void, ms: number) => { timers.push(window.setTimeout(fn, ms)); };
   /** Duração do flip cresce com a raridade, igual ao PackReveal: comum .55 s, superstar .8 s, lenda/GOAT 1 s. */
   const flipMs = (rarity: Rarity) => rarity === 'legend' || rarity === 'goat' ? 1000 : rarity === 'superstar' ? 800 : 550;
   const rarityCue = (rarity: Rarity) => playGameSound(rarity === 'goat' ? 'cardGoat' : rarity === 'legend' ? 'cardLegend' : rarity === 'superstar' ? 'cardSuperstar' : rarity === 'elite' ? 'cardRare' : 'cardCommon');
 
-  $: fragmentCounts = new Map((contracts?.fragments ?? []).map((fragment) => [fragment.playerId, fragment.count]));
-  $: fragmentPlayers = [...fragmentCounts.entries()]
+  $: duplicateCounts = new Map((contracts?.cards ?? []).map((card) => [card.playerId, card.count]));
+  $: duplicateCards = [...duplicateCounts.entries()]
     .map(([id, count]) => ({ player: collectionPlayerById.get(id) ?? null, id, count }))
     .filter((entry): entry is { player: Player; id: string; count: number } => Boolean(entry.player))
-    .filter((entry) => !fragmentTeamFilter || teamOf(entry.player) === fragmentTeamFilter)
+    .filter((entry) => !teamFilter || teamOf(entry.player) === teamFilter)
     .sort((a, b) => b.count - a.count || (b.player.overall ?? 0) - (a.player.overall ?? 0));
-  $: rarityAvailability = RARITIES.map((rarity) => ({ rarity, donors: fragmentPlayers.filter((entry) => cardRarity(entry.id) === rarity) })).filter((row) => row.donors.length > 0);
+  $: rarityAvailability = RARITIES.map((rarity) => ({ rarity, donors: duplicateCards.filter((entry) => cardRarity(entry.id) === rarity) })).filter((row) => row.donors.length > 0);
   /** A raridade tranca a entrega a partir da primeira unidade: sem mistura de níveis no trade-up. */
   let lockedRarity: Rarity | '' = '';
   $: lockedRarity = inputs.length ? cardRarity(inputs[0]) : '';
@@ -98,28 +76,10 @@
     ? [...new Set(sources.flatMap((source) => [source.orgPool, source.countryPool]).flat().filter((player) => cardRarity(player.id) === upTier).map((player) => player.id))].slice(0, 8)
     : [];
   $: canTrade = inputCheck.ok && !busy && phase === 'pick';
-  $: sacrificeCard = sacrifice ? collectionPlayerById.get(sacrifice) ?? null : null;
-  $: allSacrificeable = ownedIds
-    .filter((id) => !locked.has(id) && id !== sacrifice && collectionPlayerById.has(id))
-    .map((id) => ({ id, player: collectionPlayerById.get(id)! }));
-  $: sacrificeable = allSacrificeable.filter((entry) => !sacrificeTeamFilter || teamOf(entry.player) === sacrificeTeamFilter);
-  /** Pesos por coleção: a composição da entrega vira a % visível (3 Vitality em 5 = 60%). */
-  $: needle = riskQuery.trim().toLowerCase();
-  $: riskTargets = sacrificeCard
-    ? collectionPlayers
-        .filter((player) => cardCoinValue(player.id) > cardCoinValue(sacrificeCard.id) && !ownedSet.has(player.id) && (!riskTargetTeamFilter || teamOf(player) === riskTargetTeamFilter) && (!needle || cardLabel(player.id).toLowerCase().includes(needle)))
-        .sort((a, b) => cardCoinValue(a.id) - cardCoinValue(b.id))
-        .slice(0, TARGETS_SHOWN)
-    : [];
-  $: riskChance = sacrifice && target ? cardUpgradeChance([sacrifice], target) : 0;
-  $: canRisk = Boolean(sacrifice && target && riskChance > 0) && !busy;
   $: seedOk = isValidClientSeed(clientSeed);
-  $: resultPlayer = outcome ? collectionPlayerById.get(outcome.result) ?? null : riskResult?.won ? collectionPlayerById.get(riskResult.target) ?? null : null;
-  $: resultRarity = outcome ? (outcome.resultTier as Rarity) : riskResult?.won ? cardRarity(riskResult.target) : 'common';
-  $: revealed = outcome ?? riskResult;
-  /** O alvo do risco aparece na cena ganhe ou perca: perdeu, ele vira apagado. */
-  $: riskTargetPlayer = riskResult ? collectionPlayerById.get(riskResult.target) ?? null : null;
-  $: riskTargetRarity = riskResult ? cardRarity(riskResult.target) : 'common';
+  $: resultPlayer = outcome ? collectionPlayerById.get(outcome.result) ?? null : null;
+  $: resultRarity = outcome ? (outcome.resultTier as Rarity) : 'common';
+  $: revealed = outcome;
 
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toLocaleString(language, { maximumFractionDigits: 1 })}%`;
@@ -142,7 +102,7 @@
   const units = (id: string) => unitsOf(inputs, id);
   function addUnit(id: string) {
     if (busy || phase !== 'pick' || inputs.length >= TRADE_INPUTS) return;
-    const entry = fragmentPlayers.find((item) => item.id === id);
+    const entry = duplicateCards.find((item) => item.id === id);
     if (!entry || units(id) >= entry.count) return;
     if (lockedRarity && cardRarity(id) !== lockedRarity) return;
     inputs = [...inputs, id];
@@ -159,20 +119,8 @@
     return !lockedRarity || cardRarity(id) === lockedRarity;
   }
 
-  function switchTab(value: 'tradeup' | 'risk') {
-    if (busy || phase !== 'pick') return;
-    tab = value;
-    inputs = [];
-    outcome = null;
-    riskResult = null;
-    sacrifice = '';
-    target = '';
-    riskQuery = '';
-    error = '';
-  }
-
-  const applyState = (fragments: ContractsState['fragments'], progress: ContractsState['progress'], fair: ContractsState['fair']) => {
-    contracts = { fragments, progress, fair };
+  const applyState = (cards: ContractsState['cards'], progress: ContractsState['progress'], fair: ContractsState['fair']) => {
+    contracts = { cards, progress, fair };
   };
 
   const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -192,7 +140,7 @@
       committedHash = contracts?.fair.serverSeedHash ?? result.serverSeedHash;
       verifyState = 'idle';
       outcome = result;
-      applyState(result.fragments ?? [], result.progress ?? {}, result.next);
+      applyState(result.cards ?? [], result.progress ?? {}, result.next);
       const rarity = result.resultTier as Rarity;
       if (reducedMotion) {
         inputs = [];
@@ -215,46 +163,6 @@
     } finally { busy = false; }
   }
 
-  async function goRisk() {
-    if (!canRisk) return;
-    if (!seedOk) { error = t('fairBadSeed'); return; }
-    const confirmed = await confirmDialog({ title: t('riskGo'), body: `${t('riskPick')}: ${cardLabel(sacrifice)} → ${cardLabel(target)} · ${pct(riskChance)}`, confirmLabel: t('riskGo'), cancelLabel: t('cancel'), tone: 'danger' });
-    if (!confirmed) return;
-    busy = true;
-    error = '';
-    try {
-      const result = await riskUpgrade(serverUrl, sacrifice, target, clientSeed);
-      committedHash = contracts?.fair.serverSeedHash ?? result.serverSeedHash;
-      verifyState = 'idle';
-      riskResult = result;
-      outcome = null;
-      // A carta-alvo entra de costas num quadro e vira no seguinte; o som cai no instante do flip.
-      riskPhase = 'ready';
-      await tick();
-      const rarity = cardRarity(result.target);
-      if (reducedMotion) {
-        riskPhase = 'done';
-        playGameSound(result.won ? 'betWin' : 'betLoss');
-      } else {
-        await wait(60);
-        riskPhase = 'flip';
-        playGameSound(result.won ? 'betWin' : 'betLoss');
-        await wait(flipMs(rarity) + 200);
-        riskPhase = 'done';
-      }
-      onRefresh();
-    } catch (caught) {
-      error = caught instanceof AccountError ? caught.message : t('connectionFailed');
-    } finally { busy = false; }
-  }
-
-  /** Um novo sacrifício limpa a cena do risco; o painel de verificação continua com o último resultado. */
-  function pickSacrifice(id: string) {
-    sacrifice = id;
-    target = '';
-    riskPhase = 'idle';
-  }
-
   async function verify() {
     if (!revealed || verifyState === 'busy') return;
     verifyState = 'busy';
@@ -267,8 +175,6 @@
         ok = tradeTierOf(ladderCheck, roll).tier === outcome.resultTier
           && (await fairRoll(outcome.serverSeed, outcome.clientSeed, outcome.nonce, 'aff')) === outcome.sourceRoll
           && (await fairRoll(outcome.serverSeed, outcome.clientSeed, outcome.nonce, 'pick')) === outcome.pickRoll;
-      } else if (ok && riskResult) {
-        ok = (roll < riskResult.chance) === riskResult.won;
       }
       verifyState = ok ? 'ok' : 'bad';
     } catch { verifyState = 'bad'; }
@@ -284,22 +190,21 @@
   });
   onDestroy(() => { if (typeof window !== 'undefined') for (const timer of timers) window.clearTimeout(timer); });
 
-  function roleName(role: LineupSlotRole) { return getRoleLabel(role); }
 </script>
 
 <section class="contracts" aria-label={t('contracts')}>
   {#if error}<p class="contracts-error" role="alert">{error}</p>{/if}
 
-  <div class="fragments panel">
+  <div class="cards-panel panel">
     <div class="col-head">
       <span class="label">{t('contractsFragmentTitle')}</span>
-      <strong class="count">{fmt(fragmentPlayers.reduce((sum, entry) => sum + entry.count, 0))} <small>· {fragmentPlayers.length}</small></strong>
+      <strong class="count">{fmt(duplicateCards.reduce((sum, entry) => sum + entry.count, 0))} <small>· {duplicateCards.length}</small></strong>
     </div>
-    <StyledSelect label={u('team')} options={teamOptions} value={fragmentTeamFilter} onSelect={(next) => fragmentTeamFilter = next} />
-    {#if fragmentPlayers.length}
-      <div class="fragment-strip" role="list">
-        {#each fragmentPlayers as entry (entry.id)}
-          <span class="fragment-chip fx-{cardRarity(entry.id)}" role="listitem" title={cardLabel(entry.id)}>
+    <StyledSelect label={u('team')} options={teamOptions} value={teamFilter} onSelect={(next) => teamFilter = next} />
+    {#if duplicateCards.length}
+      <div class="copy-strip" role="list">
+        {#each duplicateCards as entry (entry.id)}
+          <span class="copy-chip fx-{cardRarity(entry.id)}" role="listitem" title={cardLabel(entry.id)}>
             <i class="dot" aria-hidden="true"></i>
             <b>{entry.player.nickname ?? entry.id}</b>
             <small>×{entry.count}</small>
@@ -311,12 +216,6 @@
     {/if}
   </div>
 
-  <nav class="tabs" aria-label={t('contracts')}>
-    <button type="button" class:active={tab === 'tradeup'} on:click={() => switchTab('tradeup')}>{t('tradeupTitle')}</button>
-    <button type="button" class:active={tab === 'risk'} on:click={() => switchTab('risk')}>{t('riskTitle')}</button>
-  </nav>
-
-  {#if tab === 'tradeup'}
     <div class="board">
       <div class="column stake-col">
         <div class="col-head">
@@ -337,7 +236,7 @@
           <span class="empty">{t('tradeupPick')} — {TRADE_INPUTS} {t('tradeupInputs').toLowerCase()}</span>
         {/if}
 
-        <h3 class="subhead">{t('contractsFragmentTitle').toUpperCase()} <small>{fragmentPlayers.length}</small></h3>
+        <h3 class="subhead">{t('contractsFragmentTitle').toUpperCase()} <small>{duplicateCards.length}</small></h3>
         {#each rarityAvailability as row (row.rarity)}
           <section class="frag-group" class:dim={lockedRarity && lockedRarity !== row.rarity}>
             <h4 class="frag-head fx-{row.rarity}">
@@ -351,7 +250,7 @@
                 {@const used = units(entry.id)}
                 <div class="pick fx-{cardRarity(entry.id)}" class:picked={used > 0}>
                   <span class="frag-tag">{used > 0 ? `${used}/${entry.count}` : `×${entry.count}`}</span>
-                  <CollectionCard player={entry.player} teamName={playerTeam(entry.player)} {language} compact>
+                <CollectionCard player={entry.player} teamName={playerTeam(entry.player)} {language} compact quantity={entry.count}>
                     <div class="stepper">
                       {#if used > 0}<button class="ghost small" type="button" disabled={phase !== 'pick'} on:click={() => removeUnit(entry.id)}>−</button>{/if}
                       <b class="step-count" class:used={used > 0}>{used > 0 ? used : '+'}</b>
@@ -422,68 +321,6 @@
         {/if}
       </div>
     </div>
-  {:else}
-    <div class="board">
-      <div class="column stake-col">
-        <div class="col-head"><span class="label">{t('riskPick')}</span>{#if sacrificeCard}<strong class="count">{fmt(cardCoinValue(sacrificeCard.id))} <small>coins</small></strong>{/if}</div>
-        <StyledSelect label={u('team')} options={teamOptions} value={sacrificeTeamFilter} onSelect={(next) => sacrificeTeamFilter = next} />
-        <div class="mini-grid scroll">
-          {#each sacrificeable.slice(0, 40) as entry (entry.id)}
-            {@const picked = sacrifice === entry.id}
-            <div class="pick fx-{cardRarity(entry.id)}" class:picked>
-              <span class="frag-tag">{fmt(cardCoinValue(entry.id))}</span>
-              <CollectionCard player={entry.player} teamName={playerTeam(entry.player)} {language} compact>
-                <button class={picked ? 'secondary small' : 'ghost small'} type="button" on:click={() => pickSacrifice(entry.id)}>{picked ? '✓' : '+'}</button>
-              </CollectionCard>
-            </div>
-          {/each}
-        </div>
-      </div>
-      <div class="column stage-col">
-        {#if riskPhase !== 'idle' && riskResult && riskTargetPlayer}
-          <!-- Resultado do risco: o sacrifício sai (derrota) ou apaga (vitória) e o alvo vira na mesma cena do trade-up. -->
-          <div class="reveal risk-reveal fx-{riskTargetRarity}" class:lost={!riskResult.won}>
-            {#if !reducedMotion && riskResult.won && riskPhase !== 'ready'}
-              <div class="rays" aria-hidden="true"></div>
-            {/if}
-            <div class="risk-pair">
-              {#if sacrificeCard}
-                <div class="pick offering fx-{cardRarity(sacrificeCard.id)}" class:gone={!riskResult.won && riskPhase !== 'ready'} class:spent={riskResult.won && riskPhase !== 'ready'}>
-                  <span class="frag-tag">{fmt(cardCoinValue(sacrificeCard.id))}</span>
-                  <CollectionCard player={sacrificeCard} teamName={playerTeam(sacrificeCard)} {language} compact />
-                </div>
-              {/if}
-              <div class="flip-scene">
-                <div class="flip-card" class:flipped={riskPhase === 'flip' || riskPhase === 'done'}>
-                  <div class="face front" aria-hidden="true"><span class="chip">CS</span></div>
-                  <div class="face back"><CollectionCard player={riskTargetPlayer} teamName={playerTeam(riskTargetPlayer)} {language} compact /></div>
-                </div>
-              </div>
-            </div>
-            <p class="reveal-line">
-              <b class={riskResult.won ? 'win' : 'miss'}>{riskResult.won ? t('fairWin') : t('riskLoss')}</b>
-              · {pct(riskResult.chance)}
-            </p>
-          </div>
-        {/if}
-        <div class="col-head"><span class="label">{t('riskTarget')}</span></div>
-        <StyledSelect label={u('team')} options={teamOptions} value={riskTargetTeamFilter} onSelect={(next) => riskTargetTeamFilter = next} disabled={!sacrificeCard} />
-        <input type="search" placeholder={t('riskSearch')} bind:value={riskQuery} disabled={!sacrificeCard} />
-        <div class="mini-grid scroll targets">
-          {#each riskTargets as player (player.id)}
-            {@const aimed = target === player.id}
-            <div class="pick fx-{cardRarity(player.id)}" class:picked={aimed}>
-              <span class="frag-tag">{fmt(cardCoinValue(player.id))}</span>
-              <CollectionCard player={player} teamName={playerTeam(player)} {language} compact>
-                <button class={aimed ? 'secondary small' : 'ghost small'} type="button" on:click={() => (target = player.id)}>{aimed ? '✓' : t('riskTarget')}</button>
-              </CollectionCard>
-            </div>
-          {/each}
-        </div>
-        <button type="button" class="primary go danger" disabled={busy || !canRisk} on:click={goRisk}>{busy ? t('contractsRolling') : `${t('riskGo')}${riskChance ? ` · ${pct(riskChance)}` : ''}`}</button>
-      </div>
-    </div>
-  {/if}
 
   <section class="fair" aria-labelledby="fair-title">
     <div class="fair-head">
@@ -510,10 +347,8 @@
           <div><dt>{t('fairClientSeed')}</dt><dd><code>{revealed.clientSeed}</code></dd></div>
           <div><dt>{t('fairNonce')}</dt><dd><code>{revealed.nonce}</code></dd></div>
           <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll.toFixed(6)}</code></dd></div>
-          <div><dt>{t('fairResult')}</dt><dd class:win={outcome ? outcome.step !== 'down' : riskResult?.won === true} class:loss={outcome ? outcome.step === 'down' : riskResult?.won === false}>
-            {#if outcome}{outcome.resultTier} · {t(STEP_KEY[outcome.step])} · {t(SCOPE_KEY[outcome.scope])}
-            {:else if riskResult}{riskResult.won ? t('fairWin') : t('riskLoss')}
-            {/if}
+          <div><dt>{t('fairResult')}</dt><dd class:win={outcome?.step !== 'down'} class:loss={outcome?.step === 'down'}>
+            {#if outcome}{outcome.resultTier} · {t(STEP_KEY[outcome.step])} · {t(SCOPE_KEY[outcome.scope])}{/if}
           </dd></div>
         </dl>
         <div class="verify-row">
@@ -532,22 +367,19 @@
   .contracts { display: grid; gap: 16px; }
   .contracts-error { margin: 0; padding: 10px 12px; border: 1px solid var(--danger); color: #ff9b90; font-size: .78rem; }
   .panel { border: 1px solid var(--line); background: var(--surface-2); }
-  .fragments { display: grid; gap: 10px; padding: 14px 16px; }
+  .cards-panel { display: grid; gap: 10px; padding: 14px 16px; }
   .col-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; justify-content: space-between; }
   .label { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .count { color: var(--accent); font: 900 1.15rem/1 'Arial Narrow', Impact, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .count small { color: var(--muted); font: 700 .6rem Inter, Arial, sans-serif; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
   .note.warn { color: #ffd36b; }
-  .fragment-strip { display: flex; flex-wrap: wrap; gap: 6px; max-height: 132px; overflow-y: auto; }
-  .fragment-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line); background: var(--surface); font-size: .72rem; }
-  .fragment-chip b { font-weight: 800; }
-  .fragment-chip small { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .copy-strip { display: flex; flex-wrap: wrap; gap: 6px; max-height: 132px; overflow-y: auto; }
+  .copy-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line); background: var(--surface); font-size: .72rem; }
+  .copy-chip b { font-weight: 800; }
+  .copy-chip small { color: var(--muted); font-variant-numeric: tabular-nums; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fx, var(--muted)); }
 
-  .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .tabs button { min-height: 44px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
-  .tabs button.active { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
 
   .board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 18px; align-items: start; }
   .column { display: grid; gap: 12px; align-content: start; min-width: 0; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
@@ -557,7 +389,6 @@
   .mini-title { margin: 8px 0 0; color: var(--muted); font-size: .66rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .mini-grid.scroll { max-height: 620px; overflow-y: auto; padding: 4px 4px 4px 0; }
-  .mini-grid.targets { max-height: 380px; }
   .frag-group { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); transition: opacity .2s ease; }
   .frag-group.dim { opacity: .35; }
   .frag-group:first-of-type { border-top: 0; padding-top: 0; }
@@ -604,13 +435,10 @@
   .reveal-line .win { color: var(--fx); text-transform: uppercase; letter-spacing: .06em; }
   .reveal-line .dupe { color: var(--muted); }
   /* Risco: sacrifício à esquerda, alvo virando à direita. Perdeu: o sacrifício sobe e some; ganhou: fica apagado (foi gasto). */
-  .risk-pair { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; width: 100%; }
-  .risk-reveal .flip-scene { width: 100%; }
   .pick.offering { transition: outline-color .18s ease, opacity 300ms var(--ease-out-strong), transform 300ms var(--ease-out-strong), filter 300ms var(--ease-out-strong); }
   .pick.gone { opacity: 0; transform: translateY(-100%); }
   .pick.spent { opacity: .45; filter: grayscale(.7); }
   .reveal.lost .flip-card.flipped :global(.card) { border-color: var(--line); box-shadow: none; filter: grayscale(.8) brightness(.7); }
-  .reveal-line .miss { color: #ff9b90; text-transform: uppercase; letter-spacing: .06em; }
   .rays { position: absolute; left: 50%; top: 42%; z-index: 0; width: 170%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 30%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: rays-spin 14s linear infinite; pointer-events: none; }
   @keyframes rays-spin { to { rotate: 360deg; } }
 
@@ -629,7 +457,6 @@
   .go { width: 100%; min-height: 52px; border-radius: 0; margin-top: 4px; }
   .go:disabled { opacity: .45; cursor: not-allowed; }
   .go.danger { border-color: var(--danger); }
-  .stage-col input[type='search'] { min-height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font: inherit; }
 
   .fair { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
   .fair-head h3 { margin: 0; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }

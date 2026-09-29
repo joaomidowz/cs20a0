@@ -12,7 +12,7 @@ import type { LineupSlotRole, Player } from '../types';
  * cada uma das 5 cartas vale 20% do peso, e o resultado vem da organização da carta sorteada (3 Vitality em 5 = 60%
  * de peso da Vitality), caindo para o pool do país e depois para o pool geral quando a coleção não tem a raridade.
  * Tudo é mostrado antes de confirmar — pesos, % de raridade e as cartas candidatas, com os milagres (ZywOo) visíveis.
- * O material é o FRAGMENTO (um por carta repetida recebida), então a carta jogável nunca é consumida.
+ * Trade-ups consomem cópias reais extras; uma cópia escalada fica reservada no elenco.
  * Puro e dentro da fronteira online; server e cliente chamam as MESMAS funções.
  */
 
@@ -69,9 +69,9 @@ export function isPlayerInTheme(theme: ContractTheme, player: Player): boolean {
 
 export type LendaDonorProblem = 'OK' | 'BAD_COUNT' | 'BAD_DONOR';
 
-/** Doadores de uma entrega parcial da Lenda: do 1 ao máximo, distintos e do tema. */
+/** Doadores de uma entrega parcial da Lenda: do 1 ao máximo, cópias do tema inclusive repetidas. */
 export function checkLendaDonors(def: LendaDef, donorIds: readonly string[]): LendaDonorProblem {
-  if (!donorIds.length || donorIds.length > LENDA_DELIVERY_MAX || new Set(donorIds).size !== donorIds.length) return 'BAD_COUNT';
+  if (!donorIds.length || donorIds.length > LENDA_DELIVERY_MAX) return 'BAD_COUNT';
   const players = donorIds.map((id) => collectionPlayerById.get(id) ?? null);
   return players.every((player) => player && isPlayerInTheme(def.theme, player)) ? 'OK' : 'BAD_DONOR';
 }
@@ -129,7 +129,7 @@ export interface TradeInputCheck {
 }
 
 /**
- * A entrega: cinco unidades de fragmento, todas da MESMA raridade (países e repetições livres — tendo 5× da mesma
+ * A entrega: cinco cópias, todas da MESMA raridade (países e repetições livres — tendo 5× da mesma
  * carta, pode mandar as cinco). O estoque de cada carta é conferido pelo servidor na transação.
  */
 export function checkTradeInputs(inputIds: readonly string[]): TradeInputCheck {
@@ -142,7 +142,7 @@ export function checkTradeInputs(inputIds: readonly string[]): TradeInputCheck {
     : { ok: false, code: 'BAD_RARITY', rarity: null };
 }
 
-/** Quantas unidades da carta a entrega pede (o jogador pode repetir a carta se tiver fragmentos sobrando). */
+/** Quantas cópias da carta a entrega pede. */
 export const unitsOf = (inputIds: readonly string[], playerId: string): number =>
   inputIds.reduce((sum, id) => (id === playerId ? sum + 1 : sum), 0);
 
@@ -202,7 +202,7 @@ export type TradeScope = 'org' | 'country' | 'any';
 /**
  * A carta do trade-up: 1 das 5 entregas sorteada (cada uma vale 20%) decide a coleção; dentro dela sai uma carta da
  * raridade do degrau, preferindo as que a conta ainda não tem (esgotou a coleção, cai para o pool do país; depois,
- * para o pool geral da raridade — nunca falta carta). A repetida devolve como fragmento, como nas packs.
+ * para o pool geral da raridade — nunca falta carta). Se já tiver a carta, ganha outra cópia.
  */
 export function pickTradeCard(sources: readonly TradeSource[], tier: Rarity, sourceIndex: number, pickRoll: number, owned: ReadonlySet<string>): { id: string; scope: TradeScope } {
   const source = sources[Math.min(sources.length - 1, Math.max(0, sourceIndex))];

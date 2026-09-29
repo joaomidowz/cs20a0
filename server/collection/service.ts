@@ -1,4 +1,4 @@
-import { CARDS_PER_PACK, DAILY_BASIC_PACKS, DUPLICATE_RATIO, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, MAJOR_PACK_BY_PLACEMENT, MAJOR_PACK_CUTOFF, PACK_PRICES, type FreePackTier, type PromoTier, coachCoinValue, coachSellValue, coinValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
+import { CARDS_PER_PACK, DAILY_BASIC_PACKS, FREE_PACK_TIERS, LINEUP_SLOTS_FREE, LINEUP_SLOTS_MAX, LINEUP_SLOT_PRICE, MAJOR_PACK_BY_PLACEMENT, MAJOR_PACK_CUTOFF, PACK_PRICES, type FreePackTier, type PromoTier, coachSellValue, sellValue, type PackTier } from '../../src/lib/game/online/collection-rules';
 import { collectionCoachById, collectionCoaches, collectionOrganizationByKey, collectionPlayerById as playerById, collectionPlayers as players, collectionTeams } from '../../src/lib/game/online/collection-pool';
 import { dailyPromos, promoSeed, type PromoCard } from '../../src/lib/game/online/promos';
 import { validateLineup, type CollectionSlotRole } from '../../src/lib/game/online/collection-lineup';
@@ -30,7 +30,7 @@ export async function applyLedger(tx: Tx, userId: string, delta: number, reason:
 export interface CollectionView {
   wallet: number;
   count: number;
-  players: Array<{ playerId: string; acquiredAt: string }>;
+  players: Array<{ playerId: string; acquiredAt: string; quantity: number }>;
   packsToday: { granted: number; opened: number };
   /** Free packs still available this period: Prata once per ISO week, Ouro once per month (Brasília). */
   freePacks: Record<FreePackTier, boolean>;
@@ -87,32 +87,12 @@ const requireUnlockedSlot = async (executor: Db | Tx, userId: string, slotIndex:
   if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= unlocked) throw new CollectionError(403, 'SLOT_LOCKED', 'Essa vaga de lineup ainda está bloqueada');
 };
 
-/** What a repeated card pays; intentionally lower than a voluntary direct sale. */
-export const duplicateValue = (id: string) => {
-  const coach = collectionCoachById.get(id);
-  if (coach) return Math.floor(coachCoinValue(coach) * DUPLICATE_RATIO);
-  const player = playerById.get(id);
-  return player ? Math.floor(coinValue(player) * DUPLICATE_RATIO) : 0;
-};
-
-/**
- * A repeated PLAYER card becomes one fragment of that card (the material of the card contracts) instead of coins;
- * coaches have no country or role, so they keep paying coins. Returns false for anything that is not a player card.
- */
-export async function grantFragment(tx: Tx, userId: string, playerId: string): Promise<boolean> {
-  if (!playerById.has(playerId)) return false;
-  await tx.query(
-    'INSERT INTO card_fragments (user_id, player_id, count) VALUES ($1, $2, 1) ON CONFLICT (user_id, player_id) DO UPDATE SET count = card_fragments.count + 1, updated_at = now()',
-    [userId, playerId]
-  );
-  return true;
-}
 const cardId = (card: PackCard) => (card.kind === 'coach' ? card.coach.id : card.player.id);
 
 export async function getCollection(db: Db, userId: string, now: number): Promise<CollectionView> {
   const day = dayKeyUtcMinus3(now);
   const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
-  const rows = await db.query<{ player_id: string; acquired_at: Date }>('SELECT player_id, acquired_at FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
+  const rows = await db.query<{ player_id: string; acquired_at: Date; quantity: number }>('SELECT player_id, acquired_at, quantity FROM collection WHERE user_id = $1 ORDER BY acquired_at DESC', [userId]);
   const [grant] = await db.query<{ granted: number; opened: number }>('SELECT granted, opened FROM pack_grants WHERE user_id = $1 AND day = $2', [userId, day]);
   const lineups = await getLineups(db, userId);
   const claimed = new Set((await db.query<{ tier: string }>(
@@ -122,8 +102,8 @@ export async function getCollection(db: Db, userId: string, now: number): Promis
   const majorPacks = await pendingMajorPacks(db, userId);
   return {
     wallet: wallet?.coins ?? 0,
-    count: rows.length,
-    players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString() })),
+    count: rows.reduce((sum, row) => sum + row.quantity, 0),
+    players: rows.map((row) => ({ playerId: row.player_id, acquiredAt: row.acquired_at.toISOString(), quantity: row.quantity })),
     packsToday: { granted: Math.max(grant?.granted ?? 0, DAILY_BASIC_PACKS), opened: grant?.opened ?? 0 },
     freePacks: { prata: !claimed.has('prata'), ouro: !claimed.has('ouro') },
     majorPacks: majorPacks.length,
@@ -140,30 +120,25 @@ export interface PackResult {
   seed: string;
   players: string[];
   duplicates: string[];
-  /** Repeated PLAYER cards became one fragment each (the contracts' material); coaches still pay coins. */
-  fragments: string[];
   coinsFromDupes: number;
   wallet: number;
 }
 
-async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string, now: number = Date.now()): Promise<{ duplicates: string[]; fragments: string[]; coinsFromDupes: number; wallet: number }> {
+async function addCards(tx: Tx, userId: string, cards: PackCard[], seed: string, now: number = Date.now()): Promise<{ duplicates: string[]; coinsFromDupes: number; wallet: number }> {
   const duplicates: string[] = [];
-  const fragments: string[] = [];
   let coinsFromDupes = 0;
   for (const card of cards) {
     const id = cardId(card);
     const inserted = await tx.query<{ player_id: string }>('INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING player_id', [userId, id, 'pack']);
     if (!inserted.length) {
       duplicates.push(id);
-      // A repetida de jogador vira fragmento (material dos contratos) no lugar das moedas; coach segue pagando coins.
-      if (await grantFragment(tx, userId, id)) fragments.push(id);
-      else coinsFromDupes += duplicateValue(id);
+      await tx.query('UPDATE collection SET quantity = quantity + 1 WHERE user_id = $1 AND player_id = $2', [userId, id]);
     }
   }
   let wallet = coinsFromDupes ? await applyLedger(tx, userId, coinsFromDupes, 'duplicate', seed) : (await tx.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]))[0]?.coins ?? 0;
   // Só os caminhos de baú chegam aqui, então cada abertura (diário, grátis, caixa de Major, comprado) conta na missão do dia.
   await advanceMissionActivity(tx, userId, now);
-  return { duplicates, fragments, coinsFromDupes, wallet };
+  return { duplicates, coinsFromDupes, wallet };
 }
 
 /** Period a free pack belongs to: the ISO week for Prata, the month for Ouro, both in Brasília time. */
@@ -316,19 +291,21 @@ export async function buyPromo(db: Db, userId: string, tier: PromoTier, now: num
   });
 }
 
-export async function sellPlayer(db: Db, userId: string, playerId: string): Promise<{ coins: number; wallet: number }> {
+export async function sellPlayer(db: Db, userId: string, playerId: string): Promise<{ coins: number; wallet: number; quantity: number }> {
   const coach = collectionCoachById.get(playerId);
   const player = playerById.get(playerId);
   if (!coach && !player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
   return db.tx(async (tx) => {
-    // A card used by ANY lineup slot cannot go: lineups are independent teams, and each one holds its own five.
+    const [owned] = await tx.query<{ quantity: number }>('SELECT quantity FROM collection WHERE user_id = $1 AND player_id = $2 FOR UPDATE', [userId, playerId]);
+    if (!owned) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
+    // Uma cópia permanece escalada; vender a última exige removê-la de todas as lineups salvas.
     const [used] = await tx.query('SELECT 1 FROM lineup_slots WHERE user_id = $1 AND (player_ids @> $2::text[] OR coach_id = $3) LIMIT 1', [userId, [playerId], playerId]);
-    if (used) throw new CollectionError(409, 'IN_LINEUP', 'Tire a carta do time antes de vender');
-    const removed = await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 RETURNING player_id', [userId, playerId]);
-    if (!removed.length) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
+    if (used && owned.quantity <= 1) throw new CollectionError(409, 'IN_LINEUP', 'Tire a última cópia do time antes de vender');
+    if (owned.quantity > 1) await tx.query('UPDATE collection SET quantity = quantity - 1 WHERE user_id = $1 AND player_id = $2', [userId, playerId]);
+    else await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, playerId]);
     const coins = coach ? coachSellValue(coach) : sellValue(player!);
     const wallet = await applyLedger(tx, userId, coins, 'sell', playerId);
-    return { coins, wallet };
+    return { coins, wallet, quantity: owned.quantity - 1 };
   });
 }
 

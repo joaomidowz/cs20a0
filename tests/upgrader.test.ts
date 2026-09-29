@@ -220,39 +220,30 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     const [row] = await db.query('SELECT won, returned, server_seed, server_seed_hash, client_seed, nonce, roll FROM upgrades WHERE user_id = $1', [userId]);
     expect(row).toEqual({ won: false, returned: result.consolation, server_seed: serverSeed, server_seed_hash: before.serverSeedHash, client_seed: clientSeed, nonce, roll: result.roll });
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
-    expect(wallet.coins).toBe(500 + result.duplicateCoins);
+    expect(wallet.coins).toBe(500);
   });
 
-  it('derrota com várias cartas: todas são perdidas; rebaixada repetida vira coins', async () => {
+  it('derrota com várias cartas: todas são perdidas; rebaixada repetida vira uma cópia empilhada', async () => {
     const { upgradeCards, serverRoll } = await import('../server/collection/upgrader');
-    const { duplicateValue } = await import('../server/collection/service');
     const stake = [cheap[1], rares[1]];
     const chance = cardUpgradeChance(stake, target);
     const serverSeed = '9'.repeat(64);
     const nonce = await pinSeed(serverSeed);
     const clientSeed = await clientSeedFor(serverSeed, nonce, chance, false);
     const expected = consolationCard(serverRoll(serverSeed, clientSeed, nonce, 'refund'), serverRoll(serverSeed, clientSeed, nonce, 'refund-pick'), stake, target);
-    // Já tem a carta que vai sair: ela vira coins.
+    // Já tem a carta que vai sair: a quantidade aumenta em uma cópia.
     await db.query(`INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'pack') ON CONFLICT DO NOTHING`, [userId, expected.card]);
+    await db.query('UPDATE collection SET quantity = 2 WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
     const [{ coins: before }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     const result = await upgradeCards(db, userId, stake, target, clientSeed);
-    // A repetida de jogador vira 1 fragmento (material dos contratos) em vez de coins; a de coach segue pagando coins.
-    const consolationIsCoach = collectionCoachById.has(expected.card!);
-    expect(result).toMatchObject({
-      won: false, consolation: expected.card, consolationCoins: 0, duplicate: true,
-      duplicateCoins: consolationIsCoach ? duplicateValue(expected.card!) : 0, duplicateFragment: !consolationIsCoach
-    });
-    if (consolationIsCoach) expect(result.duplicateCoins).toBeGreaterThan(0);
+    expect(result).toMatchObject({ won: false, consolation: expected.card, consolationCoins: 0, duplicate: true });
     const ids = (await owned()).map((row) => row.player_id);
     for (const id of stake) expect(ids).not.toContain(id);
     const [{ coins: after }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
-    expect(after).toBe(before + result.duplicateCoins);
-    if (!consolationIsCoach) {
-      const [fragment] = await db.query<{ count: number }>('SELECT count FROM card_fragments WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
-      expect(fragment.count).toBe(1);
-    }
+    expect(after).toBe(before);
+    const [copy] = await db.query<{ quantity: number }>('SELECT quantity FROM collection WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
+    expect(copy.quantity).toBe(3);
     await db.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2 AND NOT (player_id = ANY($3))', [userId, expected.card, [...cheap, ...rares]]);
-    await db.query('DELETE FROM card_fragments WHERE user_id = $1 AND player_id = $2', [userId, expected.card]);
   });
 
   it('derrota apostando só Comuns: nenhuma carta entra, só coins no ledger', async () => {
@@ -266,13 +257,29 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     const [{ coins: walletBefore }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     const result = await upgradeCards(db, userId, stake, target, clientSeed);
     const coins = Math.floor(stake.reduce((sum, id) => sum + cardCoinValue(id), 0) * CONSOLATION_COINS_RATIO);
-    expect(result).toMatchObject({ won: false, consolation: null, consolationKind: 'coins', consolationCoins: coins, duplicate: false, duplicateCoins: 0 });
+    expect(result).toMatchObject({ won: false, consolation: null, consolationKind: 'coins', consolationCoins: coins, duplicate: false });
     expect(await verifyFair(result)).toBe(true);
     expect((await owned()).length).toBe(before.length - stake.length);
     const [{ coins: walletAfter }] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId]);
     expect(walletAfter).toBe(walletBefore + coins);
     const [entry] = await db.query<{ delta: number }>(`SELECT delta FROM ledger WHERE user_id = $1 AND reason = 'upgrade_consolation'`, [userId]);
     expect(entry.delta).toBe(coins);
+  });
+
+  it('permite apostar duas cópias da mesma carta e consome só a quantidade apostada', async () => {
+    const { upgradeCards } = await import('../server/collection/upgrader');
+    const card = byValue[20].id;
+    await db.query("INSERT INTO collection (user_id, player_id, source, quantity) VALUES ($1, $2, 'pack', 2) ON CONFLICT (user_id, player_id) DO UPDATE SET quantity = 2", [userId, card]);
+    const chance = cardUpgradeChance([card, card], target);
+    const serverSeed = 'b'.repeat(64);
+    const nonce = await pinSeed(serverSeed);
+    const clientSeed = await clientSeedFor(serverSeed, nonce, chance, true);
+    const result = await upgradeCards(db, userId, [card, card], target, clientSeed);
+    expect(result).toMatchObject({ won: true, stake: [card, card], target });
+    const rows = await owned();
+    expect(rows.map((row) => row.player_id)).not.toContain(card);
+    expect(rows.map((row) => row.player_id)).toContain(target);
+    await db.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, target]);
   });
 
   it('vitória: as apostadas saem e o alvo entra', async () => {
@@ -288,6 +295,7 @@ describe.skipIf(!url)('upgrader (Postgres)', () => {
     const rows = await owned();
     expect(rows.find((row) => row.player_id === target)?.source).toBe('upgrade');
     for (const id of stake) expect(rows.map((row) => row.player_id)).not.toContain(id);
+    await db.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, target]);
   });
 
   it('recusa carta escalada, carta que não é sua, alvo barato e alvo que já tem', async () => {

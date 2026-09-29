@@ -10,7 +10,7 @@ import type { FreePackTier, PackTier, PromoTier } from './collection-rules';
 export interface CollectionState {
   wallet: number;
   count: number;
-  players: Array<{ playerId: string; acquiredAt: string }>;
+  players: Array<{ playerId: string; acquiredAt: string; quantity: number }>;
   packsToday: { granted: number; opened: number };
   /** Free Prata (weekly) and Ouro (monthly) packs still available; missing on an older server. */
   freePacks?: Record<FreePackTier, boolean>;
@@ -42,13 +42,11 @@ export interface PackOpened {
   seed: string;
   players: string[];
   duplicates: string[];
-  /** Repeated PLAYER cards became one fragment each — the contracts' material (missing on an older server). */
-  fragments?: string[];
   coinsFromDupes: number;
   wallet: number;
 }
 
-/** Cards fielded on ANY saved lineup (the five players and the coach of every slot): the server refuses to stake, trade or sell them, so the store hides them all — not just the active slot. */
+/** Cards used on any saved lineup; callers reserve one copy and can still offer extras. */
 export const lineupLockedIds = (state: CollectionState | null | undefined): string[] =>
   (state?.lineups ?? (state?.lineup ? [state.lineup] : [])).flatMap((lineup) => [...lineup.playerIds, ...(lineup.coachId ? [lineup.coachId] : [])]);
 
@@ -100,13 +98,8 @@ export interface UpgradeOutcome {
   consolationKind: 'common' | 'value' | 'coins' | null;
   /** Loss with only Commons staked: coins paid instead of a card. */
   consolationCoins: number;
-  /** The consolation card was already owned: it turned into `duplicateCoins` coins (coach) or one `duplicateFragment` (player). */
+  /** The consolation card was already owned and its quantity increased by one. */
   duplicate: boolean;
-  duplicateCoins: number;
-  /** A repeated PLAYER consolation became a fragment of that card instead of coins. */
-  duplicateFragment?: boolean;
-  /** Risk upgrade only: the sacrificed card came back as one fragment of itself. */
-  risk?: boolean;
   serverSeed: string;
   serverSeedHash: string;
   clientSeed: string;
@@ -116,9 +109,6 @@ export interface UpgradeOutcome {
 
 export const fetchUpgraderFair = (serverUrl: string) => authFetch<UpgraderFair>(serverUrl, '/upgrader/fair');
 export const upgradeCards = (serverUrl: string, stake: string[], target: string, clientSeed: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader', { body: { stake, target, clientSeed } });
-/** Upgrade de Risco: sacrifica uma carta por um alvo; na derrota ela volta como fragmento. */
-export const riskUpgrade = (serverUrl: string, cardId: string, target: string, clientSeed: string) => authFetch<UpgradeOutcome>(serverUrl, '/upgrader/risk', { body: { cardId, target, clientSeed } });
-
 export interface PromoOffer {
   tier: PromoTier;
   cardId: string;
@@ -150,20 +140,21 @@ export const fetchTradePartner = (serverUrl: string, teamName: string) => authFe
 export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
 export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} }).then((result) => { if (typeof result.wallet === 'number') patchWalletCoins(result.wallet); return result; });
 
-// ——— Contratos de cartas: fragmentos, escada de evolução e Lendas ———
+// ——— Contratos de cartas repetidas: escada de evolução e Lendas ———
 
 export interface ContractFair {
   serverSeedHash: string;
   nonce: number;
 }
 
-export interface ContractFragmentView {
+export interface ContractCardCount {
   playerId: string;
   count: number;
 }
 
 export interface ContractsState {
-  fragments: ContractFragmentView[];
+  /** Excess card copies available for contracts; the stack preserves cards reserved in a saved lineup. */
+  cards: ContractCardCount[];
   /** Progresso de cada Lenda por id; ausente = não começou. */
   progress: Record<string, number>;
   fair: ContractFair;
@@ -182,7 +173,7 @@ export interface TradeUpOutcome {
   scope: 'org' | 'country' | 'any';
   /** Qual das 5 entregas deu o peso (0..4). */
   sourceIndex: number;
-  /** O resultado já era possuído: virou fragmento de volta. */
+  /** O resultado já era possuído: a quantidade aumentou em uma cópia. */
   duplicate: boolean;
   roll: number;
   sourceRoll: number;
@@ -192,20 +183,20 @@ export interface TradeUpOutcome {
   clientSeed: string;
   nonce: number;
   next: ContractFair;
-  /** Estado fresco de fragmentos e Lendas, já com o consumo da rodada. */
-  fragments?: ContractFragmentView[];
+  /** Estado fresco de cartas repetidas e Lendas, já com o consumo da rodada. */
+  cards?: ContractCardCount[];
   progress?: Record<string, number>;
 }
 
 export interface ContractDelivery {
   delivery: { progress: number; target: number; complete: boolean; delivered: number };
-  fragments: ContractFragmentView[];
+  cards: ContractCardCount[];
   progress: Record<string, number>;
 }
 
 export interface ContractClaim {
   targetId: string;
-  fragments: ContractFragmentView[];
+  cards: ContractCardCount[];
   progress: Record<string, number>;
 }
 

@@ -14,6 +14,7 @@
   export let showcase = false;
   /** Compact mode hides attributes until the card is opened; opt-in so other screens keep their current layout. */
   export let compact = false;
+  export let quantity = 1;
   export let onOpen: ((coach: Coach, trigger: HTMLButtonElement) => void) | null = null;
 
   $: rarity = rarityOf(coach);
@@ -21,6 +22,7 @@
 </script>
 
 <article class="card rarity-{rarity}" class:active class:affinity class:showcase>
+  {#if quantity > 1}<b class="quantity" aria-label={`×${quantity}`}>×{quantity}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
   <button class="face" type="button" disabled={!onOpen} aria-haspopup={onOpen ? 'dialog' : undefined} aria-label={onOpen ? coach.name : undefined} on:click={(event) => onOpen?.(coach, event.currentTarget as HTMLButtonElement)}>
     {#if showcase}
@@ -70,6 +72,7 @@
   .compact:not(.showcase) .attrs { display: none; }
   footer { display: flex; gap: 4px; padding: 0 12px 12px; } footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
+  .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
   .active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .affinity { box-shadow: 0 0 0 1px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 30%, transparent); }
 </style>

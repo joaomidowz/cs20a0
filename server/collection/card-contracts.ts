@@ -1,14 +1,14 @@
 import { LENDA_TARGET, TRADE_INPUTS, checkLendaDonors, checkTradeInputs, lendaById, pickTradeCard, tradeLadder, tradeSources, tradeTierOf } from '../../src/lib/game/online/card-contracts';
 import { FAIR_CLIENT_SEED_MAX, isValidClientSeed } from '../../src/lib/game/online/fair';
 import type { Db, Tx } from '../db/client';
-import { CollectionError, grantFragment } from './service';
+import { CollectionError } from './service';
 import { newServerSeed, serverRoll, sha256 } from './upgrader';
+import { collectionPlayerById } from '../../src/lib/game/online/collection-pool';
 
 /**
  * Trade-Up de cartas e Lendas, lado servidor: a autoridade da rolagem. O cliente só prévia com as MESMAS funções
- * puras; o sorteio acontece aqui dentro da transação (fragmentos travados com FOR UPDATE, commit-reveal pela seed
- * da conta, resultado auditado em contract_runs e a seed revelada e trocada). Contratos não movimentam coins: a
- * moeda aqui é o fragmento, que só entra por duplicata.
+ * puras; o sorteio acontece nesta transação (linhas da coleção travadas com FOR UPDATE, commit-reveal pela seed da
+ * conta, resultado auditado em contract_runs e a seed revelada e trocada). Contratos consomem cópias extras reais.
  */
 
 export interface ContractFair {
@@ -17,7 +17,7 @@ export interface ContractFair {
 }
 
 export interface ContractStateView {
-  fragments: Array<{ playerId: string; count: number }>;
+  cards: Array<{ playerId: string; count: number }>;
   /** Progresso de cada Lenda, por id (ausente = não começou). */
   progress: Record<string, number>;
   fair: ContractFair;
@@ -36,7 +36,7 @@ export interface TradeUpResult {
   scope: 'org' | 'country' | 'any';
   /** Qual das 5 entregas deu o peso (0..4). */
   sourceIndex: number;
-  /** O resultado já era possuído: virou fragmento de volta. */
+  /** O resultado já era possuído: sua quantidade aumentou em uma cópia. */
   duplicate: boolean;
   roll: number;
   sourceRoll: number;
@@ -60,36 +60,45 @@ export async function getContractFair(db: Db, userId: string): Promise<ContractF
   return { serverSeedHash: sha256(row.server_seed), nonce: row.nonce };
 }
 
-/** Fragmentos da conta (só com count > 0), o progresso das Lendas e o compromisso fair da próxima rolagem. */
+/** Cópias extras disponíveis (só com count > 0), o progresso das Lendas e o compromisso fair da próxima rolagem. */
 export async function getContractState(db: Db, userId: string): Promise<ContractStateView> {
-  const fragments = await db.query<{ player_id: string; count: number }>('SELECT player_id, count FROM card_fragments WHERE user_id = $1 AND count > 0 ORDER BY player_id', [userId]);
+  const owned = await db.query<{ player_id: string; quantity: number }>('SELECT player_id, quantity FROM collection WHERE user_id = $1 AND quantity > 0 ORDER BY player_id', [userId]);
+  const lineups = await db.query<{ player_ids: string[] }>('SELECT player_ids FROM lineup_slots WHERE user_id = $1', [userId]);
+  const locked = new Set(lineups.flatMap((lineup) => lineup.player_ids));
+  const cards = owned.map((row) => ({ player_id: row.player_id, count: row.quantity - (locked.has(row.player_id) ? 1 : 0) }))
+    .filter((row) => row.count > 0 && collectionPlayerById.has(row.player_id));
   const progressRows = await db.query<{ contract_id: string; progress: number }>('SELECT contract_id, progress FROM card_contract_progress WHERE user_id = $1', [userId]);
   return {
-    fragments: fragments.map((row) => ({ playerId: row.player_id, count: row.count })),
+    cards: cards.map((row) => ({ playerId: row.player_id, count: row.count })),
     progress: Object.fromEntries(progressRows.map((row) => [row.contract_id, row.progress])),
     fair: await getContractFair(db, userId)
   };
 }
 
 /**
- * Cumpre um trade-up: consome um fragmento de cada uma das 5 entregas (mesma raridade, qualquer mistura de países) e
+ * Cumpre um trade-up: consome uma cópia real de cada uma das 5 entregas (mesma raridade, qualquer mistura de países) e
  * rola — degrau de raridade pela tabela visível, coleção pela composição da entrega, carta dentro da coleção. Tudo
- * numa transação: os fragmentos são travados antes do consumo, então corridas nunca gastam o mesmo fragmento.
+ * numa transação: as linhas da coleção são travadas antes do consumo, então corridas nunca gastam a mesma cópia.
  */
 export async function runTradeUp(db: Db, userId: string, inputs: string[], clientSeed: string): Promise<TradeUpResult> {
   const check = checkTradeInputs(inputs);
-  if (check.code === 'BAD_COUNT') throw new CollectionError(400, 'BAD_INPUTS', `Escolha ${TRADE_INPUTS} cartas repetidas diferentes`);
+  if (check.code === 'BAD_COUNT') throw new CollectionError(400, 'BAD_INPUTS', `Escolha ${TRADE_INPUTS} cópias disponíveis da mesma raridade`);
   if (check.code === 'BAD_DONOR') throw new CollectionError(400, 'BAD_DONOR', 'Carta desconhecida na entrega');
   if (check.code === 'BAD_RARITY') throw new CollectionError(400, 'BAD_RARITY', 'No trade-up as cinco cartas são da mesma raridade');
   if (!isValidClientSeed(clientSeed)) throw new CollectionError(400, 'BAD_CLIENT_SEED', `A client seed precisa ter de 1 a ${FAIR_CLIENT_SEED_MAX} caracteres`);
   return db.tx(async (tx) => {
-    // A entrega pode repetir carta (5× da mesma, se o estoque deixar): agrega o pedido por carta.
+    // Cada entrada consome uma cópia real; uma carta escalada conserva ao menos uma cópia.
     const requested = new Map<string, number>();
     for (const id of inputs) requested.set(id, (requested.get(id) ?? 0) + 1);
-    const rows = await tx.query<{ player_id: string; count: number }>('SELECT player_id, count FROM card_fragments WHERE user_id = $1 AND player_id = ANY($2) FOR UPDATE', [userId, [...requested.keys()]]);
-    if (rows.length !== requested.size || rows.some((row) => row.count < (requested.get(row.player_id) ?? 0))) throw new CollectionError(409, 'NO_FRAGMENT', 'Você não tem fragmentos dessas cartas');
+    const rows = await tx.query<{ player_id: string; quantity: number }>('SELECT player_id, quantity FROM collection WHERE user_id = $1 AND player_id = ANY($2) FOR UPDATE', [userId, [...requested.keys()]]);
+    if (rows.length !== requested.size || rows.some((row) => row.quantity < (requested.get(row.player_id) ?? 0))) throw new CollectionError(409, 'NO_COPIES', 'Você não tem cópias suficientes dessas cartas');
+    const lineupRows = await tx.query<{ player_ids: string[] }>('SELECT player_ids FROM lineup_slots WHERE user_id = $1', [userId]);
+    const locked = new Set(lineupRows.flatMap((lineup) => lineup.player_ids));
+    if (rows.some((row) => locked.has(row.player_id) && row.quantity <= (requested.get(row.player_id) ?? 0))) throw new CollectionError(409, 'IN_LINEUP', 'Deixe uma cópia de cada carta escalada');
     for (const [id, quantity] of requested) {
-      await tx.query('UPDATE card_fragments SET count = count - $3, updated_at = now() WHERE user_id = $1 AND player_id = $2', [userId, id, quantity]);
+      const quantityOwned = rows.find((row) => row.player_id === id)!.quantity;
+      if (quantityOwned === quantity) await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, id]);
+      else await tx.query('UPDATE collection SET quantity = quantity - $3 WHERE user_id = $1 AND player_id = $2', [userId, id, quantity]);
     }
     const { server_seed: serverSeed, nonce } = await contractSeedRow(tx, userId, true);
     const serverSeedHash = sha256(serverSeed);
@@ -105,7 +114,7 @@ export async function runTradeUp(db: Db, userId: string, inputs: string[], clien
     if (!pick.id) throw new CollectionError(409, 'EMPTY_POOL', 'Nenhuma carta disponível nesse trade-up');
     const inserted = await tx.query<{ player_id: string }>("INSERT INTO collection (user_id, player_id, source) VALUES ($1, $2, 'reward') ON CONFLICT DO NOTHING RETURNING player_id", [userId, pick.id]);
     const duplicate = !inserted.length;
-    if (duplicate) await grantFragment(tx, userId, pick.id);
+    if (duplicate) await tx.query('UPDATE collection SET quantity = quantity + 1 WHERE user_id = $1 AND player_id = $2', [userId, pick.id]);
     await tx.query(
       `INSERT INTO contract_runs (user_id, contract_id, donors, stake_value, floor_tier, result, result_tier, affinity, jumped, roll, aff_roll, pick_roll, server_seed, server_seed_hash, client_seed, nonce)
        VALUES ($1, 'tradeup', $2, 0, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
@@ -121,7 +130,7 @@ export async function runTradeUp(db: Db, userId: string, inputs: string[], clien
   });
 }
 
-/** Entrega parcial de uma Lenda: consome os fragmentos doados e acumula no progresso (teto no alvo). */
+/** Entrega parcial de uma Lenda: consome as cópias doadas e acumula no progresso (teto no alvo). */
 export async function deliverLenda(db: Db, userId: string, contractId: string, donors: string[]): Promise<{ progress: number; target: number; complete: boolean; delivered: number }> {
   const def = lendaById.get(contractId);
   if (!def) throw new CollectionError(404, 'UNKNOWN_CONTRACT', 'Contrato desconhecido');
@@ -132,9 +141,18 @@ export async function deliverLenda(db: Db, userId: string, contractId: string, d
     const progressBefore = Math.min(current?.progress ?? 0, LENDA_TARGET);
     const effective = donors.slice(0, Math.max(0, LENDA_TARGET - progressBefore));
     if (!effective.length) throw new CollectionError(409, 'LENDA_COMPLETE', 'Essa Lenda já está completa — resgate a carta');
-    const rows = await tx.query<{ player_id: string; count: number }>('SELECT player_id, count FROM card_fragments WHERE user_id = $1 AND player_id = ANY($2) FOR UPDATE', [userId, effective]);
-    if (rows.length !== effective.length || rows.some((row) => row.count < 1)) throw new CollectionError(409, 'NO_FRAGMENT', 'Você não tem fragmentos desses doadores');
-    await tx.query('UPDATE card_fragments SET count = count - 1, updated_at = now() WHERE user_id = $1 AND player_id = ANY($2)', [userId, effective]);
+    const requested = new Map<string, number>();
+    for (const id of effective) requested.set(id, (requested.get(id) ?? 0) + 1);
+    const rows = await tx.query<{ player_id: string; quantity: number }>('SELECT player_id, quantity FROM collection WHERE user_id = $1 AND player_id = ANY($2) FOR UPDATE', [userId, [...requested.keys()]]);
+    if (rows.length !== requested.size || rows.some((row) => row.quantity < (requested.get(row.player_id) ?? 0))) throw new CollectionError(409, 'NO_COPIES', 'Você não tem cópias suficientes desses doadores');
+    const lineupRows = await tx.query<{ player_ids: string[] }>('SELECT player_ids FROM lineup_slots WHERE user_id = $1', [userId]);
+    const locked = new Set(lineupRows.flatMap((lineup) => lineup.player_ids));
+    if (rows.some((row) => locked.has(row.player_id) && row.quantity <= (requested.get(row.player_id) ?? 0))) throw new CollectionError(409, 'IN_LINEUP', 'Deixe uma cópia de cada carta escalada');
+    for (const [id, count] of requested) {
+      const quantity = rows.find((row) => row.player_id === id)!.quantity;
+      if (quantity === count) await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, id]);
+      else await tx.query('UPDATE collection SET quantity = quantity - $3 WHERE user_id = $1 AND player_id = $2', [userId, id, count]);
+    }
     const [row] = await tx.query<{ progress: number }>(
       `INSERT INTO card_contract_progress (user_id, contract_id, progress) VALUES ($1, $2, $3)
        ON CONFLICT (user_id, contract_id) DO UPDATE SET progress = LEAST(card_contract_progress.progress + $3, $4), updated_at = now()

@@ -40,6 +40,7 @@
   const coachTeamName = (coach: Coach) => teamById.get(coach.teamId)?.name ?? '';
   const openCoachDetails = (coach: Coach, trigger: HTMLButtonElement) => { detailsCoach = coach; coachReturnFocus = trigger; };
   $: ownedIds = state ? state.players.map((item) => item.playerId) : [];
+  $: ownedCounts = Object.fromEntries((state?.players ?? []).map((item) => [item.playerId, item.quantity ?? 1]));
   $: lockedIds = lineupLockedIds(state);
 
   async function refresh() {
@@ -87,7 +88,7 @@
 
       <p class="loss-warning" role="note">{t('upgraderLossWarning')}</p>
 
-      <Upgrader {serverUrl} language={$language} {ownedIds} {lockedIds} onDone={() => void refresh()}
+      <Upgrader {serverUrl} language={$language} {ownedIds} {ownedCounts} {lockedIds} onDone={() => void refresh()}
         playerTeam={teamNameOf} coachTeam={coachTeamName} onOpen={(selected) => detailsPlayer = selected} onOpenCoach={openCoachDetails} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span>{#if !state}<button class="secondary" type="button" on:click={() => refresh()}>{uiCopy($language, 'retry')}</button>{/if}</p>{/if}

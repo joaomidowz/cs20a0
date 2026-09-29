@@ -102,7 +102,7 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [userId!]);
       return { ok: true, ...summary, ...state, wallet: wallet?.coins ?? 0 };
     })),
-    // Contratos de cartas: rolagem por fragmentos (escada de evolução, provably fair) + Lendas com entrega parcial.
+    // Contratos de cartas duplicadas: trade-up com cópias reais e Lendas com entrega parcial.
     route('GET', /^\/contracts$/, withAuth(async ({ userId }) => ({ ok: true, ...(await getContractState(db, userId!)) }))),
     route('GET', /^\/contracts\/fair$/, withAuth(async ({ userId }) => {
       const state = await getContractState(db, userId!);
@@ -112,20 +112,20 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
       const body = await readBody(request, contractRunSchema);
       const run = await runTradeUp(db, userId!, body.inputs, body.clientSeed).catch(toHttp);
       const state = await getContractState(db, userId!);
-      return { ok: true, ...run, fragments: state.fragments, progress: state.progress };
+      return { ok: true, ...run, cards: state.cards, progress: state.progress };
     })),
     route('POST', /^\/contracts\/deliver$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, contractDeliverSchema);
       // `progress` é sempre o mapa das Lendas; o resultado da entrega vai aninhado para não colidir.
       const delivery = await deliverLenda(db, userId!, body.contractId, body.donors).catch(toHttp);
       const state = await getContractState(db, userId!);
-      return { ok: true, delivery, fragments: state.fragments, progress: state.progress };
+      return { ok: true, delivery, cards: state.cards, progress: state.progress };
     })),
     route('POST', /^\/contracts\/claim$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, contractClaimSchema);
       const claim = await claimLenda(db, userId!, body.contractId).catch(toHttp);
       const state = await getContractState(db, userId!);
-      return { ok: true, targetId: claim.targetId, fragments: state.fragments, progress: state.progress };
+      return { ok: true, targetId: claim.targetId, cards: state.cards, progress: state.progress };
     }))
   ];
 }

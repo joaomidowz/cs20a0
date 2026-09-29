@@ -13,7 +13,7 @@
    * the bigger the moment: a ring for a Superstar, suspense + flash + rays + sparks for a Legend, and the whole panel
    * darkens and shakes for a GOAT.
    */
-  type RevealCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
+  type RevealCard = { kind: 'player'; player: Player; quantity: number } | { kind: 'coach'; coach: Coach; quantity: number };
   export let cards: RevealCard[];
   export let duplicates: Set<string>;
   export let tier: PackTier;
@@ -135,9 +135,9 @@
           {#if up}
             <div class="rv-holder">
               {#if card.kind === 'player'}
-                <CollectionCard showcase player={card.player} teamName={playerTeam(card.player)} {language} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
+                <CollectionCard showcase player={card.player} teamName={playerTeam(card.player)} {language} quantity={card.quantity} tag={duplicates.has(card.player.id) ? labels.duplicate : labels.fresh} onOpen={onOpen} />
               {:else}
-                <CoachCard showcase coach={card.coach} teamName={coachTeam(card.coach)} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
+                <CoachCard showcase coach={card.coach} teamName={coachTeam(card.coach)} quantity={card.quantity} tag={duplicates.has(card.coach.id) ? labels.duplicate : labels.fresh} />
               {/if}
             </div>
           {:else}

@@ -7,7 +7,7 @@
   import CardContracts from '$lib/components/online/CardContracts.svelte';
   import { collectionTeamById as teamById } from '$lib/game/online/collection-pool';
   import { AccountError, accountUser, loadAccount } from '$lib/game/online/account';
-  import { fetchCollection, fetchContracts, lineupLockedIds, type CollectionState, type ContractsState } from '$lib/game/online/collection';
+  import { fetchContracts, type ContractsState } from '$lib/game/online/collection';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { translateOnline } from '$lib/game/online/i18n';
   import { language, theme } from '$lib/game/pageState';
@@ -15,18 +15,15 @@
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
   const serverUrl = getOnlineServerUrl();
 
-  let state: CollectionState | null = null;
   let contracts: ContractsState | null = null;
   let loading = true;
   let error = '';
 
-  $: ownedIds = state ? state.players.map((item) => item.playerId) : [];
-  $: lockedIds = lineupLockedIds(state);
   const teamNameOf = (player: import('$lib/game/types').Player) => teamById.get(player.teamId ?? '')?.name ?? '';
 
   async function refresh() {
     try {
-      [state, contracts] = await Promise.all([fetchCollection(serverUrl), fetchContracts(serverUrl)]);
+      contracts = await fetchContracts(serverUrl);
       error = '';
     } catch (caught) {
       error = caught instanceof AccountError ? caught.message : t('connectionFailed');
@@ -66,7 +63,7 @@
     {:else if !$accountUser}
       <section class="panel box"><p>{t('loginFirst')}</p><a class="primary link" href="/online/conta?next=/online/store/contratos">{t('goAccount')}</a></section>
     {:else if contracts}
-      <CardContracts {serverUrl} language={$language} {ownedIds} {lockedIds} {contracts} onRefresh={() => void refresh()} playerTeam={teamNameOf} />
+      <CardContracts {serverUrl} language={$language} {contracts} onRefresh={() => void refresh()} playerTeam={teamNameOf} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span>{#if !contracts}<button class="secondary" type="button" on:click={() => refresh()}>{uiCopy($language, 'retry')}</button>{/if}</p>{/if}
 

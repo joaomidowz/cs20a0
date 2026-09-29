@@ -105,7 +105,7 @@
   let detailsPlayer: Player | null = null;
 
   // Pack reveal: three roulette spins, then the cards.
-  type RevealCard = { kind: 'player'; player: Player } | { kind: 'coach'; coach: Coach };
+  type RevealCard = { kind: 'player'; player: Player; quantity: number } | { kind: 'coach'; coach: Coach; quantity: number };
   let reveal: { cards: RevealCard[]; duplicates: Set<string>; coins: number; tier: PackTier; key: number; done: boolean } | null = null;
   let coachId: string | null = null;
 
@@ -143,6 +143,7 @@
 
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
   $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
+  $: quantityById = new Map((state?.players ?? []).map((item) => [item.playerId, item.quantity ?? 1]));
   $: cardTeamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.filter((organization) =>
     owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)
     || ownedCoaches.some((coach) => collectionOrganizationKeyByTeamId.get(coach.teamId) === organization.key)
@@ -315,7 +316,13 @@
     openingCase = source;
     try {
       const result = await open();
-      const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => { const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach }]; const player = playerById.get(id); return player ? [{ kind: 'player', player }] : []; });
+      const packCounts = new Map<string, number>();
+      for (const id of result.players) packCounts.set(id, (packCounts.get(id) ?? 0) + 1);
+      const cards: RevealCard[] = result.players.flatMap((id): RevealCard[] => {
+        const quantity = (quantityById.get(id) ?? 0) + (packCounts.get(id) ?? 0);
+        const coach = collectionCoachById.get(id); if (coach) return [{ kind: 'coach', coach, quantity }];
+        const player = playerById.get(id); return player ? [{ kind: 'player', player, quantity }] : [];
+      });
       // The tier comes from the RESULT: the Major crate is chosen by the server (the oldest sealed run) and may
       // differ from what the card showed a moment before.
       reveal = { cards, duplicates: new Set(result.duplicates), coins: result.coinsFromDupes, tier: result.tier, key: Date.now(), done: false };
@@ -724,6 +731,7 @@
                 <div class="slot-desk">
                   <CoachCard coach={activeCoach} teamName={coachTeamName(activeCoach)} active affinity={coachBonus > 0}>
                     <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
+                    {#if (quantityById.get(activeCoach.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(activeCoach)}>{t('sell')} · {coachSellValue(activeCoach)}</button>{/if}
                   </CoachCard>
                 </div>
                 <div class="slot-row coach-row">
@@ -840,9 +848,10 @@
           <h3 class="subhead">COACHES <small>{visibleCoaches.length}</small></h3>
           <div class="player-grid">
             {#each visibleCoaches as coach (coach.id)}
-              <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId}>
+              <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId} quantity={quantityById.get(coach.id) ?? 1}>
                 {#if coach.id === coachId}
                   <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
+                  {#if (quantityById.get(coach.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>{/if}
                 {:else}
                   <button class="ghost small" type="button" on:click={() => { coachId = coach.id; scrollTo(teamSection); }}>{t('addToLineup')}</button>
                   <button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>
@@ -857,9 +866,10 @@
         {:else}
           <div class="player-grid">
             {#each visible as player (player.id)}
-              <CollectionCard {player} teamName={teamNameOf(player)} language={$language} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
+              <CollectionCard {player} teamName={teamNameOf(player)} language={$language} quantity={quantityById.get(player.id) ?? 1} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
                 {#if lineupIds.has(player.id)}
                   <button class="ghost small" type="button" on:click={() => removeFromLineup(slots.findIndex((slot) => slot?.id === player.id))}>{t('removeFromLineup')}</button>
+                  {#if (quantityById.get(player.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>{/if}
                 {:else}
                   {#if slots.every(Boolean)}
                     <button class="ghost small" type="button" disabled={busy} on:click={() => startSwap(player)}>⇄ {t('swap')}</button>

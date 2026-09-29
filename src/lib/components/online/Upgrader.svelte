@@ -21,7 +21,9 @@
   export let language: Language = 'pt-BR';
   /** Cards in the collection. */
   export let ownedIds: string[] = [];
-  /** Cards on the saved team: they cannot be staked. */
+  /** Total copies in each card stack. */
+  export let ownedCounts: Record<string, number> = {};
+  /** Cards on saved teams keep one copy reserved; extra copies can be staked. */
   export let lockedIds: string[] = [];
   export let onDone: () => void = () => {};
   /** Team names, the same the collection grid shows. */
@@ -32,12 +34,12 @@
   /** Opens coach details in the page's CoachCardSheet. */
   export let onOpenCoach: (coach: Coach, trigger: HTMLButtonElement) => void = () => {};
 
-  type Card = { id: string; value: number; rarity: Rarity; player: Player | null; coach: Coach | null };
+  type Card = { id: string; value: number; rarity: Rarity; player: Player | null; coach: Coach | null; quantity: number };
   const cardOf = (id: string): Card | null => {
     const coach = collectionCoachById.get(id) ?? null;
     const player = coach ? null : collectionPlayerById.get(id) ?? null;
     if (!coach && !player) return null;
-    return { id, value: cardCoinValue(id), rarity: rarityOf((coach ?? player)!), player, coach };
+    return { id, value: cardCoinValue(id), rarity: rarityOf((coach ?? player)!), player, coach, quantity: ownedCounts[id] ?? 1 };
   };
   const ALL: Card[] = [...collectionPlayers.map((player) => player.id), ...collectionCoaches.map((coach) => coach.id)].map(cardOf).filter((card): card is Card => Boolean(card)).sort((a, b) => a.value - b.value);
   const TARGETS_SHOWN = 30;
@@ -91,7 +93,9 @@
   $: ownedSet = new Set(ownedIds);
   const organizationOfCard = (card: Card) => collectionOrganizationKeyByTeamId.get(card.player?.teamId ?? card.coach?.teamId ?? '') ?? '';
   $: teamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.map((organization) => ({ value: organization.key, label: organization.name }))];
-  $: allStakeable = ownedIds.filter((id) => !locked.has(id)).map(cardOf).filter((card): card is Card => Boolean(card)).sort((a, b) => b.value - a.value);
+  $: allStakeable = ownedIds.map(cardOf).filter((card): card is Card => Boolean(card))
+    .map((card) => ({ ...card, quantity: Math.max(0, card.quantity - (locked.has(card.id) ? 1 : 0)) }))
+    .filter((card) => card.quantity > 0).sort((a, b) => b.value - a.value);
   $: stakeable = allStakeable.filter((card) => !stakeTeamFilter || organizationOfCard(card) === stakeTeamFilter);
   $: stakeCards = stake.map(cardOf).filter((card): card is Card => Boolean(card));
   $: stakeValue = stakeCards.reduce((sum, card) => sum + card.value, 0);
@@ -124,10 +128,17 @@
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
   const clearRound = () => { if (phase === 'spinning') return; round = null; outcome = null; phase = 'idle'; wheel?.classList.remove('inside'); };
-  const toggleStake = (id: string) => {
+  const addStake = (id: string, available: number) => {
     if (spinning) return;
     clearRound();
-    stake = stake.includes(id) ? stake.filter((item) => item !== id) : stake.length < UPGRADER_MAX_STAKE ? [...stake, id] : stake;
+    const selected = stake.filter((item) => item === id).length;
+    if (selected < available && stake.length < UPGRADER_MAX_STAKE) stake = [...stake, id];
+  };
+  const removeStake = (id: string) => {
+    if (spinning) return;
+    clearRound();
+    const index = stake.lastIndexOf(id);
+    if (index >= 0) stake = [...stake.slice(0, index), ...stake.slice(index + 1)];
   };
   const aim = (id: string) => { if (spinning) return; clearRound(); target = target === id ? '' : id; };
 
@@ -237,13 +248,13 @@
       </div>
       {#if shownStake.length}
         <div class="mini-grid staked">
-          {#each shownStake as card (card.id)}
+          {#each shownStake as card, index (card.id + ':' + index)}
             <div class="pick picked" class:vanish={settled}>
               <span class="value-tag"><i></i>{fmt(card.value)}</span>
               {#if card.coach}
-                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
+                <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} compact={true} onOpen={onOpenCoach}>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CoachCard>
               {:else if card.player}
-                <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => toggleStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
+                <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>{#if !round}<button class="ghost small" type="button" on:click={() => removeStake(card.id)}>{t('upgraderUnpick')}</button>{/if}</CollectionCard>
               {/if}
             </div>
           {/each}
@@ -265,7 +276,7 @@
               <b class="back-tag">{t('upgraderDowngraded')}</b>
             </div>
           </div>
-          <p class="note">{t('upgraderAllLost')}{#if outcome.duplicate} <b class="dupe">{t('upgraderDuplicate')} {fmt(outcome.duplicateCoins)} coins.</b>{/if}</p>
+          <p class="note">{t('upgraderAllLost')}{#if outcome.duplicate} <b class="dupe">{t('upgraderDuplicate')}</b>{/if}</p>
         </div>
       {:else if settled && outcome && !outcome.won && outcome.consolationKind === 'coins'}
         <!-- Loss with only Commons staked: no card comes back, just coins. -->
@@ -278,16 +289,16 @@
       <StyledSelect label={u('team')} options={teamOptions} value={stakeTeamFilter} onSelect={(next) => stakeTeamFilter = next} />
       <div class="mini-grid scroll">
         {#each stakeable as card (card.id)}
-          {@const picked = stake.includes(card.id)}
+          {@const picked = stake.filter((item) => item === card.id).length}
           <div class="pick" class:picked>
             <span class="value-tag"><i></i>{fmt(card.value)}</span>
             {#if card.coach}
-              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked} compact={true} onOpen={onOpenCoach}>
-                <button class={picked ? 'secondary small' : 'ghost small'} type="button" disabled={spinning || (!picked && stake.length >= UPGRADER_MAX_STAKE)} on:click={() => toggleStake(card.id)}>{picked ? t('upgraderUnpick') : t('upgraderPick')}</button>
+              <CoachCard coach={card.coach} teamName={coachTeam(card.coach)} active={picked > 0} compact={true} onOpen={onOpenCoach} quantity={ownedCounts[card.id] ?? 1}>
+                <div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div>
               </CoachCard>
             {:else if card.player}
-              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen}>
-                <button class={picked ? 'secondary small' : 'ghost small'} type="button" disabled={spinning || (!picked && stake.length >= UPGRADER_MAX_STAKE)} on:click={() => toggleStake(card.id)}>{picked ? t('upgraderUnpick') : t('upgraderPick')}</button>
+              <CollectionCard player={card.player} teamName={playerTeam(card.player)} {language} compact {onOpen} quantity={ownedCounts[card.id] ?? 1}>
+                <div class="stepper"><button class="ghost small" type="button" disabled={spinning || picked === 0} on:click={() => removeStake(card.id)}>−</button><b>{picked}/{card.quantity}</b><button class="ghost small" type="button" disabled={spinning || picked >= card.quantity || stake.length >= UPGRADER_MAX_STAKE} on:click={() => addStake(card.id, card.quantity)}>+</button></div>
               </CollectionCard>
             {/if}
           </div>
@@ -458,6 +469,9 @@
   .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease, opacity 300ms var(--ease-out-strong), transform 300ms var(--ease-out-strong), filter 300ms var(--ease-out-strong); }
   .pick.picked, .pick.aimed { outline-color: var(--accent); }
   .pick :global(.small) { width: 100%; min-height: 36px; padding: 0 8px; border-radius: 0; font-size: .6rem; }
+  .stepper { display: grid; grid-template-columns: 34px minmax(35px, 1fr) 34px; gap: 4px; align-items: center; }
+  .stepper b { color: var(--muted); font-size: .65rem; text-align: center; font-variant-numeric: tabular-nums; }
+  .stepper :global(button.small) { width: auto; min-width: 0; padding: 0; }
   .value-tag { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
   .value-tag i { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
   .pick.vanish { opacity: 0; transform: scale(.85); filter: grayscale(1); }

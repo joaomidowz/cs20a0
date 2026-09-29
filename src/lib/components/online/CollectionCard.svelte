@@ -14,6 +14,7 @@
   export let teamName = '';
   export let language: Language = 'en';
   export let compact = false;
+  export let quantity = 1;
   export let inLineup = false;
   export let star = false;
   export let effect: 'up' | 'down' | null = null;
@@ -32,6 +33,7 @@
 </script>
 
 <article class="card rarity-{rarity}" class:compact class:showcase class:in-lineup={inLineup} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
+  {#if quantity > 1}<b class="quantity" aria-label={`${quantity} cópias`}>×{quantity}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
   <button class="face" type="button" on:click={() => onOpen?.(player)} disabled={!onOpen}>
     <span class="top">
@@ -70,6 +72,7 @@
   footer { display: flex; gap: 4px; padding: 0 12px 12px; }
   footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
+  .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
   .showcase .face { gap: 8px; padding: 16px; }
   .showcase .top { align-items: end; }
   .showcase .photo { width: 58%; height: auto; aspect-ratio: 1; }
@@ -95,7 +98,7 @@
   .team { overflow: hidden; } .team :global(*) { flex-shrink: 0; } .team em { flex-shrink: 1; min-width: 0; }
   .compact .ovr { font-size: clamp(1.25rem, 1rem + 1.4vw, 1.7rem); }
   .compact .name { font-size: clamp(.95rem, .8rem + .6vw, 1.1rem); }
-  footer { min-width: 0; } footer :global(button) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  footer { min-width: 0; padding-right: 42px; } footer :global(button) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .in-lineup { border-color: var(--accent); }
   /* O anel fica na carta; o brilho difuso vive num pseudo-elemento fixo e só a opacidade dele pulsa (barato na grade grande). */
   .up { box-shadow: 0 0 0 1px var(--accent); }
