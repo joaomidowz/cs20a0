@@ -5,7 +5,7 @@ import type { Db } from '../db/client';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const card = z.string().min(1).max(80);
-const proposeSchema = z.object({ teamName: z.string().trim().min(1).max(40), offeredCard: card, requestedCard: card, coins: z.number().int().min(0).max(TRADE_MAX_COINS).default(0) });
+const proposeSchema = z.object({ teamName: z.string().trim().min(1).max(40), offeredCard: card, requestedCard: card, coins: z.number().int().min(0).max(TRADE_MAX_COINS).default(0), coinsPayer: z.enum(['from_user', 'to_user']).default('from_user') });
 
 const toHttp = (error: unknown): never => {
   if (error instanceof CollectionError) throw new HttpError(error.status, error.code, error.message);

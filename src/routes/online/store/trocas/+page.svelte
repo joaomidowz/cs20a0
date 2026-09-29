@@ -18,6 +18,7 @@
   $: initialPartner = $page.url.searchParams.get('partner') ?? '';
   $: initialRequested = $page.url.searchParams.get('card') ?? '';
   $: t = (key: Parameters<typeof translateOnline>[1]) => translateOnline($language, key);
+  $: tradeLockedIds = state ? lineupLockedIds(state).filter(id => (state!.players.find(card => card.playerId === id)?.quantity ?? 1) <= 1) : [];
   async function refresh() {
     try { state = await fetchCollection(serverUrl); error = ''; }
     catch { error = t('connectionFailed'); }
@@ -37,7 +38,7 @@
     {:else if loading}<p class="panel status" role="status" aria-busy="true">{uiCopy($language, 'loading')}</p>
     {:else if !$accountUser}<a class="primary link" href="/online/conta?next=/online/store/trocas">{t('goAccount')}</a>
     {:else if state}
-      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={lineupLockedIds(state)} {initialPartner} {initialRequested} onChanged={() => void refresh()} />
+      <TradesPanel {serverUrl} language={$language} ownedIds={state.players.map(card => card.playerId)} lockedIds={tradeLockedIds} {initialPartner} {initialRequested} onChanged={() => void refresh()} />
     {/if}
     {#if error}<p class="online-error" role="alert"><span>{error}</span><button class="secondary" type="button" on:click={refresh}>{uiCopy($language, 'retry')}</button></p>{/if}
   </section>

@@ -862,6 +862,15 @@ INSERT INTO collection (user_id, player_id, quantity, source)
   );
 DELETE FROM card_fragments;
 `
+  },
+  {
+    id: 37,
+    // Troca de cópias empilhadas e coins em qualquer direção.
+    sql: `
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS coins_payer text NOT NULL DEFAULT 'from_user';
+ALTER TABLE trades DROP CONSTRAINT IF EXISTS trades_coins_payer_check;
+ALTER TABLE trades ADD CONSTRAINT trades_coins_payer_check CHECK (coins_payer IN ('from_user','to_user'));
+`
   }
 ];
 

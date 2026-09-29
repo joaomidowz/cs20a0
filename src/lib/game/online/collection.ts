@@ -123,6 +123,7 @@ export const fetchPromos = (serverUrl: string) => authFetch<{ day: string; endsA
 export const buyPromo = (serverUrl: string, tier: PromoTier) => withWallet(authFetch<{ tier: PromoTier; cardId: string; price: number; wallet: number }>(serverUrl, '/promos/buy', { body: { tier } }));
 
 export type TradeStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
+export type TradeCoinsPayer = 'from_user' | 'to_user';
 export interface TradeItem {
   id: string;
   direction: 'sent' | 'received';
@@ -130,6 +131,7 @@ export interface TradeItem {
   offeredCard: string;
   requestedCard: string;
   coins: number;
+  coinsPayer: TradeCoinsPayer;
   status: TradeStatus;
   createdAt: string;
   expiresAt: string;
@@ -137,7 +139,7 @@ export interface TradeItem {
 
 export const fetchTrades = (serverUrl: string) => authFetch<{ received: TradeItem[]; sent: TradeItem[] }>(serverUrl, '/trades');
 export const fetchTradePartner = (serverUrl: string, teamName: string) => authFetch<{ teamName: string; cards: string[] }>(serverUrl, `/trades/partner?teamName=${encodeURIComponent(teamName)}`);
-export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
+export const proposeTrade = (serverUrl: string, input: { teamName: string; offeredCard: string; requestedCard: string; coins: number; coinsPayer: TradeCoinsPayer }) => authFetch<{ id: string }>(serverUrl, '/trades', { body: input });
 export const answerTrade = (serverUrl: string, id: string, action: 'accept' | 'decline' | 'cancel') => authFetch<{ wallet?: number }>(serverUrl, `/trades/${encodeURIComponent(id)}/${action}`, { body: {} }).then((result) => { if (typeof result.wallet === 'number') patchWalletCoins(result.wallet); return result; });
 
 // ——— Contratos de cartas repetidas: escada de evolução e Lendas ———

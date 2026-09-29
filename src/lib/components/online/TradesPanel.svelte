@@ -9,14 +9,14 @@
   import { playGameSound } from '$lib/game/offlineAudio';
   import { cardCoinValue, cardLabel } from '$lib/game/online/card-value';
   import { collectionCoachById, collectionPlayerById } from '$lib/game/online/collection-pool';
-  import { answerTrade, fetchTradePartner, fetchTrades, proposeTrade, type TradeItem } from '$lib/game/online/collection';
+  import { answerTrade, fetchTradePartner, fetchTrades, proposeTrade, type TradeCoinsPayer, type TradeItem } from '$lib/game/online/collection';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import type { Language } from '$lib/game/types';
 
   export let serverUrl: string;
   export let language: Language = 'pt-BR';
   export let ownedIds: string[] = [];
-  /** Cards on the saved team: they cannot be offered. */
+  /** Cards whose only copy is on the saved team; extra copies remain tradable. */
   export let lockedIds: string[] = [];
   export let initialPartner = '';
   export let initialRequested = '';
@@ -39,6 +39,7 @@
   let offered = '';
   let requested = '';
   let coins = 0;
+  let coinsPayer: TradeCoinsPayer = 'from_user';
   let filter = '';
   let limit = PAGE;
   // Ticks once a minute so "expira em" stays true while the page is open.
@@ -83,10 +84,17 @@
     const hours = Math.floor(ms / 3_600_000);
     return hours >= 48 ? `${Math.floor(hours / 24)}d` : `${hours}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
   }
-  /** What I give and what I get, whichever side sent it; the extra coins always travel with the proposer's card. */
-  const sides = (trade: TradeItem) => trade.direction === 'sent'
-    ? { give: trade.offeredCard, get: trade.requestedCard, giveCoins: trade.coins, getCoins: 0 }
-    : { give: trade.requestedCard, get: trade.offeredCard, giveCoins: 0, getCoins: trade.coins };
+  /** What each side gives and receives, including coins paid by either player. */
+  const sides = (trade: TradeItem) => {
+    const sent = trade.direction === 'sent';
+    const proposerPays = trade.coinsPayer === 'from_user';
+    return {
+      give: sent ? trade.offeredCard : trade.requestedCard,
+      get: sent ? trade.requestedCard : trade.offeredCard,
+      giveCoins: trade.coins && (sent === proposerPays) ? trade.coins : 0,
+      getCoins: trade.coins && (sent !== proposerPays) ? trade.coins : 0
+    };
+  };
 
   async function load() {
     try { ({ received, sent } = await fetchTrades(serverUrl)); error = ''; } catch (caught) { fail(caught); } finally { loading = false; }
@@ -107,14 +115,16 @@
     else if (step === 3) { offered = id; goStep(4); }
   }
 
-  function resetProposal() { step = 1; partner = null; partnerQuery = ''; offered = ''; requested = ''; coins = 0; filter = ''; limit = PAGE; }
+  function resetProposal() { step = 1; partner = null; partnerQuery = ''; offered = ''; requested = ''; coins = 0; coinsPayer = 'from_user'; filter = ''; limit = PAGE; }
 
   async function send() {
     if (busy || !partner || !offered || !requested) return;
-    if (!await confirmDialog({ title: u('confirmTrade'), body: `${t('tradeWith')} ${partner.teamName}\n${t('tradeYouGive')}: ${cardLabel(offered)}${extra ? ` + ${fmt(extra)} coins` : ''}\n${t('tradeYouGet')}: ${cardLabel(requested)}`, confirmLabel: t('tradeSend'), cancelLabel: t('cancel') })) return;
+    const giveCoins = extra && coinsPayer === 'from_user' ? ` + ${fmt(extra)} ${t('coins')}` : '';
+    const getCoins = extra && coinsPayer === 'to_user' ? ` + ${fmt(extra)} ${t('coins')}` : '';
+    if (!await confirmDialog({ title: u('confirmTrade'), body: `${t('tradeWith')} ${partner.teamName}\n${t('tradeYouGive')}: ${cardLabel(offered)}${giveCoins}\n${t('tradeYouGet')}: ${cardLabel(requested)}${getCoins}`, confirmLabel: t('tradeSend'), cancelLabel: t('cancel') })) return;
     busy = true; error = ''; notice = '';
     try {
-      await proposeTrade(serverUrl, { teamName: partner.teamName, offeredCard: offered, requestedCard: requested, coins: extra });
+      await proposeTrade(serverUrl, { teamName: partner.teamName, offeredCard: offered, requestedCard: requested, coins: extra, coinsPayer });
       notice = t('tradeSentOk');
       playGameSound('success');
       resetProposal(); tab = 'sent';
@@ -124,7 +134,10 @@
 
   async function answer(trade: TradeItem, action: 'accept' | 'decline' | 'cancel') {
     if (busy) return;
-    if (action === 'accept' && !await confirmDialog({ title: u('confirmTrade'), body: `${t('tradeWith')} ${trade.partner}\n${t('tradeYouGive')}: ${cardLabel(trade.requestedCard)}\n${t('tradeYouGet')}: ${cardLabel(trade.offeredCard)}${trade.coins ? ` + ${fmt(trade.coins)} coins` : ''}`, confirmLabel: t('tradeAccept'), cancelLabel: t('cancel') })) return;
+    const side = sides(trade);
+    const giveCoins = side.giveCoins ? ` + ${fmt(side.giveCoins)} ${t('coins')}` : '';
+    const getCoins = side.getCoins ? ` + ${fmt(side.getCoins)} ${t('coins')}` : '';
+    if (action === 'accept' && !await confirmDialog({ title: u('confirmTrade'), body: `${t('tradeWith')} ${trade.partner}\n${t('tradeYouGive')}: ${cardLabel(side.give)}${giveCoins}\n${t('tradeYouGet')}: ${cardLabel(side.get)}${getCoins}`, confirmLabel: t('tradeAccept'), cancelLabel: t('cancel') })) return;
     busy = true; error = ''; notice = '';
     try {
       await answerTrade(serverUrl, trade.id, action);
@@ -195,17 +208,19 @@
         <div class="side">
           <small>{t('tradeYouGive')}</small>
           <TradeCard id={offered} {language} label={t('tradeYouGive')} />
-          {#if extra}<span class="coins-chip">+{fmt(extra)} coins</span>{/if}
+          {#if extra && coinsPayer === 'from_user'}<span class="coins-chip">+{fmt(extra)} {t('coins')}</span>{/if}
           <button type="button" class="link-btn" on:click={() => goStep(3)}>{u('tradeChange')}</button>
         </div>
         <span class="arrow" aria-hidden="true">⇄</span>
         <div class="side">
           <small>{t('tradeYouGet')} · {partner.teamName}</small>
           <TradeCard id={requested} {language} label={t('tradeYouGet')} />
+          {#if extra && coinsPayer === 'to_user'}<span class="coins-chip">+{fmt(extra)} {t('coins')}</span>{/if}
           <button type="button" class="link-btn" on:click={() => goStep(2)}>{u('tradeChange')}</button>
         </div>
       </div>
       <div class="send-row">
+        <label><span>{t('tradeCoinsPayer')}</span><select bind:value={coinsPayer}><option value="from_user">{t('tradeCoinsMe')}</option><option value="to_user">{t('tradeCoinsPartner')}</option></select></label>
         <label><span>{t('tradeCoins')}</span><input type="number" min="0" step="1" inputmode="numeric" bind:value={coins} /></label>
         <button type="button" class="primary" disabled={busy || !offered || !requested} on:click={send}>{busy ? u('working') : u('review')}</button>
       </div>
@@ -269,8 +284,8 @@
   .msg.error { border-color: var(--danger); color: var(--danger); }
   .msg.ok { border-color: var(--accent); color: var(--accent); }
   button { border-radius: 0; }
-  input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font: inherit; }
-  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input, select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font: inherit; }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   label span { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -314,7 +329,7 @@
   .review { padding: 14px; border: 1px solid var(--line); background: var(--surface); }
   .link-btn { justify-self: start; min-height: 32px; padding: 0 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .62rem; font-weight: 800; text-transform: uppercase; cursor: pointer; }
   .link-btn:hover { border-color: var(--accent); }
-  .send-row { display: grid; grid-template-columns: minmax(0, 240px) auto; align-items: end; justify-content: start; gap: 8px; }
+  .send-row { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 220px) auto; align-items: end; justify-content: start; gap: 8px; }
   .empty { display: grid; justify-items: start; gap: 12px; padding: 18px; border: 1px dashed var(--line); }
   .empty p { margin: 0; color: var(--muted); font-size: .85rem; }
   .empty button { min-height: 44px; padding: 0 20px; }
@@ -327,7 +342,8 @@
     .actions, .actions.single { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
     .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-    .send-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .send-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .send-row button { grid-column: 1 / -1; }
     .review { padding: 10px; }
   }
   @media (max-width: 380px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
