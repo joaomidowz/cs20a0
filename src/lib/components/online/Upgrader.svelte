@@ -469,6 +469,7 @@
   .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease, opacity 300ms var(--ease-out-strong), transform 300ms var(--ease-out-strong), filter 300ms var(--ease-out-strong); }
   .pick.picked, .pick.aimed { outline-color: var(--accent); }
   .pick :global(.small) { width: 100%; min-height: 36px; padding: 0 8px; border-radius: 0; font-size: .6rem; }
+  .pick :global(.card footer button) { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.2; }
   .stepper { display: grid; grid-template-columns: 34px minmax(35px, 1fr) 34px; gap: 4px; align-items: center; }
   .stepper b { color: var(--muted); font-size: .65rem; text-align: center; font-variant-numeric: tabular-nums; }
   .stepper :global(button.small) { width: auto; min-width: 0; padding: 0; }

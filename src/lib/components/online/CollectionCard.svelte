@@ -32,7 +32,7 @@
   $: bestStats = showcase ? STATS.map(([key, label]) => ({ label, value: Number(player[key] ?? 0) })).filter((stat) => stat.value > 0).sort((a, b) => b.value - a.value).slice(0, 4) : [];
 </script>
 
-<article class="card rarity-{rarity}" class:compact class:showcase class:in-lineup={inLineup} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
+<article class="card rarity-{rarity}" class:compact class:showcase class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
   {#if quantity > 1}<b class="quantity" aria-label={`${quantity} cópias`}>×{quantity}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
   <button class="face" type="button" on:click={() => onOpen?.(player)} disabled={!onOpen}>
@@ -98,7 +98,7 @@
   .team { overflow: hidden; } .team :global(*) { flex-shrink: 0; } .team em { flex-shrink: 1; min-width: 0; }
   .compact .ovr { font-size: clamp(1.25rem, 1rem + 1.4vw, 1.7rem); }
   .compact .name { font-size: clamp(.95rem, .8rem + .6vw, 1.1rem); }
-  footer { min-width: 0; padding-right: 42px; } footer :global(button) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  footer { min-width: 0; } .has-quantity footer { padding-right: 42px; } footer :global(button) { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
   .in-lineup { border-color: var(--accent); }
   /* O anel fica na carta; o brilho difuso vive num pseudo-elemento fixo e só a opacidade dele pulsa (barato na grade grande). */
   .up { box-shadow: 0 0 0 1px var(--accent); }
