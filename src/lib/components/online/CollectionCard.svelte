@@ -23,7 +23,7 @@
   export let showcase = false;
   export let onOpen: ((player: Player) => void) | null = null;
   /**
-   * Collection grid on a phone (≤679px): four per row, Clash Royale style — photo, OVR, nick, ×copies and the rarity
+   * Collection grid on a phone (≤720px): four per row, Clash Royale style — photo, OVR, nick, ×copies and the rarity
    * border. Everything else (role, team, footer buttons) lives in the card sheet that opens on tap. Desktop is untouched.
    */
   export let dense = false;
@@ -114,8 +114,9 @@
   .star::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent); animation-duration: 2.2s; }
   .star.up::after { box-shadow: 0 0 44px color-mix(in srgb, #d9a441 55%, transparent), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent); }
   @keyframes glow-pulse { 50% { opacity: 1; } }
-  /* Dense (phone, four per row): the photo is the card; OVR and ×copies sit on it like Clash Royale's cost and level. */
-  @media (max-width: 679px) {
+  /* Dense (phone, four per row): the photo is the card; OVR and ×copies sit on it like Clash Royale's cost and level.
+     Same 720px limit as the collection grid, so a full card never lands in a four-column row. */
+  @media (max-width: 720px) {
     .dense .face { gap: 0; padding: 0; }
     .dense .top { position: relative; display: block; }
     .dense .photo { width: 100%; height: auto; aspect-ratio: 1; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--rarity) 45%, var(--line)); }

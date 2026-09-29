@@ -18,13 +18,19 @@
   $: rarity = rarityOf(player);
   $: awards = [...new Set(player.awardBadges ?? [])];
   let closeButton: HTMLButtonElement;
-  onMount(() => closeButton?.focus());
+  // Same contract as SelectionSheet: page stops scrolling under the sheet and focus goes back to the card that opened it.
+  onMount(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButton?.focus();
+    return () => { document.body.style.overflow = overflow; previous?.focus(); };
+  });
 </script>
 
-<svelte:window on:keydown={(event) => { if (event.key === 'Escape') onClose(); }} />
-
+<!-- Escape is handled on the dialog itself: focus lives inside it, and the bubbling stop below would never let it reach window. -->
 <div class="cs-backdrop" role="presentation" on:click={onClose}>
-  <div class="cs-sheet rarity-{rarity}" role="dialog" aria-modal="true" aria-label={player.nickname ?? player.id} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="cs-sheet rarity-{rarity}" role="dialog" aria-modal="true" aria-label={player.nickname ?? player.id} tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation={(event) => { if (event.key === 'Escape') onClose(); }}>
     <button class="cs-close" type="button" bind:this={closeButton} aria-label={labels.close} on:click={onClose}>×</button>
     <!-- Desk: the tall showcase card. Phone: a compact one so the actions and attributes stay above the fold of the bottom sheet. -->
     <div class="cs-card cs-desk"><CollectionCard showcase {player} {teamName} {language} /></div>
