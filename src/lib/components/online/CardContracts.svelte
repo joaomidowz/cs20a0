@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { AccountError } from '$lib/game/online/account';
   import { playGameSound } from '$lib/game/offlineAudio';
-  import { cardLabel, cardRarity } from '$lib/game/online/card-value';
+  import { cardRarity } from '$lib/game/online/card-value';
   import { collectionOrganizations, collectionOrganizationKeyByTeamId, collectionPlayerById } from '$lib/game/online/collection-pool';
   import { TRADE_INPUTS, checkTradeInputs, orgOf, tradeLadder, tradeSources, tradeTierOf, unitsOf, type TradeSource } from '$lib/game/online/card-contracts';
   import { RARITIES, type Rarity } from '$lib/game/online/collection-rules';
@@ -51,6 +51,7 @@
   const rarityCue = (rarity: Rarity) => playGameSound(rarity === 'goat' ? 'cardGoat' : rarity === 'legend' ? 'cardLegend' : rarity === 'superstar' ? 'cardSuperstar' : rarity === 'elite' ? 'cardRare' : 'cardCommon');
 
   $: duplicateCounts = new Map((contracts?.cards ?? []).map((card) => [card.playerId, card.count]));
+  $: totalDupes = (contracts?.cards ?? []).reduce((sum, card) => sum + card.count, 0);
   $: duplicateCards = [...duplicateCounts.entries()]
     .map(([id, count]) => ({ player: collectionPlayerById.get(id) ?? null, id, count }))
     .filter((entry): entry is { player: Player; id: string; count: number } => Boolean(entry.player))
@@ -80,6 +81,12 @@
   $: resultPlayer = outcome ? collectionPlayerById.get(outcome.result) ?? null : null;
   $: resultRarity = outcome ? (outcome.resultTier as Rarity) : 'common';
   $: revealed = outcome;
+
+  /** Fontes/candidatas: leitura de auditoria — no celular ficam atrás do "?", no desktop ficam abertas. */
+  let stageDetails = false;
+  /** Painel de justiça recolhido; abre sozinho quando o roll sai. */
+  let fairOpen = false;
+  let stageEl: HTMLElement;
 
   const fmt = (value: number) => value.toLocaleString(language);
   const pct = (value: number) => `${(value * 100).toLocaleString(language, { maximumFractionDigits: 1 })}%`;
@@ -112,12 +119,6 @@
     const index = inputs.lastIndexOf(id);
     if (index >= 0) inputs = [...inputs.slice(0, index), ...inputs.slice(index + 1)];
   }
-  /** Pode somar mais uma unidade: estoque da carta, teto de 5 e raridade da entrega. */
-  function canAddUnit(id: string, count: number): boolean {
-    if (busy || phase !== 'pick' || inputs.length >= TRADE_INPUTS) return false;
-    if (units(id) >= count) return false;
-    return !lockedRarity || cardRarity(id) === lockedRarity;
-  }
 
   const applyState = (cards: ContractsState['cards'], progress: ContractsState['progress'], fair: ContractsState['fair']) => {
     contracts = { cards, progress, fair };
@@ -132,6 +133,8 @@
     if (!confirmed) return;
     busy = true;
     error = '';
+    // No celular o botão mora na barra fixa: a revelação acontece lá embaixo — a página leva até ela.
+    if (window.matchMedia('(max-width: 980px)').matches) stageEl?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
     try {
       // O servidor decide durante o embaralhamento; a carta só vira no final.
       phase = 'shuffle';
@@ -156,6 +159,7 @@
         await wait(flipMs(rarity) + 200);
         phase = 'done';
       }
+      fairOpen = true;
       onRefresh();
     } catch (caught) {
       phase = 'pick';
@@ -195,29 +199,15 @@
 <section class="contracts" aria-label={t('contracts')}>
   {#if error}<p class="contracts-error" role="alert">{error}</p>{/if}
 
-  <div class="cards-panel panel">
-    <div class="col-head">
-      <span class="label">{t('contractsFragmentTitle')}</span>
-      <strong class="count">{fmt(duplicateCards.reduce((sum, entry) => sum + entry.count, 0))} <small>· {duplicateCards.length}</small></strong>
-    </div>
-    <StyledSelect label={u('team')} options={teamOptions} value={teamFilter} onSelect={(next) => teamFilter = next} />
-    {#if duplicateCards.length}
-      <div class="copy-strip" role="list">
-        {#each duplicateCards as entry (entry.id)}
-          <span class="copy-chip fx-{cardRarity(entry.id)}" role="listitem" title={cardLabel(entry.id)}>
-            <i class="dot" aria-hidden="true"></i>
-            <b>{entry.player.nickname ?? entry.id}</b>
-            <small>×{entry.count}</small>
-          </span>
-        {/each}
+  <div class="board">
+    <div class="column stake-col">
+      <div class="col-head">
+        <span class="label">{t('contractsFragmentTitle')}</span>
+        <strong class="count">{fmt(totalDupes)} <small>· {duplicateCards.length}</small></strong>
       </div>
-    {:else}
-      <p class="note">{t('contractsFragmentEmpty')}</p>
-    {/if}
-  </div>
+      {#if duplicateCards.length}
+        <StyledSelect label={u('team')} options={teamOptions} value={teamFilter} onSelect={(next) => teamFilter = next} />
 
-    <div class="board">
-      <div class="column stake-col">
         <div class="col-head">
           <span class="label">{t('tradeupInputs')}</span>
           <strong class="count">{inputs.length}/{TRADE_INPUTS}</strong>
@@ -226,9 +216,8 @@
           <div class="mini-grid staked">
             {#each inputCards as player, index (player.id + ':' + index)}
               <div class="pick picked fx-{cardRarity(player.id)}" class:shuffling={phase === 'shuffle'} style="--i: {index}">
-                <CollectionCard player={player} teamName={playerTeam(player)} {language} compact>
-                  {#if phase === 'pick'}<button class="ghost small" type="button" on:click={() => removeUnit(player.id)}>✕</button>{/if}
-                </CollectionCard>
+                <CollectionCard player={player} teamName={playerTeam(player)} {language} compact dense />
+                {#if phase === 'pick'}<button class="unpick" type="button" aria-label={`${t('cancel')}: ${player.nickname ?? player.id}`} on:click={() => removeUnit(player.id)}>✕</button>{/if}
               </div>
             {/each}
           </div>
@@ -245,58 +234,66 @@
               <small>{row.donors.length} · {row.donors.reduce((sum, entry) => sum + entry.count, 0)}×</small>
               {#if lockedRarity === row.rarity}<em>{inputs.length}/{TRADE_INPUTS}</em>{/if}
             </h4>
-            <div class="mini-grid">
+            <!-- Toque soma uma unidade (miniatura densa, como no upgrader); estoque, teto de 5 e raridade ficam no addUnit. -->
+            <div class="mini-grid inventory">
               {#each row.donors as entry (entry.id)}
                 {@const used = units(entry.id)}
-                <div class="pick fx-{cardRarity(entry.id)}" class:picked={used > 0}>
+                <div class="pick fx-{cardRarity(entry.id)}" class:picked={used > 0} class:maxed={used >= entry.count}>
                   <span class="frag-tag">{used > 0 ? `${used}/${entry.count}` : `×${entry.count}`}</span>
-                <CollectionCard player={entry.player} teamName={playerTeam(entry.player)} {language} compact quantity={entry.count}>
-                    <div class="stepper">
-                      {#if used > 0}<button class="ghost small" type="button" disabled={phase !== 'pick'} on:click={() => removeUnit(entry.id)}>−</button>{/if}
-                      <b class="step-count" class:used={used > 0}>{used > 0 ? used : '+'}</b>
-                      {#if canAddUnit(entry.id, entry.count)}<button class="ghost small" type="button" on:click={() => addUnit(entry.id)}>+</button>{/if}
-                    </div>
-                  </CollectionCard>
+                  <CollectionCard player={entry.player} teamName={playerTeam(entry.player)} {language} compact dense onOpen={() => addUnit(entry.id)} />
                 </div>
               {/each}
             </div>
           </section>
         {/each}
-      </div>
+      {:else}
+        <p class="note">{t('contractsFragmentEmpty')}</p>
+      {/if}
+    </div>
 
-      <div class="column stage-col">
-        {#if phase !== 'pick' && outcome && resultPlayer}
-          <div class="reveal fx-{resultRarity}">
-            {#if !reducedMotion && phase !== 'shuffle'}
-              <div class="rays" aria-hidden="true"></div>
-            {/if}
-            <div class="flip-scene" class:shuffling={phase === 'shuffle'}>
-              <div class="flip-card" class:flipped={phase === 'flip' || phase === 'done'}>
-                <div class="face front" aria-hidden="true"><span class="chip">CS</span></div>
-                <div class="face back"><CollectionCard player={resultPlayer} teamName={playerTeam(resultPlayer)} {language} /></div>
-              </div>
+    <div class="column stage-col" bind:this={stageEl}>
+      {#if phase !== 'pick' && outcome && resultPlayer}
+        <div class="reveal fx-{resultRarity}">
+          {#if !reducedMotion && phase !== 'shuffle'}
+            <div class="rays" aria-hidden="true"></div>
+          {/if}
+          <div class="flip-scene" class:shuffling={phase === 'shuffle'}>
+            <div class="flip-card" class:flipped={phase === 'flip' || phase === 'done'}>
+              <div class="face front" aria-hidden="true"><span class="chip">CS</span></div>
+              <div class="face back"><CollectionCard player={resultPlayer} teamName={playerTeam(resultPlayer)} {language} /></div>
             </div>
-            <p class="reveal-line">
-              {#if phase !== 'shuffle'}
-                <b class="win">{t(STEP_KEY[outcome.step])}</b>
-                · {t(SCOPE_KEY[outcome.scope])}
-                {#if outcome.duplicate} · <span class="dupe">{t('contractsDuplicate')}</span>{/if}
-              {/if}
-            </p>
           </div>
-        {/if}
+          <p class="reveal-line">
+            {#if phase !== 'shuffle'}
+              <b class="win">{t(STEP_KEY[outcome.step])}</b>
+              · {t(SCOPE_KEY[outcome.scope])}
+              {#if outcome.duplicate} · <span class="dupe">{t('contractsDuplicate')}</span>{/if}
+            {/if}
+          </p>
+        </div>
+      {/if}
 
-        {#if ladder}
+      {#if ladder}
+        <div class="stage-head">
           <p class="mini-title">{t('tradeupLadder')}</p>
-          <div class="ladder" role="table" aria-label={t('tradeupLadder')}>
-            {#each [...ladder.steps].sort((a, b) => b.mass - a.mass) as row (row.step)}
-              <div class="rung" class:up={row.step === 'up'}>
-                <span class="tier">{row.tier.toUpperCase()} · {t(STEP_KEY[row.step])}</span>
-                <span class="bar" aria-hidden="true"><i style="width: {Math.max(3, row.mass * 100)}%"></i></span>
-                <b class="mass">{pct(row.mass)}</b>
-              </div>
-            {/each}
-          </div>
+          <button class="info-btn" type="button" aria-expanded={stageDetails} title={t('tradeupSources')} on:click={() => stageDetails = !stageDetails}>?</button>
+        </div>
+        <!-- Celular: os quatro degraus em chips de uma linha; a escada com barras fica no desktop. -->
+        <div class="ladder-chips">
+          {#each [...ladder.steps].sort((a, b) => b.mass - a.mass) as row (row.step)}
+            <span class="lchip" class:up={row.step === 'up'}>{pct(row.mass)} · {t(STEP_KEY[row.step])}</span>
+          {/each}
+        </div>
+        <div class="ladder" role="table" aria-label={t('tradeupLadder')}>
+          {#each [...ladder.steps].sort((a, b) => b.mass - a.mass) as row (row.step)}
+            <div class="rung" class:up={row.step === 'up'}>
+              <span class="tier">{row.tier.toUpperCase()} · {t(STEP_KEY[row.step])}</span>
+              <span class="bar" aria-hidden="true"><i style="width: {Math.max(3, row.mass * 100)}%"></i></span>
+              <b class="mass">{pct(row.mass)}</b>
+            </div>
+          {/each}
+        </div>
+        <div class="stage-extra" class:open={stageDetails}>
           <p class="mini-title">{t('tradeupSources')}</p>
           <div class="sources" role="list">
             {#each orgWeights as group (group.org)}
@@ -314,81 +311,84 @@
               <span class="pool-counts">{#each candidateIds as id, index (id)}{#if index}·{/if}<b class="fx-{cardRarity(id)}">{collectionPlayerById.get(id)?.nickname ?? id} {collectionPlayerById.get(id)?.year ?? ''}</b>{/each}</span>
             </div>
           {/if}
-          <button type="button" class="primary go" disabled={busy || !canTrade} on:click={goTrade}>{busy || phase !== 'pick' ? t('contractsRolling') : t('tradeupGo')}</button>
+        </div>
+      {:else}
+        <p class="note">{t('tradeupPick')} — {inputs.length}/{TRADE_INPUTS}{#if inputs.length} · {t('tradeupSameRarity')}{/if}</p>
+      {/if}
+      <!-- Desktop: o botão mora aqui. No celular ele é escondido — a barra fixa de baixo assume. -->
+      <button type="button" class="primary go stage-go" disabled={busy || !canTrade} on:click={goTrade}>{busy || phase !== 'pick' ? t('contractsRolling') : t('tradeupGo')}</button>
+    </div>
+  </div>
+
+  <!-- Justiça: recolhida por padrão (era um painel de hashes antes do primeiro trade-up); abre sozinha depois do roll. -->
+  <details class="fair-acc" bind:open={fairOpen}>
+    <summary>{t('fairTitle')}<small>SHA-256</small></summary>
+    <div class="fair-body">
+      <p class="note">{t('fairIntro')}</p>
+      <dl class="fair-grid">
+        <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{contracts?.fair.serverSeedHash ?? '…'}</code></dd></div>
+        <div class="wide">
+          <dt><label for="contract-client-seed">{t('fairClientSeed')}</label></dt>
+          <dd class="seed-row">
+            <input id="contract-client-seed" type="text" bind:value={clientSeed} maxlength={FAIR_CLIENT_SEED_MAX} spellcheck="false" autocomplete="off" disabled={busy} aria-invalid={!seedOk} />
+            <button type="button" class="ghost small" disabled={busy} on:click={() => clientSeed = randomClientSeed()}>{t('fairNewClientSeed')}</button>
+          </dd>
+          <small class:bad={!seedOk}>{seedOk ? t('fairClientSeedHint') : t('fairBadSeed')}</small>
+        </div>
+        <div><dt>{t('fairNonce')}</dt><dd><code>{contracts?.fair.nonce ?? '…'}</code></dd></div>
+      </dl>
+      <div class="fair-reveal">
+        {#if revealed}
+          <dl class="fair-grid">
+            <div class="wide"><dt>{t('fairServerSeed')}</dt><dd><code>{revealed.serverSeed}</code></dd></div>
+            <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{committedHash}</code></dd></div>
+            <div><dt>{t('fairClientSeed')}</dt><dd><code>{revealed.clientSeed}</code></dd></div>
+            <div><dt>{t('fairNonce')}</dt><dd><code>{revealed.nonce}</code></dd></div>
+            <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll.toFixed(6)}</code></dd></div>
+            <div><dt>{t('fairResult')}</dt><dd class:win={outcome?.step !== 'down'} class:loss={outcome?.step === 'down'}>
+              {#if outcome}{outcome.resultTier} · {t(STEP_KEY[outcome.step])} · {t(SCOPE_KEY[outcome.scope])}{/if}
+            </dd></div>
+          </dl>
+          <div class="verify-row">
+            <button type="button" class="secondary small" disabled={verifyState === 'busy'} on:click={verify}>{verifyState === 'busy' ? t('fairVerifying') : t('fairVerify')}</button>
+            {#if verifyState === 'ok'}<span class="check ok" role="status">✓ {t('fairVerified')}</span>{/if}
+            {#if verifyState === 'bad'}<span class="check bad" role="status">✗ {t('fairMismatch')}</span>{/if}
+          </div>
         {:else}
-          <p class="note">{t('tradeupPick')} — {inputs.length}/{TRADE_INPUTS}{#if inputs.length} · {t('tradeupSameRarity')}{/if}</p>
-          <button type="button" class="primary go" disabled>{t('tradeupGo')}</button>
+          <p class="note">{t('fairAfterSpin')}</p>
         {/if}
       </div>
     </div>
+  </details>
 
-  <section class="fair" aria-labelledby="fair-title">
-    <div class="fair-head">
-      <h3 id="fair-title">{t('fairTitle')}</h3>
-      <p>{t('fairIntro')}</p>
+  <!-- Barra fixa do celular: placar da entrega + botão sempre à mão, sem depender do fim do scroll. -->
+  <div class="trade-bar">
+    <div class="trade-bar-score">
+      <b>{inputs.length}/{TRADE_INPUTS}</b>
+      {#if lockedRarity}<span class="fx-{lockedRarity}">{lockedRarity.toUpperCase()}</span>{/if}
     </div>
-    <dl class="fair-grid">
-      <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{contracts?.fair.serverSeedHash ?? '…'}</code></dd></div>
-      <div class="wide">
-        <dt><label for="contract-client-seed">{t('fairClientSeed')}</label></dt>
-        <dd class="seed-row">
-          <input id="contract-client-seed" type="text" bind:value={clientSeed} maxlength={FAIR_CLIENT_SEED_MAX} spellcheck="false" autocomplete="off" disabled={busy} aria-invalid={!seedOk} />
-          <button type="button" class="ghost small" disabled={busy} on:click={() => clientSeed = randomClientSeed()}>{t('fairNewClientSeed')}</button>
-        </dd>
-        <small class:bad={!seedOk}>{seedOk ? t('fairClientSeedHint') : t('fairBadSeed')}</small>
-      </div>
-      <div><dt>{t('fairNonce')}</dt><dd><code>{contracts?.fair.nonce ?? '…'}</code></dd></div>
-    </dl>
-    <div class="fair-reveal">
-      {#if revealed}
-        <dl class="fair-grid">
-          <div class="wide"><dt>{t('fairServerSeed')}</dt><dd><code>{revealed.serverSeed}</code></dd></div>
-          <div class="wide"><dt>{t('fairServerHash')}</dt><dd><code>{committedHash}</code></dd></div>
-          <div><dt>{t('fairClientSeed')}</dt><dd><code>{revealed.clientSeed}</code></dd></div>
-          <div><dt>{t('fairNonce')}</dt><dd><code>{revealed.nonce}</code></dd></div>
-          <div><dt>{t('fairRoll')}</dt><dd><code>{revealed.roll.toFixed(6)}</code></dd></div>
-          <div><dt>{t('fairResult')}</dt><dd class:win={outcome?.step !== 'down'} class:loss={outcome?.step === 'down'}>
-            {#if outcome}{outcome.resultTier} · {t(STEP_KEY[outcome.step])} · {t(SCOPE_KEY[outcome.scope])}{/if}
-          </dd></div>
-        </dl>
-        <div class="verify-row">
-          <button type="button" class="secondary small" disabled={verifyState === 'busy'} on:click={verify}>{verifyState === 'busy' ? t('fairVerifying') : t('fairVerify')}</button>
-          {#if verifyState === 'ok'}<span class="check ok" role="status">✓ {t('fairVerified')}</span>{/if}
-          {#if verifyState === 'bad'}<span class="check bad" role="status">✗ {t('fairMismatch')}</span>{/if}
-        </div>
-      {:else}
-        <p class="note">{t('fairAfterSpin')}</p>
-      {/if}
-    </div>
-  </section>
+    <button type="button" class="primary go" disabled={busy || !canTrade} on:click={goTrade}>{busy || phase !== 'pick' ? t('contractsRolling') : t('tradeupGo')}</button>
+  </div>
 </section>
 
 <style>
   .contracts { display: grid; gap: 16px; }
   .contracts-error { margin: 0; padding: 10px 12px; border: 1px solid var(--danger); color: #ff9b90; font-size: .78rem; }
-  .panel { border: 1px solid var(--line); background: var(--surface-2); }
-  .cards-panel { display: grid; gap: 10px; padding: 14px 16px; }
   .col-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; justify-content: space-between; }
   .label { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .count { color: var(--accent); font: 900 1.15rem/1 'Arial Narrow', Impact, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .count small { color: var(--muted); font: 700 .6rem Inter, Arial, sans-serif; }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
-  .note.warn { color: #ffd36b; }
-  .copy-strip { display: flex; flex-wrap: wrap; gap: 6px; max-height: 132px; overflow-y: auto; }
-  .copy-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line); background: var(--surface); font-size: .72rem; }
-  .copy-chip b { font-weight: 800; }
-  .copy-chip small { color: var(--muted); font-variant-numeric: tabular-nums; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fx, var(--muted)); }
-
 
   .board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 18px; align-items: start; }
   .column { display: grid; gap: 12px; align-content: start; min-width: 0; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
   .stage-col { position: sticky; top: 150px; background: var(--surface); }
-  .empty { display: grid; place-items: center; min-height: 120px; padding: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: .76rem; text-align: center; }
+  .empty { display: grid; place-items: center; min-height: 90px; padding: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: .76rem; text-align: center; }
   .subhead { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .7rem; letter-spacing: .14em; } .subhead small { color: var(--accent); }
   .mini-title { margin: 8px 0 0; color: var(--muted); font-size: .66rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-  .mini-grid.scroll { max-height: 620px; overflow-y: auto; padding: 4px 4px 4px 0; }
+  .inventory { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
   .frag-group { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); transition: opacity .2s ease; }
   .frag-group.dim { opacity: .35; }
   .frag-group:first-of-type { border-top: 0; padding-top: 0; }
@@ -396,14 +396,13 @@
   .frag-head small { color: var(--muted); font-weight: 700; letter-spacing: .06em; }
   .frag-head em { margin-left: auto; color: var(--accent); font: 900 .68rem 'Arial Narrow', Impact, sans-serif; font-style: normal; font-variant-numeric: tabular-nums; }
   .frag-head .dot { align-self: center; width: 9px; height: 9px; border-radius: 50%; background: var(--fx); box-shadow: 0 0 8px color-mix(in srgb, var(--fx) 60%, transparent); }
-  .stepper { display: flex; align-items: stretch; gap: 4px; width: 100%; }
-  .stepper:empty { display: none; }
-  .stepper :global(.small) { flex: 0 0 auto; min-width: 38px; }
-  .step-count { flex: 1; display: grid; place-items: center; min-height: 36px; border: 1px dashed var(--line); color: var(--muted); font: 800 .72rem 'Arial Narrow', Impact, sans-serif; }
-  .step-count.used { border-style: solid; border-color: var(--fx, var(--accent)); color: var(--fx, var(--accent)); }
   .pick { position: relative; min-width: 0; outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .18s ease; }
   .pick.picked { outline-color: var(--fx, var(--accent)); }
-  .pick :global(.small) { width: 100%; min-height: 36px; padding: 0 8px; border-radius: 0; font-size: .6rem; }
+  /* Estoque todo comprometido com a entrega: a miniatura apaga para não convidar a um toque inútil. */
+  .pick.maxed :global(.card) { opacity: .55; }
+  /* Entrega: miniatura densa com um ✕ sobreposto — nome inteiro não caberia num card compacto de 5 colunas. */
+  .unpick { position: absolute; top: 3px; right: 3px; z-index: 3; display: grid; place-items: center; width: 24px; height: 24px; min-height: 0; padding: 0; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); color: var(--text); font-size: .66rem; font-weight: 900; line-height: 1; cursor: pointer; }
+  .unpick:hover { border-color: var(--danger); color: var(--danger); }
   .frag-tag { position: absolute; top: 6px; right: 6px; z-index: 2; padding: 3px 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .62rem; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
   .pick.shuffling { animation: shuffle-card .42s calc(var(--i) * .06s) ease-in-out infinite alternate; }
   @keyframes shuffle-card {
@@ -434,14 +433,17 @@
   .reveal-line { position: relative; z-index: 2; margin: 0; min-height: 1.2em; font-size: .8rem; color: var(--muted); text-align: center; }
   .reveal-line .win { color: var(--fx); text-transform: uppercase; letter-spacing: .06em; }
   .reveal-line .dupe { color: var(--muted); }
-  /* Risco: sacrifício à esquerda, alvo virando à direita. Perdeu: o sacrifício sobe e some; ganhou: fica apagado (foi gasto). */
-  .pick.offering { transition: outline-color .18s ease, opacity 300ms var(--ease-out-strong), transform 300ms var(--ease-out-strong), filter 300ms var(--ease-out-strong); }
-  .pick.gone { opacity: 0; transform: translateY(-100%); }
-  .pick.spent { opacity: .45; filter: grayscale(.7); }
-  .reveal.lost .flip-card.flipped :global(.card) { border-color: var(--line); box-shadow: none; filter: grayscale(.8) brightness(.7); }
   .rays { position: absolute; left: 50%; top: 42%; z-index: 0; width: 170%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--fx) 30%, transparent) 0 7deg, transparent 7deg 20deg); mask-image: radial-gradient(closest-side, #000 25%, transparent 72%); animation: rays-spin 14s linear infinite; pointer-events: none; }
   @keyframes rays-spin { to { rotate: 360deg; } }
 
+  .stage-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  .stage-head .mini-title { margin: 0; }
+  .stage-head .info-btn { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: .7rem; font-weight: 800; cursor: pointer; }
+  .stage-head .info-btn[aria-expanded='true'] { color: var(--accent); border-color: var(--accent); }
+  /* Celular: degraus em chips compactos; desktop: escada com barras. Um dos dois sempre escondido. */
+  .ladder-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ladder-chips .lchip { padding: 4px 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: .66rem; font-weight: 800; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  .ladder-chips .lchip.up { border-color: var(--accent); color: var(--accent); }
   .ladder, .sources { display: grid; gap: 6px; }
   .rung, .source-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(60px, 110px) 62px; gap: 8px; align-items: center; }
   .rung .tier, .source-row b:first-child { color: var(--muted); font-size: .64rem; font-weight: 800; letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -451,6 +453,8 @@
   .rung.up .bar i { background: var(--accent); }
   .source-row .bar i { background: #ffd36b; }
   .rung .mass, .source-row .mass { text-align: right; font-size: .72rem; font-variant-numeric: tabular-nums; }
+  .stage-extra { display: none; }
+  .stage-extra.open { display: grid; gap: 8px; }
   .pool-line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding-top: 8px; border-top: 1px solid var(--line); }
   .pool-counts { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .72rem; }
   .pool-counts b { font-weight: 800; }
@@ -458,17 +462,20 @@
   .go:disabled { opacity: .45; cursor: not-allowed; }
   .go.danger { border-color: var(--danger); }
 
-  .fair { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); background: var(--surface-2); }
-  .fair-head h3 { margin: 0; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
-  .fair-head p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+  /* Justiça provably-fair: um <details> fechado — só abre (sozinho, pós-roll) quem quer auditar. */
+  .fair-acc { border: 1px solid var(--line); background: var(--surface-2); }
+  .fair-acc summary { display: flex; align-items: center; gap: 8px; padding: 12px 16px; cursor: pointer; color: var(--accent); font-size: .74rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; list-style-position: inside; }
+  .fair-acc summary small { color: var(--muted); font-size: .58rem; letter-spacing: .1em; }
+  .fair-acc[open] summary { border-bottom: 1px solid var(--line); }
+  .fair-body { display: grid; gap: 14px; padding: 14px 16px 16px; }
   .fair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin: 0; }
   .fair-grid > div { display: grid; gap: 4px; min-width: 0; }
   .fair-grid .wide { grid-column: 1 / -1; }
   .fair-grid dt { color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .fair-grid dd { margin: 0; font-size: .78rem; overflow-wrap: anywhere; }
   .fair-grid dd.win { color: var(--accent); font-weight: 800; } .fair-grid dd.loss { color: #ffd36b; font-weight: 800; }
-  .fair code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: .74rem; overflow-wrap: anywhere; }
-  .fair small { color: var(--muted); font-size: .66rem; } .fair small.bad { color: #ff9b90; }
+  .fair-acc code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: .74rem; overflow-wrap: anywhere; }
+  .fair-acc small { color: var(--muted); font-size: .66rem; } .fair-acc small.bad { color: #ff9b90; }
   .seed-row { display: flex; gap: 8px; }
   .seed-row input { flex: 1; min-width: 0; min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--text); font: .78rem ui-monospace, Menlo, monospace; }
   .seed-row input[aria-invalid='true'] { border-color: var(--danger); }
@@ -479,14 +486,34 @@
 
   .fx-rare { --fx: #4da3ff; } .fx-elite { --fx: #a66bff; } .fx-superstar { --fx: #ff8a3d; } .fx-legend { --fx: #ffc94d; } .fx-goat { --fx: #ff5ad8; }
 
+  /* Barra fixa do celular, no molde da save-bar da aba Time. */
+  .trade-bar { display: none; }
+
   @media (max-width: 980px) {
     .board { grid-template-columns: 1fr; }
     .stage-col { position: static; }
-    .mini-grid.scroll { max-height: 440px; }
+    .ladder { display: none; }
+    .stage-go { display: none; }
+    .contracts { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+    .trade-bar { position: fixed; left: 0; right: 0; bottom: calc(65px + env(safe-area-inset-bottom)); z-index: 20; display: flex; align-items: center; gap: 12px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--accent); background: var(--surface); box-shadow: 0 -10px 30px rgb(0 0 0 / .35); }
+    .trade-bar-score { display: grid; gap: 2px; flex: none; }
+    .trade-bar-score b { color: var(--accent); font: 900 1.25rem/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
+    .trade-bar-score span { color: var(--fx, var(--muted)); font-size: .56rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .trade-bar .go { flex: 1; min-height: 50px; margin: 0; }
+  }
+  @media (min-width: 981px) {
+    .ladder-chips { display: none; }
+    .stage-extra { display: grid; gap: 8px; }
+  }
+  @media (max-width: 720px) {
+    .column { padding: 12px; }
+    /* Miniaturas densas: entrega mostra os 5 lugares; inventário 4 por linha, como na coleção. */
+    .staked { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+    .inventory { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .frag-tag { top: 4px; right: 4px; padding: 2px 4px; font-size: .56rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .flip-card, .pick.offering { transition: none; }
-    .pick.gone { transform: none; }
+    .flip-card { transition: none; }
     .pick.shuffling, .flip-scene.shuffling .flip-card { animation: none; }
     .rays { display: none; }
   }
