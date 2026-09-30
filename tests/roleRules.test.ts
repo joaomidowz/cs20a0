@@ -44,6 +44,17 @@ describe('lineup role rules', () => {
     expect(getEligibleSlotRoles(byBaseId('naf'))).toEqual(['lurker', 'rifler', 'support']);
   });
 
+  it('keeps every approved Perfecto, FL1T, Ax1Le, HObbit and SANJI card as rifler-lurker', () => {
+    const riflerLurkerIds = new Set(['perfecto', 'fl1t', 'ax1le', 'hobbit', 'sanji']);
+    const riflerLurkerCards = players.filter((player) => riflerLurkerIds.has(getPlayerBaseId(player)));
+    expect(riflerLurkerCards).toHaveLength(23);
+    for (const player of riflerLurkerCards) {
+      expect(player.role, player.id).toBe('rifler');
+      expect(player.eligibleSlotRoles, player.id).toEqual(['rifler', 'lurker']);
+      expect(getEligibleSlotRoles(player), player.id).toEqual(['rifler', 'lurker']);
+    }
+  });
+
   it('applies the 2014 card-specific roles without changing other seasons', () => {
     expect(getEligibleSlotRoles(expansionById('flusha-2014'))).toEqual(['support', 'rifler']);
     expect(getEligibleSlotRoles(expansionById('f0rest-2014'))).toEqual(['rifler', 'awper', 'entry']);
@@ -77,7 +88,7 @@ describe('lineup role rules', () => {
       ['gla1ve', 'igl'],
       ['donk', 'entry'],
       ['ropz', 'lurker'],
-      ['perfecto', 'support']
+      ['interz', 'support']
     ];
     const selected: SelectedPlayer[] = [];
     for (const [baseId, role] of choices) {

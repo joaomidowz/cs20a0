@@ -58,7 +58,6 @@ const KNOWN_ROLE_FALLBACKS: Record<string, LineupSlotRole[]> = {
   naf: ['lurker', 'rifler'],
   xyp9x: ['lurker', 'support'],
   zont1x: ['lurker', 'rifler'],
-  perfecto: ['support'],
   interz: ['support'],
   sjuush: ['support'],
   jks: ['support', 'rifler'],
@@ -84,7 +83,12 @@ const AUTHORITATIVE_ROLE_OVERRIDES: Record<string, LineupSlotRole[]> = {
   jw: ['awper', 'entry'],
   flusha: ['lurker'],
   f0rest: ['rifler', 'awper'],
-  getright: ['lurker']
+  getright: ['lurker'],
+  perfecto: ['rifler', 'lurker'],
+  fl1t: ['rifler', 'lurker'],
+  ax1le: ['rifler', 'lurker'],
+  hobbit: ['rifler', 'lurker'],
+  sanji: ['rifler', 'lurker']
 };
 
 const AUTHORITATIVE_CARD_ROLE_OVERRIDES: Record<string, LineupSlotRole[]> = {

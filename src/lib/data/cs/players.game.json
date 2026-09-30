@@ -7489,11 +7489,10 @@
     "teamId": "gambit-2017",
     "year": 2017,
     "game": "CSGO",
-    "role": "entry",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "entry",
       "rifler",
-      "support"
+      "lurker"
     ],
     "rarity": "legend",
     "traits": [],
@@ -12757,10 +12756,10 @@
     "teamId": "gambit-2018",
     "year": 2018,
     "game": "CSGO",
-    "role": "entry",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -17135,10 +17134,10 @@
     "teamId": "avangar-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -19369,7 +19368,7 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -20147,8 +20146,7 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "lurker",
-      "support"
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -23140,10 +23138,10 @@
     "teamId": "syman-2019",
     "year": 2019,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "superstar",
     "traits": [],
@@ -24838,7 +24836,7 @@
     "teamId": "natus-vincere-2020",
     "year": 2020,
     "game": "CSGO",
-    "role": "rifle-support",
+    "role": "rifler",
     "overall": 83,
     "rarity": "elite",
     "traits": [],
@@ -24865,8 +24863,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "roleConfidence": "medium",
     "hltvTeamRankingBoost": {
@@ -27915,7 +27913,7 @@
     ],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "lurker"
     ],
     "roleConfidence": "high",
     "hltvTop20": {
@@ -29823,7 +29821,7 @@
     "teamId": "natus-vincere-2021",
     "year": 2021,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "overall": 85,
     "rarity": "superstar",
     "traits": [],
@@ -29855,8 +29853,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "roleConfidence": "high",
     "needsReview": false,
@@ -31616,7 +31614,7 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -33668,7 +33666,7 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "lurker"
     ],
     "rarity": "legend",
     "traits": [],
@@ -39567,10 +39565,10 @@
     "teamId": "natus-vincere-2022",
     "year": 2022,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -40280,7 +40278,7 @@
     ],
     "eligibleSlotRoles": [
       "rifler",
-      "entry"
+      "lurker"
     ],
     "roleConfidence": "high",
     "needsReview": false,
@@ -46824,7 +46822,7 @@
     "teamId": "natus-vincere-2023",
     "year": 2023,
     "game": "CSGO",
-    "role": "support",
+    "role": "rifler",
     "overall": 83,
     "rarity": "elite",
     "traits": [],
@@ -46856,8 +46854,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "support",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "roleConfidence": "high",
     "needsReview": false,
@@ -48237,7 +48235,8 @@
     ],
     "awardBadges": [],
     "eligibleSlotRoles": [
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "roleConfidence": "low",
     "hltvTeamRankingBoost": {
@@ -49971,8 +49970,7 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "lurker",
-      "support"
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -50211,10 +50209,10 @@
     "teamId": "cloud9-2024",
     "year": 2024,
     "game": "CS2",
-    "role": "support",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "awper",
-      "support"
+      "rifler",
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -58179,10 +58177,10 @@
     "teamId": "virtus-pro-2024",
     "year": 2024,
     "game": "CS2",
-    "role": "entry",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
@@ -68845,10 +68843,10 @@
     "teamId": "virtus-pro-2025",
     "year": 2025,
     "game": "CS2",
-    "role": "entry",
+    "role": "rifler",
     "eligibleSlotRoles": [
-      "entry",
-      "rifler"
+      "rifler",
+      "lurker"
     ],
     "rarity": "elite",
     "traits": [],
