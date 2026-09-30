@@ -755,20 +755,21 @@
     "role": "rifler",
     "eligibleSlotRoles": [
       "rifler",
-      "awper"
+      "awper",
+      "entry"
     ],
     "rarity": "goat",
     "traits": [],
     "overall": 99,
-    "firepower": 90,
-    "clutch": 85,
-    "entry": 80,
-    "awp": 20,
-    "support": 82,
+    "firepower": 99,
+    "clutch": 90,
+    "entry": 99,
+    "awp": 89,
+    "support": 85,
     "igl": 30,
-    "experience": 84,
-    "consistency": 89,
-    "mental": 87,
+    "experience": 99,
+    "consistency": 99,
+    "mental": 99,
     "badges": [
       "major-participant",
       "hltv-top20"

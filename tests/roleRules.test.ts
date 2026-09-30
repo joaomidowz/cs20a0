@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import playersJson from '../src/lib/data/cs/players.game.json';
+import expansionPlayersJson from '../src/lib/data/cs/players.expansion.game.json';
 import { getEligibleSlotRoles, getPlayerBaseId, getSelectedRoleLabel, getSelectedRoles, validatePlayerPick } from '../src/lib/game/roleRules';
 import type { Player, SelectedPlayer } from '../src/lib/game/types';
 
 const players = playersJson as Player[];
+const expansionPlayers = expansionPlayersJson as Player[];
 const byBaseId = (baseId: string, year?: number) =>
   players.find((player) => getPlayerBaseId(player) === baseId && (!year || player.year === year))!;
 const lookup = (id: string) => players.find((player) => player.id === id);
+const expansionById = (id: string) => expansionPlayers.find((player) => player.id === id)!;
 
 describe('lineup role rules', () => {
   it('normalizes player identity across eras', () => {
@@ -39,6 +42,13 @@ describe('lineup role rules', () => {
   it('applies known hybrid role fallbacks', () => {
     expect(getEligibleSlotRoles(byBaseId('s1mple'))).toEqual(['awper', 'rifler']);
     expect(getEligibleSlotRoles(byBaseId('naf'))).toEqual(['lurker', 'rifler', 'support']);
+  });
+
+  it('applies the 2014 card-specific roles without changing other seasons', () => {
+    expect(getEligibleSlotRoles(expansionById('flusha-2014'))).toEqual(['support', 'rifler']);
+    expect(getEligibleSlotRoles(expansionById('f0rest-2014'))).toEqual(['rifler', 'awper', 'entry']);
+    expect(getEligibleSlotRoles(byBaseId('flusha', 2016))).toEqual(['lurker']);
+    expect(getEligibleSlotRoles(byBaseId('f0rest', 2016))).toEqual(['rifler', 'awper']);
   });
 
   it('exposes generated rifle-support and lurker-support options', () => {

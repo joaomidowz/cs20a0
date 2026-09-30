@@ -87,6 +87,11 @@ const AUTHORITATIVE_ROLE_OVERRIDES: Record<string, LineupSlotRole[]> = {
   getright: ['lurker']
 };
 
+const AUTHORITATIVE_CARD_ROLE_OVERRIDES: Record<string, LineupSlotRole[]> = {
+  'flusha-2014': ['support', 'rifler'],
+  'f0rest-2014': ['rifler', 'awper', 'entry']
+};
+
 const normalize = (value: string | null | undefined) =>
   (value ?? '')
     .normalize('NFD')
@@ -106,6 +111,9 @@ export function getEligibleSlotRoles(player: Player): LineupSlotRole[] {
   if (player.id.startsWith('secret-') && player.eligibleSlotRoles?.length) {
     return player.eligibleSlotRoles.filter((role): role is LineupSlotRole => SLOT_ROLES.includes(role as LineupSlotRole));
   }
+
+  const cardSpecific = AUTHORITATIVE_CARD_ROLE_OVERRIDES[player.id];
+  if (cardSpecific) return [...cardSpecific];
 
   const baseId = normalize(getPlayerBaseId(player));
   const nickname = normalize(player.nickname);
