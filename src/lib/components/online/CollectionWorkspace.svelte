@@ -242,6 +242,8 @@
   $: teamPackPrice = selectedPackOrganization?.price ?? PACK_PRICES.time;
   const teamPackRarityLabel = (rarity: 'standard' | 'elite' | 'legendary') => t(rarity === 'legendary' ? 'packTimeLegendary' : rarity === 'elite' ? 'packTimeElite' : 'packTimeStandard');
   $: oddsLabels = { heading: t('oddsTitle'), first: t('slotFirst'), others: t('slotOthers'), all: t('oddsAll'), coach: t('oddsCoach'), note: t('oddsNote'), close: t('close') };
+  // Escada de colocações da Caixa do Major: virou dica do ⓘ — o card em si só aparece quando há caixa selada.
+  $: majorLadderHint = `${gameT('placementChampion')} → ${t('packGlobal')} · ${gameT('placementRunnerUp')} → ${t('packSupremo')} · ${gameT('placement3to4')} → ${t('packOuro')} · ${gameT('placement5to8')} → ${t('packPrata')} · ${gameT('placementStage3')} → ${t('packBasic')}`;
   const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   /** Each line in rating points, measured by taking it away: a percentage says little under the court curve. */
   $: impact = baseTeam && complete ? synergyImpact(baseTeam, { players: lineupPlayers, roles: lineupRoles, starPlayerId, style, coachId }) : {};
@@ -309,9 +311,13 @@
 
   /** Qual caixa da loja está abrindo (treme e levanta a tampa): a clicada, até o reveal terminar. O PackReveal então pula a caixa dele. */
   let openingCase: string | null = null;
+  /** Descrição longa do boost: vive no "?" do card, não na cara dele. */
+  let boostInfo = false;
   async function runReveal(open: () => Promise<PackOpened>, tier: PackTier, free = false, source: string = tier) {
     if (busy) return;
-    if (tier !== 'basic' && !free && !await confirmDialog({ title: u('confirmBuy'), body: t(PACK_LABEL[tier]) + ' · ' + PACK_PRICES[tier].toLocaleString($language) + ' coins', confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
+    // A Caixa Time cobra pela organização escolhida (15k/30k/50k): o diálogo tem que mostrar o MESMO preço que o servidor debita.
+    const confirmPrice = tier === 'time' ? teamPackPrice : PACK_PRICES[tier];
+    if (tier !== 'basic' && !free && !await confirmDialog({ title: u('confirmBuy'), body: t(PACK_LABEL[tier]) + ' · ' + confirmPrice.toLocaleString($language) + ' coins', confirmLabel: t('buy'), cancelLabel: t('cancel') })) return;
     error = ''; busy = true;
     openingCase = source;
     try {
@@ -515,6 +521,23 @@
     {:else if state}
 
       {#if section === 'store'}<StoreNav language={$language} />
+      <!-- Caixa do Major: prêmio da run em andamento — o topo da Store é DELE, antes até do BuyCoins. Só existe
+           quando há caixa selada (sem major em casa, a seção inteira some). A escada de colocações virou dica do ⓘ. -->
+      {#if (state.majorPacks ?? 0) > 0}
+        <article class="pack premium major-pack {majorPackTier ?? ''}" class:sealed={!majorPackTier}>
+          <PackOdds tier={majorPackTier ?? 'global'} title={t(majorPackTier ? PACK_LABEL[majorPackTier] : 'packGlobal')} labels={oddsLabels} hint={majorLadderHint} />
+          <div class="major-case">
+            <PackCase tier={majorPackTier ?? 'basic'} size="lg" label={majorPackTier ? t(PACK_LABEL[majorPackTier]) : 'MAJOR'} opening={openingCase === 'major'} />
+            {#if majorPackTier}
+              <button class="primary" type="button" disabled={busy} on:click={openMajorCrate}>{t('openPack')}</button>
+            {/if}
+          </div>
+          <div class="premium-info">
+            <strong>{t('majorPack')}</strong>
+            <small>{majorPackTier ? `${t(PACK_LABEL[majorPackTier])} · ${t('majorPackReady')}` : t('majorPackEmpty')}</small>
+          </div>
+        </article>
+      {/if}
       <BuyCoins {serverUrl} language={$language} />{:else}
       <div class="team-links"><button class="primary" type="button" disabled={!complete || busy} on:click={saveAndPlay}>{dirty ? u('savePlay') : t('playOnline')}</button><button class="secondary" type="button" on:click={() => scrollTo(cardsSection)}>{t('myCards')}</button></div>{/if}
       <div class="columns">
@@ -554,11 +577,10 @@
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.funcao} on:click={() => runReveal(() => buyPack(serverUrl, 'funcao', undefined, functionPackRole), 'funcao')}>{t('buy')}</button>
             </article>
             <article class="pack coach">
-              <PackOdds tier="coach" title={t('packCoach')} labels={oddsLabels} />
+              <PackOdds tier="coach" title={t('packCoach')} labels={oddsLabels} hint={t('packCoachHint')} />
               <PackCase tier="coach" label={t('packCoach')} opening={openingCase === 'coach'} />
               <strong>{t('packCoach')}</strong>
               <span class="price"><i></i>{PACK_PRICES.coach.toLocaleString($language)}</span>
-              <small>{t('packCoachHint')}</small>
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.coach} on:click={() => runReveal(() => buyPack(serverUrl, 'coach'), 'coach')}>{t('buy')}</button>
             </article>
             <article class="pack time team-{selectedPackOrganization?.rarity ?? 'standard'}">
@@ -578,7 +600,8 @@
               <button class="secondary" type="button" disabled={busy || state.wallet < PACK_PRICES.era} on:click={() => runReveal(() => buyPack(serverUrl, 'era', eraYear), 'era')}>{t('buy')}</button>
             </article>
           </div>
-          <!-- Consumíveis: itens de uso, não caixas — o boost mora aqui, fora do grid de packs. -->
+          <!-- Consumíveis: itens de uso, não caixas — o boost mora aqui, fora do grid de packs, compacto (~110px no
+               celular, uma linha no desktop): preço/estoque na meta, botões embaixo no celular. A descrição longa fica no "?" . -->
           <h3 class="subhead consumables-head">{t('consumables').toUpperCase()}</h3>
           <article class="consumable boost-item">
             <div class="boost-glyph" aria-hidden="true">
@@ -587,61 +610,33 @@
             </div>
             <div class="boost-info">
               <strong>{t('boostTitle')}</strong>
-              <small>{t('boostHint')}</small>
               <span class="boost-meta">
-                {t('boostStock').replace('{n}', String($boostStore?.stock ?? 0))}
-                {#if $boostStore}<em>· {$boostStore.runsToday}/{$boostStore.dailyCap} hoje</em>{/if}
+                <i class="coin" aria-hidden="true"></i><b>{BOOST_ITEM_PRICE.toLocaleString($language)}</b>
+                <em>· {t('boostStock').replace('{n}', String($boostStore?.stock ?? 0))}{#if $boostStore} · {$boostStore.runsToday}/{$boostStore.dailyCap} hoje{/if}</em>
               </span>
             </div>
             <div class="boost-buy">
-              <span class="price"><i></i>{BOOST_ITEM_PRICE.toLocaleString($language)}</span>
-              <div class="boost-buy-buttons">
-                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE} on:click={() => void buyBoost(1)}>{t('buy')} 1</button>
-                <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE * 5} on:click={() => void buyBoost(5)}>{t('buy')} 5</button>
-              </div>
-              <small class="boost-note">{t('boostNoPoints')}</small>
+              <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE} on:click={() => void buyBoost(1)}>{t('buy')} 1</button>
+              <button class="secondary" type="button" disabled={busy || state.wallet < BOOST_ITEM_PRICE * 5} on:click={() => void buyBoost(5)}>{t('buy')} 5</button>
             </div>
+            <button class="info-btn" type="button" aria-expanded={boostInfo} aria-label={t('boostTitle')} on:click={() => boostInfo = !boostInfo}>?</button>
+            {#if boostInfo}<p class="boost-hint-info">{t('boostHint')} {t('boostNoPoints')}</p>{/if}
           </article>
           <h3 class="subhead premium-head">{t('premium').toUpperCase()}</h3>
           <div class="premium-grid">
             {#each ['diamante', 'icone'] as name}
               {@const tier = name as 'diamante' | 'icone'}
               <article class="pack premium {tier}">
-                <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} />
+                <PackOdds {tier} title={t(PACK_LABEL[tier])} labels={oddsLabels} hint={t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')} />
                 <PackCase {tier} size="lg" label={t(PACK_LABEL[tier])} opening={openingCase === tier} />
                 <div class="premium-info">
                   <strong>{t(PACK_LABEL[tier])}</strong>
-                  <small>{t(tier === 'icone' ? 'packIconeHint' : 'packDiamanteHint')}</small>
                   <span class="price"><i></i>{PACK_PRICES[tier].toLocaleString($language)}</span>
                   <button class="primary" type="button" disabled={busy || state.wallet < PACK_PRICES[tier]} on:click={() => runReveal(() => buyPack(serverUrl, tier), tier)}>{t('buy')}</button>
                 </div>
               </article>
             {/each}
           </div>
-          <!-- Caixa do Major: faixa inteira da loja. O case só pega a cor da patente ganha — sem caixa
-               selada ele fica neutro, o botão fica sob o case e a escada de patentes serve de guia. -->
-          <h3 class="subhead premium-head">{t('majorPack').toUpperCase()}</h3>
-          <article class="pack premium major-pack {majorPackTier ?? ''}" class:sealed={!majorPackTier}>
-            <PackOdds tier={majorPackTier ?? 'global'} title={t(majorPackTier ? PACK_LABEL[majorPackTier] : 'packGlobal')} labels={oddsLabels} />
-            <div class="major-case">
-              <PackCase tier={majorPackTier ?? 'basic'} size="lg" label={majorPackTier ? t(PACK_LABEL[majorPackTier]) : 'MAJOR'} opening={openingCase === 'major'} />
-              {#if majorPackTier}
-                <button class="primary" type="button" disabled={busy} on:click={openMajorCrate}>{t('openPack')}</button>
-              {/if}
-            </div>
-            <div class="premium-info">
-              <strong>{t('majorPack')}</strong>
-              <small>{majorPackTier ? `${t(PACK_LABEL[majorPackTier])} · ${t('majorPackReady')}` : t('majorPackEmpty')}</small>
-              <ul class="major-legend">
-                <li class:won={majorPackTier === 'global'}><RankBadge tier="global" />{gameT('placementChampion')} · {t('packGlobal')}</li>
-                <li class:won={majorPackTier === 'supremo'}><RankBadge tier="supremo" />{gameT('placementRunnerUp')} · {t('packSupremo')}</li>
-                <li class:won={majorPackTier === 'ouro'}><RankBadge tier="ouro" />{gameT('placement3to4')} · {t('packOuro')}</li>
-                <li class:won={majorPackTier === 'prata'}><RankBadge tier="prata" />{gameT('placement5to8')} · {t('packPrata')}</li>
-                <li class:won={majorPackTier === 'basic'}><i class="none"></i>{gameT('placementStage3')} · {t('packBasic')}</li>
-              </ul>
-            </div>
-          </article>
-
           {#if reveal}
             <div bind:this={shopSection}>
               {#key reveal.key}
@@ -955,19 +950,22 @@
   .shop, .team, .cards { display: grid; gap: 16px; padding: 22px; align-content: start; }
   .shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
   .consumables-head { margin-top: 8px; color: #5dffbf; }
-  .consumable { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 18px 20px; border: 1px solid color-mix(in srgb, #5dffbf 45%, var(--line)); background: radial-gradient(ellipse at 0% 50%, color-mix(in srgb, #5dffbf 10%, var(--surface-2)), var(--surface) 65%); }
-  .boost-glyph { position: relative; display: grid; place-items: center; width: 84px; height: 84px; flex: none; border: 1px solid color-mix(in srgb, #5dffbf 55%, var(--line)); background: color-mix(in srgb, #5dffbf 10%, var(--surface)); }
-  .boost-glyph svg { width: 42px; height: 42px; fill: #5dffbf; filter: drop-shadow(0 0 10px color-mix(in srgb, #5dffbf 60%, transparent)); }
-  .boost-glyph b { position: absolute; right: 6px; bottom: 4px; color: #5dffbf; font: 900 .62rem/1 Inter, Arial, sans-serif; letter-spacing: .06em; }
-  .boost-info { display: grid; gap: 6px; flex: 1 1 260px; min-width: 0; }
-  .boost-info strong { font: 900 1.3rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
-  .boost-info small { color: var(--muted); font-size: .72rem; line-height: 1.45; }
-  .boost-meta { color: var(--accent); font-size: .72rem; font-weight: 800; } .boost-meta em { color: var(--muted); font-style: normal; }
-  .boost-buy { display: grid; justify-items: stretch; gap: 10px; margin-left: auto; }
-  .boost-buy-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .boost-buy button { min-width: 110px; min-height: 46px; }
-  .boost-note { color: #ff9b90; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: .6rem; text-align: center; }
-  @media (max-width: 720px) { .consumable { flex-direction: column; align-items: stretch; } .boost-buy { margin-left: 0; } }
+  /* Compacto (~110px no celular, uma linha no desktop): glifo 44 + título/meta(preço·estoque) + botões.
+     A descrição longa vive no "?" (.boost-hint-info); o card não cresce por causa dela. */
+  .consumable { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 44px 12px 14px; border: 1px solid color-mix(in srgb, #5dffbf 45%, var(--line)); background: radial-gradient(ellipse at 0% 50%, color-mix(in srgb, #5dffbf 10%, var(--surface-2)), var(--surface) 65%); }
+  .boost-glyph { position: relative; display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 1px solid color-mix(in srgb, #5dffbf 55%, var(--line)); background: color-mix(in srgb, #5dffbf 10%, var(--surface)); }
+  .boost-glyph svg { width: 24px; height: 24px; fill: #5dffbf; filter: drop-shadow(0 0 8px color-mix(in srgb, #5dffbf 60%, transparent)); }
+  .boost-glyph b { position: absolute; right: 3px; bottom: 1px; color: #5dffbf; font: 900 .54rem/1 Inter, Arial, sans-serif; letter-spacing: .06em; }
+  .boost-info { display: grid; gap: 3px; flex: 1 1 140px; min-width: 0; }
+  .boost-info strong { font: 900 1rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .boost-meta { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--accent); font-size: .74rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .boost-meta .coin { flex: none; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a8, #d9a441 60%, #8a5d10); }
+  .boost-meta em { overflow: hidden; color: var(--muted); font-style: normal; font-weight: 700; font-size: .68rem; text-overflow: ellipsis; }
+  .boost-buy { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .boost-buy button { min-width: 0; min-height: 40px; padding: 0 14px; font-size: .7rem; }
+  .consumable .info-btn { position: absolute; top: 10px; right: 10px; }
+  .boost-hint-info { flex-basis: 100%; margin: 0; color: var(--muted); font-size: .72rem; line-height: 1.45; }
+  @media (max-width: 720px) { .boost-buy { flex-basis: 100%; margin-left: 0; } .boost-buy button { flex: 1; min-height: 38px; } }
   .shop-grid > .pack { display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 330px; padding: 26px 20px 20px; border-top: 2px solid color-mix(in srgb, var(--tint) 65%, var(--line)); }
   .shop-grid > .pack > button { margin-top: auto; }
   .pack.funcao { --tint: #5dffbf; } .pack.coach { --tint: #ff9c52; }
@@ -992,10 +990,6 @@
   .major-case button { width: min(260px, 100%); margin: 0; }
   .major-pack.sealed { --tint: #97a1ab; }
   .major-pack.sealed :global(.case) { --case-hi: #b9c2c9; --case-a: #7e8891; --case-b: #57606a; --case-c: #3a434c; --case-glow: #cdd4da; opacity: .8; }
-  .major-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 4px 0 0; padding: 0; list-style: none; text-align: left; }
-  .major-legend li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .78rem; font-weight: 600; }
-  .major-legend li.won { color: var(--text); }
-  .major-legend i.none { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1.5px dashed currentColor; opacity: .55; }
   .notice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
   .notice-actions button { min-height: 46px; }
   .dupes { text-align: center; padding-top: 8px; }
@@ -1085,7 +1079,14 @@
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
   @media (max-width: 1100px) { .slots { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
   @media (max-width: 760px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 720px) { .premium-grid { grid-template-columns: 1fr; } .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; } .premium-info { justify-items: center; } }
+  @media (max-width: 720px) {
+    /* Premium em duas colunas também no celular: mesma compactação do shop-grid, case lg cabe (128px) com folga. */
+    .premium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .pack.premium { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 8px; padding: 16px 8px 10px; }
+    .premium-info { justify-items: center; gap: 8px; }
+    .premium-info strong { font-size: 1.1rem; }
+    .pack.premium :global(.case) { width: min(128px, 100%); height: auto; aspect-ratio: 128 / 122; }
+  }
 
   .team-links { display: flex; flex-wrap: wrap; gap: 8px; }
   .save-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--accent); background: var(--surface); }

@@ -4,6 +4,8 @@
   /** The ⓘ in the corner of a pack: hover or focus previews the odds on desktop, a click or tap pins them (bottom sheet on phones). */
   export let tier: PackTier;
   export let title: string;
+  /** Optional description: the card face stays uniform, the text lives here instead. */
+  export let hint = '';
   export let labels: { heading: string; first: string; others: string; all: string; coach: string; note: string; close: string };
 
   const COLOR: Record<Rarity, string> = { common: '#8d979e', rare: '#4da3ff', elite: '#a66bff', superstar: '#ff8a3d', legend: '#d9a441', goat: '#ff5ad8' };
@@ -30,6 +32,7 @@
   {#if open}
     <div class="odds-sheet" role="dialog" aria-label={`${labels.heading}: ${title}`}>
       <header><strong>{title}</strong><span>{labels.heading} · {PACK_SLOTS[tier].length}×</span></header>
+      {#if hint}<p class="hint">{hint}</p>{/if}
       {#each blocks as block}
         <div class="block">
           <small>{block.label}</small>
@@ -60,6 +63,7 @@
   .bar { height: 6px; background: var(--surface-2); } .bar i { display: block; height: 100%; }
   li b { text-align: right; }
   p { margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.4; } p b { color: var(--text); }
+  p.hint { color: var(--text); font-size: .72rem; line-height: 1.45; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .close { display: none; }
   @media (max-width: 720px) {
     .odds-sheet { position: fixed; inset: auto 0 0 0; top: auto; width: auto; padding: 18px 16px 22px; border-width: 1px 0 0; z-index: 40; }

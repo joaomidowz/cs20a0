@@ -95,7 +95,8 @@
         <li class="promo rarity-{player ? rarityOf(player) : coach ? rarityOf(coach) : 'common'}" class:done={promo.bought || promo.owned}>
           <div class="promo-top"><span class="promo-kind">{label(promo.tier)}</span><b class="promo-off">-{promo.discount}%</b></div>
           {#if coach}
-            <button type="button" class="promo-card" aria-label={`${u('promoEnlarge')}: ${nameOf(promo.cardId)}`} on:click={() => enlarged = { player: null, coach }}><CoachCard {coach} teamName={teamOf(coach.teamId)} /></button>
+            <!-- compact: mesma altura dos players da promo (as barras TAC/DIS/AGR/DEV ficam para o sheet, que abre com showcase). -->
+            <button type="button" class="promo-card" aria-label={`${u('promoEnlarge')}: ${nameOf(promo.cardId)}`} on:click={() => enlarged = { player: null, coach }}><CoachCard {coach} teamName={teamOf(coach.teamId)} compact /></button>
           {:else if player}
             <div class="promo-card"><CollectionCard {player} teamName={teamOf(player.teamId)} {language} compact onOpen={() => enlarged = { player, coach: null }} /></div>
           {/if}
