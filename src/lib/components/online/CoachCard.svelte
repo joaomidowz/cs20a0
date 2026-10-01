@@ -18,15 +18,20 @@
   /** Phone grid (≤720px): photo, OVR, name and ×copies only, like the dense player card; the rest lives in the sheet. */
   export let dense = false;
   export let onOpen: ((coach: Coach, trigger: HTMLButtonElement) => void) | null = null;
+  export let selectable = false;
+  export let selectedQuantity = 0;
+  export let selectionDisabled = false;
+  export let selectionLabel = '';
 
   $: rarity = rarityOf(coach);
   const ATTRS = [['tactics', 'TAC'], ['discipline', 'DIS'], ['aggression', 'AGR'], ['development', 'DEV']] as const;
 </script>
 
-<article class="card rarity-{rarity}" class:active class:affinity class:showcase class:dense class:has-quantity={quantity > 1}>
+<article class="card rarity-{rarity}" class:active class:affinity class:showcase class:dense class:has-quantity={quantity > 1} class:selected={selectedQuantity > 0} class:selection-disabled={selectable && selectionDisabled}>
   {#if quantity > 1}<b class="quantity" aria-label={`×${quantity}`}>×{quantity}</b>{/if}
+  {#if selectable}<b class="selection-mark">{selectedQuantity > 0 ? `SELL ×${selectedQuantity}` : selectionLabel}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
-  <button class="face" type="button" disabled={!onOpen} aria-haspopup={onOpen ? 'dialog' : undefined} aria-label={onOpen ? coach.name : undefined} on:click={(event) => onOpen?.(coach, event.currentTarget as HTMLButtonElement)}>
+  <button class="face" type="button" disabled={!onOpen || selectionDisabled} aria-haspopup={onOpen && !selectable ? 'dialog' : undefined} aria-label={onOpen ? coach.name : undefined} aria-pressed={selectable ? selectedQuantity > 0 : undefined} on:click={(event) => onOpen?.(coach, event.currentTarget as HTMLButtonElement)}>
     {#if showcase}
       <span class="top"><span class="photo"><PlayerAvatar player={{ id: coach.id, baseId: coach.baseId }} bare /></span><span class="ovr"><small>OVR</small>{coach.overall}</span></span>
       <span class="rarity">{rarity} · COACH</span>
@@ -81,6 +86,9 @@
   footer { display: flex; gap: 4px; padding: 0 12px 12px; } footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
   .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
+  .selection-mark { position: absolute; left: 4px; bottom: 4px; z-index: 4; padding: 3px 5px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-size: .52rem; font-weight: 900; letter-spacing: .05em; }
+  .selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .selection-disabled { opacity: .52; }
   .active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .affinity { box-shadow: 0 0 0 1px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 30%, transparent); }
   /* The ×N badge sits over the footer's right edge; keep the buttons clear of it, as the player card does. */

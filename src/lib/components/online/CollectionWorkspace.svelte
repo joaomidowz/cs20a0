@@ -30,7 +30,8 @@
   import MiniCard from '$lib/components/online/MiniCard.svelte';
   import { applyCoachToTeam, coachAffinity } from '$lib/game/dynasty/coach';
   import { AccountError, accountUser, authFetch, loadAccount } from '$lib/game/online/account';
-  import { buyLineupSlot, buyPack, fetchCollection, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { buyLineupSlot, buyPack, fetchCollection, lineupLockedIds, openDailyPack, openFreePack, openMajorPack, saveLineup, sellCard, sellCards, setActiveLineup, type CollectionState, type PackOpened, type SavedLineup } from '$lib/game/online/collection';
+  import { quickSellCount, quickSellTotal, sellableQuantity, toggleQuickSellQuantity } from '$lib/game/online/quick-sell';
   import { reconcileLineupOwnership } from '$lib/game/online/collection-reconciliation';
   import { boostStore, refreshBoost, buyBoostItems } from '$lib/game/online/boost';
   import { applyCollectionLineup, cardEffects, collectionBaseTeam, collectionRoleLabel, synergyImpact, eligibleRolesOf, isStarEffective, starRoleAllowed, styleReady, synergyOf, themeOf, primaryRoleOf, toSelectedPlayer, type CollectionSlotRole } from '$lib/game/online/collection-lineup';
@@ -103,6 +104,8 @@
     allowLeave = true; await goto('/online');
   }
   let detailsPlayer: Player | null = null;
+  let quickSellMode = false;
+  let quickSellSelection = new Map<string, number>();
 
   // Pack reveal: three roulette spins, then the cards.
   type RevealCard = { kind: 'player'; player: Player; quantity: number } | { kind: 'coach'; coach: Coach; quantity: number };
@@ -144,6 +147,13 @@
   $: owned = state ? state.players.map((item) => playerById.get(item.playerId)).filter((player): player is Player => Boolean(player)) : [];
   $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
   $: quantityById = new Map((state?.players ?? []).map((item) => [item.playerId, item.quantity ?? 1]));
+  $: quickSellLocked = new Set(lineupLockedIds(state));
+  $: quickSellUnits = quickSellCount(quickSellSelection);
+  $: quickSellCoins = quickSellTotal(quickSellSelection, (id) => {
+    const coach = collectionCoachById.get(id);
+    const player = playerById.get(id);
+    return coach ? coachSellValue(coach) : player ? sellValue(player) : 0;
+  });
   $: cardTeamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.filter((organization) =>
     owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)
     || ownedCoaches.some((coach) => collectionOrganizationKeyByTeamId.get(coach.teamId) === organization.key)
@@ -402,6 +412,32 @@
     if (!confirmed) return;
     error = ''; busy = true;
     try { await sellCard(serverUrl, coach.id); showToast(`+${coachSellValue(coach)} ${t('coins')}`); await refresh(); } catch (caught) { fail(caught); } finally { busy = false; }
+  }
+
+  function toggleQuickSell(cardId: string) {
+    const maximum = sellableQuantity(quantityById.get(cardId) ?? 0, quickSellLocked.has(cardId));
+    if (!maximum) { showToast(t('quickSellBlocked'), 'info'); return; }
+    quickSellSelection = toggleQuickSellQuantity(quickSellSelection, cardId, maximum);
+  }
+
+  function cancelQuickSell() {
+    quickSellMode = false;
+    quickSellSelection = new Map();
+  }
+
+  async function confirmQuickSell() {
+    if (!quickSellUnits) return;
+    const body = t('quickSellConfirm').replace('{n}', String(quickSellUnits)).replace('{coins}', quickSellCoins.toLocaleString($language));
+    if (!await confirmDialog({ title: t('quickSellConfirmTitle'), body, confirmLabel: t('sell'), cancelLabel: t('cancel'), tone: 'danger' })) return;
+    const units = quickSellUnits;
+    const coins = quickSellCoins;
+    error = ''; busy = true;
+    try {
+      await sellCards(serverUrl, [...quickSellSelection].map(([cardId, quantity]) => ({ cardId, quantity })));
+      cancelQuickSell();
+      showToast(t('quickSellSuccess').replace('{n}', String(units)).replace('{coins}', coins.toLocaleString($language)));
+      await refresh();
+    } catch (caught) { fail(caught); await refresh(); } finally { busy = false; }
   }
 
   function addToLineup(player: Player) {
@@ -829,8 +865,8 @@
       </div>
 
       {#if section !== 'store'}
-      <section class="panel cards" bind:this={cardsSection}>
-        <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div></div>
+      <section class="panel cards" class:quick-selling={quickSellMode} bind:this={cardsSection}>
+        <div class="section-heading"><div><span class="eyebrow">{t('myCards').toUpperCase()}</span><h2>{t('myCards')} <small>{visible.length}/{owned.length}</small></h2></div><button class={quickSellMode ? 'secondary small' : 'ghost small'} type="button" disabled={busy} on:click={() => quickSellMode ? cancelQuickSell() : quickSellMode = true}>{quickSellMode ? t('cancel') : t('quickSell')}</button></div>
         <div class="filters">
           <label><span>{t('search')}</span><input bind:value={query} /></label>
           <StyledSelect label={u('team')} options={cardTeamOptions} value={filterTeam} onSelect={(next) => filterTeam = next} />
@@ -843,7 +879,7 @@
           <h3 class="subhead">COACHES <small>{visibleCoaches.length}</small></h3>
           <div class="player-grid">
             {#each visibleCoaches as coach (coach.id)}
-              <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId} quantity={quantityById.get(coach.id) ?? 1}>
+              <CoachCard {coach} teamName={coachTeamName(coach)} active={coach.id === coachId} quantity={quantityById.get(coach.id) ?? 1} selectable={quickSellMode} selectedQuantity={quickSellSelection.get(coach.id) ?? 0} selectionDisabled={quickSellMode && sellableQuantity(quantityById.get(coach.id) ?? 0, quickSellLocked.has(coach.id)) === 0} selectionLabel={t('quickSellBlocked')} onOpen={quickSellMode ? (selected) => toggleQuickSell(selected.id) : null}>
                 {#if coach.id === coachId}
                   <button class="ghost small" type="button" on:click={() => coachId = null}>{t('removeFromLineup')}</button>
                   {#if (quantityById.get(coach.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>{/if}
@@ -862,7 +898,7 @@
           <!-- Phone: four dense cards per row; the footer buttons hide and the same actions open in the card sheet. -->
           <div class="player-grid dense-grid">
             {#each visible as player (player.id)}
-              <CollectionCard {player} dense teamName={teamNameOf(player)} language={$language} quantity={quantityById.get(player.id) ?? 1} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} onOpen={(selected) => detailsPlayer = selected}>
+              <CollectionCard {player} dense teamName={teamNameOf(player)} language={$language} quantity={quantityById.get(player.id) ?? 1} inLineup={lineupIds.has(player.id)} star={player.id === starPlayerId && starOk} effect={effects[player.id] ?? null} selectable={quickSellMode} selectedQuantity={quickSellSelection.get(player.id) ?? 0} selectionDisabled={quickSellMode && sellableQuantity(quantityById.get(player.id) ?? 0, quickSellLocked.has(player.id)) === 0} selectionLabel={t('quickSellBlocked')} onOpen={(selected) => quickSellMode ? toggleQuickSell(selected.id) : detailsPlayer = selected}>
                 {#if lineupIds.has(player.id)}
                   <button class="ghost small" type="button" on:click={() => removeFromLineup(slots.findIndex((slot) => slot?.id === player.id))}>{t('removeFromLineup')}</button>
                   {#if (quantityById.get(player.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>{/if}
@@ -881,8 +917,15 @@
       </section>
       {/if}
     {/if}
-    {#if section === 'team' && state && dirty}
+    {#if section === 'team' && state && dirty && !quickSellMode}
       <div class="save-bar" out:fade={{ duration: reducedMotion ? 0 : 150 }}><span>{complete ? u('unsaved') : u('remaining')}</span><button type="button" class="primary" disabled={busy || !complete} on:click={() => persistLineup()}>{busy ? u('saving') : t('saveLineup')}</button></div>
+    {/if}
+    {#if quickSellMode}
+      <div class="quick-sell-bar" role="region" aria-label={t('quickSell')}>
+        <button class="ghost" type="button" disabled={busy} on:click={cancelQuickSell}>{t('cancel')}</button>
+        <strong>{quickSellUnits} {t('myCards').toLowerCase()} <span>{quickSellCoins.toLocaleString($language)} {t('coins')}</span></strong>
+        <button class="primary" type="button" disabled={busy || quickSellUnits === 0} on:click={confirmQuickSell}>{busy ? u('saving') : t('sell')}</button>
+      </div>
     {/if}
 
   </section>
@@ -1091,6 +1134,11 @@
   .team-links { display: flex; flex-wrap: wrap; gap: 8px; }
   .save-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--accent); background: var(--surface); }
   .save-bar span { font-size: .875rem; }
+  .quick-selling :global(.player-grid footer) { display: none; }
+  .quick-sell-bar { position: fixed; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 45; display: grid; grid-template-columns: minmax(92px, auto) 1fr minmax(92px, auto); align-items: center; gap: 10px; max-width: 760px; margin: 0 auto; padding: 10px; border: 1px solid var(--accent); background: var(--surface); box-shadow: 0 12px 32px rgb(0 0 0 / .35); }
+  .quick-sell-bar button { min-height: 44px; }
+  .quick-sell-bar strong { display: grid; justify-items: center; gap: 2px; font-size: .82rem; text-align: center; font-variant-numeric: tabular-nums; }
+  .quick-sell-bar strong span { color: var(--accent); font-size: .72rem; }
   .picker-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 12px; }
   .picker-search { display: grid; gap: 8px; margin-bottom: 16px; }
   .picker-search input { min-height: 48px; font-size: 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); padding: 10px; }
@@ -1116,5 +1164,8 @@
     .shop-grid > .pack > strong { font-size: .8rem; text-align: center; }
     .shop-grid > .pack > button { width: 100%; min-height: 40px; }
     .daily-pack { gap: 8px; padding: 14px 10px; }
+    .quick-selling { padding-bottom: 118px; }
+    .quick-sell-bar { left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); grid-template-columns: 82px 1fr 82px; border-width: 1px 0 0; }
+    .quick-sell-bar button { padding-inline: 8px; }
   }
 </style>

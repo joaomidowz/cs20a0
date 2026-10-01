@@ -22,6 +22,10 @@
   /** Pack reveal: a tall card with a big photo, the country by name and the four best attributes. */
   export let showcase = false;
   export let onOpen: ((player: Player) => void) | null = null;
+  export let selectable = false;
+  export let selectedQuantity = 0;
+  export let selectionDisabled = false;
+  export let selectionLabel = '';
   /**
    * Collection grid on a phone (≤720px): four per row, Clash Royale style — photo, OVR, nick, ×copies and the rarity
    * border. Everything else (role, team, footer buttons) lives in the card sheet that opens on tap. Desktop is untouched.
@@ -37,10 +41,11 @@
   $: bestStats = showcase ? STATS.map(([key, label]) => ({ label, value: Number(player[key] ?? 0) })).filter((stat) => stat.value > 0).sort((a, b) => b.value - a.value).slice(0, 4) : [];
 </script>
 
-<article class="card rarity-{rarity}" class:compact class:showcase class:dense class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'}>
+<article class="card rarity-{rarity}" class:compact class:showcase class:dense class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'} class:selected={selectedQuantity > 0} class:selection-disabled={selectable && selectionDisabled}>
   {#if quantity > 1}<b class="quantity" aria-label={`${quantity} cópias`}>×{quantity}</b>{/if}
+  {#if selectable}<b class="selection-mark">{selectedQuantity > 0 ? `SELL ×${selectedQuantity}` : selectionLabel}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
-  <button class="face" type="button" on:click={() => onOpen?.(player)} disabled={!onOpen}>
+  <button class="face" type="button" on:click={() => onOpen?.(player)} disabled={!onOpen || selectionDisabled} aria-pressed={selectable ? selectedQuantity > 0 : undefined}>
     <span class="top">
       <span class="photo"><PlayerAvatar {player} bare /></span>
       <span class="ovr"><small>OVR</small>{player.overall ?? '—'}</span>
@@ -78,6 +83,9 @@
   footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
   .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
+  .selection-mark { position: absolute; left: 4px; bottom: 4px; z-index: 4; padding: 3px 5px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-size: .52rem; font-weight: 900; letter-spacing: .05em; }
+  .selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .selection-disabled { opacity: .52; }
   .showcase .face { gap: 8px; padding: 16px; }
   .showcase .top { align-items: end; }
   .showcase .photo { width: 58%; height: auto; aspect-ratio: 1; }
