@@ -159,11 +159,8 @@
   };
 
   $: copy = wikiCopy[$language];
-  $: wikiMetadata = {
-    ...SEO_BY_ROUTE['/wiki'],
-    title: copy.metaTitle,
-    description: copy.metaDescription
-  };
+  // Metadata stays in the canonical site's language so prerendered HTML is stable for crawlers.
+  const wikiMetadata = SEO_BY_ROUTE['/wiki'];
 </script>
 
 <SeoHead metadata={wikiMetadata} />

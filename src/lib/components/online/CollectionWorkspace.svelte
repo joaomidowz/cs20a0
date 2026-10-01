@@ -1066,7 +1066,7 @@
   .styles-help li.active b { color: var(--accent); }
   .stat-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .stat-list li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--surface); font-size: .76rem; }
-  .stat-list b.up { color: var(--accent); } .stat-list li.final { border-left: 3px solid #d9a441; font-weight: 900; }
+  .stat-list b.up { color: var(--accent); } .stat-list li.final { border: 1px solid color-mix(in srgb, #d9a441 55%, var(--line)); background: color-mix(in srgb, #d9a441 8%, var(--surface)); font-weight: 900; }
   .slot { display: grid; gap: 6px; align-content: start; min-width: 0; overflow: visible; }
   .empty { display: grid; place-items: center; min-height: 230px; color: var(--muted); font-size: .8rem; border: 1px dashed var(--line); }
   .small { min-height: 36px; padding: 0 8px; font-size: .6rem; }
@@ -1113,8 +1113,8 @@
   .coach-slot { display: grid; gap: 8px; } .coach-slot .label { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
   .subhead { margin: 6px 0 0; color: var(--muted); font-size: .7rem; letter-spacing: .14em; } .subhead small { color: var(--accent); }
   .synergy { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-  .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-left: 3px solid var(--line); background: var(--surface-2); font-size: .74rem; }
-  .synergy li.up { border-left-color: var(--accent); } .synergy li.down { border-left-color: var(--danger); } .synergy li.total { border-left-color: #d9a441; font-weight: 800; }
+  .synergy li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: .74rem; }
+  .synergy li.up { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); } .synergy li.down { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); } .synergy li.total { border-color: color-mix(in srgb, #d9a441 55%, var(--line)); background: color-mix(in srgb, #d9a441 8%, var(--surface-2)); font-weight: 800; }
   .power { color: var(--accent); font: 900 1.5rem/1 'Arial Narrow', Impact, sans-serif; }
   .power .unsaved { display:block; margin-top:4px; color: var(--accent-2); font: 700 .68rem/1.2 system-ui, sans-serif; font-style: normal; letter-spacing:.04em; }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; } .filters label { display: grid; gap: 4px; } .filters span { color: var(--muted); font-size: .58rem; font-weight: 800; text-transform: uppercase; }

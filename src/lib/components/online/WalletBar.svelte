@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import { fade } from 'svelte/transition';
   import { accountUser } from '$lib/game/online/account';
   import { getOnlineServerUrl } from '$lib/game/online/config';
@@ -76,7 +77,7 @@
 
   onDestroy(() => {
     stopPresencePolling();
-    cancelAnimationFrame(balanceFrame);
+    if (browser) cancelAnimationFrame(balanceFrame);
     if (deltaTimer) clearTimeout(deltaTimer);
   });
 </script>

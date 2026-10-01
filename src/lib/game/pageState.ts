@@ -6,7 +6,7 @@ const langKey = 'cs13a0:language';
 const themeKey = 'cs13a0:theme';
 
 function detectBrowserLanguage(): Language {
-  if (!browser) return 'en';
+  if (!browser) return 'pt-BR';
   const lang = navigator.language || (navigator as any).userLanguage || '';
   if (lang.startsWith('pt')) return 'pt-BR';
   if (lang.startsWith('es')) return 'es';
@@ -14,7 +14,8 @@ function detectBrowserLanguage(): Language {
 }
 
 function loadLanguage(): Language {
-  if (!browser) return 'en';
+  // The canonical site is Brazilian Portuguese; crawlers receive this stable default before hydration.
+  if (!browser) return 'pt-BR';
   const stored = localStorage.getItem(langKey);
   if (stored === 'pt-BR' || stored === 'es' || stored === 'en') return stored;
   return detectBrowserLanguage();

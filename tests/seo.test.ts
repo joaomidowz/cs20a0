@@ -51,10 +51,15 @@ describe('SEO contract', () => {
   it('describes the home as a browser game in structured data', () => {
     expect(HOME_STRUCTURED_DATA).toMatchObject({
       '@context': 'https://schema.org',
-      '@type': 'WebApplication',
-      applicationCategory: 'GameApplication',
-      operatingSystem: 'Web Browser',
-      url: 'https://cs13a0.com/'
+      '@graph': expect.arrayContaining([
+        expect.objectContaining({ '@type': 'WebSite', url: 'https://cs13a0.com/' }),
+        expect.objectContaining({
+          '@type': 'WebApplication',
+          applicationCategory: 'GameApplication',
+          operatingSystem: 'Web Browser',
+          url: 'https://cs13a0.com/'
+        })
+      ])
     });
   });
 

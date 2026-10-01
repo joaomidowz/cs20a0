@@ -2,7 +2,7 @@
   import { showToast as notifyToast } from '$lib/game/notifications';
   import { formatRating } from '$lib/game/powerRating';
   import { onDestroy, onMount, tick } from 'svelte';
-  import { dev } from '$app/environment';
+  import { browser, dev } from '$app/environment';
   import { isOnlineEnabled } from '$lib/game/online/config';
   import { replaceState } from '$app/navigation';
   import Navbar from '$lib/components/Navbar.svelte';
@@ -295,7 +295,6 @@
   });
 
   $: t = (key: TranslationKey) => translate($game.language, key);
-  $: homeStructuredData = { ...HOME_STRUCTURED_DATA, description: t('homeSeoCopy') };
   $: isProMode = $game.mode === 'pro';
   $: isDynasty = $game.mode === 'dynasty';
   /** Dinastia custom org name; undefined everywhere else so other modes keep the translated default. */
@@ -384,14 +383,14 @@
   const lookupPlayer = (id: string) => playerById.get(id);
 
   onDestroy(() => {
-    document.body.classList.remove('modal-open');
+    if (browser) document.body.classList.remove('modal-open');
     clearSupportNudgeTimer();
     clearEnemyHoverTimer();
     clearAdvanceTimer();
     stopLiveTick();
     stopCircuitTick();
-    if (automationTimer !== null) window.clearTimeout(automationTimer);
-    if (seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
+    if (browser && automationTimer !== null) window.clearTimeout(automationTimer);
+    if (browser && seedUrlTimer !== null) window.clearTimeout(seedUrlTimer);
   });
 
   function beginGame() {
@@ -1167,7 +1166,7 @@
 
 <SeoHead metadata={SEO_BY_ROUTE['/']} />
 <svelte:head>
-  <script type="application/ld+json">{JSON.stringify(homeStructuredData)}</script>
+  {@html `<script type="application/ld+json">${JSON.stringify(HOME_STRUCTURED_DATA)}<\/script>`}
 </svelte:head>
 
 <Navbar

@@ -15,7 +15,7 @@ const storageKey = 'cs13a0-run-v1';
 export const makeSeed = () => Math.random().toString(36).slice(2, 8);
 
 function detectBrowserLanguage(): 'pt-BR' | 'es' | 'en' {
-  if (!browser) return 'en';
+  if (!browser) return 'pt-BR';
   const lang = navigator.language || (navigator as any).userLanguage || '';
   if (lang.startsWith('pt')) return 'pt-BR';
   if (lang.startsWith('es')) return 'es';

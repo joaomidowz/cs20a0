@@ -1,8 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "build",
+  "cleanUrls": true,
   "routes": [
+    {
+      "src": "/(.*)",
+      "has": [{ "type": "host", "value": "www.cs13a0.com" }],
+      "headers": { "Location": "https://cs13a0.com/$1" },
+      "status": 308
+    },
     { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
+    { "src": "/.*", "dest": "/200.html" }
   ]
 }

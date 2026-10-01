@@ -6,6 +6,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { replaceState } from '$app/navigation';
+  import { browser } from '$app/environment';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
   import PlayerCard from '$lib/components/PlayerCard.svelte';
@@ -401,10 +402,10 @@
   });
 
   onDestroy(() => {
-    if (liveTimer !== null) window.clearInterval(liveTimer);
-    if (queueWaitingTimer !== null) window.clearTimeout(queueWaitingTimer);
+    if (browser && liveTimer !== null) window.clearInterval(liveTimer);
+    if (browser && queueWaitingTimer !== null) window.clearTimeout(queueWaitingTimer);
     stopTitleAlert();
-    if (clockTimer !== null) window.clearInterval(clockTimer);
+    if (browser && clockTimer !== null) window.clearInterval(clockTimer);
   });
 
   function describeError(code: OnlineClientErrorCode, fallback: string): string {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import { get } from 'svelte/store';
   import { showToast } from '$lib/game/notifications';
   import { queueIncreaseMessage } from '$lib/game/notificationCopy';
@@ -82,6 +83,7 @@
   });
 
   onDestroy(() => {
+    if (!browser) return;
     clearHiddenTimer();
     document.removeEventListener('visibilitychange', handleVisibility);
     document.removeEventListener('pointerdown', unlockSound);

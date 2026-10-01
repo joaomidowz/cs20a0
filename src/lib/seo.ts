@@ -24,8 +24,8 @@ export interface SeoMetadata {
 
 const ROUTE_COPY: Record<PublicRoute, Omit<SeoMetadata, 'canonical'>> = {
   '/': {
-    title: 'cs13a0 · Monte sua line e sobreviva ao Major',
-    description: 'Monte uma line histórica de Counter-Strike, escolha funções e dispute um Major simulado por seed no cs13a0.'
+    title: 'Simulador de CS Manager e Major Online · cs13a0',
+    description: 'Monte seu time com jogadores históricos de Counter-Strike, defina funções, faça o veto de mapas e dispute um Major grátis no navegador.'
   },
   '/online': {
     title: 'Major online de Counter-Strike · cs13a0',
@@ -79,17 +79,31 @@ export const HOME_SEO_COPY = 'No cs13a0, você monta uma line de Counter-Strike 
 
 export const HOME_STRUCTURED_DATA = Object.freeze({
   '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: 'cs13a0',
-  url: getCanonicalUrl('/'),
-  description: SEO_BY_ROUTE['/'].description,
-  applicationCategory: 'GameApplication',
-  applicationSubCategory: 'Counter-Strike draft and Major simulator',
-  operatingSystem: 'Web Browser',
-  browserRequirements: 'Requires a modern browser with JavaScript enabled.',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'BRL'
-  }
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_ORIGIN}/#website`,
+      name: 'cs13a0',
+      url: getCanonicalUrl('/'),
+      inLanguage: ['pt-BR', 'en', 'es']
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': `${SITE_ORIGIN}/#game`,
+      name: 'cs13a0',
+      url: getCanonicalUrl('/'),
+      description: SEO_BY_ROUTE['/'].description,
+      applicationCategory: 'GameApplication',
+      applicationSubCategory: 'Counter-Strike draft and Major simulator',
+      operatingSystem: 'Web Browser',
+      browserRequirements: 'Requires a modern browser with JavaScript enabled.',
+      isAccessibleForFree: true,
+      isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'BRL'
+      }
+    }
+  ]
 });
