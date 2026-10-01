@@ -85,7 +85,22 @@ export const HOME_STRUCTURED_DATA = Object.freeze({
       '@id': `${SITE_ORIGIN}/#website`,
       name: 'cs13a0',
       url: getCanonicalUrl('/'),
-      inLanguage: ['pt-BR', 'en', 'es']
+      inLanguage: ['pt-BR', 'en', 'es'],
+      publisher: { '@id': `${SITE_ORIGIN}/#organization` }
+    },
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_ORIGIN}/#organization`,
+      name: 'cs13a0',
+      url: getCanonicalUrl('/'),
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_ORIGIN}/icons/cs13a0-icon-512.png`,
+        contentUrl: `${SITE_ORIGIN}/icons/cs13a0-icon-512.png`,
+        width: 512,
+        height: 512
+      },
+      email: 'contato@cs13a0.com'
     },
     {
       '@type': 'WebApplication',

@@ -54,6 +54,14 @@ describe('SEO contract', () => {
       '@graph': expect.arrayContaining([
         expect.objectContaining({ '@type': 'WebSite', url: 'https://www.cs13a0.com/' }),
         expect.objectContaining({
+          '@type': 'Organization',
+          logo: expect.objectContaining({
+            url: 'https://www.cs13a0.com/icons/cs13a0-icon-512.png',
+            width: 512,
+            height: 512
+          })
+        }),
+        expect.objectContaining({
           '@type': 'WebApplication',
           applicationCategory: 'GameApplication',
           operatingSystem: 'Web Browser',

@@ -24,6 +24,7 @@ describe('HTML estático indexável', () => {
   it('entrega o texto explicativo da home em português no HTML inicial', () => {
     const html = readFileSync(fileFor('/'), 'utf8');
     expect(html).toContain(HOME_SEO_COPY);
+    expect(html).toContain('rel="icon" type="image/png" href="./icons/cs13a0-icon-192.png" sizes="192x192"');
     const structuredData = html.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)?.[1];
     expect(structuredData).toBeTruthy();
     expect(JSON.parse(structuredData!)).toMatchObject({ '@context': 'https://schema.org' });

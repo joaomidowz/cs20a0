@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "cs13a0 · Monte sua line e sobreviva ao Major",
+  "name": "Simulador de CS Manager e Major Online · cs13a0",
   "short_name": "cs13a0",
-  "description": "Monte uma line histórica de Counter-Strike, escolha funções e dispute um Major simulado por seed no cs13a0.",
+  "description": "Monte seu time com jogadores históricos de Counter-Strike, defina funções, faça o veto de mapas e dispute um Major grátis no navegador.",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",
