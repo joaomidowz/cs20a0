@@ -57,6 +57,9 @@ export const openFreePack = (serverUrl: string, tier: FreePackTier) => withWalle
 export const openMajorPack = (serverUrl: string) => withWallet(authFetch<PackOpened & { roomCode: string }>(serverUrl, '/packs/major', { body: {} }));
 export const buyPack = (serverUrl: string, tier: Exclude<PackTier, 'basic'>, year?: number, role?: LineupSlotRole, organization?: string) => withWallet(authFetch<PackOpened>(serverUrl, '/packs/buy', { body: { tier, ...(year ? { year } : {}), ...(role ? { role } : {}), ...(organization ? { organization } : {}) } }));
 export const sellCard = (serverUrl: string, playerId: string) => withWallet(authFetch<{ coins: number; wallet: number }>(serverUrl, '/collection/sell', { body: { playerId } }));
+export type SellBatchItem = { cardId: string; quantity: number };
+export type SellBatchResult = { coins: number; wallet: number; sold: SellBatchItem[] };
+export const sellCards = (serverUrl: string, items: SellBatchItem[]) => withWallet(authFetch<SellBatchResult>(serverUrl, '/collection/sell-batch', { body: { items } }));
 export const saveLineup = (serverUrl: string, lineup: Omit<SavedLineup, 'starEffective'>, slot?: number) => authFetch<{ lineup: SavedLineup }>(serverUrl, '/lineup', { method: 'PUT', body: slot === undefined ? lineup : { ...lineup, slot } });
 /** Switches which lineup slot plays (queue, solo and rooms use the active one). */
 export const setActiveLineup = (serverUrl: string, slot: number) => authFetch<{ activeSlot: number }>(serverUrl, '/lineup/active', { body: { slot } });
