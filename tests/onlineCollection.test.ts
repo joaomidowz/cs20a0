@@ -112,6 +112,35 @@ describe.skipIf(!url)('coleção pela API (Postgres)', () => {
     expect(wallet.coins).toBeGreaterThanOrEqual(0);
   });
 
+  it('venda em lote é atômica, mistura jogador e coach e preserva a cópia escalada', async () => {
+    const [user] = await db.query<{ id: string }>("SELECT id FROM users WHERE email = 'collector@example.com'");
+    const player = collectionPlayerById.get('device-2016')!;
+    const coach = [...collectionCoachById.values()][0];
+    await db.query(
+      `INSERT INTO collection (user_id, player_id, source, quantity) VALUES ($1, $2, 'pack', 3), ($1, $3, 'pack', 1)
+       ON CONFLICT (user_id, player_id) DO UPDATE SET quantity = EXCLUDED.quantity`,
+      [user.id, player.id, coach.id]
+    );
+    await db.query(
+      `INSERT INTO lineup_slots (user_id, slot_index, player_ids, roles, star_player_id, coach_id, style)
+       VALUES ($1, 0, $2, $3, NULL, NULL, 'balanced')
+       ON CONFLICT (user_id, slot_index) DO UPDATE SET player_ids = EXCLUDED.player_ids, roles = EXCLUDED.roles, coach_id = NULL`,
+      [user.id, [player.id, 'dupreeh-2016', 'xyp9x-2016', 'gla1ve-2016', 'kjaerbye-2016'], ['awper', 'entry', 'support', 'igl', 'rifler']]
+    );
+
+    const sold = await call('/collection/sell-batch', { items: [{ cardId: player.id, quantity: 2 }, { cardId: coach.id, quantity: 1 }] });
+    expect(sold.status).toBe(200);
+    expect(sold.body.sold).toEqual([{ cardId: player.id, quantity: 2 }, { cardId: coach.id, quantity: 1 }]);
+    expect(sold.body.coins).toBe(sellValue(player) * 2 + coachSellValue(coach));
+    const stock = await db.query<{ player_id: string; quantity: number }>('SELECT player_id, quantity FROM collection WHERE user_id = $1 AND player_id = ANY($2) ORDER BY player_id', [user.id, [player.id, coach.id]]);
+    expect(stock).toEqual([{ player_id: player.id, quantity: 1 }]);
+
+    await db.query('UPDATE collection SET quantity = 2 WHERE user_id = $1 AND player_id = $2', [user.id, player.id]);
+    const rejected = await call('/collection/sell-batch', { items: [{ cardId: player.id, quantity: 1 }, { cardId: coach.id, quantity: 1 }] });
+    expect(rejected.status).toBe(404);
+    expect((await db.query<{ quantity: number }>('SELECT quantity FROM collection WHERE user_id = $1 AND player_id = $2', [user.id, player.id]))[0].quantity).toBe(2);
+  });
+
   it('Prata grátis uma vez por semana e Ouro grátis uma vez por mês, sem cobrar', async () => {
     const coinsOf = async () => (await db.query<{ coins: number }>('SELECT coins FROM wallets'))[0].coins;
     // Sábado 19/09/2026, 12:00 de Brasília: semana ISO 2026-W38, mês 2026-09.

@@ -309,6 +309,47 @@ export async function sellPlayer(db: Db, userId: string, playerId: string): Prom
   });
 }
 
+export interface SellBatchItem { cardId: string; quantity: number }
+
+/** Sells several card copies in one transaction while reserving one copy used by any saved lineup. */
+export async function sellPlayers(db: Db, userId: string, items: SellBatchItem[]): Promise<{ coins: number; wallet: number; sold: SellBatchItem[] }> {
+  if (!items.length) throw new CollectionError(400, 'EMPTY_SALE', 'Escolha ao menos uma carta');
+  if (new Set(items.map((item) => item.cardId)).size !== items.length) throw new CollectionError(400, 'DUPLICATE_CARD', 'Cada carta deve aparecer uma vez no lote');
+  const priced = items.map((item) => {
+    const coach = collectionCoachById.get(item.cardId);
+    const player = playerById.get(item.cardId);
+    if (!coach && !player) throw new CollectionError(404, 'UNKNOWN_PLAYER', 'Carta desconhecida');
+    return { ...item, unitValue: coach ? coachSellValue(coach) : sellValue(player!) };
+  });
+
+  return db.tx(async (tx) => {
+    const ids = priced.map((item) => item.cardId);
+    const stock = await tx.query<{ player_id: string; quantity: number }>(
+      'SELECT player_id, quantity FROM collection WHERE user_id = $1 AND player_id = ANY($2) FOR UPDATE',
+      [userId, ids]
+    );
+    const quantities = new Map(stock.map((row) => [row.player_id, row.quantity]));
+    const lineups = await tx.query<{ player_ids: string[]; coach_id: string | null }>('SELECT player_ids, coach_id FROM lineup_slots WHERE user_id = $1', [userId]);
+    const reserved = new Set(lineups.flatMap((lineup) => [...lineup.player_ids, ...(lineup.coach_id ? [lineup.coach_id] : [])]));
+
+    for (const item of priced) {
+      const owned = quantities.get(item.cardId);
+      if (owned === undefined) throw new CollectionError(404, 'NOT_OWNED', 'Você não tem essa carta');
+      const available = owned - (reserved.has(item.cardId) ? 1 : 0);
+      if (item.quantity > available) throw new CollectionError(409, reserved.has(item.cardId) ? 'IN_LINEUP' : 'NOT_OWNED', reserved.has(item.cardId) ? 'Deixe uma cópia no time antes de vender' : 'Quantidade maior que o estoque');
+    }
+
+    for (const item of priced) {
+      const remaining = quantities.get(item.cardId)! - item.quantity;
+      if (remaining > 0) await tx.query('UPDATE collection SET quantity = $3 WHERE user_id = $1 AND player_id = $2', [userId, item.cardId, remaining]);
+      else await tx.query('DELETE FROM collection WHERE user_id = $1 AND player_id = $2', [userId, item.cardId]);
+    }
+    const coins = priced.reduce((sum, item) => sum + item.unitValue * item.quantity, 0);
+    const wallet = await applyLedger(tx, userId, coins, 'sell', `batch:${priced.length}`);
+    return { coins, wallet, sold: items.map((item) => ({ ...item })) };
+  });
+}
+
 export interface LineupInput {
   playerIds: string[];
   roles: CollectionSlotRole[];

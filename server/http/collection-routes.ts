@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DAILY_BASIC_PACKS, PACK_PRICES, PACK_SLOTS } from '../../src/lib/game/online/collection-rules';
-import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, openMajorPack, saveLineup, sellPlayer, setActiveLineup } from '../collection/service';
+import { CollectionError, buyLineupSlot, buyPack, buyPromo, listPromos, getCollection, getLineups, openDailyPack, openFreePack, openMajorPack, saveLineup, sellPlayer, sellPlayers, setActiveLineup } from '../collection/service';
 import { boostState, buyBoost, runBoost } from '../collection/boost';
 import { claimLenda, deliverLenda, getContractState, runTradeUp } from '../collection/card-contracts';
 import type { Db } from '../db/client';
@@ -14,6 +14,7 @@ const buySchema = z.object({ tier: z.enum(['funcao', 'coach', 'time', 'prata', '
 const freeSchema = z.object({ tier: z.enum(['prata', 'ouro']) });
 const promoSchema = z.object({ tier: z.enum(['promo_elite', 'promo_superstar', 'promo_legend', 'promo_coach']) });
 const sellSchema = z.object({ playerId: z.string().min(1).max(80) });
+const sellBatchSchema = z.object({ items: z.array(z.object({ cardId: z.string().min(1).max(80), quantity: z.number().int().min(1).max(999) })).min(1).max(250) });
 const lineupSchema = z.object({
   playerIds: z.array(z.string().min(1).max(80)).length(5),
   roles: z.array(roleSchema).length(5),
@@ -67,6 +68,10 @@ export function createCollectionRoutes(db: Db, withAuth: (handler: Handler) => H
     route('POST', /^\/collection\/sell$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, sellSchema);
       return { ok: true, ...(await sellPlayer(db, userId!, body.playerId).catch(toHttp)) };
+    })),
+    route('POST', /^\/collection\/sell-batch$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, sellBatchSchema);
+      return { ok: true, ...(await sellPlayers(db, userId!, body.items).catch(toHttp)) };
     })),
     route('GET', /^\/lineup$/, withAuth(async ({ userId }) => {
       const view = await getLineups(db, userId!);
