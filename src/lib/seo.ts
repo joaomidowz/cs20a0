@@ -1,4 +1,4 @@
-export const SITE_ORIGIN = 'https://cs13a0.com' as const;
+export const SITE_ORIGIN = 'https://www.cs13a0.com' as const;
 
 export const PUBLIC_ROUTES = [
   '/',

@@ -11,7 +11,7 @@ import {
 
 describe('SEO contract', () => {
   it('defines unique metadata for every public canonical route', () => {
-    expect(SITE_ORIGIN).toBe('https://cs13a0.com');
+    expect(SITE_ORIGIN).toBe('https://www.cs13a0.com');
     expect(PUBLIC_ROUTES).toEqual([
       '/',
       '/online',
@@ -39,25 +39,25 @@ describe('SEO contract', () => {
 
     expect(locations).toEqual(PUBLIC_ROUTES.map(getCanonicalUrl));
     expect(sitemap).not.toContain('/sandbox');
-    expect(sitemap).not.toContain('www.cs13a0.com');
+    expect(sitemap).not.toMatch(/https:\/\/cs13a0\.com/);
   });
 
   it('allows crawling and advertises the canonical sitemap', () => {
     const robots = readFileSync(new URL('../static/robots.txt', import.meta.url), 'utf8');
 
-    expect(robots).toBe('User-agent: *\nAllow: /\n\nSitemap: https://cs13a0.com/sitemap.xml\n');
+    expect(robots).toBe('User-agent: *\nAllow: /\n\nSitemap: https://www.cs13a0.com/sitemap.xml\n');
   });
 
   it('describes the home as a browser game in structured data', () => {
     expect(HOME_STRUCTURED_DATA).toMatchObject({
       '@context': 'https://schema.org',
       '@graph': expect.arrayContaining([
-        expect.objectContaining({ '@type': 'WebSite', url: 'https://cs13a0.com/' }),
+        expect.objectContaining({ '@type': 'WebSite', url: 'https://www.cs13a0.com/' }),
         expect.objectContaining({
           '@type': 'WebApplication',
           applicationCategory: 'GameApplication',
           operatingSystem: 'Web Browser',
-          url: 'https://cs13a0.com/'
+          url: 'https://www.cs13a0.com/'
         })
       ])
     });

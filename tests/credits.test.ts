@@ -65,9 +65,9 @@ describe('/credits', () => {
 
   it('está no mapa de SEO, no rodapé e no sitemap', () => {
     expect(PUBLIC_ROUTES).toContain('/credits');
-    expect(SEO_BY_ROUTE['/credits'].canonical).toBe('https://cs13a0.com/credits');
+    expect(SEO_BY_ROUTE['/credits'].canonical).toBe('https://www.cs13a0.com/credits');
     expect(readFileSync('src/lib/components/Footer.svelte', 'utf8')).toContain('href="/credits"');
-    expect(readFileSync('static/sitemap.xml', 'utf8')).toContain('https://cs13a0.com/credits');
+    expect(readFileSync('static/sitemap.xml', 'utf8')).toContain('https://www.cs13a0.com/credits');
   });
 });
 
