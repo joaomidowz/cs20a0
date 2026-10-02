@@ -85,3 +85,21 @@
 - [ ] Rodar uma única vez `impeccable detect --json` nos arquivos alterados.
 - [ ] Corrigir em um lote os defeitos encontrados e confirmar em no máximo mais uma rodada visual.
 
+### Task 5: Corrigir sobreposição dos controles e atraso visual dos rounds
+
+**Files:**
+- Modify: `src/app.css`
+- Modify: `src/lib/components/RoundStrip.svelte`
+- Modify: `tests/mobileMatchPresentation.test.ts`
+
+**Interfaces:**
+- `.compact-match-controls` usa uma coluna em `max-width: 679px`.
+- `.round-strip` usa 12 colunas no mobile e 10 colunas em `max-width: 379px`.
+- Os callbacks `RoundStrip.onInspect` e o bottom sheet existente não mudam.
+
+- [ ] Alterar o teste de contrato para exigir `grid-template-columns:1fr` nos controles compactos e proibir `overflow-x:auto` na regra mobile de `RoundStrip`.
+- [ ] Rodar `npx vitest run tests/mobileMatchPresentation.test.ts` e confirmar a falha.
+- [ ] Reorganizar `.compact-match-controls` em duas linhas de largura total, preservando velocidade + engrenagem na mesma linha.
+- [ ] Trocar a faixa rolável de `RoundStrip` por grade responsiva de 12/10 colunas, com números menores e quebra automática.
+- [ ] Rodar `npm run check`, o teste mobile e `npm run build`.
+- [ ] Validar visualmente em 320 × 568 e 402 × 874, confirmando ausência de sobreposição e visibilidade do último round.

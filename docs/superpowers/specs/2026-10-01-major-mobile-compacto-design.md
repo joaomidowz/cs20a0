@@ -41,3 +41,15 @@ O sheet mostra round, placar, vencedor, economia, lados, tags e kills. Ele fecha
 4. O desktop continua com controles completos, feed inline e detalhe inline.
 5. `svelte-check`, testes, build e detector do Impeccable passam sem regressões novas.
 
+## Correção pós-validação: controles e histórico de rounds
+
+Os controles editáveis não podem dividir a mesma linha em telas de até 679 px, porque o grupo de modo e o grupo de velocidade perdem largura e seus segmentos se sobrepõem. No mobile, eles formam duas linhas compactas: modo na primeira; velocidade e engrenagem na segunda. Cada botão mantém altura mínima de 44 px.
+
+A régua mobile deixa de ser um carrossel horizontal. Os rounds formam uma grade completa, com 12 colunas a partir de 380 px e 10 colunas abaixo disso. Ao ultrapassar a capacidade da linha, novos rounds quebram para a linha seguinte. Assim nenhum estado de scroll fica atrasado em relação ao round atual e todo o histórico permanece visível.
+
+Critérios adicionais:
+
+1. Nenhum texto ou botão dos controles se sobrepõe entre 320 e 679 px.
+2. O histórico não tem scroll horizontal no mobile.
+3. O último round revelado está sempre visível sem rolagem lateral.
+4. Cada round continua abrindo o mesmo bottom sheet de detalhes.
