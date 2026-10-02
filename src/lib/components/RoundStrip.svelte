@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { translate } from '$lib/game/i18n';
-  import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel } from '$lib/game/roundPresentation';
-  import { KILL_FLAG_ICONS, KILL_FLAG_LABELS, killFlags } from '$lib/game/killfeedIcons';
-  import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
   import type { Language, RoundDetail, RoundScore } from '$lib/game/types';
+  import RoundDetailContent from './RoundDetailContent.svelte';
+  import type { RoundInspection } from './round-inspection';
 
   /** Rounds revealed so far (cumulative scores). */
   export let rounds: RoundScore[] = [];
@@ -13,6 +11,8 @@
   export let userIsA: boolean | null = null;
   export let language: Language = 'pt-BR';
   export let teamNames: { a: string; b: string } = { a: 'A', b: 'B' };
+  /** On mobile the parent opens the selected round in a sheet; desktop keeps the historical inline card. */
+  export let onInspect: ((inspection: RoundInspection, trigger: HTMLElement) => void) | undefined = undefined;
 
   /** Round the reader is inspecting: hovered on a mouse, tapped on a touch screen. */
   let openRound: number | null = null;
@@ -44,14 +44,14 @@
     };
   });
   $: openTick = openRound === null ? null : ticks.find((tick) => tick.number === openRound) ?? null;
-  $: buyLabels = BUY_LABELS[language];
-  $: sideLabels = SIDE_LABELS[language];
-  $: endingLabels = ENDING_LABELS[language];
-  $: isMine = (side: 'a' | 'b') => userIsA !== null && (side === 'a') === userIsA;
+  $: openInspection = openTick ? ({
+    number: openTick.number,
+    score: openTick.score,
+    winner: openTick.winner,
+    overtime: openTick.overtime,
+    detail: openTick.detail
+  } satisfies RoundInspection) : null;
   $: inspectLabel = language === 'en' ? 'Round detail' : language === 'es' ? 'Detalle de la ronda' : 'Detalhe do round';
-  $: killsLabel = language === 'en' ? 'Kills' : language === 'es' ? 'Bajas' : 'Abates';
-  $: noKillsLabel = language === 'en' ? 'No kills recorded.' : language === 'es' ? 'Sin bajas registradas.' : 'Sem abates registrados.';
-  $: timeoutLabel = language === 'en' ? 'Tactical timeout' : language === 'es' ? 'Pausa táctica' : 'Pausa tática';
 
   const show = (round: number, event: PointerEvent) => {
     if (event.pointerType !== 'mouse' || pinned) return;
@@ -61,9 +61,11 @@
     if (event.pointerType !== 'mouse' || pinned) return;
     openRound = null;
   };
-  function toggle(round: number) {
-    if (pinned && openRound === round) { pinned = false; openRound = null; return; }
-    openRound = round;
+  function toggle(tick: (typeof ticks)[number], event: MouseEvent) {
+    const inspection: RoundInspection = { number: tick.number, score: tick.score, winner: tick.winner, overtime: tick.overtime, detail: tick.detail };
+    if (onInspect) { onInspect(inspection, event.currentTarget as HTMLElement); return; }
+    if (pinned && openRound === tick.number) { pinned = false; openRound = null; return; }
+    openRound = tick.number;
     pinned = true;
   }
   function onKeydown(event: KeyboardEvent) {
@@ -97,53 +99,14 @@
         on:pointerenter={(event) => show(tick.number, event)}
         on:pointerleave={leave}
         on:focus={() => { if (!pinned) openRound = tick.number; }}
-        on:click={() => toggle(tick.number)}
-      >{#if tick.feat}<b></b>{/if}</button>
+        on:click={(event) => toggle(tick, event)}
+      ><span>{tick.number}</span>{#if tick.feat}<b></b>{/if}</button>
     {/each}
   </div>
 
-  {#if openTick}
+  {#if openInspection}
     <article class="round-card" aria-live="polite">
-      <header>
-        <div>
-          <span class="eyebrow">R{openTick.number}{#if openTick.overtime} · OT{/if}</span>
-          <strong class:mine={isMine(openTick.winner)}>{teamNames[openTick.winner]}</strong>
-          {#if openTick.detail}<small>{endingLabels[openTick.detail.ending]}</small>{/if}
-        </div>
-        <b class="round-score">{openTick.score.a} : {openTick.score.b}</b>
-      </header>
-
-      {#if openTick.detail}
-        {@const detail = openTick.detail}
-        <div class="round-economy">
-          <span class:mine={isMine('a')}>{teamNames.a} · {sideLabels[detail.sideA]} · {buyLabels[detail.economy.a.buy]} · ${detail.economy.a.money}{#if detail.economy.a.awp} · AWP{/if}</span>
-          <span class:mine={isMine('b')}>{teamNames.b} · {sideLabels[detail.sideA === 'ct' ? 't' : 'ct']} · {buyLabels[detail.economy.b.buy]} · ${detail.economy.b.money}{#if detail.economy.b.awp} · AWP{/if}</span>
-        </div>
-        {#if detail.tags.length || detail.timeout}
-          <div class="round-tags">
-            {#each detail.tags as tag (tag)}<i>{getRoundTagLabel(language, tag)}</i>{/each}
-            {#if detail.timeout}<i class="timeout-tag">{timeoutLabel} · {teamNames[detail.timeout]}{#if detail.timeoutTiming} · {translate(language, detail.timeoutTiming === 'window' ? 'timeoutWindow' : detail.timeoutTiming === 'early' ? 'timeoutEarly' : 'timeoutLate')}{/if}</i>{/if}
-          </div>
-        {/if}
-        <div class="round-kills">
-          <span class="eyebrow">{killsLabel} · {detail.kills.length}</span>
-          {#if detail.kills.length}
-            <ol>
-              {#each detail.kills as kill, index (index)}
-                <li>
-                  <b class:mine={isMine(kill.killerSide)}>{kill.killerName}</b>
-                  {#if kill.assistName}<span class="assist" title={KILL_FLAG_LABELS[language].assist}><i class="flag">{@html KILL_FLAG_ICONS.assist}</i>{kill.assistName}</span>{/if}
-                  {#if kill.flashAssistName}<span class="assist" title={KILL_FLAG_LABELS[language].flashAssist}><i class="flag">{@html KILL_FLAG_ICONS.flashAssist}</i>{kill.flashAssistName}</span>{/if}
-                  <em class="weapon" role="img" aria-label={WEAPON_LABELS[kill.weapon]} title={WEAPON_LABELS[kill.weapon]}>{@html WEAPON_ICONS[kill.weapon]}</em>
-                  {#each killFlags(kill) as flag (flag)}<i class="flag" class:hs={flag === 'headshot'} role="img" aria-label={KILL_FLAG_LABELS[language][flag]} title={KILL_FLAG_LABELS[language][flag]}>{@html KILL_FLAG_ICONS[flag]}</i>{/each}
-                  <span class="victim">{kill.victimName}</span>
-                  <small>{kill.second}s</small>
-                </li>
-              {/each}
-            </ol>
-          {:else}<p>{noKillsLabel}</p>{/if}
-        </div>
-      {/if}
+      <RoundDetailContent inspection={openInspection} {userIsA} {language} {teamNames} />
     </article>
   {/if}
 </div>
@@ -166,30 +129,9 @@
   .round-strip button.ace b{right:-1px;top:-7px;width:6px;height:6px;background:var(--accent-2);opacity:1;box-shadow:0 0 6px var(--accent-2)}
   .round-strip button.feat.timeout::before{width:4px}
   .round-strip button.timeout::before{content:'';position:absolute;left:3px;top:-6px;width:6px;height:3px;background:var(--accent-2)}
+  .round-strip button>span{display:none}
   .round-card{display:grid;gap:9px;padding:11px 13px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 88%,black 12%)}
-  .round-card header{display:flex;align-items:end;justify-content:space-between;gap:12px}
-  .round-card header div{display:grid;gap:2px;min-width:0}
-  .round-card header strong{font-size:1.05rem;text-transform:uppercase}
-  .round-card header strong.mine{color:var(--accent)}
-  .round-card header small{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
-  .round-score{font:900 1.25rem 'Arial Narrow',Impact,sans-serif;font-variant-numeric:tabular-nums}
-  .round-economy{display:grid;gap:3px;color:var(--muted);font-size:.63rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
-  .round-economy .mine{color:var(--text)}
-  .round-tags{display:flex;flex-wrap:wrap;gap:5px}
-  .round-tags i{padding:2px 7px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent);font-size:.55rem;font-style:normal;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .round-tags i.timeout-tag{border-color:color-mix(in srgb,var(--accent-2) 55%,var(--line));color:var(--accent-2)}
-  .round-kills{display:grid;gap:5px}
-  .round-kills ol{display:grid;gap:3px;margin:0;padding:0;list-style:none}
-  .round-kills li{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:.7rem}
-  .round-kills b{font-weight:800}.round-kills b.mine{color:var(--accent)}
-  .round-kills em{display:inline-flex;align-items:center;font-style:normal;opacity:.85}
-  .round-kills em :global(svg){width:30px;height:13px}
-  .round-kills .flag{display:inline-flex;width:14px;height:14px;color:var(--text);opacity:.85}.round-kills .flag :global(svg){width:100%;height:100%}.round-kills .flag.hs{color:var(--danger);opacity:1}
-  .round-kills .assist{display:inline-flex;align-items:center;gap:3px;color:var(--muted);font-size:.62rem}.round-kills .assist .flag{width:12px;height:12px;opacity:.7}
-  .round-kills .victim{color:var(--muted)}
-  .round-kills small{margin-left:auto;color:var(--muted);font-size:.58rem;font-variant-numeric:tabular-nums}
-  .round-kills p{margin:0;color:var(--muted);font-size:.68rem}
   @keyframes tickIn{from{transform:scaleY(.2);opacity:0}}
-  @media (max-width:679px){.round-strip button{width:14px;height:12px}.round-strip button.pistol{height:15px}}
+  @media (max-width:679px){.round-strip{flex-wrap:nowrap;gap:5px;min-height:44px;padding:0 0 3px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin}.round-strip button{flex:0 0 40px;width:40px;height:44px;border:1px solid var(--line);color:var(--muted);background:var(--surface);scroll-snap-align:start}.round-strip button>span{display:block;font-size:.68rem;font-weight:900}.round-strip button.user,.round-strip button.a{color:var(--bg);background:var(--accent)}.round-strip button.enemy,.round-strip button.b{color:var(--text);background:color-mix(in srgb,var(--danger) 55%,var(--surface))}.round-strip button.pistol{height:44px;margin-top:0}.round-strip button.half{margin-right:5px}.round-strip button.half::after{right:-4px;top:0;height:44px}.round-strip button.timeout::before{left:4px;top:4px}.round-strip button:hover,.round-strip button.open{transform:none;outline:1px solid var(--text);outline-offset:-3px}.round-strip button b{right:4px;top:4px}.round-strip button.ace b{right:3px;top:3px}.round-card{display:none}}
   @media (prefers-reduced-motion:reduce){.round-strip button{animation:none;transition:none}}
 </style>

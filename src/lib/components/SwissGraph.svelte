@@ -103,5 +103,5 @@
   .swiss-outcome.qualified{border-color:var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 18%,transparent)}.swiss-outcome.qualified .swiss-record,.swiss-outcome.qualified>header span{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
   .swiss-outcome.eliminated{border-color:var(--danger)}.swiss-outcome.eliminated .swiss-record,.swiss-outcome.eliminated>header span{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 60%,var(--line))}
   .outcomes{flex-basis:220px}
-  @media(max-width:679px){.swiss-column{flex-basis:210px}}
+  @media(max-width:679px){.swiss-scroll{gap:6px;padding-bottom:5px;scroll-snap-type:x mandatory}.swiss-column{flex-basis:calc((100% - 6px)/2);min-width:146px;gap:5px}.swiss-column>header span,.swiss-outcome>header span{padding:5px;font-size:.52rem}.swiss-group,.swiss-outcome{gap:2px;padding:4px}.swiss-record{font-size:.7rem}.swiss-match{gap:0;padding:3px}.swiss-team{gap:4px;min-height:26px;padding:1px 2px}.swiss-team span{font-size:.64rem}.swiss-team b{font-size:.82rem}.swiss-match small{font-size:.48rem}.outcomes{flex-basis:calc((100% - 6px)/2)}}
 </style>

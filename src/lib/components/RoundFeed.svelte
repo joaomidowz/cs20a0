@@ -5,7 +5,8 @@
   import { BUY_LABELS, ENDING_LABELS, SIDE_LABELS, WEAPON_LABELS, getRoundTagLabel, getVisibleRoundTag } from '$lib/game/roundPresentation';
   import { KILL_FLAG_ICONS, KILL_FLAG_LABELS, killFlags } from '$lib/game/killfeedIcons';
   import { WEAPON_ICONS } from '$lib/game/sandbox/weaponIcons';
-  import type { Language, RoundDetail } from '$lib/game/types';
+  import type { Language, RoundDetail, RoundScore } from '$lib/game/types';
+  import type { RoundInspection } from './round-inspection';
 
   /** Every round detail of the map revealed so far; the last one is the round being shown. */
   export let details: RoundDetail[] = [];
@@ -16,6 +17,8 @@
   export let language: Language = 'pt-BR';
   export let teamNames: { a: string; b: string } = { a: 'A', b: 'B' };
   export let compact = false;
+  export let score: Pick<RoundScore, 'a' | 'b'> | null = null;
+  export let onInspect: ((inspection: RoundInspection, trigger: HTMLElement) => void) | undefined = undefined;
   /** Called once per round as soon as its whole kill feed is on screen (the parent then commits the round). */
   export let onRoundResolved: (roundNumber: number) => void = () => {};
   /** Simple mode: keeps the round result and hides the kill by kill feed. */
@@ -35,6 +38,13 @@
   $: if (currentDetail && resolved) notifyResolved(currentDetail.number);
   $: fragLeaders = compact ? [] : aggregateKills(knownDetails.filter((detail) => detail.number < visibleRounds || (detail.number === visibleRounds && resolved))).slice(0, 3);
   $: tag = getVisibleRoundTag(currentDetail, resolved);
+  $: currentInspection = currentDetail ? {
+    number: currentDetail.number,
+    score: score ?? { a: 0, b: 0 },
+    winner: currentDetail.winner,
+    overtime: currentDetail.overtime,
+    detail: currentDetail
+  } satisfies RoundInspection : null;
   $: buyLabels = BUY_LABELS[language];
   $: sideLabels = SIDE_LABELS[language];
   $: endingLabels = ENDING_LABELS[language];
@@ -72,11 +82,22 @@
     });
   }
 
+  function inspectCurrent(event: MouseEvent) {
+    if (!currentInspection || !onInspect) return;
+    onInspect(currentInspection, event.currentTarget as HTMLElement);
+  }
+
   onDestroy(clearKillTimers);
 </script>
 
 {#if currentDetail}
   <div class="round-detail" class:compact>
+    <button class="mobile-round-summary" type="button" on:click={inspectCurrent}>
+      <span>R{currentDetail.number}{#if currentDetail.overtime} · OT{/if}</span>
+      <strong>{teamNames[currentDetail.winner]}</strong>
+      <small>{currentDetail.kills.length} {language === 'en' ? 'kills' : language === 'es' ? 'bajas' : 'abates'} · {language === 'en' ? 'view details' : language === 'es' ? 'ver detalles' : 'ver detalhes'}</small>
+      <b aria-hidden="true">›</b>
+    </button>
     <div class="round-economy">
       <span class="buy {currentDetail.economy.a.buy}" class:mine={isMine('a')} title={`${teamNames.a} · $${currentDetail.economy.a.money}`}><i>{sideLabels[currentDetail.sideA]}</i>{buyLabels[currentDetail.economy.a.buy]}{#if currentDetail.economy.a.awp || currentDetail.economy.a.awpKept}<em>AWP</em>{/if}</span>
       <div class="round-center">
@@ -113,6 +134,7 @@
 
 <style>
   .round-detail{display:grid;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+  .mobile-round-summary{display:none}
   .round-economy{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
   .round-economy .buy{display:flex;align-items:center;gap:6px;min-width:0;color:var(--muted);font-size:.62rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.round-economy .buy.right{justify-content:flex-end}
   .round-economy .buy i{padding:2px 5px;border:1px solid var(--line);color:var(--text);font-size:.5rem;font-style:normal}.round-economy .buy.mine i{border-color:var(--accent);color:var(--accent)}
@@ -142,5 +164,14 @@
   @keyframes tagIn{from{transform:scale(.9);opacity:0}}
   @keyframes feedFade{from{opacity:0}}
   @media (prefers-reduced-motion:reduce){.kill-feed li,.round-tag{animation:feedFade var(--dur-ui) linear}}
-  @media(max-width:620px){.kill-feed time{display:none}.kill-feed li{font-size:.72rem}}
+  @media(max-width:679px){
+    .round-detail{padding-top:6px}
+    .mobile-round-summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:5px 9px;width:100%;min-height:52px;padding:7px 10px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 86%,transparent);color:var(--text);text-align:left;cursor:pointer}
+    .mobile-round-summary>span{grid-row:1 / span 2;color:var(--accent);font-size:.7rem;font-weight:900;letter-spacing:.1em}
+    .mobile-round-summary strong{overflow:hidden;font-size:.82rem;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
+    .mobile-round-summary small{overflow:hidden;color:var(--muted);font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}
+    .mobile-round-summary>b{grid-column:3;grid-row:1 / span 2;color:var(--accent);font-size:1.35rem}
+    .mobile-round-summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .round-economy,.kill-feed,.round-ending,.frag-leaders{display:none}
+  }
 </style>

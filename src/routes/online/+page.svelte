@@ -1330,31 +1330,38 @@
           </header>
 
           {#if snapshot.phase !== 'completed'}
-            <div class="match-controls panel">
-              <div class="control-group">
-                <span>{gameT('simulationMode')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
-                <SegmentedControl
-                  value={snapshot.config.simulationMode}
-                  label={gameT('simulationMode')}
-                  disabled={!isHost || snapshot.origin === 'queue'}
-                  options={[{ value: 'manual', label: gameT('manual') }, { value: 'automatic', label: gameT('automatic') }]}
-                  onChange={(value) => configureSimulation({ simulationMode: value as RoomConfig['simulationMode'] })}
-                />
+            {#if snapshot.origin === 'queue'}
+              <div class="queue-match-tools panel">
+                <div><span>FILA</span><strong>{gameT('automatic')} · {snapshot.config.simulationSpeed === 'normal' ? gameT('normal') : snapshot.config.simulationSpeed === 'fast' ? gameT('fast') : gameT('ultra')}</strong></div>
+                <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
               </div>
-              <div class="control-group">
-                <span>{gameT('speed')} {snapshot.origin === 'queue' ? '· FILA' : isHost ? '' : '· HOST'}</span>
-                <div class="control-row">
+            {:else}
+              <div class="match-controls panel compact-match-controls">
+                <div class="control-group">
+                  <span>{gameT('simulationMode')} {isHost ? '' : '· HOST'}</span>
                   <SegmentedControl
-                    value={snapshot.config.simulationSpeed}
-                    label={gameT('speed')}
-                    disabled={!isHost || snapshot.origin === 'queue'}
-                    options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
-                    onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                    value={snapshot.config.simulationMode}
+                    label={gameT('simulationMode')}
+                    disabled={!isHost}
+                    options={[{ value: 'manual', label: gameT('manual') }, { value: 'automatic', label: gameT('automatic') }]}
+                    onChange={(value) => configureSimulation({ simulationMode: value as RoomConfig['simulationMode'] })}
                   />
-                  <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
+                </div>
+                <div class="control-group">
+                  <span>{gameT('speed')} {isHost ? '' : '· HOST'}</span>
+                  <div class="control-row">
+                    <SegmentedControl
+                      value={snapshot.config.simulationSpeed}
+                      label={gameT('speed')}
+                      disabled={!isHost}
+                      options={[{ value: 'normal', label: gameT('normal') }, { value: 'fast', label: gameT('fast') }, { value: 'ultra', label: gameT('ultra') }]}
+                      onChange={(value) => configureSimulation({ simulationSpeed: value as RoomConfig['simulationSpeed'] })}
+                    />
+                    <AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} soundEnabled={$offlineSoundEnabled} onSoundChange={setOfflineSound} />
+                  </div>
                 </div>
               </div>
-            </div>
+            {/if}
             {#if snapshot.finalSpeedVote?.eligible}
               <button
                 class="final-speed-vote"
@@ -1657,7 +1664,7 @@
   /* Home do celular: o hero não pode comer a dobra — BUSCAR PARTIDA (a ação) tem que aparecer junto dele. */
   @media(max-width:720px){.online-entry .screen-header h1{font-size:clamp(1.9rem,9vw,2.4rem)}.online-entry .screen-header p{margin:6px auto 0;max-width:34ch;font-size:.78rem;line-height:1.45}.online-entry .screen-header .account-link{min-height:40px;margin-top:10px;padding:0 16px;font-size:.7rem}.mode-choice{margin-top:14px}.mode-card{padding:16px 14px}.mode-card h2{font-size:1.5rem}.entry-actions{gap:8px}.entry-actions section{padding:14px}.entry-actions h2{font-size:1.4rem}.entry-actions button{margin-top:10px}}
   @media(min-width:480px) and (max-width:679px){.entry-actions{grid-template-columns:1fr 1fr}}
-  @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}}
+  @media(max-width:679px){.pro-config label{grid-template-columns:1fr}.online-header{align-items:start;flex-direction:column}.room-code{text-align:left}.draft-status{grid-template-columns:1fr}.draft-status div{border-right:0;border-bottom:1px solid var(--line)}.online-major-screen{margin-top:8px}.major-tabs{position:sticky;z-index:8;top:6px;margin-bottom:8px;padding:3px;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px)}.major-tabs :global(.segmented-control button){min-height:44px}.online-major-screen>.timeline{margin-top:8px}}
   .screen-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.screen-header.centered .screen-kicker{justify-content:center}.multiplayer-tag{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--accent);color:#091006;background:var(--accent);font-size:.48rem;font-weight:900;letter-spacing:.12em;line-height:1;text-transform:uppercase}.organization-link{min-width:0;padding:0;border:0;color:inherit;background:transparent;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.organization-link:hover,.organization-link:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}.timeline-match{cursor:default}.timeline-match:hover{background:transparent}.timeline-expand{padding:4px 7px;border:1px solid transparent;color:inherit;background:transparent;font-weight:900;cursor:pointer}.timeline-expand:hover,.timeline-expand:focus-visible{border-color:currentColor}.online-result-actions{width:min(540px,100%);margin:0 auto 24px}.online-result-actions button{width:100%}
   .online-map-selection{display:grid;gap:14px;margin-bottom:14px;padding:20px}.online-map-selection .section-heading>strong{color:var(--accent);font-size:1.6rem}.online-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}.online-map-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer}.online-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.online-map-grid button:disabled{opacity:.38;cursor:not-allowed}.online-map-grid span,.online-map-grid small{color:var(--muted);font-size:.58rem}
 </style>

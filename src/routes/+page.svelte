@@ -1589,7 +1589,7 @@
   {:else if $game.phase === 'stage3' || $game.phase === 'playoffs'}
     <section class="screen shell match-screen">
       <header class="match-topbar"><div><span class="eyebrow">MAJOR LIVE</span><h1>{phaseLabel()}</h1></div>{#if $game.phase === 'stage3' && hasStageRecord}<div class="record"><span>{stageWins}</span><small>W</small><b>:</b><span>{stageLosses}</span><small>L</small></div>{/if}</header>
-      <div class="match-controls panel">
+      <div class="match-controls panel compact-match-controls">
         <div class="control-group">
           <span>{t('simulationMode')}</span>
           <SegmentedControl

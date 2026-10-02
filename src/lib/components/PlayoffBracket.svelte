@@ -65,5 +65,5 @@
   @keyframes starPop{from{transform:scale(.6);opacity:0}60%{transform:scale(1.25)}}
   @media (prefers-reduced-motion:reduce){.bracket-slot.champion::after{animation:none}}
   .bracket-slot.empty i{width:26px;height:26px;border:1px dashed var(--line)}.bracket-slot.empty span{color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:.58rem}
-  @media(max-width:679px){.bracket{grid-template-columns:repeat(3,200px)}}
+  @media(max-width:679px){.bracket{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;overflow:visible}.bracket-column{min-width:0;gap:5px}.bracket-column>header span{padding:5px 2px;font-size:.48rem;letter-spacing:.04em}.bracket-matches{gap:5px}.bracket-match{padding:3px 2px}.bracket-column:not(.final) .bracket-match::after{right:-4px;width:4px}.bracket-slot{grid-template-columns:minmax(0,1fr) auto;gap:2px;min-height:27px;padding:1px}.bracket-slot :global(.team-badge){display:none}.bracket-slot span{font-size:.58rem}.bracket-slot b{font-size:.78rem}.bracket-slot.empty i{display:none}.bracket-slot.empty span{font-size:.52rem}}
 </style>

@@ -36,5 +36,5 @@
   .decision-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.decision-options button{min-height:52px}
   @keyframes promptIn{from{transform:translateY(30%) scale(.97);opacity:0}}
   @media (prefers-reduced-motion:reduce){.decision-prompt{animation:none}}
-  @media(max-width:520px){.decision-options{grid-template-columns:1fr}}
+  @media(max-width:679px){.decision-prompt{gap:9px;margin-bottom:8px;padding:10px}.decision-prompt h2{font-size:1.1rem}.decision-prompt p{margin-top:3px;font-size:.69rem}.decision-options{grid-template-columns:1fr 1fr;gap:6px}.decision-options button{min-height:48px;padding:7px 9px}}
 </style>

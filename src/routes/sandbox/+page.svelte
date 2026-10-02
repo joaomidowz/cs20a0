@@ -446,7 +446,7 @@
           <button type="button" class:selected={order >= 0} disabled={count === 0 || (order < 0 && selection.mapPreferences.length >= 3)} on:click={() => toggleMap(mapId)} aria-pressed={order >= 0}>
             <span class="map-order">{order >= 0 ? order + 1 : ''}</span>
             <strong>{getMapName(mapId)}</strong>
-            <span class="map-familiarity"><i style={`width:${getMapFamiliarity(count)}%`}></i></span>
+            <span class="map-familiarity"><i style={`--familiarity:${getMapFamiliarity(count) / 100}`}></i></span>
             <span class="map-meta">{getMapFamiliarity(count)}% · {count}/5</span>
             <span class="map-contributors">{#each contributors[mapId] as player (player.id)}<em title={player.nickname ?? ''}>{initials(player.nickname)}</em>{/each}</span>
             <small>{mapYears[mapId].join(', ') || 'fora das épocas'}</small>
@@ -467,7 +467,7 @@
         <div class="record" aria-label={`${userWins} vitórias e ${userLosses} derrotas`}><span>{userWins}</span><small>V</small><b>—</b><span>{userLosses}</span><small>D</small></div>
       </header>
 
-      <section class="sandbox-controls panel">
+      <section class="sandbox-controls compact-match-controls panel">
         <div class="control-group"><span>Visão</span><SegmentedControl value={majorView} options={viewOptions} label="Visão do Major" onChange={(value) => majorView = value as 'current' | 'all'} /></div>
         <div class="control-group"><span>Velocidade</span><div class="control-row"><SegmentedControl value={simulationSpeed} options={speedOptions} label="Velocidade da simulação" onChange={setSimulationSpeed} /><AutomationGear value={strategicPreferences} language={$language} onChange={setStrategicPreferences} /></div></div>
         <div class="control-group"><span>Avanço</span><SegmentedControl value={simulationMode} options={modeOptions} label="Avanço das séries" onChange={setSimulationMode} /></div>
@@ -628,7 +628,7 @@
   .sandbox-map-grid button{position:relative;display:grid;gap:5px;padding:13px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:pointer;transition:border-color .18s ease,transform .18s ease}
   .sandbox-map-grid button:not(:disabled):hover{border-color:var(--accent);transform:translateY(-2px)}.sandbox-map-grid button.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.sandbox-map-grid button:disabled{opacity:.38;cursor:not-allowed}
   .sandbox-map-grid strong{font-size:1.1rem;text-transform:uppercase}.map-order{position:absolute;right:10px;top:8px;color:var(--accent);font:900 1.3rem 'Arial Narrow',Impact,sans-serif}
-  .map-familiarity{display:block;height:4px;background:var(--line);overflow:hidden}.map-familiarity i{display:block;height:100%;background:var(--accent);transition:width .25s ease}
+  .map-familiarity{display:block;height:4px;background:var(--line);overflow:hidden}.map-familiarity i{display:block;width:100%;height:100%;background:var(--accent);transform:scaleX(var(--familiarity));transform-origin:left;transition:transform .25s ease}
   .map-meta,.sandbox-map-grid small{color:var(--muted);font-size:.6rem}.map-contributors{display:flex;flex-wrap:wrap;gap:3px;min-height:20px}.map-contributors em{display:grid;place-items:center;width:20px;height:20px;border:1px solid var(--line);color:var(--muted);font-size:.5rem;font-style:normal;font-weight:900}
   .sandbox-launch{width:100%;min-height:54px;margin-top:14px}
   .sandbox-major-screen{max-width:900px;margin:24px auto 0}.sandbox-major-header h1{font-size:clamp(2.2rem,7vw,4.4rem)}
@@ -639,6 +639,6 @@
   .sandbox-overview{display:grid;gap:14px}
   @media(max-width:1100px){.sandbox-setup{grid-template-columns:1fr 1fr}.sandbox-slots{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:900px){.sandbox-build{grid-template-columns:1fr}.sandbox-power{grid-template-columns:auto minmax(0,1fr);column-gap:18px}.sandbox-power>.eyebrow,.sandbox-power>.power-bar,.sandbox-power>small{grid-column:1/-1}.power-value{font-size:3.4rem}.sandbox-controls{grid-template-columns:1fr 1fr}.sandbox-controls>.secondary{grid-column:1/-1}.sandbox-slots{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:560px){.sandbox-setup,.sandbox-slots,.sandbox-controls,.sandbox-final-actions{grid-template-columns:1fr}.sandbox-power{grid-template-columns:1fr}.sandbox-major-header{align-items:stretch;flex-direction:column}.sandbox-major-header .record{justify-content:start}.section-heading{align-items:stretch;flex-direction:column;gap:10px}.sandbox-roster-actions .secondary{flex:1}.sandbox-maps>header{align-items:flex-start;flex-direction:column}.sandbox-map-grid{grid-template-columns:1fr 1fr}.timeline-team-right small{font-size:.45rem}}
+  @media(max-width:560px){.sandbox-setup,.sandbox-slots,.sandbox-final-actions{grid-template-columns:1fr}.sandbox-controls{grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;padding:7px}.sandbox-controls>.control-group:nth-child(2){grid-column:1/-1;grid-row:2}.sandbox-controls>.control-group:nth-child(3){grid-column:2;grid-row:1}.sandbox-controls>.secondary{display:none}.sandbox-power{grid-template-columns:1fr}.sandbox-major-header{align-items:stretch;flex-direction:column}.sandbox-major-header .record{justify-content:start}.section-heading{align-items:stretch;flex-direction:column;gap:10px}.sandbox-roster-actions .secondary{flex:1}.sandbox-maps>header{align-items:flex-start;flex-direction:column}.sandbox-map-grid{grid-template-columns:1fr 1fr}.timeline-team-right small{font-size:.45rem}}
   @media(max-width:380px){.sandbox-map-grid{grid-template-columns:1fr}}
 </style>

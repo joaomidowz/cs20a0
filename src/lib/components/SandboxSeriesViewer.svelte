@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import RoundFeed from '$lib/components/RoundFeed.svelte';
+  import RoundDetailSheet from '$lib/components/RoundDetailSheet.svelte';
   import RoundStrip from '$lib/components/RoundStrip.svelte';
   import RoundFlash from '$lib/components/live/RoundFlash.svelte';
   import { getMapName } from '$lib/game/maps';
@@ -9,6 +10,7 @@
   import { LAST_ROUND_FEED_FACTOR, getCommittedRounds, getVisibleMapScore, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getSandboxDecidedMaps, SANDBOX_PHASE_LABELS } from '$lib/game/sandbox/presentation';
   import type { SandboxMajorMatch } from '$lib/game/sandbox/types';
+  import type { RoundInspection } from './round-inspection';
 
   export let match: SandboxMajorMatch;
   export let delay = 1500;
@@ -40,6 +42,25 @@
   let resolvePendingWait: ((skipped: boolean) => void) | null = null;
   /** Last round whose kill feed finished playing (per map), reported by RoundFeed. */
   let resolved = { map: -1, round: 0 };
+  let mobileViewer = false;
+  let inspectedRound: RoundInspection | null = null;
+  let inspectionTrigger: HTMLElement | null = null;
+
+  onMount(() => {
+    const media = window.matchMedia('(max-width: 679px)');
+    const syncMobile = () => {
+      mobileViewer = media.matches;
+      if (!mobileViewer) inspectedRound = null;
+    };
+    syncMobile();
+    media.addEventListener('change', syncMobile);
+    return () => media.removeEventListener('change', syncMobile);
+  });
+
+  function inspectRound(inspection: RoundInspection, trigger: HTMLElement) {
+    inspectedRound = inspection;
+    inspectionTrigger = trigger;
+  }
 
   const wait = (ms: number) => new Promise<boolean>((resolve) => {
     resolvePendingWait = resolve;
@@ -213,12 +234,16 @@
       <RoundFlash detail={committedDetail} cursor={`${match.id}:${displayActiveMap}:${committedRounds}`} language="pt-BR" {userIsA} />
       {#if inOvertime && currentMapScore}<strong class="ot-alert" role="status">⚠ OVERTIME · {currentMapScore.a}-{currentMapScore.b}</strong>{/if}
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={(headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
-      <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} language="pt-BR" {teamNames} />
+      <RoundStrip rounds={visibleRoundScores} details={currentMap.details} {userIsA} language="pt-BR" {teamNames} onInspect={mobileViewer ? inspectRound : undefined} />
       <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map)} encerrado${currentMap.overtime ? ' na prorrogação' : ''}` : roundInProgress ? `Round ${displayVisibleRounds} · em andamento` : lastRoundWinner ? `Round ${committedRounds} · ${lastRoundWinner === 'a' ? match.teamA.name : match.teamB.name}` : 'Início do mapa'}</small>
       {#if currentMap.details?.length && displayVisibleRounds > 0}
-        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} delay={currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length ? delay * LAST_ROUND_FEED_FACTOR : delay} language="pt-BR" {teamNames} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
+        <RoundFeed details={currentMap.details} visibleRounds={displayVisibleRounds} {userIsA} delay={currentMap.winnerId && displayVisibleRounds >= currentMap.rounds.length ? delay * LAST_ROUND_FEED_FACTOR : delay} language="pt-BR" {teamNames} score={currentMapScore} onInspect={mobileViewer ? inspectRound : undefined} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}
     </div>
+  {/if}
+
+  {#if inspectedRound}
+    <RoundDetailSheet inspection={inspectedRound} trigger={inspectionTrigger} {userIsA} language="pt-BR" {teamNames} onClose={() => inspectedRound = null} />
   {/if}
 
   <div class="decided-map-list">
@@ -287,6 +312,5 @@
   @keyframes softFade{from{opacity:0}}
   @media (prefers-reduced-motion:reduce){.ot-alert,.decided-map-list b{animation:none}.map-headline,.decided-map-list article{animation-name:softFade}}
   @keyframes headlineIn{from{transform:scale(.94);opacity:0}}
-  @media(max-width:620px){.series-header{align-items:flex-start;flex-direction:column}.sandbox-live{justify-items:start}.decided-map-list{grid-template-columns:1fr 1fr}.decided-map-list article{min-height:88px;padding:12px}.live-map{padding:12px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}}
-  @media(max-width:400px){.decided-map-list{grid-template-columns:1fr}}
+  @media(max-width:679px){.series-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px}.sandbox-live{justify-items:end}.sandbox-live strong{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.decided-map-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}.decided-map-list article{grid-template-columns:1fr;align-content:space-between;min-height:58px;padding:6px}.decided-map-list strong{margin-top:2px;font-size:.82rem}.decided-map-list span{display:none}.decided-map-list small{font-size:.69rem;letter-spacing:.02em}.decided-map-list b{justify-self:start;font-size:1.1rem}.decided-map-list .map-extra{display:none}.live-map{gap:6px;margin-top:8px;padding:9px}.live-map-score{grid-template-columns:auto auto auto;justify-content:center}.live-map-score span{display:none}.live-map-score b{font-size:clamp(2rem,12vw,2.8rem)}}
 </style>

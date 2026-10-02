@@ -80,5 +80,6 @@
   .overview-panel{display:grid;gap:12px;min-width:0;padding:16px}.overview-panel>:global(*){min-width:0}
   .overview-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}.overview-toggle{min-height:34px;padding:0 12px;font-size:.58rem}
   .overview-summary{margin:0;color:var(--muted);font-size:.66rem;line-height:1.6}.overview-summary::before{content:'▸ ';color:var(--accent)}
+  @media(max-width:679px){.major-overview{gap:8px}.overview-panel{gap:8px;padding:8px}.overview-head{gap:6px}.overview-head>:global(.segmented-control){width:100%}.overview-toggle{width:100%;min-height:40px}.overview-summary{font-size:.69rem;line-height:1.4}}
   @media(min-width:980px){.overview-panel{padding:20px}}
 </style>

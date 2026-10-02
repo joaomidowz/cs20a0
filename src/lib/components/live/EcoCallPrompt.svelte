@@ -36,5 +36,5 @@
   .option{display:grid;gap:4px;min-height:64px;padding:12px;text-align:left}.option strong{font-size:1rem;text-transform:uppercase}.option small{font-size:.66rem;font-weight:500;line-height:1.3;text-transform:none;opacity:.85}
   @keyframes promptIn{from{transform:translateY(30%) scale(.97);opacity:0}}
   @media (prefers-reduced-motion:reduce){.decision-prompt{animation:none}}
-  @media(max-width:520px){.decision-options{grid-template-columns:1fr}}
+  @media(max-width:679px){.decision-prompt{gap:9px;margin-bottom:8px;padding:10px}.decision-prompt h2{font-size:1.1rem}.decision-prompt p{margin-top:3px;font-size:.69rem}.decision-options{grid-template-columns:1fr 1fr;gap:6px}.decision-options button{min-height:54px;padding:8px 10px}.decision-options button strong{font-size:.8rem}.decision-options button small{font-size:.64rem;line-height:1.25}}
 </style>

@@ -76,9 +76,9 @@
   .standings-row.placement-5to8 em{color:var(--muted)}.standings-row.placement-5to8 .standings-team span{color:var(--text)}
   .standings-row.user{background:color-mix(in srgb,var(--accent) 8%,transparent)}.standings-row.user .standings-team span{color:var(--accent)}
   @media(max-width:420px){
-    .standings-head,.standings-row{grid-template-columns:minmax(38px,1fr) 32px 18px 58px;gap:3px;padding-inline:3px}
+    .standings-head,.standings-row{grid-template-columns:minmax(38px,1fr) 32px 18px 58px;gap:3px;min-height:30px;padding-inline:3px}
     .standings-team{display:block;overflow:hidden}.standings-team :global(.team-badge),.standings-rank{display:none}
-    .standings-name{display:block;font-size:.62rem}
+    .standings-name{display:block;font-size:.64rem}
     .standings-row b{font-size:.84rem}.standings-row small{font-size:.55rem}.standings-row em{font-size:.42rem;letter-spacing:.04em}
   }
   @media(prefers-reduced-motion:reduce){.standings-row{scroll-behavior:auto}}
