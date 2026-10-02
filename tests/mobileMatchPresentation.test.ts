@@ -39,4 +39,14 @@ describe('mobile match presentation contract', () => {
     expect(offline).toContain('compact-match-controls');
     expect(sandbox).toContain('compact-match-controls');
   });
+
+  it('stacks mobile controls and keeps every revealed round visible', () => {
+    const app = source('src/app.css');
+    const strip = source('src/lib/components/RoundStrip.svelte');
+
+    expect(app).toMatch(/\.compact-match-controls\{grid-template-columns:1fr/);
+    expect(strip).toContain('grid-template-columns:repeat(12,minmax(0,1fr))');
+    expect(strip).toContain('@media (max-width:379px)');
+    expect(strip).not.toContain('overflow-x:auto');
+  });
 });
