@@ -76,7 +76,7 @@
 <svelte:window on:keydown={onKeydown} />
 
 <div class="round-strip-wrap">
-  <div class="round-strip" role="group" aria-label={inspectLabel}>
+  <div class="round-strip" class:mobile={Boolean(onInspect)} role="group" aria-label={inspectLabel}>
     {#each ticks as tick (tick.number)}
       <button
         type="button"
@@ -132,7 +132,10 @@
   .round-strip button>span{display:none}
   .round-card{display:grid;gap:9px;padding:11px 13px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 88%,black 12%)}
   @keyframes tickIn{from{transform:scaleY(.2);opacity:0}}
-  @media (max-width:679px){.round-strip{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;min-height:0;padding:0}.round-strip button,.round-strip button.pistol,.round-strip button.overtime{width:100%;height:30px;margin:0;border:1px solid var(--line);color:var(--muted);background:var(--surface);opacity:1}.round-strip button>span{display:block;font-size:.62rem;font-weight:900}.round-strip button.user,.round-strip button.a{color:var(--bg);background:var(--accent)}.round-strip button.enemy,.round-strip button.b{color:var(--text);background:color-mix(in srgb,var(--danger) 55%,var(--surface))}.round-strip button.half{margin-right:0}.round-strip button.half::after{right:-2px;top:0;height:30px;z-index:1}.round-strip button.timeout::before{left:3px;top:3px}.round-strip button:hover,.round-strip button.open{transform:none;outline:1px solid var(--text);outline-offset:-3px}.round-strip button b{right:3px;top:3px}.round-strip button.ace b{right:2px;top:2px}.round-card{display:none}}
-  @media (max-width:379px){.round-strip{grid-template-columns:repeat(10,minmax(0,1fr))}}
+  .round-strip.mobile{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;min-height:0;padding:0}
+  .round-strip.mobile button,.round-strip.mobile button.pistol,.round-strip.mobile button.overtime{width:100%;height:30px;margin:0;border:1px solid var(--line);color:var(--muted);background:var(--surface);opacity:1}
+  .round-strip.mobile button>span{display:block;font-size:.62rem;font-weight:900}.round-strip.mobile button.user,.round-strip.mobile button.a{color:var(--bg);background:var(--accent)}.round-strip.mobile button.enemy,.round-strip.mobile button.b{color:var(--text);background:color-mix(in srgb,var(--danger) 55%,var(--surface))}.round-strip.mobile button.half{margin-right:0}.round-strip.mobile button.half::after{right:-2px;top:0;height:30px;z-index:1}.round-strip.mobile button.timeout::before{left:3px;top:3px}.round-strip.mobile button:hover,.round-strip.mobile button.open{transform:none;outline:1px solid var(--text);outline-offset:-3px}.round-strip.mobile button b{right:3px;top:3px}.round-strip.mobile button.ace b{right:2px;top:2px}
+  @media (max-width:679px){.round-card{display:none}}
+  @media (max-width:379px){.round-strip.mobile{grid-template-columns:repeat(10,minmax(0,1fr))}}
   @media (prefers-reduced-motion:reduce){.round-strip button{animation:none;transition:none}}
 </style>

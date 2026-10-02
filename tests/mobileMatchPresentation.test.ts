@@ -42,9 +42,14 @@ describe('mobile match presentation contract', () => {
 
   it('stacks mobile controls and keeps every revealed round visible', () => {
     const app = source('src/app.css');
+    const online = source('src/routes/online/+page.svelte');
     const strip = source('src/lib/components/RoundStrip.svelte');
 
     expect(app).toMatch(/\.compact-match-controls\{grid-template-columns:1fr/);
+    expect(online).toContain('.online-major-screen :global(.compact-match-controls)');
+    expect(online).toContain('flex-direction:column');
+    expect(strip).toContain('class:mobile={Boolean(onInspect)}');
+    expect(strip).toContain('.round-strip.mobile{display:grid');
     expect(strip).toContain('grid-template-columns:repeat(12,minmax(0,1fr))');
     expect(strip).toContain('@media (max-width:379px)');
     expect(strip).not.toContain('overflow-x:auto');
