@@ -56,11 +56,13 @@
   .team { text-transform: none; }
   .text { display: grid; gap: 3px; min-width: 0; }
   .star { border-color: #d9a441; box-shadow: 0 0 0 1px #d9a441; }
-  /* Row: photo | text | OVR, one line tall. */
-  .row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; height: 100%; }
+  /* Row: photo | text | OVR, one line tall. Compacto o bastante para a line inteira + coach caberem numa tela. */
+  .row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; height: 100%; padding: 5px 8px; }
   .row .top { display: contents; }
-  .row .photo { grid-column: 1; grid-row: 1; width: 44px; height: 44px; }
+  .row .photo { grid-column: 1; grid-row: 1; width: 38px; height: 38px; }
   .row .text { grid-column: 2; grid-row: 1; gap: 1px; }
-  .row .ovr { grid-column: 3; grid-row: 1; font-size: clamp(1.2rem, 5.4vw, 1.5rem); }
+  .row .ovr { grid-column: 3; grid-row: 1; font-size: clamp(1.05rem, 4.5vw, 1.3rem); }
+  .row .name { font-size: clamp(.8rem, 3.2vw, .92rem); }
+  .row .team { display: none; }
   @media (prefers-reduced-motion: reduce) { .mini { transition: none; } }
 </style>

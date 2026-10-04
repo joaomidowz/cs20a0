@@ -1092,20 +1092,31 @@
   .slot :global(footer) { flex-direction: column; }
   .slot :global(footer button) { width: 100%; min-width: 0; }
   @media (max-width: 720px) {
+    /* Time compacto: poder, os cinco titulares e o coach cabem numa tela de celular sem rolar. */
     .collection { padding-bottom: calc(170px + env(safe-area-inset-bottom)); }
     .slot-desk { display: none; }
-    .slot-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px; align-items: stretch; gap: 6px; min-width: 0; }
-    .slot-row.coach-row { grid-template-columns: minmax(0, 1fr) 40px; }
-    .row-actions { display: grid; grid-template-rows: auto auto; gap: 4px; min-width: 0; }
-    .row-actions :global(.styled-select .trigger) { min-height: 36px; padding: 0 6px; }
-    .row-actions :global(.styled-select .value) { font-size: .7rem; }
+    .slot { gap: 4px; }
+    .slot-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px; align-items: stretch; gap: 5px; min-width: 0; }
+    .slot-row.coach-row { grid-template-columns: minmax(0, 1fr) 36px; }
+    .row-actions { display: grid; grid-template-rows: auto auto; gap: 3px; min-width: 0; }
+    .row-actions :global(.styled-select .trigger) { min-height: 30px; padding: 0 6px; }
+    .row-actions :global(.styled-select .value) { font-size: .66rem; }
     .row-actions :global(.styled-select .menu) { left: auto; right: 0; min-width: 200px; }
-    .row-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-    .icon { display: grid; place-items: center; min-width: 0; min-height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: 1rem; font-weight: 900; cursor: pointer; }
+    .row-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+    .icon { display: grid; place-items: center; min-width: 0; min-height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--text); font-size: .9rem; font-weight: 900; cursor: pointer; }
     .icon:hover { border-color: var(--accent); }
     .icon.active { border-color: #d9a441; color: #ffd36b; background: color-mix(in srgb, #d9a441 14%, var(--surface)); }
-    .slot .empty { min-height: 56px; }
+    .slot .empty { min-height: 44px; }
+    .slot-notes { font-size: .58rem; }
     .slot-notes:empty { display: none; }
+    /* O eyebrow duplica o título e o h2 gigante empurra a line para fora da tela. */
+    .team .section-heading .eyebrow { display: none; }
+    .team .section-heading h2 { margin: 0; font-size: 1.05rem; }
+    .team .power { font-size: 1.15rem; }
+    .team .power .unsaved { margin-top: 2px; font-size: .6rem; }
+    .lineup-tabs { gap: 4px; }
+    .lineup-tabs button { min-height: 30px; padding: 0 9px; font-size: .7rem; }
+    .team > .note { font-size: .62rem; line-height: 1.35; }
   }
   @media (prefers-reduced-motion: reduce) { .swap-here { animation: none; } }
   .note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
@@ -1150,8 +1161,9 @@
     .collection { padding-top: 8px; }
     .save-bar { position: fixed; left: 0; right: 0; bottom: calc(65px + env(safe-area-inset-bottom)); }
     .team, .cards, .shop { padding: 14px; }
+    .team { gap: 8px; padding: 10px 10px 14px; }
     .details { grid-template-columns: minmax(0, 1fr); }
-    .slots { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .slots { grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .team-links > * { flex: 1 1 auto; }
     .picker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
     /* Collection like a card game: four thumbnails per row, coaches two. Actions live in the sheet. */
