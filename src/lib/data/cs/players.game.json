@@ -3024,7 +3024,7 @@
       "spaceCreator",
       "selflessPlayer"
     ],
-    "overall": 96,
+    "overall": 93,
     "firepower": 90,
     "clutch": 86,
     "entry": 91,
@@ -3071,7 +3071,7 @@
       "brazilianLegend",
       "luckyCharm"
     ],
-    "overall": 96,
+    "overall": 95,
     "firepower": 91,
     "clutch": 97,
     "entry": 78,
@@ -4581,7 +4581,7 @@
     "year": 2016,
     "game": "CSGO",
     "role": "rifle-support",
-    "overall": 96,
+    "overall": 95,
     "rarity": "legend",
     "traits": [
       "majorAura",
@@ -4657,7 +4657,7 @@
     "year": 2016,
     "game": "CSGO",
     "role": "entry",
-    "overall": 96,
+    "overall": 93,
     "rarity": "legend",
     "traits": [
       "entry",

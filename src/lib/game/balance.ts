@@ -134,15 +134,16 @@ export const SYNERGY_POWER_TO_COURT = 0.25;
  * conteúdo mudar, `tests/powerCeiling.test.ts` re-mede e avisa. Com ela: SK 2016 completa 99,7, seleções de país
  * 99,1–99,8, vagas do dono 99,1–99,5, cinco GOATs sem pensar 98,5, campeões azarões (Gambit 2017) ~98.
  *
- * Remedido em 2026-10-05 (re-baseline + buff país/era): com o catálogo publicado em produção (hash
- * 92003799c82e38a1), a melhor line montável NÃO é mais um time completo — é o híbrido brasileiro
- * coldzera + FalleN + TACO + fnx (Luminosity 2016) com fer 2017, que mede 117,61: núcleo de 4 + país cheio +
- * ano cabem inteiros no teto temático, sem o corte que capa os campeões completos. Entre os campeões, a ordem é
- * SK 2016 (116,70) > Luminosity 2016 (116,30) > Vitality 2025 (115,87). Tudo travado em tests/powerCeiling.test.ts,
- * que agora também mede as seleções nacionais.
+ * Remedido em 2026-10-05 (meio-termo BR do dono): TACO 2016 86→96 e fnx 2016 90→96 tinham entrado escondidos
+ * num commit de balance (34f0d9f) e inflado a era brasileira a ponto de o híbrido coldzera + FalleN + TACO +
+ * fnx (Luminosity 2016) + fer 2017 medir 117,61 e tomar o pino — derrubando Vitality/Astralis do 99,9 na tela.
+ * Decisão do dono: BR forte SEM passar a Vitality — TACO calibrado em 93 e fnx em 95 pelo laboratório. Com o
+ * buff de país/era, a Vitality 2025 completa mede 115,94 e volta a ser o pino; SK 2016 (115,44) é o 3º do jogo,
+ * entre as Astralis 2019 (115,60) e 2018 (115,29). Tudo travado em tests/powerCeiling.test.ts, inclusive as
+ * seleções nacionais e os top-5 crus, que nunca podem passar do pino.
  */
 export const PLAYER_SOFT_KNEE = 97.5;
-export const PLAYER_SOFT_TOP_COURT = 117.6;
+export const PLAYER_SOFT_TOP_COURT = 115.9;
 export const PLAYER_CEILING_COURT = 99.9;
 
 /**

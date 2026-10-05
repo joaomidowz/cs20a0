@@ -36,3 +36,14 @@ O catálogo em produção (hash `92003799c82e38a1`) divergia dos congelados desd
 ## Deploy
 
 Mesmo commit no Railway (`railway up --ci --service cs13a0-online-server`, primeiro) e na Vercel (push na `main`, logo depois). Sem bump de protocolo (11). Rollback na ordem inversa.
+
+## Correção do mesmo dia — meio-termo BR (dono)
+
+O dono notou que Vitality/Astralis saíram do 99,9. Causa: TACO 2016 (86→96) e fnx 2016 (90→96) entraram
+escondidos no commit `34f0d9f` ("restore bonus for elite double AWP"), inflando SK (116,70), Luminosity (116,30)
+e o híbrido BR (117,61) — que tomou o pino e comprimiu o resto. Decisão do dono: **BR forte sem passar a
+Vitality**. Calibrado no laboratório: **TACO 93 · fnx 95** → Vitality 115,94 volta a ser o pino (99,9), Astralis
+2019 115,60 lê 99,9, SK 115,44 vira o 3º do jogo, Astralis 2018 115,29 e Luminosity 115,05 leem 99,8; híbrido BR
+115,03 e seleções 99,15–99,76. `PLAYER_SOFT_TOP_COURT` de volta a 115,9; guarda nova: nenhum top-5 cru passa do
+pino. Hash do catálogo: `a2f116196f0b4081`. Atenção: se o Studio ainda tiver TACO/fnx em 96, um `data:pull`
+futuro desfaz isso — corrigir lá também.

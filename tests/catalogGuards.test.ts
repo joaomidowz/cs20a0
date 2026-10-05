@@ -22,12 +22,14 @@ import { ONLINE_DATA_HASH } from '../src/lib/game/online/dataset';
  * Atualizado em 2026-09-28 para o deploy coordenado do protocolo online v11 e das revisões de catálogo já na branch.
  * Atualizado em 2026-10-05 (re-baseline): edições de overall feitas pelo dono no Studio já estavam publicadas —
  * o /health do Railway responde este mesmo hash — mas os congelados não tinham sido remedidos.
+ * Atualizado em 2026-10-05 (meio-termo BR): TACO 2016 96→93 e fnx 2016 96→95 (o 96 tinha entrado escondido no
+ * commit 34f0d9f e derrubado Vitality/Astralis do 99,9); deploy coordenado com o front na mesma hora.
  */
-const FROZEN_ONLINE_DATA_HASH = '92003799c82e38a1';
+const FROZEN_ONLINE_DATA_HASH = 'a2f116196f0b4081';
 
 /** SHA-256 dos bytes crus dos arquivos v1. Só mudam no deploy coordenado do online v2. */
 const FROZEN_V1_FILES: Record<string, string> = {
-  'src/lib/data/cs/players.game.json': '8ae1cc695179b97de9e77e3f4d2d0e3bf1e84c3a08de44e6d5574446d20f851e',
+  'src/lib/data/cs/players.game.json': '81f6bb0c76578d07fc976ed8fff80fb0a233d9c9431052f98830af4d6ff78993',
   'src/lib/data/cs/teams.game.json': 'df9f5863139e702a16d10943ca2e5178e002de7c2d65889344cb23fcc4d34aa8',
   'src/lib/data/cs/coaches.game.json': 'cdcddae7c1653d2faf5d606c8f7b833a2e7da84faeee1e90a6d128ffd64afa8a'
 };

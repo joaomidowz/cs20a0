@@ -93,19 +93,18 @@ describe('teto macio: a ordem do topo nasce das cartas', { timeout: 300_000 }, (
     const levels = Object.fromEntries(['vitality-2025', 'astralis-2019', 'astralis-2018', 'sk-2016', 'luminosity-2016', 'spirit-2024', 'faze-2022'].map((id) => [id, championLevel(id)]));
     const label = Object.entries(levels).map(([id, value]) => `${id} ${value.toFixed(2)}`).join(' · ');
     const best = Math.max(...Object.values(levels));
-    // O pino da escala passou a ser o híbrido BR (ver o bloco das seleções): os campeões completos ficam logo
-    // abaixo dele — nunca acima, e perto o bastante para o topo da tabela continuar lendo ~99,8.
+    // O pino da escala é a melhor line medida: nunca acima dele (subir o conteúdo exige remedir a constante).
     expect(best, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT + 0.05);
     expect(best, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 1.2);
-    // Re-baseline 2026-10-05: com o catálogo publicado (hash 92003799c82e38a1, revisões de 2026-09-30), a era
-    // brasileira lidera — SK 2016 (116,70) e Luminosity 2016 (116,30) à frente da Vitality 2025 (115,87),
-    // Astralis 2019 (115,60) e Astralis 2018 (115,29). A ordem continua nascendo das cartas, sem lista curada.
+    // Meio-termo BR (dono, 2026-10-05): com TACO 93 e fnx 95 (o 96 dos dois tinha entrado escondido no 34f0d9f),
+    // a Vitality 2025 (115,94) segue no pino e a era BR encosta — SK 2016 (115,44) entra entre as Astralis 2019
+    // (115,60) e 2018 (115,29), com a Luminosity (115,05) logo atrás. A ordem continua nascendo das cartas.
     const order = Object.entries(levels).sort((a, b) => b[1] - a[1]).map(([id]) => id);
-    expect(order.slice(0, 5), label).toEqual(['sk-2016', 'luminosity-2016', 'vitality-2025', 'astralis-2019', 'astralis-2018']);
+    expect(order.slice(0, 5), label).toEqual(['vitality-2025', 'astralis-2019', 'sk-2016', 'astralis-2018', 'luminosity-2016']);
     expect(levels['sk-2016'], label).toBeGreaterThan(levels['luminosity-2016']);
     expect(levels['luminosity-2016'], label).toBeGreaterThan(levels['faze-2022']);
-    // Em quadra, o melhor campeão completo lê ~99,79 (o 99,9 é do híbrido BR) e a FaZe 2022 fica abaixo de 99,5.
-    expect(playerCourtLevel(best)).toBeGreaterThanOrEqual(99.75);
+    // Em quadra, o topo lê 99,8–99,9 e a FaZe 2022 fica abaixo de 99,5.
+    expect(playerCourtLevel(best)).toBeGreaterThanOrEqual(99.8);
     expect(playerCourtLevel(levels['faze-2022'])).toBeLessThan(99.5);
   });
 });
@@ -176,19 +175,19 @@ describe('seleções nacionais ficam sob o pino', { timeout: 300_000 }, () => {
     return pool;
   };
 
-  it('o híbrido BR (4× Luminosity 2016 + fer) É o pino da escala, e nenhum top-5 cru passa dele', () => {
-    // Núcleo de 4 + país cheio + ano cabem inteiros no teto temático (o campeão completo é capado em 30):
-    // por isso a line mais forte do jogo é esta, não um time completo. Ela define PLAYER_SOFT_TOP_COURT e é a
-    // única leitura 99,9 da tela; se o conteúdo mudar e outra line passar dela, este teste avisa.
+  it('nenhum top-5 cru passa do pino: o 99,9 pertence ao melhor campeão completo', () => {
+    // Núcleo de 4 + país cheio + ano cabem inteiros no teto temático (o campeão completo é capado em 30): foi
+    // assim que o híbrido BR chegou a 117,61 com TACO/fnx em 96 e tomou o pino em silêncio. Com o meio-termo do
+    // dono (TACO 93, fnx 95) ele mede ~115,0, abaixo da Vitality — e este teste garante que nenhum top-5 cru
+    // volta a passar do pino sem avisar.
     const levels = ['dk', 'ru', 'br', 'fr', 'se'].map((country) => {
       const cards = rawSelection(country);
       return [country, cards.length === 5 ? selectionLevel(cards) : -Infinity] as const;
     });
     const label = levels.map(([country, level]) => `${country} ${Number.isFinite(level) ? level.toFixed(2) : 'inviável'}`).join(' · ');
     console.info(`top-5 crus: ${label}`);
-    for (const [, level] of levels) expect(level, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT + 0.05);
+    for (const [, level] of levels) expect(level, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT - 0.1);
     const brHybrid = levels.find(([country]) => country === 'br')?.[1] ?? -Infinity;
-    expect(brHybrid, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 0.05);
-    expect(playerCourtLevel(brHybrid), label).toBe(PLAYER_CEILING_COURT);
+    expect(playerCourtLevel(brHybrid), label).toBeLessThan(PLAYER_CEILING_COURT);
   });
 });
