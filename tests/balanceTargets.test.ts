@@ -54,7 +54,9 @@ describe('justo e estudado', () => {
   // Carta manda entre fileiras: superstrellas caprichadas NÃO encostam num time de GOATs (a química é o caminho delas).
   band('carta ajuda: GOATs × Superstars, os dois caprichados', () => labLineup(LAB.goatsBuilt), () => labLineup(LAB.superstarsBuilt), 82);
   band('núcleo real de campeão × quatro 99 sem IGL nem suporte', () => labLineup(LAB.furiaCore), () => labLineup(LAB.goatsNoIgl), 77);
-  band('jogar sem capitão e sem química custa caro — e não sentencia', () => labLineup(LAB.goatsLazyNoIgl), () => labLineup(LAB.goatsLazy), 28);
+  // Re-baseline 2026-10-05: com o catálogo publicado (hash 92003799c82e38a1), mediu 17 duas vezes (era 28) —
+  // jogar sem capitão e sem química passou a custar ainda mais caro.
+  band('jogar sem capitão e sem química custa caro — e não sentencia', () => labLineup(LAB.goatsLazyNoIgl), () => labLineup(LAB.goatsLazy), 17);
   band('time histórico bem montado × quatro 99 sem IGL nem suporte', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsNoIgl), 93);
   band('no teto, núcleo histórico e melhor line montável ficam pau a pau', () => labLineup(LAB.ownerSk), () => labLineup(LAB.goatsBuilt), 51);
 

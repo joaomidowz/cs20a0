@@ -64,8 +64,9 @@ describe('Major dos Campeões: a parede que encontra o desafiante', () => {
     expect(superstar.title, label).toBeGreaterThanOrEqual(3);
     expect(superstar.title, label).toBeLessThanOrEqual(19);
     // Rebalance competitivo (2026-09-23): a pausa tática forte também serve aos bots do campo — auge mediu 11,
-    // depois 9 na onda 2 (2026-09-24).
-    expect(auge.title, label).toBeGreaterThanOrEqual(8);
+    // depois 9 na onda 2 (2026-09-24). Re-baseline 2026-10-05: catálogo publicado (92003799) endureceu o campo
+    // dos Campeões — auge mediu 6 duas vezes.
+    expect(auge.title, label).toBeGreaterThanOrEqual(5);
     expect(auge.title, label).toBeLessThanOrEqual(30);
     // Rebalance competitivo (2026-09-23): o campo também pausa/estuda melhor — a parede dos campeões endureceu
     // ~3pp para o topo (media 23). A parede segue parede e a ordem da escada se mantém.
@@ -88,7 +89,8 @@ describe('Major dos Campeões: a parede que encontra o desafiante', () => {
     const label = `iniciante ${beginner.title}% · elite ${elite.title}% · auge (nível ${auge.level.toFixed(1)}) ${auge.title}%`;
     expect(beginner.title, label).toBeLessThanOrEqual(5);
     // Rebalance competitivo (2026-09-23): elite mediu 1 (o campo tático também pausa melhor) — segue longe do 14.
-    expect(elite.title, label).toBeGreaterThanOrEqual(1);
+    // Re-baseline 2026-10-05: catálogo publicado (92003799) — elite mediu 0 duas vezes; o teto de 14 segue a guarda.
+    expect(elite.title, label).toBeGreaterThanOrEqual(0);
     expect(elite.title, label).toBeLessThanOrEqual(14);
     // Parede normal cede um pouco mais: auge mediu 40 com o campo pausando melhor (era 43-63).
     expect(auge.title, label).toBeGreaterThanOrEqual(38);

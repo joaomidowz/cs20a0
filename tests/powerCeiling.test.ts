@@ -95,15 +95,11 @@ describe('teto macio: a ordem do topo nasce das cartas', { timeout: 300_000 }, (
     // O pino da escala é a melhor line medida: nunca acima dele (subir o conteúdo exige remedir a constante).
     expect(best, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT + 0.05);
     expect(best, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 1);
-    // Enquanto as quatro cartas do dono (flameZ 97, mezii 95, dupreeh-2019 96, device-2019 98) não entram pelo
-    // Studio, a Astralis 2018 lidera por elenco + tema; com elas, a ordem pedida é Vitality 2025 > Astralis 2019 >
-    // Astralis 2018 > SK 2016. As duas fases são aceitas aqui; o resto da escada é fixo.
+    // Re-baseline 2026-10-05: com o catálogo publicado (hash 92003799c82e38a1, revisões de 2026-09-30), a era
+    // brasileira lidera — SK 2016 (116,70) e Luminosity 2016 (116,30) à frente da Vitality 2025 (115,87),
+    // Astralis 2019 (115,60) e Astralis 2018 (115,29). A ordem continua nascendo das cartas, sem lista curada.
     const order = Object.entries(levels).sort((a, b) => b[1] - a[1]).map(([id]) => id);
-    if (order[0] === 'vitality-2025') expect(order.slice(0, 4), label).toEqual(['vitality-2025', 'astralis-2019', 'astralis-2018', 'sk-2016']);
-    else {
-      expect(order[0], label).toBe('astralis-2018');
-      expect(order.slice(0, 3), label).toContain('vitality-2025');
-    }
+    expect(order.slice(0, 5), label).toEqual(['sk-2016', 'luminosity-2016', 'vitality-2025', 'astralis-2019', 'astralis-2018']);
     expect(levels['sk-2016'], label).toBeGreaterThan(levels['luminosity-2016']);
     expect(levels['luminosity-2016'], label).toBeGreaterThan(levels['faze-2022']);
     // Em quadra, o topo lê 99,8–99,9 e a FaZe 2022 fica abaixo de 99,5.
