@@ -154,6 +154,9 @@
   $: ownedCoaches = state ? state.players.map((item) => collectionCoachById.get(item.playerId)).filter((coach): coach is Coach => Boolean(coach)).sort((a, b) => b.overall - a.overall) : [];
   $: quantityById = new Map((state?.players ?? []).map((item) => [item.playerId, item.quantity ?? 1]));
   $: quickSellLocked = new Set(lineupLockedIds(state));
+  // Última cópia presa numa line SALVA (qualquer aba): o servidor recusa a venda com IN_LINEUP. Em vez de um
+  // botão que sempre falha (o único caminho no celular, onde o rodapé some), a UI mostra o motivo.
+  $: sellLockedIds = new Set([...quickSellLocked].filter((id) => sellableQuantity(quantityById.get(id) ?? 0, true) === 0));
   $: quickSellUnits = quickSellCount(quickSellSelection);
   $: quickSellCoins = quickSellTotal(quickSellSelection, (id) => {
     const coach = collectionCoachById.get(id);
@@ -898,7 +901,11 @@
                   {#if (quantityById.get(coach.id) ?? 1) > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>{/if}
                 {:else}
                   <button class="ghost small" type="button" on:click={() => { coachId = coach.id; scrollTo(teamSection); }}>{t('addToLineup')}</button>
-                  <button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>
+                  {#if sellLockedIds.has(coach.id)}
+                    <span class="sell-locked">{t('sellLockedHint')}</span>
+                  {:else}
+                    <button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>
+                  {/if}
                 {/if}
               </CoachCard>
             {/each}
@@ -921,7 +928,11 @@
                   {:else}
                     <button class="ghost small" type="button" disabled={busy} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
                   {/if}
-                  <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
+                  {#if sellLockedIds.has(player.id)}
+                    <span class="sell-locked">{t('sellLockedHint')}</span>
+                  {:else}
+                    <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
+                  {/if}
                 {/if}
               </CollectionCard>
             {/each}
@@ -973,14 +984,19 @@
       {#if sheetActions}
         {#if sheetInLineup}
           <button class="secondary small" type="button" on:click={() => { removeFromLineup(slots.findIndex((slot) => slot?.id === sheetPlayer.id)); detailsPlayer = null; }}>{t('removeFromLineup')}</button>
-          {#if sheetCopies > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>{/if}
+          {#if sheetCopies > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
+          {:else if sellLockedIds.has(sheetPlayer.id)}<span class="sell-locked">{t('sellLockedHint')}</span>{/if}
         {:else}
           {#if slots.every(Boolean)}
             <button class="primary small" type="button" disabled={busy} on:click={() => { startSwap(sheetPlayer); detailsPlayer = null; scrollTo(teamSection); }}>⇄ {t('swap')}</button>
           {:else}
             <button class="primary small" type="button" disabled={busy} on:click={() => { addToLineup(sheetPlayer); detailsPlayer = null; }}>{t('addToLineup')}</button>
           {/if}
-          <button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
+          {#if sellLockedIds.has(sheetPlayer.id)}
+            <span class="sell-locked">{t('sellLockedHint')}</span>
+          {:else}
+            <button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
+          {/if}
         {/if}
       {/if}
     </svelte:fragment>
@@ -1168,6 +1184,7 @@
   .quick-sell-bar strong { display: grid; justify-items: center; gap: 2px; font-size: .82rem; text-align: center; font-variant-numeric: tabular-nums; }
   .quick-sell-bar strong span { color: var(--accent); font-size: .72rem; }
   .picker-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 12px; }
+  .sell-locked { display: grid; place-items: center; min-height: 44px; padding: 4px 8px; border: 1px dashed var(--line); color: var(--muted); font-size: .6rem; font-weight: 800; letter-spacing: .06em; line-height: 1.3; text-align: center; text-transform: uppercase; }
   .picker-search { display: grid; gap: 8px; margin-bottom: 16px; }
   .picker-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 16px; }
   .picker-search input { min-height: 48px; font-size: 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); padding: 10px; }
