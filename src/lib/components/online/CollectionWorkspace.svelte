@@ -43,6 +43,7 @@
   import { confirmDialog } from '$lib/game/ui/dialog';
   import { getRoleLabel } from '$lib/game/roleRules';
   import { countryName } from '$lib/game/visuals/flags';
+  import { playerCountryOf } from '$lib/game/online/collection-countries';
   import { courtRating, courtRatingDelta } from '$lib/game/powerRating';
   import { withPlayerBand } from '$lib/game/courtPower';
   import { ORG_STYLES, type Coach, type LineupSlotRole, type MapId, type OrgStyle, type Player } from '$lib/game/types';
@@ -76,12 +77,16 @@
   let choosingSlot: number | null = null;
   let pickerQuery = '';
   let pickerTeamFilter = '';
+  let pickerCountryFilter = '';
+  let pickerYearFilter = '';
   let pickerCandidate: Player | null = null;
   $: pickerTeamOptions = [{ value: '', label: t('all') }, ...collectionOrganizations.filter((organization) => owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)).map((organization) => ({ value: organization.key, label: organization.name }))];
   $: pickerPlayers = owned.filter(player => !lineupIds.has(player.id)
     && (!pickerTeamFilter || collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === pickerTeamFilter)
+    && (!pickerCountryFilter || playerCountryOf(player) === pickerCountryFilter)
+    && (!pickerYearFilter || String(player.year) === pickerYearFilter)
     && (!pickerQuery.trim() || (player.nickname ?? player.id).toLowerCase().includes(pickerQuery.trim().toLowerCase())));
-  function openSlot(index: number) { choosingSlot = index; pickerQuery = ''; pickerTeamFilter = ''; pickerCandidate = null; }
+  function openSlot(index: number) { choosingSlot = index; pickerQuery = ''; pickerTeamFilter = ''; pickerCountryFilter = ''; pickerYearFilter = ''; pickerCandidate = null; }
   function applyPick() {
     if (choosingSlot === null || !pickerCandidate) return;
     swapIn = pickerCandidate; swapInto(choosingSlot);
@@ -130,9 +135,10 @@
   let filterRole = '';
   let filterRarity = '';
   let filterTeam = '';
+  let filterCountry = '';
 
-  $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity || filterTeam);
-  const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; filterTeam = ''; };
+  $: filtersOn = Boolean(query.trim() || filterYear || filterRole || filterRarity || filterTeam || filterCountry);
+  const clearFilters = () => { query = ''; filterYear = ''; filterRole = ''; filterRarity = ''; filterTeam = ''; filterCountry = ''; };
   const showToast = (message: string, kind: 'success' | 'info' | 'warning' | 'error' = 'success') => notifyToast({ message, kind });
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
@@ -158,7 +164,11 @@
     owned.some((player) => collectionOrganizationKeyByTeamId.get(player.teamId ?? '') === organization.key)
     || ownedCoaches.some((coach) => collectionOrganizationKeyByTeamId.get(coach.teamId) === organization.key)
   ).map((organization) => ({ value: organization.key, label: organization.name }))];
-  $: visibleCoaches = ownedCoaches.filter((coach) => !filterTeam || collectionOrganizationKeyByTeamId.get(coach.teamId) === filterTeam);
+  // Coach não tem país: com o filtro de nacionalidade ativo, a seção de coaches some em vez de ignorá-lo.
+  $: visibleCoaches = ownedCoaches.filter((coach) => !filterCountry && (!filterTeam || collectionOrganizationKeyByTeamId.get(coach.teamId) === filterTeam));
+  $: countryOptions = [{ value: '', label: t('all') }, ...[...new Set(owned.map((player) => playerCountryOf(player)).filter((code): code is string => Boolean(code)))]
+    .map((code) => ({ value: code, label: countryName(code, $language) }))
+    .sort((a, b) => a.label.localeCompare(b.label, $language))];
   const roleOptionsOf = (slot: Player) => eligibleRolesOf(slot).map((role) => ({ value: role as string, label: collectionRoleLabel(role) }));
   $: coachOptions = [{ value: '', label: t('pickCoach') }, ...ownedCoaches.map((coach) => ({ value: coach.id, label: coach.name, caption: `${coach.year} · ${coach.overall}` }))];
   $: yearOptions = [{ value: '', label: t('all') }, ...YEARS.map((year) => ({ value: String(year), label: String(year) }))];
@@ -169,6 +179,7 @@
   $: ownedIds = new Set(owned.map((player) => player.id));
   $: lineupIds = new Set(slots.filter((slot): slot is Player => Boolean(slot)).map((player) => player.id));
   $: visible = owned
+    .filter((player) => !filterCountry || playerCountryOf(player) === filterCountry)
     .filter((player) => !filterYear || String(player.year) === filterYear)
     .filter((player) => !filterRole || primaryRoleOf(player) === filterRole)
     .filter((player) => !filterRarity || rarityOf(player) === filterRarity)
@@ -190,6 +201,7 @@
   const themeTitle = (key: string, line: { exact: boolean } | undefined): string => {
     if (line && !line.exact && key === 'theme_team') return t('syn_theme_team_org');
     if (line && !line.exact && key === 'theme_country') return t('syn_theme_country_bloc');
+    if (line && !line.exact && key === 'theme_year') return t('syn_theme_year_era');
     return t(`syn_${key}` as Parameters<typeof t>[0]);
   };
   /** The org slug back to the name people know it by ("ninjasinpyjamas" → "Ninjas in Pyjamas"). */
@@ -870,6 +882,7 @@
         <div class="filters">
           <label><span>{t('search')}</span><input bind:value={query} /></label>
           <StyledSelect label={u('team')} options={cardTeamOptions} value={filterTeam} onSelect={(next) => filterTeam = next} />
+          <StyledSelect label={t('filterCountry')} options={countryOptions} value={filterCountry} onSelect={(next) => filterCountry = next} />
           <StyledSelect label={t('filterYear')} options={yearOptions} value={filterYear} onSelect={(next) => filterYear = next} />
           <StyledSelect label={t('filterRole')} options={roleFilterOptions} value={filterRole} onSelect={(next) => filterRole = next} />
           <StyledSelect label={t('filterRarity')} options={rarityOptions} value={filterRarity} onSelect={(next) => filterRarity = next} />
@@ -933,7 +946,11 @@
 {#if choosingSlot !== null}
   <SelectionSheet title={u('chooseCard')} closeLabel={t('close')} onClose={() => { choosingSlot = null; pickerCandidate = null; }}>
     <label class="picker-search">{t('search')}<input type="search" bind:value={pickerQuery} /></label>
-    <StyledSelect label={u('team')} options={pickerTeamOptions} value={pickerTeamFilter} onSelect={(next) => pickerTeamFilter = next} />
+    <div class="picker-filters">
+      <StyledSelect label={u('team')} options={pickerTeamOptions} value={pickerTeamFilter} onSelect={(next) => pickerTeamFilter = next} />
+      <StyledSelect label={t('filterCountry')} options={countryOptions} value={pickerCountryFilter} onSelect={(next) => pickerCountryFilter = next} />
+      <StyledSelect label={t('filterYear')} options={yearOptions} value={pickerYearFilter} onSelect={(next) => pickerYearFilter = next} />
+    </div>
     {#if pickerCandidate}<div class="pick-review"><span>{slots[choosingSlot]?.nickname ?? t('slotEmpty')} → <b>{pickerCandidate.nickname}</b></span><button class="primary" type="button" on:click={applyPick}>{u('replace')}</button></div>{/if}
     <div class="picker-grid">{#each pickerPlayers as player (player.id)}<CollectionCard {player} teamName={teamNameOf(player)} language={$language} compact><button class="secondary small" type="button" on:click={() => pickerCandidate = player}>{u('chooseCard')}</button></CollectionCard>{/each}</div>
     {#if !pickerPlayers.length}<p>{u('noCards')}</p>{/if}
@@ -1152,6 +1169,7 @@
   .quick-sell-bar strong span { color: var(--accent); font-size: .72rem; }
   .picker-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 12px; }
   .picker-search { display: grid; gap: 8px; margin-bottom: 16px; }
+  .picker-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 16px; }
   .picker-search input { min-height: 48px; font-size: 16px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); padding: 10px; }
   .pick-review { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--accent); }
   .inline-error { position: sticky; top: 140px; z-index: 21; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; background: var(--surface); }

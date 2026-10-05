@@ -13,6 +13,7 @@ import { PLAYER_CEILING_COURT, PLAYER_SOFT_KNEE, PLAYER_SOFT_TOP_COURT } from '.
 import { applyCollectionLineup, collectionBaseTeam, eligibleRolesOf, toSelectedPlayer, validateLineup, type CollectionSlotRole } from '../src/lib/game/online/collection-lineup';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
 import { collectionCoaches, collectionPlayerById, collectionPlayers, collectionTeams } from '../src/lib/game/online/collection-pool';
+import { playerCountryOf } from '../src/lib/game/online/collection-countries';
 import type { OrgStyle, Player } from '../src/lib/game/types';
 
 const STYLES: OrgStyle[] = ['balanced', 'aggressive', 'tactical', 'tempo', 'reativo', 'resiliente'];
@@ -92,9 +93,10 @@ describe('teto macio: a ordem do topo nasce das cartas', { timeout: 300_000 }, (
     const levels = Object.fromEntries(['vitality-2025', 'astralis-2019', 'astralis-2018', 'sk-2016', 'luminosity-2016', 'spirit-2024', 'faze-2022'].map((id) => [id, championLevel(id)]));
     const label = Object.entries(levels).map(([id, value]) => `${id} ${value.toFixed(2)}`).join(' · ');
     const best = Math.max(...Object.values(levels));
-    // O pino da escala é a melhor line medida: nunca acima dele (subir o conteúdo exige remedir a constante).
+    // O pino da escala passou a ser o híbrido BR (ver o bloco das seleções): os campeões completos ficam logo
+    // abaixo dele — nunca acima, e perto o bastante para o topo da tabela continuar lendo ~99,8.
     expect(best, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT + 0.05);
-    expect(best, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 1);
+    expect(best, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 1.2);
     // Re-baseline 2026-10-05: com o catálogo publicado (hash 92003799c82e38a1, revisões de 2026-09-30), a era
     // brasileira lidera — SK 2016 (116,70) e Luminosity 2016 (116,30) à frente da Vitality 2025 (115,87),
     // Astralis 2019 (115,60) e Astralis 2018 (115,29). A ordem continua nascendo das cartas, sem lista curada.
@@ -102,8 +104,91 @@ describe('teto macio: a ordem do topo nasce das cartas', { timeout: 300_000 }, (
     expect(order.slice(0, 5), label).toEqual(['sk-2016', 'luminosity-2016', 'vitality-2025', 'astralis-2019', 'astralis-2018']);
     expect(levels['sk-2016'], label).toBeGreaterThan(levels['luminosity-2016']);
     expect(levels['luminosity-2016'], label).toBeGreaterThan(levels['faze-2022']);
-    // Em quadra, o topo lê 99,8–99,9 e a FaZe 2022 fica abaixo de 99,5.
-    expect(playerCourtLevel(best)).toBeGreaterThanOrEqual(99.8);
+    // Em quadra, o melhor campeão completo lê ~99,79 (o 99,9 é do híbrido BR) e a FaZe 2022 fica abaixo de 99,5.
+    expect(playerCourtLevel(best)).toBeGreaterThanOrEqual(99.75);
     expect(playerCourtLevel(levels['faze-2022'])).toBeLessThan(99.5);
+  });
+});
+
+// Buff de país/era (dono, 2026-10-05): as seleções nacionais são o ponto cego que este bloco fecha — nenhuma
+// pode passar do pino em silêncio (acima de PLAYER_SOFT_TOP_COURT a tela crava 99,9 e o teste de ordem não vê).
+describe('seleções nacionais ficam sob o pino', { timeout: 300_000 }, () => {
+  /** As cinco melhores cartas do país com baseId distinto (a regra de duplicata barra device × 4), garantindo
+   *  um capitão e um AWPer elegíveis para a line fechar algum template de funções. */
+  const nationalSelection = (country: string): Player[] => {
+    const pool: Player[] = [];
+    const seen = new Set<string>();
+    for (const player of [...collectionPlayers].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))) {
+      if (playerCountryOf(player) !== country) continue;
+      const base = player.baseId ?? player.id;
+      if (seen.has(base)) continue;
+      seen.add(base);
+      pool.push(player);
+    }
+    const picked: Player[] = [];
+    const take = (player: Player | undefined) => { if (player && !picked.includes(player)) picked.push(player); };
+    // Um por papel do template clássico, sempre uma carta nova — cobre igl/awper/entry/rifler/support e
+    // garante que o força-bruta encontre pelo menos uma montagem válida.
+    take(pool.find((player) => eligibleRolesOf(player).some((role) => role === 'igl' || role === 'awper-igl' || role === 'igl-support')));
+    for (const role of ['awper', 'entry', 'rifler', 'support'] as const) {
+      take(pool.find((player) => !picked.includes(player) && eligibleRolesOf(player).includes(role)));
+    }
+    for (const player of pool) { if (picked.length >= 5) break; take(player); }
+    return picked;
+  };
+
+  /** O melhor nível de régua da seleção com o pior caso de coach: o de maior tática e os com afinidade possível. */
+  const selectionLevel = (cards: Player[]): number => {
+    const coachIds = new Set<string | null>([null]);
+    const topTactics = [...collectionCoaches].sort((a, b) => b.tactics - a.tactics)[0];
+    if (topTactics) coachIds.add(topTactics.id);
+    for (const coach of collectionCoaches) if (cards.some((card) => card.teamId === coach.teamId)) coachIds.add(coach.id);
+    return Math.max(...[...coachIds].map((id) => bestLevel(cards, id)));
+  };
+
+  it('as seleções por papéis sobem com o buff mas nenhuma crava 99,9', () => {
+    const levels = Object.fromEntries(['dk', 'ru', 'br', 'fr', 'se'].map((country) => {
+      const cards = nationalSelection(country);
+      expect(cards, country).toHaveLength(5);
+      return [country, selectionLevel(cards)];
+    }));
+    const label = Object.entries(levels).map(([country, level]) => `${country} ${level.toFixed(2)} (tela ${playerCourtLevel(level).toFixed(2)})`).join(' · ');
+    console.info(`seleções: ${label}`);
+    for (const level of Object.values(levels)) {
+      expect(level, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT - 0.5);
+      expect(playerCourtLevel(level), label).toBeGreaterThanOrEqual(99.0);
+      expect(playerCourtLevel(level), label).toBeLessThanOrEqual(99.8);
+    }
+  });
+
+  /** O top-5 cru por overall do país, sem olhar papéis: é esta variante que produz o híbrido BR. */
+  const rawSelection = (country: string): Player[] => {
+    const pool: Player[] = [];
+    const seen = new Set<string>();
+    for (const player of [...collectionPlayers].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))) {
+      if (playerCountryOf(player) !== country) continue;
+      const base = player.baseId ?? player.id;
+      if (seen.has(base)) continue;
+      seen.add(base);
+      pool.push(player);
+      if (pool.length === 5) break;
+    }
+    return pool;
+  };
+
+  it('o híbrido BR (4× Luminosity 2016 + fer) É o pino da escala, e nenhum top-5 cru passa dele', () => {
+    // Núcleo de 4 + país cheio + ano cabem inteiros no teto temático (o campeão completo é capado em 30):
+    // por isso a line mais forte do jogo é esta, não um time completo. Ela define PLAYER_SOFT_TOP_COURT e é a
+    // única leitura 99,9 da tela; se o conteúdo mudar e outra line passar dela, este teste avisa.
+    const levels = ['dk', 'ru', 'br', 'fr', 'se'].map((country) => {
+      const cards = rawSelection(country);
+      return [country, cards.length === 5 ? selectionLevel(cards) : -Infinity] as const;
+    });
+    const label = levels.map(([country, level]) => `${country} ${Number.isFinite(level) ? level.toFixed(2) : 'inviável'}`).join(' · ');
+    console.info(`top-5 crus: ${label}`);
+    for (const [, level] of levels) expect(level, label).toBeLessThanOrEqual(PLAYER_SOFT_TOP_COURT + 0.05);
+    const brHybrid = levels.find(([country]) => country === 'br')?.[1] ?? -Infinity;
+    expect(brHybrid, label).toBeGreaterThan(PLAYER_SOFT_TOP_COURT - 0.05);
+    expect(playerCourtLevel(brHybrid), label).toBe(PLAYER_CEILING_COURT);
   });
 });

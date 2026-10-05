@@ -134,12 +134,15 @@ export const SYNERGY_POWER_TO_COURT = 0.25;
  * conteúdo mudar, `tests/powerCeiling.test.ts` re-mede e avisa. Com ela: SK 2016 completa 99,7, seleções de país
  * 99,1–99,8, vagas do dono 99,1–99,5, cinco GOATs sem pensar 98,5, campeões azarões (Gambit 2017) ~98.
  *
- * Remedido em 2026-10-05 (re-baseline): com o catálogo publicado em produção (hash 92003799c82e38a1, revisões
- * de 2026-09-30 incluídas), a melhor line montável passou a ser a SK 2016 (116,70), com a Luminosity 2016 em
- * 116,30 à frente da Vitality 2025 (115,87) — a ordem nova está travada em tests/powerCeiling.test.ts.
+ * Remedido em 2026-10-05 (re-baseline + buff país/era): com o catálogo publicado em produção (hash
+ * 92003799c82e38a1), a melhor line montável NÃO é mais um time completo — é o híbrido brasileiro
+ * coldzera + FalleN + TACO + fnx (Luminosity 2016) com fer 2017, que mede 117,61: núcleo de 4 + país cheio +
+ * ano cabem inteiros no teto temático, sem o corte que capa os campeões completos. Entre os campeões, a ordem é
+ * SK 2016 (116,70) > Luminosity 2016 (116,30) > Vitality 2025 (115,87). Tudo travado em tests/powerCeiling.test.ts,
+ * que agora também mede as seleções nacionais.
  */
 export const PLAYER_SOFT_KNEE = 97.5;
-export const PLAYER_SOFT_TOP_COURT = 116.7;
+export const PLAYER_SOFT_TOP_COURT = 117.6;
 export const PLAYER_CEILING_COURT = 99.9;
 
 /**

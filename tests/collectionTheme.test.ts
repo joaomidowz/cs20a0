@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { collectionPlayers } from '../src/lib/game/online/collection-pool';
 import { playerCountryOf } from '../src/lib/game/online/collection-countries';
-import { SCENE_BLOCS, THEME_LADDER, THEME_LADDER_PLAYERS, THEME_LADDER_YEAR, THEME_LINE_CAP, THEME_TOTAL_CAP, blocOf, themeLines, type ThemeMember } from '../src/lib/game/online/collection-theme';
+import { SCENE_BLOCS, THEME_BLOC_RATIO, THEME_LADDER, THEME_LADDER_PLAYERS, THEME_LADDER_YEAR, THEME_LINE_CAP, THEME_LOOSE_RATIO, THEME_SECONDARY_RATIO, THEME_TOTAL_CAP, blocOf, eraOf, themeLines, type ThemeMember } from '../src/lib/game/online/collection-theme';
 
 describe('dados de país da coleção', () => {
   it('todo jogador do pool tem país, para a linha de país nunca depender de dado faltando', () => {
@@ -50,9 +50,12 @@ describe('regra do tema', () => {
     }
   });
 
-  it('vale o maior grupo, não a soma dos grupos', () => {
+  // Buff de país (dono, 2026-10-05): o maior grupo paga a escada cheia e cada grupo secundário de 2+ paga metade.
+  it('o maior grupo vale cheio e os secundários pagam metade (3+2 e 2+2+1)', () => {
     const players = [member({ country: 'br' }), member({ country: 'br' }), member({ country: 'br' }), member({ country: 'dk' }), member({ country: 'dk' })];
-    expect(powerOf(themeLines(players, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[3]);
+    expect(powerOf(themeLines(players, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[3] + THEME_LADDER_PLAYERS[2] * THEME_SECONDARY_RATIO);
+    const pares = [member({ country: 'fr' }), member({ country: 'fr' }), member({ country: 'br' }), member({ country: 'br' }), member({ country: 'cn' })];
+    expect(powerOf(themeLines(pares, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[2] + THEME_LADDER_PLAYERS[2] * THEME_SECONDARY_RATIO);
   });
 
   it('time-ano exato vale cheio e a organização vale metade', () => {
@@ -62,9 +65,9 @@ describe('regra do tema', () => {
     expect(themeLines(soOrg, null).find((line) => line.key === 'theme_team')?.exact).toBe(false);
   });
 
-  it('país exato vale cheio e o bloco vale metade: a NAVI russo-ucraniana ganha pelo bloco', () => {
+  it('país exato vale cheio e o bloco vale THEME_BLOC_RATIO: a NAVI russo-ucraniana ganha pelo bloco', () => {
     const navi = ['ua', 'ru', 'ru', 'ru', 'ua'].map((country) => member({ country }));
-    expect(powerOf(themeLines(navi, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[5] / 2);
+    expect(powerOf(themeLines(navi, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[5] * THEME_BLOC_RATIO);
     expect(themeLines(navi, null).find((line) => line.key === 'theme_country')?.exact).toBe(false);
     const spirit = five({ country: 'ru' });
     expect(powerOf(themeLines(spirit, null), 'theme_country')).toBe(THEME_LADDER_PLAYERS[5]);
@@ -92,7 +95,8 @@ describe('regra do tema', () => {
   });
 
   it('line sem tema nenhum não gera linha, e dado faltando não quebra', () => {
-    const soltos = [['br', 2013], ['dk', 2014], ['cn', 2015], ['us', 2016], ['tr', 2017]].map(([country, year]) => member({ country: country as string, year: year as number }));
+    // Anos de eras distintas de propósito: três de 2013–2015 já formariam a linha de era.
+    const soltos = [['br', 2013], ['dk', 2016], ['cn', 2018], ['us', 2020], ['tr', 2022]].map(([country, year]) => member({ country: country as string, year: year as number }));
     expect(themeLines(soltos, null)).toEqual([]);
     expect(themeLines(five({}), null)).toEqual([]);
     expect(themeLines([], null)).toEqual([]);
@@ -139,5 +143,59 @@ describe('tema aplicado na line da coleção', () => {
     const roles = sk.map((player) => eligibleRolesOf(player)[0]);
     expect(themeOf({ players: sk, roles, starPlayerId: null, coachId: coach!.id }).find((line) => line.key === 'theme_team')).toMatchObject({ count: 6, exact: true });
     expect(themeOf({ players: sk, roles, starPlayerId: null }).find((line) => line.key === 'theme_team')).toMatchObject({ count: 5, exact: true });
+  });
+});
+
+// Buff de era (dono, 2026-10-05): o nível frouxo da linha de ano.
+describe('eras', () => {
+  it('os baldes cobrem 2013–2026 e cortam onde a cena cortou', () => {
+    expect(eraOf(2013)).toBe('2013–2015');
+    expect(eraOf(2015)).toBe('2013–2015');
+    expect(eraOf(2016)).toBe('2016–2017');
+    expect(eraOf(2019)).toBe('2018–2019');
+    expect(eraOf(2021)).toBe('2020–2021');
+    expect(eraOf(2023)).toBe('2022–2023');
+    expect(eraOf(2024)).toBe('2024–2026');
+    expect(eraOf(2026)).toBe('2024–2026');
+    expect(eraOf(null)).toBeNull();
+    expect(eraOf(2012)).toBeNull();
+  });
+
+  it('mesma era paga THEME_LOOSE_RATIO e perde para o ano exato fechado', () => {
+    const mista = [2024, 2024, 2025, 2025, 2026].map((year) => member({ year }));
+    const frouxa = themeLines(mista, null).find((line) => line.key === 'theme_year');
+    expect(frouxa).toMatchObject({ exact: false, count: 5, theme: '2024–2026' });
+    expect(frouxa?.power).toBe(THEME_LADDER_YEAR[5] * THEME_LOOSE_RATIO);
+    const fechada = themeLines(five({ year: 2025 }), null).find((line) => line.key === 'theme_year');
+    expect(fechada).toMatchObject({ exact: true, count: 5, theme: '2025' });
+    expect(fechada?.power).toBe(THEME_LADDER_YEAR[5]);
+  });
+
+  it('a era frouxa dá a linha de ano mas NÃO conta como química', async () => {
+    const { synergyOf, themeOf, eligibleRolesOf } = await import('../src/lib/game/online/collection-lineup');
+    const { collectionOrganizationKeyByTeamId } = await import('../src/lib/game/online/collection-pool');
+    // Cinco estranhos da era 2024–26: orgs e países todos diferentes, no máximo dois por ano exato.
+    const picked: typeof collectionPlayers[number][] = [];
+    const orgs = new Set<string>();
+    const countries = new Set<string>();
+    const perYear = new Map<number, number>();
+    for (const player of collectionPlayers) {
+      const year = player.year ?? 0;
+      if (year < 2024 || year > 2026) continue;
+      const org = collectionOrganizationKeyByTeamId.get(player.teamId ?? '') ?? player.teamId ?? '';
+      const country = playerCountryOf(player);
+      if (!country || countries.has(country) || orgs.has(org) || (perYear.get(year) ?? 0) >= 2) continue;
+      picked.push(player);
+      orgs.add(org);
+      countries.add(country);
+      perYear.set(year, (perYear.get(year) ?? 0) + 1);
+      if (picked.length === 5) break;
+    }
+    expect(picked).toHaveLength(5);
+    const roles = picked.map((player) => eligibleRolesOf(player)[0]);
+    const input = { players: picked, roles, starPlayerId: null };
+    const era = themeOf(input).find((line) => line.key === 'theme_year' && !line.exact);
+    expect(era?.count ?? 0).toBeGreaterThanOrEqual(3);
+    expect(synergyOf(input).some((line) => line.key === 'no_chemistry')).toBe(true);
   });
 });

@@ -335,7 +335,9 @@ export function synergyOf(input: CollectionLineupInput): SynergyLine[] {
   for (const line of themes) add(line.key, { power: line.power });
   // Five strangers: no bond of three anywhere (a pair that once played together is not chemistry). Paying in
   // levels is what makes it bite a wall of GOATs as hard as a beginner five — being five good cards is not a team.
-  if (!themes.some((line) => line.count >= 3)) add('no_chemistry', { court: NO_CHEMISTRY_COURT });
+  // "Mesma era" (ano frouxo) é bônus, não vínculo: o balde 2024–26 tem ~550 cartas e salvaria metade das lines
+  // preguiçosas do −2 de graça — por isso a era não conta como química (dono, 2026-10-05).
+  if (!themes.some((line) => line.count >= 3 && !(line.key === 'theme_year' && !line.exact))) add('no_chemistry', { court: NO_CHEMISTRY_COURT });
   return lines;
 }
 
