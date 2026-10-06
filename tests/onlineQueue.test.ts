@@ -184,3 +184,94 @@ describe('fila competitiva', () => {
     expect(snapshot.competitive).toBe(false);
   });
 });
+
+describe('fila draft (snake)', () => {
+  it('dois só fecham após a janela de 30 s; um sozinho nunca fecha; o status traz kind', () => {
+    let clock = 100_000;
+    const manager = new RoomManager();
+    const draft = createQueue(manager, () => clock, { kind: 'draft' });
+    expect(draft.kind).toBe('draft');
+    draft.join('solo', null);
+    clock += 10 * 60_000;
+    draft.status('solo');
+    draft.tick();
+    expect(draft.status('solo')).toMatchObject({ kind: 'draft', state: 'waiting', closesInMs: null });
+
+    draft.join('b', null);
+    expect(draft.status('solo')).toMatchObject({ state: 'waiting', pair: true, closesInMs: QUEUE_PAIR_WINDOW_MS });
+    clock += QUEUE_PAIR_WINDOW_MS - 1_000;
+    draft.status('solo'); draft.status('b');
+    draft.tick();
+    expect(draft.status('b').state).toBe('waiting');
+    clock += 1_000;
+    draft.tick();
+    const match = draft.status('solo');
+    expect(match).toMatchObject({ kind: 'draft', state: 'matched' });
+    expect(draft.status('b').match?.roomCode).toBe(match.match!.roomCode);
+  });
+
+  it('a sala da fila draft não começa com um só (queueAbandoned) e começa com dois (snake com ordem de 2)', () => {
+    let clock = 200_000;
+    const manager = new RoomManager();
+    const draft = createQueue(manager, () => clock, { kind: 'draft' });
+    for (const user of ['a', 'b', 'c']) draft.join(user, null);
+    clock += QUEUE_FILL_WINDOW_MS;
+    draft.tick();
+    const { roomCode } = draft.status('a').match!;
+    expect(draft.size()).toBe(0);
+    const a = manager.join(roomCode, 'Pa', 'Org a', clock, draft.status('a').match!.lineupTicket);
+    manager.tick(clock + QUEUE_JOIN_WINDOW_MS + 1);
+    const abandoned = manager.getSnapshot(roomCode, a.participantId, clock + QUEUE_JOIN_WINDOW_MS + 1);
+    expect(abandoned.phase).toBe('lobby');
+    expect(abandoned.queueAbandoned).toBe(true);
+    expect(abandoned.snake).toMatchObject({ order: [], turn: 0 });
+
+    const manager2 = new RoomManager();
+    const draft2 = createQueue(manager2, () => clock, { kind: 'draft' });
+    for (const user of ['a', 'b', 'c']) draft2.join(user, null);
+    clock += QUEUE_FILL_WINDOW_MS;
+    draft2.tick();
+    const second = draft2.status('a').match!.roomCode;
+    const pa = manager2.join(second, 'Pa', 'Org a', clock, draft2.status('a').match!.lineupTicket);
+    manager2.join(second, 'Pb', 'Org b', clock + 1, draft2.status('b').match!.lineupTicket);
+    manager2.tick(clock + 2);
+    expect(manager2.getSnapshot(second, pa.participantId, clock + 2).phase).toBe('lobby');
+    manager2.tick(clock + QUEUE_JOIN_WINDOW_MS + 1);
+    const started = manager2.getSnapshot(second, pa.participantId, clock + QUEUE_JOIN_WINDOW_MS + 1);
+    expect(started.phase).toBe('draft');
+    expect(started.queueAbandoned).toBeUndefined();
+    expect(started.competitive).toBe(true);
+    expect(started.snake!.order).toHaveLength(2);
+    expect(started.snake!.pool).toHaveLength(2 * 10);
+    expect(started.self!.coachOffer).toHaveLength(3);
+    expect(started.participants.every((participant) => !participant.collection)).toBe(true);
+    expect(started.config.capacity).toBe(6);
+  });
+
+  it('a mesma conta não entra duas vezes na sala snake; entrar numa fila tira da outra (regra das rotas)', () => {
+    let clock = 300_000;
+    const manager = new RoomManager();
+    const draft = createQueue(manager, () => clock, { kind: 'draft' });
+    const collection = createQueue(manager, () => clock);
+    draft.join('a', null);
+    draft.join('b', null);
+    clock += QUEUE_PAIR_WINDOW_MS / 2;
+    draft.status('a'); draft.status('b');
+    clock += QUEUE_PAIR_WINDOW_MS / 2;
+    draft.tick();
+    const { roomCode, lineupTicket } = draft.status('a').match!;
+    manager.join(roomCode, 'Pa', 'Org a', clock, lineupTicket);
+    const again = manager.prepareDraftSeat(roomCode, 'a', clock);
+    expect(() => manager.join(roomCode, 'Pa2', 'Org a2', clock, again)).toThrowError(/already in the room/);
+
+    // A rota faz `collection.leave` ao entrar na draft e vice-versa; aqui só se garante que as filas são independentes.
+    collection.join('x', prepared('x'));
+    draft.join('x', null);
+    expect(collection.has('x')).toBe(true);
+    collection.leave('x');
+    expect(collection.has('x')).toBe(false);
+    expect(draft.has('x')).toBe(true);
+    expect(draft.status('x')).toMatchObject({ kind: 'draft', state: 'waiting' });
+    expect(collection.status('x')).toMatchObject({ kind: 'collection', state: 'idle' });
+  });
+});

@@ -8,11 +8,19 @@ import { onlineUserCount, PRESENCE_WINDOW_SECONDS } from '../auth/service';
 import { collectionPlayerById as playerById, collectionTeams as teams } from '../../src/lib/game/online/collection-pool';
 import type { Db } from '../db/client';
 import { RoomError, type PreparedLineup, type RoomManager } from '../room-manager';
-import { QUEUE_ROOM_CONFIG, type Queue } from '../queue';
+import { QUEUE_ROOM_CONFIG, type QueueStatus, type Queues } from '../queue';
 import { z } from 'zod';
 import { HttpError, readBody, route, type Handler, type Route } from './router';
 
 const leaveSchema = z.object({ reason: z.enum(['hidden', 'user']).optional() });
+/** Qual fila entrar: a competitiva (time salvo, padrão) ou a Fila Draft (snake, sem time salvo). */
+const joinSchema = z.object({ kind: z.enum(['collection', 'draft']).optional() });
+
+/** O status da fila em que o usuário está (draft primeiro); fora das duas, ocioso na competitiva. */
+export function queueStatusFor(queues: Queues, userId: string): QueueStatus {
+  if (queues.draft.has(userId)) return queues.draft.status(userId);
+  return queues.collection.status(userId);
+}
 
 /** The saved lineup as the room needs it; throws when the collection team is missing or incomplete. */
 export async function preparedFor(db: Db, userId: string): Promise<PreparedLineup> {
@@ -30,25 +38,37 @@ export async function preparedFor(db: Db, userId: string): Promise<PreparedLineu
   };
 }
 
-export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handler: Handler) => Handler, queue: Queue): Route[] {
+export function createRoomRoutes(db: Db, manager: RoomManager, withAuth: (handler: Handler) => Handler, queues: Queues): Route[] {
+  const queueSize = () => queues.collection.size() + queues.draft.size();
   return [
-    route('POST', /^\/queue\/join$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.join(userId!, await preparedFor(db, userId!)) }))),
+    /** Uma conta fica numa fila só: entrar numa tira da outra. A Fila Draft não exige time salvo. */
+    route('POST', /^\/queue\/join$/, withAuth(async ({ request, userId }) => {
+      const body = await readBody(request, joinSchema);
+      if (body.kind === 'draft') {
+        queues.collection.leave(userId!);
+        return { ok: true, ...queues.draft.join(userId!, null) };
+      }
+      queues.draft.leave(userId!);
+      return { ok: true, ...queues.collection.join(userId!, await preparedFor(db, userId!)) };
+    })),
     route('POST', /^\/queue\/leave$/, withAuth(async ({ request, userId }) => {
       const body = await readBody(request, leaveSchema);
-      queue.leave(userId!, body.reason === 'hidden' ? 'hidden' : undefined);
-      return { ok: true, ...queue.status(userId!) };
+      const reason = body.reason === 'hidden' ? 'hidden' : undefined;
+      queues.draft.leave(userId!, reason);
+      queues.collection.leave(userId!, reason);
+      return { ok: true, ...queueStatusFor(queues, userId!) };
     })),
-    route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queue.status(userId!) }))),
+    route('GET', /^\/queue\/status$/, withAuth(async ({ userId }) => ({ ok: true, ...queueStatusFor(queues, userId!) }))),
     /** Who is around: recent activity for "online", connected players by room phase for the dropdown. Queue waiters count as lobby. */
     route('GET', /^\/presence$/, withAuth(async ({ userId }) => {
       const breakdown = manager.presenceBreakdown();
-      const queuedByMe = queue.status(userId!).state === 'waiting';
+      const queuedByMe = queueStatusFor(queues, userId!).state === 'waiting';
       return {
         ok: true,
         online: await onlineUserCount(db, PRESENCE_WINDOW_SECONDS),
         playing: breakdown.playing,
-        lobby: breakdown.lobby + queue.size(),
-        queue: queue.size(),
+        lobby: breakdown.lobby + queueSize(),
+        queue: queueSize(),
         queuedByMe,
         final: breakdown.final
       };

@@ -75,10 +75,22 @@ import { CHAMPION_TEAM_IDS } from '../src/lib/game/online/major-champions';
 import { botFieldPower, partyFieldRelief, planBotField, soloFieldRelief } from '../src/lib/game/online/bot-field';
 import { PARTY_VARIANCE_SCALE, PARTY_ZEBRA_LIFT } from '../src/lib/game/balance';
 import { courtPower, withPlayerBand } from '../src/lib/game/courtPower';
-import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf } from '../src/lib/game/online/collection-lineup';
+import { applyCollectionLineup, collectionBaseTeam, collectionRoleOf, isStarEffective, starRoleAllowed } from '../src/lib/game/online/collection-lineup';
 import { collectionCoachById, collectionPlayerById, collectionTeams } from '../src/lib/game/online/collection-pool';
 import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
-import type { SelectedPlayer } from '../src/lib/game/types';
+import type { LineupSlotRole, SelectedPlayer } from '../src/lib/game/types';
+import { getEligibleSlotRoles, validatePlayerPick } from '../src/lib/game/roleRules';
+import {
+  SNAKE_COACH_REROLLS,
+  SNAKE_TURN_MS,
+  isSnakeComplete,
+  snakeAutoPick,
+  snakeAvailable,
+  snakeTurnParticipant,
+  toPublicSnake,
+  type SnakeState
+} from '../src/lib/game/online/snake-draft';
+import { rollSnakeCoachOffer, rollSnakePool } from './snake-pool';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
@@ -116,6 +128,16 @@ export interface PreparedLineup {
 
 export const LINEUP_TICKET_TTL_MS = 5 * 60_000;
 
+/**
+ * Bilhete registrado por HTTP antes do `join`: um time da coleção (`prepared`) ou só o assento de uma conta na Fila
+ * Draft (`prepared: null`, o time nasce do snake). Nos dois casos amarra o participante ao `userId`.
+ */
+interface PendingEntry {
+  userId: string;
+  prepared: PreparedLineup | null;
+  expiresAt: number;
+}
+
 interface ParticipantState {
   id: string;
   playerName: string;
@@ -128,6 +150,8 @@ interface ParticipantState {
   watchedSeriesId: string | null;
   requestIds: string[];
   prepared: PreparedLineup | null;
+  /** Conta por trás do participante (bilhete de coleção ou de assento); null para quem entrou sem bilhete. */
+  userId: string | null;
 }
 
 /** One human's line in a finished run, handed to the persistence layer (points, awards, season). */
@@ -247,17 +271,24 @@ interface RoomState {
   rematch: RematchState | null;
   /** Awards of the completed run, computed once when the champion is known. */
   awards: MajorAwards | null;
-  /** Collection lineups registered over HTTP, waiting for their join. */
-  pendingLineups: Map<string, { prepared: PreparedLineup; expiresAt: number }>;
+  /** Collection lineups (or draft seats) registered over HTTP, waiting for their join. */
+  pendingLineups: Map<string, PendingEntry>;
   /** 'queue' rooms come from matchmaking: they start on their own and always score. */
   origin: 'code' | 'queue' | 'solo';
   finalSpeedVotes: Set<string>;
-  /** Queue rooms: how many matched players are expected and until when the room waits for them. */
-  queue: { expected: number; startBy: number } | null;
+  /**
+   * Queue rooms: how many matched players are expected and until when the room waits for them. `abandoned` marks a
+   * Fila Draft room that never reached two humans: it does not start, the clients leave and queue again.
+   */
+  queue: { expected: number; startBy: number; abandoned: boolean } | null;
   /** Fixed when the tournament begins; decides season points. */
   competitive: boolean;
   field: RoomField;
+  /** Fila Draft (protocolo 12): o snake da sala; null nas salas que draftam na roleta. Nasce vazio e é preenchido em `startSnake`. */
+  snake: SnakeState | null;
 }
+
+const emptySnake = (): SnakeState => ({ pool: [], taken: {}, order: [], turn: 0, turnDeadlineAt: null, seats: {} });
 
 /** Minimum humans for a run to score season points. */
 export const COMPETITIVE_MIN_HUMANS = 2;
@@ -428,7 +459,7 @@ export class RoomManager {
 
   constructor(private readonly hooks: RoomHooks = {}) {}
 
-  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue' | 'solo'; expected?: number; field?: RoomField } = {}): string {
+  createRoom(config: RoomConfig = DEFAULT_ROOM_CONFIG, now = Date.now(), seed = randomBytes(24).toString('base64url'), options: { origin?: 'code' | 'queue' | 'solo'; expected?: number; field?: RoomField; draft?: boolean } = {}): string {
     let code = randomRoomCode();
     while (this.rooms.has(code)) code = randomRoomCode();
     this.rooms.set(code, {
@@ -457,20 +488,30 @@ export class RoomManager {
       pendingLineups: new Map(),
       origin: options.origin ?? 'code',
       finalSpeedVotes: new Set(),
-      queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS } : null,
+      queue: options.origin === 'queue' ? { expected: options.expected ?? COMPETITIVE_MIN_HUMANS, startBy: now + QUEUE_JOIN_WINDOW_MS, abandoned: false } : null,
       competitive: false,
-      field: options.field ?? 'random'
+      field: options.field ?? 'random',
+      snake: options.draft ? emptySnake() : null
     });
     return code;
   }
 
   /** Registers a collection lineup for a room still in the lobby; the ticket is consumed by the `join` that carries it. */
   prepareLineup(code: string, prepared: PreparedLineup, now = Date.now()): string {
+    return this.registerPending(code, { userId: prepared.userId, prepared }, now);
+  }
+
+  /** Fila Draft: registers only the account's seat (no lineup) for a snake room still in the lobby; same ticket flow as `prepareLineup`. */
+  prepareDraftSeat(code: string, userId: string, now = Date.now()): string {
+    return this.registerPending(code, { userId, prepared: null }, now);
+  }
+
+  private registerPending(code: string, entry: Omit<PendingEntry, 'expiresAt'>, now: number): string {
     const room = this.requireRoom(code);
     if (room.phase !== 'lobby') throw new RoomError('ROOM_STARTED', 'The room has already started');
-    for (const [ticket, entry] of room.pendingLineups) if (entry.expiresAt <= now) room.pendingLineups.delete(ticket);
+    for (const [ticket, pending] of room.pendingLineups) if (pending.expiresAt <= now) room.pendingLineups.delete(ticket);
     const ticket = randomBytes(24).toString('base64url');
-    room.pendingLineups.set(ticket, { prepared, expiresAt: now + LINEUP_TICKET_TTL_MS });
+    room.pendingLineups.set(ticket, { ...entry, expiresAt: now + LINEUP_TICKET_TTL_MS });
     return ticket;
   }
 
@@ -486,9 +527,10 @@ export class RoomManager {
   refreshPreparedLineup(prepared: PreparedLineup, now = Date.now()): number {
     let changed = 0;
     for (const room of this.rooms.values()) {
-      if (room.engine) continue;
+      // Numa sala snake o time é o que saiu do draft: o time salvo da coleção nunca o substitui.
+      if (room.engine || room.snake) continue;
       for (const [ticket, entry] of room.pendingLineups) {
-        if (entry.prepared.userId !== prepared.userId || entry.expiresAt <= now) continue;
+        if (!entry.prepared || entry.userId !== prepared.userId || entry.expiresAt <= now) continue;
         room.pendingLineups.set(ticket, { ...entry, prepared });
         changed += 1;
       }
@@ -562,12 +604,14 @@ export class RoomManager {
       throw new RoomError('NAME_TAKEN', 'Organization name is already in use');
     }
     let prepared: PreparedLineup | null = null;
+    let userId: string | null = null;
     if (lineupTicket) {
       const pending = room.pendingLineups.get(lineupTicket);
       if (!pending || pending.expiresAt <= now) throw new RoomError('INVALID_ACTION', 'Lineup ticket is invalid or expired');
-      if ([...room.participants.values()].some((participant) => participant.prepared?.userId === pending.prepared.userId)) throw new RoomError('INVALID_ACTION', 'This account is already in the room');
+      if ([...room.participants.values()].some((participant) => participant.userId === pending.userId)) throw new RoomError('INVALID_ACTION', 'This account is already in the room');
       room.pendingLineups.delete(lineupTicket);
       prepared = pending.prepared;
+      userId = pending.userId;
     }
     const participant: ParticipantState = {
       id: randomUUID(),
@@ -580,7 +624,8 @@ export class RoomManager {
       draft: emptyDraftState(),
       watchedSeriesId: null,
       requestIds: [],
-      prepared
+      prepared,
+      userId
     };
     room.participants.set(participant.id, participant);
     room.hostParticipantId ??= participant.id;
@@ -643,6 +688,7 @@ export class RoomManager {
         break;
       case 'pick-secret': {
         this.requireDraft(room);
+        this.requireRoulette(room);
         const alias = findSecretAlias(command.alias);
         const player = alias ? playerById.get(secretPlayerId(alias)) : undefined;
         if (!alias || !player) throw new RoomError('INVALID_ACTION', 'Unknown secret player');
@@ -656,6 +702,7 @@ export class RoomManager {
       }
       case 'draw-team':
         this.requireDraft(room);
+        this.requireRoulette(room);
         try {
           participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams, players);
         } catch (error) {
@@ -665,6 +712,7 @@ export class RoomManager {
         break;
       case 'reroll-team':
         this.requireDraft(room);
+        this.requireRoulette(room);
         try {
           participant.draft = drawDraftTeam(room.seed, participant.id, room.config.mode, participant.draft, teams, players, true);
         } catch (error) {
@@ -676,9 +724,11 @@ export class RoomManager {
         this.requireDraft(room);
         if (room.config.mode === 'pro') throw new RoomError('INVALID_ACTION', 'PRO style and roles must be confirmed together');
         participant.draft.style = command.style;
+        if (room.snake) this.syncSnakePrepared(room, participant);
         break;
       case 'pick-player': {
         this.requireDraft(room);
+        this.requireRoulette(room);
         const player = playerById.get(command.playerId);
         if (!player) throw new RoomError('INVALID_ACTION', 'Unknown player');
         try {
@@ -710,11 +760,53 @@ export class RoomManager {
       case 'submit-map-preferences': {
         this.requireDraft(room);
         if (participant.draft.lineup.length !== 5) throw new RoomError('INVALID_ACTION', 'Complete the lineup configuration first');
-        const selected = participant.draft.lineup.map((pick) => playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
-        if (!isValidLineupMapSelection(command.mapPreferences, selected, teams)) {
+        // Snake lineups carry collection cards (expansion included): validate against the whole collection, not the frozen core.
+        const selected = participant.draft.lineup.map((pick) => room.snake ? lineupPlayer(pick.playerId) : playerById.get(pick.playerId)).filter((player): player is Player => Boolean(player));
+        if (!isValidLineupMapSelection(command.mapPreferences, selected, room.snake ? collectionTeams : teams)) {
           throw new RoomError('INVALID_ACTION', 'Map preferences must be three unique maps known by the lineup');
         }
         participant.draft.mapPreferences = [...command.mapPreferences];
+        if (room.snake) this.syncSnakePrepared(room, participant);
+        break;
+      }
+      case 'snake-pick': {
+        this.requireDraft(room);
+        this.requireSnake(room);
+        const player = collectionPlayerById.get(command.playerId);
+        if (!player) throw new RoomError('INVALID_ACTION', 'Unknown player');
+        this.applySnakePick(room, participant, player, command.role, now, command.secondaryRole);
+        break;
+      }
+      case 'pick-star': {
+        this.requireDraft(room);
+        const snake = this.requireSnake(room);
+        const seat = snake.seats[participant.id];
+        if (!seat || participant.draft.lineup.length !== 5) throw new RoomError('INVALID_ACTION', 'Finish the five picks first');
+        if (!participant.draft.lineup.some((pick) => pick.playerId === command.playerId)) throw new RoomError('INVALID_ACTION', 'The star must be one of your five cards');
+        const selected = participant.draft.lineup.map((pick) => lineupPlayer(pick.playerId)).filter((player): player is Player => Boolean(player));
+        const roles = participant.draft.lineup.map(collectionRoleOf);
+        if (!isStarEffective(selected, command.playerId, roles)) throw new RoomError('INVALID_ACTION', 'That card cannot be the star (support or pure IGL, or too weak for the lineup)');
+        seat.starPlayerId = command.playerId;
+        this.syncSnakePrepared(room, participant);
+        break;
+      }
+      case 'pick-coach': {
+        this.requireDraft(room);
+        const seat = this.requireSnake(room).seats[participant.id];
+        if (!seat || !seat.coachOffer.includes(command.coachId)) throw new RoomError('INVALID_ACTION', 'That coach is not in your offer');
+        seat.coachId = command.coachId;
+        this.syncSnakePrepared(room, participant);
+        break;
+      }
+      case 'reroll-coach': {
+        this.requireDraft(room);
+        const seat = this.requireSnake(room).seats[participant.id];
+        if (!seat) throw new RoomError('INVALID_ACTION', 'No seat in this draft');
+        if (seat.coachRerollsUsed >= SNAKE_COACH_REROLLS) throw new RoomError('INVALID_ACTION', 'No coach rerolls left');
+        seat.coachRerollsUsed += 1;
+        seat.coachOffer = rollSnakeCoachOffer(room.seed, participant.id, seat.coachRerollsUsed).map((coach) => coach.id);
+        seat.coachId = null;
+        this.syncSnakePrepared(room, participant);
         break;
       }
       case 'watch-match':
@@ -878,8 +970,10 @@ export class RoomManager {
         ready: isDraftComplete(room.config.mode, candidate.draft),
         mapPreferences: candidate.id === participantId ? [...candidate.draft.mapPreferences] : [],
         mapsConfirmed: candidate.draft.mapPreferences.length === 3,
-        ...(candidate.prepared ? { collection: true } : {}),
-        ...this.participantCourtPreview(room, candidate)
+        // Numa sala snake o `prepared` é sintetizado do draft: ninguém "veio com time de coleção".
+        ...(candidate.prepared && !room.snake ? { collection: true } : {}),
+        ...this.participantCourtPreview(room, candidate),
+        ...(room.snake ? { coachId: room.snake.seats[candidate.id]?.coachId ?? null } : {})
       }));
     const organizations = room.organizations?.map((organization): PublicOrganization => ({
       id: organization.id,
@@ -928,11 +1022,14 @@ export class RoomManager {
         watchedSeriesId: participant.watchedSeriesId,
         mapPreferences: [...participant.draft.mapPreferences],
         pendingDecision: this.selfPendingDecision(room, participant.id),
-        secretPicksLeft: room.phase === 'draft' ? secretPicksLeftFor(room.config.mode, participant.organizationName, participant.draft) : 0
+        secretPicksLeft: room.phase === 'draft' && !room.snake ? secretPicksLeftFor(room.config.mode, participant.organizationName, participant.draft) : 0,
+        ...(room.snake ? this.selfSnakeSeat(room, participant) : {})
       } : null,
       deadlineAt: room.deadlineAt,
       deadlineStage: room.deadlineAt === null ? null : room.deadlineStage,
       tournament: room.engine ? this.publicTournament(room, participantId, null) : null,
+      ...(room.snake ? { snake: toPublicSnake(room.snake) } : {}),
+      ...(room.queue?.abandoned ? { queueAbandoned: true } : {}),
       ...(organizations ? { organizations } : {}),
       ...(participant && room.phase === 'completed' ? { selfResult: this.getSelfResult(room, participant) } : {}),
       serverTime: now
@@ -971,8 +1068,22 @@ export class RoomManager {
       changed = true;
     } else if (room.origin === 'queue' && room.phase === 'lobby' && room.queue) {
       const joined = [...room.participants.values()].filter((participant) => participant.connected).length;
-      // After the window it starts with whoever came, even alone (then against bots, not competitive): nobody is left stuck in the lobby.
-      if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 1)) {
+      if (room.snake) {
+        // Fila Draft: nunca começa com um só. Passada a janela com 2+, começa com quem veio; com menos, a sala é abandonada.
+        if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= COMPETITIVE_MIN_HUMANS)) {
+          room.queue.expected = Math.min(room.queue.expected, joined);
+          this.startRoom(room, now);
+          room.version += 1;
+          room.stateVersion += 1;
+          changed = true;
+        } else if (now >= room.queue.startBy && !room.queue.abandoned) {
+          room.queue.abandoned = true;
+          room.version += 1;
+          room.stateVersion += 1;
+          changed = true;
+        }
+      } else if (joined >= room.queue.expected || (now >= room.queue.startBy && joined >= 1)) {
+        // After the window it starts with whoever came, even alone (then against bots, not competitive): nobody is left stuck in the lobby.
         this.startRoom(room, now);
         room.version += 1;
         room.stateVersion += 1;
@@ -993,7 +1104,23 @@ export class RoomManager {
       return true;
     }
     if (room.phase === 'completed' && room.rematch && this.resolveRematch(room, now)) return true;
-    if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
+    if (room.snake && room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
+      if (room.deadlineStage === 'confirmation') {
+        // Venceu a confirmação: o servidor fecha estilo, estrela, coach e mapas de quem não fechou e o Major roda.
+        for (const participant of room.participants.values()) {
+          this.autocompleteSnakeSeat(room, participant);
+          this.syncSnakePrepared(room, participant);
+        }
+        room.deadlineAt = null;
+        room.deadlineStage = null;
+      } else if (!isSnakeComplete(room.snake)) {
+        this.snakeAutoPickTurn(room, now);
+      }
+      room.version += 1;
+      room.stateVersion += 1;
+      this.startTournamentIfReady(room, now);
+      changed = true;
+    } else if (room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
       if (room.deadlineStage === 'confirmation') {
         for (const participant of room.participants.values()) this.autocompleteConfirmation(room, participant);
         room.deadlineAt = null;
@@ -1053,7 +1180,12 @@ export class RoomManager {
     room.phase = 'lobby';
     room.deadlineAt = null;
     room.deadlineStage = null;
-    for (const participant of room.participants.values()) participant.draft = emptyDraftState();
+    for (const participant of room.participants.values()) {
+      participant.draft = emptyDraftState();
+      // O time do snake morreu com o draft; o próximo começo sorteia outro pool.
+      if (room.snake) participant.prepared = null;
+    }
+    if (room.snake) room.snake = emptySnake();
     room.version += 1;
     room.stateVersion += 1;
   }
@@ -1165,6 +1297,7 @@ export class RoomManager {
       if (!keep.has(participantId)) room.participants.delete(participantId);
     }
     for (const participant of room.participants.values()) {
+      if (room.snake) participant.prepared = null;
       participant.draft = this.initialDraft(room, participant);
       participant.watchedSeriesId = null;
     }
@@ -1183,6 +1316,8 @@ export class RoomManager {
     room.phase = 'draft';
     room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
     room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+    // Revanche numa sala snake: novo pool, nova ordem e novas ofertas de coach com o seed novo.
+    if (room.snake) this.startSnake(room, now);
   }
 
   /** The points table; null until the room's first run ends (a fresh season afterwards shows run 0 and no standings). */
@@ -1235,6 +1370,8 @@ export class RoomManager {
   /** Scores season points: every queue room, or a code room where everybody brought a collection team and there are enough of them. */
   isCompetitiveRun(room: RoomState): boolean {
     const humans = [...room.participants.values()];
+    // Fila Draft: vale pontos como a fila competitiva, desde que haja com quem disputar.
+    if (room.snake) return humans.length >= COMPETITIVE_MIN_HUMANS;
     if (room.origin === 'queue') return humans.length >= COMPETITIVE_MIN_HUMANS;
     if (room.origin === 'solo') return false;
     return humans.length >= COMPETITIVE_MIN_HUMANS && humans.every((participant) => participant.prepared);
@@ -1246,26 +1383,172 @@ export class RoomManager {
     for (const candidate of room.participants.values()) candidate.draft = this.initialDraft(room, candidate);
     room.deadlineAt = room.config.draftDeadlineSeconds === null ? null : now + room.config.draftDeadlineSeconds * 1_000;
     room.deadlineStage = room.deadlineAt === null ? null : 'picks';
+    if (room.snake) {
+      this.startSnake(room, now);
+      return;
+    }
     // Everybody entered with a collection lineup: no draft to run, straight into the tournament.
     this.startTournamentIfReady(room, now);
   }
 
   /** A collection lineup is a finished draft from the first tick; everybody else starts empty (plus secret picks). */
   private initialDraft(room: RoomState, participant: ParticipantState): DraftState {
+    // No snake todo mundo começa do zero: o time sai do pool compartilhado, sem alias secreto nem time salvo.
+    if (room.snake) return emptyDraftState();
     if (participant.prepared) {
       return { ...emptyDraftState(), lineup: participant.prepared.lineup.map((pick) => ({ ...pick })), style: participant.prepared.style, mapPreferences: [...participant.prepared.mapPreferences] };
     }
     return withSecretPlayers(emptyDraftState(), room.config.mode, participant.playerName, participant.organizationName, lookupPlayer);
   }
 
-  /** Code rooms need two people; a queue room whose other players never showed up still plays, alone against bots. */
+  /** Code rooms need two people; a queue room whose other players never showed up still plays, alone against bots. A snake needs two. */
   private minParticipants(room: RoomState): number {
+    if (room.snake) return COMPETITIVE_MIN_HUMANS;
     return room.origin === 'queue' || room.origin === 'solo' ? 1 : 2;
   }
 
   private startTournamentIfReady(room: RoomState, now: number) {
     if (room.phase !== 'draft' || room.participants.size < this.minParticipants(room)) return;
-    if ([...room.participants.values()].every((participant) => isDraftComplete(room.config.mode, participant.draft))) this.beginTournament(room, now);
+    const ready = room.snake
+      ? [...room.participants.values()].every((participant) => this.isSnakeSeatReady(room, participant))
+      : [...room.participants.values()].every((participant) => isDraftComplete(room.config.mode, participant.draft));
+    if (ready) this.beginTournament(room, now);
+  }
+
+  // ───────────────────────────── Fila Draft (snake) ─────────────────────────────
+
+  /** Sorteia pool, ordem e ofertas de coach para todos os participantes da sala e abre o primeiro turno. */
+  private startSnake(room: RoomState, now: number) {
+    const ids = [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt).map((participant) => participant.id);
+    const rng = createSeededRng(`${room.seed}:snake-order`);
+    const order = [...ids];
+    for (let index = order.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(rng() * (index + 1));
+      [order[index], order[swap]] = [order[swap], order[index]];
+    }
+    room.snake = {
+      pool: rollSnakePool(room.seed, ids.length).map((player) => player.id),
+      taken: {},
+      order,
+      turn: 0,
+      turnDeadlineAt: now + SNAKE_TURN_MS,
+      seats: Object.fromEntries(ids.map((id) => [id, {
+        coachOffer: rollSnakeCoachOffer(room.seed, id, 0).map((coach) => coach.id),
+        coachRerollsUsed: 0,
+        coachId: null,
+        starPlayerId: null
+      }]))
+    };
+    room.deadlineAt = room.snake.turnDeadlineAt;
+    room.deadlineStage = 'picks';
+  }
+
+  /** Fecha o turno atual: o próximo abre com prazo novo; o último abre a janela de confirmação. */
+  private advanceSnakeTurn(room: RoomState, now: number) {
+    const snake = room.snake!;
+    snake.turn += 1;
+    if (isSnakeComplete(snake)) {
+      snake.turnDeadlineAt = null;
+      if (room.deadlineStage !== 'confirmation') {
+        room.deadlineStage = 'confirmation';
+        room.deadlineAt = now + CONFIRMATION_GRACE_MS;
+      }
+      return;
+    }
+    snake.turnDeadlineAt = now + SNAKE_TURN_MS;
+    room.deadlineAt = snake.turnDeadlineAt;
+    room.deadlineStage = 'picks';
+  }
+
+  /** Prazo do turno vencido: a melhor carta livre que cabe vai para quem não escolheu; um assento vazio (saiu) só passa a vez. */
+  private snakeAutoPickTurn(room: RoomState, now: number) {
+    const snake = room.snake!;
+    const turnParticipantId = snakeTurnParticipant(snake);
+    const participant = turnParticipantId ? room.participants.get(turnParticipantId) : undefined;
+    const auto = participant ? snakeAutoPick(snakeAvailable(snake, lineupPlayer), participant.draft.lineup, lineupPlayer) : null;
+    if (!participant || !auto) {
+      this.advanceSnakeTurn(room, now);
+      return;
+    }
+    this.applySnakePick(room, participant, auto.player, auto.role, now);
+  }
+
+  private applySnakePick(room: RoomState, participant: ParticipantState, player: Player, role: LineupSlotRole, now: number, secondaryRole?: LineupSlotRole) {
+    const snake = this.requireSnake(room);
+    if (snakeTurnParticipant(snake) !== participant.id) throw new RoomError('NOT_YOUR_TURN', 'It is not your turn to pick');
+    if (!snake.pool.includes(player.id)) throw new RoomError('INVALID_ACTION', 'That card is not in the pool');
+    if (snake.taken[player.id]) throw new RoomError('INVALID_ACTION', 'That card was already taken');
+    const validation = validatePlayerPick(player, participant.draft.lineup, role, lineupPlayer, { unlimitedRoles: true });
+    if (!validation.ok) throw new RoomError('INVALID_ACTION', validation.reason ?? 'Invalid pick');
+    if (secondaryRole && (secondaryRole === role || !getEligibleSlotRoles(player).includes(secondaryRole))) throw new RoomError('INVALID_ACTION', 'Invalid secondary role');
+    snake.taken[player.id] = participant.id;
+    participant.draft.lineup = [...participant.draft.lineup, { playerId: player.id, selectedSlotRole: role, ...(secondaryRole ? { secondarySlotRole: secondaryRole } : {}) }];
+    this.syncSnakePrepared(room, participant);
+    this.advanceSnakeTurn(room, now);
+  }
+
+  /** O `prepared` de um drafter é sintetizado do draft + assento, para a quadra e a persistência tratarem-no como um time de coleção. */
+  private syncSnakePrepared(room: RoomState, participant: ParticipantState) {
+    const seat = room.snake?.seats[participant.id];
+    const draft = participant.draft;
+    participant.prepared = participant.userId && seat && draft.lineup.length === 5
+      ? {
+        userId: participant.userId,
+        lineup: draft.lineup.map((pick) => ({ ...pick })),
+        style: draft.style ?? 'balanced',
+        starPlayerId: seat.starPlayerId,
+        coachId: seat.coachId ?? undefined,
+        mapPreferences: [...draft.mapPreferences]
+      }
+      : null;
+  }
+
+  /** Vencida a confirmação: estilo equilibrado, a melhor estrela elegível, o melhor coach da oferta e os mapas padrão. */
+  private autocompleteSnakeSeat(room: RoomState, participant: ParticipantState) {
+    const seat = room.snake?.seats[participant.id];
+    const draft = participant.draft;
+    if (!seat || draft.lineup.length !== 5) return;
+    draft.style ??= 'balanced';
+    const selected = draft.lineup.map((pick) => lineupPlayer(pick.playerId)).filter((player): player is Player => Boolean(player));
+    const roles = draft.lineup.map(collectionRoleOf);
+    if (!seat.starPlayerId) {
+      const candidates = selected
+        .filter((_, index) => starRoleAllowed(roles[index]))
+        .sort((left, right) => (right.overall ?? 0) - (left.overall ?? 0) || left.id.localeCompare(right.id));
+      seat.starPlayerId = candidates.find((player) => isStarEffective(selected, player.id, roles))?.id ?? candidates[0]?.id ?? null;
+    }
+    if (!seat.coachId) {
+      seat.coachId = seat.coachOffer
+        .map((id) => collectionCoachById.get(id))
+        .filter((coach): coach is NonNullable<typeof coach> => Boolean(coach))
+        .sort((left, right) => right.overall - left.overall || left.id.localeCompare(right.id))[0]?.id ?? null;
+    }
+    if (draft.mapPreferences.length !== 3) draft.mapPreferences = [...getDefaultMapSelection(selected, collectionTeams)];
+  }
+
+  private isSnakeSeatReady(room: RoomState, participant: ParticipantState): boolean {
+    const seat = room.snake?.seats[participant.id];
+    return Boolean(seat && isDraftComplete(room.config.mode, participant.draft) && participant.draft.style && seat.coachId && seat.starPlayerId);
+  }
+
+  private selfSnakeSeat(room: RoomState, participant: ParticipantState): Pick<NonNullable<RoomSnapshot['self']>, 'coachOffer' | 'coachId' | 'coachRerollsLeft' | 'starPlayerId'> {
+    const seat = room.snake?.seats[participant.id];
+    return {
+      coachOffer: seat ? [...seat.coachOffer] : [],
+      coachId: seat?.coachId ?? null,
+      coachRerollsLeft: Math.max(0, SNAKE_COACH_REROLLS - (seat?.coachRerollsUsed ?? 0)),
+      starPlayerId: seat?.starPlayerId ?? null
+    };
+  }
+
+  private requireSnake(room: RoomState): SnakeState {
+    if (!room.snake) throw new RoomError('INVALID_ACTION', 'This room does not run a snake draft');
+    return room.snake;
+  }
+
+  /** Comandos da roleta (sortear time, escolher da oferta, alias secreto) não existem numa sala snake. */
+  private requireRoulette(room: RoomState) {
+    if (room.snake) throw new RoomError('INVALID_ACTION', 'This room drafts from the shared pool');
   }
 
   private beginTournament(room: RoomState, now: number) {

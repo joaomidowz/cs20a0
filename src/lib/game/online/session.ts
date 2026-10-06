@@ -8,7 +8,7 @@ import {
   type OnlineConnectionState
 } from './client';
 import { getOnlineServerUrl } from './config';
-import type { LiveUpdate, RoomSnapshot } from './contracts';
+import type { LiveUpdate, QueueKind, RoomSnapshot } from './contracts';
 
 export interface QueueStatusResponse {
   state: 'idle' | 'waiting' | 'matched';
@@ -18,6 +18,8 @@ export interface QueueStatusResponse {
   closesInMs: number | null;
   pair: boolean;
   left: 'stale' | 'hidden' | null;
+  /** Fila em que a conta está (protocolo 12); servidores antigos não mandam e o cliente assume a que pediu. */
+  kind?: QueueKind;
 }
 
 export interface OnlineMatch {
@@ -32,6 +34,8 @@ export interface OnlineIdentityInput {
 }
 
 export interface OnlineQueueView extends QueueStatusResponse {
+  /** Fila pedida/confirmada: 'collection' (competitiva com o time salvo) ou 'draft' (Fila Draft). */
+  kind: QueueKind;
   elapsed: number;
   wanted: boolean;
   failures: number;
@@ -56,7 +60,7 @@ export interface RoomClientLike {
 
 interface OnlineSessionDependencies {
   now: () => number;
-  queueJoin: () => Promise<QueueStatusResponse>;
+  queueJoin: (kind: QueueKind) => Promise<QueueStatusResponse>;
   queueStatus: () => Promise<QueueStatusResponse>;
   queueLeave: (reason?: 'hidden') => Promise<unknown>;
   setInterval: (callback: () => void, milliseconds: number) => unknown;
@@ -77,6 +81,7 @@ const idleQueue = (): OnlineQueueView => ({
   closesInMs: null,
   pair: false,
   left: null,
+  kind: 'collection',
   elapsed: 0,
   wanted: false,
   failures: 0,
@@ -96,7 +101,7 @@ const productionDependencies = (): OnlineSessionDependencies => {
   const serverUrl = getOnlineServerUrl();
   return {
     now: Date.now,
-    queueJoin: () => authFetch<QueueStatusResponse>(serverUrl, '/queue/join', { body: {} }),
+    queueJoin: (kind) => authFetch<QueueStatusResponse>(serverUrl, '/queue/join', { body: { kind } }),
     queueStatus: () => authFetch<QueueStatusResponse>(serverUrl, '/queue/status'),
     queueLeave: (reason) => authFetch(serverUrl, '/queue/leave', { body: reason ? { reason } : {} }),
     setInterval: (callback, milliseconds) => globalThis.setInterval(callback, milliseconds),
@@ -110,6 +115,8 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
   const roomState = writable<OnlineRoomView>(idleRoom());
   let queueTimer: unknown | null = null;
   let queueIdentity: OnlineIdentityInput | null = null;
+  /** Fila que o jogador pediu; o poll e o auto-rejoin repetem a mesma. */
+  let queueKind: QueueKind = 'collection';
   let roomClient: RoomClientLike | null = null;
   let disposed = false;
   let lastAutoRejoin = 0;
@@ -124,6 +131,7 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
     const previous = get(queueState);
     queueState.set({
       ...status,
+      kind: status.kind ?? queueKind,
       elapsed: status.since ? Math.max(0, Math.round((dependencies.now() - status.since) / 1_000)) : 0,
       wanted: status.state === 'matched' ? false : previous.wanted,
       failures: 0,
@@ -173,7 +181,7 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
         const current = dependencies.now();
         if (current - lastAutoRejoin >= 30_000) {
           lastAutoRejoin = current;
-          const rejoined = await dependencies.queueJoin();
+          const rejoined = await dependencies.queueJoin(queueKind);
           applyQueueStatus(rejoined);
           queueState.update((queue) => ({ ...queue, wanted: true }));
         }
@@ -195,10 +203,11 @@ export function createOnlineSession(dependencies: OnlineSessionDependencies = pr
     }
   };
 
-  const joinQueue = async (identity: OnlineIdentityInput) => {
+  const joinQueue = async (identity: OnlineIdentityInput, kind: QueueKind = 'collection') => {
     disposed = false;
     queueIdentity = identity;
-    const status = await dependencies.queueJoin();
+    queueKind = kind;
+    const status = await dependencies.queueJoin(kind);
     applyQueueStatus(status);
     queueState.update((queue) => ({ ...queue, wanted: true }));
     if (queueTimer === null) {

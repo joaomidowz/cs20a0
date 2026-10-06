@@ -24,7 +24,7 @@ import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from 
 const MAX_COMMANDS_PER_10_SECONDS = 40;
 const MAX_ROOM_CREATIONS_PER_MINUTE = 10;
 /** Keep the previous browser release online while the new frontend rolls out. */
-const PREVIOUS_PROTOCOL_VERSION = 10;
+const PREVIOUS_PROTOCOL_VERSION = 11;
 const isSupportedProtocol = (version: unknown): version is number =>
   version === PROTOCOL_VERSION || version === PREVIOUS_PROTOCOL_VERSION;
 /** Bytes still queued on a socket above which a live update is skipped: the next tick sends the state of that moment instead. */
@@ -72,16 +72,19 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
   const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
-  const queue = createQueue(manager, now);
+  // Duas filas: a competitiva (time da coleção) e a Fila Draft (snake num pool compartilhado, protocolo 12).
+  const queues = { collection: createQueue(manager, now), draft: createQueue(manager, now, { kind: 'draft' }) };
+  const queueSize = () => queues.collection.size() + queues.draft.size();
   const supportDeps = auth && options.db && options.mailer && options.supportTo ? { db: options.db, mailer: options.mailer, to: options.supportTo } : null;
   const support = supportDeps && auth ? createSupportRoutes(supportDeps, auth.currentUser, now) : null;
   // O time salvo agora é o time que joga: troca a line em toda run que ainda não começou (bilhete da sala, lobby,
   // draft) e na fila. Uma run em andamento mantém o time com que entrou.
   const refreshLineup = (userId: string, prepared: PreparedLineup) => {
     manager.refreshPreparedLineup(prepared);
-    queue.refreshLineup(userId, prepared);
+    // Só a fila competitiva leva o time salvo; na Fila Draft o time nasce do snake.
+    queues.collection.refreshLineup(userId, prepared);
   };
-  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth, refreshLineup), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createTradeRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queue), ...createCatalogRoutes(options.db, Boolean(options.payments)), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
+  const httpRoutes: Route[] = [...(auth?.routes ?? []), ...(support?.routes ?? []), ...(auth && options.db ? [...createCollectionRoutes(options.db, auth.withAuth, refreshLineup), ...createMissionRoutes(options.db, auth.withAuth), ...createUpgraderRoutes(options.db, auth.withAuth), ...createTradeRoutes(options.db, auth.withAuth), ...createRoomRoutes(options.db, manager, auth.withAuth, queues), ...createCatalogRoutes(options.db, Boolean(options.payments)), ...(options.payments ? createPaymentRoutes({ ...options.payments, db: options.db, now }, auth.withAuth) : [])] : [])];
   const clientAddress = (request: IncomingMessage) => {
     if (options.trustProxy) {
       const forwarded = request.headers['x-forwarded-for'];
@@ -110,7 +113,7 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
       return response.end();
     }
     if (request.method === 'GET' && url.pathname === '/health') {
-      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth), queue: queue.size(), payments: Boolean(auth && options.payments) }, origin);
+      return json(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, dataHash: ONLINE_DATA_HASH, rooms: manager.roomCount(), accounts: Boolean(auth), queue: queueSize(), payments: Boolean(auth && options.payments) }, origin);
     }
     const roomLookup = request.method === 'GET' ? /^\/rooms\/([A-Z2-9]{8})$/i.exec(url.pathname) : null;
     if (roomLookup) {
@@ -267,7 +270,8 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   });
 
   const tickTimer = setInterval(() => {
-    queue.tick();
+    queues.collection.tick();
+    queues.draft.tick();
     manager.tick(now());
     // Every connection, not only the rooms that changed: a live update skipped earlier goes out once the socket drains.
     for (const [socket, session] of sessions) deliver(socket, session);
@@ -310,5 +314,5 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   };
 
-  return { server, manager, queue, close, broadcastRoom, httpRoutes, withAuth: auth?.withAuth ?? null };
+  return { server, manager, queues, queue: queues.collection, close, broadcastRoom, httpRoutes, withAuth: auth?.withAuth ?? null };
 }

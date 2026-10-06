@@ -1,10 +1,12 @@
-import type { RoomConfig } from '../src/lib/game/online/contracts';
+import type { QueueKind, RoomConfig } from '../src/lib/game/online/contracts';
 import type { PreparedLineup, RoomManager } from './room-manager';
 
 /** Competitive matchmaking: collection teams only, at least three humans per Major, bots fill the rest of the field. */
 /** Three or more close a room after the short fill window; exactly two wait for the pair window instead. */
 export const QUEUE_MIN = 3;
 export const QUEUE_MAX = 8;
+/** Fila Draft (protocolo 12): até seis por sala — o snake com mais gente demora demais (6 × 5 turnos de 30 s). */
+export const DRAFT_QUEUE_MAX = 6;
 /** Once the minimum is waiting, the queue always holds this long for more players (even when full) before it closes the room. */
 export const QUEUE_FILL_WINDOW_MS = 10_000;
 /** Exactly two waiting: once they have been the only ones for this long, they play each other (a third of the points). */
@@ -29,15 +31,21 @@ export const QUEUE_ROOM_CONFIG: RoomConfig = {
   seasonRuns: 1
 };
 
+/** A sala da Fila Draft é a mesma da fila competitiva, só menor; o prazo de draft é por turno (`SNAKE_TURN_MS`). */
+export const DRAFT_QUEUE_ROOM_CONFIG: RoomConfig = { ...QUEUE_ROOM_CONFIG, capacity: DRAFT_QUEUE_MAX };
+
 interface Waiting {
   userId: string;
-  prepared: PreparedLineup;
+  /** Time da coleção (fila competitiva) ou null (Fila Draft: o time sai do snake). */
+  prepared: PreparedLineup | null;
   since: number;
   /** Last join or status call: the client's 2 s poll doubles as a heartbeat. */
   lastSeen: number;
 }
 
 export interface QueueStatus {
+  /** Qual fila este status descreve. */
+  kind: QueueKind;
   state: 'idle' | 'waiting' | 'matched';
   waiting: number;
   since: number | null;
@@ -50,7 +58,14 @@ export interface QueueStatus {
   left: QueueLeftReason | null;
 }
 
-export function createQueue(manager: RoomManager, now: () => number = Date.now) {
+export interface QueueOptions {
+  /** 'collection' (padrão): time salvo da coleção; 'draft': sala snake, sem time salvo. Mesmas janelas nas duas. */
+  kind?: QueueKind;
+}
+
+export function createQueue(manager: RoomManager, now: () => number = Date.now, options: QueueOptions = {}) {
+  const kind: QueueKind = options.kind ?? 'collection';
+  const roomMax = kind === 'draft' ? DRAFT_QUEUE_MAX : QUEUE_MAX;
   const waiting = new Map<string, Waiting>();
   const matches = new Map<string, { roomCode: string; lineupTicket: string; at: number }>();
   const removed = new Map<string, { reason: QueueLeftReason; at: number }>();
@@ -62,12 +77,12 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
   /** Swaps the lineup of someone already waiting, so a team saved during the search is the one that plays. */
   function refreshLineup(userId: string, prepared: PreparedLineup): boolean {
     const entry = waiting.get(userId);
-    if (!entry) return false;
+    if (!entry || kind === 'draft') return false;
     entry.prepared = prepared;
     return true;
   }
 
-  function join(userId: string, prepared: PreparedLineup): QueueStatus {
+  function join(userId: string, prepared: PreparedLineup | null): QueueStatus {
     const current = now();
     matches.delete(userId);
     removed.delete(userId);
@@ -98,17 +113,33 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
   function status(userId: string): QueueStatus {
     const current = now();
     const match = matches.get(userId);
-    if (match) return { state: 'matched', waiting: waiting.size, since: null, match: { roomCode: match.roomCode, lineupTicket: match.lineupTicket }, closesInMs: null, pair: false, left: null };
+    if (match) return { kind, state: 'matched', waiting: waiting.size, since: null, match: { roomCode: match.roomCode, lineupTicket: match.lineupTicket }, closesInMs: null, pair: false, left: null };
     const entry = waiting.get(userId);
     if (entry) entry.lastSeen = current;
     const gone = entry ? null : removed.get(userId) ?? null;
-    return { state: entry ? 'waiting' : 'idle', waiting: waiting.size, since: entry?.since ?? null, match: null, closesInMs: entry ? closesIn(current) : null, pair: Boolean(entry) && waiting.size === 2, left: gone?.reason ?? null };
+    return { kind, state: entry ? 'waiting' : 'idle', waiting: waiting.size, since: entry?.since ?? null, match: null, closesInMs: entry ? closesIn(current) : null, pair: Boolean(entry) && waiting.size === 2, left: gone?.reason ?? null };
+  }
+
+  /** Whether this user is waiting or holds a match here (used by the routes to pick which queue answers `status`). */
+  function has(userId: string): boolean {
+    return waiting.has(userId) || matches.has(userId);
   }
 
   function openRoom(group: Waiting[], current: number) {
+    if (kind === 'draft') {
+      // Fila Draft: sala snake; o bilhete só amarra a conta ao assento (o time nasce do pool compartilhado).
+      const roomCode = manager.createRoom(DRAFT_QUEUE_ROOM_CONFIG, current, undefined, { origin: 'queue', expected: group.length, draft: true });
+      for (const entry of group) {
+        const lineupTicket = manager.prepareDraftSeat(roomCode, entry.userId, current);
+        matches.set(entry.userId, { roomCode, lineupTicket, at: current });
+        waiting.delete(entry.userId);
+      }
+      return;
+    }
     const roomCode = manager.createRoom(QUEUE_ROOM_CONFIG, current, undefined, { origin: 'queue', expected: group.length });
     for (const entry of group) {
-      const lineupTicket = manager.prepareLineup(roomCode, entry.prepared, current);
+      // A fila competitiva só aceita quem trouxe time; sem ele o assento vale como drafter da roleta (não acontece pela rota).
+      const lineupTicket = entry.prepared ? manager.prepareLineup(roomCode, entry.prepared, current) : manager.prepareDraftSeat(roomCode, entry.userId, current);
       matches.set(entry.userId, { roomCode, lineupTicket, at: current });
       waiting.delete(entry.userId);
     }
@@ -129,7 +160,7 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
     if (waiting.size >= QUEUE_MIN) {
       readySince ??= current;
       if (current - readySince < QUEUE_FILL_WINDOW_MS) return;
-      openRoom([...waiting.values()].sort((a, b) => a.since - b.since).slice(0, QUEUE_MAX), current);
+      openRoom([...waiting.values()].sort((a, b) => a.since - b.since).slice(0, roomMax), current);
       readySince = waiting.size >= QUEUE_MIN ? current : null;
       pairSince = waiting.size === 2 ? current : null;
       return;
@@ -142,7 +173,9 @@ export function createQueue(manager: RoomManager, now: () => number = Date.now) 
     }
   }
 
-  return { join, leave, refreshLineup, status, tick, size: () => waiting.size };
+  return { kind, join, leave, refreshLineup, status, has, tick, size: () => waiting.size };
 }
 
 export type Queue = ReturnType<typeof createQueue>;
+/** As duas filas do servidor, uma por tipo. */
+export type Queues = Record<QueueKind, Queue>;

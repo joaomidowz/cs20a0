@@ -34,6 +34,10 @@
   import SeasonPanel from '$lib/components/online/SeasonPanel.svelte';
   import RematchPanel from '$lib/components/online/RematchPanel.svelte';
   import LiveSeriesSwitcher from '$lib/components/online/LiveSeriesSwitcher.svelte';
+  import SnakeBoard from '$lib/components/online/SnakeBoard.svelte';
+  import CollectionCard from '$lib/components/online/CollectionCard.svelte';
+  import CoachDraft from '$lib/components/CoachDraft.svelte';
+  import { collectionRoleOf, starRoleAllowed } from '$lib/game/online/collection-lineup';
   import { translate, translatePlacement } from '$lib/game/i18n';
   import { getRoleLabel, validatePlayerPick } from '$lib/game/roleRules';
   import { hasFreeRoles } from '$lib/game/online/draft';
@@ -50,7 +54,7 @@
   import { language, theme } from '$lib/game/pageState';
   import { ORG_STYLES, type Language, type LineupSlotRole, type MapId, type OrgStyle, type Player, type RoundDetail, type SelectedPlayer, type SeriesResult, type CombatTeam, type MajorTournament } from '$lib/game/types';
   import { checkOnlineRoom, createOnlineRoom, hasOnlineResumeToken, isNewOnlineRun, isValidRoomCode, loadOnlineConfig, loadOnlineIdentity, OnlineRoomCreationError, saveOnlineConfig, saveOnlineIdentity, type ClientCommandInput, type OnlineClientErrorCode } from '$lib/game/online/client';
-  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
+  import { DEFAULT_ROOM_CONFIG, toPresentationGameMode, type LiveUpdate, type PublicLiveCursor, type PublicLiveSeries, type PublicOrganization, type PublicOverviewSeries, type PublicPendingDecision, type QueueKind, type RoomConfig, type RoomSnapshot } from '$lib/game/online/contracts';
   import { getHistoricalTeamOverall } from '$lib/game/online/draft-pool';
   import { getOnlineServerUrl, isOnlineEnabled } from '$lib/game/online/config';
   import { SEO_BY_ROUTE } from '$lib/seo';
@@ -70,6 +74,7 @@
   // Collection lineups may bring 2013–2015 cards; the draft itself only ever offers core players.
   const playerById = new Map([...collectionPlayerById, ...corePlayerById]);
   const teamById = new Map([...collectionTeamById, ...coreTeamById]);
+  const teamNameOf = (player: Player) => teamById.get(player.teamId ?? '')?.name ?? '';
   let playerName = '';
   let organizationName = '';
   let roomCode = '';
@@ -162,6 +167,12 @@
   let proAssignments: Record<string, LineupSlotRole> = {};
   let proStyle: OrgStyle = 'balanced';
   let serverOffset = 0;
+  /** Relógio do servidor no último tick (250 ms): move o contador do turno do snake. */
+  let serverNow = 0;
+  /** Último dono do turno do snake visto; a troca para o jogador toca `attention` uma vez. */
+  let lastSnakeTurnId: string | null | undefined = undefined;
+  /** Sala da Fila Draft que já foi abandonada (ninguém a tempo): o retorno automático à fila acontece uma vez por sala. */
+  let abandonedRoomCode = '';
   let selectedOrganizationId: string | null = null;
   let downloadingImage = false;
   let provisionalMapPreferences: MapId[] = [];
@@ -273,6 +284,13 @@
   $: observeOffer(snapshot?.phase === 'draft' ? self?.rolledTeamId ?? null : null);
   $: observePicks(snapshot?.phase === 'draft' && self ? (snapshot.config.mode === 'pro' ? self.proPickedPlayerIds : self.lineup.map((pick) => pick.playerId)) : null);
   $: if (!offeredTeam) rouletteSpinning = false;
+  /** Fila Draft: sala com snake draft (pool compartilhado) em vez da roleta. */
+  $: snake = snapshot?.phase === 'draft' ? snapshot.snake ?? null : null;
+  $: snakeMyTurn = Boolean(snake && self && snake.turnParticipantId === self.participantId);
+  $: observeSnakeTurn(snake ? snake.turnParticipantId : null, self?.participantId ?? null);
+  $: if (snapshot?.queueAbandoned && snapshot.roomCode && snapshot.roomCode !== abandonedRoomCode) handleQueueAbandoned(snapshot.roomCode);
+  /** Oferta de coach da Fila Draft resolvida para as cartas do dataset (ids desconhecidos somem em silêncio). */
+  $: snakeCoachOffer = (self?.coachOffer ?? []).map((id) => collectionCoachById.get(id)).filter((coach): coach is NonNullable<typeof coach> => Boolean(coach));
 
   const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -307,6 +325,33 @@
     unlockOfflineAudio();
     const card = document.querySelector(`[data-offline-player="${CSS.escape(player.id)}"]`);
     pendingPickSource = card ? { rect: card.getBoundingClientRect(), at: Date.now() } : null;
+  }
+
+  /** Snake: quando o turno passa a ser do jogador, um cue curto chama a atenção (uma vez por troca de turno). */
+  function observeSnakeTurn(turnParticipantId: string | null, selfParticipantId: string | null) {
+    const previous = lastSnakeTurnId;
+    lastSnakeTurnId = turnParticipantId;
+    if (turnParticipantId === previous) return;
+    if (turnParticipantId && selfParticipantId && turnParticipantId === selfParticipantId) playGameSound('attention');
+  }
+
+  /** Fila Draft sem dois humanos no prazo: o servidor abandona a sala; o cliente avisa, sai e volta à fila draft. */
+  function handleQueueAbandoned(code: string) {
+    abandonedRoomCode = code;
+    showToast(t('queueAbandoned'), 'info');
+    // Fora do ciclo reativo: sair da sala zera o snapshot que acabou de disparar este bloco.
+    queueMicrotask(() => {
+      leaveRoom();
+      void joinQueue(true, 'draft');
+    });
+  }
+
+  /** Snake: a escolha só vale na vez do jogador; fora dela a ficha abre apenas para leitura. */
+  function chooseSnakePlayer(player: Player, role: LineupSlotRole, secondaryRole?: LineupSlotRole) {
+    if (!snakeMyTurn || snake?.taken[player.id]) { detailsPlayer = null; return; }
+    capturePickSource(player);
+    send({ type: 'snake-pick', playerId: player.id, role, ...(secondaryRole ? { secondaryRole } : {}) });
+    detailsPlayer = null;
   }
 
 
@@ -352,6 +397,7 @@
       queueElapsed = queue.elapsed;
       queueClosesIn = queue.closesInMs === null ? null : Math.ceil(queue.closesInMs / 1_000);
       queuePair = queue.pair;
+      queueKind = queue.kind;
       queueWanted = queue.wanted;
       queueFailures = queue.failures;
       if (queue.error) errorMessage = queue.error;
@@ -434,6 +480,7 @@
   }
 
   function updateCountdown() {
+    serverNow = Date.now() + serverOffset;
     const decisionDeadline = myPendingDecision?.deadlineAt ?? null;
     decisionCountdown = decisionDeadline === null ? '' : `${Math.max(0, Math.ceil((decisionDeadline - (Date.now() + serverOffset)) / 1_000))}s`;
     const rematchDeadline = snapshot?.season?.rematch?.deadlineAt ?? null;
@@ -483,6 +530,8 @@
   let queueElapsed = 0;
   let queueClosesIn: number | null = null;
   let queuePair = false;
+  /** Fila em que o jogador está: competitiva (time salvo) ou Fila Draft. */
+  let queueKind: QueueKind = 'collection';
   let queueNotice = '';
   /** The player is searching (joined and did not cancel); drives the silent rejoin after a server restart. */
   let queueWanted = false;
@@ -526,7 +575,7 @@
     titleTimer = window.setInterval(() => { on = !on; document.title = on ? t('matchFoundTitle') : titleBeforeAlert; }, 900);
   }
 
-  async function joinQueue(silent = false) {
+  async function joinQueue(silent = false, kind: QueueKind = 'collection') {
     errorMessage = '';
     if (!silent) {
       queueNotice = '';
@@ -536,7 +585,7 @@
     try {
       playerName = resolvedPlayerName || 'Player';
       organizationName = resolvedOrganizationName || `${playerName} Esports`;
-      await onlineSession.joinQueue({ playerName, organizationName });
+      await onlineSession.joinQueue({ playerName, organizationName }, kind);
       if (silent) queueNotice = '';
     } catch (error) {
       queueWanted = false;
@@ -859,6 +908,7 @@
     recentPickId = null;
     celebrateLineup = false;
     flight = null;
+    lastSnakeTurnId = undefined;
   }
 
   function voteRematch(accept: boolean) {
@@ -1097,24 +1147,27 @@
                 <i class="queue-radar" aria-hidden="true"><span></span></i>
                 <div class="queue-text">
                   <strong class="queue-status">{#if queueState === 'matched'}{t('matchFound')}{:else}{t('searching').replace(/[….]+$/u, '')}<span class="queue-dots" aria-hidden="true"><em>.</em><em>.</em><em>.</em></span>{/if}</strong>
-                  <span class="queue-meta"><span class="queue-count" class:rose={queueWaitingRose}>{#key queueWaiting}<b>{queueWaiting}</b>{/key}</span> {t('inQueue')} · {queueElapsed}s</span>
+                  <span class="queue-meta">{#if queueKind === 'draft'}<em class="queue-kind">{t('draftQueueTag')}</em> · {/if}<span class="queue-count" class:rose={queueWaitingRose}>{#key queueWaiting}<b>{queueWaiting}</b>{/key}</span> {t('inQueue')} · {queueElapsed}s</span>
                 </div>
               </div>
             {/key}
-            {#if queueState === 'waiting' && queueClosesIn !== null}<p class="queue-hint" class:pair={queuePair}>{(queuePair ? t('queuePairHint') : t('queueStartsIn')).replace('{s}', String(queueClosesIn))}</p>{/if}
+            {#if queueState === 'waiting' && queueClosesIn !== null}<p class="queue-hint" class:pair={queuePair}>{(queuePair ? t(queueKind === 'draft' ? 'draftPairHint' : 'queuePairHint') : t('queueStartsIn')).replace('{s}', String(queueClosesIn))}</p>{/if}
             {#if queueState === 'waiting'}<button class="secondary" type="button" out:fade={{ duration: 200 }} on:click={() => leaveQueue()}>{t('cancelSearch')}</button>{/if}
-          {:else if !hasSavedLineup}
-            <p class="queue-warn">{t('queueNeedsTeam')}</p>
-            <a class="primary online-link" href="/online/colecao">{t('collection')}</a>
           {:else}
             {#if queueNotice}<p class="queue-warn" role="status">{queueNotice}</p>{/if}
-            <button class="primary" type="button" on:click={() => joinQueue()}>{queueNotice ? t('searchAgain') : t('findMatch')}</button>
+            {#if hasSavedLineup}
+              <button class="primary" type="button" on:click={() => joinQueue()}>{queueNotice ? t('searchAgain') : t('findMatch')}</button>
+            {:else}
+              <p class="queue-warn">{t('queueNeedsTeam')}</p>
+              <a class="primary online-link" href="/online/colecao">{t('collection')}</a>
+            {/if}
+            <!-- Fila Draft: não exige time salvo, só conta. As cartas vêm sorteadas para a sala. -->
+            <div class="draft-entry">
+              <button class="secondary" type="button" on:click={() => joinQueue(false, 'draft')}>{t('findDraftMatch')}</button>
+              <small>{t('findDraftHint')}</small>
+            </div>
           {/if}
           {#if presenceText}<p class="presence-line" role="status"><i></i>{presenceText}</p>{/if}
-          <div class="draft-entry">
-            <button class="secondary" type="button" on:click={() => { useCollectionTeam = false; jumpToIdentity(); }}>{t('playDraft')}</button>
-            <small>{t('draftModeNote')}</small>
-          </div>
         </article>
         {#if $accountUser && hasSavedLineup}
           <article class="panel mode-card solo-mode">
@@ -1222,7 +1275,7 @@
         <div class="lobby-grid">
           <section class="panel participants-panel">
             <div class="section-heading"><div><span class="eyebrow">LOBBY</span><h2>{t('participants')}</h2></div><span class="counter">{snapshot.participants.length}/{snapshot.config.capacity}</span></div>
-            {#if snapshot.competitive !== undefined}<p class="competitive-badge" class:on={snapshot.competitive}>{snapshot.competitive ? t('competitive') : t('notCompetitive')}{#if snapshot.origin === 'queue'} · {t('findMatch')}{/if}</p>{/if}
+            {#if snapshot.competitive !== undefined}<p class="competitive-badge" class:on={snapshot.competitive}>{snapshot.competitive ? t('competitive') : t('notCompetitive')}{#if snapshot.origin === 'queue'} · {snapshot.snake ? t('findDraftMatch') : t('findMatch')}{/if}</p>{/if}
             <div class="participant-list">
               {#each snapshot.participants as participant}
                 <article class:offline={!participant.connected}><span>{participant.organizationName.slice(0, 2).toUpperCase()}</span><div><strong>{participant.organizationName}{#if participant.collection} <em class="team-badge-tag">{t('teamBadge')}</em>{/if}</strong><small>{participant.playerName}</small>{#if participant.power !== null || participant.coachId}<small class="participant-meta">{#if participant.power !== null}PWR {formatCourtRating(participant.power)}{/if}{#if participant.coachId}{participant.power !== null ? ' · ' : ''}{collectionCoachById.get(participant.coachId)?.name ?? ''}{/if}</small>{/if}</div><b>{participant.host ? 'HOST' : participant.connected ? 'ONLINE' : 'OFFLINE'}</b></article>
@@ -1251,7 +1304,32 @@
             <div class="segmented">{#each ORG_STYLES as style}<button type="button" on:click={() => setStyle(style)}><strong>{gameT(style)}</strong><small>{gameT(`${style}Desc` as Parameters<typeof gameT>[0])}</small></button>{/each}</div>
           </section>
         {/if}
-        {#if snapshot.config.mode === 'pro' && self.proPickedPlayerIds.length === 5 && self.lineup.length < 5}
+        {#if snake && !snake.complete}
+          <SnakeBoard {snake} participants={snapshot.participants} selfId={self.participantId} players={playerById} language={$language} teamName={teamNameOf} now={serverNow} onOpen={(player) => detailsPlayer = player} />
+        {:else if snake && !self.starPlayerId}
+          <!-- Fila Draft, depois dos 5 picks: a star sai da própria line (IGL puro e suporte não podem). -->
+          <section class="panel snake-star">
+            <div class="section-heading"><div><span class="eyebrow">STAR</span><h2>{t('chooseStar')}</h2></div><strong>{self.lineup.length}/5</strong></div>
+            <div class="snake-star-grid">
+              {#each self.lineup as pick (pick.playerId)}
+                {@const player = playerById.get(pick.playerId)}
+                {#if player}
+                  {@const allowed = starRoleAllowed(collectionRoleOf(pick))}
+                  <div class="snake-star-card" class:blocked={!allowed}>
+                    <CollectionCard {player} teamName={teamNameOf(player)} language={$language} compact inLineup onOpen={(selected) => detailsPlayer = selected}>
+                      <button class="primary star-pick" type="button" disabled={!allowed} on:click={() => send({ type: 'pick-star', playerId: player.id })}>★ {t('chooseStar')}</button>
+                    </CollectionCard>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          </section>
+        {:else if snake && !self.coachId}
+          <section class="panel snake-coach">
+            <div class="section-heading"><div><span class="eyebrow">COACH</span><h2>{t('chooseCoach')}</h2></div></div>
+            <CoachDraft offer={snakeCoachOffer} language={$language} rerollsLeft={self.coachRerollsLeft ?? 0} teamLabel={(teamId) => collectionTeamById.get(teamId)?.name ?? teamId} onPick={(coach) => send({ type: 'pick-coach', coachId: coach.id })} onReroll={() => send({ type: 'reroll-coach' })} />
+          </section>
+        {:else if snapshot.config.mode === 'pro' && self.proPickedPlayerIds.length === 5 && self.lineup.length < 5}
           <section class="panel pro-config">
             <span class="eyebrow">PRO CONFIG</span><h2>{t('completeRoles')}</h2>
             <select bind:value={proStyle} aria-label={gameT('chooseStyle')}>{#each ORG_STYLES as style}<option value={style}>{gameT(style)}</option>{/each}</select>
@@ -1277,6 +1355,9 @@
             </div>
             <button class="primary wide" type="button" disabled={!isValidLineupMapSelection(provisionalMapPreferences, ownPlayers, teams)} on:click={confirmOnlineMaps}>{gameT('confirmMaps')}</button>
           </section>
+        {:else if !me?.ready && snake}
+          <!-- Sala snake já com picks, star, coach e mapas: falta só o estilo (bloco acima) ou o servidor fechar. -->
+          <section class="panel waiting-panel"><div class="scanner"><span></span></div><h2>{t('waiting')}</h2></section>
         {:else if !me?.ready}
           {#if secretPicksLeft > 0 && self.lineup.length < 5 && self.style}
             <section class="panel secret-zone">
@@ -1593,12 +1674,12 @@
     player={detailsPlayer}
     mode={presentationMode}
     language={$language}
-    draftComplete={Boolean(me?.ready)}
+    draftComplete={Boolean(me?.ready) || (snake ? !snakeMyTurn || Boolean(snake.taken[detailsPlayer.id]) || self?.lineup.some((pick) => pick.playerId === detailsPlayer?.id) : false)}
     lineup={self?.lineup ?? []}
     playerLookup={(id) => playerById.get(id)}
     unlimitedRoles={freeRoles}
     allowDualRole={freeRoles}
-    onConfirm={choosePlayer}
+    onConfirm={snake ? chooseSnakePlayer : choosePlayer}
     onClose={() => detailsPlayer = null}
   />
 {/if}
@@ -1648,7 +1729,7 @@
   @keyframes heroTitleIn{from{clip-path:inset(0 100% 0 0);opacity:.4}to{clip-path:inset(0 -2% 0 0);opacity:1}}@keyframes heroGlow{0%{opacity:0}35%{opacity:1}100%{opacity:0}}
   @media (prefers-reduced-motion:reduce){.online-result-hero h1,.online-result-hero.success::after,.collection-outcome .earned li,.collection-outcome .campaign-grid article{animation:none}}
   .after-run{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0 18px}.after-run .online-link,.after-run button{display:inline-flex;align-items:center;justify-content:center;min-height:50px;margin-top:0;padding:0 20px;text-decoration:none}.host-wait{margin:0 0 18px;padding:16px;color:var(--muted);text-align:center}.control-group{display:grid;gap:6px}.control-group>span{color:var(--muted);font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border:1px solid color-mix(in srgb,#d9a441 55%,var(--line));background:color-mix(in srgb,#d9a441 8%,var(--surface))}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border:1px solid color-mix(in srgb,#d9a441 55%,var(--line));background:color-mix(in srgb,#d9a441 8%,var(--surface-2));font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));overflow:hidden;animation:queueIn var(--dur-ui) var(--ease-out-strong) both}.queue-text{display:grid;gap:3px;min-width:0}.queue-status{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.queue-meta{color:var(--muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* O mesmo radar da home (`.scanner`), menor: um anel graduado com a varredura girando; nada de ponto separado. */.queue-radar{position:relative;flex:none;width:34px;height:34px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px);overflow:hidden;transition:background var(--dur-ui) ease,border-color var(--dur-ui) ease}.queue-radar span{position:absolute;inset:50% 0 0 50%;background:conic-gradient(var(--accent),transparent 60deg);transform-origin:top left;animation:queueSweep 1.6s linear infinite}.queue-dots em{display:inline-block;font-style:normal;animation:queueDot 1.2s var(--ease-in-out-strong) infinite}.queue-dots em:nth-child(2){animation-delay:.2s}.queue-dots em:nth-child(3){animation-delay:.4s}.queue-count{display:inline-grid;overflow:hidden;vertical-align:bottom;line-height:1.15}.queue-count b{grid-area:1/1;color:var(--text);font-weight:900;font-variant-numeric:tabular-nums;animation:queueRoll var(--dur-ui) var(--ease-out-strong) both;transition:color var(--dur-ui) var(--ease-out-soft)}.queue-count.rose b{color:var(--accent)}.queue-live.matched .queue-radar{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 0 30%,transparent 32%),repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px)}.queue-live.matched .queue-radar span{animation:none;opacity:0}.queue-live.matched .queue-status{color:var(--accent);animation:queueTextIn 320ms var(--ease-out-strong) both}.queue-live.matched::after{content:'';position:absolute;inset:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 24%,transparent);opacity:0;animation:queueFlash 320ms var(--ease-out-strong) both;pointer-events:none}@keyframes queueIn{from{transform:translateY(6px);opacity:0}}@keyframes queueSweep{to{transform:rotate(360deg)}}@keyframes queueDot{0%,20%{opacity:.2}50%{opacity:1}100%{opacity:.2}}@keyframes queueRoll{from{transform:translateY(100%);opacity:0}}@keyframes queueTextIn{from{clip-path:inset(0 100% 0 0);transform:translateY(20%)}to{clip-path:inset(0);transform:none}}@keyframes queueFlash{from{opacity:1}to{opacity:0}}
+  .account-link{margin:12px auto 0;width:fit-content}.live-board{display:grid;gap:14px;margin-top:18px;padding:22px}.live-dot{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#ff3b3b;animation:queuePulse 1.1s ease-in-out infinite}.live-count{color:var(--accent);font:900 1.6rem 'Arial Narrow',Impact,sans-serif}.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.live-room{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);background:var(--surface-2)}.live-room.done{opacity:.75}.live-room header{display:flex;justify-content:space-between;gap:8px;color:var(--accent);font-size:.6rem;font-weight:900;letter-spacing:.1em}.live-room header em{color:var(--muted);font-style:normal}.live-room ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}.live-room li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--surface);font-size:.78rem}.live-room li.out{opacity:.45;text-decoration:line-through}.live-room li.champ{border:1px solid color-mix(in srgb,#d9a441 55%,var(--line));background:color-mix(in srgb,#d9a441 8%,var(--surface))}.live-room p{margin:0;color:#ffd36b;font-weight:800;font-size:.8rem}.live-empty{margin:0;color:var(--muted);font-size:.85rem}.row-link{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px;cursor:pointer;min-height:0}.earned{display:grid;gap:8px;margin-bottom:14px}.earned h3{margin:0;color:var(--accent);font-size:1.3rem}.earned ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.earned li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface-2);font-size:.8rem;text-transform:capitalize}.earned li b{color:var(--accent);white-space:nowrap}.earned li.total{border:1px solid color-mix(in srgb,#d9a441 55%,var(--line));background:color-mix(in srgb,#d9a441 8%,var(--surface-2));font-weight:900;text-transform:none}.earned .note{margin:0;color:var(--muted);font-size:.75rem}.mode-choice{display:grid;gap:14px;margin-top:24px}.draft-entry{display:grid;gap:6px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}.queue-kind{display:inline-block;padding:1px 6px;border:1px solid var(--accent);color:var(--accent);font-size:.58rem;font-style:normal;font-weight:900;letter-spacing:.12em;vertical-align:middle}.snake-star,.snake-coach{display:grid;gap:12px}.snake-star-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.snake-star-card{display:grid;animation:queueIn var(--dur-reveal) var(--ease-out-strong) both}.snake-star-card.blocked{opacity:.55}.star-pick{min-height:40px;width:100%;margin-top:8px;padding:0 10px;font-size:.68rem}@media (prefers-reduced-motion:reduce){.snake-star-card{animation:none}}.draft-entry small{color:var(--muted);font-size:.72rem;line-height:1.4}.queue-live{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;min-height:64px;padding:12px 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));overflow:hidden;animation:queueIn var(--dur-ui) var(--ease-out-strong) both}.queue-text{display:grid;gap:3px;min-width:0}.queue-status{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.queue-meta{color:var(--muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* O mesmo radar da home (`.scanner`), menor: um anel graduado com a varredura girando; nada de ponto separado. */.queue-radar{position:relative;flex:none;width:34px;height:34px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px);overflow:hidden;transition:background var(--dur-ui) ease,border-color var(--dur-ui) ease}.queue-radar span{position:absolute;inset:50% 0 0 50%;background:conic-gradient(var(--accent),transparent 60deg);transform-origin:top left;animation:queueSweep 1.6s linear infinite}.queue-dots em{display:inline-block;font-style:normal;animation:queueDot 1.2s var(--ease-in-out-strong) infinite}.queue-dots em:nth-child(2){animation-delay:.2s}.queue-dots em:nth-child(3){animation-delay:.4s}.queue-count{display:inline-grid;overflow:hidden;vertical-align:bottom;line-height:1.15}.queue-count b{grid-area:1/1;color:var(--text);font-weight:900;font-variant-numeric:tabular-nums;animation:queueRoll var(--dur-ui) var(--ease-out-strong) both;transition:color var(--dur-ui) var(--ease-out-soft)}.queue-count.rose b{color:var(--accent)}.queue-live.matched .queue-radar{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 0 30%,transparent 32%),repeating-radial-gradient(circle,transparent 0 5px,color-mix(in srgb,var(--accent) 22%,transparent) 6px 7px)}.queue-live.matched .queue-radar span{animation:none;opacity:0}.queue-live.matched .queue-status{color:var(--accent);animation:queueTextIn 320ms var(--ease-out-strong) both}.queue-live.matched::after{content:'';position:absolute;inset:0;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 24%,transparent);opacity:0;animation:queueFlash 320ms var(--ease-out-strong) both;pointer-events:none}@keyframes queueIn{from{transform:translateY(6px);opacity:0}}@keyframes queueSweep{to{transform:rotate(360deg)}}@keyframes queueDot{0%,20%{opacity:.2}50%{opacity:1}100%{opacity:.2}}@keyframes queueRoll{from{transform:translateY(100%);opacity:0}}@keyframes queueTextIn{from{clip-path:inset(0 100% 0 0);transform:translateY(20%)}to{clip-path:inset(0);transform:none}}@keyframes queueFlash{from{opacity:1}to{opacity:0}}
   @media (prefers-reduced-motion:reduce){.queue-live,.queue-radar span,.queue-dots em,.queue-count b,.queue-live.matched .queue-status,.queue-live.matched::after{animation:none}.queue-radar::before{opacity:.6}.queue-dots em{opacity:1}}
   .queue-warn{color:var(--accent-2)!important;font-weight:700}.queue-hint{color:var(--text)!important;font-size:.78rem!important;font-weight:700}.queue-hint.pair{color:var(--accent-2)!important}.competitive-badge{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line);color:var(--muted);font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.competitive-badge.on{border:1px solid var(--accent);color:var(--accent)}@keyframes queuePulse{50%{opacity:.3}}.mode-card{display:grid;gap:10px;align-content:start;aspect-ratio:auto;overflow:visible;padding:22px}.boost-switch-row{display:flex;align-items:center;gap:10px}.boost-switch-row small{color:var(--muted);font-size:.7rem;font-weight:700}.boost-done{margin:0;padding:10px 12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface-2));color:var(--accent);font-weight:800;font-size:.8rem}
   .boost-modal{display:grid;gap:14px}.boost-coins{margin:0;color:var(--accent);font:900 2.6rem/1 'Arial Narrow',Impact,sans-serif;text-align:center}.boost-coins :global(small){font:800 .9rem Inter,Arial,sans-serif;margin-left:6px;color:var(--muted)}.boost-finances{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.boost-finances span{display:grid;gap:5px;padding:10px;border:1px solid var(--line);background:var(--surface-2);text-align:center}.boost-finances small{color:var(--muted);font-size:.6rem;font-weight:800;text-transform:uppercase}.boost-finances b{font-size:.76rem;color:var(--text)}.boost-finances span:nth-child(2) b,.boost-finances span:nth-child(3) b{color:var(--accent)}.boost-finances span.negative b{color:var(--danger,#ff7063)}.boost-lines{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin:0}.boost-lines span{color:var(--text);font-weight:800;font-size:.82rem}.boost-chips{display:flex;flex-wrap:wrap;gap:6px}.boost-chips span{padding:3px 8px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.68rem;font-weight:700}.boost-meta-line{margin:0;text-align:center;color:var(--muted);font-size:.74rem;font-weight:700}.notice-actions{display:grid;grid-template-columns:1fr}.notice-actions :global(button){min-height:46px}.mode-card h2{margin:0;font-size:1.9rem}.mode-card p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.55}.mode-card button,.mode-card .online-link{margin-top:6px;justify-content:center}.queue-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.mode-card .info-btn{flex:none;width:26px;height:26px;min-height:0;margin:0;padding:0;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:.82rem;font-weight:900;line-height:1;cursor:pointer;transition:.18s ease}.mode-card .info-btn:hover,.mode-card .info-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}.queue-hint-info{margin:-4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}.presence-line{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:.74rem;font-weight:700}.presence-line i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:queuePulse 1.6s ease-in-out infinite}.collection-mode{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.collection-mode.logged{box-shadow:0 0 26px color-mix(in srgb,var(--accent) 10%,transparent)}

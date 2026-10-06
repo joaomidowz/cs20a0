@@ -3,7 +3,9 @@ import type { GameMode, LineupSlotRole, MajorAwards, MajorStage, MapId, MapSide,
 
 export type { OnlineGameMode } from '../types';
 
-export const PROTOCOL_VERSION = 11 as const;
+export const PROTOCOL_VERSION = 12 as const;
+/** Filas do matchmaking: a competitiva (time da coleção) e a Fila Draft (snake com pool compartilhado, protocolo 12). */
+export type QueueKind = 'collection' | 'draft';
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
 export const REMATCH_WINDOW_MS = 10_000;
 /** Season points by placement; a Swiss exit scores −2 plus one per series won (0-2) — mirrors the server curve (2026-09-22). */
@@ -126,7 +128,19 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
     secondaryRole: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
   }).strict(),
   /** Live updates (protocol 9): asks for a fresh full snapshot when the client suspects it fell out of sync. */
-  baseCommandSchema.extend({ type: z.literal('resync') }).strict()
+  baseCommandSchema.extend({ type: z.literal('resync') }).strict(),
+  /** Fila Draft (protocol 12): snake pick on the shared pool, only on this participant's turn. */
+  baseCommandSchema.extend({
+    type: z.literal('snake-pick'),
+    playerId: z.string().min(1).max(100),
+    role: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']),
+    secondaryRole: z.enum(['awper', 'igl', 'entry', 'lurker', 'rifler', 'support']).optional()
+  }).strict(),
+  /** Fila Draft: the star among the five drafted cards (never a pure IGL or a support). */
+  baseCommandSchema.extend({ type: z.literal('pick-star'), playerId: z.string().min(1).max(100) }).strict(),
+  /** Fila Draft: one of the three coaches offered to this participant. */
+  baseCommandSchema.extend({ type: z.literal('pick-coach'), coachId: z.string().min(1).max(100) }).strict(),
+  baseCommandSchema.extend({ type: z.literal('reroll-coach') }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -289,6 +303,26 @@ export interface SelfDraftState {
   pendingDecision: { seriesId: string; kind: PublicPendingDecision['kind']; deadlineAt: number | null } | null;
   /** Secret players a Vargão Academy lineup may still add (0 for everybody else). */
   secretPicksLeft: number;
+  /** Fila Draft (protocol 12): the three coach ids offered to this participant, and what was chosen. */
+  coachOffer?: string[];
+  coachId?: string | null;
+  coachRerollsLeft?: number;
+  starPlayerId?: string | null;
+}
+
+/** Fila Draft (protocol 12): the shared pool and whose turn it is; the seats (coach offer, star) stay private. */
+export interface PublicSnake {
+  pool: string[];
+  /** playerId → participantId of whoever took the card. */
+  taken: Record<string, string>;
+  /** Participants in first-round order; odd rounds run it backwards (snake). */
+  order: string[];
+  turn: number;
+  totalTurns: number;
+  turnParticipantId: string | null;
+  turnEndsAt: number | null;
+  complete: boolean;
+  picksPerParticipant: number;
 }
 
 export interface PublicSeasonRunResult {
@@ -355,6 +389,10 @@ export interface RoomSnapshot {
   finalSpeedVote?: { eligible: boolean; voted: boolean; votes: number; applied: boolean };
   /** Whether this run scores season points (known in the lobby, fixed when the Major starts). */
   competitive?: boolean;
+  /** Fila Draft (protocol 12): the snake draft of this room; absent in rooms that draft with the roulette. */
+  snake?: PublicSnake | null;
+  /** Fila Draft: the room was abandoned before it started (fewer than two humans showed up); the client leaves and re-queues. */
+  queueAbandoned?: boolean;
 }
 
 /**

@@ -38,6 +38,49 @@ describe('persistent online session', () => {
     expect(get(session.queue).state).toBe('idle');
   });
 
+  it('joins the Fila Draft with its kind and mirrors the server kind in the queue view', async () => {
+    const queueJoin = vi.fn(async (kind: 'collection' | 'draft') => ({ ...waiting(), kind }));
+    const queueStatus = vi.fn(async () => ({ ...waiting(), kind: 'draft' as const }));
+    const intervals: Array<() => void> = [];
+    const session = createOnlineSession({
+      now: () => 2_000,
+      queueJoin,
+      queueStatus,
+      queueLeave: vi.fn(async () => undefined),
+      setInterval: (callback) => { intervals.push(callback); return intervals.length; },
+      clearInterval: vi.fn(),
+      createRoomClient: vi.fn()
+    });
+
+    await session.joinQueue({ playerName: 'Joao', organizationName: 'Furia' }, 'draft');
+    expect(queueJoin).toHaveBeenCalledWith('draft');
+    expect(get(session.queue)).toMatchObject({ state: 'waiting', kind: 'draft' });
+
+    await intervals[0]();
+    expect(get(session.queue).kind).toBe('draft');
+  });
+
+  it('keeps the queue kind on the silent rejoin after the server forgot the ticket', async () => {
+    const queueJoin = vi.fn(async (kind: 'collection' | 'draft') => ({ ...waiting(), kind }));
+    const idle: QueueStatusResponse = { state: 'idle', waiting: 0, since: null, match: null, closesInMs: null, pair: false, left: null };
+    const intervals: Array<() => void> = [];
+    const session = createOnlineSession({
+      now: () => 100_000,
+      queueJoin,
+      queueStatus: vi.fn(async () => idle),
+      queueLeave: vi.fn(async () => undefined),
+      setInterval: (callback) => { intervals.push(callback); return intervals.length; },
+      clearInterval: vi.fn(),
+      createRoomClient: vi.fn()
+    });
+
+    await session.joinQueue({ playerName: 'Joao', organizationName: 'Furia' }, 'draft');
+    await intervals[0]();
+    expect(queueJoin).toHaveBeenCalledTimes(2);
+    expect(queueJoin).toHaveBeenLastCalledWith('draft');
+    expect(get(session.queue).kind).toBe('draft');
+  });
+
   it('turns a queue match into one persistent room connection', async () => {
     let deliverStatus: QueueStatusResponse = waiting();
     const handlers: OnlineClientHandlers[] = [];
