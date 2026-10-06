@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mapImageSrc } from '$lib/game/visuals/maps';
   import { showToast as notifyToast } from '$lib/game/notifications';
   import { formatRating } from '$lib/game/powerRating';
   import { onDestroy, onMount, tick } from 'svelte';
@@ -1566,6 +1567,7 @@
             disabled={contributors.length === 0 || (!selected && $game.selectedMaps.length >= 3)}
             on:click={() => toggleMap(mapId)}
           >
+            {#if mapImageSrc(mapId)}<i class="map-art" style={`background-image:url(${mapImageSrc(mapId)})`} aria-hidden="true"></i>{/if}
             <span class="map-selection-index">{String(MAP_POOL.indexOf(mapId) + 1).padStart(2, '0')}</span>
             <strong>{getMapName(mapId)}</strong>
             <b class:even={affinity === 'EVEN'}>{affinity}</b>

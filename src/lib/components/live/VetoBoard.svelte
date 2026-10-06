@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mapImageSrc } from '$lib/game/visuals/maps';
   import { onMount } from 'svelte';
   import { translate } from '$lib/game/i18n';
   import { MAP_POOL, getMapName } from '$lib/game/maps';
@@ -61,6 +62,7 @@
         disabled={!myTurn || Boolean(step)}
         on:click={() => onAction(mapId)}
       >
+        {#if mapImageSrc(mapId)}<i class="map-art" style={`background-image:url(${mapImageSrc(mapId)})`} aria-hidden="true"></i>{/if}
         <strong>{getMapName(mapId)}</strong>
         <span>{step ? (step.action === 'ban' ? t('vetoBanned') : step.action === 'pick' ? `${t('vetoPicked')} · ${teamNames[step.teamId ?? ''] ?? ''}` : t('vetoDecider')) : t('vetoAvailable')}</span>
         {#if familiarity[mapId] !== undefined}<i class="familiarity"><em style={`width:${familiarity[mapId]}%`}></em></i>{/if}
@@ -78,8 +80,13 @@
   .veto-steps li.ban{opacity:.55}.veto-steps li.ban strong{text-decoration:line-through}.veto-steps li.pick{border-color:var(--accent-2)}.veto-steps li.mine{border-color:var(--accent)}.veto-steps li.decider{border-color:var(--text)}
   .veto-steps small{color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em}.veto-steps strong{font-size:.85rem;text-transform:uppercase}.veto-steps span{overflow:hidden;color:var(--muted);font-size:.55rem;text-overflow:ellipsis;white-space:nowrap}
   .veto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}
-  .veto-grid button{display:grid;gap:4px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:default;transition:border-color .15s ease,transform .15s var(--ease-out-strong),opacity .15s ease}
-  .veto-grid button strong{font-size:1rem;text-transform:uppercase}.veto-grid button span{color:var(--muted);font-size:.55rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .veto-grid button{position:relative;isolation:isolate;overflow:hidden;display:grid;align-content:end;gap:4px;min-height:92px;padding:12px;border:1px solid var(--line);color:var(--text);background:var(--surface-2);text-align:left;cursor:default;transition:border-color .15s ease,transform .15s var(--ease-out-strong),opacity .15s ease}
+  /* Arte do mapa (2026-10-06): escurecida embaixo para o nome ler; banida fica cinza. */
+.veto-grid .map-art{position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center;opacity:.55;transition:opacity .2s ease,filter .2s ease}
+.veto-grid .map-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgb(0 0 0/.1),rgb(0 0 0/.78) 85%)}
+.veto-grid button.banned .map-art{opacity:.25;filter:grayscale(1)}
+.veto-grid button.selectable:hover .map-art{opacity:.8}
+.veto-grid button strong{font-size:1rem;text-transform:uppercase;text-shadow:0 1px 6px rgb(0 0 0/.6)}.veto-grid button span{color:var(--muted);font-size:.55rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
   .veto-grid button.selectable{cursor:pointer;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.veto-grid button.selectable:hover{border-color:var(--accent)}@media (hover:hover) and (pointer:fine){.veto-grid button.selectable:hover{transform:translateY(-2px)}}
   .veto-grid button.banned{opacity:.35}.veto-grid button.banned strong{text-decoration:line-through}.veto-grid button.picked{border-color:var(--accent-2)}.veto-grid button.picked span{color:var(--accent-2)}.veto-grid button.mine{border-color:var(--accent)}.veto-grid button.mine span{color:var(--accent)}.veto-grid button.decider{border-color:var(--text)}
   .veto-grid .familiarity{display:block;height:3px;background:var(--line)}.veto-grid .familiarity em{display:block;height:100%;background:var(--accent)}

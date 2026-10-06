@@ -9,6 +9,7 @@
   import { countPistols, getMapHeadline } from '$lib/game/roundPresentation';
   import { LAST_ROUND_FEED_FACTOR, getCommittedRounds, getDecidedMaps, getVisibleMapScore, isSeriesVisuallyStarted, shouldCommitInstantly } from '$lib/game/seriesPresentation';
   import { getMapName } from '$lib/game/maps';
+  import { mapImageSrc } from '$lib/game/visuals/maps';
   import { playGameSound } from '$lib/game/offlineAudio';
   import type { Language, RoundDetail, SeriesResult } from '$lib/game/types';
   import type { RoundInspection } from './round-inspection';
@@ -338,6 +339,7 @@
         {@const isLive = mapIndex === displayActiveMap && displayStarted && !displayFinished}
         {@const pistols = score?.done && decided.result?.details?.length ? countPistols(decided.result.details) : null}
         <article style="--i:{index}" class:live={isLive} class:not-played={displayFinished && !decided.result} class:user-pick={Boolean(decided.teamId) && (decided.teamId === series.teamA.id ? series.teamA.isUser : series.teamB.isUser)}>
+          {#if mapImageSrc(decided.mapId)}<i class="map-art" style={`background-image:url(${mapImageSrc(decided.mapId)})`} aria-hidden="true"></i>{/if}
           <div>
             <small>{decided.action === 'decider' ? labels.decider ?? 'Decider' : `${labels.pick ?? 'Pick'} · ${vetoTeamName(decided.teamId)}`}</small>
             <strong>{getMapName(decided.mapId)}</strong>
@@ -401,7 +403,12 @@
   @keyframes headlineIn{from{transform:scale(.94);opacity:0}}
   .live-map small{color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
   .decided-map-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:18px 0}
-  .decided-map-list article{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease;animation:mapReveal .3s var(--ease-out-strong) both;animation-delay:calc(var(--i,0) * 40ms)}
+  /* Arte do mapa (2026-10-06) atrás do placar do mapa, escurecida para ler; mapa não jogado fica cinza. */
+.decided-map-list .map-art{position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center;opacity:.35}
+.decided-map-list .map-art::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgb(0 0 0/.75),rgb(0 0 0/.45))}
+.decided-map-list article.not-played .map-art{filter:grayscale(1);opacity:.2}
+.decided-map-list article.live .map-art{opacity:.5}
+.decided-map-list article{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:104px;padding:14px;border:1px solid var(--line);background:var(--surface-2);transition:border-color .2s ease,opacity .2s ease;animation:mapReveal .3s var(--ease-out-strong) both;animation-delay:calc(var(--i,0) * 40ms)}
   @keyframes mapReveal{from{clip-path:inset(0 0 100% 0);opacity:0}}
   .decided-map-list article.live{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.decided-map-list article.not-played{opacity:.5}.decided-map-list article.user-pick small{color:var(--accent)}
   .decided-map-list small,.decided-map-list strong,.decided-map-list span{display:block}.decided-map-list small{min-height:1.2em;color:var(--muted);font-size:.5rem;font-weight:900;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

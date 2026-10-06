@@ -46,6 +46,7 @@
   import { playerCountryOf } from '$lib/game/online/collection-countries';
   import { courtRating, courtRatingDelta } from '$lib/game/powerRating';
   import { withPlayerBand } from '$lib/game/courtPower';
+  import { mapImageSrc } from '$lib/game/visuals/maps';
   import { ORG_STYLES, type Coach, type LineupSlotRole, type MapId, type OrgStyle, type Player } from '$lib/game/types';
   import { ACTIVE_DUTY_MAPS, MAP_NAMES, getActiveDutyMapsForYear, getDefaultMapSelection, getLineupMapContributors, isValidLineupMapSelection } from '$lib/game/maps';
 
@@ -805,7 +806,7 @@
                     {#each ACTIVE_DUTY_MAPS.filter((mapId) => (mapContributors[mapId]?.length ?? 0) > 0) as mapId}
                       {@const count = mapContributors[mapId].length}
                       {@const chosen = (mapPicks.length ? mapPicks : effectiveMaps).includes(mapId)}
-                      <button type="button" class="map" class:chosen disabled={!chosen && mapPicks.length >= 3} on:click={() => toggleMap(mapId)} title={mapContributors[mapId].map((player) => player.nickname).join(', ')}>{MAP_NAMES[mapId]} <small>{count}/5{#if coachMaps.has(mapId)} · C{/if}</small></button>
+                      <button type="button" class="map" class:chosen disabled={!chosen && mapPicks.length >= 3} on:click={() => toggleMap(mapId)} title={mapContributors[mapId].map((player) => player.nickname).join(', ')}>{#if mapImageSrc(mapId)}<img src={mapImageSrc(mapId)} alt="" width="28" height="16" loading="lazy" decoding="async" />{/if}{MAP_NAMES[mapId]} <small>{count}/5{#if coachMaps.has(mapId)} · C{/if}</small></button>
                     {/each}
                   </div>
                   <p class="note">{mapPicks.length === 0 ? t('teamMapsAuto') : mapsValid ? t('teamMapsHint') : t('teamMapsPick')}</p>
@@ -1110,7 +1111,8 @@
   .maps-acc[open] summary { border-bottom: 1px solid var(--line); }
   .maps-acc .note, .maps-acc > button { margin: 0 10px 10px; } .maps-acc .note { font-size: .68rem; }
   .map-grid { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px; }
-  .map { min-height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
+  .map { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 9px 0 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
+  .map img { width: 28px; height: 16px; border-radius: 999px; object-fit: cover; opacity: .9; }
   .map small { color: var(--muted); font-size: .58rem; }
   .map.chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); } .map.chosen small { color: var(--accent); }
   .map:disabled { opacity: .4; cursor: default; }

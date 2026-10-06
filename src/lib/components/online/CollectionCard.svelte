@@ -79,7 +79,8 @@
   .role { color: var(--muted); font-size: .64rem; font-weight: 700; text-transform: uppercase; }
   .team { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 2px; padding: 5px 6px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--muted); font-size: .66rem; }
   .team em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-  footer { display: flex; gap: 4px; padding: 0 12px 12px; }
+  /* Grade que quebra em linhas: botão nunca encolhe abaixo de uma palavra (2026-10-06: o "Trocar" virava coluna ao lado do aviso de venda). */
+  footer { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr)); gap: 4px; padding: 0 12px 12px; }
   footer :global(button) { flex: 1; }
   .tag { position: absolute; top: -9px; left: 10px; z-index: 2; padding: 3px 8px; background: var(--accent); color: #0a0d08; font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
   .quantity { position: absolute; right: 8px; bottom: 8px; z-index: 2; min-width: 25px; padding: 3px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: 900 .68rem/1 'Arial Narrow', Impact, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
@@ -111,7 +112,7 @@
   .team { overflow: hidden; } .team :global(*) { flex-shrink: 0; } .team em { flex-shrink: 1; min-width: 0; }
   .compact .ovr { font-size: clamp(1.25rem, 1rem + 1.4vw, 1.7rem); }
   .compact .name { font-size: clamp(.95rem, .8rem + .6vw, 1.1rem); }
-  footer { min-width: 0; } .has-quantity footer { padding-right: 42px; } footer :global(button) { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
+  footer { min-width: 0; } .has-quantity footer { padding-right: 42px; } footer :global(button) { min-width: 0; white-space: normal; overflow-wrap: normal; line-height: 1.2; } footer :global(.sell-locked) { grid-column: 1 / -1; }
   .in-lineup { border-color: var(--accent); }
   /* O anel fica na carta; o brilho difuso vive num pseudo-elemento fixo e só a opacidade dele pulsa (barato na grade grande). */
   .up { box-shadow: 0 0 0 1px var(--accent); }
