@@ -305,6 +305,7 @@
 
   {#if displayStarted && !displayFinished && currentMap && currentMapScore}
     <div class="live-map">
+      {#if mapImageSrc(currentMap?.mapId)}<i class="map-art live-map-art" style={`background-image:url(${mapImageSrc(currentMap?.mapId)})`} aria-hidden="true"></i>{/if}
       <div class="live-map-score">
         <span class:mine={series.teamA.isUser}>{translateTeamName(language, series.teamA.name, userTeamName)}</span>
         {#key currentMapScore.a}<b class:offline-score={offlineEffects && lastRoundWinner === 'a'} class:leading={currentMapScore.a > currentMapScore.b}>{currentMapScore.a}</b>{/key}
@@ -391,7 +392,10 @@
   .series-score.decided{animation:offline-score-lock .6s var(--ease-out-strong) both}
   @keyframes offline-score-lock { from { transform: translateY(-6px) scale(1.16); color: var(--accent); } to { transform: none; } }
   @media (prefers-reduced-motion:reduce) { .live-map-score b.offline-score { animation:none; } }
-  .live-map{display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
+  .live-map{position:relative;isolation:isolate;overflow:hidden;display:grid;gap:10px;margin-top:18px;padding:16px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface-2))}
+/* Arte do mapa que está rodando (2026-10-06), bem escurecida para o placar, o feed e os números lerem por cima. */
+.live-map-art{position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center 35%;opacity:.22}
+.live-map-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgb(0 0 0/.55),rgb(0 0 0/.85) 70%)}
   .live-map-score{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:10px}
   .live-map-score span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;font-weight:800;text-transform:uppercase}.live-map-score span:last-child{text-align:right}.live-map-score span.mine{color:var(--accent)}
   .live-map-score b{min-width:1.4em;font:900 clamp(2.2rem,8vw,3.4rem)/1 'Arial Narrow',Impact,sans-serif;text-align:center;color:var(--muted);transition:color .2s ease;animation:scorePulse var(--dur-ui) var(--ease-out-strong)}

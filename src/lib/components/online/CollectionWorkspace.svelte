@@ -903,7 +903,7 @@
                 {:else}
                   <button class="ghost small" type="button" on:click={() => { coachId = coach.id; scrollTo(teamSection); }}>{t('addToLineup')}</button>
                   {#if sellLockedIds.has(coach.id)}
-                    <span class="sell-locked">{t('sellLockedHint')}</span>
+                    <span class="sell-locked" title={t('sellLockedTitle')}>{t('sellLockedHint')}</span>
                   {:else}
                     <button class="ghost small" type="button" disabled={busy} on:click={() => sellCoach(coach)}>{t('sell')} · {coachSellValue(coach)}</button>
                   {/if}
@@ -930,7 +930,7 @@
                     <button class="ghost small" type="button" disabled={busy} on:click={() => addToLineup(player)}>{t('addToLineup')}</button>
                   {/if}
                   {#if sellLockedIds.has(player.id)}
-                    <span class="sell-locked">{t('sellLockedHint')}</span>
+                    <span class="sell-locked" title={t('sellLockedTitle')}>{t('sellLockedHint')}</span>
                   {:else}
                     <button class="ghost small" type="button" disabled={busy} on:click={() => sell(player)}>{t('sell')} · {sellValue(player)}</button>
                   {/if}
@@ -986,7 +986,7 @@
         {#if sheetInLineup}
           <button class="secondary small" type="button" on:click={() => { removeFromLineup(slots.findIndex((slot) => slot?.id === sheetPlayer.id)); detailsPlayer = null; }}>{t('removeFromLineup')}</button>
           {#if sheetCopies > 1}<button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
-          {:else if sellLockedIds.has(sheetPlayer.id)}<span class="sell-locked">{t('sellLockedHint')}</span>{/if}
+          {:else if sellLockedIds.has(sheetPlayer.id)}<span class="sell-locked" title={t('sellLockedTitle')}>{t('sellLockedHint')}</span>{/if}
         {:else}
           {#if slots.every(Boolean)}
             <button class="primary small" type="button" disabled={busy} on:click={() => { startSwap(sheetPlayer); detailsPlayer = null; scrollTo(teamSection); }}>⇄ {t('swap')}</button>
@@ -994,7 +994,7 @@
             <button class="primary small" type="button" disabled={busy} on:click={() => { addToLineup(sheetPlayer); detailsPlayer = null; }}>{t('addToLineup')}</button>
           {/if}
           {#if sellLockedIds.has(sheetPlayer.id)}
-            <span class="sell-locked">{t('sellLockedHint')}</span>
+            <span class="sell-locked" title={t('sellLockedTitle')}>{t('sellLockedHint')}</span>
           {:else}
             <button class="ghost small" type="button" disabled={busy} on:click={() => { detailsPlayer = null; sell(sheetPlayer); }}>{t('sell')} · {sellValue(sheetPlayer)}</button>
           {/if}
