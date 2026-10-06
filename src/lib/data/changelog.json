@@ -1,14 +1,336 @@
 {
-  "version": "3.6",
-  "total": 368,
-  "generatedAt": "2026-09-28",
+  "version": "4.2",
+  "total": 421,
+  "generatedAt": "2026-10-06",
   "entries": [
     {
-      "version": "3.6",
+      "version": "4.1",
+      "date": "2026-10-06",
+      "hash": "4fc4076",
+      "title": "Arte dos mapas no veto, na seleção e na série, e botão da carta sem quebrar em coluna",
+      "summary": "Os onze mapas do pool ganharam miniatura (640×360 WebP em static/maps): aparecem atrás do nome no veto, no card de seleção de mapas do offline, na pílula do picker do Time e na lista de mapas decididos da série, escurecidas para o texto …"
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-05",
+      "hash": "25598d3",
+      "title": "Devolve o 99,9 a Vitality e Astralis com a era BR encostada",
+      "summary": "TACO 2016 (86→96) e fnx 2016 (90→96) tinham entrado escondidos no 34f0d9f, inflando SK/Luminosity e o híbrido BR (117,61) que tomou o pino e derrubou Vitality/Astralis para 99,6-99,7."
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-05",
+      "hash": "b8361d7",
+      "title": "Mostra o motivo quando a última cópia escalada não pode ser vendida",
+      "summary": "No celular o rodapé da carta some e a ficha era o único caminho de venda: para carta única salva em qualquer line o botão aparecia e o servidor recusava com IN_LINEUP toda vez."
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-05",
+      "hash": "64b8751",
+      "title": "Filtro de pais na colecao e buff de pais/era na sinergia",
+      "summary": "Filtro de nacionalidade na aba de cartas (coaches somem com o filtro ativo) e filtros de pais + ano no picker de titulares."
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-05",
+      "hash": "47006db",
+      "title": "Re-baseline do catálogo publicado (hash 92003799)",
+      "summary": "O dataset em produção (conferido no /health do Railway) divergia dos congelados desde as revisões de 2026-09-30: atualiza FROZEN_V1_FILES e FROZEN_ONLINE_DATA_HASH, re-prega PLAYER_SOFT_TOP_COURT em 116,7 (a SK 2016 virou a melhor line m…"
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-04",
+      "hash": "b7d5183",
+      "title": "Compacta a tela do time no celular para caber line, coach e poder",
+      "summary": "Cards de titular mais baixos (foto 38px, sem a linha do time), controles de 30px, cabeçalho sem o eyebrow duplicado e espaçamentos reduzidos: o poder, os cinco titulares e o coach cabem numa tela sem rolar."
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-04",
+      "hash": "f6d2b56",
+      "title": "Porta os sons sintetizados do reel para o motor de áudio do jogo",
+      "summary": "As receitas do audio_v5.py do reel (tick de roleta, riser, vine boom, sparkle, moeda, sad trombone, airhorn, multidão, bleeps e pluck) viram DSP puro em sfxEngine.ts, renderizadas uma vez em AudioBuffer com send de reverb por ConvolverNo…"
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-04",
+      "hash": "de3a833",
+      "title": "Corrige 404 em rotas diretas na vercel",
+      "summary": "O Vercel ignora a propriedade legada 'routes' quando 'cleanUrls' esta presente no mesmo arquivo, entao o fallback de SPA nunca era aplicado e qualquer rota nao pre-renderizada (ex.: /online/store) respondia 404 em acesso direto (favorito…"
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-02",
+      "hash": "47d0979",
+      "title": "Enforce compact major layout on mobile",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-02",
+      "hash": "7e96c9e",
+      "title": "Stabilize major mobile controls and rounds",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-02",
+      "hash": "a1ab121",
+      "title": "Refine major mobile controls and rounds",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-02",
+      "hash": "8ee23ab",
+      "title": "Compact major mobile experience",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-01",
+      "hash": "d918e7d",
+      "title": "Define major mobile compacto",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-01",
+      "hash": "558ec33",
+      "title": "Suaviza destaques do placar online",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-01",
+      "hash": "5f4d836",
+      "title": "Publica favicon e logo para busca",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-01",
+      "hash": "6120c00",
+      "title": "Alinha SEO ao dominio canonico www",
+      "summary": ""
+    },
+    {
+      "version": "4.0",
+      "date": "2026-10-01",
+      "hash": "1847567",
+      "title": "Entrega SEO indexavel nas paginas publicas",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "a8bca31",
+      "title": "Planeja prerender de SEO",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "9d94a6c",
+      "title": "Define prerender de SEO publico",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "0560059",
+      "title": "Adiciona venda rapida na colecao",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "81746b2",
+      "title": "Adiciona regras da venda rapida",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "33b2626",
+      "title": "Adiciona venda atomica em lote",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "e18fba2",
+      "title": "Planeja venda rapida mobile",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-10-01",
+      "hash": "4757e2f",
+      "title": "Define venda rapida da colecao",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-09-30",
+      "hash": "8abee8b",
+      "title": "Atualiza riflers lurkers da CIS",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-09-30",
+      "hash": "12a612c",
+      "title": "Planeja atualização rifler lurker",
+      "summary": ""
+    },
+    {
+      "version": "3.9",
+      "date": "2026-09-30",
+      "hash": "a302186",
+      "title": "Define rifler lurker para cinco jogadores",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "66ffcbd",
+      "title": "Planeja hotfix dos cards de coach",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "35a299f",
+      "title": "Corrige flusha e f0rest de 2014",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "5135767",
+      "title": "Planeja ajustes de flusha e f0rest 2014",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "5bde1c2",
+      "title": "📱 trade-up fácil como o upgrader — toque soma unidade, barra fixa e justiça recolhida",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "debc26f",
+      "title": "📱 home enxuta — buscar partida cabe na primeira dobra do celular",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-30",
+      "hash": "2959fcd",
+      "title": "📱 loja compacta no celular — coach do tamanho do player, textos no ⓘ, boost enxuto e major no topo",
+      "summary": ""
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-29",
+      "hash": "0ca0c99",
+      "title": "📱 miniaturas densas, folha de ações e resumo da aposta",
+      "summary": "No celular (≤720px) as listas de stake e de alvos viram 4 miniaturas por linha, como a coleção: foto, OVR, nick, ×cópias e borda de raridade."
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-29",
+      "hash": "8cd5959",
+      "title": "🐛 cards de modo em 3 colunas e sem corte no quadrado herdado",
+      "summary": "A regra de 3 colunas de .mode-choice (≥680px) era anulada por uma redeclaração no fim do <style>; e o .mode-card global do app.css (aspect-ratio 1:1 + overflow hidden, feito para a home) travava os cards de Jogar num quadrado e podia cor…"
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-29",
+      "hash": "1d39806",
+      "title": "🐛 alinhar limite da miniatura à grade e fechar a folha com Escape",
+      "summary": "A miniatura passa a usar os mesmos 720px da grade de 4 colunas; entre 680 e 720px entravam cartas completas espremidas."
+    },
+    {
+      "version": "3.8",
+      "date": "2026-09-29",
+      "hash": "1ee36d6",
+      "title": "📱 grade densa de 4 cartas e folha de ações no mobile",
+      "summary": "No celular (≤679px) a coleção vira uma grade de 4 miniaturas por linha no estilo Clash Royale: foto, OVR, nick, ×cópias e borda de raridade."
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-29",
+      "hash": "aeb18d5",
+      "title": "Restore card action buttons",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-29",
+      "hash": "014f93d",
+      "title": "Trade duplicate copies and request coins",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-29",
+      "hash": "341cab0",
+      "title": "Use shared 75 percent cap",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-29",
+      "hash": "9b16dda",
+      "title": "Stack duplicate cards",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-28",
+      "hash": "34f0d9f",
+      "title": "Restore bonus for elite double AWP",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-28",
+      "hash": "5067b03",
+      "title": "Restore solo bots card layout",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-28",
+      "hash": "25029dd",
+      "title": "Filter collection cards by organization and fix saved power preview",
+      "summary": ""
+    },
+    {
+      "version": "3.7",
       "date": "2026-09-28",
       "hash": "85afe64",
       "title": "Filtros de times, dia bom do Agressivo e contratos de cartas",
       "summary": "A página de times ganhou filtros combináveis por país, ano e organização. A coleção, o montador, o Upgrader e os Contratos filtram cartas por organização. Elencos mais consistentes aumentam a frequência de dia bom do Agressivo. No online, repetidas viram fragmentos para trade-ups e contratos de Lenda."
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-27",
+      "hash": "3c53e99",
+      "title": "Remove fundo branco do ícone mobile",
+      "summary": "Usa ícones opacos e quadrados com o verde até as bordas em favicon, iOS e PWA."
+    },
+    {
+      "version": "3.7",
+      "date": "2026-09-27",
+      "hash": "50bb666",
+      "title": "Corrige modal de organizações e favicon",
+      "summary": "Exibe escudos e coaches históricos no modal online e atualiza os ícones de marca."
     },
     {
       "version": "3.6",
@@ -39,35 +361,42 @@
       "summary": "Removemos o piso de 85 e o corte em 99: a nota agora acompanha o poder real até 99,9. Ajustamos os bônus e custos da escalação, incluímos a vaga IGL-Suporte, recalibramos os bots e aumentamos os prêmios do ranqueado (2,5×) e do Solo dos Campeões (4×)."
     },
     {
-      "version": "3.5",
+      "version": "3.6",
+      "date": "2026-09-27",
+      "hash": "0160760",
+      "title": "Teto macio de poder, elenco no topo, IGL-Suporte e coins 2,5x/4x",
+      "summary": "O servidor cortava todo time de jogador em 99 antes da partida: lines de 104 a 106 na régua entravam em quadra iguais."
+    },
+    {
+      "version": "3.6",
       "date": "2026-09-25",
       "hash": "25a94ec",
       "title": "Correção nos prêmios do Boost e na função de flusha",
       "summary": "Corrigimos a publicação dos prêmios do Boost e a função de flusha."
     },
     {
-      "version": "3.5",
+      "version": "3.6",
       "date": "2026-09-25",
       "hash": "22c0c43",
       "title": "Raridade GOAT de olofmeister restaurada",
       "summary": "Restauramos a raridade GOAT de olofmeister em 2015."
     },
     {
-      "version": "3.5",
+      "version": "3.6",
       "date": "2026-09-25",
       "hash": "1217445",
       "title": "Raridades históricas ajustadas",
       "summary": "Ajustamos as raridades de jogadores entre 2013 e 2015."
     },
     {
-      "version": "3.5",
+      "version": "3.6",
       "date": "2026-09-25",
       "hash": "5d1556e",
       "title": "Overalls de f0rest e GeT_RiGhT atualizados",
       "summary": "Atualizamos os overalls de f0rest e GeT_RiGhT na temporada de 2014."
     },
     {
-      "version": "3.5",
+      "version": "3.6",
       "date": "2026-09-25",
       "hash": "8774445",
       "title": "Funções de jogadores históricos corrigidas",
@@ -96,10 +425,31 @@
     },
     {
       "version": "3.5",
+      "date": "2026-09-25",
+      "hash": "cf3b36d",
+      "title": "Plan solo speed and final queue vote",
+      "summary": ""
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-24",
+      "hash": "3223814",
+      "title": "Specify bot speed and final queue vote",
+      "summary": ""
+    },
+    {
+      "version": "3.5",
       "date": "2026-09-24",
       "hash": "4efd548",
       "title": "Confrontos entre planos explicados na wiki",
       "summary": "Esclarecemos como os planos de jogo se enfrentam no guia."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-24",
+      "hash": "5451714",
+      "title": "Clarify game plan matchups in wiki",
+      "summary": ""
     },
     {
       "version": "3.5",
@@ -109,11 +459,25 @@
       "summary": "Publicamos uma wiki concisa em português, inglês e espanhol."
     },
     {
-      "version": "3.4",
+      "version": "3.5",
       "date": "2026-09-24",
       "hash": "07887f8",
       "title": "Correção da atualização de escalações salvas",
       "summary": "A escalação agora é atualizada corretamente depois de salvar as alterações."
+    },
+    {
+      "version": "3.5",
+      "date": "2026-09-24",
+      "hash": "b3be25f",
+      "title": "Refresh saved lineup after save",
+      "summary": ""
+    },
+    {
+      "version": "3.4",
+      "date": "2026-09-24",
+      "hash": "1af859e",
+      "title": "Specify lineup save dirty-state fix",
+      "summary": ""
     },
     {
       "version": "3.4",
@@ -478,370 +842,6 @@
       "hash": "72d75d5",
       "title": "Prêmio repetido derrubava o painel de recompensas com each_key_duplicate",
       "summary": "Uma run concede o mesmo award kind mais de uma vez (flawless_map por mapa, giant_killer por oponente, top10_player por jogador, comeback_series por série) e o servidor grava tudo sem deduplicar — correto para o total, mas o each do paine…"
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "92d90d9",
-      "title": "Data: coaches com escada de campeões do Studio — 6 GOAT, todos os campeões 90+, boost granulado pela identidade do time",
-      "summary": ""
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "205527d",
-      "title": "Changelog da versão",
-      "summary": ""
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "66062e2",
-      "title": "Pós-partida resolve recompensas, fila volta ao idle e Major em largura única",
-      "summary": "- authFetch ganha timeout de 12s: request pendurado não congela mais o   painel de recompensas em 'Calculando…' para sempre - o painel de ganhos re-tenta quando a conta carrega depois do snapshot   completed e quando o jogador volta pra …"
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "541ec05",
-      "title": "Protagonismo da fila — bots caem meio alívio com 2+ humanos",
-      "summary": "Campo de bots desce pela metade do alívio solo (partyFieldRelief, medido pelo humano mais forte) quando a sala tem 2+ jogadores."
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "3fe3e47",
-      "title": "Changelog da versão",
-      "summary": ""
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "9e81d15",
-      "title": "Sinergia vira afinidade — química em níveis, star por raridade e teto 99",
-      "summary": "A sinergia era porcentagem do poder cru e abaixo do joelho da curva valia nível inteiro: time fraco ganhava +15 níveis montando certo e 5 GOATs +1,8 — o time do dono lia 97,4 com base 86,7 e a tela prometia +4,9 entregando +10,7."
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "b5e2a59",
-      "title": "A sala online ganha Sair, Power/Coach de todos os times e pós-major solo limpo",
-      "summary": "Botão de Sair em toda sala (comando leave no servidor: reatribui host, colapsa draft com gente a menos e dissolve sala vazia), chips de PWR e coach no lobby, no draft e na tabela do suíço durante a run, pós-major solo sem 'jogar de novo'…"
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-21",
-      "hash": "9f4140a",
-      "title": "O Major dos Campeões vira o desafio endgame, com alívio próprio",
-      "summary": "A parede dos campeões ganha tabela de alívio separada (SOLO_CHAMPIONS_RELIEF), mais dura que a do Major normal nos níveis médios e mais generosa no topo, calibrada contra a tabela cumulativa combinada com o dono (docs/reports/2026-09-21-…"
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-21",
-      "hash": "34b3a1c",
-      "title": "Escada de pedigree fino — dinastias, campeões ocasionais e merecimento em cada degrau",
-      "summary": "A escada de 5 bandas viram 9 pedigrees combinados com o dono (docs/reports/2026-09-21-taxonomia-pedigree.md): dinastia, campeão forte/underdog, vice merecedor/underdog, semifinalista, top8 e none potencial/filler."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-21",
-      "hash": "1af3d5d",
-      "title": "Versão do jogo na logo e página de novidades",
-      "summary": "A versão sai do próprio histórico: dez mudanças no código valem um décimo (299 commits = 2.9, e o 300 abre a 3.0)."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-21",
-      "hash": "7b13abf",
-      "title": "Reboot do campo de bots — dia de jogo justo e faixa de nível por pedigree",
-      "summary": "DUAS COISAS, e a primeira explica o \"Stage 3 amassando time 95+\"."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "d4db5d5",
-      "title": "Quem joga sozinho contra bots pega o campo aliviado, venha do solo ou da fila",
-      "summary": "O alívio do campo (SOLO_FIELD_RELIEF) só valia quando a sala nascia pelo botão do solo."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "1218038",
-      "title": "Painel de ganhos não gira para sempre, e filtro por posição no Upgrader",
-      "summary": "Ganhos: quando o servidor reinicia (ou a conexão cai) no meio de uma run, ela nunca é registrada e o painel ficava em 'Calculando recompensas…' para sempre."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "3812fa3",
-      "title": "~10% mais difícil de volta no solo, a pedido do dono",
-      "summary": "Ficou fácil demais depois do ajuste anterior."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "bd46eae",
-      "title": "Campeões de Major mais fracos em todos os modos",
-      "summary": "A pedido do dono (\"os times campeões estão muito fortes\"): o campeão sai do nível 97,4 para 96,7, o vice para 96,5 e o degrau de entrada para 95,0 — agora abaixo do piso do jogador, então quem acabou de criar a conta entra como favorito …"
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "ddcdded",
-      "title": "A ficha do time na partida mostra o coach do banco",
-      "summary": "O coach conta na quadra (tática, disciplina e preferência de lado) e não aparecia em lugar nenhum durante o Major."
-    },
-    {
-      "version": "2.8",
-      "date": "2026-09-20",
-      "hash": "ac9a46d",
-      "title": "Régua de sempre de volta (até 99), time salvo entra na sala e solo bem mais fácil",
-      "summary": "Régua: COURT_SPREAD volta a 1, com o topo em 99."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "00401d3",
-      "title": "O poder da tela é o poder que joga (AWPer-IGL, star e coach contam em jogo)",
-      "summary": "Joga uma sala de verdade pelo RoomManager e compara o poder que o servidor põe na quadra com o que a tela de montar time mostra."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "a742b7e",
-      "title": "Bots ~15% mais fáceis em todos os modos, e a tela de ganhos sempre aparece",
-      "summary": "A escada inteira dos bots desceu ~6 níveis: o campeão de Major saiu do nível 91 para o 85, e o degrau de entrada do 72 para o 66."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "a70a753",
-      "title": "Playoffs pagam o dobro de coins (campeão 2.400, vice 1.500, 3º–4º 1.000, 5º–8º 600)",
-      "summary": "Chegar aos playoffs é a parte difícil e é por onde cresce a conta de quem não gasta."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "ee6bbbe",
-      "title": ".railwayignore — o deploy do servidor não envia mais os 120 MB de static/",
-      "summary": "O Dockerfile só usa package*.json, tsconfig.json, server/ e src/lib/."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "1a1a470",
-      "title": "Dificuldade do solo por nível, régua 72–99 e núcleo do time pesando mais",
-      "summary": "Major dos Campeões: um time quase perfeito levava o título em 3% das runs e caía na suíça em 45%, porque os 15 bots são campeões no mesmo degrau."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "a7dc007",
-      "title": "Equilíbrio ajustável num arquivo só, com escada de progressão dos bots",
-      "summary": "src/lib/game/balance.ts passa a ser o único lugar onde se mexe em quem ganha de quem: a curva da escala, o que custa faltar peça no time, onde cada bot fica e o piso do jogador."
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "a48fe8e",
-      "title": "Registrar validação da navegação online",
-      "summary": ""
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "b7241da",
-      "title": "Manter sessão online entre abas",
-      "summary": ""
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "974de7d",
-      "title": "Planejar navegação persistente do online",
-      "summary": ""
-    },
-    {
-      "version": "2.7",
-      "date": "2026-09-20",
-      "hash": "c045dbd",
-      "title": "Definir navegação persistente do online",
-      "summary": ""
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "8fdfadb",
-      "title": "Online passa a jogar e a mostrar o poder de quadra",
-      "summary": "O servidor liga powerScale 'court' no motor do torneio: nada mais é cortado em 110, e um time bem montado passa a valer mais que o mesmo time jogado de qualquer jeito."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "0c43cff",
-      "title": "Carta ajuda, montagem decide — motor com curva, planos pelas cartas, estrutura em pontos de quadra",
-      "summary": "Motor da coleção: sai o cálculo com multiplicador escondido por plano (tático x1,10, agressivo x1,00) e entra o motor neutro que a Dinastia já usa, com uma curva no lugar do corte seco em 106: até um bom elenco, carta melhor rende tudo; …"
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "0f831fe",
-      "title": "Definir navegação persistente do online",
-      "summary": ""
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "ef76e6f",
-      "title": "Laboratório de equilíbrio pela cadeia real do servidor",
-      "summary": "Monta as lines de referência (GOATs jogados e montados, Superstars, iniciante, a SK do dono) e um bot campeão exatamente como o servidor monta, com estratégia de mapa e elenco, e joga MD3 de verdade alternando os lados."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "8bc9dfb",
-      "title": "Escala de poder do dia de jogo encanada no motor, desligada",
-      "summary": "getMatchDayPower aceita uma curva opcional; sem ela o corte em 110 é byte-idêntico ao de sempre."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "d45f485",
-      "title": "Poder de quadra — a escala real do online, que nunca chega a 100",
-      "summary": "Curva suave com joelho, a inversa exata e addCourtPoints, para cobrar estrutura em pontos de quadra em vez de porcentagem."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "77c9c75",
-      "title": "Campo de bots com campeões garantidos, buff por colocação e zebras",
-      "summary": "O sorteio do campo era uniforme entre todos os times-ano: três runs em dez saíam sem nenhum campeão de Major e o título virava farm."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "d4662eb",
-      "title": "Run solo contra bots não conta mais como Major jogado",
-      "summary": "No perfil, \"jogados\" era count(*) sem filtro, enquanto \"ganhos\" sempre exigiu lobby_size >= 2 AND NOT voided: toda run offline inflava os jogados e derrubava a taxa de vitória."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "350f1c1",
-      "title": "Poder na tela vira rating de 0 a 99",
-      "summary": "O poder do motor é uma escala aberta: bot trava em 106 e uma line temática de GOATs chega a ~139, porque a sinergia multiplica depois do teto."
-    },
-    {
-      "version": "2.6",
-      "date": "2026-09-20",
-      "hash": "1cd6f22",
-      "title": "Design e plano da sinergia temática da coleção",
-      "summary": ""
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "938ccbf",
-      "title": "Nomes legíveis no nível frouxo do tema, em vez de identificador interno",
-      "summary": "Conferindo no navegador, a linha do nível frouxo mostrava a chave interna: \"Mesma região: nordic\" e \"Mesma organização: ninjasinpyjamas\"."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "436268a",
-      "title": "Montador e partida mostram e aplicam a sinergia temática",
-      "summary": "O montador passa o coachId em todas as chamadas de sinergia e mostra as três linhas novas com o tema e a contagem (\"Mesmo time: SK 2017 · 5 cartas\"), em pt, en e es, dizendo quando o nível é o mais frouxo (\"Mesma organização\", \"Mesma reg…"
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "ba02db4",
-      "title": "Sinergia temática entra no cálculo da line da coleção",
-      "summary": "synergyOf passa a devolver theme_team, theme_country e theme_year, e CollectionLineupInput ganha coachId para o coach contar como sexto integrante."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "36c4aa7",
-      "title": "Regra da sinergia temática (time, país e ano) com escada e tetos",
-      "summary": "Três linhas de no máximo +2% cada, somando no máximo +6%."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "136f648",
-      "title": "Blocos da cena por país para a sinergia temática",
-      "summary": "Os 52 países do pool em oito blocos (CIS, nórdicos, Brasil/LatAm, Europa Ocidental, Europa Central/Leste, Ásia/Oceania, América do Norte, MENA/África), para que uma line russo-ucraniana conte como tema mesmo sem país igual."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "4fccc59",
-      "title": "País dos 15 jogadores que faltavam na coleção",
-      "summary": "Magisk, Zeus, ScreaM, AdreN, steel, amanek, fox, znajder, adreN (Liquid), MATYS, Lucky, fEAR, Tiger, z4KR e Sonic estavam sem país em identities."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "9465f7a",
-      "title": "AWPer-IGL, star por função e plano, e agressivo competitivo com o tático",
-      "summary": "Função AWPer-IGL: quem pode jogar de AWPer e de IGL ganha o slot híbrido, que conta nas duas funções com metade do bônus de IGL (+0,75 de mental) e entra no motor como AWPer com IGL secundário."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-20",
-      "hash": "98f89dd",
-      "title": "Aposta só de Comuns no upgrader paga coins em vez de devolver outra Comum",
-      "summary": "Apostando só cartas Comuns, a derrota sempre devolvia outra Comum de valor parecido: a aposta não custava nada e dava para girar de novo de graça."
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-19",
-      "hash": "bd64a04",
-      "title": "Reset da conta do dono — ranking de teste anulado, coleção e time zerados e carteira em 40k",
-      "summary": ""
-    },
-    {
-      "version": "2.5",
-      "date": "2026-09-19",
-      "hash": "5d63d74",
-      "title": "Economia mais difícil — cartas 20% mais caras, GOAT ~100k, tetos no upgrader e caixas grátis",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "ed1ea81",
-      "title": "Coach do mesmo tamanho na abertura de pacote e só a melhor carta maior",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "e91b082",
-      "title": "Modo draft como opção abaixo de buscar partida",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "7b5e4f7",
-      "title": "Lineup do time compacto no celular",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "9b2fc1f",
-      "title": "Store com coins no topo e trocas redesenhadas",
-      "summary": ""
-    },
-    {
-      "version": "2.4",
-      "date": "2026-09-19",
-      "hash": "75ccfe0",
-      "title": "Upgrader em etapas no celular e polimento de estados",
-      "summary": ""
     }
   ]
 }
