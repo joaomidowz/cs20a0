@@ -73,10 +73,10 @@
   .face:disabled { cursor: default; }
   .top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
   .photo { display: block; width: 64px; height: 64px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: var(--surface-2); }
-  /* Chip de overall na cor da raridade (dono, 2026-10-07): o número lê a raridade de longe; comum ganha um cinza claro porque `--line` é escuro demais. */
+  /* Chip de overall na cor da raridade só na miniatura do celular (dono, 2026-10-07: no desktop o número verde ficou melhor); comum em cinza claro porque `--line` é escuro demais. */
   .card { --ovr-chip: var(--rarity); --ovr-ink: #0b0d12; } .rarity-common { --ovr-chip: #b9c0cc; }
-  .ovr { display: inline-grid; justify-items: end; align-self: start; padding: 3px 7px 2px; border: 1px solid color-mix(in srgb, var(--ovr-chip) 70%, #000); background: var(--ovr-chip); color: var(--ovr-ink); font: 900 2.1rem/1 'Arial Narrow', Impact, sans-serif; box-shadow: 0 1px 0 color-mix(in srgb, #000 35%, transparent); }
-  .ovr small { color: color-mix(in srgb, var(--ovr-ink) 72%, transparent); font: 700 .5rem Inter, Arial, sans-serif; letter-spacing: .08em; }
+  .ovr { display: grid; justify-items: end; color: var(--accent); font: 900 2.1rem/1 'Arial Narrow', Impact, sans-serif; }
+  .ovr small { color: var(--muted); font: 700 .5rem Inter, Arial, sans-serif; }
   .rarity { color: color-mix(in srgb, var(--rarity) 75%, var(--text)); font-size: .56rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
   .name { display: flex; align-items: center; gap: 6px; min-width: 0; font: 800 1.35rem/1.1 'Arial Narrow', Impact, sans-serif; }
   .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -94,7 +94,7 @@
   .showcase .face { gap: 8px; padding: 16px; }
   .showcase .top { align-items: end; }
   .showcase .photo { width: 58%; height: auto; aspect-ratio: 1; }
-  .showcase .ovr { padding: 6px 10px 4px; font-size: 3.4rem; } .showcase .ovr small { font-size: .62rem; }
+  .showcase .ovr { font-size: 3.4rem; } .showcase .ovr small { font-size: .62rem; }
   .showcase .rarity { font-size: .66rem; } .showcase .name { font-size: 1.9rem; } .showcase .role { font-size: .7rem; }
   .showcase .team { padding: 7px 8px; font-size: .8rem; }
   .epithet { color: var(--muted); font-size: .72rem; font-style: italic; }

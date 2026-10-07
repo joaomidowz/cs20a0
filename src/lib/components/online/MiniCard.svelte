@@ -48,9 +48,8 @@
   .rarity-rare { --rarity: #4f8cff; } .rarity-elite { --rarity: #a66bff; } .rarity-superstar { --rarity: #ff7a45; } .rarity-legend { --rarity: #f2c14e; } .rarity-goat { --rarity: #ff4d6d; }
   .top { display: flex; align-items: start; justify-content: space-between; gap: 4px; min-width: 0; }
   .photo { flex: 0 0 auto; display: block; width: clamp(30px, 9vw, 44px); height: clamp(30px, 9vw, 44px); overflow: hidden; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: var(--surface-2); }
-  .mini { --ovr-chip: var(--rarity); --ovr-ink: #0b0d12; } .rarity-common { --ovr-chip: #b9c0cc; }
-  .ovr { display: inline-grid; justify-items: end; justify-self: end; min-width: 0; padding: 2px 5px 1px; border: 1px solid color-mix(in srgb, var(--ovr-chip) 70%, #000); background: var(--ovr-chip); color: var(--ovr-ink); font: 900 clamp(1.1rem, 4.6vw, 1.5rem)/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
-  .ovr small { color: color-mix(in srgb, var(--ovr-ink) 72%, transparent); font: 700 .45rem Inter, Arial, sans-serif; }
+  .ovr { display: grid; justify-items: end; min-width: 0; color: var(--accent); font: 900 clamp(1.1rem, 4.6vw, 1.5rem)/1 'Arial Narrow', Impact, sans-serif; font-variant-numeric: tabular-nums; }
+  .ovr small { color: var(--muted); font: 700 .45rem Inter, Arial, sans-serif; }
   .rarity { overflow: hidden; color: color-mix(in srgb, var(--rarity) 75%, var(--text)); font-size: .5rem; font-weight: 900; letter-spacing: .12em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .name { overflow: hidden; font: 800 clamp(.82rem, 3.4vw, 1rem)/1.1 'Arial Narrow', Impact, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .meta, .team { overflow: hidden; color: var(--muted); font-size: clamp(.52rem, 2.2vw, .6rem); font-weight: 700; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }

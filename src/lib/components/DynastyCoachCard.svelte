@@ -45,8 +45,7 @@
   .rarity-goat { --rarity: #ff4d6d; }
   .coach-card.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
   header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; }
-  .coach-card { --ovr-chip: var(--rarity); --ovr-ink: #0b0d12; } .rarity-common { --ovr-chip: #b9c0cc; }
-  .ovr { display: inline-grid; place-items: center; min-width: 44px; padding: 4px 8px; border: 1px solid color-mix(in srgb, var(--ovr-chip) 70%, #000); background: var(--ovr-chip); color: var(--ovr-ink); font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; }
+  .ovr { font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; color: var(--accent); }
   strong { display: block; overflow-wrap: anywhere; }
   small { color: var(--muted); font-size: .7rem; overflow-wrap: anywhere; }
   ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
