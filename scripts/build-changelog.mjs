@@ -46,6 +46,14 @@ const isMetaCommit = (commit) => META_HASHES.has(commit.hash) || /^chore\(change
 function noteOf(commit) {
   // Notas públicas aprovadas: manter os textos nas próximas regenerações.
   const pinned = {
+    '3c4b0bb': {
+      title: 'Links promocionais: coins para os primeiros a entrar',
+      summary: 'Fique de olho nos stories: cada link promocional dá um bônus de coins para as primeiras contas que entrarem por ele, com as vagas mostradas na hora. O bônus soma às boas-vindas e cai na carteira assim que o login termina.'
+    },
+    '1539d0c': {
+      title: 'Overall colorido só nas miniaturas do celular',
+      summary: 'No celular a miniatura das cartas mostra o overall em um chip na cor da raridade; no desktop o número volta ao verde de sempre.'
+    },
     '822321d8e213cce1609ab498b2536dbb3700d80e': {
       title: 'Fila Draft: pool mais forte, dicas de sinergia, deck no celular e coaches disputados',
       summary: 'O pool do snake agora traz só cartas fortes (2 GOATs, 3 Legends, 4 Superstars e 3 Elites por jogador) e a diferença entre os times vem da sinergia: durante o draft a sua line mostra o que falta e os temas que se formam, e cada carta do pool diz o que acrescentaria. No celular a navbar dá lugar a um deck fixo com as cinco vagas e uma barra de turno fixa mostra quem escolhe. Os coaches viraram um pool compartilhado de nove para a sala: quem contrata primeiro leva. A tela final da Fila Draft passa a mostrar coins, caixa, prêmios e pontos como a fila competitiva, e o overall das cartas ganhou um chip na cor da raridade.'

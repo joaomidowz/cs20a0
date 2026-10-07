@@ -1,8 +1,22 @@
 {
-  "version": "4.2",
-  "total": 429,
+  "version": "4.3",
+  "total": 432,
   "generatedAt": "2026-10-07",
   "entries": [
+    {
+      "version": "4.2",
+      "date": "2026-10-07",
+      "hash": "3c4b0bb",
+      "title": "Links promocionais: coins para os primeiros a entrar",
+      "summary": "Fique de olho nos stories: cada link promocional dá um bônus de coins para as primeiras contas que entrarem por ele, com as vagas mostradas na hora. O bônus soma às boas-vindas e cai na carteira assim que o login termina."
+    },
+    {
+      "version": "4.2",
+      "date": "2026-10-07",
+      "hash": "1539d0c",
+      "title": "Overall colorido só nas miniaturas do celular",
+      "summary": "No celular a miniatura das cartas mostra o overall em um chip na cor da raridade; no desktop o número volta ao verde de sempre."
+    },
     {
       "version": "4.2",
       "date": "2026-10-07",
@@ -827,20 +841,6 @@
       "date": "2026-09-21",
       "hash": "81a5cdd",
       "title": "Adiciona caixas tematicas e vitrine de trocas",
-      "summary": ""
-    },
-    {
-      "version": "3.0",
-      "date": "2026-09-21",
-      "hash": "ca8dd7c",
-      "title": "Paga 75 por cento na venda de cartas",
-      "summary": ""
-    },
-    {
-      "version": "3.0",
-      "date": "2026-09-21",
-      "hash": "5e5b4f6",
-      "title": "Alonga progressao da colecao",
       "summary": ""
     }
   ]
