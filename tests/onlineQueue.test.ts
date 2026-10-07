@@ -244,7 +244,7 @@ describe('fila draft (snake)', () => {
     expect(started.competitive).toBe(true);
     expect(started.snake!.order).toHaveLength(2);
     expect(started.snake!.pool).toHaveLength(2 * SNAKE_POOL_PER_PARTICIPANT);
-    expect(started.self!.coachOffer).toHaveLength(3);
+    expect(started.snake!.coachPool.length).toBeGreaterThanOrEqual(9);
     expect(started.participants.every((participant) => !participant.collection)).toBe(true);
     expect(started.config.capacity).toBe(6);
   });

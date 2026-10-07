@@ -81,7 +81,6 @@ import { applyCoachToTeam, coachAffinity } from '../src/lib/game/dynasty/coach';
 import type { LineupSlotRole, SelectedPlayer } from '../src/lib/game/types';
 import { getEligibleSlotRoles, validatePlayerPick } from '../src/lib/game/roleRules';
 import {
-  SNAKE_COACH_REROLLS,
   SNAKE_TURN_MS,
   isSnakeComplete,
   snakeAutoPick,
@@ -90,7 +89,7 @@ import {
   toPublicSnake,
   type SnakeState
 } from '../src/lib/game/online/snake-draft';
-import { rollSnakeCoachOffer, rollSnakePool } from './snake-pool';
+import { rollSnakeCoachPool, rollSnakePool } from './snake-pool';
 
 export const RESUME_TTL_MS = 120_000;
 export const EMPTY_ROOM_TTL_MS = 120_000;
@@ -288,7 +287,7 @@ interface RoomState {
   snake: SnakeState | null;
 }
 
-const emptySnake = (): SnakeState => ({ pool: [], taken: {}, order: [], turn: 0, turnDeadlineAt: null, seats: {} });
+const emptySnake = (): SnakeState => ({ pool: [], taken: {}, order: [], turn: 0, turnDeadlineAt: null, seats: {}, coachPool: [], coachTaken: {} });
 
 /** Minimum humans for a run to score season points. */
 export const COMPETITIVE_MIN_HUMANS = 2;
@@ -791,21 +790,19 @@ export class RoomManager {
         break;
       }
       case 'pick-coach': {
+        // Pool compartilhado: o primeiro comando processado leva o coach (o servidor é single-thread, a ordem de chegada decide);
+        // quem chega depois recebe COACH_TAKEN e escolhe outro. Trocar de coach devolve o anterior ao pool.
         this.requireDraft(room);
-        const seat = this.requireSnake(room).seats[participant.id];
-        if (!seat || !seat.coachOffer.includes(command.coachId)) throw new RoomError('INVALID_ACTION', 'That coach is not in your offer');
-        seat.coachId = command.coachId;
-        this.syncSnakePrepared(room, participant);
-        break;
-      }
-      case 'reroll-coach': {
-        this.requireDraft(room);
-        const seat = this.requireSnake(room).seats[participant.id];
+        const snake = this.requireSnake(room);
+        const seat = snake.seats[participant.id];
         if (!seat) throw new RoomError('INVALID_ACTION', 'No seat in this draft');
-        if (seat.coachRerollsUsed >= SNAKE_COACH_REROLLS) throw new RoomError('INVALID_ACTION', 'No coach rerolls left');
-        seat.coachRerollsUsed += 1;
-        seat.coachOffer = rollSnakeCoachOffer(room.seed, participant.id, seat.coachRerollsUsed).map((coach) => coach.id);
-        seat.coachId = null;
+        if (!isSnakeComplete(snake)) throw new RoomError('INVALID_ACTION', 'The coach pool opens when everybody has five picks');
+        if (!snake.coachPool.includes(command.coachId)) throw new RoomError('INVALID_ACTION', 'That coach is not in the room pool');
+        const owner = snake.coachTaken[command.coachId];
+        if (owner && owner !== participant.id) throw new RoomError('COACH_TAKEN', 'That coach was just hired by another organization');
+        if (seat.coachId && seat.coachId !== command.coachId) delete snake.coachTaken[seat.coachId];
+        snake.coachTaken[command.coachId] = participant.id;
+        seat.coachId = command.coachId;
         this.syncSnakePrepared(room, participant);
         break;
       }
@@ -932,6 +929,7 @@ export class RoomManager {
   /** Removes a participant for good (the `leave` command): host passes on, a thinned draft collapses back to the lobby. */
   private removeParticipant(room: RoomState, participantId: string, now: number) {
     room.participants.delete(participantId);
+    this.releaseSnakeCoach(room, participantId);
     if (room.hostParticipantId === participantId) {
       room.hostParticipantId = [...room.participants.values()]
         .filter((candidate) => candidate.connected)
@@ -972,6 +970,8 @@ export class RoomManager {
         mapsConfirmed: candidate.draft.mapPreferences.length === 3,
         // Numa sala snake o `prepared` é sintetizado do draft: ninguém "veio com time de coleção".
         ...(candidate.prepared && !room.snake ? { collection: true } : {}),
+        // A run paga (coins, caixa, prêmios, pontos) para quem tem conta e `prepared`: time da coleção ou assento da Fila Draft.
+        ...(candidate.prepared || (room.snake && candidate.userId) ? { rewarded: true } : {}),
         ...this.participantCourtPreview(room, candidate),
         ...(room.snake ? { coachId: room.snake.seats[candidate.id]?.coachId ?? null } : {})
       }));
@@ -1093,6 +1093,7 @@ export class RoomManager {
     for (const [participantId, participant] of room.participants) {
       if (!participant.connected && participant.disconnectedAt !== null && now - participant.disconnectedAt >= RESUME_TTL_MS) {
         room.participants.delete(participantId);
+        this.releaseSnakeCoach(room, participantId);
         room.version += 1;
         room.stateVersion += 1;
         changed = true;
@@ -1107,7 +1108,10 @@ export class RoomManager {
     if (room.snake && room.phase === 'draft' && room.deadlineAt !== null && now >= room.deadlineAt) {
       if (room.deadlineStage === 'confirmation') {
         // Venceu a confirmação: o servidor fecha estilo, estrela, coach e mapas de quem não fechou e o Major roda.
-        for (const participant of room.participants.values()) {
+        // Na ordem do snake, para os coaches saírem distintos e de forma determinística (o 1º leva o melhor que sobrou).
+        for (const id of room.snake.order) {
+          const participant = room.participants.get(id);
+          if (!participant) continue;
           this.autocompleteSnakeSeat(room, participant);
           this.syncSnakePrepared(room, participant);
         }
@@ -1417,7 +1421,7 @@ export class RoomManager {
 
   // ───────────────────────────── Fila Draft (snake) ─────────────────────────────
 
-  /** Sorteia pool, ordem e ofertas de coach para todos os participantes da sala e abre o primeiro turno. */
+  /** Sorteia pool de cartas, ordem e pool de coaches da sala e abre o primeiro turno. */
   private startSnake(room: RoomState, now: number) {
     const ids = [...room.participants.values()].sort((a, b) => a.joinedAt - b.joinedAt).map((participant) => participant.id);
     const rng = createSeededRng(`${room.seed}:snake-order`);
@@ -1432,12 +1436,9 @@ export class RoomManager {
       order,
       turn: 0,
       turnDeadlineAt: now + SNAKE_TURN_MS,
-      seats: Object.fromEntries(ids.map((id) => [id, {
-        coachOffer: rollSnakeCoachOffer(room.seed, id, 0).map((coach) => coach.id),
-        coachRerollsUsed: 0,
-        coachId: null,
-        starPlayerId: null
-      }]))
+      seats: Object.fromEntries(ids.map((id) => [id, { coachId: null, starPlayerId: null }])),
+      coachPool: rollSnakeCoachPool(room.seed, ids.length).map((coach) => coach.id),
+      coachTaken: {}
     };
     room.deadlineAt = room.snake.turnDeadlineAt;
     room.deadlineStage = 'picks';
@@ -1503,7 +1504,7 @@ export class RoomManager {
       : null;
   }
 
-  /** Vencida a confirmação: estilo equilibrado, a melhor estrela elegível, o melhor coach da oferta e os mapas padrão. */
+  /** Vencida a confirmação: estilo equilibrado, a melhor estrela elegível, o melhor coach livre do pool e os mapas padrão. */
   private autocompleteSnakeSeat(room: RoomState, participant: ParticipantState) {
     const seat = room.snake?.seats[participant.id];
     const draft = participant.draft;
@@ -1517,11 +1518,17 @@ export class RoomManager {
         .sort((left, right) => (right.overall ?? 0) - (left.overall ?? 0) || left.id.localeCompare(right.id));
       seat.starPlayerId = candidates.find((player) => isStarEffective(selected, player.id, roles))?.id ?? candidates[0]?.id ?? null;
     }
-    if (!seat.coachId) {
-      seat.coachId = seat.coachOffer
+    if (!seat.coachId && room.snake) {
+      const snake = room.snake;
+      const best = snake.coachPool
+        .filter((id) => !snake.coachTaken[id])
         .map((id) => collectionCoachById.get(id))
         .filter((coach): coach is NonNullable<typeof coach> => Boolean(coach))
-        .sort((left, right) => right.overall - left.overall || left.id.localeCompare(right.id))[0]?.id ?? null;
+        .sort((left, right) => right.overall - left.overall || left.id.localeCompare(right.id))[0];
+      if (best) {
+        seat.coachId = best.id;
+        snake.coachTaken[best.id] = participant.id;
+      }
     }
     if (draft.mapPreferences.length !== 3) draft.mapPreferences = [...getDefaultMapSelection(selected, collectionTeams)];
   }
@@ -1531,14 +1538,15 @@ export class RoomManager {
     return Boolean(seat && isDraftComplete(room.config.mode, participant.draft) && participant.draft.style && seat.coachId && seat.starPlayerId);
   }
 
-  private selfSnakeSeat(room: RoomState, participant: ParticipantState): Pick<NonNullable<RoomSnapshot['self']>, 'coachOffer' | 'coachId' | 'coachRerollsLeft' | 'starPlayerId'> {
+  private selfSnakeSeat(room: RoomState, participant: ParticipantState): Pick<NonNullable<RoomSnapshot['self']>, 'coachId' | 'starPlayerId'> {
     const seat = room.snake?.seats[participant.id];
-    return {
-      coachOffer: seat ? [...seat.coachOffer] : [],
-      coachId: seat?.coachId ?? null,
-      coachRerollsLeft: Math.max(0, SNAKE_COACH_REROLLS - (seat?.coachRerollsUsed ?? 0)),
-      starPlayerId: seat?.starPlayerId ?? null
-    };
+    return { coachId: seat?.coachId ?? null, starPlayerId: seat?.starPlayerId ?? null };
+  }
+
+  /** Quem sai do draft devolve o coach ao pool da sala. */
+  private releaseSnakeCoach(room: RoomState, participantId: string) {
+    if (!room.snake) return;
+    for (const [coachId, owner] of Object.entries(room.snake.coachTaken)) if (owner === participantId) delete room.snake.coachTaken[coachId];
   }
 
   private requireSnake(room: RoomState): SnakeState {
@@ -1583,7 +1591,11 @@ export class RoomManager {
     // Com 2+ humanos (fila/festa), o campo de bots cai pela METADE do alívio (`partyFieldRelief`), medido pelo
     // humano mais forte: o protagonismo é de quem entrou junto, mas a escada de pedigree segue real. O relief só
     // entra em `botFieldPower` — humano contra humano nunca tem handicap.
-    const relief = organizations.length === 1 && !room.competitive
+    // Fila Draft (2026-10-07): com dois GOATs por jogador no pool os drafters chegam a ~95 e, com o alívio de festa, eram
+    // campeões em 34% das salas. O campo joga na força real: a disputa é entre os humanos e a sinergia decide.
+    const relief = room.snake
+      ? 0
+      : organizations.length === 1 && !room.competitive
       ? soloFieldRelief(courtPower(organizations[0].team.power), room.field)
       : organizations.length > 1
         ? partyFieldRelief(Math.max(...organizations.map((organization) => courtPower(organization.team.power))), room.field)

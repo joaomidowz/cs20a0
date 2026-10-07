@@ -6,7 +6,7 @@ import { CONFIRMATION_GRACE_MS, RoomError, RoomManager, VETO_STEP_DEADLINE_MS, t
 import { collectionCoachById, collectionPlayerById } from '../src/lib/game/online/collection-pool';
 import { collectionRoleOf, isStarEffective, starRoleAllowed } from '../src/lib/game/online/collection-lineup';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
-import { SNAKE_COACH_OFFER_SIZE, SNAKE_PICKS_PER_PARTICIPANT, SNAKE_POOL_PER_PARTICIPANT, SNAKE_TURN_MS } from '../src/lib/game/online/snake-draft';
+import { SNAKE_PICKS_PER_PARTICIPANT, SNAKE_POOL_PER_PARTICIPANT, SNAKE_TURN_MS, snakeCoachPoolSize } from '../src/lib/game/online/snake-draft';
 import { DEFAULT_ROOM_CONFIG, REMATCH_WINDOW_MS, type RoomConfig, type RoomSnapshot } from '../src/lib/game/online/contracts';
 import type { LineupSlotRole, Player } from '../src/lib/game/types';
 
@@ -68,7 +68,8 @@ function finishSeat(manager: RoomManager, code: string, participantId: string, n
   const star = [...players].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).find((player) => isStarEffective(players, player.id, roles))!;
   manager.execute(code, participantId, { type: 'set-style', requestId: requestId(), style: 'balanced' }, now);
   manager.execute(code, participantId, { type: 'pick-star', requestId: requestId(), playerId: star.id }, now);
-  manager.execute(code, participantId, { type: 'pick-coach', requestId: requestId(), coachId: snapshot.self!.coachOffer![0] }, now);
+  const freeCoach = snapshot.snake!.coachPool.find((id) => !snapshot.snake!.coachTaken[id])!;
+  manager.execute(code, participantId, { type: 'pick-coach', requestId: requestId(), coachId: freeCoach }, now);
 }
 
 function runToCompletion(manager: RoomManager, code: string, participantId: string, now: number) {
@@ -94,8 +95,11 @@ describe('sala snake: picks', () => {
     expect([...snapshot.snake!.order].sort()).toEqual([...ids].sort());
     expect(snapshot.snake!.totalTurns).toBe(3 * SNAKE_PICKS_PER_PARTICIPANT);
     expect(snapshot.snake!.turnParticipantId).toBe(snapshot.snake!.order[0]);
-    expect(snapshot.self!.coachOffer).toHaveLength(SNAKE_COACH_OFFER_SIZE);
-    expect(snapshot.self!.coachRerollsLeft).toBe(1);
+    expect(snapshot.snake!.coachPool).toHaveLength(snakeCoachPoolSize(3));
+    expect(snapshot.snake!.coachTaken).toEqual({});
+    expect(snapshot.participants.every((participant) => participant.rewarded)).toBe(true);
+    // Coach só depois de todo mundo fechar os cinco picks.
+    expect(() => manager.execute(code, ids[0], { type: 'pick-coach', requestId: requestId(), coachId: snapshot.snake!.coachPool[0] }, now)).toThrowError(expect.objectContaining({ code: 'INVALID_ACTION' }));
     expect(snapshot.participants.every((participant) => !participant.collection)).toBe(true);
     expect(snapshot.competitive).toBe(true);
 
@@ -139,11 +143,12 @@ describe('sala snake: picks', () => {
 });
 
 describe('sala snake: estrela, coach e confirmação', () => {
-  it('estrela não pode ser IGL puro ou suporte; coach só da oferta; um reroll', () => {
+  it('estrela não pode ser IGL puro ou suporte; coach do pool da sala: primeiro leva, o segundo recebe COACH_TAKEN, trocar libera', () => {
     const { manager, code, ids, now } = openSnakeRoom();
     // Garante um IGL puro na line de quem for testado: prioriza cartas elegíveis a 'igl' no primeiro pick.
     playSnake(manager, code, now, (_participant, player) => getEligibleSlotRoles(player).includes('igl'));
     const me = ids[0];
+    const other = ids[1];
     const snapshot = manager.getSnapshot(code, me, now);
     const lineup = snapshot.self!.lineup;
     const players = lineup.map((pick) => lookup(pick.playerId)!);
@@ -156,20 +161,24 @@ describe('sala snake: estrela, coach e confirmação', () => {
     manager.execute(code, me, { type: 'pick-star', requestId: requestId(), playerId: star.id }, now);
     expect(manager.getSnapshot(code, me, now).self!.starPlayerId).toBe(star.id);
 
+    const pool = snapshot.snake!.coachPool;
     expect(() => manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: 'nobody' }, now)).toThrowError(expect.objectContaining({ code: 'INVALID_ACTION' }));
-    const offer = snapshot.self!.coachOffer!;
-    manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: offer[1] }, now);
-    expect(manager.getSnapshot(code, me, now).self!.coachId).toBe(offer[1]);
-    expect(manager.getSnapshot(code, me, now).participants.find((participant) => participant.id === me)!.coachId).toBe(offer[1]);
-
-    manager.execute(code, me, { type: 'reroll-coach', requestId: requestId() }, now);
-    const rerolled = manager.getSnapshot(code, me, now).self!;
-    expect(rerolled.coachId).toBeNull();
-    expect(rerolled.coachRerollsLeft).toBe(0);
-    expect(rerolled.coachOffer).toHaveLength(SNAKE_COACH_OFFER_SIZE);
-    expect(rerolled.coachOffer).not.toEqual(offer);
-    expect(() => manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: offer[1] }, now)).toThrowError(RoomError);
-    expect(() => manager.execute(code, me, { type: 'reroll-coach', requestId: requestId() }, now)).toThrowError(expect.objectContaining({ code: 'INVALID_ACTION' }));
+    manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: pool[1] }, now);
+    expect(manager.getSnapshot(code, me, now).self!.coachId).toBe(pool[1]);
+    expect(manager.getSnapshot(code, me, now).participants.find((participant) => participant.id === me)!.coachId).toBe(pool[1]);
+    expect(manager.getSnapshot(code, other, now).snake!.coachTaken).toEqual({ [pool[1]]: me });
+    // O segundo a clicar no mesmo coach perde e precisa escolher outro.
+    expect(() => manager.execute(code, other, { type: 'pick-coach', requestId: requestId(), coachId: pool[1] }, now)).toThrowError(expect.objectContaining({ code: 'COACH_TAKEN' }));
+    manager.execute(code, other, { type: 'pick-coach', requestId: requestId(), coachId: pool[2] }, now);
+    // Trocar de coach devolve o anterior ao pool; escolher o mesmo de novo é idempotente.
+    manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: pool[0] }, now);
+    manager.execute(code, me, { type: 'pick-coach', requestId: requestId(), coachId: pool[0] }, now);
+    expect(manager.getSnapshot(code, me, now).snake!.coachTaken).toEqual({ [pool[0]]: me, [pool[2]]: other });
+    manager.execute(code, other, { type: 'pick-coach', requestId: requestId(), coachId: pool[1] }, now);
+    expect(manager.getSnapshot(code, me, now).snake!.coachTaken).toEqual({ [pool[0]]: me, [pool[1]]: other });
+    // Quem sai do draft devolve o coach.
+    manager.execute(code, other, { type: 'leave', requestId: requestId() }, now);
+    expect(manager.getSnapshot(code, me, now).snake!.coachTaken).toEqual({ [pool[0]]: me });
   });
 
   it('vencida a confirmação, o servidor fecha estilo/estrela/coach/mapas e o Major começa; prepared traz coach e estrela', () => {
@@ -191,7 +200,14 @@ describe('sala snake: estrela, coach e confirmação', () => {
       expect(organization.lineup).toHaveLength(5);
       expect(organization.coachId).not.toBeNull();
       expect(collectionCoachById.has(organization.coachId!)).toBe(true);
+      expect(confirming.snake!.coachPool).toContain(organization.coachId);
     }
+    // Coaches distintos; entre os que ficaram para o autocomplete, o primeiro da ordem levou o mais forte que sobrou.
+    const coachIds = ids.map((id) => started.organizations!.find((candidate) => candidate.id === id)!.coachId!);
+    expect(new Set(coachIds).size).toBe(ids.length);
+    const auto = confirming.snake!.order.filter((id) => id !== ids[0]);
+    const overall = (id: string) => collectionCoachById.get(started.organizations!.find((candidate) => candidate.id === id)!.coachId!)!.overall;
+    expect(overall(auto[0])).toBeGreaterThanOrEqual(overall(auto[1]));
 
     const { snapshot } = runToCompletion(manager, code, ids[0], now + CONFIRMATION_GRACE_MS);
     expect(snapshot.phase).toBe('completed');
@@ -234,7 +250,8 @@ describe('sala snake: revanche e saída', () => {
     expect(again.snake!.pool).not.toEqual(firstPool);
     expect(again.self!.lineup).toHaveLength(0);
     expect(again.self!.coachId).toBeNull();
-    expect(again.self!.coachOffer).toHaveLength(SNAKE_COACH_OFFER_SIZE);
+    expect(again.snake!.coachTaken).toEqual({});
+    expect(again.snake!.coachPool).toHaveLength(snakeCoachPoolSize(3));
     expect(again.participants.every((participant) => participant.power === null)).toBe(true);
   });
 

@@ -57,7 +57,8 @@
   .face:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .top { display: flex; justify-content: space-between; align-items: start; }
   .kind { padding: 3px 7px; border: 1px solid var(--accent); color: var(--accent); font-size: .56rem; font-weight: 900; letter-spacing: .14em; }
-  .ovr { display: grid; justify-items: end; color: var(--accent); font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; } .ovr small { color: var(--muted); font: 700 .5rem Inter, Arial, sans-serif; }
+  .card { --ovr-chip: var(--rarity); --ovr-ink: #0b0d12; } .rarity-common { --ovr-chip: #b9c0cc; }
+  .ovr { display: inline-grid; justify-items: end; align-self: start; padding: 3px 7px 2px; border: 1px solid color-mix(in srgb, var(--ovr-chip) 70%, #000); background: var(--ovr-chip); color: var(--ovr-ink); font: 900 2rem/1 'Arial Narrow', Impact, sans-serif; box-shadow: 0 1px 0 color-mix(in srgb, #000 35%, transparent); } .ovr small { color: color-mix(in srgb, var(--ovr-ink) 72%, transparent); font: 700 .5rem Inter, Arial, sans-serif; letter-spacing: .08em; }
   .rarity { color: color-mix(in srgb, var(--rarity) 75%, var(--text)); font-size: .56rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
   .name { overflow: hidden; font: 800 1.3rem/1.1 'Arial Narrow', Impact, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .team { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 6px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); color: var(--muted); font-size: .66rem; }
@@ -69,7 +70,7 @@
   .showcase .face { gap: 8px; padding: 16px; }
   .showcase .top { align-items: end; }
   .photo { display: block; width: 58%; aspect-ratio: 1; overflow: hidden; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: var(--surface-2); }
-  .showcase .ovr { font-size: 3.4rem; } .showcase .ovr small { font-size: .62rem; }
+  .showcase .ovr { padding: 6px 10px 4px; font-size: 3.4rem; } .showcase .ovr small { font-size: .62rem; }
   .showcase .rarity { font-size: .66rem; } .showcase .name { font-size: 1.9rem; }
   .role { color: var(--muted); font-size: .7rem; font-weight: 700; text-transform: uppercase; }
   .showcase .team { padding: 7px 8px; font-size: .8rem; }
@@ -99,7 +100,7 @@
     .dense .face { gap: 0; padding: 0; }
     .dense .top { position: relative; display: block; }
     .dense:not(.showcase) .photo { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--rarity) 45%, var(--line)); }
-    .dense .ovr { position: absolute; top: 3px; left: 3px; justify-items: start; padding: 1px 4px 0; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: clamp(.95rem, 4.2vw, 1.15rem); }
+    .dense .ovr { position: absolute; top: 3px; left: 3px; justify-items: start; padding: 1px 4px 0; border: 1px solid color-mix(in srgb, var(--ovr-chip) 70%, #000); background: var(--ovr-chip); color: var(--ovr-ink); font-size: clamp(.95rem, 4.2vw, 1.15rem); }
     .dense .ovr small { display: none; }
     .dense .kind { position: absolute; left: 3px; bottom: 3px; padding: 1px 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: .46rem; letter-spacing: .08em; }
     .dense .rarity, .dense .team, .dense .attrs, .dense footer { display: none; }

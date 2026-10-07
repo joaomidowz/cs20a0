@@ -3,7 +3,7 @@ import type { GameMode, LineupSlotRole, MajorAwards, MajorStage, MapId, MapSide,
 
 export type { OnlineGameMode } from '../types';
 
-export const PROTOCOL_VERSION = 12 as const;
+export const PROTOCOL_VERSION = 13 as const;
 /** Filas do matchmaking: a competitiva (time da coleção) e a Fila Draft (snake com pool compartilhado, protocolo 12). */
 export type QueueKind = 'collection' | 'draft';
 /** After a run ends, everybody has this long to accept the rematch that keeps the season going. */
@@ -139,8 +139,7 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
   /** Fila Draft: the star among the five drafted cards (never a pure IGL or a support). */
   baseCommandSchema.extend({ type: z.literal('pick-star'), playerId: z.string().min(1).max(100) }).strict(),
   /** Fila Draft: one of the three coaches offered to this participant. */
-  baseCommandSchema.extend({ type: z.literal('pick-coach'), coachId: z.string().min(1).max(100) }).strict(),
-  baseCommandSchema.extend({ type: z.literal('reroll-coach') }).strict()
+  baseCommandSchema.extend({ type: z.literal('pick-coach'), coachId: z.string().min(1).max(100) }).strict()
 ]);
 
 export type ClientCommand = z.infer<typeof clientCommandSchema>;
@@ -265,6 +264,8 @@ export interface PublicParticipant {
   mapsConfirmed: boolean;
   /** Entered with a collection lineup (online account); the draft is skipped for this participant. */
   collection?: boolean;
+  /** This organization is tied to an account and its run pays coins, crate, awards and season points (collection team or Fila Draft seat). */
+  rewarded?: boolean;
   /** Power (court scale) the lineup would take to the court right now; null while the five picks are not in. */
   power: number | null;
   /** Coach da coleção escolhido para este time; null enquanto não houver. */
@@ -303,18 +304,20 @@ export interface SelfDraftState {
   pendingDecision: { seriesId: string; kind: PublicPendingDecision['kind']; deadlineAt: number | null } | null;
   /** Secret players a Vargão Academy lineup may still add (0 for everybody else). */
   secretPicksLeft: number;
-  /** Fila Draft (protocol 12): the three coach ids offered to this participant, and what was chosen. */
-  coachOffer?: string[];
+  /** Fila Draft (protocol 13): the coach hired from the room pool (`PublicSnake.coachPool`) and the chosen star. */
   coachId?: string | null;
-  coachRerollsLeft?: number;
   starPlayerId?: string | null;
 }
 
-/** Fila Draft (protocol 12): the shared pool and whose turn it is; the seats (coach offer, star) stay private. */
+/** Fila Draft (protocol 13): the shared pools (cards and coaches) and whose turn it is; the star of each seat stays private. */
 export interface PublicSnake {
   pool: string[];
   /** playerId → participantId of whoever took the card. */
   taken: Record<string, string>;
+  /** Coach ids of the room pool, in draw order; first `pick-coach` wins (protocol 13). */
+  coachPool: string[];
+  /** coachId → participantId of whoever hired the coach. */
+  coachTaken: Record<string, string>;
   /** Participants in first-round order; odd rounds run it backwards (snake). */
   order: string[];
   turn: number;
@@ -411,6 +414,7 @@ export interface LiveUpdate {
 
 export type ErrorCode =
   | 'BAD_MESSAGE'
+  | 'COACH_TAKEN'
   | 'PROTOCOL_MISMATCH'
   | 'DATA_MISMATCH'
   | 'ROOM_NOT_FOUND'

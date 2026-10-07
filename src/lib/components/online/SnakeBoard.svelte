@@ -4,7 +4,9 @@
   import { playGameSound } from '$lib/game/offlineAudio';
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import type { PublicParticipant, PublicSnake } from '$lib/game/online/contracts';
-  import type { Language, Player } from '$lib/game/types';
+  import type { HistoricalTeam, Language, Player } from '$lib/game/types';
+  import type { SnakeCardHint } from '$lib/game/online/snake-hints';
+  import { ROLE_SHORT, snakeThemeName } from './snakeLabels';
 
   /**
    * Fila Draft: o pool compartilhado da sala e de quem é a vez. Só apresentação — quem decide turno, prazo e
@@ -17,14 +19,14 @@
   export let players: Map<string, Player>;
   export let language: Language = 'pt-BR';
   export let teamName: (player: Player) => string = () => '';
-  /** Relógio do servidor (Date.now() + offset), atualizado pela página a cada tick. */
-  export let now: number = Date.now();
   export let onOpen: (player: Player) => void = () => {};
+  /** Dicas por carta livre (função central que falta, tema que cresce); vazio fora da vez do jogador ou sem picks. */
+  export let cardHints: ReadonlyMap<string, SnakeCardHint> = new Map();
+  export let teams: ReadonlyMap<string, HistoricalTeam> = new Map();
 
   $: t = (key: OnlineTranslationKey) => translateOnline(language, key);
   $: nameOf = (participantId: string) => participants.find((participant) => participant.id === participantId)?.organizationName ?? '?';
   $: myTurn = snake.turnParticipantId === selfId;
-  $: seconds = snake.turnEndsAt === null ? null : Math.max(0, Math.ceil((snake.turnEndsAt - now) / 1_000));
   $: myPicks = Object.values(snake.taken).filter((participantId) => participantId === selfId).length;
   $: picksLeft = Math.max(0, snake.picksPerParticipant - myPicks);
   $: cards = snake.pool.map((id) => ({ id, player: players.get(id) ?? null, takenBy: snake.taken[id] ?? null }));
@@ -77,27 +79,14 @@
     }
     takenCount = count;
   }
-  let lastTick = -1;
-  $: if (myTurn && seconds !== null && seconds <= 5 && seconds > 0 && seconds !== lastTick) { lastTick = seconds; playGameSound('tick'); }
-  $: if (!myTurn) lastTick = -1;
   onMount(() => { playGameSound('charge'); });
 </script>
 
 <section class="snake-board panel" class:my-turn={myTurn} aria-live="polite">
-  {#key myTurn}
-  <header class="snake-head" class:flash={myTurn}>
-    <div class="snake-title">
-      <span class="eyebrow">SNAKE DRAFT · {Math.min(snake.turn + 1, snake.totalTurns)}/{snake.totalTurns}</span>
-      <h2>{#if snake.turnParticipantId === null}{t('snakePoolTitle')}{:else if myTurn}{t('snakeYourTurn')}{:else}{t('snakeTurnOf').replace('{name}', nameOf(snake.turnParticipantId))}{/if}</h2>
-      <p class="snake-sub">{myTurn ? t('snakePicksLeft').replace('{n}', String(picksLeft)) : `${t('snakeWaitingTurn')} · ${t('snakePicksLeft').replace('{n}', String(picksLeft))}`}</p>
-    </div>
-    {#if seconds !== null}
-      <div class="snake-clock" class:urgent={seconds <= 5} role="timer" aria-label={`${seconds}s`}>
-        <strong>{seconds}</strong><small>s</small>
-      </div>
-    {/if}
+  <header class="snake-head">
+    <span class="eyebrow">SNAKE DRAFT · {Math.min(snake.turn + 1, snake.totalTurns)}/{snake.totalTurns}</span>
+    <p class="snake-sub">{myTurn ? t('snakePicksLeft').replace('{n}', String(picksLeft)) : t('snakeWaitingTurn')}</p>
   </header>
-  {/key}
 
   <div class="snake-order" role="list" aria-label={t('snakeOrder')}>
     <span class="eyebrow">{t('snakeOrder')} {reversed ? '←' : '→'}</span>
@@ -117,7 +106,11 @@
   <div class="snake-grid" class:dense class:waiting={!myTurn}>
     {#each cards as card (card.id)}
       {#if card.player}
-        <div class="snake-card" class:taken={Boolean(card.takenBy)} class:mine={card.takenBy === selfId} data-offline-player={card.player.id} style={`--reveal-delay: ${scrambleDelay(card.id, cards.length)}ms`}>
+        {@const hint = card.takenBy ? undefined : cardHints.get(card.id)}
+        <div class="snake-card" class:taken={Boolean(card.takenBy)} class:mine={card.takenBy === selfId} class:fills-role={Boolean(hint?.fills)} class:adds-theme={Boolean(hint?.theme)} class:locks-theme={Boolean(hint?.theme?.locks)} data-offline-player={card.player.id} style={`--reveal-delay: ${scrambleDelay(card.id, cards.length)}ms`}>
+          {#if hint}
+            <b class="snake-hint" class:lock={hint.theme?.locks}>{#if hint.fills}{ROLE_SHORT[hint.fills]}{/if}{#if hint.fills && hint.theme} · {/if}{#if hint.theme}+{snakeThemeName(hint.theme, language, teams)}{/if}</b>
+          {/if}
           <CollectionCard
             player={card.player}
             teamName={teamName(card.player)}
@@ -144,16 +137,9 @@
   /* Sobra nas laterais e em cima/embaixo: o tabuleiro nunca cola na borda do painel, nem no celular. */
   .snake-board { display: grid; gap: 14px; padding: clamp(14px, 2.6vw, 22px) clamp(12px, 2.6vw, 22px) clamp(16px, 3vw, 24px); }
   .snake-board.my-turn { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent) 14%, transparent); }
-  .snake-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-  .snake-head.flash { animation: snakeFlash 900ms var(--ease-out-strong) both; }
-  .snake-title { display: grid; gap: 4px; min-width: 0; }
-  .snake-title h2 { margin: 0; font-size: clamp(1.1rem, 1rem + .8vw, 1.5rem); line-height: 1.1; overflow-wrap: anywhere; }
+  .snake-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .snake-sub { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 700; }
   .my-turn .snake-sub { color: var(--accent); }
-  .snake-clock { display: grid; grid-auto-flow: column; align-items: baseline; gap: 2px; min-width: 64px; padding: 8px 12px; border: 1px solid var(--line); background: var(--surface-2); font-variant-numeric: tabular-nums; justify-content: center; }
-  .snake-clock strong { font-size: 1.6rem; line-height: 1; }
-  .snake-clock small { color: var(--muted); font-size: .7rem; font-weight: 800; }
-  .snake-clock.urgent { border-color: var(--accent-2); color: var(--accent-2); animation: snakeUrgent .8s ease-in-out infinite; }
   .snake-order { display: grid; gap: 6px; }
   .snake-order ol { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .snake-order li { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px 4px 4px; border: 1px solid var(--line); color: var(--muted); font-size: .72rem; font-weight: 700; transition: border-color var(--dur-ui) var(--ease-out-strong), color var(--dur-ui) var(--ease-out-strong), transform var(--dur-ui) var(--ease-out-strong); }
@@ -167,6 +153,12 @@
   /* Sempre um número par de colunas (2, 4 ou 6): o pool tem 12 cartas por participante, então toda fileira fecha. */
   .snake-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 4px 0 2px; }
   .snake-grid.dense { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+  /* Dica de sinergia: selo no canto direito (o "Levada" fica à esquerda), mais forte na vez do jogador. */
+  .snake-hint { position: absolute; top: -8px; right: 6px; z-index: 2; max-width: calc(100% - 12px); padding: 2px 6px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-size: .54rem; font-weight: 900; letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .snake-hint.lock { background: var(--accent); color: #0a0d08; }
+  .my-turn .snake-card.fills-role :global(.card), .my-turn .snake-card.adds-theme :global(.card) { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .my-turn .snake-card.locks-theme :global(.card) { box-shadow: 0 0 0 2px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 28%, transparent); }
+  .snake-grid.dense .snake-hint { top: -6px; right: 3px; padding: 1px 4px; font-size: .46rem; letter-spacing: .04em; }
   .snake-ghost { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
   .snake-ghost.to-deck { animation: snakeToDeck 780ms var(--ease-in-out-strong) forwards; }
   .snake-ghost.away { animation: snakeAway 620ms var(--ease-out-strong) forwards; }
@@ -182,16 +174,9 @@
   /* Fora da vez o pool continua legível (a ficha abre só para leitura), mas o tom baixa para a atenção ir para o cabeçalho. */
   .snake-grid.waiting .snake-card:not(.taken) { opacity: .9; }
   @keyframes snakeIn { from { opacity: 0; transform: translateY(10px) scale(.94) rotate(-1.5deg); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
-  @keyframes snakeUrgent { 50% { opacity: .55; } }
-  @keyframes snakeFlash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); transform: translateX(-4px); } to { background: transparent; transform: none; } }
-  @media (max-width: 420px) {
-    .snake-head { grid-template-columns: minmax(0, 1fr); }
-    .snake-clock { justify-self: start; }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .snake-card, .snake-head.flash { animation: none; transition: none; }
+    .snake-card { animation: none; transition: none; }
     .snake-ghost { display: none; }
-    .snake-clock.urgent { animation: none; }
     .snake-order li { transition: none; transform: none; }
     .my-turn .snake-card:not(.taken):hover :global(.card) { transform: none; }
   }

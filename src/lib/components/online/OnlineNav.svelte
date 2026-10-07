@@ -3,6 +3,8 @@
   import type { Language } from '$lib/game/types';
   import { uiCopy } from '$lib/game/online/ui-copy';
   export let language: Language;
+  /** Some só no celular (a barra fixa), quando a tela traz a própria barra de rodapé. */
+  export let hidden = false;
   $: path = $page.url.pathname;
   $: links = [
     { href: '/online', label: uiCopy(language, 'play'), icon: '▷', active: path === '/online' },
@@ -12,7 +14,7 @@
   ];
 </script>
 
-<nav class="online-nav" aria-label="Online">
+<nav class="online-nav" class:hidden aria-label="Online">
   {#each links as link}<a href={link.href} aria-current={link.active ? 'page' : undefined}><span aria-hidden="true">{link.icon}</span>{link.label}</a>{/each}
 </nav>
 
@@ -25,5 +27,6 @@
   @media (max-width: 720px) {
     .online-nav { position: fixed; inset: auto 0 0; z-index: 30; margin: 0; border-width: 1px 0 0; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
     a { flex-direction: column; gap: 2px; min-height: 56px; font-size: .75rem; }
+    .online-nav.hidden { display: none; }
   }
 </style>

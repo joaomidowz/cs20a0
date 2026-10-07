@@ -17,6 +17,8 @@
   export let onTheme: () => void;
   export let wide = false;
   export let onlineNavigation = true;
+  /** Esconde só a barra inferior do celular (a carteira fica), para uma barra própria da tela ocupar o rodapé — a Fila Draft usa com o deck. */
+  export let hideOnlineNav = false;
   $: online = $page.url.pathname === '/online' || $page.url.pathname.startsWith('/online/');
 
   let reducedMotion = typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,12 +44,13 @@
 <main
   class:wide
   class:online-surface={online}
-  class:with-online-nav={online && onlineNavigation}
+  class:with-online-nav={online && onlineNavigation && !hideOnlineNav}
+  class:with-deck-bar={online && onlineNavigation && hideOnlineNav}
   class="page-content shell narrow"
   in:fly={{ y: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 160, easing: cubicOut }}
   out:fade={{ duration: reducedMotion ? 0 : 90 }}
 >
-  {#if online && onlineNavigation}<WalletBar {language} /><OnlineNav {language} />{/if}
+  {#if online && onlineNavigation}<WalletBar {language} /><OnlineNav {language} hidden={hideOnlineNav} />{/if}
   <slot />
 </main>
 
@@ -86,6 +89,7 @@
   .online-surface :global(input), .online-surface :global(select) { min-width: 0; max-width: 100%; }
   @media(max-width:720px) {
     .with-online-nav { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+    .with-deck-bar { padding-bottom: calc(var(--deck-bar-h, 132px) + env(safe-area-inset-bottom)); }
     .online-surface { padding-top: 0; }
     .online-surface :global(.screen-header) { margin-bottom: 16px; text-align: left; }
     .online-surface :global(.screen-header h1) { margin: 4px 0 8px; font-size: 2rem; }

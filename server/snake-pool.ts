@@ -1,9 +1,9 @@
 import { collectionCoaches, collectionPlayers } from '../src/lib/game/online/collection-pool';
 import { RARITIES, rarityOf, type Rarity } from '../src/lib/game/online/collection-rules';
-import { SNAKE_POOL_PER_PARTICIPANT, SNAKE_POOL_QUOTA, SNAKE_ROLE_MIN_PER_PARTICIPANT, snakeBaseOf } from '../src/lib/game/online/snake-draft';
+import { SNAKE_COACH_TIERS, SNAKE_POOL_PER_PARTICIPANT, SNAKE_POOL_QUOTA, SNAKE_ROLE_MIN_PER_PARTICIPANT, snakeBaseOf, snakeCoachPoolSize } from '../src/lib/game/online/snake-draft';
 import { createSeededRng } from '../src/lib/game/simulation';
 import { getEligibleSlotRoles } from '../src/lib/game/roleRules';
-import { offerCoaches } from '../src/lib/game/dynasty/coachOffer';
+import { isDraftableCoach } from '../src/lib/game/dynasty/coach';
 import type { Coach, LineupSlotRole, Player } from '../src/lib/game/types';
 
 /**
@@ -79,7 +79,28 @@ export function rollSnakePool(seed: string, participants: number): Player[] {
   return shuffle(chosen, rng).slice(0, participants * SNAKE_POOL_PER_PARTICIPANT);
 }
 
-/** Três coaches por assento (um com 80+), sem restrição de time: o drafter não "veio" de nenhuma organização. */
-export function rollSnakeCoachOffer(seed: string, participantId: string, rerollsUsed: number): Coach[] {
-  return offerCoaches(collectionCoaches, `${seed}:${participantId}`, [], rerollsUsed);
+/**
+ * Pool de coaches da sala (protocolo 13): `snakeCoachPoolSize(participants)` coaches, um terço por faixa de overall
+ * (fortes, médios, comuns), uma pessoa por carta (`baseId`), embaralhados. Faltando gente numa faixa, a seguinte completa.
+ */
+export function rollSnakeCoachPool(seed: string, participants: number): Coach[] {
+  const rng = createSeededRng(`${seed}:snake-coaches`);
+  const size = snakeCoachPoolSize(participants);
+  const perTier = Math.ceil(size / SNAKE_COACH_TIERS.length);
+  const sorted = collectionCoaches.filter(isDraftableCoach).sort((left, right) => left.id.localeCompare(right.id));
+  const people = new Set<string>();
+  const personOf = (coach: Coach) => (coach.baseId ?? coach.id.replace(/-\d{4}$/, '')).toLowerCase();
+  const chosen: Coach[] = [];
+  const takeFrom = (bucket: Coach[], count: number) => {
+    for (const coach of shuffle([...bucket], rng)) {
+      if (count <= 0) break;
+      if (people.has(personOf(coach))) continue;
+      people.add(personOf(coach));
+      chosen.push(coach);
+      count -= 1;
+    }
+  };
+  for (const tier of SNAKE_COACH_TIERS) takeFrom(sorted.filter((coach) => coach.overall >= tier.min && coach.overall <= tier.max), perTier);
+  if (chosen.length < size) takeFrom(sorted, size - chosen.length);
+  return shuffle(chosen, rng).slice(0, size);
 }

@@ -10,6 +10,7 @@ import {
   SNAKE_ROLE_MIN_PER_PARTICIPANT,
   SNAKE_TURN_MS,
   dedupeByBase,
+  snakeCoachPoolSize,
   isSnakeComplete,
   snakeAutoPick,
   snakeAvailable,
@@ -21,8 +22,8 @@ import {
 const lookup = (id: string) => collectionPlayerById.get(id);
 
 const stateOf = (order: string[], pool: string[], taken: Record<string, string> = {}, turn = 0): SnakeState => ({
-  pool, taken, order, turn, turnDeadlineAt: null,
-  seats: Object.fromEntries(order.map((id) => [id, { coachOffer: [], coachRerollsUsed: 0, coachId: null, starPlayerId: null }]))
+  pool, taken, order, turn, turnDeadlineAt: null, coachPool: [], coachTaken: {},
+  seats: Object.fromEntries(order.map((id) => [id, { coachId: null, starPlayerId: null }]))
 });
 
 describe('snake: ordem dos turnos', () => {
@@ -54,13 +55,16 @@ describe('snake: pool', () => {
     expect(deduped[0].id).toBe(s1mple[0].id);
   });
 
-  it('constantes do dono: 5 picks, 12 cartas por participante no pool (1 GOAT, 2 Legends), 2 por função, 30 s por turno', () => {
+  it('constantes do dono: 5 picks, 12 cartas por participante no pool (2 GOATs, 3 Legends), 2 por função, 30 s por turno, 9 coaches', () => {
     expect(SNAKE_PICKS_PER_PARTICIPANT).toBe(5);
     expect(SNAKE_POOL_PER_PARTICIPANT).toBe(12);
-    expect(SNAKE_POOL_QUOTA).toEqual({ goat: 1, legend: 2, superstar: 3, elite: 4, rare: 2, common: 0 });
+    expect(SNAKE_POOL_QUOTA).toEqual({ goat: 2, legend: 3, superstar: 4, elite: 3, rare: 0, common: 0 });
     expect(Object.values(SNAKE_POOL_QUOTA).reduce((sum, count) => sum + count, 0)).toBe(SNAKE_POOL_PER_PARTICIPANT);
     expect(SNAKE_ROLE_MIN_PER_PARTICIPANT).toBe(2);
     expect(SNAKE_TURN_MS).toBe(30_000);
+    expect(snakeCoachPoolSize(2)).toBe(9);
+    expect(snakeCoachPoolSize(6)).toBe(9);
+    expect(snakeCoachPoolSize(8)).toBe(11);
   });
 });
 
@@ -93,15 +97,15 @@ describe('snake: visão pública e protocolo', () => {
     const state = stateOf(['a', 'b'], ['x', 'y', 'z'], { x: 'a' }, 1);
     state.turnDeadlineAt = 123;
     const pub = toPublicSnake(state);
-    expect(pub).toEqual({ pool: ['x', 'y', 'z'], taken: { x: 'a' }, order: ['a', 'b'], turn: 1, totalTurns: 10, turnParticipantId: 'b', turnEndsAt: 123, complete: false, picksPerParticipant: 5 });
+    expect(pub).toEqual({ pool: ['x', 'y', 'z'], taken: { x: 'a' }, coachPool: [], coachTaken: {}, order: ['a', 'b'], turn: 1, totalTurns: 10, turnParticipantId: 'b', turnEndsAt: 123, complete: false, picksPerParticipant: 5 });
     expect('seats' in pub).toBe(false);
   });
 
-  it('protocolo 12 aceita os comandos do snake', () => {
-    expect(PROTOCOL_VERSION).toBe(12);
+  it('protocolo 13 aceita os comandos do snake e já não conhece o reroll de coach', () => {
+    expect(PROTOCOL_VERSION).toBe(13);
     expect(parseClientCommand({ type: 'snake-pick', requestId: 'r-00000001', playerId: 'donk-2024', role: 'entry' }).type).toBe('snake-pick');
     expect(parseClientCommand({ type: 'pick-star', requestId: 'r-00000002', playerId: 'donk-2024' }).type).toBe('pick-star');
     expect(parseClientCommand({ type: 'pick-coach', requestId: 'r-00000003', coachId: 'coach-spirit-2024' }).type).toBe('pick-coach');
-    expect(parseClientCommand({ type: 'reroll-coach', requestId: 'r-00000004' }).type).toBe('reroll-coach');
+    expect(() => parseClientCommand({ type: 'reroll-coach', requestId: 'r-00000004' })).toThrow();
   });
 });

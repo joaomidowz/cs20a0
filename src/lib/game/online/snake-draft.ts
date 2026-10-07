@@ -12,22 +12,29 @@ export const SNAKE_PICKS_PER_PARTICIPANT = 5;
 /** Cartas no pool por participante: a soma das cotas abaixo (12); sobram 7 por pessoa no fim — nunca falta escolha. */
 export const SNAKE_POOL_PER_PARTICIPANT = 12;
 /**
- * Cotas de raridade por participante (dono, 2026-10-06): o pool por odds de pacote Ouro dava um GOAT a cada vinte salas
- * e times finais na casa dos 84. Agora cada participante traz ao pool um GOAT, duas Legends e um meio forte; quem leva
- * o quê é decidido no snake.
+ * Cotas de raridade por participante (dono, 2026-10-07): o pool por odds de pacote Ouro dava um GOAT a cada vinte salas
+ * e times finais na casa dos 84; a primeira cota (1 GOAT, 2 Legends) ainda deixava cartas ruins demais. Agora cada
+ * participante traz ao pool dois GOATs, três Legends e um meio forte, sem Rare nem Comum: a diferença entre os times sai
+ * da sinergia (tema, funções, estrela), não de quem achou a única carta boa.
  */
-export const SNAKE_POOL_QUOTA: Readonly<Record<Rarity, number>> = { goat: 1, legend: 2, superstar: 3, elite: 4, rare: 2, common: 0 };
+export const SNAKE_POOL_QUOTA: Readonly<Record<Rarity, number>> = { goat: 2, legend: 3, superstar: 4, elite: 3, rare: 0, common: 0 };
 /** Cartas elegíveis para cada função (IGL, AWPer, entry, lurker, rifler, suporte) por participante: dá para montar qualquer line. */
 export const SNAKE_ROLE_MIN_PER_PARTICIPANT = 2;
 /** Prazo por escolha (dono, 2026-10-06): 30 s; quem não escolhe recebe a melhor carta que ainda cabe. */
 export const SNAKE_TURN_MS = 30_000;
-export const SNAKE_COACH_OFFER_SIZE = 3;
-export const SNAKE_COACH_REROLLS = 1;
+/**
+ * Coaches (protocolo 13, dono 2026-10-07): um pool COMPARTILHADO para a sala inteira, visível a todos; quem contrata
+ * primeiro leva. Nove coaches fixos (três fortes, três médios, três comuns), ou participantes + 3 em salas grandes, para
+ * o autocomplete sempre ter um coach distinto para cada um.
+ */
+export const SNAKE_COACH_POOL_SIZE = 9;
+export const SNAKE_COACH_POOL_SPARE = 3;
+export const snakeCoachPoolSize = (participants: number): number => Math.max(SNAKE_COACH_POOL_SIZE, participants + SNAKE_COACH_POOL_SPARE);
+/** Faixas de overall do pool de coaches, uma por terço: fortes, médios e comuns. */
+export const SNAKE_COACH_TIERS: readonly { readonly min: number; readonly max: number }[] = [{ min: 85, max: 99 }, { min: 78, max: 84 }, { min: 0, max: 77 }];
 
-/** O que cada participante decide depois dos cinco picks: estrela, coach (entre a oferta) e, fora daqui, estilo e mapas. */
+/** O que cada participante decide depois dos cinco picks: estrela, coach (do pool da sala) e, fora daqui, estilo e mapas. */
 export interface SnakeSeat {
-  coachOffer: string[];
-  coachRerollsUsed: number;
   coachId: string | null;
   starPlayerId: string | null;
 }
@@ -43,6 +50,10 @@ export interface SnakeState {
   turn: number;
   turnDeadlineAt: number | null;
   seats: Record<string, SnakeSeat>;
+  /** Ids dos coaches da sala, na ordem do sorteio. */
+  coachPool: string[];
+  /** coachId → participantId de quem contratou. */
+  coachTaken: Record<string, string>;
 }
 
 export const snakeTotalTurns = (state: Pick<SnakeState, 'order'>): number => state.order.length * SNAKE_PICKS_PER_PARTICIPANT;
@@ -99,11 +110,13 @@ export function snakeAutoPick(
   return null;
 }
 
-/** A visão pública do snake: sem os assentos (oferta de coach e estrela são de cada um). */
+/** A visão pública do snake: sem os assentos (a estrela é de cada um); o pool de coaches e quem levou cada um são públicos. */
 export function toPublicSnake(state: SnakeState): PublicSnake {
   return {
     pool: [...state.pool],
     taken: { ...state.taken },
+    coachPool: [...state.coachPool],
+    coachTaken: { ...state.coachTaken },
     order: [...state.order],
     turn: state.turn,
     totalTurns: snakeTotalTurns(state),

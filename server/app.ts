@@ -24,7 +24,8 @@ import { MAX_PAYLOAD_BYTES, dispatch, readJsonBody, sendJson, type Route } from 
 const MAX_COMMANDS_PER_10_SECONDS = 40;
 const MAX_ROOM_CREATIONS_PER_MINUTE = 10;
 /** Keep the previous browser release online while the new frontend rolls out. */
-const PREVIOUS_PROTOCOL_VERSION = 11;
+// Protocolo 12 removido (2026-10-07): a etapa de coach mudou de contrato (pool compartilhado); um front 12 ficaria preso nela.
+const PREVIOUS_PROTOCOL_VERSION = 13;
 const isSupportedProtocol = (version: unknown): version is number =>
   version === PROTOCOL_VERSION || version === PREVIOUS_PROTOCOL_VERSION;
 /** Bytes still queued on a socket above which a live update is skipped: the next tick sends the state of that moment instead. */
