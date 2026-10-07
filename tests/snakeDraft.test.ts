@@ -6,6 +6,8 @@ import { collectionPlayerById, collectionPlayers } from '../src/lib/game/online/
 import {
   SNAKE_PICKS_PER_PARTICIPANT,
   SNAKE_POOL_PER_PARTICIPANT,
+  SNAKE_POOL_QUOTA,
+  SNAKE_ROLE_MIN_PER_PARTICIPANT,
   SNAKE_TURN_MS,
   dedupeByBase,
   isSnakeComplete,
@@ -52,9 +54,12 @@ describe('snake: pool', () => {
     expect(deduped[0].id).toBe(s1mple[0].id);
   });
 
-  it('constantes do dono: 5 picks, 10 cartas por participante no pool, 30 s por turno', () => {
+  it('constantes do dono: 5 picks, 12 cartas por participante no pool (1 GOAT, 2 Legends), 2 por função, 30 s por turno', () => {
     expect(SNAKE_PICKS_PER_PARTICIPANT).toBe(5);
-    expect(SNAKE_POOL_PER_PARTICIPANT).toBe(10);
+    expect(SNAKE_POOL_PER_PARTICIPANT).toBe(12);
+    expect(SNAKE_POOL_QUOTA).toEqual({ goat: 1, legend: 2, superstar: 3, elite: 4, rare: 2, common: 0 });
+    expect(Object.values(SNAKE_POOL_QUOTA).reduce((sum, count) => sum + count, 0)).toBe(SNAKE_POOL_PER_PARTICIPANT);
+    expect(SNAKE_ROLE_MIN_PER_PARTICIPANT).toBe(2);
     expect(SNAKE_TURN_MS).toBe(30_000);
   });
 });

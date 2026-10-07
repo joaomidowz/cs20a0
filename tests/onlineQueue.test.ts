@@ -6,6 +6,7 @@ import { players, teams } from '../server/data';
 import { QUEUE_FILL_WINDOW_MS, QUEUE_PAIR_WINDOW_MS, QUEUE_STALE_MS, createQueue } from '../server/queue';
 import { QUEUE_JOIN_WINDOW_MS, RoomManager, type PreparedLineup } from '../server/room-manager';
 import { primaryRoleOf } from '../src/lib/game/online/collection-lineup';
+import { SNAKE_POOL_PER_PARTICIPANT } from '../src/lib/game/online/snake-draft';
 import { DEFAULT_ROOM_CONFIG } from '../src/lib/game/online/contracts';
 import { getDefaultMapSelection } from '../src/lib/game/maps';
 
@@ -242,7 +243,7 @@ describe('fila draft (snake)', () => {
     expect(started.queueAbandoned).toBeUndefined();
     expect(started.competitive).toBe(true);
     expect(started.snake!.order).toHaveLength(2);
-    expect(started.snake!.pool).toHaveLength(2 * 10);
+    expect(started.snake!.pool).toHaveLength(2 * SNAKE_POOL_PER_PARTICIPANT);
     expect(started.self!.coachOffer).toHaveLength(3);
     expect(started.participants.every((participant) => !participant.collection)).toBe(true);
     expect(started.config.capacity).toBe(6);

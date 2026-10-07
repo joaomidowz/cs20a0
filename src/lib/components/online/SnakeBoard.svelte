@@ -35,7 +35,10 @@
   $: seconds = snake.turnEndsAt === null ? null : Math.max(0, Math.ceil((snake.turnEndsAt - now) / 1_000));
   $: myPicks = Object.values(snake.taken).filter((participantId) => participantId === selfId).length;
   $: picksLeft = Math.max(0, snake.picksPerParticipant - myPicks);
-  $: cards = snake.pool.map((id) => ({ id, player: players.get(id) ?? null, takenBy: snake.taken[id] ?? null }));
+  /** Da carta mais forte à mais fraca: com 30 s por vez, o olho precisa achar o GOAT sem rolar a grade. */
+  $: cards = snake.pool
+    .map((id) => ({ id, player: players.get(id) ?? null, takenBy: snake.taken[id] ?? null }))
+    .sort((left, right) => (right.player?.overall ?? 0) - (left.player?.overall ?? 0) || left.id.localeCompare(right.id));
   $: freeCount = cards.filter((card) => !card.takenBy).length;
   $: roundIndex = snake.order.length ? Math.floor(snake.turn / snake.order.length) : 0;
   /** Rodadas ímpares correm ao contrário: a faixa de ordem mostra a direção atual para ninguém se perder. */

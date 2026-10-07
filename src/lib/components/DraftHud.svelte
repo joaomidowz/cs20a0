@@ -2,7 +2,7 @@
   import { getCatalogContext } from '$lib/game/catalogContext';
   import { getSelectedRoleLabel } from '$lib/game/roleRules';
   import { showsFullIntel } from '$lib/game/teamViews';
-  import type { GameMode, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
+  import type { GameMode, HistoricalTeam, OrgStyle, Player, SelectedPlayer } from '$lib/game/types';
 
   export let selectedPlayers: SelectedPlayer[] = [];
   export let style: OrgStyle = 'balanced';
@@ -15,11 +15,14 @@
   export let offlineEffects = false;
   export let recentPickId: string | null = null;
   export let celebrate = false;
+  /** Catálogo a usar no lugar do core (online: coleção + core, porque a Fila Draft traz cartas da expansão). */
+  export let players: ReadonlyMap<string, Player> | null = null;
+  export let teams: ReadonlyMap<string, HistoricalTeam> | null = null;
 
   // The offline page sets the run's catalog; without one (/online) this is core, exactly the dataset of today.
   const catalog = getCatalogContext();
-  $: playerById = $catalog.playerById;
-  $: teamById = $catalog.teamById;
+  $: playerById = players ?? $catalog.playerById;
+  $: teamById = teams ?? $catalog.teamById;
   $: lineup = selectedPlayers.map((selected) => ({ selected, player: playerById.get(selected.playerId) }));
 </script>
 

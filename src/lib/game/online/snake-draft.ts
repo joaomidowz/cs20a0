@@ -1,6 +1,7 @@
 import { getEligibleSlotRoles, validatePlayerPick } from '../roleRules';
 import type { LineupSlotRole, Player, SelectedPlayer } from '../types';
 import type { PublicSnake } from './contracts';
+import type { Rarity } from './collection-rules';
 
 /**
  * Fila Draft (protocolo 12): draft "snake" com pool compartilhado. O servidor sorteia um pool de cartas para a sala
@@ -8,8 +9,16 @@ import type { PublicSnake } from './contracts';
  * Módulo puro, compartilhado por servidor, cliente e testes: nada de dados, nada de rede.
  */
 export const SNAKE_PICKS_PER_PARTICIPANT = 5;
-/** Cartas no pool por participante: com 10 cada, sobram 5 por pessoa no fim — nunca falta escolha. */
-export const SNAKE_POOL_PER_PARTICIPANT = 10;
+/** Cartas no pool por participante: a soma das cotas abaixo (12); sobram 7 por pessoa no fim — nunca falta escolha. */
+export const SNAKE_POOL_PER_PARTICIPANT = 12;
+/**
+ * Cotas de raridade por participante (dono, 2026-10-06): o pool por odds de pacote Ouro dava um GOAT a cada vinte salas
+ * e times finais na casa dos 84. Agora cada participante traz ao pool um GOAT, duas Legends e um meio forte; quem leva
+ * o quê é decidido no snake.
+ */
+export const SNAKE_POOL_QUOTA: Readonly<Record<Rarity, number>> = { goat: 1, legend: 2, superstar: 3, elite: 4, rare: 2, common: 0 };
+/** Cartas elegíveis para cada função (IGL, AWPer, entry, lurker, rifler, suporte) por participante: dá para montar qualquer line. */
+export const SNAKE_ROLE_MIN_PER_PARTICIPANT = 2;
 /** Prazo por escolha (dono, 2026-10-06): 30 s; quem não escolhe recebe a melhor carta que ainda cabe. */
 export const SNAKE_TURN_MS = 30_000;
 export const SNAKE_COACH_OFFER_SIZE = 3;
