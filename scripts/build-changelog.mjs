@@ -46,6 +46,10 @@ const isMetaCommit = (commit) => META_HASHES.has(commit.hash) || /^chore\(change
 function noteOf(commit) {
   // Notas públicas aprovadas: manter os textos nas próximas regenerações.
   const pinned = {
+    '822321d8e213cce1609ab498b2536dbb3700d80e': {
+      title: 'Fila Draft: pool mais forte, dicas de sinergia, deck no celular e coaches disputados',
+      summary: 'O pool do snake agora traz só cartas fortes (2 GOATs, 3 Legends, 4 Superstars e 3 Elites por jogador) e a diferença entre os times vem da sinergia: durante o draft a sua line mostra o que falta e os temas que se formam, e cada carta do pool diz o que acrescentaria. No celular a navbar dá lugar a um deck fixo com as cinco vagas e uma barra de turno fixa mostra quem escolhe. Os coaches viraram um pool compartilhado de nove para a sala: quem contrata primeiro leva. A tela final da Fila Draft passa a mostrar coins, caixa, prêmios e pontos como a fila competitiva, e o overall das cartas ganhou um chip na cor da raridade.'
+    },
     '659c2b6f4f577cf67ee94f39e7ff77be81e1e41f': {
       title: 'Hotfix: economia das caixas e venda de cartas',
       summary: 'Venda de jogadores e coaches ajustada para 40% do valor da carta; caixa Ouro a 12.000 coins e Prata a 5.000 coins para corrigir o lucro médio no ciclo de abrir, vender e recomprar.'

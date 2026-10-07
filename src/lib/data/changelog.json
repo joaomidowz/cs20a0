@@ -1,8 +1,36 @@
 {
   "version": "4.2",
-  "total": 424,
-  "generatedAt": "2026-10-06",
+  "total": 429,
+  "generatedAt": "2026-10-07",
   "entries": [
+    {
+      "version": "4.2",
+      "date": "2026-10-07",
+      "hash": "822321d",
+      "title": "Fila Draft: pool mais forte, dicas de sinergia, deck no celular e coaches disputados",
+      "summary": "O pool do snake agora traz só cartas fortes (2 GOATs, 3 Legends, 4 Superstars e 3 Elites por jogador) e a diferença entre os times vem da sinergia: durante o draft a sua line mostra o que falta e os temas que se formam, e cada carta do pool diz o que acrescentaria. No celular a navbar dá lugar a um deck fixo com as cinco vagas e uma barra de turno fixa mostra quem escolhe. Os coaches viraram um pool compartilhado de nove para a sala: quem contrata primeiro leva. A tela final da Fila Draft passa a mostrar coins, caixa, prêmios e pontos como a fila competitiva, e o overall das cartas ganhou um chip na cor da raridade."
+    },
+    {
+      "version": "4.2",
+      "date": "2026-10-07",
+      "hash": "a8b08e0",
+      "title": "Tabuleiro da Fila Draft — grade par com sobra, scramble, miniaturas no celular, voo da carta e sons",
+      "summary": "O tabuleiro ganha respiro em todas as bordas e uma grade sempre par (2, 4 ou 6 colunas; no celular 4 miniaturas por fileira, como no deck, com a ficha inteira em letra miúda)."
+    },
+    {
+      "version": "4.2",
+      "date": "2026-10-06",
+      "hash": "6d7846e",
+      "title": "Fila Draft — pool por cotas (1 GOAT, 2 Legends, 2 por função) e correções do pós-picks",
+      "summary": "O pool por odds de pacote Ouro dava um GOAT a cada vinte salas e times finais na casa dos 84, com os humanos em último."
+    },
+    {
+      "version": "4.1",
+      "date": "2026-10-06",
+      "hash": "4238d2a",
+      "title": "Fila Draft — star segue a regra do servidor e estilo fica abaixo do tabuleiro",
+      "summary": "Na etapa da star, a carta bloqueada já mostra o motivo (IGL puro/suporte ou overall abaixo de 85 e fora dos dois melhores), em vez de deixar clicar e o servidor recusar."
+    },
     {
       "version": "4.1",
       "date": "2026-10-06",
@@ -813,34 +841,6 @@
       "date": "2026-09-21",
       "hash": "5e5b4f6",
       "title": "Alonga progressao da colecao",
-      "summary": ""
-    },
-    {
-      "version": "3.0",
-      "date": "2026-09-21",
-      "hash": "da2f015",
-      "title": "Usa lineup_slots na roleta e nas trocas",
-      "summary": ""
-    },
-    {
-      "version": "3.0",
-      "date": "2026-09-21",
-      "hash": "c5cbf0b",
-      "title": "LineupSchema aceita os seis planos — salvar Tempo/Reativo/Resiliente dava 400",
-      "summary": "O enum zod da rota PUT /lineup ficou nas três tags antigas; os contratos da sala (set-style/confirm-pro) tinham sido estendidos, a rota da coleção não."
-    },
-    {
-      "version": "3.0",
-      "date": "2026-09-21",
-      "hash": "0ec3574",
-      "title": "Seletor de estilo em duas linhas (3+3) e botão '?' com o resumo dos seis estilos",
-      "summary": "O segmented-control global é uma coluna única: com seis estilos o EQUILIBRADO ficava cortado."
-    },
-    {
-      "version": "2.9",
-      "date": "2026-09-21",
-      "hash": "0dba470",
-      "title": "Changelog da versão",
       "summary": ""
     }
   ]
