@@ -56,7 +56,8 @@ async function main() {
     : undefined;
   const supportTo = process.env.SUPPORT_EMAIL?.trim() || 'contato@cs13a0.com';
   const trustProxy = Boolean(process.env.RAILWAY_ENVIRONMENT) || process.env.TRUST_PROXY === '1';
-  const { server } = createOnlineServer({ allowedOrigins, db, mailer, siteUrl, payments, supportTo, trustProxy });
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim()).filter(Boolean);
+  const { server } = createOnlineServer({ allowedOrigins, db, mailer, siteUrl, payments, supportTo, trustProxy, adminEmails });
   server.listen(port, '0.0.0.0', () => {
     // Intentionally logs only service metadata, never room or participant content.
     console.info(`online-server listening on port ${port}`);

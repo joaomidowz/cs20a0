@@ -871,6 +871,32 @@ ALTER TABLE trades ADD COLUMN IF NOT EXISTS coins_payer text NOT NULL DEFAULT 'f
 ALTER TABLE trades DROP CONSTRAINT IF EXISTS trades_coins_payer_check;
 ALTER TABLE trades ADD CONSTRAINT trades_coins_payer_check CHECK (coins_payer IN ('from_user','to_user'));
 `
+  },
+  {
+    id: 38,
+    // Links promocionais (stories): código com bônus de coins para os N primeiros; o código viaja na linha do magic link.
+    sql: `
+CREATE TABLE IF NOT EXISTS promo_links (
+  code text PRIMARY KEY CHECK (code ~ '^[A-Z0-9_-]{3,32}$'),
+  bonus_coins int NOT NULL CHECK (bonus_coins > 0),
+  max_uses int NOT NULL CHECK (max_uses > 0),
+  uses int NOT NULL DEFAULT 0 CHECK (uses <= max_uses),
+  new_accounts_only boolean NOT NULL DEFAULT true,
+  expires_at timestamptz,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS promo_link_redemptions (
+  code text NOT NULL REFERENCES promo_links(code),
+  user_id uuid NOT NULL REFERENCES users(id),
+  coins int NOT NULL,
+  redeemed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (code, user_id)
+);
+ALTER TABLE magic_links ADD COLUMN IF NOT EXISTS promo_code text;
+ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
+ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade','upgrade_consolation','promo_link'));
+`
   }
 ];
 

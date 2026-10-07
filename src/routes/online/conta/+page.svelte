@@ -12,6 +12,11 @@
   import { translateOnline, type OnlineTranslationKey } from '$lib/game/online/i18n';
   import { SEASON_PRIZES } from '$lib/game/online/collection-rules';
   import { language, theme } from '$lib/game/pageState';
+  import PromoLinkBanner from '$lib/components/online/PromoLinkBanner.svelte';
+  import { consumePromo, createPromoLinkAdmin, disablePromoLinkAdmin, fetchPromoLink, listPromoLinksAdmin, peekPromo, promoLinkUrl, redeemPromoLink, type PromoLinkAdminRow, type PromoLinkInfo, type PromoRedeemResult } from '$lib/game/online/promo-links';
+  import { refreshWallet } from '$lib/game/online/wallet';
+  import { showToast } from '$lib/game/notifications';
+  import { playGameSound } from '$lib/game/offlineAudio';
 
   $: t = (key: OnlineTranslationKey) => translateOnline($language, key);
   const serverUrl = getOnlineServerUrl();
@@ -59,6 +64,41 @@
   let awards: Array<{ kind: string; count: number; last: string }> = [];
   let season: Season | null = null;
 
+  /** Link promocional pendente (veio de /online/promo/CODIGO): viaja com o pedido de login e cai na conta ao terminar. */
+  let pendingPromo: string | null = null;
+  let pendingPromoInfo: PromoLinkInfo | null = null;
+  const promoMessage = (promo: PromoRedeemResult) => promo.status === 'granted'
+    ? t('promoLinkGranted').replace('{coins}', promo.coins.toLocaleString($language)).replace('{code}', promo.code)
+    : t(`promoLink${promo.status === 'sold_out' ? 'SoldOut' : promo.status === 'not_new' ? 'NotNew' : promo.status.charAt(0).toUpperCase() + promo.status.slice(1)}` as OnlineTranslationKey);
+  /** Depois do login: o resultado que veio junto, ou um resgate direto para quem já tinha conta e veio do link. */
+  async function settlePromo(promo: PromoRedeemResult | undefined) {
+    let outcome = promo ?? null;
+    if (!outcome && pendingPromo) outcome = await redeemPromoLink(serverUrl, pendingPromo).catch(() => null);
+    consumePromo();
+    pendingPromo = null;
+    if (!outcome) return;
+    if (outcome.status === 'granted') { await refreshWallet(serverUrl).catch(() => {}); playGameSound('success'); showToast({ message: promoMessage(outcome), kind: 'success', duration: 7_000, key: 'promo-link' }); }
+    else showToast({ message: promoMessage(outcome), kind: 'info', duration: 5_000, key: 'promo-link' });
+  }
+
+  /** Administração dos links (só e-mails em ADMIN_EMAILS; o servidor confere de novo em toda rota). */
+  let adminLinks: PromoLinkAdminRow[] = [];
+  let adminForm = { code: '', bonusCoins: 20000, maxUses: 10, newAccountsOnly: true, expiresAt: '' };
+  let adminBusy = false;
+  let adminCopied: string | null = null;
+  async function loadAdminLinks() { try { adminLinks = await listPromoLinksAdmin(serverUrl); } catch { /* painel opcional */ } }
+  async function createAdminLink() {
+    if (adminBusy) return;
+    adminBusy = true; error = '';
+    try {
+      await createPromoLinkAdmin(serverUrl, { code: adminForm.code.trim().toUpperCase(), bonusCoins: Number(adminForm.bonusCoins), maxUses: Number(adminForm.maxUses), newAccountsOnly: adminForm.newAccountsOnly, expiresAt: adminForm.expiresAt ? new Date(adminForm.expiresAt).toISOString() : null });
+      adminForm = { ...adminForm, code: '' };
+      await loadAdminLinks();
+    } catch (caught) { error = caught instanceof AccountError ? caught.message : t('connectionFailed'); } finally { adminBusy = false; }
+  }
+  async function disableAdminLink(code: string) { try { await disablePromoLinkAdmin(serverUrl, code); await loadAdminLinks(); } catch (caught) { error = caught instanceof AccountError ? caught.message : t('connectionFailed'); } }
+  async function copyAdminLink(code: string) { try { await navigator.clipboard.writeText(promoLinkUrl(code)); adminCopied = code; setTimeout(() => { adminCopied = null; }, 1800); } catch { /* clipboard opcional */ } }
+
   const fail = (caught: unknown) => {
     if (caught instanceof AccountError) {
       if (caught.status === 503) { disabled = true; return; }
@@ -79,7 +119,7 @@
     rememberReturn();
     error = ''; busy = true; devLink = null; sent = false; code = '';
     try {
-      const result = await requestMagicLink(serverUrl, email);
+      const result = await requestMagicLink(serverUrl, email, pendingPromo);
       sent = true;
       devLink = result.devLink ?? null;
     } catch (caught) { fail(caught); } finally { busy = false; }
@@ -90,7 +130,8 @@
     if (busy || !/^\d{6}$/.test(code)) return;
     error = ''; busy = true;
     try {
-      await verifyMagicCode(serverUrl, email, code);
+      const verified = await verifyMagicCode(serverUrl, email, code, pendingPromo);
+      await settlePromo(verified.promo);
       const destination = consumeReturn();
       await goto(destination, { replaceState: true });
     } catch (caught) { fail(caught); } finally { busy = false; }
@@ -117,21 +158,26 @@
     const hasNext = $page.url.searchParams.has('next');
     returnTo = safeOnlineReturn($page.url.searchParams.get('next'));
     rememberReturn();
+    pendingPromo = peekPromo();
+    if (pendingPromo) void fetchPromoLink(serverUrl, pendingPromo).then((info) => { pendingPromoInfo = info; }).catch(() => { consumePromo(); pendingPromo = null; });
     try {
       if (token) {
         verifying = true;
-        await verifyMagicLink(serverUrl, token);
+        const verified = await verifyMagicLink(serverUrl, token, pendingPromo);
+        await settlePromo(verified.promo);
         const destination = hasNext ? returnTo : consumeReturn();
         await goto(destination, { replaceState: true });
         if (destination !== '/online/conta') return;
       } else {
         await loadAccount(serverUrl);
+        if ($accountUser && pendingPromo) await settlePromo(undefined);
         if ($accountUser && hasNext) { consumeReturn(); await goto(returnTo, { replaceState: true }); return; }
       }
     } catch (caught) { fail(caught); } finally { verifying = false; loading = false; }
     displayName = $accountUser?.displayName ?? '';
     teamName = $accountUser?.teamName ?? '';
     if ($accountUser) await loadExtras();
+    if ($accountUser?.admin) await loadAdminLinks();
   });
 </script>
 
@@ -209,7 +255,39 @@
           <p class="muted">{t('seasonEmpty')}</p>
         {/if}
       </section>
+
+      {#if $accountUser.admin}
+        <section class="panel box admin">
+          <div class="section-heading"><div><span class="eyebrow">ADMIN</span><h2>{t('promoAdminTitle')}</h2></div></div>
+          <form class="admin-form" on:submit|preventDefault={createAdminLink}>
+            <label><span>{t('promoAdminCode')}</span><input bind:value={adminForm.code} placeholder="STORIES10" maxlength="32" required /></label>
+            <label><span>{t('promoAdminCoins')}</span><input type="number" bind:value={adminForm.bonusCoins} min="1" max="1000000" required /></label>
+            <label><span>{t('promoAdminUses')}</span><input type="number" bind:value={adminForm.maxUses} min="1" max="100000" required /></label>
+            <label><span>{t('promoAdminExpires')}</span><input type="datetime-local" bind:value={adminForm.expiresAt} /></label>
+            <label class="check"><input type="checkbox" bind:checked={adminForm.newAccountsOnly} /><span>{t('promoAdminNewOnly')}</span></label>
+            <button class="primary" type="submit" disabled={adminBusy || adminForm.code.trim().length < 3}>{adminBusy ? '…' : t('promoAdminCreate')}</button>
+          </form>
+          {#if adminLinks.length}
+            <ul class="admin-list">
+              {#each adminLinks as link (link.code)}
+                <li class:dead={!link.active}>
+                  <div class="admin-main"><b>{link.code}</b><span>+{link.coins.toLocaleString($language)} · {t('promoAdminUsed').replace('{used}', String(link.uses)).replace('{total}', String(link.total))} · {link.newAccountsOnly ? t('promoLinkNewOnly') : t('promoLinkAnyAccount')}{#if link.expiresAt} · {t('promoLinkExpires').replace('{date}', new Date(link.expiresAt).toLocaleString($language))}{/if}</span></div>
+                  <div class="admin-actions">
+                    <button class="secondary" type="button" on:click={() => copyAdminLink(link.code)}>{adminCopied === link.code ? t('promoAdminCopied') : t('promoAdminCopy')}</button>
+                    {#if link.active}<button class="ghost" type="button" on:click={() => disableAdminLink(link.code)}>{t('promoAdminDisable')}</button>{/if}
+                  </div>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="muted">{t('promoAdminEmpty')}</p>
+          {/if}
+        </section>
+      {/if}
     {:else}
+      {#if pendingPromo}
+        <div class="narrow"><PromoLinkBanner code={pendingPromo} info={pendingPromoInfo} language={$language} compact><p class="note">{t('promoLinkPendingHint')}</p></PromoLinkBanner></div>
+      {/if}
       <form class="panel box narrow" on:submit|preventDefault={submit}>
         <label><span>{t('email')}</span><input type="email" bind:value={email} required autocomplete="email" inputmode="email" /></label>
         <button class="primary" type="submit" disabled={busy || !email.includes('@')}>{busy ? '…' : t('sendLink')}</button>
@@ -261,5 +339,12 @@
   .standings tr.me td { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
   .standings .prize { margin-left: 7px; color: #d9a441; font: 900 .72rem/1 'Arial Narrow', Impact, sans-serif; letter-spacing: .02em; }
   .online-error { padding: 12px; border: 1px solid var(--danger); color: #ff9b90; }
+  .admin-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end; }
+  .admin-form .check { display: flex; align-items: center; gap: 8px; min-height: 46px; } .admin-form .check span { text-transform: none; font-size: .8rem; color: var(--text); }
+  .admin-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .admin-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 14px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); }
+  .admin-list li.dead { border-left-color: var(--line); opacity: .7; }
+  .admin-main { display: grid; gap: 2px; min-width: 0; } .admin-main b { font-size: 1rem; letter-spacing: .06em; } .admin-main span { color: var(--muted); font-size: .76rem; }
+  .admin-actions { display: flex; gap: 8px; } .admin-actions button { min-height: 38px; padding: 0 12px; font-size: .7rem; }
   @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 </style>

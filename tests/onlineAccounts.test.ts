@@ -73,6 +73,7 @@ describe.skipIf(!url)('conta e migrations (Postgres)', () => {
 
     const me = await (await fetch(`${baseUrl}/me`, { headers: { authorization: `Bearer ${verified.sessionToken}` } })).json();
     expect(me.user.id).toBe(verified.user.id);
+    expect(me.user.admin).toBe(false);
     const [wallet] = await db.query<{ coins: number }>('SELECT coins FROM wallets WHERE user_id = $1', [verified.user.id]);
     expect(wallet.coins).toBe(10_000);
     const welcome = await db.query<{ delta: number }>(`SELECT delta FROM ledger WHERE reason = 'welcome' AND user_id = $1`, [verified.user.id]);

@@ -11,7 +11,14 @@ export interface AccountUser {
   teamName: string | null;
   verifiedAt: string | null;
   createdAt: string;
+  /** Pode administrar links promocionais (e-mail em ADMIN_EMAILS). */
+  admin?: boolean;
 }
+
+/** Resultado do link promocional que viajou com o login, quando houve um (ver `promo-links.ts`). */
+export type LoginPromoResult =
+  | { status: 'granted'; code: string; coins: number; wallet: number }
+  | { status: 'invalid' | 'expired' | 'sold_out' | 'already' | 'not_new'; code: string };
 
 export class AccountError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {
@@ -52,22 +59,22 @@ export async function authFetch<T = unknown>(serverUrl: string, path: string, in
   return payload;
 }
 
-export const requestMagicLink = (serverUrl: string, email: string) =>
-  authFetch<{ devLink?: string; devCode?: string }>(serverUrl, '/auth/request', { body: { email } });
+export const requestMagicLink = (serverUrl: string, email: string, promo: string | null = null) =>
+  authFetch<{ devLink?: string; devCode?: string }>(serverUrl, '/auth/request', { body: { email, ...(promo ? { promo } : {}) } });
 
-export async function verifyMagicLink(serverUrl: string, token: string): Promise<AccountUser> {
-  const result = await authFetch<{ sessionToken: string; user: AccountUser }>(serverUrl, '/auth/verify', { body: { token } });
+export async function verifyMagicLink(serverUrl: string, token: string, promo: string | null = null): Promise<{ user: AccountUser; promo?: LoginPromoResult }> {
+  const result = await authFetch<{ sessionToken: string; user: AccountUser; promo?: LoginPromoResult }>(serverUrl, '/auth/verify', { body: { token, ...(promo ? { promo } : {}) } });
   sessionToken.set(result.sessionToken);
   accountUser.set(result.user);
-  return result.user;
+  return { user: result.user, promo: result.promo };
 }
 
 /** Typed fallback for where the link cannot open the right app (phone e-mail apps, installed PWA). */
-export async function verifyMagicCode(serverUrl: string, email: string, code: string): Promise<AccountUser> {
-  const result = await authFetch<{ sessionToken: string; user: AccountUser }>(serverUrl, '/auth/verify', { body: { email, code } });
+export async function verifyMagicCode(serverUrl: string, email: string, code: string, promo: string | null = null): Promise<{ user: AccountUser; promo?: LoginPromoResult }> {
+  const result = await authFetch<{ sessionToken: string; user: AccountUser; promo?: LoginPromoResult }>(serverUrl, '/auth/verify', { body: { email, code, ...(promo ? { promo } : {}) } });
   sessionToken.set(result.sessionToken);
   accountUser.set(result.user);
-  return result.user;
+  return { user: result.user, promo: result.promo };
 }
 
 /** Loads the profile of the stored session; a stale token clears itself. */

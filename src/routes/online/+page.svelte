@@ -5,7 +5,7 @@
   import { formatCourtRating } from '$lib/game/powerRating';
   import { onDestroy, onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { replaceState } from '$app/navigation';
+  import { goto, replaceState } from '$app/navigation';
   import { browser } from '$app/environment';
   import PageLayout from '$lib/components/PageLayout.svelte';
   import SeoHead from '$lib/components/SeoHead.svelte';
@@ -424,6 +424,9 @@
     const cachedConfig = loadOnlineConfig();
     if (cachedConfig) config = cachedConfig;
     strategicPreferences = loadStrategicPreferences();
+    // Atalho `/online?promo=CODIGO` (stories): manda para a vitrine do link, que guarda o código e trata o resgate.
+    const promoParam = new URL(window.location.href).searchParams.get('promo');
+    if (promoParam && /^[A-Za-z0-9_-]{3,32}$/.test(promoParam)) { void goto(`/online/promo/${promoParam.toUpperCase()}`, { replaceState: true }); return; }
     roomCode = roomCode || new URL(window.location.href).searchParams.get('room')?.toUpperCase() || '';
     clockTimer = window.setInterval(updateCountdown, 250);
     void loadAccount(getOnlineServerUrl()).then(async (user) => {

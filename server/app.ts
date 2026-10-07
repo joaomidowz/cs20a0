@@ -7,6 +7,7 @@ import { RoomError, RoomManager, type PreparedLineup } from './room-manager';
 import type { Db } from './db/client';
 import type { Mailer } from './auth/mailer';
 import { createAuthRoutes } from './http/auth-routes';
+import { normalizeEmail } from './auth/tokens';
 import { createCollectionRoutes } from './http/collection-routes';
 import { createRoomRoutes } from './http/room-routes';
 import { createMissionRoutes } from './http/mission-routes';
@@ -57,6 +58,8 @@ export interface OnlineServerOptions {
   supportTo?: string;
   /** Behind a reverse proxy (Railway): the client address is the last hop of X-Forwarded-For, added by the proxy itself. */
   trustProxy?: boolean;
+  /** Accounts allowed to administer promo links (e-mails, normalized); absent = nobody. */
+  adminEmails?: string[];
 }
 
 const json = sendJson;
@@ -72,7 +75,8 @@ export function createOnlineServer(options: OnlineServerOptions = {}) {
   const allowedOrigins = new Set(options.allowedOrigins ?? ['http://localhost:5173', 'https://cs13a0.com', 'https://www.cs13a0.com']);
   const roomCreations = createSlidingLimiter(MAX_ROOM_CREATIONS_PER_MINUTE, 60_000, now);
   const sessions = new Map<WebSocket, Session>();
-  const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now }, now) : null;
+  const adminEmails = new Set((options.adminEmails ?? []).map((email) => normalizeEmail(email)).filter((email): email is string => Boolean(email)));
+  const auth = options.db && options.mailer ? createAuthRoutes({ db: options.db, mailer: options.mailer, siteUrl: options.siteUrl ?? 'http://localhost:5173', now, adminEmails }, now) : null;
   // Duas filas: a competitiva (time da coleção) e a Fila Draft (snake num pool compartilhado, protocolo 12).
   const queues = { collection: createQueue(manager, now), draft: createQueue(manager, now, { kind: 'draft' }) };
   const queueSize = () => queues.collection.size() + queues.draft.size();
