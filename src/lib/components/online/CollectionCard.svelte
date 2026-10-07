@@ -31,6 +31,8 @@
    * border. Everything else (role, team, footer buttons) lives in the card sheet that opens on tap. Desktop is untouched.
    */
   export let dense = false;
+  /** Dense com a ficha inteira (raridade, função · ano e time) em letra miúda: a Fila Draft no celular mostra tudo que a carta é. */
+  export let detailed = false;
 
   $: rarity = rarityOf(player);
   $: country = playerCountryOf(player);
@@ -41,7 +43,7 @@
   $: bestStats = showcase ? STATS.map(([key, label]) => ({ label, value: Number(player[key] ?? 0) })).filter((stat) => stat.value > 0).sort((a, b) => b.value - a.value).slice(0, 4) : [];
 </script>
 
-<article class="card rarity-{rarity}" class:compact class:showcase class:dense class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'} class:selected={selectedQuantity > 0} class:selection-disabled={selectable && selectionDisabled}>
+<article class="card rarity-{rarity}" class:compact class:showcase class:dense class:detailed class:in-lineup={inLineup} class:has-quantity={quantity > 1} class:star class:up={effect === 'up'} class:down={effect === 'down'} class:selected={selectedQuantity > 0} class:selection-disabled={selectable && selectionDisabled}>
   {#if quantity > 1}<b class="quantity" aria-label={`${quantity} cópias`}>×{quantity}</b>{/if}
   {#if selectable}<b class="selection-mark">{selectedQuantity > 0 ? `SELL ×${selectedQuantity}` : selectionLabel}</b>{/if}
   {#if tag}<b class="tag">{tag}</b>{/if}
@@ -132,6 +134,13 @@
     .dense .ovr { position: absolute; top: 3px; left: 3px; justify-items: start; padding: 1px 4px 0; border: 1px solid color-mix(in srgb, var(--rarity) 60%, var(--line)); background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: clamp(.95rem, 4.2vw, 1.15rem); }
     .dense .ovr small { display: none; }
     .dense .rarity, .dense .role, .dense .team, .dense footer { display: none; }
+    /* Dense detalhada: as três linhas da ficha voltam, miúdas e centradas, abaixo do nome. */
+    .dense.detailed .rarity { display: block; padding: 2px 3px 0; font-size: .5rem; letter-spacing: .1em; text-align: center; }
+    .dense.detailed .role { display: block; padding: 0 3px; color: var(--muted); font-size: .56rem; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dense.detailed .team { display: block; padding: 0 3px 5px; color: var(--muted); font-size: .54rem; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dense.detailed .team :global(.badge), .dense.detailed .team :global(img), .dense.detailed .team :global(svg) { display: none; }
+    .dense.detailed .team em { font-style: normal; }
+    .dense.detailed .name { padding-bottom: 1px; }
     .dense .name { display: block; padding: 4px 4px 5px; font-size: clamp(.68rem, 3.1vw, .82rem); line-height: 1.15; text-align: center; }
     .dense .name > :global(:not(span)) { display: none; }
     .dense .quantity { top: 3px; right: 3px; bottom: auto; min-width: 0; padding: 2px 4px; font-size: .58rem; }
