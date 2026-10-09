@@ -897,6 +897,25 @@ ALTER TABLE magic_links ADD COLUMN IF NOT EXISTS promo_code text;
 ALTER TABLE ledger DROP CONSTRAINT IF EXISTS ledger_reason_check;
 ALTER TABLE ledger ADD CONSTRAINT ledger_reason_check CHECK (reason IN ('pack_open','duplicate','sell','buy_pack','match_reward','season_prize','award','purchase','refund','chargeback','welcome','mission_reward','trade','upgrade_consolation','promo_link'));
 `
+  },
+  {
+    id: 39,
+    // Links promocionais: o mesmo código pode voltar como campanha nova depois de expirar/esgotar (dono, 2026-10-09).
+    // Cada campanha vira uma linha com id; só uma linha viva (não arquivada) por código; resgates passam a apontar para a campanha.
+    sql: `
+ALTER TABLE promo_links ADD COLUMN IF NOT EXISTS id uuid NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE promo_links ADD COLUMN IF NOT EXISTS archived boolean NOT NULL DEFAULT false;
+ALTER TABLE promo_link_redemptions ADD COLUMN IF NOT EXISTS link_id uuid;
+UPDATE promo_link_redemptions r SET link_id = l.id FROM promo_links l WHERE r.link_id IS NULL AND l.code = r.code;
+ALTER TABLE promo_link_redemptions DROP CONSTRAINT IF EXISTS promo_link_redemptions_code_fkey;
+ALTER TABLE promo_link_redemptions DROP CONSTRAINT IF EXISTS promo_link_redemptions_pkey;
+ALTER TABLE promo_links DROP CONSTRAINT IF EXISTS promo_links_pkey;
+ALTER TABLE promo_links ADD PRIMARY KEY (id);
+CREATE UNIQUE INDEX IF NOT EXISTS promo_links_code_live ON promo_links (code) WHERE NOT archived;
+ALTER TABLE promo_link_redemptions ALTER COLUMN link_id SET NOT NULL;
+ALTER TABLE promo_link_redemptions ADD CONSTRAINT promo_link_redemptions_link_fkey FOREIGN KEY (link_id) REFERENCES promo_links(id);
+ALTER TABLE promo_link_redemptions ADD PRIMARY KEY (link_id, user_id);
+`
   }
 ];
 

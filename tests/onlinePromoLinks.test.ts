@@ -28,7 +28,7 @@ describe.skipIf(!url)('links promocionais (Postgres)', () => {
   beforeAll(async () => {
     db = await createTestDb(url!, 'test_promo_links');
     expect(await runMigrations(db)).toEqual(MIGRATIONS.map((migration) => migration.id));
-    expect(MIGRATIONS[MIGRATIONS.length - 1].id).toBe(38);
+    expect(MIGRATIONS[MIGRATIONS.length - 1].id).toBe(39);
     const app = createOnlineServer({ allowedOrigins: ['http://localhost:5173'], now: () => clock, db, mailer: createDevMailer(), siteUrl: 'http://localhost:5173', adminEmails: ['Dono+stories@Example.com'] });
     await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve));
     const address = app.server.address();
@@ -126,10 +126,33 @@ describe.skipIf(!url)('links promocionais (Postgres)', () => {
     expect((await (await post('/admin/promo-links/TODOS/disable', {}, admin.sessionToken)).json()).disabled).toBe(true);
     const list = await (await get('/admin/promo-links', admin.sessionToken)).json();
     const todos = list.links.find((link: { code: string }) => link.code === 'TODOS');
-    expect(todos).toMatchObject({ uses: 2, active: false });
+    expect(todos).toMatchObject({ uses: 2, active: false, archived: false });
     const stories = list.links.find((link: { code: string }) => link.code === 'STORIES10');
     expect(stories).toMatchObject({ uses: 2, remaining: 0 });
     const old = await login('antigo3@example.com');
     expect((await (await post('/promo-links/redeem', { code: 'TODOS' }, old.sessionToken)).json()).promo.status).toBe('expired');
+  });
+
+  it('o mesmo código volta como campanha nova depois de acabar: vagas zeradas e quem já resgatou resgata de novo', async () => {
+    clock += 16 * 60_000;
+    const admin = await login('dono@example.com');
+    // STORIES10 esgotou: pode nascer de novo; TODOS foi desativado: idem. Um código ATIVO continua barrado.
+    expect((await post('/admin/promo-links', { code: 'ATIVO', bonusCoins: 1_000, maxUses: 5, newAccountsOnly: false }, admin.sessionToken)).status).toBe(200);
+    expect((await post('/admin/promo-links', { code: 'ATIVO', bonusCoins: 1_000, maxUses: 5, newAccountsOnly: false }, admin.sessionToken)).status).toBe(409);
+    const reborn = await (await post('/admin/promo-links', { code: 'todos', bonusCoins: 7_000, maxUses: 3, newAccountsOnly: false }, admin.sessionToken)).json();
+    expect(reborn.link).toMatchObject({ code: 'TODOS', coins: 7_000, total: 3, remaining: 3, uses: 0, active: true, archived: false });
+    const view = await (await get('/promo-links/TODOS')).json();
+    expect(view.link).toMatchObject({ coins: 7_000, remaining: 3, active: true });
+    // Quem levou os 5k da campanha antiga leva os 7k da nova.
+    const old = await login('antigo@example.com');
+    const again = await (await post('/promo-links/redeem', { code: 'TODOS' }, old.sessionToken)).json();
+    expect(again.promo).toMatchObject({ status: 'granted', coins: 7_000, wallet: 22_000 });
+    expect((await (await post('/promo-links/redeem', { code: 'TODOS' }, old.sessionToken)).json()).promo.status).toBe('already');
+    const list = await (await get('/admin/promo-links', admin.sessionToken)).json();
+    const campaigns = list.links.filter((link: { code: string }) => link.code === 'TODOS');
+    expect(campaigns).toHaveLength(2);
+    expect(campaigns.find((link: { archived: boolean }) => link.archived)).toMatchObject({ uses: 2, coins: 5_000 });
+    expect(campaigns.find((link: { archived: boolean }) => !link.archived)).toMatchObject({ uses: 1, coins: 7_000 });
+    expect((await (await post('/admin/promo-links/TODOS/disable', {}, admin.sessionToken)).json()).disabled).toBe(true);
   });
 });

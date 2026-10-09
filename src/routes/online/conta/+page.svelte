@@ -269,13 +269,13 @@
           </form>
           {#if adminLinks.length}
             <ul class="admin-list">
-              {#each adminLinks as link (link.code)}
-                <li class:dead={!link.active}>
-                  <div class="admin-main"><b>{link.code}</b><span>+{link.coins.toLocaleString($language)} · {t('promoAdminUsed').replace('{used}', String(link.uses)).replace('{total}', String(link.total))} · {link.newAccountsOnly ? t('promoLinkNewOnly') : t('promoLinkAnyAccount')}{#if link.expiresAt} · {t('promoLinkExpires').replace('{date}', new Date(link.expiresAt).toLocaleString($language))}{/if}</span></div>
-                  <div class="admin-actions">
+              {#each adminLinks as link (link.id)}
+                <li class:dead={!link.active} class:archived={link.archived}>
+                  <div class="admin-main"><b>{link.code}{#if link.archived} <small>{t('promoAdminArchived')}</small>{/if}</b><span>+{link.coins.toLocaleString($language)} · {t('promoAdminUsed').replace('{used}', String(link.uses)).replace('{total}', String(link.total))} · {link.newAccountsOnly ? t('promoLinkNewOnly') : t('promoLinkAnyAccount')}{#if link.expiresAt} · {t('promoLinkExpires').replace('{date}', new Date(link.expiresAt).toLocaleString($language))}{/if}</span></div>
+                  {#if !link.archived}<div class="admin-actions">
                     <button class="secondary" type="button" on:click={() => copyAdminLink(link.code)}>{adminCopied === link.code ? t('promoAdminCopied') : t('promoAdminCopy')}</button>
                     {#if link.active}<button class="ghost" type="button" on:click={() => disableAdminLink(link.code)}>{t('promoAdminDisable')}</button>{/if}
-                  </div>
+                  </div>{/if}
                 </li>
               {/each}
             </ul>
@@ -344,6 +344,7 @@
   .admin-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
   .admin-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 14px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); }
   .admin-list li.dead { border-left-color: var(--line); opacity: .7; }
+  .admin-list li.archived { opacity: .45; } .admin-main b small { margin-left: 6px; color: var(--muted); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; }
   .admin-main { display: grid; gap: 2px; min-width: 0; } .admin-main b { font-size: 1rem; letter-spacing: .06em; } .admin-main span { color: var(--muted); font-size: .76rem; }
   .admin-actions { display: flex; gap: 8px; } .admin-actions button { min-height: 38px; padding: 0 12px; font-size: .7rem; }
   @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }

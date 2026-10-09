@@ -26,8 +26,11 @@ export type PromoRedeemResult =
   | { status: Exclude<PromoRedeemStatus, 'granted'>; code: string };
 
 export interface PromoLinkAdminRow extends PromoLinkInfo {
+  id: string;
   uses: number;
   createdAt: string;
+  /** Campanha antiga do mesmo código, substituída por uma nova. */
+  archived: boolean;
 }
 
 export const normalizePromoCode = (raw: string | null | undefined): string | null => {
