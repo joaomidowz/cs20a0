@@ -76,6 +76,8 @@ export interface CampaignMajorOptions {
   coach?: Coach;
   /** Dinastia v2 plan used for the initial team; later series can be retuned before veto. */
   dynastyPlan?: SeriesPlan;
+  /** Career events: the veto runs on this neutral pool instead of the lineup's historical maps. */
+  neutralMapPool?: readonly MapId[];
   /** Skips the Swiss and starts straight at an eight-team playoff bracket (circuit events). */
   playoffEntry?: { quarterfinal: 1 | 3; semifinal: 1 | 3; final: 3 | 5 };
 }

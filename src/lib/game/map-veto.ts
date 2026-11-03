@@ -1,6 +1,7 @@
 import {
   MAP_POOL,
   getActiveDutyMapsForYear,
+  getFallbackMapPreferences,
   getLineupMapAffinities,
   getLineupMapContributors,
   getMapFamiliarity,
@@ -171,6 +172,17 @@ export function createBotMapStrategy(team: HistoricalTeam): MapStrategy {
   const familiarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, activeMaps.includes(mapId) ? 100 : 0])) as Record<MapId, number>;
   for (const mapId of activeMaps) affinities[mapId] = '+++';
   return { teamId: team.id, selectedMaps, affinities, familiarity, bot: true };
+}
+
+const NEUTRAL_POOL_VERSION = 'cs13a0-neutral-pool-v1';
+
+/** A neutral pool: every team knows exactly these maps and none has an affinity edge; preferences only order the veto. */
+export function createNeutralMapStrategy(teamId: string, pool: readonly MapId[], bot: boolean): MapStrategy {
+  const known = new Set(pool);
+  const selectedMaps = getFallbackMapPreferences(teamId, NEUTRAL_POOL_VERSION, pool).map((preference) => preference.mapId) as [MapId, MapId, MapId];
+  const affinities = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, 'EVEN'])) as Record<MapId, MapAffinity>;
+  const familiarity = Object.fromEntries(MAP_POOL.map((mapId) => [mapId, known.has(mapId) ? 100 : 0])) as Record<MapId, number>;
+  return { teamId, selectedMaps, affinities, familiarity, bot };
 }
 
 export function getStrategyMapBonus(strategy: MapStrategy, mapId: MapId, mode: OnlineGameMode): number {

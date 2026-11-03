@@ -97,6 +97,10 @@ export interface MapState {
   /** Probability edge the armed timeout gives its caller in the next round, and how well timed it was. */
   pendingTimeoutBonus: number;
   pendingTimeoutTiming: TimeoutTiming | null;
+  /** One-round probability edge from a clutch call (player career): shifts the next round, then clears. */
+  pendingClutchCall: { side: TeamSide; edge: number } | null;
+  /** Clutch calls this map already consumed (the career caps them; OT loosens the cap). */
+  clutchCallsUsed: number;
   finished: boolean;
   winner: TeamSide | null;
   comeback: TeamSide | null;
@@ -386,6 +390,8 @@ export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: Ma
     pendingTimeout: null,
     pendingTimeoutBonus: 0,
     pendingTimeoutTiming: null,
+    pendingClutchCall: null,
+    clutchCallsUsed: 0,
     finished: false,
     winner: null,
     comeback: null,
@@ -472,6 +478,17 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
   return true;
 }
 
+/** Hard cap of a clutch call's one-round edge: it swings the round, never owns it. */
+export const MAX_CLUTCH_EDGE = 0.15;
+
+/** Arms the player-career clutch edge: the caller's next round shifts by ±edge, then the call is spent. */
+export function armClutchCall(state: MapState, side: TeamSide, edge: number): void {
+  if (state.finished) throw new MapDecisionError('MAP_FINISHED', 'The map is over');
+  const clamped = Math.max(-MAX_CLUTCH_EDGE, Math.min(MAX_CLUTCH_EDGE, edge));
+  state.pendingClutchCall = { side, edge: clamped };
+  state.clutchCallsUsed += 1;
+}
+
 function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: TeamEconomy; b: TeamEconomy }, sideA: MapSide): number {
   const { a, b } = state.teams;
   const base = getWinProbability(a.team, b.team);
@@ -527,6 +544,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   }
   probability += deciderEdge(a.team, b.team) - deciderEdge(b.team, a.team);
   if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
+  if (state.pendingClutchCall) probability += state.pendingClutchCall.side === 'a' ? state.pendingClutchCall.edge : -state.pendingClutchCall.edge;
   if (overtime) {
     // Nerves: mental and clutch decide overtime, and the resilient lineup leans on its clutch a little harder.
     const overtimeHead = (team: CombatTeam) => team.style === 'resiliente'
@@ -828,6 +846,7 @@ export function playNextRound(state: MapState): RoundDetail {
   state.pendingTimeout = null;
   state.pendingTimeoutBonus = 0;
   state.pendingTimeoutTiming = null;
+  state.pendingClutchCall = null;
 
   if (!state.finished) {
     // The pistol loser decides how to play the second round: humans get a prompt, bots decide now.

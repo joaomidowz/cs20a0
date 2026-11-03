@@ -31,6 +31,8 @@
   export let offlineEffects = false;
   /** Kill feed pacing in controlled mode (ms per round). */
   export let controlledDelay = 1500;
+  /** Carreira de Jogador: com true, o slot "decision" ocupa o lugar do kill feed (a call do round decisivo). */
+  export let decisionOpen = false;
   export let interactiveTeamId: string | null = null;
   export let interactiveTeamIds: string[] = [];
   /** Optional campaign label such as "Stage 2 · MD1". Other consumers retain the historical phase label. */
@@ -60,6 +62,8 @@
   export let onTeamHoverEnd: () => void = () => {};
   export let onTeamClick: (teamId: string) => void = () => {};
   export let onOrgClick: () => void = () => {};
+  /** O kill feed de um round terminou de tocar (mapa, round) — a Carreira de Jogador espera isso pra mostrar a call. */
+  export let onRoundResolved: (map: number, round: number) => void = () => {};
 
   let activeMap = 0;
   let visibleRounds = 0;
@@ -212,6 +216,7 @@
 
   function handleRoundResolved(round: number) {
     resolved = { map: displayActiveMap, round };
+    onRoundResolved(displayActiveMap, round);
   }
 
   function skipMap() {
@@ -322,7 +327,9 @@
       {#if headline}<strong class="map-headline {headline.kind}" class:mine={userIsA !== null && (headline.side === 'a') === userIsA} role="status">{headline.text}</strong>{/if}
       <RoundStrip rounds={visibleRoundScores} details={currentDetails ?? undefined} {userIsA} {language} {teamNames} onInspect={mobileViewer ? inspectRound : undefined} />
       <small class="round-status" class:in-progress={roundInProgress}>{currentMapFinished ? `${getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')} · ${labels.final ?? 'FINAL'}${currentMap.overtime ? ' · OT' : ''}` : roundInProgress ? `${labels.round} ${displayVisibleRounds} · ${translate(language, 'roundInProgress')}` : lastRoundWinner ? `${labels.round} ${committedRounds} · ${translateTeamName(language, lastRoundWinner === 'a' ? series.teamA.name : series.teamB.name, userTeamName)}` : labels.mapStart ?? getMapName(currentMap.mapId, currentMap.map, labels.map ?? 'Mapa')}</small>
-      {#if currentDetails?.length && displayVisibleRounds > 0}
+      {#if decisionOpen}
+        <slot name="decision" />
+      {:else if currentDetails?.length && displayVisibleRounds > 0}
         <RoundFeed details={currentDetails} visibleRounds={displayVisibleRounds} {userIsA} delay={roundFeedDelay} {language} {teamNames} score={currentMapScore} onInspect={mobileViewer ? inspectRound : undefined} onRoundResolved={handleRoundResolved} simple={simpleFeed} />
       {/if}
     </div>

@@ -30,6 +30,7 @@ import { createMapState, flipMapResult, playMapToEnd, MAP_STREAK_CARRY, MAP_STRE
 import { applyCoachToTeam, coachAffinity } from './dynasty/coach';
 import {
   createBotMapStrategy,
+  createNeutralMapStrategy,
   createUserMapStrategy,
   getStrategyMapBonus,
   resolveMapVeto,
@@ -551,7 +552,7 @@ export function createMajorField(
   allPlayers: Player[],
   seed: string,
   lineup: SelectedPlayer[] = [],
-  options: { selectedMaps?: MapId[]; mode?: GameMode; coach?: Coach; userTeam?: CombatTeam; seedsWithoutStyle?: boolean } = {}
+  options: { selectedMaps?: MapId[]; mode?: GameMode; coach?: Coach; userTeam?: CombatTeam; seedsWithoutStyle?: boolean; neutralMapPool?: readonly MapId[] } = {}
 ) {
   const lineupKey = players.map((player) => player.id).join('|');
   const baseUser = options.userTeam ?? calculateUserTeamPower(players, style, lineup, seed);
@@ -559,7 +560,13 @@ export function createMajorField(
   const user = options.coach ? applyCoachToTeam(baseUser, options.coach, coachAffinity(options.coach, players, teams)) : baseUser;
   let mapContext: MapSimulationContext | undefined;
   const selectedMaps = options.selectedMaps ?? [];
-  if (isValidLineupMapSelection(selectedMaps, players, teams)) {
+  if (options.neutralMapPool) {
+    // Neutral pool (career events): the context is built straight from the pool, never through the mode remapping below.
+    const strategies: MapSimulationContext['strategies'] = new Map();
+    strategies.set(user.id, createNeutralMapStrategy(user.id, options.neutralMapPool, false));
+    for (const team of teams) strategies.set(team.id, createNeutralMapStrategy(team.id, options.neutralMapPool, true));
+    mapContext = { mode: 'premier', seed: `${seed}:offline-maps`, strategies };
+  } else if (isValidLineupMapSelection(selectedMaps, players, teams)) {
     const strategies: MapSimulationContext['strategies'] = new Map();
     strategies.set(user.id, createUserMapStrategy(user.id, selectedMaps, players, teams));
     for (const team of teams) strategies.set(team.id, createBotMapStrategy(team));

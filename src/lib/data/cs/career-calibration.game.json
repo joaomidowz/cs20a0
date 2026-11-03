@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-30T19:25:38.488Z",
+  "referenceDate": "2026-10-30",
+  "method": {
+    "source": "players.game.json + expansão 2013-2015 (cards reais por ano) × birthDates de research (enrichment-patch, sa-curation, coletas Liquipedia player-birthdates-*)",
+    "joinKey": "slug(baseId) ↔ slug(nick/identity)",
+    "censoring": "exitAgeObserved só para lastYear < 2026 e significa SAÍDA DO TOPO (último card do catálogo — quem cai pro tier 2/3 some do catálogo sem sair do CS); retirementAge é o fim de carreira de fato (years_active encerrado + birthDate) e é essa a curva de aposentadoria do motor.",
+    "noInvention": "Nenhuma idade estimada: sem birthDate com fonte, o baseId não entra nas distribuições de idade."
+  },
+  "summary": {
+    "baseIds": 542,
+    "baseIdsWithBirthDate": 533,
+    "coveragePct": 98.3,
+    "observedExits": 356,
+    "observedRetirements": 287
+  },
+  "distributions": {
+    "entryAge": {
+      "n": 532,
+      "mean": 22.28,
+      "p10": 19,
+      "median": 22,
+      "p90": 26,
+      "min": 17,
+      "max": 32
+    },
+    "peakAge": {
+      "n": 533,
+      "mean": 23.09,
+      "p10": 19,
+      "median": 23,
+      "p90": 27,
+      "min": 17,
+      "max": 33
+    },
+    "exitAgeObserved": {
+      "n": 356,
+      "mean": 24.46,
+      "p10": 21,
+      "median": 24,
+      "p90": 29,
+      "min": 17,
+      "max": 32
+    },
+    "retirementAge": {
+      "n": 287,
+      "mean": 26.74,
+      "p10": 22,
+      "median": 27,
+      "p90": 32,
+      "min": 17,
+      "max": 37
+    }
+  },
+  "yearOverYearDeltaByAge": {
+    "17": {
+      "n": 9,
+      "mean": 2.67,
+      "p10": -2.8,
+      "median": 1,
+      "p90": 9,
+      "min": -6,
+      "max": 17
+    },
+    "18": {
+      "n": 21,
+      "mean": 0.52,
+      "p10": -5,
+      "median": -2,
+      "p90": 10,
+      "min": -14,
+      "max": 23
+    },
+    "19": {
+      "n": 33,
+      "mean": 2.52,
+      "p10": -4.6,
+      "median": 3,
+      "p90": 11.8,
+      "min": -12,
+      "max": 12
+    },
+    "20": {
+      "n": 53,
+      "mean": 0.85,
+      "p10": -6.8,
+      "median": 1,
+      "p90": 8,
+      "min": -12,
+      "max": 17
+    },
+    "21": {
+      "n": 69,
+      "mean": 1.8,
+      "p10": -6,
+      "median": 1,
+      "p90": 12,
+      "min": -10,
+      "max": 20
+    },
+    "22": {
+      "n": 71,
+      "mean": -0.32,
+      "p10": -7,
+      "median": -1,
+      "p90": 7,
+      "min": -12,
+      "max": 10
+    },
+    "23": {
+      "n": 71,
+      "mean": -1.13,
+      "p10": -7,
+      "median": -1,
+      "p90": 3,
+      "min": -13,
+      "max": 17
+    },
+    "24": {
+      "n": 68,
+      "mean": -0.88,
+      "p10": -8.3,
+      "median": -2,
+      "p90": 7,
+      "min": -19,
+      "max": 20
+    },
+    "25": {
+      "n": 60,
+      "mean": 1.48,
+      "p10": -8,
+      "median": 1,
+      "p90": 9.3,
+      "min": -15,
+      "max": 17
+    },
+    "26": {
+      "n": 43,
+      "mean": -0.67,
+      "p10": -7.8,
+      "median": -1,
+      "p90": 7,
+      "min": -13,
+      "max": 16
+    },
+    "27": {
+      "n": 49,
+      "mean": -1.02,
+      "p10": -7.4,
+      "median": -1,
+      "p90": 4,
+      "min": -14,
+      "max": 17
+    },
+    "28": {
+      "n": 29,
+      "mean": -1,
+      "p10": -8,
+      "median": -1,
+      "p90": 8,
+      "min": -15,
+      "max": 12
+    },
+    "29": {
+      "n": 15,
+      "mean": 0.53,
+      "p10": -5.6,
+      "median": 1,
+      "p90": 6,
+      "min": -7,
+      "max": 7
+    },
+    "30": {
+      "n": 10,
+      "mean": -0.2,
+      "p10": -4,
+      "median": -1,
+      "p90": 4.4,
+      "min": -4,
+      "max": 8
+    },
+    "31": {
+      "n": 3,
+      "mean": 2.67,
+      "p10": 0,
+      "median": 4,
+      "p90": 4.8,
+      "min": -1,
+      "max": 5
+    },
+    "32": {
+      "n": 4,
+      "mean": -1,
+      "p10": -3.1,
+      "median": -1,
+      "p90": 1.1,
+      "min": -4,
+      "max": 2
+    },
+    "33": {
+      "n": 2,
+      "mean": 6,
+      "p10": 5.2,
+      "median": 6,
+      "p90": 6.8,
+      "min": 5,
+      "max": 7
+    },
+    "34": {
+      "n": 3,
+      "mean": -2.33,
+      "p10": -4.6,
+      "median": -3,
+      "p90": 0.2,
+      "min": -5,
+      "max": 1
+    },
+    "35": {
+      "n": 1,
+      "mean": 2,
+      "p10": 2,
+      "median": 2,
+      "p90": 2,
+      "min": 2,
+      "max": 2
+    }
+  },
+  "overallByAge": {
+    "17": {
+      "n": 18,
+      "mean": 82,
+      "p10": 74,
+      "median": 80,
+      "p90": 91.8,
+      "min": 74,
+      "max": 99
+    },
+    "18": {
+      "n": 43,
+      "mean": 80.95,
+      "p10": 74,
+      "median": 79,
+      "p90": 91.8,
+      "min": 72,
+      "max": 97
+    },
+    "19": {
+      "n": 78,
+      "mean": 81.26,
+      "p10": 73,
+      "median": 79,
+      "p90": 94,
+      "min": 72,
+      "max": 98
+    },
+    "20": {
+      "n": 115,
+      "mean": 82.57,
+      "p10": 74,
+      "median": 80,
+      "p90": 94,
+      "min": 69,
+      "max": 98
+    },
+    "21": {
+      "n": 158,
+      "mean": 81,
+      "p10": 72,
+      "median": 78,
+      "p90": 95,
+      "min": 69,
+      "max": 98
+    },
+    "22": {
+      "n": 179,
+      "mean": 81.55,
+      "p10": 74,
+      "median": 80,
+      "p90": 93.2,
+      "min": 71,
+      "max": 99
+    },
+    "23": {
+      "n": 175,
+      "mean": 81.62,
+      "p10": 74,
+      "median": 80,
+      "p90": 94,
+      "min": 71,
+      "max": 99
+    },
+    "24": {
+      "n": 178,
+      "mean": 81.01,
+      "p10": 73.7,
+      "median": 79,
+      "p90": 91,
+      "min": 69,
+      "max": 99
+    },
+    "25": {
+      "n": 150,
+      "mean": 81.55,
+      "p10": 72,
+      "median": 80,
+      "p90": 93,
+      "min": 72,
+      "max": 99
+    },
+    "26": {
+      "n": 115,
+      "mean": 81.82,
+      "p10": 74,
+      "median": 80,
+      "p90": 95.6,
+      "min": 72,
+      "max": 99
+    },
+    "27": {
+      "n": 112,
+      "mean": 81.21,
+      "p10": 74,
+      "median": 80,
+      "p90": 90,
+      "min": 72,
+      "max": 97
+    },
+    "28": {
+      "n": 83,
+      "mean": 80.16,
+      "p10": 74,
+      "median": 80,
+      "p90": 87.8,
+      "min": 72,
+      "max": 98
+    },
+    "29": {
+      "n": 56,
+      "mean": 80.11,
+      "p10": 73.5,
+      "median": 80,
+      "p90": 88.5,
+      "min": 71,
+      "max": 96
+    },
+    "30": {
+      "n": 30,
+      "mean": 81.03,
+      "p10": 76,
+      "median": 81,
+      "p90": 90,
+      "min": 71,
+      "max": 90
+    },
+    "31": {
+      "n": 22,
+      "mean": 80.5,
+      "p10": 76,
+      "median": 79,
+      "p90": 86.9,
+      "min": 73,
+      "max": 92
+    },
+    "32": {
+      "n": 10,
+      "mean": 79.9,
+      "p10": 73.9,
+      "median": 79,
+      "p90": 87.3,
+      "min": 73,
+      "max": 90
+    },
+    "33": {
+      "n": 7,
+      "mean": 80,
+      "p10": 75.6,
+      "median": 80,
+      "p90": 83.4,
+      "min": 75,
+      "max": 84
+    },
+    "34": {
+      "n": 3,
+      "mean": 86,
+      "p10": 81.8,
+      "median": 89,
+      "p90": 89,
+      "min": 80,
+      "max": 89
+    },
+    "35": {
+      "n": 5,
+      "mean": 80.2,
+      "p10": 74.8,
+      "median": 81,
+      "p90": 85.2,
+      "min": 74,
+      "max": 86
+    },
+    "36": {
+      "n": 2,
+      "mean": 81,
+      "p10": 78.6,
+      "median": 81,
+      "p90": 83.4,
+      "min": 78,
+      "max": 84
+    }
+  }
+}

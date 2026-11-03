@@ -1243,6 +1243,9 @@
         <button class="mode-card dynasty" type="button" on:click={() => chooseMode('dynasty')}>
           <span class="mode-number">04</span><span class="mode-icon">D</span><h2>{t('dynasty')}</h2><p>{t('dynastyDesc')}</p><b>LEGACY RUN →</b>
         </button>
+        <a class="mode-card career" href="/player-career">
+          <span class="mode-number">05</span><span class="mode-icon">C</span><h2>Carreira de Jogador</h2><p>Você É o jogador: crie o seu, comece na lan house ou num time real do CCT/GC e suba a pirâmide real até o Major.</p><b>DO LAN HOUSE AO MAJOR →</b>
+        </a>
       </div>
     </section>
   {:else if $game.phase === 'draft'}
@@ -1937,4 +1940,8 @@
   .sim-pause-button:hover,.sim-pause-button:focus-visible,.sim-pause-button[aria-pressed="true"]{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
   .sim-pause-button svg{width:18px;height:18px}
   .sim-paused-indicator{color:var(--accent);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  /* Card 05 · Carreira de Jogador: link (outra rota), cobre a fileira inteira. */
+  .mode-card.career{grid-column:1/-1;aspect-ratio:auto;min-height:220px;text-decoration:none}
+  .mode-card.career .mode-icon{border-color:#4fb286;color:#4fb286}
+  .mode-card.career b{color:#4fb286}
 </style>
