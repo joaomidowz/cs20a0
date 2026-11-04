@@ -22,7 +22,7 @@
   import { createRunStats } from '$lib/game/runStats';
   import { clutchStory, type ClutchProfile } from '$lib/game/playerCareer/decisions';
   import {
-    ARCHETYPES, ROLE_META, acceptOffer, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
     type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
@@ -317,6 +317,9 @@
   function sign(orgId: string) { if (career) career = chooseStartingOrg(career, orgId); }
   function choose(orgId: string) { if (career) career = acceptOffer(career, orgId); }
   function stay() { if (career) career = stayAtOrg(career); }
+  function toLanHouse() { if (career) career = goToLanHouse(career); }
+  function takeMove(orgId: string) { if (career) career = acceptMove(career, orgId); }
+  function refuseMove() { if (career) career = declineMove(career); }
   function hangTheMouse() { if (career) career = retire(career); }
   function reset() {
     runToken += 1;
@@ -498,7 +501,14 @@
     coachLine = null;
     pickedSkills = [];
     lastTalk = null;
-    career = recorded.calendar?.every((entry) => entry.status === 'PLAYED') ? finishSeason(recorded) : recorded;
+    if (recorded.calendar?.every((entry) => entry.status === 'PLAYED')) {
+      career = finishSeason(recorded);
+    } else {
+      // Entre campeonatos o time pode cortar (fase ruim + clima pesado) ou um time de cima pode chamar.
+      const mates = matesOf(recorded);
+      const relationshipAverage = mates.length ? mates.reduce((sum, mate) => sum + mate.relationship, 0) / mates.length : 55;
+      career = midSeasonCheck(recorded, relationshipAverage);
+    }
   }
 
   function closeEvent() {
@@ -866,7 +876,7 @@
           </div>
         {/if}
 
-        {#if career.pendingOffers?.length}
+        {#if career.pendingOffers}
           {#if lastLog}
             <section class="season-close" aria-label="Fechamento da temporada">
               <p class="eyebrow">Temporada {lastLog.seasonNumber} · {lastLog.year} · fechada</p>
@@ -884,6 +894,12 @@
                   <li class="place-{entry.placement}" title={`${entry.name} · ${entry.placement} · ${entry.rating.toFixed(2)}`}>{entry.placement}</li>
                 {/each}
               </ol>
+              {#if career.released}
+                <div class="note warn"><b>O {orgOf(career.orgId).name} não renovou.</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada, sem título. Escolha uma oferta ou volte para a Lan House.</span></div>
+              {/if}
+              {#if lastLog.moves?.length}
+                <div class="note"><b>Trocas na temporada</b><span>{lastLog.moves.join(' · ')}</span></div>
+              {/if}
               {#if lastLog.injury}
                 <div class="note warn"><b>Lesão: {lastLog.injury}</b>{#if lastLog.agingNote}<span>{lastLog.agingNote}</span>{/if}</div>
               {:else if lastLog.agingNote}
@@ -909,11 +925,19 @@
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
               {/each}
-              <button class="offer stay" on:click={stay}>
-                <span class="label">Renovar</span>
-                <b class="display">Ficar no {orgOf(career.orgId).name}</b>
-                <span class="ln">Mantém o elenco e a sinergia</span>
-              </button>
+              {#if career.released}
+                <button class="offer stay" on:click={toLanHouse}>
+                  <span class="label">Recomeçar</span>
+                  <b class="display">Voltar para a Lan House</b>
+                  <span class="ln">Grind por fora até um time chamar de novo</span>
+                </button>
+              {:else}
+                <button class="offer stay" on:click={stay}>
+                  <span class="label">Renovar</span>
+                  <b class="display">Ficar no {orgOf(career.orgId).name}</b>
+                  <span class="ln">Mantém o elenco e a sinergia</span>
+                </button>
+              {/if}
             </div>
           </section>
         {:else if live}
@@ -1303,6 +1327,42 @@
           </button>
         </header>
         <RunStatsGrid stats={lastEventReport.stats} players={lastEventReport.players} language="pt-BR" compact={true} />
+      </div>
+    </div>
+  {/if}
+
+  {#if career?.pendingMove && !live}
+    {@const move = career.pendingMove}
+    <div class="modal-backdrop" role="presentation">
+      <div class="modal wide move-sheet" class:cut={move.kind === 'cut'} role="alertdialog" aria-modal="true" aria-labelledby="move-title" aria-describedby="move-reason" use:focusInside>
+        <p class="eyebrow">{move.kind === 'cut' ? 'Mercado · corte' : 'Mercado · proposta no meio da temporada'}</p>
+        <h2 class="display" id="move-title">{move.kind === 'cut' ? `O ${orgOf(career.orgId).name} te cortou` : `${move.offers[0]?.orgName ?? 'Um time de cima'} quer você agora`}</h2>
+        <p class="move-reason" id="move-reason">{move.reason}{move.kind === 'cut' ? ' Escolha para onde ir. A temporada continua no time novo.' : ' Se aceitar, você joga o resto da temporada lá.'}</p>
+        <div class="offers">
+          {#each move.offers as offer}
+            {@const target = sceneOrgById.get(offer.orgId)}
+            {@const seat = target ? seatToTake(target, career.role) : null}
+            <button class="offer" data-autofocus on:click={() => takeMove(offer.orgId)}>
+              <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
+              <b class="display">{offer.orgName}</b>
+              <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
+              <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
+            </button>
+          {/each}
+          {#if move.kind === 'cut'}
+            <button class="offer stay" on:click={() => takeMove('lan-house')}>
+              <span class="label">Recomeçar</span>
+              <b class="display">Voltar para a Lan House</b>
+              <span class="ln">Terminar a temporada no grind</span>
+            </button>
+          {:else}
+            <button class="offer stay" on:click={refuseMove}>
+              <span class="label">Recusar</span>
+              <b class="display">Ficar no {orgOf(career.orgId).name}</b>
+              <span class="ln">O elenco gosta: moral +4</span>
+            </button>
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
@@ -1758,6 +1818,10 @@
   .field li.mine .field-bar i { background: var(--accent); }
   .field li:first-child .field-bar i { background: var(--gold); }
   .field-ovr { font: 900 20px/1 var(--display); text-align: right; font-variant-numeric: tabular-nums; }
+  .move-sheet { gap: 14px; }
+  .move-sheet h2 { font-size: clamp(32px, 4vw, 48px); }
+  .move-sheet.cut { border-color: var(--accent-2); }
+  .move-reason { margin: 0; color: var(--muted); line-height: 1.5; }
   .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .modal-head .eyebrow { margin: 0; }
   .modal-note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }

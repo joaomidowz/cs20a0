@@ -98,6 +98,15 @@ export interface CareerOffer {
   salaryUsd: number;
 }
 
+/** Corte ou proposta no meio da temporada, esperando a sua decisão. */
+export interface PendingMove {
+  kind: 'cut' | 'poach';
+  /** Média de rating dos últimos campeonatos que motivou a mudança. */
+  average: number;
+  reason: string;
+  offers: CareerOffer[];
+}
+
 export interface SeasonLog {
   seasonNumber: number;
   year: number;
@@ -111,6 +120,8 @@ export interface SeasonLog {
   titles: number;
   injury: string | null;
   agingNote: string | null;
+  /** Trocas de time durante a temporada (cortes, propostas aceitas). */
+  moves?: string[];
 }
 
 export interface CareerVerdict {
@@ -168,6 +179,12 @@ export interface PlayerCareerState {
   fame?: number;
   /** Conversas com o coach na janela atual (até 3) e o que ele indicou treinar. */
   coachTalk?: { window: string; count: number; tips: TrainedAttribute[] };
+  /** Corte ou proposta esperando decisão (entre campeonatos). */
+  pendingMove?: PendingMove | null;
+  /** Trocas de time da temporada em andamento (vão para o SeasonLog). */
+  seasonMoves?: string[];
+  /** Fim de temporada ruim: a org não renova (sem "Ficar" na janela de mercado). */
+  released?: boolean;
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */
   relationships: Record<string, number>;
   /** Conversas desta janela entre campeonatos (zera quando um evento é jogado). */
@@ -373,10 +390,13 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     overallAfter: aged.entity.overall,
     titles,
     injury,
-    agingNote
+    agingNote,
+    ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
 
   const offers = buildOffers(state, seasonRating, titles, rng);
+  // Temporada ruim sem título numa org real: não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
+  const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
   return {
     ...state,
     age: aged.entity.age,
@@ -385,7 +405,10 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     year: state.year + 1,
     history: [...state.history, log],
     calendar: null,
-    pendingOffers: offers.length ? offers : null
+    pendingOffers: offers.length ? offers : released ? [] : null,
+    pendingMove: null,
+    seasonMoves: [],
+    released
   };
 }
 
@@ -398,15 +421,19 @@ function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): Car
   };
 }
 
+/** Rating esperado no nível: sobe com o circuito e acompanha o viés da função (entry/IGL rendem menos). */
+export const decentRatingFor = (role: PlayerRole, level: number) => (({ 1: 0.97, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.90 })[level] ?? 0.93) + ROLE_META[role].ratingBias;
+/** Régua de estrela para subir ao nível: degrau por degrau, a porta do tier 1 é a mais dura. */
+export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.22 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
+
 function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number): CareerOffer[] {
   const org = orgOf(state.orgId);
   const isLanHouse = org.id === LAN_HOUSE.id;
-  // Expectativa de rating sobe com o nível do circuito e acompanha o viés da função (entry/IGL rendem menos).
-  const decentFor = (level: number) => (({ 1: 0.97, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.90 })[level] ?? 0.93) + ROLE_META[state.role].ratingBias;
+  const decentFor = (level: number) => decentRatingFor(state.role, level);
   const decent = seasonRating >= decentFor(org.level) || titles >= 1;
   // A subida é DEGRAU por degrau e a régua cresce E acompanha a função (1.15 de entry ≠ 1.15 de AWPer).
   // A porta do tier 1 (2→1) é a mais dura: só pico alto sustenta a régua — lógica de VRS/ambiência.
-  const starBarFor = (targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.22 })[targetLevel] ?? 1.12) + ROLE_META[state.role].ratingBias;
+  const starBarFor = (targetLevel: number) => starRatingFor(state.role, targetLevel);
   const offers: CareerOffer[] = [];
   const takeFrom = (pool: SceneOrg[], bump = 0, tries = 4) => {
     for (let i = 0; i < tries && offers.length < 3; i += 1) {
@@ -441,7 +468,123 @@ export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCare
 }
 
 export function stayAtOrg(state: PlayerCareerState): PlayerCareerState {
+  if (state.released) return state;
   return { ...state, pendingOffers: null };
+}
+
+/** Dispensado (ou por escolha): volta a grindar na lan house. */
+export function goToLanHouse(state: PlayerCareerState): PlayerCareerState {
+  const from = orgOf(state.orgId).name;
+  return { ...state, orgId: LAN_HOUSE.id, pendingOffers: null, released: false, seasonMoves: [...(state.seasonMoves ?? []), `${from} → Lan House`] };
+}
+
+/** Média dos últimos campeonatos jogados na temporada (os mais recentes pesam a decisão do time). */
+export function recentRating(state: PlayerCareerState, last = 3): { average: number; played: number } | null {
+  const played = (state.calendar ?? []).filter((entry) => entry.result);
+  if (!played.length) return null;
+  const recent = played.slice(-last);
+  return { average: Number((recent.reduce((sum, entry) => sum + (entry.result?.rating ?? 0), 0) / recent.length).toFixed(2)), played: played.length };
+}
+
+/**
+ * Depois de cada campeonato (com mais pela frente): o time pode te cortar se a fase está ruim e o clima pesa,
+ * e um time de cima pode te chamar se você está voando. Seeded: a mesma carreira, a mesma decisão.
+ */
+export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 55): PlayerCareerState {
+  const org = orgOf(state.orgId);
+  if (state.status !== 'ACTIVE' || state.pendingMove || org.id === LAN_HOUSE.id || !state.calendar) return state;
+  if (!state.calendar.some((entry) => entry.status === 'UPCOMING')) return state;
+  const recent = recentRating(state);
+  if (!recent || recent.played < 2) return state;
+  const rng = createSeededRng(`${state.seed}:move:${state.seasonNumber}:${recent.played}`);
+  const decent = decentRatingFor(state.role, org.level);
+  const pickFrom = (pool: SceneOrg[], count: number, bump: number): CareerOffer[] => {
+    const offers: CareerOffer[] = [];
+    for (let tries = 0; tries < count * 3 && offers.length < count; tries += 1) {
+      const candidate = pool[Math.floor(rng() * pool.length)];
+      if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      offers.push(offerFrom(candidate, state, bump));
+    }
+    return offers;
+  };
+  const morale = state.morale ?? 60;
+  const struggling = recent.average < decent - 0.10;
+  const tense = morale < 50 || relationshipAverage < 45 || recent.average < decent - 0.18;
+  if (struggling && tense && rng() < 0.55) {
+    const laterals = sceneOrgs.filter((candidate) => candidate.level === org.level && candidate.id !== org.id);
+    const lower = sceneOrgs.filter((candidate) => candidate.level > org.level && candidate.level <= 4);
+    const offers = [...pickFrom(laterals, 1, -0.05), ...pickFrom(lower.length ? lower : laterals, 2, 0)];
+    return {
+      ...state,
+      pendingMove: {
+        kind: 'cut',
+        average: recent.average,
+        reason: `Média ${recent.average.toFixed(2)} nos últimos ${Math.min(3, recent.played)} campeonatos. O ${org.name} esperava ${decent.toFixed(2)}.`,
+        offers
+      }
+    };
+  }
+  const target = org.level - 1;
+  if (target >= 1 && recent.average >= starRatingFor(state.role, target) && rng() < 0.4) {
+    const offers = pickFrom(sceneOrgs.filter((candidate) => candidate.level === target), 1, 0.06);
+    if (offers.length) {
+      return {
+        ...state,
+        pendingMove: {
+          kind: 'poach',
+          average: recent.average,
+          reason: `Média ${recent.average.toFixed(2)} nos últimos ${Math.min(3, recent.played)} campeonatos chamou atenção.`,
+          offers
+        }
+      };
+    }
+  }
+  return state;
+}
+
+/** Troca de time no meio da temporada: os jogados ficam, os que faltam viram o calendário da org nova. */
+function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): PlayerCareerState {
+  const calendar = state.calendar ?? [];
+  const played = calendar.filter((entry) => entry.status === 'PLAYED');
+  const remainingShare = calendar.length ? (calendar.length - played.length) / calendar.length : 1;
+  const level = orgOf(orgId).level;
+  const remaining = Math.max(1, Math.round(eventsFor(orgId) * remainingShare));
+  const total = played.length + remaining;
+  const next: CalendarEntry[] = Array.from({ length: remaining }, (_, offset) => {
+    const index = played.length + offset;
+    return { index, name: tournamentNameFor(index, level, total), status: 'UPCOMING' as const };
+  });
+  const target = sceneOrgById.get(orgId);
+  const seat = target ? seatToTake(target, state.role) : null;
+  return {
+    ...state,
+    orgId,
+    calendar: [...played, ...next],
+    liveEvent: null,
+    pendingMove: null,
+    seasonMoves: [...(state.seasonMoves ?? []), note],
+    ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {})
+  };
+}
+
+/** Aceita a oferta do corte/proposta (ou 'lan-house' quando cortado). */
+export function acceptMove(state: PlayerCareerState, orgId: string): PlayerCareerState {
+  const move = state.pendingMove;
+  if (!move) return state;
+  const from = orgOf(state.orgId).name;
+  if (orgId === LAN_HOUSE.id) {
+    if (move.kind !== 'cut') return state;
+    return moveMidSeason(state, LAN_HOUSE.id, `Cortado do ${from} → Lan House`);
+  }
+  const offer = move.offers.find((candidate) => candidate.orgId === orgId);
+  if (!offer) return state;
+  return moveMidSeason(state, orgId, `${move.kind === 'cut' ? 'Cortado do' : 'Saiu do'} ${from} → ${offer.orgName}`);
+}
+
+/** Recusa a proposta de um time de cima: o elenco atual gosta (moral +4). Corte não dá pra recusar. */
+export function declineMove(state: PlayerCareerState): PlayerCareerState {
+  if (!state.pendingMove || state.pendingMove.kind !== 'poach') return state;
+  return { ...state, pendingMove: null, morale: Math.min(100, (state.morale ?? 60) + 4) };
 }
 
 export function retire(state: PlayerCareerState): PlayerCareerState {
