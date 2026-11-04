@@ -75,3 +75,35 @@ describe('o mundo troca jogadores', () => {
     expect(orgIn('w-3', 3, 'vitality-2026')?.roster).toHaveLength(sceneOrgById.get('vitality-2026')!.roster.length);
   });
 });
+
+describe('o mundo envelhece e respeita a nacionalidade', () => {
+  it('FalleN (estreia 2013, ~1991) já pendurou o mouse antes de 2031', async () => {
+    const { headlineRetirements, sceneWorld: world, yearOfSeason } = await import('../src/lib/game/playerCareer/world');
+    expect(yearOfSeason(6)).toBe(2031);
+    const inAnyRoster = (season: number) => [...world('aging-1', season).rosters.values()].some((roster) => roster.some((member) => member.nick.toLowerCase() === 'fallen'));
+    expect(inAnyRoster(1)).toBe(true);
+    expect(inAnyRoster(6)).toBe(false);
+    const retired = [2, 3, 4, 5, 6].flatMap((season) => world('aging-1', season).retirements);
+    expect(retired.some((entry) => entry.nick.toLowerCase() === 'fallen')).toBe(true);
+    expect(headlineRetirements('aging-1', 3).length).toBeGreaterThan(0);
+  });
+
+  it('time nacional continua do mesmo país: MongolZ depois de 6 temporadas', async () => {
+    const { rosterIn: roster } = await import('../src/lib/game/playerCareer/world');
+    const mongolz = sceneOrgs.find((org) => org.name === 'The MongolZ')!;
+    for (const member of roster('nation-1', 7, mongolz.id)) expect([null, 'Mongolia']).toContain(member.country);
+  });
+
+  it('brasileiro não recebe oferta de time nacional de outro país', async () => {
+    const { chooseStartingOrg, createPlayerCareer, finishSeason, recordEventResult, startSeason } = await import('../src/lib/game/playerCareer/engine');
+    const { nationFits } = await import('../src/lib/game/playerCareer/data');
+    const { rosterIn: roster } = await import('../src/lib/game/playerCareer/world');
+    for (let index = 0; index < 8; index += 1) {
+      let career = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: `offer-nation-${index}` });
+      career = startSeason(chooseStartingOrg(career, career.pendingDraw!.find((option) => option.kind === 'real')!.orgId));
+      for (const entry of career.calendar!) career = recordEventResult(career, entry.index, { name: entry.name, placement: 'Campeão', rating: 1.3, seriesWins: 3, seriesLosses: 0 });
+      const done = finishSeason(career);
+      for (const offer of done.pendingOffers ?? []) expect(nationFits(roster(done.seed, done.seasonNumber, offer.orgId), 'Brazil')).toBe(true);
+    }
+  });
+});

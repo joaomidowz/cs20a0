@@ -5,9 +5,9 @@
 // forte) e os pesos do worldGen. Tudo determinístico por seed da carreira.
 import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
-import { orgIn } from './world';
+import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier } from './calendar';
-import { calibration, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -271,7 +271,8 @@ export function drawStartingOptions(seed: string, country: string, role: PlayerR
   const rng = createSeededRng(`${seed}:draw`);
   const level4 = sceneOrgs.filter((org) => org.level === 4);
   const sameCountry = level4.filter((org) => org.country?.toLowerCase() === country.toLowerCase());
-  const pool = sameCountry.length >= 3 ? sameCountry : [...sameCountry, ...level4.filter((org) => !sameCountry.includes(org))];
+  // Sem 3 times do seu país, completa com times mistos (nunca com time nacional de outro país).
+  const pool = sameCountry.length >= 3 ? sameCountry : [...sameCountry, ...level4.filter((org) => !sameCountry.includes(org) && nationFits(org.roster, country))];
   const picked: SceneOrg[] = [];
   while (picked.length < 3 && picked.length < pool.length) {
     const candidate = pool[Math.floor(rng() * pool.length)];
@@ -501,10 +502,13 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
   // A porta do tier 1 (2→1) é a mais dura: só pico alto sustenta a régua — lógica de VRS/ambiência.
   const starBarFor = (targetLevel: number) => starRatingFor(state.role, targetLevel);
   const offers: CareerOffer[] = [];
-  const takeFrom = (pool: SceneOrg[], bump = 0, tries = 4) => {
+  const takeFrom = (all: SceneOrg[], bump = 0, tries = 4) => {
+    const pool = all.filter((candidate) => nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country));
     for (let i = 0; i < tries && offers.length < 3; i += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      // Time nacional de outro país não contrata você (MongolZ joga com mongóis); misto e do seu país, sim.
+      if (!nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country)) continue;
       offers.push(offerFrom(candidate, state, bump));
     }
   };
@@ -565,11 +569,13 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   if (!recent || recent.played < 2) return state;
   const rng = createSeededRng(`${state.seed}:move:${state.seasonNumber}:${recent.played}`);
   const decent = decentRatingFor(state.role, org.level);
-  const pickFrom = (pool: SceneOrg[], count: number, bump: number): CareerOffer[] => {
+  const pickFrom = (all: SceneOrg[], count: number, bump: number): CareerOffer[] => {
+    const pool = all.filter((candidate) => nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country));
     const offers: CareerOffer[] = [];
     for (let tries = 0; tries < count * 3 && offers.length < count; tries += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      if (!nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country)) continue;
       offers.push(offerFrom(candidate, state, bump));
     }
     return offers;

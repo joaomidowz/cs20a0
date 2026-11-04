@@ -71,7 +71,7 @@ describe('corte no meio da temporada', () => {
 describe('proposta de um time de cima', () => {
   it('fase de estrela: em algum seed chega uma oferta do nível acima; recusar dá moral', () => {
     let seen = 0;
-    for (let index = 0; index < 12; index += 1) {
+    for (let index = 0; index < 24; index += 1) {
       const base = seasonAt(`poach-${index}`);
       const level = orgOf(base.orgId).level;
       const state = midSeasonCheck(playN(base, 3, starRatingFor('rifler', level - 1) + 0.05));

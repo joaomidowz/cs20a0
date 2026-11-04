@@ -29,7 +29,7 @@
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
-  import { headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
+  import { headlineRetirements, headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL } from '$lib/game/playerCareer/calendar';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
@@ -721,6 +721,7 @@
   $: coach = career ? coachOf(career) : null;
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
+  $: sceneRetired = career && !career.calendar && career.seasonNumber > 1 ? headlineRetirements(career.seed, career.seasonNumber, 3) : [];
   $: weekCards = career && currentEntry ? drawAgenda(career) : [];
   $: coachTips = career ? coachTipsOf(career) : [];
   $: talksLeft = career ? coachTalksLeft(career) : 3;
@@ -1173,10 +1174,13 @@
                 {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
                 {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
               </div>
-              {#if sceneMarket.length}
+              {#if sceneMarket.length || sceneRetired.length}
                 <div class="ss-market">
                   <p class="label">Mercado da cena · {career.year}</p>
                   <ul>
+                    {#each sceneRetired as retired}
+                      <li><b>{retired.nick}</b> pendurou o mouse aos {retired.age} ({retired.orgName}) <span>· entra {retired.replacement}</span></li>
+                    {/each}
                     {#each sceneMarket as move}
                       <li><b>{move.nick}</b> {move.fromName} → {move.toName} <span>(troca com {move.swappedNick})</span></li>
                     {/each}

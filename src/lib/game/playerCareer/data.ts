@@ -126,6 +126,44 @@ const CATALOG_OVERALL: Map<string, number> = (() => {
   return new Map([...latest].map(([baseId, entry]) => [baseId, entry.overall]));
 })();
 
+/** Primeiro ano do jogador no catálogo (estreia no topo), por baseId. */
+const CATALOG_FIRST_YEAR: Map<string, number> = (() => {
+  const first = new Map<string, number>();
+  for (const player of rawPlayers as Array<{ baseId?: string; year?: number }>) {
+    const baseId = player.baseId?.toLowerCase();
+    if (!baseId || !player.year) continue;
+    first.set(baseId, Math.min(first.get(baseId) ?? 9999, player.year));
+  }
+  return first;
+})();
+
+/** Mediana real de idade de estreia no topo (calibração da carreira). */
+const ENTRY_AGE = 22;
+
+/**
+ * Ano de nascimento: o da coleta (Liquipedia) ou, sem ele, uma ESTIMATIVA pela estreia no catálogo (estreia
+ * aos 22, a mediana real). FalleN estreia em 2013 no catálogo, o que dá 1991, o ano real. Sem nenhum dos dois, null.
+ */
+export function memberBirthYear(member: SceneRosterMember): number | null {
+  if (member.birthDate) return Number(member.birthDate.slice(0, 4));
+  const first = member.catalogBaseId ? CATALOG_FIRST_YEAR.get(member.catalogBaseId.toLowerCase()) : undefined;
+  return first ? first - ENTRY_AGE : null;
+}
+
+/** País do time: o de 3+ jogadores do elenco (time nacional, ex. MongolZ, TYLOO); misto = null (internacional). */
+export function orgNation(roster: SceneRosterMember[]): string | null {
+  const counts = new Map<string, number>();
+  for (const member of roster) if (member.country) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
+  const [country, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+  return country && count >= 3 ? country : null;
+}
+
+/** Faz sentido o jogador desse país ir para esse time? Time nacional só leva do próprio país; misto aceita todos. */
+export function nationFits(roster: SceneRosterMember[], country: string | null | undefined): boolean {
+  const nation = orgNation(roster);
+  return !nation || !country || nation === country;
+}
+
 export function memberCatalogOverall(member: SceneRosterMember): number | null {
   return member.catalogBaseId ? CATALOG_OVERALL.get(member.catalogBaseId.toLowerCase()) ?? null : null;
 }
