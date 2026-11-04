@@ -503,12 +503,11 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
   const starBarFor = (targetLevel: number) => starRatingFor(state.role, targetLevel);
   const offers: CareerOffer[] = [];
   const takeFrom = (all: SceneOrg[], bump = 0, tries = 4) => {
-    const pool = all.filter((candidate) => nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country));
+    // Time nacional de outro país não contrata você (MongolZ joga com mongóis). O mundo preserva o país nas trocas.
+    const pool = all.filter((candidate) => nationFits(candidate.roster, state.country));
     for (let i = 0; i < tries && offers.length < 3; i += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
-      // Time nacional de outro país não contrata você (MongolZ joga com mongóis); misto e do seu país, sim.
-      if (!nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country)) continue;
       offers.push(offerFrom(candidate, state, bump));
     }
   };
@@ -570,12 +569,12 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   const rng = createSeededRng(`${state.seed}:move:${state.seasonNumber}:${recent.played}`);
   const decent = decentRatingFor(state.role, org.level);
   const pickFrom = (all: SceneOrg[], count: number, bump: number): CareerOffer[] => {
-    const pool = all.filter((candidate) => nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country));
+    // Time nacional de outro país não contrata você (MongolZ joga com mongóis). O mundo preserva o país nas trocas.
+    const pool = all.filter((candidate) => nationFits(candidate.roster, state.country));
     const offers: CareerOffer[] = [];
     for (let tries = 0; tries < count * 3 && offers.length < count; tries += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
-      if (!nationFits(rosterIn(state.seed, state.seasonNumber, candidate.id), state.country)) continue;
       offers.push(offerFrom(candidate, state, bump));
     }
     return offers;
