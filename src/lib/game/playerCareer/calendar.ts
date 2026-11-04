@@ -36,25 +36,39 @@ const E = (name: string, tier: EventTier, month: number, format: EventFormat = '
   ({ name, tier, month, format, finalBestOf, ...catalog(name), ...extra });
 
 /**
- * Os dois Majors do ano (Stage 1, 2 e 3 pelo VRS, final MD5). 2026: IEM Cologne (junho) e PGL Singapore
- * (24/11 a 13/12); 2027: Perfect World Shanghai em novembro (guia). Além disso, os organizadores revezam com as
- * sedes que eles já usaram em Majors.
+ * Os dois Majors do ano (Stage 1, 2 e 3 pelo VRS, final MD5). Datas reais: 2026 IEM Cologne (junho) e PGL
+ * Singapore (24/11 a 13/12); 2027 FiReSPORTS Buenos Aires (31/05 a 20/06, o primeiro Major na Argentina) e
+ * Perfect World Xangai (22/11 a 12/12). Daí em diante, sedes sorteadas por ano entre as que já receberam Major e
+ * algumas novas (dá para repetir cidade).
  */
-const MAJOR_ROTATION: Array<[string, string]> = [
+const MAJOR_HOSTS: Array<[string, string]> = [
   ['IEM Katowice Major', 'Katowice, Polônia'],
   ['BLAST Paris Major', 'Paris, França'],
   ['PGL Major Copenhagen', 'Copenhague, Dinamarca'],
   ['StarLadder Budapest Major', 'Budapeste, Hungria'],
-  ['IEM Rio Major', 'Rio de Janeiro, Brasil']
+  ['IEM Rio Major', 'Rio de Janeiro, Brasil'],
+  ['BLAST.tv Austin Major', 'Austin, Estados Unidos'],
+  ['IEM Cologne Major', 'Colônia, Alemanha'],
+  ['PGL Major Antwerp', 'Antuérpia, Bélgica'],
+  ['Perfect World Shanghai Major', 'Xangai, China'],
+  ['FiReSPORTS Major Buenos Aires', 'Buenos Aires, Argentina'],
+  ['ESL Major Sydney', 'Sydney, Austrália'],
+  ['BLAST Major Londres', 'Londres, Reino Unido'],
+  ['PGL Major Bucareste', 'Bucareste, Romênia'],
+  ['IEM Major São Paulo', 'São Paulo, Brasil'],
+  ['StarLadder Major Kyiv', 'Kyiv, Ucrânia'],
+  ['Perfect World Major Pequim', 'Pequim, China']
 ];
 
 export function majorsOf(year: number): EventTemplate[] {
   const major = (name: string, month: number, location: string) => E(name, 'Major', month, 'major', 5, { location, prizePool: 1250000 });
   if (year <= 2026) return [E('IEM Cologne Major', 'Major', 6, 'major', 5), major('PGL Major Singapore', 11, 'Singapura')];
-  const offset = (year - 2027) * 2;
-  const [firstName, firstPlace] = MAJOR_ROTATION[offset % MAJOR_ROTATION.length];
-  const second = year === 2027 ? ['Perfect World Shanghai Major', 'Xangai, China'] : MAJOR_ROTATION[(offset + 1) % MAJOR_ROTATION.length];
-  return [major(firstName, 6, firstPlace), major(second[0], 11, second[1])];
+  if (year === 2027) return [major('FiReSPORTS Major Buenos Aires', 6, 'Buenos Aires, Argentina'), major('Perfect World Shanghai Major', 11, 'Xangai, China')];
+  const rng = createSeededRng(`majors:${year}`);
+  const first = Math.floor(rng() * MAJOR_HOSTS.length);
+  let second = Math.floor(rng() * MAJOR_HOSTS.length);
+  if (second === first) second = (second + 1) % MAJOR_HOSTS.length;
+  return [major(MAJOR_HOSTS[first][0], 6, MAJOR_HOSTS[first][1]), major(MAJOR_HOSTS[second][0], 11, MAJOR_HOSTS[second][1])];
 }
 
 /** Elite mundial (Tier S e Tier A internacional) do guia, com local e premiação. */
@@ -140,8 +154,8 @@ export function eventCount(level: number, seed: string): number {
 
 /**
  * Sorteia `count` campeonatos do circuito do nível (sem repetir), em ordem de mês. Tier S e 1 jogam a elite
- * mundial e os 2 Majors; Tier 2 joga o Tier A regional do guia; Challenger o Tier B; CCT/GC o Tier C. Tier 2 e
- * Challenger ainda podem pegar o Major do meio do ano pelo ranking (VRS).
+ * mundial e os 2 Majors; Tier 2 joga o topo regional do guia (tier B); Challenger e CCT/GC as ligas regionais
+ * (tier C). Tier 2 e Challenger ainda podem pegar o Major do meio do ano pelo ranking (VRS).
  */
 export function seasonEvents(level: number, region: Region, count: number, seed: string, year = 2026): EventTemplate[] {
   const rng = createSeededRng(`${seed}:events`);
@@ -155,8 +169,10 @@ export function seasonEvents(level: number, region: Region, count: number, seed:
   const majors = majorsOf(year);
   let events: EventTemplate[];
   if (level <= 1) events = [...majors, ...pick(elitePool(year), count - 2)];
-  else if (level === 2) events = [...pick(spread(REGIONAL[guide].A, 'A', guide, REGIONAL_BO5), count - 1), majors[0]];
-  else if (level === 3) events = [...pick(spread(REGIONAL[guide].B, 'B', guide), count - 1), majors[0]];
+  // Regional não é tier A do mundo: o topo regional (CBCS Masters, ESL Challenger SA…) é tier B, e as ligas e
+  // temporadas regionais (CBCS Season, Gamers Club Série S…) são tier C, como no guia (CBCS = Tier 3/B/C).
+  else if (level === 2) events = [...pick(spread(REGIONAL[guide].A, 'B', guide, REGIONAL_BO5), count - 1), majors[0]];
+  else if (level === 3) events = [...pick(spread(REGIONAL[guide].B, 'C', guide), count - 1), majors[0]];
   else if (level === 4) events = pick(spread(REGIONAL[guide].C, 'C', guide), count);
   else events = lanPool().slice(0, count);
   return events.sort((a, b) => a.month - b.month);

@@ -52,7 +52,14 @@ describe('campeonatos do guia por região e tier', () => {
 
   it('Majors do ano: 2026 Colônia e Singapura; 2027 fecha em Xangai; sempre MD5 em junho e novembro', () => {
     expect(majorsOf(2026).map((event) => event.name)).toEqual(['IEM Cologne Major', 'PGL Major Singapore']);
-    expect(majorsOf(2027)[1].name).toBe('Perfect World Shanghai Major');
+    expect(majorsOf(2027).map((event) => event.name)).toEqual(['FiReSPORTS Major Buenos Aires', 'Perfect World Shanghai Major']);
+    expect(majorsOf(2027)[0].location).toBe('Buenos Aires, Argentina');
+    // Depois de 2027 a sede é sorteada por ano (fixa para o ano), e os dois Majors do ano nunca são o mesmo.
+    expect(majorsOf(2031)).toEqual(majorsOf(2031));
+    for (const year of [2028, 2029, 2030, 2035]) expect(majorsOf(year)[0].name).not.toBe(majorsOf(year)[1].name);
+    // CBCS Masters (topo regional do Brasil) é tier B, não A.
+    const tier2 = Array.from({ length: 10 }, (_, index) => seasonEvents(2, 'sa', 10, `cbcs-${index}`)).flat();
+    expect(tier2.filter((event) => event.name === 'CBCS Masters').every((event) => event.tier === 'B')).toBe(true);
     for (const year of [2026, 2027, 2030]) {
       expect(majorsOf(year).map((event) => event.month)).toEqual([6, 11]);
       expect(majorsOf(year).every((event) => event.format === 'major' && event.finalBestOf === 5)).toBe(true);

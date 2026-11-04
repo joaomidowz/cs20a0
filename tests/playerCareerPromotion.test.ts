@@ -50,8 +50,8 @@ describe('o time promovido joga o circuito novo', () => {
     const [min, max] = EVENT_RANGE[2];
     expect(next.calendar!.length).toBeGreaterThanOrEqual(min);
     expect(next.calendar!.length).toBeLessThanOrEqual(max);
-    // Tier 2 joga o Tier A regional do guia (e o Major pelo ranking), não mais o Tier B do Challenger.
-    expect(next.calendar!.every((entry) => entry.tier === 'A' || entry.tier === 'Major')).toBe(true);
+    // Tier 2 joga o topo regional do guia (CBCS Masters e cia são tier B) e o Major pelo ranking.
+    expect(next.calendar!.every((entry) => entry.tier === 'B' || entry.tier === 'Major')).toBe(true);
     expect(majorEntryStage(next)).not.toBeNull();
   });
 });

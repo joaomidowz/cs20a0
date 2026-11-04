@@ -50,6 +50,24 @@
   $: endingLabels = ENDING_LABELS[language];
   $: flagLabels = KILL_FLAG_LABELS[language];
   $: isMine = (side: 'a' | 'b') => userIsA !== null && (side === 'a') === userIsA;
+  // Como o round acabou, em linguagem de kill feed: C4 plantada/explodiu/desarmada ou o relógio.
+  $: bombLine = currentDetail && resolved && currentDetail.ending !== 'elimination' ? bombEventLine(currentDetail) : null;
+
+  function bombEventLine(detail: RoundDetail): { text: string; side: 'a' | 'b' } {
+    const tSide: 'a' | 'b' = detail.sideA === 't' ? 'a' : 'b';
+    const ctSide: 'a' | 'b' = tSide === 'a' ? 'b' : 'a';
+    const tAlive = Math.max(0, 5 - detail.kills.filter((kill) => kill.killerSide === ctSide).length);
+    const words = BOMB_WORDS[language] ?? BOMB_WORDS['pt-BR'];
+    if (detail.ending === 'bomb') return { text: `${words.planted} · ${words.exploded}`, side: tSide };
+    if (detail.ending === 'defuse') return { text: `${words.planted} · ${words.defused} (${teamNames[ctSide]})`, side: ctSide };
+    return { text: words.time(tAlive), side: ctSide };
+  }
+
+  const BOMB_WORDS: Record<string, { planted: string; exploded: string; defused: string; time: (alive: number) => string }> = {
+    'pt-BR': { planted: 'C4 plantada', exploded: 'C4 explodiu', defused: 'C4 desarmada', time: (alive) => `Tempo esgotado: os TR não plantaram (${alive} vivo${alive === 1 ? '' : 's'})` },
+    es: { planted: 'C4 plantada', exploded: 'La C4 explotó', defused: 'C4 desactivada', time: (alive) => `Tiempo agotado: los T no plantaron (${alive} vivo${alive === 1 ? '' : 's'})` },
+    en: { planted: 'C4 planted', exploded: 'C4 exploded', defused: 'C4 defused', time: (alive) => `Time ran out: T side never planted (${alive} alive)` }
+  };
 
   function clearKillTimers() {
     killTimers.forEach((timer) => window.clearTimeout(timer));
@@ -121,6 +139,11 @@
             <time>{kill.second}s</time>
           </li>
         {/each}
+        {#if bombLine}
+          <li class="bomb-event" class:user={isMine(bombLine.side)} class:enemy={userIsA !== null && !isMine(bombLine.side)}>
+            <i class="c4" aria-hidden="true">C4</i><span>{bombLine.text}</span>
+          </li>
+        {/if}
       </ul>
     {/if}
     <small class="round-ending" class:user={isMine(currentDetail.winner)} class:enemy={userIsA !== null && !isMine(currentDetail.winner)}>{resolved ? `${endingLabels[currentDetail.ending]} · ${teamNames[currentDetail.winner]}` : ''}</small>
@@ -156,6 +179,9 @@
   .kill-feed .flag{display:inline-flex;flex:none;width:16px;height:16px;color:var(--text);opacity:.85}.kill-feed .flag :global(svg){width:100%;height:100%}.kill-feed .flag.hs{color:var(--accent-2);opacity:1}
   .kill-feed .assist{display:inline-flex;align-items:center;gap:3px;min-width:0;color:var(--muted);font-size:.68rem;white-space:nowrap}.kill-feed .assist .flag{width:13px;height:13px;opacity:.7}
   .kill-feed time{flex:none;margin-left:auto;color:var(--muted);font-size:.6rem;font-variant-numeric:tabular-nums}
+  .kill-feed li.bomb-event{gap:8px;color:var(--text);font-weight:700;border-left-style:dashed}
+  .kill-feed li.bomb-event span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kill-feed .c4{flex:none;padding:1px 5px;border:1px solid var(--accent-2);color:var(--accent-2);font:900 .55rem/1.2 'Arial Narrow',Impact,sans-serif;font-style:normal;letter-spacing:.06em}
   .round-ending{min-height:1.2em;color:var(--muted);font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.round-ending.user{color:var(--accent)}.round-ending.enemy{color:var(--danger)}
   .frag-leaders{display:flex;flex-wrap:wrap;gap:6px 16px;min-height:30px;margin:0;padding:8px 0 0;border-top:1px solid var(--line);list-style:none}
   .frag-leaders li{display:flex;align-items:baseline;gap:4px;color:var(--muted);font-size:.66rem}.frag-leaders li span{font-weight:800;text-transform:uppercase}.frag-leaders li.user span{color:var(--accent)}.frag-leaders b{color:var(--text);font:900 .95rem 'Arial Narrow',Impact,sans-serif}.frag-leaders small{font-size:.58rem}

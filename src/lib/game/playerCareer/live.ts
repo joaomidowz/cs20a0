@@ -151,9 +151,9 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
   const entry = state.calendar?.[eventIndex];
   const userLevel = orgOf(state.orgId, state).level;
   const share = entry?.format === 'major' ? 0
-    : userLevel >= 4 || entry?.tier === 'C' ? 1
-    : entry?.tier === 'B' ? 0.7
-    : entry?.tier === 'A' && userLevel >= 2 ? 0.5
+    : userLevel >= 4 ? 1
+    : userLevel === 3 ? 0.7
+    : userLevel === 2 ? 0.5
     : 0;
   const home = userRegion(state);
   const regional = Math.round(setup.opponents * share);
@@ -517,6 +517,8 @@ function playHighlights(series: SeriesResult[], playerId: string, campaign: Camp
     for (const map of item.maps) for (const round of map.details ?? []) {
       const highlight = round.highlight;
       if (!highlight || highlight.playerId !== playerId) continue;
+      // Ganhar no relógio não é clutch de verdade.
+      if (highlight.kind === 'clutch' && round.ending === 'time') continue;
       list.push({
         kind: highlight.kind, kills: highlight.kills, ...(highlight.against ? { against: highlight.against } : {}),
         map: map.mapId ? MAP_NAMES[map.mapId] ?? map.mapId : `Mapa ${map.map}`, round: round.number, opponent: opponent === myTeam ? item.teamB.name : opponent
@@ -532,6 +534,7 @@ function countPlays(series: SeriesResult[], playerId: string): EventPlays {
   for (const item of series) for (const map of item.maps) for (const round of map.details ?? []) {
     const highlight = round.highlight;
     if (!highlight || highlight.playerId !== playerId) continue;
+    if (highlight.kind === 'clutch' && round.ending === 'time') continue;
     if (highlight.kind === 'ace') plays.aces += 1;
     else if (highlight.kind === 'quad') plays.quads += 1;
     else if (highlight.kind === 'clutch') plays.clutches += 1;
