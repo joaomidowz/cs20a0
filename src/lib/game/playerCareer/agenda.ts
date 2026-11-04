@@ -7,7 +7,8 @@
 import { createSeededRng } from '../simulation';
 import type { Player, TrainingFocus } from '../types';
 import type { PlayerCareerState, PlayerRole, TrainedAttribute, TrainedBonus } from './engine';
-import { matesOf, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
+import { matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
+import { LANGUAGE_LABEL, learn, myFluency } from './language';
 
 export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado';
 
@@ -22,6 +23,8 @@ export interface AgendaEffects {
   trainStep?: boolean;
   /** Cansaço (positivo cansa, negativo recupera). Sem valor, vale o padrão da categoria. */
   fatigue?: number;
+  /** Fluência de idioma: inglês ou o idioma da call do time. */
+  lang?: { target: 'en' | 'team'; amount: number };
 }
 
 export interface AgendaAction {
@@ -33,7 +36,7 @@ export interface AgendaAction {
   /** O que você ouve depois de escolher. */
   line: string;
   risk?: { chance: number; effects: AgendaEffects; line: string };
-  needs?: { realOrg?: boolean; fame?: number; roles?: PlayerRole[] };
+  needs?: { realOrg?: boolean; fame?: number; roles?: PlayerRole[]; /** Só aparece se ainda há o que aprender no idioma. */ language?: 'en' | 'team' };
 }
 
 export const CATEGORY_LABEL: Record<AgendaCategory, string> = {
@@ -147,6 +150,10 @@ export const AGENDA: AgendaAction[] = [
   A('ouvir-propostas', 'mercado', 'Ouvir propostas', 'Seu empresário sonda outros times.', { fame: 150, morale: 2, team: -3 }, 'Tem time de olho em você.'),
   A('prometer-lealdade', 'mercado', 'Prometer lealdade', 'Dizer ao time que você fica.', { team: 5, morale: 2 }, 'O elenco confia mais em você.'),
   A('patrocinio', 'mercado', 'Ação de patrocínio', 'Gravar conteúdo para um patrocinador.', { fame: 250, morale: 1, form: -1 }, 'Patrocinador feliz e mais gente te seguindo.', { needs: { fame: 300 } }),
+  // Idiomas: cansa um pouco, anima e abre portas (call em outro idioma custa sinergia até você aprender).
+  A('aula-ingles', 'externo', 'Aula de inglês', 'Professor particular duas vezes na semana.', { morale: 1, fatigue: 6, lang: { target: 'en', amount: 12 } }, 'Já dá para pedir backup em inglês.', { needs: { language: 'en' } }),
+  A('ranked-gringa', 'amigos', 'Ranked em servidor gringo', 'FACEIT na Europa, só call em inglês.', { attrs: { firepower: 1 }, morale: 1, fatigue: 8, lang: { target: 'en', amount: 8 } }, 'Apanhou no começo, mas a call em inglês destravou.', { needs: { language: 'en' } }),
+  A('aula-idioma-time', 'externo', 'Aula do idioma do time', 'Aprender a call do time de verdade.', { morale: 1, team: 2, fatigue: 6, lang: { target: 'team', amount: 15 } }, 'O time já entende as suas calls.', { needs: { realOrg: true, language: 'team' } }),
   A('entrevista', 'mercado', 'Dar entrevista', 'Falar com a imprensa sobre a temporada.', { fame: 300, morale: 1 }, 'Entrevista boa, nome em alta.', {
     risk: { chance: 0.3, effects: { team: -3 }, line: 'Uma frase sua foi mal interpretada pelo time.' }
   })
@@ -176,6 +183,11 @@ export function agendaAvailable(state: PlayerCareerState, action: AgendaAction):
   if (needs.realOrg && state.orgId === 'lan-house') return false;
   if (needs.fame && (state.fame ?? 0) < needs.fame) return false;
   if (needs.roles && !needs.roles.includes(state.role)) return false;
+  if (needs.language === 'en' && myFluency(state, 'en') >= 100) return false;
+  if (needs.language === 'team') {
+    const fit = myLanguageFit(state);
+    if (fit.language === 'en' || fit.fluency >= 100) return false;
+  }
   return true;
 }
 
@@ -198,6 +210,14 @@ export function drawAgenda(state: PlayerCareerState): AgendaAction[] {
   for (const action of shuffled) {
     if (picked.length >= 4) break;
     if (!picked.includes(action)) picked.push(action);
+  }
+  // Idioma fraco (inglês ou a call do time abaixo de 70): na maioria das semanas vem uma aula na mesa.
+  const fit = myLanguageFit(state);
+  const weak = (fit.language !== 'en' && fit.fluency < 70 && fit.language !== 'other') || myFluency(state, 'en') < 70;
+  if (weak && rng() < 0.65 && !picked.some((action) => action.effects.lang)) {
+    const lessons = pool.filter((action) => action.effects.lang);
+    const lesson = lessons[Math.floor(rng() * lessons.length)];
+    if (lesson) picked.splice(picked.length - 1, 1, lesson);
   }
   // Cansado (50+): sempre há um descanso de verdade na mesa (Folga, Família ou Recuperação), no lugar da carta que
   // mais cansa.
@@ -225,6 +245,7 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.team) chips.push({ label: 'Elenco', value: effects.team, kind: 'team' });
   if (effects.fame) chips.push({ label: 'Fãs', value: effects.fame, kind: 'fame' });
   if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue, kind: 'fatigue' });
+  if (effects.lang) chips.push({ label: effects.lang.target === 'en' ? 'Inglês' : 'Idioma do time', value: effects.lang.amount, kind: 'train' });
   return chips;
 }
 
@@ -268,7 +289,15 @@ function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: A
   if (morale !== (state.morale ?? 60)) chips.push({ label: 'Moral', value: morale - (state.morale ?? 60), kind: 'morale' });
   if (form !== (state.form ?? 0)) chips.push({ label: 'Forma', value: form - (state.form ?? 0), kind: 'form' });
   if (fame !== (state.fame ?? 0)) chips.push({ label: 'Fãs', value: fame - (state.fame ?? 0), kind: 'fame' });
-  return { ...state, trained, relationships, morale, form, fame, fatigue };
+  let languages = state.languages;
+  if (effects.lang) {
+    const language = effects.lang.target === 'en' ? 'en' : myLanguageFit(state).language;
+    const before = myFluency(state, language);
+    languages = learn(state, language, effects.lang.amount);
+    const after = myFluency({ ...state, languages }, language);
+    if (after !== before) chips.push({ label: LANGUAGE_LABEL[language], value: after - before, kind: 'train' });
+  }
+  return { ...state, trained, relationships, morale, form, fame, fatigue, ...(languages ? { languages } : {}) };
 }
 
 /** Escolhe a ação da semana: vale uma por janela (a mesma vaga do treino). */

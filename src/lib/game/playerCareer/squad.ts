@@ -9,6 +9,7 @@ import type { Coach, Player, TrainingFocus } from '../types';
 import { memberRoles, ORG_BASE_POWER, sceneOrgById } from './data';
 import { orgIn } from './world';
 import { randomNick } from './extraTeams';
+import { languagePenalty, learn, myFluency, nativeLanguage, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
@@ -105,6 +106,14 @@ function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
   return players.filter((player) => player !== leaving).slice(0, 4);
 }
 
+/** O idioma da call do seu time e o quanto você fala (lan house: a galera fala o seu idioma). */
+export function myLanguageFit(state: PlayerCareerState): { language: Language; fluency: number; penalty: number } {
+  const org = orgIn(state.seed, state.seasonNumber, state.orgId);
+  const language = org ? teamLanguage(org.roster) : nativeLanguage(state.country);
+  const fluency = myFluency(state, language);
+  return { language, fluency, penalty: languagePenalty(fluency) };
+}
+
 /** Os 4 parceiros da temporada — exatamente quem entra em quadra com você, com o bônus de sinergia no overall. */
 export function matesOf(state: PlayerCareerState): SquadMate[] {
   const org = orgOf(state.orgId, state);
@@ -115,9 +124,11 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
     ? SLOTS.filter((role) => role !== state.role).slice(0, 4)
         .map((role) => enginePlayer(`${state.seed}:mate:${role}`, randomNick(`${state.seed}:lan:${role}`), ORG_BASE_POWER[5], role, createSeededRng(`${state.seed}:mates:${seasonKey}:${role}`)))
     : withoutSeat(sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? (org as never), seasonKey), state);
+  // Call num idioma que você não domina custa sinergia: os parceiros perdem até 2 de overall em quadra.
+  const { penalty } = myLanguageFit(state);
   return roster.map((player) => {
     const relationship = relationshipOf(state, player.id);
-    return { player: { ...player, overall: clamp((player.overall ?? 60) + synergyBump(relationship), 40, 99) }, relationship, synergy: clamp(relationship, 0, 100) };
+    return { player: { ...player, overall: clamp((player.overall ?? 60) + synergyBump(relationship) - penalty, 40, 99) }, relationship, synergy: clamp(relationship, 0, 100) };
   });
 }
 
@@ -156,7 +167,9 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
   const current0 = relationshipOf(state, mateId);
   const good = current0 >= 85 ? 1 : 3 + Math.floor(rng() * 4);
   const base = kind === 'good' ? good : kind === 'neutral' ? 1 : -3;
-  const delta = talked >= 2 ? 0 : Math.round(base * (talked === 1 ? 0.5 : 1));
+  // Sem falar o idioma do time, a conversa rende menos (básico 75%, não fala 50%).
+  const barrier = [1, 0.75, 0.5][myLanguageFit(state).penalty] ?? 1;
+  const delta = talked >= 2 ? 0 : Math.round(base * (talked === 1 ? 0.5 : 1) * (base > 0 ? barrier : 1));
   const lines = TALK_LINES[kind];
   const line = delta === 0 && talked >= 2 ? 'Vocês já conversaram bastante esta semana. Foco no servidor.' : lines[Math.floor(rng() * lines.length)];
   const current = relationshipOf(state, mateId);
@@ -198,8 +211,12 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
   // Corpo no limite (85+ no pico): metade das vezes vem uma pancada leve e a forma cai 2 até o próximo campeonato.
   const rng = createSeededRng(`${state.seed}:knock:${state.seasonNumber}:${(state.calendar ?? []).filter((entry) => entry.result).length}`);
   const knocked = peak >= 85 && rng() < 0.5;
+  // Imersão: cada campeonato no time ensina um pouco do idioma da call.
+  const fit = myLanguageFit(state);
+  const languages = fit.fluency < 100 ? learn(state, fit.language, 5) : state.languages;
   return {
     ...state,
+    ...(languages ? { languages } : {}),
     relationships,
     morale: clamp(Math.round(moraleAfter - (moraleAfter - 60) * 0.15), 0, 100),
     fatigue,

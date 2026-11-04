@@ -28,6 +28,7 @@ import { toResult } from '../online/tournament-engine';
 import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { regionOf, type Region } from './calendar';
+import { npcLanguagePenalty } from './language';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
@@ -76,6 +77,8 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
   const base = org.power ?? ORG_BASE_POWER[org.level] ?? 60;
   // Cada nick na posição da função real dele (ZywOo no AWP, apEX no IGL), não na ordem do elenco.
   const bySlot = rosterBySlot(org, SLOTS);
+  // Elenco misto com inglês fraco se comunica pior: −1 de força para todos.
+  const commsPenalty = npcLanguagePenalty(org.roster);
   return SLOTS.map((role, index) => {
     const member = bySlot[index];
     const nick = member ? memberNick(member) : `${org.name} ${index + 1}`;
@@ -83,7 +86,7 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
     // Quem está no catálogo joga perto do overall real dele (60% real, 40% a base do time); no mundo da carreira o
     // overall é o da temporada (o jovem cresce, o veterano cai).
     const real = member ? member.overall ?? memberCatalogOverall(member) : null;
-    const overall = clamp(real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise, 40, 99);
+    const overall = clamp((real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise) - commsPenalty, 40, 99);
     return enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
   });
 }

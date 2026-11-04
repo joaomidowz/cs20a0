@@ -27,9 +27,10 @@
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
+  import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
@@ -858,6 +859,7 @@
   /** O resultado da call só cabe dentro do viewer enquanto o mapa está ao vivo; fora disso vai embaixo dele. */
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
+  $: langFit = career ? myLanguageFit(career) : null;
   $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
@@ -1135,6 +1137,7 @@
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
                   <b class="display">{offer.orgName}</b>
                   <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
+                  {#if target}{@const offerLanguage = teamLanguage(target.roster)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
@@ -1377,7 +1380,7 @@
             {#if myPlayer}
               <section class="squad" aria-label="Elenco">
                 <div class="section-head">
-                  <p class="label">Elenco · {orgOf(career.orgId).name}</p>
+                  <p class="label">Elenco · {orgOf(career.orgId).name}{#if langFit}{' · '}<span class="lang-chip" class:warn={langFit.penalty > 0} title={langFit.penalty ? `Call em ${LANGUAGE_LABEL[langFit.language]}: os parceiros perdem ${langFit.penalty} de overall em quadra e as conversas rendem menos até você aprender. Cada campeonato ensina um pouco; a semana tem aulas.` : 'Você fala o idioma da call.'}>call em {LANGUAGE_LABEL[langFit.language]} · você {fluencyLabel(langFit.fluency)}{langFit.penalty ? ` · −${langFit.penalty} sinergia` : ''}</span>{/if}</p>
                   <span class="talk-line" aria-live="polite">{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{:else}Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.{/if}</span>
                 </div>
                 <div class="squad-strip">
@@ -1610,7 +1613,7 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeOpponent}>
       <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="opp-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow" id="opp-title">Adversário · {opponentOrg.name} · {LEVEL_LABEL[opponentOrg.level]}</span>
+          <span class="eyebrow" id="opp-title">Adversário · {opponentOrg.name} · {LEVEL_LABEL[opponentOrg.level]} · call em {LANGUAGE_LABEL[teamLanguage(opponentOrg.roster)]}</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeOpponent}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
@@ -1783,6 +1786,7 @@
               <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
               <b class="display">{offer.orgName}</b>
               <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
+                  {#if target}{@const offerLanguage = teamLanguage(target.roster)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
               <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
             </button>
           {/each}
@@ -2234,6 +2238,9 @@
   .note.award { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
   .note.award b { color: var(--gold); }
   .note .link-btn { justify-self: start; }
+  .lang-chip { color: var(--muted); letter-spacing: .04em; }
+  .lang-chip.warn { color: var(--accent-2); }
+  .warn-text { color: var(--accent-2); }
   .offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
   .offer { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--muted) 40%, var(--line)); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .16s ease, transform .16s ease; }
   .offer:hover { border-color: var(--accent); transform: translateY(-3px); }

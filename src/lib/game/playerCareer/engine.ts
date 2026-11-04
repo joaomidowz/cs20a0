@@ -10,6 +10,7 @@ import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
+import type { Language } from './language';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -263,6 +264,8 @@ export interface PlayerCareerState {
   released?: boolean;
   /** Nível que os times ganharam ou perderam NESTA carreira (você carregou o time para cima, ou ele caiu). */
   orgLevels?: Record<string, number>;
+  /** Fluência nos idiomas que não são o seu (0-100); o inglês sem valor parte do nível típico do seu país. */
+  languages?: Partial<Record<Language, number>>;
   /** Reputação 0-100 (imagem com times, imprensa e torcida; começa em 50). */
   reputation?: number;
   /** Caixa em US$: a sua parte das premiações e o que os acontecimentos dão ou custam. */
