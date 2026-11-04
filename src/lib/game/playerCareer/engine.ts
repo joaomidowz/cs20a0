@@ -74,6 +74,8 @@ export interface TournamentResult {
   skipped?: boolean;
   /** Tier do evento (Major, S, A, B, C), para o histórico de títulos. */
   tier?: EventTier;
+  /** Você ficou no banco: o time jogou com o substituto (não conta no seu rating nem no HLTV). */
+  benched?: boolean;
   /** Campeão do evento e o MVP (pelo kill feed de todas as séries, como no modo online). */
   champion?: string;
   mvp?: EventMvp;
@@ -281,6 +283,8 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** Campeonatos que você passa no banco (aceitou perder a vaga num acontecimento): o substituto joga. */
+  benchedEvents?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
   pendingRival?: Rival | null;
   rival?: Rival | null;
@@ -522,7 +526,8 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
   // Campeonato jogado: a janela de conversas fecha, o treino libera de novo.
   // A forma da semana valia só para este campeonato. A premiação cai no caixa.
   const prize = result.skipped ? 0 : prizeShare(entry, result.placement, state.orgId);
-  return { ...state, calendar, liveEvent: null, talks: {}, form: 0, knock: null, money: (state.money ?? 0) + prize };
+  const benchedEvents = result.benched ? Math.max(0, (state.benchedEvents ?? 0) - 1) : state.benchedEvents;
+  return { ...state, calendar, liveEvent: null, talks: {}, form: 0, knock: null, money: (state.money ?? 0) + prize, ...(benchedEvents !== undefined ? { benchedEvents } : {}) };
 }
 
 /** Fecha a temporada: lesão, aging calibrado e janela de mercado. */

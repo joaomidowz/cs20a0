@@ -264,6 +264,8 @@
   /** Antes de cada campeonato pode rolar um acontecimento; ele espera a sua escolha e o campeonato segue depois. */
   function begin(index: number, mode: 'pace' | 'live' | 'sim') {
     if (!career) return;
+    // No banco: o time joga sem você; o campeonato roda direto (sem call, sem provocação).
+    if ((career.benchedEvents ?? 0) > 0) { simulateEvent(index); return; }
     const key = `${career.seasonNumber}:${index}`;
     if (career.preRolled !== key) {
       career = rollHappening({ ...career, preRolled: key }, 'pre', { eventIndex: index });
@@ -686,9 +688,13 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const celebrated = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId, career).level, {
-      mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
-    });
+    const recordedOnly = recordEventResult(career, index, result);
+    // No banco: nada de moral de título, fãs ou cansaço do jogo para você; só a frustração e o descanso.
+    const celebrated = result.benched
+      ? { ...recordedOnly, morale: Math.max(0, (recordedOnly.morale ?? 60) - 3), fatigue: Math.max(0, (recordedOnly.fatigue ?? 0) - 10) }
+      : celebrateResult(recordedOnly, result.placement, orgOf(career.orgId, career).level, {
+          mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
+        });
     // O rival do campeonato: enfrentou? ganhou ou perdeu dele?
     const settled = settleRival(celebrated, index, result);
     const recorded = settled.state;
@@ -1403,7 +1409,7 @@
                   <span class="place-badge">{lastEventReport.placement}</span>
                   <span class="report-copy">
                     <span class="label">Último · {lastEventReport.name}</span>
-                    <span class="report-line">{#if lastEventReport.placement === 'Não classificado'}Sem vaga no Major pelo ranking{:else}{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b>{/if}</span>
+                    <span class="report-line">{#if lastEventReport.result.benched}No banco: o time ficou em {lastEventReport.placement}, sem você{:else if lastEventReport.placement === 'Não classificado'}Sem vaga no Major pelo ranking{:else}{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b>{/if}</span>
                     {#if lastEventReport.rivalLine}<span class="report-mvp rival-line">{lastEventReport.rivalLine}</span>{/if}
                     {#if lastEventReport.result.mvp}
                       <span class="report-mvp" class:you={lastEventReport.result.mvp.you}>{lastEventReport.result.mvp.you ? 'Você foi o MVP' : `MVP ${lastEventReport.result.mvp.nick} · ${lastEventReport.result.mvp.team}`} · {lastEventReport.result.mvp.rating.toFixed(2)}{#if lastEventReport.result.plays?.aces} · {lastEventReport.result.plays.aces} ace{lastEventReport.result.plays.aces > 1 ? 's' : ''}{/if}</span>
@@ -1416,8 +1422,9 @@
                 </div>
               {/if}
               {#if currentEntry}
+                {#if (career.benchedEvents ?? 0) > 0}<p class="bench-note">No banco: você fica de fora deste campeonato e o substituto joga no seu lugar.</p>{/if}
                 <div class="next-actions">
-                  <button class="cta" on:click={() => currentEntry && begin(currentEntry.index, nextPace === 'live' ? 'live' : 'pace')}>{PACE_CTA[nextPace]}</button>
+                  <button class="cta" on:click={() => currentEntry && begin(currentEntry.index, nextPace === 'live' ? 'live' : 'pace')}>{(career.benchedEvents ?? 0) > 0 ? 'Ver o time jogar' : PACE_CTA[nextPace]}</button>
                   {#if nextPace === 'live'}
                     <button class="link-btn" on:click={() => currentEntry && begin(currentEntry.index, 'sim')}>Só simular</button>
                   {:else}
@@ -1536,7 +1543,7 @@
                         <span class="ev-top">
                           <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}{#if !entry.result || entry.tier === 'Major'}<small class:major={entry.tier === 'Major'}>{entry.tier ? TIER_LABEL[entry.tier] : PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small>{/if}</span>
                           {#if entry.result}
-                            <span class="ev-place">{PLACE_SHORT[entry.result.placement] ?? entry.result.placement}</span>
+                            <span class="ev-place">{entry.result.benched ? 'Banco' : PLACE_SHORT[entry.result.placement] ?? entry.result.placement}</span>
                           {/if}
                         </span>
                         <b class="ev-name">{parts.circuit}</b>
@@ -2347,6 +2354,7 @@
   .note.award { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
   .note.award b { color: var(--gold); }
   .note .link-btn { justify-self: start; }
+  .bench-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--accent-2); font-size: 13px; font-weight: 700; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
   .live-overview-btn { margin-left: auto; white-space: nowrap; }
   .rival-chip { padding: 3px 8px; border: 1px solid var(--accent-2); color: var(--accent-2); font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }

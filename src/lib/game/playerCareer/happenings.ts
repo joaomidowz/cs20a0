@@ -88,6 +88,10 @@ export interface HappeningOutcome {
   chips: HappeningChip[];
 }
 
+/** Escolhas que tiram você do time no próximo campeonato (o documento diz "aceitar banco", "procurar substituto"). */
+const BENCH_CHOICES: Record<string, Record<number, number>> = { EV102: { 2: 1 }, EV023: { 2: 1 } };
+export const benchOf = (eventId: string, choiceIndex: number): number => BENCH_CHOICES[eventId]?.[choiceIndex] ?? 0;
+
 /** Chance de a escolha sair como você planejou: mental da carta e moral (25% a 90%). */
 export function happeningSuccessChance(state: PlayerCareerState): number {
   const mental = Number(myPlayerOf(state).mental ?? 60);
@@ -126,7 +130,8 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
     reputation: clamp((state.reputation ?? 50) + reputationDelta, 0, 100),
     relationships,
     fame: Math.max(0, (state.fame ?? 0) + fameDelta),
-    money: Math.max(0, (state.money ?? 0) + moneyDelta)
+    money: Math.max(0, (state.money ?? 0) + moneyDelta),
+    ...(benchOf(event.id, choiceIndex) ? { benchedEvents: (state.benchedEvents ?? 0) + benchOf(event.id, choiceIndex) } : {})
   };
   if (formDelta) chips.push({ label: 'Forma', value: formDelta });
   if (moraleDelta) chips.push({ label: 'Moral', value: moraleDelta });
@@ -135,6 +140,8 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
   if (fameDelta) chips.push({ label: 'Fãs', value: fameDelta, display: `${fameDelta > 0 ? '+' : '−'}${Math.abs(fameDelta).toLocaleString('pt-BR')} fãs` });
   if (moneyDelta) chips.push({ label: 'Caixa', value: moneyDelta, display: `${moneyDelta > 0 ? '+' : '−'}US$ ${Math.abs(moneyDelta).toLocaleString('pt-BR')}` });
   if (fatigueDelta) chips.push({ label: 'Cansaço', value: -fatigueDelta, display: `Cansaço ${fatigueDelta > 0 ? '+' : '−'}${Math.abs(fatigueDelta)}` });
-  const line = `${choice.consequence} ${success ? 'Saiu como você queria.' : 'Não saiu como você queria.'}`;
+  const bench = benchOf(event.id, choiceIndex);
+  if (bench) chips.push({ label: 'Banco', value: -bench, display: `Banco no próximo campeonato` });
+  const line = `${choice.consequence} ${success ? 'Saiu como você queria.' : 'Não saiu como você queria.'}${bench ? ' Você fica de fora do próximo campeonato.' : ''}`;
   return { state: next, success, line, chips };
 }

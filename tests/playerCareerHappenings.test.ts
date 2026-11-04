@@ -96,3 +96,23 @@ describe('caixa e torcida', () => {
     expect(Number(myPlayerOf({ ...state, fame: 150000 }).mental)).toBe(Math.min(99, Number(myPlayerOf({ ...state, fame: 0 }).mental) + 2));
   });
 });
+
+describe('banco', () => {
+  it('"Aceitar banco" tira você do próximo campeonato: o substituto joga e não conta no seu rating', async () => {
+    const { simulateSceneEvent, userEnginePlayers } = await import('../src/lib/game/playerCareer/live');
+    const base = at(2, 'bench-1');
+    const pending = { ...base, pendingHappening: { id: 'EV102', trigger: 'pre' as const, eventIndex: 0 } };
+    const benched = resolveHappening(pending, 2).state;
+    expect(benched.benchedEvents).toBe(1);
+    expect(userEnginePlayers(benched).some((player) => player.id === `${benched.seed}:me`)).toBe(false);
+    const { result } = simulateSceneEvent(benched, 0);
+    expect(result.benched).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.mvp?.you).not.toBe(true);
+    const after = recordEventResult(benched, 0, result);
+    expect(after.benchedEvents).toBe(0);
+    expect(userEnginePlayers(after).some((player) => player.id === `${after.seed}:me`)).toBe(true);
+    // As outras escolhas do mesmo acontecimento não mandam para o banco.
+    expect(resolveHappening(pending, 0).state.benchedEvents ?? 0).toBe(0);
+  }, 30000);
+});

@@ -29,6 +29,7 @@ import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
+import { randomNick } from './extraTeams';
 import { applyCareerMapProfiles } from './careerMaps';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
@@ -101,6 +102,12 @@ export function sceneOrgToEngineTeam(org: SceneOrg, players: Player[]): Historic
 
 /** O time do jogador criado: sua carta (com bônus de treino) + os 4 parceiros com sinergia aplicada. */
 export function userEnginePlayers(state: PlayerCareerState): Player[] {
+  // No banco: o substituto joga na sua função, um pouco abaixo do seu nível.
+  if ((state.benchedEvents ?? 0) > 0) {
+    const rng = createSeededRng(`${state.seed}:sub:${state.seasonNumber}`);
+    const sub = enginePlayer(`${state.seed}:sub`, randomNick(`${state.seed}:sub:${state.seasonNumber}`), Math.max(45, state.overall - 2), state.role, rng);
+    return [sub, ...matesOf(state).map((mate) => mate.player)];
+  }
   return [myPlayerOf(state), ...matesOf(state).map((mate) => mate.player)];
 }
 
@@ -627,7 +634,9 @@ export function sceneEventResult(state: PlayerCareerState, eventIndex: number, c
       seriesWins: wins + carry.wins,
       seriesLosses: decided.length - wins + carry.losses,
       ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {}),
-      ...eventAwards(state, campaign)
+      ...eventAwards(state, campaign),
+      // No banco: o time jogou sem você; não conta no seu rating, no HLTV nem no prêmio.
+      ...((state.benchedEvents ?? 0) > 0 ? { benched: true, skipped: true } : {})
     },
     stats,
     players
