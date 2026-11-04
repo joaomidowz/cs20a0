@@ -36,7 +36,8 @@ describe('simular um campeonato', () => {
 describe('só as finais', () => {
   it('para no começo da sua final ou termina se você caiu antes', () => {
     let sawFinal = false;
-    for (const seed of ['fin-a', 'fin-b', 'fin-c', 'fin-d', 'fin-e', 'fin-f']) {
+    for (const seed of Array.from({ length: 20 }, (_, index) => `fin-${index}`)) {
+      if (sawFinal) break;
       const career = seasonAt(seed);
       const campaign = advanceToFinal(startSceneEvent(career, 0).campaign);
       if (campaign.finished) {

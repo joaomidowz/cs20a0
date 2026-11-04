@@ -6,10 +6,10 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { ORG_BASE_POWER } from './data';
+import { ORG_BASE_POWER, sceneOrgById } from './data';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
-import { orgOf, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, seatToTake, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -18,10 +18,23 @@ export const TRAIN_CAP = 6;
 /** A cada 3 treinos o overall senta +1 — se ainda estiver abaixo do teto da carreira. */
 const OVERALL_EVERY = 3;
 
-/** Saves antigos ganham os campos do elenco com default — nunca recria o que já existe. */
+/** Saves de antes da função vir do catálogo: a vaga do time atual é recalculada (ex.: AWPer na Vitality toma a
+ *  vaga do ZywOo, não a do apEX). As vagas de times antigos ficam como estavam. */
+function fixCurrentSeat(state: PlayerCareerState) {
+  const seats = state.seatsTaken ?? [];
+  const org = sceneOrgById.get(state.orgId);
+  let index = -1;
+  seats.forEach((seat, position) => { if (seat.orgId === state.orgId) index = position; });
+  if (!org || index < 0) return seats;
+  const fixed = seatToTake(org, state.role);
+  return fixed.nick === seats[index].nick ? seats : seats.map((seat, position) => (position === index ? fixed : seat));
+}
+
+/** Saves antigos ganham os campos do elenco com default; nunca recria o que já existe. */
 export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
   return {
     ...state,
+    seatsTaken: fixCurrentSeat(state),
     relationships: state.relationships ?? {},
     talks: state.talks ?? {},
     trained: state.trained ?? {},
@@ -72,15 +85,13 @@ export function relationshipOf(state: PlayerCareerState, mateId: string): number
   return typeof stored === 'number' ? stored : 35 + Math.floor(createSeededRng(`${state.seed}:bond:${mateId}`)() * 31);
 }
 
-/** Sai do elenco o slot da SUA função — e quem cedeu a vaga (seatToTake lê roles da coleta, o motor distribui
- *  nicks por slot) troca de nick com esse slot, pra nunca sobrar em quadra quem você substituiu. */
+/** Sai do elenco quem cedeu a vaga (agora na posição da função real dele); sem vaga registrada, sai o da sua
+ *  função. Os 4 que ficam são os seus parceiros. */
 function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
-  const leaving = players.find((player) => player.role === state.role);
-  const mates = players.filter((player) => player !== leaving).slice(0, 4);
   const seat = [...state.seatsTaken].reverse().find((taken) => taken.orgId === state.orgId);
-  const seatIndex = seat && leaving ? mates.findIndex((player) => player.nickname === seat.nick) : -1;
-  if (seatIndex < 0 || !leaving) return mates;
-  return mates.map((player, index) => (index === seatIndex ? { ...player, nickname: leaving.nickname } : player));
+  const bySeat = seat ? players.find((player) => (player.nickname ?? "").toLowerCase() === seat.nick.toLowerCase()) : undefined;
+  const leaving = bySeat ?? players.find((player) => player.role === state.role) ?? players.at(-1);
+  return players.filter((player) => player !== leaving).slice(0, 4);
 }
 
 /** Os 4 parceiros da temporada — exatamente quem entra em quadra com você, com o bônus de sinergia no overall. */

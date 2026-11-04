@@ -24,7 +24,7 @@ import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
 import { createSeededRng } from '../simulation';
-import { ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { PlayerCareerState, PlayerRole, TournamentResult } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
@@ -68,8 +68,11 @@ export function enginePlayer(id: string, nick: string, overall: number, role: Pl
 export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[] {
   const rng = createSeededRng(`${seasonKey}:org:${org.id}`);
   const base = ORG_BASE_POWER[org.level] ?? 60;
+  // Cada nick na posição da função real dele (ZywOo no AWP, apEX no IGL), não na ordem do elenco.
+  const bySlot = rosterBySlot(org, SLOTS);
   return SLOTS.map((role, index) => {
-    const nick = org.roster[index]?.nick ?? `${org.name} ${index + 1}`;
+    const member = bySlot[index];
+    const nick = member ? memberNick(member) : `${org.name} ${index + 1}`;
     const overall = clamp(base + Math.round((rng() - 0.5) * 8), 40, 99);
     return enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
   });

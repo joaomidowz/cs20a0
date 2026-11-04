@@ -5,7 +5,7 @@
 // forte) e os pesos do worldGen. Tudo determinístico por seed da carreira.
 import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
-import { calibration, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { calibration, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -55,15 +55,6 @@ export const ROLE_META: Record<PlayerRole, { label: string; ratingBias: number; 
   support: { label: 'Suporte', ratingBias: -0.04, variance: 0.06, teamImpact: 1, blurb: 'Flash, smoke e trade. Pouco holofote, muito título.' }
 };
 
-/** Como a função do jogo casa com as funções escritas na Liquipedia (infobox roles). */
-const ROLE_ALIASES: Record<PlayerRole, string[]> = {
-  awper: ['awp', 'awper', 'sniper'],
-  rifler: ['rifler', 'rifle'],
-  entry: ['entry', 'entry fragger', 'aggressive'],
-  igl: ['igl', 'in-game leader', 'captain'],
-  lurker: ['lurk', 'lurker'],
-  support: ['support', 'suporte']
-};
 
 export interface TournamentResult {
   name: string;
@@ -215,11 +206,11 @@ export const marketValueUsd = (overall: number) => Math.max(30_000, Math.round((
 
 /** Quem você desloca ao assinar: o jogador da SUA função no elenco real; sem função casada, o primeiro genérico. */
 export function seatToTake(org: SceneOrg, role: PlayerRole): SeatTaken {
-  const aliases = ROLE_ALIASES[role];
-  const byRole = org.roster.find((member) => member.roles.some((listed) => aliases.includes(listed.toLowerCase().trim())));
-  const generic = org.roster.find((member) => !member.roles.length);
+  // Função da coleta ou, se ela veio vazia, a do catálogo do jogo (ZywOo é AWPer mesmo sem role na Liquipedia).
+  const byRole = org.roster.find((member) => memberRoles(member)[0] === role) ?? org.roster.find((member) => memberRoles(member).includes(role));
+  const generic = org.roster.find((member) => !memberRoles(member).length);
   const chosen = byRole ?? generic ?? org.roster[0];
-  return { orgId: org.id, orgName: org.name, nick: chosen?.nick ?? 'a definir', viaRole: Boolean(byRole) };
+  return { orgId: org.id, orgName: org.name, nick: chosen ? memberNick(chosen) : 'a definir', viaRole: Boolean(byRole) };
 }
 
 /** Sorteio inicial: 3 orgs reais do nível CCT/GC (preferindo o país do jogador) + a opção Lan House. */
@@ -239,7 +230,7 @@ export function drawStartingOptions(seed: string, country: string, role: PlayerR
     level: org.level,
     country: org.country,
     density: eventsFor(org.id),
-    rosterPreview: org.roster.slice(0, 5).map((member) => member.nick),
+    rosterPreview: org.roster.slice(0, 5).map((member) => memberNick(member)),
     seat: seatToTake(org, role),
     kind: 'real'
   }));
