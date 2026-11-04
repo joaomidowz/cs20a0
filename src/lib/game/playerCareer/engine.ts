@@ -168,6 +168,8 @@ export interface SeasonLog {
   retireHint?: boolean;
   /** Trocas de time durante a temporada (cortes, propostas aceitas). */
   moves?: string[];
+  /** O seu time subiu ou caiu de tier no fim da temporada. */
+  orgChange?: { from: number; to: number };
 }
 
 export interface CareerVerdict {
@@ -237,6 +239,8 @@ export interface PlayerCareerState {
   seasonMoves?: string[];
   /** Fim de temporada ruim: a org não renova (sem "Ficar" na janela de mercado). */
   released?: boolean;
+  /** Nível que os times ganharam ou perderam NESTA carreira (você carregou o time para cima, ou ele caiu). */
+  orgLevels?: Record<string, number>;
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */
   relationships: Record<string, number>;
   /** Conversas desta janela entre campeonatos (zera quando um evento é jogado). */
@@ -255,20 +259,20 @@ const LAN_HOUSE = { id: 'lan-house', name: 'Lan House do Bairro', level: 5 };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /** Campeonatos por temporada do nível (o meio da faixa; a temporada sorteia dentro dela). */
-export const eventsFor = (orgId: string): number => {
-  const [min, max] = EVENT_RANGE[orgOf(orgId).level] ?? [8, 10];
+export const eventsFor = (orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null): number => {
+  const [min, max] = EVENT_RANGE[orgOf(orgId, state).level] ?? [8, 10];
   return Math.round((min + max) / 2);
 };
 
 /** A faixa "9-12" para mostrar nas ofertas. */
-export const eventsRangeFor = (orgId: string): string => {
-  const [min, max] = EVENT_RANGE[orgOf(orgId).level] ?? [8, 10];
+export const eventsRangeFor = (orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null): string => {
+  const [min, max] = EVENT_RANGE[orgOf(orgId, state).level] ?? [8, 10];
   return min === max ? `${min}` : `${min}-${max}`;
 };
 
 /** Os campeonatos reais do circuito do time, a partir de um mês (troca no meio da temporada). */
 function calendarFor(state: PlayerCareerState, orgId: string, seed: string, count: number, fromIndex = 0, afterMonth = 0): CalendarEntry[] {
-  const org = orgOf(orgId);
+  const org = orgOf(orgId, state);
   const orgCountry = 'country' in org ? (org.country as string | null) : null;
   const region = regionOf(orgCountry ?? state.country);
   const events = seasonEvents(org.level, region, count, seed).filter((event) => event.month > afterMonth);
@@ -400,13 +404,52 @@ export function ensureDraw(state: PlayerCareerState): PlayerCareerState {
   return { ...state, pendingDraw: drawStartingOptions(state.seed, state.country, state.role) };
 }
 
-export const orgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
+const baseOrgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
+
+/** A org com o nível desta carreira: quem foi promovido (ou rebaixado) joga o circuito do nível novo. */
+export function orgOf(orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null) {
+  const base = baseOrgOf(orgId);
+  const level = state?.orgLevels?.[orgId];
+  if (level === undefined || level === base.level) return base;
+  // A força acompanha o degrau: subiu, pelo menos o piso do nível novo; caiu, no máximo o teto do de baixo.
+  const power = 'power' in base && typeof base.power === 'number' ? base.power : ORG_BASE_POWER[base.level] ?? 60;
+  const floor = ORG_BASE_POWER[level] ?? power;
+  return { ...base, level, power: level < base.level ? Math.max(power, floor) : Math.min(power, floor + 3) };
+}
+
+/** O nível de um time da cena nesta carreira (para filtrar ofertas e rivais). */
+export const levelIn = (state: Pick<PlayerCareerState, 'orgLevels'> | null | undefined, org: { id: string; level: number }) => state?.orgLevels?.[org.id] ?? org.level;
+
+/**
+ * O time sobe ou cai de tier pela temporada que fez (a Carreira do EA FC com acesso e rebaixamento):
+ * CCT/GC sobe com 3 títulos (ou 2 e final em metade dos eventos); Challenger com 3 títulos e final em metade;
+ * o Tier 2 precisa de 4 títulos (ou 3 e finais); o Tier 1 só vira Tier S com 4 títulos ou final de Major.
+ * Temporada inteira sem semifinal derruba um degrau.
+ */
+export function orgLevelChange(level: number, results: TournamentResult[]): number {
+  if (level >= 5) return level;
+  const played = results.filter((result) => !result.skipped);
+  if (played.length < 4) return level;
+  const titles = played.filter((result) => result.placement === 'Campeão').length;
+  const finals = played.filter((result) => result.placement === 'Campeão' || result.placement === 'Vice').length;
+  const majorFinal = played.some((result) => result.tier === 'Major' && (result.placement === 'Campeão' || result.placement === 'Vice'));
+  const half = Math.ceil(played.length / 2);
+  const up = level === 4 ? titles >= 3 || (titles >= 2 && finals >= half)
+    : level === 3 ? titles >= 3 && finals >= half
+    : level === 2 ? titles >= 4 || (titles >= 3 && finals >= half)
+    : level === 1 ? titles >= 4 || majorFinal
+    : false;
+  if (up) return level - 1;
+  const deep = played.filter((result) => ['Campeão', 'Vice', 'Semis'].includes(result.placement)).length;
+  if (deep === 0 && level < 4) return level + 1;
+  return level;
+}
 
 /** Abre a temporada: os campeonatos reais do circuito do nível, em ordem de mês, cada um no motor de Major. */
 export function startSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || state.pendingDraw || state.calendar) return state;
   const seed = `${state.seed}:season:${state.seasonNumber}:${state.orgId}`;
-  const count = eventCount(orgOf(state.orgId).level, seed);
+  const count = eventCount(orgOf(state.orgId, state).level, seed);
   return { ...state, calendar: calendarFor(state, state.orgId, seed, count) };
 }
 
@@ -447,7 +490,7 @@ const INJURIES_OLD = ['Tendinite crônica no punho', 'Hérnia de disco', 'Lesão
 export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
-  const org = orgOf(state.orgId);
+  const org = orgOf(state.orgId, state);
   const results = state.calendar.flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
   const titles = results.filter((result) => result.placement === 'Campeão').length;
   const seasonRating = results.length ? Number((results.reduce((sum, result) => sum + result.rating, 0) / results.length).toFixed(2)) : 0.9;
@@ -490,12 +533,18 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     retireHint,
     ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
+  // Acesso e rebaixamento do seu time pela temporada (quem acabou de chegar por troca também conta).
+  const newLevel = org.id === LAN_HOUSE.id ? org.level : orgLevelChange(org.level, results);
+  if (newLevel !== org.level) log.orgChange = { from: org.level, to: newLevel };
+  const orgLevels = newLevel !== org.level ? { ...(state.orgLevels ?? {}), [org.id]: newLevel } : state.orgLevels;
+  const promotedState = orgLevels === state.orgLevels ? state : { ...state, orgLevels };
 
+  // O mercado olha a temporada no nível em que ela foi jogada (a promoção vale para a próxima).
   const offers = buildOffers(state, seasonRating, titles, rng);
   // Temporada ruim sem título numa org real: não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
   const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
   const next: PlayerCareerState = {
-    ...state,
+    ...promotedState,
     age: aged.entity.age,
     overall: finalOverall,
     seasonNumber: state.seasonNumber + 1,
@@ -512,11 +561,12 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
 }
 
 function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
+  const level = levelIn(state, candidate);
   return {
     orgId: candidate.id,
     orgName: candidate.name,
-    orgLevel: candidate.level,
-    salaryUsd: Math.round(Math.max(400, marketValueUsd(state.overall) * (0.08 + candidate.level * 0.02) * (1 + bump)))
+    orgLevel: level,
+    salaryUsd: Math.round(Math.max(400, marketValueUsd(state.overall) * (0.08 + level * 0.02) * (1 + bump)))
   };
 }
 
@@ -526,7 +576,7 @@ export const decentRatingFor = (role: PlayerRole, level: number) => (({ 0: 0.98,
 export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.18, 0: 1.25 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
 
 function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number): CareerOffer[] {
-  const org = orgOf(state.orgId);
+  const org = orgOf(state.orgId, state);
   const isLanHouse = org.id === LAN_HOUSE.id;
   const decentFor = (level: number) => decentRatingFor(state.role, level);
   const decent = seasonRating >= decentFor(org.level) || titles >= 1;
@@ -546,13 +596,13 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
 
   if (isLanHouse) {
     // Caminho pra fora do circuito amador: brilhou na lan house → CCT/GC assina.
-    if (titles >= 1 || seasonRating >= starBarFor(4)) takeFrom(sceneOrgs.filter((candidate) => candidate.level === 4), 0.04, 6);
+    if (titles >= 1 || seasonRating >= starBarFor(4)) takeFrom(sceneOrgs.filter((candidate) => levelIn(state, candidate) === 4), 0.04, 6);
     return offers;
   }
   const target = org.level - 1;
-  const upgrades = target >= 0 ? sceneOrgs.filter((candidate) => candidate.level === target) : [];
-  const laterals = sceneOrgs.filter((candidate) => candidate.level === org.level && candidate.id !== org.id);
-  const downgrades = sceneOrgs.filter((candidate) => candidate.level > org.level && candidate.level <= 4);
+  const upgrades = target >= 0 ? sceneOrgs.filter((candidate) => levelIn(state, candidate) === target) : [];
+  const laterals = sceneOrgs.filter((candidate) => levelIn(state, candidate) === org.level && candidate.id !== org.id);
+  const downgrades = sceneOrgs.filter((candidate) => levelIn(state, candidate) > org.level && levelIn(state, candidate) <= 4);
   // Título abre a porta de saída do C/B (campeão de CCT chama atenção); acima disso, só a régua de rating.
   const starred = seasonRating >= starBarFor(target) || (org.level >= 3 && titles >= 3);
   if (starred) takeFrom(upgrades, 0.04, 6);
@@ -593,7 +643,7 @@ export function recentRating(state: PlayerCareerState, last = 3): { average: num
  * e um time de cima pode te chamar se você está voando. Seeded: a mesma carreira, a mesma decisão.
  */
 export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 55): PlayerCareerState {
-  const org = orgOf(state.orgId);
+  const org = orgOf(state.orgId, state);
   if (state.status !== 'ACTIVE' || state.pendingMove || org.id === LAN_HOUSE.id || !state.calendar) return state;
   if (!state.calendar.some((entry) => entry.status === 'UPCOMING')) return state;
   const recent = recentRating(state);
@@ -615,8 +665,8 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   const struggling = recent.average < decent - 0.10;
   const tense = morale < 50 || relationshipAverage < 45 || recent.average < decent - 0.18;
   if (struggling && tense && rng() < 0.55) {
-    const laterals = sceneOrgs.filter((candidate) => candidate.level === org.level && candidate.id !== org.id);
-    const lower = sceneOrgs.filter((candidate) => candidate.level > org.level && candidate.level <= 4);
+    const laterals = sceneOrgs.filter((candidate) => levelIn(state, candidate) === org.level && candidate.id !== org.id);
+    const lower = sceneOrgs.filter((candidate) => levelIn(state, candidate) > org.level && levelIn(state, candidate) <= 4);
     const offers = [...pickFrom(laterals, 1, -0.05), ...pickFrom(lower.length ? lower : laterals, 2, 0)];
     return {
       ...state,
@@ -630,7 +680,7 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   }
   const target = org.level - 1;
   if (target >= 0 && recent.average >= starRatingFor(state.role, target) && rng() < 0.4) {
-    const offers = pickFrom(sceneOrgs.filter((candidate) => candidate.level === target), 1, 0.06);
+    const offers = pickFrom(sceneOrgs.filter((candidate) => levelIn(state, candidate) === target), 1, 0.06);
     if (offers.length) {
       return {
         ...state,
@@ -653,7 +703,7 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
   // O time novo segue o circuito dele dali em diante (só os meses que ainda faltam).
   const lastMonth = Math.max(0, ...played.map((entry) => entry.month ?? 0));
   const seed = `${state.seed}:season:${state.seasonNumber}:${orgId}`;
-  let next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId).level, seed), played.length, lastMonth);
+  let next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId, state).level, seed), played.length, lastMonth);
   if (!next.length) next = calendarFor(state, orgId, seed, 1, played.length);
   const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? seatToTake(target, state.role) : null;

@@ -589,7 +589,7 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId).level, {
+    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId, career).level, {
       mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
     });
     live = null;
@@ -776,7 +776,7 @@
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? majorEntryStage(career) ?? 'stage1' : null) : [];
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
-  $: currentLevel = career ? orgOf(career.orgId).level : 5;
+  $: currentLevel = career ? orgOf(career.orgId, career).level : 5;
   $: visitedLevels = new Set([...(career?.history.map((log) => log.orgLevel) ?? []), currentLevel]);
   $: board = clutch && liveUserSeries && live && career ? boardOf(liveUserSeries, live.userTeamId) : null;
   $: seasonSpan = career?.history.length ? `${career.history[0].year}–${career.history.at(-1)!.year}` : career ? `${career.year}` : '';
@@ -1054,7 +1054,7 @@
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
                   <b class="display">{offer.orgName}</b>
                   <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
-                  <span class="ln">Campeonatos <b>{eventsFor(offer.orgId)} / temporada</b></span>
+                  <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
               {/each}
@@ -1207,11 +1207,14 @@
                 <span>rating {lastLog.seasonRating.toFixed(2)}{lastLog.titles ? ` · ${lastLog.titles} título${lastLog.titles > 1 ? 's' : ''}` : ''}</span>
               </div>
               <div class="ss-notes">
+                {#if lastLog.orgChange}
+                  <p class:up-note={lastLog.orgChange.to < lastLog.orgChange.from} class:warn={lastLog.orgChange.to > lastLog.orgChange.from}><b>{lastLog.orgName} {lastLog.orgChange.to < lastLog.orgChange.from ? 'subiu' : 'caiu'} para o {LEVEL_LABEL[lastLog.orgChange.to]}.</b> {lastLog.orgChange.to < lastLog.orgChange.from ? 'Você carregou o time: o circuito agora é outro.' : 'Nenhuma semifinal na temporada.'}</p>
+                {/if}
                 {#if lastLog.ageDecline}<p><b>Idade:</b> −{lastLog.ageDecline} de overall aos {lastLog.age ?? career.age} anos.</p>{/if}
                 {#if lastLog.injury}<p class="warn"><b>Lesão:</b> {lastLog.injury}.</p>{/if}
                 {#if lastLog.moves?.length}<p><b>Trocas:</b> {lastLog.moves.join(' · ')}</p>{/if}
                 {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
-                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
+                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
               </div>
               {#if sceneMarket.length || sceneRetired.length}
                 <div class="ss-market">
@@ -1268,7 +1271,7 @@
                   {/if}
                 </div>
               {:else if !career.calendar}
-                <button class="cta" on:click={openSeason}>Abrir temporada · {eventsFor(career.orgId)} camps</button>
+                <button class="cta" on:click={openSeason}>Abrir temporada · {eventsFor(career.orgId, career)} camps</button>
               {/if}
             </section>
 
@@ -1967,6 +1970,7 @@
   .ss-notes p { margin: 0; font-size: 14px; color: var(--muted); }
   .ss-notes b { color: var(--text); }
   .ss-notes p.warn b { color: var(--accent-2); }
+  .ss-notes p.up-note b { color: var(--accent); }
   .rail-seasons ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
   .rail-seasons li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .rail-seasons li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

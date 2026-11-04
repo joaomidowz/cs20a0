@@ -29,6 +29,7 @@ import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, TournamentResult } from './engine';
+import { levelIn, orgOf } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -125,7 +126,7 @@ export interface EventSetup {
 /** Como o campeonato é disputado: mata-mata de 8, suíça de 16 ou o stage do Major. */
 export function eventSetup(state: PlayerCareerState, eventIndex: number, stage: MajorStageKey | null = null): EventSetup {
   const entry = state.calendar?.[eventIndex];
-  const level = sceneOrgById.get(state.orgId)?.level ?? 5;
+  const level = orgOf(state.orgId, state).level;
   if (entry?.format === 'major') {
     const current = stage ?? 'stage3';
     const levels: [number, number] = current === 'stage3' ? [0, 1] : current === 'stage2' ? [1, 2] : [2, 3];
@@ -141,11 +142,11 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
   const rng = createSeededRng(`${seed}:field`);
   // Rivais da faixa do evento; se faltar gente (Tier S tem 8 times), abre a faixa um degrau por vez.
   let [low, high] = setup.levels;
-  let pool = sceneOrgs.filter((org) => org.id !== state.orgId && org.level >= low && org.level <= high);
+  let pool = sceneOrgs.filter((org) => org.id !== state.orgId && levelIn(state, org) >= low && levelIn(state, org) <= high);
   while (pool.length < setup.opponents && (low > 0 || high < 4)) {
     low = Math.max(0, low - 1);
     high = Math.min(4, high + 1);
-    pool = sceneOrgs.filter((org) => org.id !== state.orgId && org.level >= low && org.level <= high);
+    pool = sceneOrgs.filter((org) => org.id !== state.orgId && levelIn(state, org) >= low && levelIn(state, org) <= high);
   }
   const picked: SceneOrg[] = [];
   while (picked.length < setup.opponents && picked.length < pool.length) {
@@ -170,10 +171,10 @@ export interface SceneFieldTeam {
 export function sceneEventField(state: PlayerCareerState, eventIndex: number, stage: MajorStageKey | null = null): SceneFieldTeam[] {
   const { picked, rosters } = sceneEventOpponents(state, eventIndex, stage);
   const average = (players: Player[]) => Math.round(players.reduce((sum, player) => sum + (player.overall ?? 60), 0) / Math.max(1, players.length));
-  const userOrg = sceneOrgById.get(state.orgId);
+  const userOrg = orgOf(state.orgId, state);
   const teams: SceneFieldTeam[] = [
-    { orgId: state.orgId, name: userOrg?.name ?? 'Lan House do Bairro', level: userOrg?.level ?? 5, overall: average(userEnginePlayers(state)), isUser: true },
-    ...picked.map((org) => ({ orgId: org.id, name: org.name, level: org.level, overall: average(rosters.get(org.id) ?? []), isUser: false }))
+    { orgId: state.orgId, name: userOrg.name, level: userOrg.level, overall: average(userEnginePlayers(state)), isUser: true },
+    ...picked.map((org) => ({ orgId: org.id, name: org.name, level: levelIn(state, org), overall: average(rosters.get(org.id) ?? []), isUser: false }))
   ];
   return teams.sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
 }
@@ -602,8 +603,8 @@ export function finishSceneStage(campaign: CampaignMajorState, setup: EventSetup
  * temporada (títulos, finais, rating). Top 8 entra no Stage 3, até o 16º no Stage 2, até o 32º no Stage 1.
  */
 export function majorEntryStage(state: PlayerCareerState): MajorStageKey | null {
-  const org = sceneOrgById.get(state.orgId);
-  if (!org) return null;
+  if (!sceneOrgById.get(state.orgId)) return null;
+  const org = orgOf(state.orgId, state) as SceneOrg;
   const results = (state.calendar ?? []).flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
   const titles = results.filter((result) => result.placement === 'Campeão').length;
   const finals = results.filter((result) => result.placement === 'Vice').length;

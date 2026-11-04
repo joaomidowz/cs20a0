@@ -102,7 +102,7 @@ function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
 
 /** Os 4 parceiros da temporada — exatamente quem entra em quadra com você, com o bônus de sinergia no overall. */
 export function matesOf(state: PlayerCareerState): SquadMate[] {
-  const org = orgOf(state.orgId);
+  const org = orgOf(state.orgId, state);
   const seasonKey = `${state.seed}:season:${state.seasonNumber}`;
   const roster: Player[] = org.id === 'lan-house'
     ? SLOTS.filter((role) => role !== state.role)
@@ -213,7 +213,7 @@ export function trainingWindowOf(state: PlayerCareerState): string | null {
  * identidade de coach não foi coletada, então é placeholder no padrão de honestidade do jogo.
  */
 export function coachOf(state: PlayerCareerState): Coach {
-  const org = orgOf(state.orgId);
+  const org = orgOf(state.orgId, state);
   const rng = createSeededRng(`${state.seed}:coach:${org.id}`);
   const band = ORG_BASE_POWER[org.level] ?? 60;
   const attr = () => Math.max(40, Math.min(99, band + Math.round((rng() - 0.5) * 14)));
