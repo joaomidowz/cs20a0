@@ -104,14 +104,49 @@ export interface SceneEventField {
 
 /** Os 7 rivais de um campeonato (orgs reais do nível ±1) e seus elencos — sorteio por seed, então a chave é
  *  a mesma antes de jogar (detalhe do calendário) e na hora de jogar (startSceneEvent). */
-export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number) {
-  const seed = `${state.seed}:event:${state.seasonNumber}:${eventIndex}`;
+export type MajorStageKey = 'stage1' | 'stage2' | 'stage3';
+export const NEXT_STAGE: Record<MajorStageKey, MajorStageKey | null> = { stage1: 'stage2', stage2: 'stage3', stage3: null };
+export const STAGE_NAME: Record<MajorStageKey, string> = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3' };
+
+export interface EventSetup {
+  /** Fase suíça de 16 antes (ou no lugar) do mata-mata. */
+  swiss: boolean;
+  /** Stage 1/2 do Major: só a suíça (3 vitórias avança, 3 derrotas cai). */
+  swissOnly: boolean;
+  opponents: number;
+  /** Faixa da pirâmide de onde vêm os rivais. */
+  levels: [number, number];
+  finalBestOf: 3 | 5;
+  stage: MajorStageKey | null;
+}
+
+/** Como o campeonato é disputado: mata-mata de 8, suíça de 16 ou o stage do Major. */
+export function eventSetup(state: PlayerCareerState, eventIndex: number, stage: MajorStageKey | null = null): EventSetup {
+  const entry = state.calendar?.[eventIndex];
+  const level = sceneOrgById.get(state.orgId)?.level ?? 5;
+  if (entry?.format === 'major') {
+    const current = stage ?? 'stage3';
+    const levels: [number, number] = current === 'stage3' ? [0, 1] : current === 'stage2' ? [1, 2] : [2, 3];
+    return { swiss: true, swissOnly: current !== 'stage3', opponents: 15, levels, finalBestOf: 5, stage: current };
+  }
+  if (entry?.format === 'swiss16') return { swiss: true, swissOnly: false, opponents: 15, levels: [level - 1, level + 1], finalBestOf: entry.finalBestOf ?? 5, stage: null };
+  return { swiss: false, swissOnly: false, opponents: 7, levels: [level - 1, level + 1], finalBestOf: entry?.finalBestOf ?? 3, stage: null };
+}
+
+export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number, stage: MajorStageKey | null = null) {
+  const setup = eventSetup(state, eventIndex, stage);
+  const seed = `${state.seed}:event:${state.seasonNumber}:${eventIndex}${stage ? `:${stage}` : ''}`;
   const rng = createSeededRng(`${seed}:field`);
-  const userOrg = sceneOrgById.get(state.orgId);
-  const level = userOrg?.level ?? 5;
-  const pool = sceneOrgs.filter((org) => org.id !== state.orgId && Math.abs(org.level - level) <= 1);
+  // Rivais da faixa do evento; se faltar gente (Tier S tem 8 times), abre a faixa um degrau por vez.
+  let [low, high] = setup.levels;
+  let pool = sceneOrgs.filter((org) => org.id !== state.orgId && org.level >= low && org.level <= high);
+  while (pool.length < setup.opponents && (low > 0 || high < 4)) {
+    low = Math.max(0, low - 1);
+    high = Math.min(4, high + 1);
+    pool = sceneOrgs.filter((org) => org.id !== state.orgId && org.level >= low && org.level <= high);
+  }
   const picked: SceneOrg[] = [];
-  while (picked.length < 7 && picked.length < pool.length) {
+  while (picked.length < setup.opponents && picked.length < pool.length) {
     const candidate = pool[Math.floor(rng() * pool.length)];
     if (!picked.includes(candidate)) picked.push(candidate);
   }
@@ -130,8 +165,8 @@ export interface SceneFieldTeam {
 }
 
 /** A chave de 8 do campeonato, do mais forte pro mais fraco — o que o detalhe do calendário mostra. */
-export function sceneEventField(state: PlayerCareerState, eventIndex: number): SceneFieldTeam[] {
-  const { picked, rosters } = sceneEventOpponents(state, eventIndex);
+export function sceneEventField(state: PlayerCareerState, eventIndex: number, stage: MajorStageKey | null = null): SceneFieldTeam[] {
+  const { picked, rosters } = sceneEventOpponents(state, eventIndex, stage);
   const average = (players: Player[]) => Math.round(players.reduce((sum, player) => sum + (player.overall ?? 60), 0) / Math.max(1, players.length));
   const userOrg = sceneOrgById.get(state.orgId);
   const teams: SceneFieldTeam[] = [
@@ -142,13 +177,15 @@ export function sceneEventField(state: PlayerCareerState, eventIndex: number): S
 }
 
 /** Um campeonato da temporada no motor de Major: chave de 8 com rivais reais do nível ±1. */
-export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>): SceneEventField {
-  const { seed, picked, rosters } = sceneEventOpponents(state, eventIndex);
+export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, stage: MajorStageKey | null = null): SceneEventField {
+  const setup = eventSetup(state, eventIndex, stage);
+  const { seed, picked, rosters } = sceneEventOpponents(state, eventIndex, stage);
   const userPlayers = userEnginePlayers(state);
   const opponents = picked.map((org) => sceneOrgToEngineTeam(org, rosters.get(org.id)!));
   const allPlayers = [...userPlayers, ...picked.flatMap((org) => rosters.get(org.id) ?? [])];
   const campaign = createCampaignMajor(userPlayers, 'balanced', opponents, allPlayers, seed, lineupOf(userPlayers), {
-    playoffEntry: SCENE_EVENT_FORMAT,
+    // Suíça de 16 (mata-mata depois, final MD5) ou direto no mata-mata de 8 com a final do evento.
+    ...(setup.swiss ? {} : { playoffEntry: { ...SCENE_EVENT_FORMAT, final: setup.finalBestOf } }),
     dynastyRules: 2,
     dynastyPlan: { style: 'balanced', tactic: 'standard', study: false },
     // O pool atual do CS2 do ano da carreira — mapas de verdade na chave, sem veto amador.
@@ -330,8 +367,15 @@ export function placementLabel(placement: string): TournamentResult['placement']
   if (placement === 'placementChampion') return 'Campeão';
   if (placement === 'placementRunnerUp') return 'Vice';
   if (placement === 'placement3to4') return 'Semis';
+  if (placement === 'placementStage3') return 'Fase suíça';
   return 'Quartas';
 }
+
+/** Ordem das colocações, da pior para a melhor (cores e comparação). */
+export const PLACEMENT_ORDER = ['Não classificado', 'Stage 1', 'Stage 2', 'Fase suíça', 'Quartas', 'Semis', 'Vice', 'Campeão'];
+
+/** O que a campanha anterior do Major (stages já jogados) soma ao fechamento. */
+export interface StageCarry { wins: number; losses: number }
 
 export interface SceneEventOutcome {
   result: TournamentResult;
@@ -342,19 +386,23 @@ export interface SceneEventOutcome {
 const isUserTeam = (campaign: CampaignMajorState, id: string) => id === 'user' || id === campaign.userTeamId;
 
 /** O fechamento de um campeonato jogado (ao vivo ou simulado): colocação, seu rating do kill feed e W-L. */
-export function sceneEventResult(state: PlayerCareerState, eventIndex: number, campaign: CampaignMajorState): SceneEventOutcome {
+export function sceneEventResult(state: PlayerCareerState, eventIndex: number, campaign: CampaignMajorState, stage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }): SceneEventOutcome {
   const players = userEnginePlayers(state);
   const userSeries = campaign.run.matches.filter((series) => isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id));
   const stats = createRunStats(players, campaign.run, `${state.seed}:event:${state.seasonNumber}:${eventIndex}`, lineupOf(players));
   const mine = stats.find((stat) => stat.playerId === `${state.seed}:me`);
-  const wins = userSeries.filter((series) => isUserTeam(campaign, series.winnerId)).length;
+  const decided = userSeries.filter((series) => series.winnerId);
+  const wins = decided.filter((series) => isUserTeam(campaign, series.winnerId)).length;
+  // Stage 1/2 do Major acabam na suíça: a colocação é o stage em que você caiu.
+  const placement = stage && stage !== 'stage3' && !campaign.finished ? STAGE_NAME[stage] : placementLabel(campaign.run.placement);
   return {
     result: {
       name: state.calendar?.[eventIndex]?.name ?? `Campeonato ${eventIndex + 1}`,
-      placement: placementLabel(campaign.run.placement),
+      placement,
       rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
-      seriesWins: wins,
-      seriesLosses: userSeries.length - wins
+      seriesWins: wins + carry.wins,
+      seriesLosses: decided.length - wins + carry.losses,
+      ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {})
     },
     stats,
     players
@@ -369,9 +417,38 @@ export function finishSceneEvent(campaign: CampaignMajorState, maxSteps = 8000):
 }
 
 /** Simula um campeonato inteiro (ou o resto dele, a partir de um save) e devolve o fechamento. */
-export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>): SceneEventOutcome & { campaign: CampaignMajorState } {
+export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }): SceneEventOutcome & { campaign: CampaignMajorState | null } {
+  const entry = state.calendar?.[eventIndex];
+  if (entry?.format === 'major') {
+    let stage: MajorStageKey | null = fromStage ?? majorEntryStage(state);
+    if (!stage) return { ...notQualified(state, eventIndex), campaign: null };
+    let total = { ...carry };
+    let restore = played;
+    for (;;) {
+      const setup = eventSetup(state, eventIndex, stage);
+      const campaign = finishSceneStage(startSceneEvent(state, eventIndex, restore, stage).campaign, setup);
+      restore = undefined;
+      const next: MajorStageKey | null = NEXT_STAGE[stage];
+      if (setup.swissOnly && advancedFromSwiss(campaign) && next) {
+        const record = swissRecord(campaign);
+        total = { wins: total.wins + record.wins, losses: total.losses + record.losses };
+        stage = next;
+        continue;
+      }
+      return { ...sceneEventResult(state, eventIndex, campaign, stage, total), campaign };
+    }
+  }
   const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played).campaign);
   return { ...sceneEventResult(state, eventIndex, campaign), campaign };
+}
+
+/** Major sem vaga: o time não chegou no ranking; fica no calendário como "Não classificado". */
+export function notQualified(state: PlayerCareerState, eventIndex: number): SceneEventOutcome {
+  return {
+    result: { name: state.calendar?.[eventIndex]?.name ?? 'Major', placement: 'Não classificado', rating: 0, seriesWins: 0, seriesLosses: 0, skipped: true, tier: 'Major' },
+    stats: [],
+    players: []
+  };
 }
 
 /** "Só as finais": simula até a sua série da final começar; se você cair antes, o campeonato acaba ali. */
@@ -385,7 +462,7 @@ export function advanceToFinal(campaign: CampaignMajorState, maxSteps = 8000): C
   return current;
 }
 
-export type BracketStage = 'quarterfinal' | 'semifinal' | 'final';
+export type BracketStage = 'swiss' | 'quarterfinal' | 'semifinal' | 'final';
 export interface BracketStep {
   stage: BracketStage;
   label: string;
@@ -395,7 +472,7 @@ export interface BracketStep {
   score: string | null;
 }
 
-const STAGE_LABEL: Record<BracketStage, string> = { quarterfinal: 'Quartas', semifinal: 'Semis', final: 'Final' };
+const STAGE_LABEL: Record<BracketStage, string> = { swiss: 'Suíça', quarterfinal: 'Quartas', semifinal: 'Semis', final: 'Final' };
 
 /** Onde você está na chave: as 3 fases com adversário, placar e o que já passou. */
 export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
@@ -407,7 +484,17 @@ export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
     if (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)) done.set(series.phase, series);
   }
   let eliminated = false;
-  return (['quarterfinal', 'semifinal', 'final'] as BracketStage[]).map((stage) => {
+  // Eventos com suíça: o primeiro passo é a campanha (3 vitórias classifica, 3 derrotas cai).
+  const swissSeries = campaign.run.matches.filter((series) => series.phase === 'stage3' && (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)));
+  const swissSteps: BracketStep[] = [];
+  if (swissSeries.length || (live && live.config.phase === 'stage3')) {
+    const record = swissRecord(campaign);
+    const inSwiss = live && live.config.phase === 'stage3' && isUserSeries(campaign, live);
+    const status: BracketStep['status'] = record.losses >= 3 ? 'lost' : record.wins >= 3 ? 'won' : inSwiss ? 'live' : 'next';
+    if (status === 'lost') eliminated = true;
+    swissSteps.push({ stage: 'swiss', label: STAGE_LABEL.swiss, status, opponent: inSwiss ? (live!.config.teamA.id === campaign.userTeamId ? live!.config.teamB.name : live!.config.teamA.name) : null, score: `${record.wins}-${record.losses}` });
+  }
+  return [...swissSteps, ...(['quarterfinal', 'semifinal', 'final'] as BracketStage[]).map((stage): BracketStep => {
     const series = done.get(stage);
     if (series) {
       const userIsA = isUserTeam(campaign, series.teamA.id);
@@ -428,5 +515,45 @@ export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
       };
     }
     return { stage, label: STAGE_LABEL[stage], status: eliminated ? 'out' : 'next', opponent: null, score: null };
-  });
+  })];
+}
+
+/** Sua campanha na fase suíça (Major e eventos de 16). */
+export function swissRecord(campaign: CampaignMajorState): { wins: number; losses: number } {
+  return { wins: campaign.run.stage3?.wins ?? 0, losses: campaign.run.stage3?.losses ?? 0 };
+}
+
+/** O campeonato (ou o stage do Major) acabou para você? Stage 1/2 terminam na suíça. */
+export function eventDone(campaign: CampaignMajorState, setup: EventSetup): boolean {
+  if (campaign.finished) return true;
+  if (!setup.swissOnly) return false;
+  const record = swissRecord(campaign);
+  return record.wins >= 3 || record.losses >= 3;
+}
+
+/** Saiu da suíça classificado (3 vitórias)? */
+export const advancedFromSwiss = (campaign: CampaignMajorState): boolean => swissRecord(campaign).wins >= 3;
+
+/** Roda até o fim do stage (suíça) ou do campeonato, sem pausas. */
+export function finishSceneStage(campaign: CampaignMajorState, setup: EventSetup, maxSteps = 12000): CampaignMajorState {
+  let current = campaign;
+  for (let guard = 0; guard < maxSteps && !eventDone(current, setup); guard += 1) current = stepSceneEvent(current).campaign;
+  return current;
+}
+
+/**
+ * Entrada no Major por um ranking simulado (VRS): a força do time pelo ranking real mais o que ele fez na
+ * temporada (títulos, finais, rating). Top 8 entra no Stage 3, até o 16º no Stage 2, até o 32º no Stage 1.
+ */
+export function majorEntryStage(state: PlayerCareerState): MajorStageKey | null {
+  const org = sceneOrgById.get(state.orgId);
+  if (!org) return null;
+  const results = (state.calendar ?? []).flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
+  const titles = results.filter((result) => result.placement === 'Campeão').length;
+  const finals = results.filter((result) => result.placement === 'Vice').length;
+  const rating = results.length ? results.reduce((sum, result) => sum + result.rating, 0) / results.length : 1;
+  const base = org.power ?? ORG_BASE_POWER[org.level] ?? 60;
+  const score = base + titles * 2.5 + finals + (rating - 1) * 15;
+  const rank = 1 + sceneOrgs.filter((other) => other.id !== org.id && (other.power ?? ORG_BASE_POWER[other.level] ?? 60) > score).length;
+  return rank <= 8 ? 'stage3' : rank <= 16 ? 'stage2' : rank <= 32 ? 'stage1' : null;
 }

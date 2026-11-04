@@ -41,7 +41,7 @@ interface SceneFile {
 export const scene = rawScene as unknown as SceneFile;
 
 /** Faixa de força base por nível da pirâmide (mecânica derivada; o elenco do catálogo ajusta quando existe). */
-export const ORG_BASE_POWER: Record<number, number> = { 1: 88, 2: 82, 3: 74, 4: 66, 5: 58 };
+export const ORG_BASE_POWER: Record<number, number> = { 0: 91, 1: 87, 2: 82, 3: 74, 4: 66, 5: 58 };
 
 
 /** "Team Vitality" e "Vitality" são o mesmo time: o nome sem "team" e sem pontuação é a chave. */
@@ -58,7 +58,8 @@ const WORLD_RANK: Map<string, number> = (() => {
   return ranks;
 })();
 
-/** Tier 1 de verdade: os 16 melhores do ranking real (finalistas e semifinalistas de Major, top da HLTV). */
+/** Tier S: os 8 melhores do ranking real; tier 1: do 9º ao 16º (finalistas e semifinalistas de Major, top da HLTV). */
+export const TIER_S_RANK = 8;
 export const ELITE_RANK = 16;
 
 /**
@@ -80,7 +81,7 @@ const normalized = (() => {
   const orgs = [...byKey.values()].map((org): SceneOrg => {
     const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
     const elite = rank !== null && rank <= ELITE_RANK;
-    const level = elite ? 1 : org.level === 1 ? 2 : org.level;
+    const level = elite ? (rank! <= TIER_S_RANK ? 0 : 1) : org.level === 1 ? 2 : org.level;
     const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? Math.max(78, 84 - (rank - ELITE_RANK) * 0.4) : ORG_BASE_POWER[level];
     return { ...org, level, worldRank: rank, power: Math.round(power * 10) / 10 };
   });

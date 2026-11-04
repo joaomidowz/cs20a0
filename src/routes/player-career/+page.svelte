@@ -26,10 +26,11 @@
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
     type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { advanceToFinal, finishSceneEvent, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
+  import { MONTH_LABEL, TIER_LABEL } from '$lib/game/playerCareer/calendar';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
@@ -57,6 +58,7 @@
     gamble: { label: 'All-in', hint: 'Moeda: ou ganha o round no braço, ou custa caro.' },
     team: { label: 'Coletivo', hint: 'Depende do nível dos parceiros contra o deles.' }
   };
+  const MONTH_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   type PlayMode = NonNullable<PlayerCareerState['playMode']>;
   const PLAY_MODE_OPTIONS = [
     { value: 'all', label: 'Jogar todos' },
@@ -65,7 +67,14 @@
   ];
   const PACE_CTA = { live: 'Jogar campeonato', sim: 'Simular campeonato', final: 'Simular até a final' } as const;
   /** Colocação curta pro quadradinho do calendário. */
-  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título' };
+  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora' };
+  /** Colocação → chave de CSS sem espaço nem acento. */
+  const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora' };
+  const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
+  const FORMAT_TEXT = (entry: { format?: string; finalBestOf?: number } | null | undefined) =>
+    entry?.format === 'major' ? 'Major: Stage 1 e 2 em suíça de 16 (3 vitórias avança); Stage 3 suíça + playoffs, final MD5'
+      : entry?.format === 'swiss16' ? `16 times: suíça MD3 e mata-mata de 8, final MD${entry.finalBestOf ?? 5}`
+      : `8 times: quartas e semis MD3, final MD${entry?.finalBestOf ?? 3}`;
   /** Função curta pra caber na carta. */
   const ROLE_SHORT: Record<PlayerRole, string> = { awper: 'AWPer', rifler: 'Rifler', entry: 'Entry', igl: 'IGL', lurker: 'Lurker', support: 'Suporte' };
   const COACH_ATTRS = [
@@ -88,6 +97,11 @@
 
   let live: CampaignMajorState | null = null;
   let liveIndex = -1;
+  /** Major: stage em andamento, séries dos stages anteriores e o formato do campeonato ao vivo. */
+  let liveStage: MajorStageKey | null = null;
+  let stageCarry: StageCarry = { wins: 0, losses: 0 };
+  let liveSetup: EventSetup = { swiss: false, swissOnly: false, opponents: 7, levels: [3, 5], finalBestOf: 3, stage: null };
+  let stageBanner: string | null = null;
   let clutch: SceneClutchMoment | null = null;
   let lastCall: { text: string; won: boolean; story: string } | null = null;
   let callOutcome: { text: string; won: boolean; story: string } | null = null;
@@ -339,15 +353,49 @@
     const me = career;
     if (!me) return;
     eventError = null;
+    stageBanner = null;
+    const entry = me.calendar?.[index];
+    const saved = me.liveEvent?.eventIndex === index ? me.liveEvent : null;
+    let stage: MajorStageKey | null = null;
+    let carry: StageCarry = saved?.carry ?? { wins: 0, losses: 0 };
+    if (entry?.format === 'major') {
+      stage = saved?.stage ?? majorEntryStage(me);
+      if (!stage) {
+        // O ranking da temporada não bateu: o Major fica como "Não classificado" e a temporada segue.
+        finalizeEvent(index, notQualified(me, index));
+        stageBanner = 'Seu time não entrou no Major: faltou ranking (VRS) nesta temporada.';
+        return;
+      }
+    }
     let field: ReturnType<typeof startSceneEvent>;
     try {
-      field = startSceneEvent(me, index, me.liveEvent?.eventIndex === index ? me.liveEvent.played : undefined);
+      field = startSceneEvent(me, index, saved?.played, stage);
+      // "Só as finais" num Major: os stages de suíça rodam sozinhos até o Stage 3.
+      if (toFinal && stage) {
+        for (;;) {
+          const setup = eventSetup(me, index, stage);
+          if (!setup.swissOnly) break;
+          const done = finishSceneStage(field.campaign, setup);
+          const next: MajorStageKey | null = NEXT_STAGE[stage as MajorStageKey];
+          if (!advancedFromSwiss(done) || !next) {
+            finalizeEvent(index, sceneEventResult(me, index, done, stage, carry));
+            return;
+          }
+          const record = swissRecord(done);
+          carry = { wins: carry.wins + record.wins, losses: carry.losses + record.losses };
+          stage = next;
+          field = startSceneEvent(me, index, undefined, stage);
+        }
+      }
     } catch (error) {
       console.error('[carreira] não montou a chave', error);
       eventError = 'Não foi possível montar a chave deste campeonato. Tente de novo; se persistir, o save desta temporada precisa de correção.';
       return;
     }
     liveIndex = index;
+    liveStage = stage;
+    stageCarry = carry;
+    liveSetup = eventSetup(me, index, stage);
     live = toFinal ? advanceToFinal(field.campaign) : field.campaign;
     clutch = null;
     lastCall = null;
@@ -361,7 +409,7 @@
     loadUsedIds(me.seed);
     if (live.finished) {
       // "Só as finais" e você caiu antes da final: o campeonato fecha direto.
-      finalizeEvent(index, sceneEventResult(me, index, live));
+      finalizeEvent(index, sceneEventResult(me, index, live, stage, carry));
       return;
     }
     if (toFinal) persistLive();
@@ -374,7 +422,7 @@
     const token = ++runToken;
     running = true;
     const ctx: SceneClutchContext = { role: career.role, seed: career.seed, usedSituationIds: usedIds };
-    while (live && !live.finished && token === runToken) {
+    while (live && !eventDone(live, liveSetup) && token === runToken) {
       const userLive = liveUserSeriesOf(live);
       const step = stepSceneEvent(live, ctx);
       live = step.campaign;
@@ -393,6 +441,23 @@
     }
     if (token === runToken) { clutch = null; persistLive(); }
     running = false;
+    if (token === runToken && live && liveSetup.swissOnly && eventDone(live, liveSetup)) advanceStage();
+  }
+
+  /** Stage 1/2 do Major acabou: 3 vitórias leva ao próximo stage; 3 derrotas encerra o Major. */
+  function advanceStage() {
+    if (!career || !live || !liveStage) return;
+    const next = NEXT_STAGE[liveStage];
+    if (!advancedFromSwiss(live) || !next) return; // eliminado: o "Fechar campeonato" aparece
+    const record = swissRecord(live);
+    stageCarry = { wins: stageCarry.wins + record.wins, losses: stageCarry.losses + record.losses };
+    stageBanner = `Classificado ${record.wins}-${record.losses} no ${STAGE_NAME[liveStage]}. Agora é o ${STAGE_NAME[next]}.`;
+    liveStage = next;
+    liveSetup = eventSetup(career, liveIndex, next);
+    live = startSceneEvent(career, liveIndex, undefined, next).campaign;
+    clutch = null;
+    lastCall = null;
+    persistLive();
   }
 
   /** Sua call: arma o edge, o RNG joga o round — o kill feed do round decisivo rola em ritmo legível
@@ -475,7 +540,7 @@
 
   function persistLive() {
     if (!career || !live) return;
-    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live) } };
+    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live), stage: liveStage, carry: stageCarry } };
   }
 
   /** Fecha o campeonato (jogado ou simulado): relatório, resultado no calendário, elenco e fim de temporada. */
@@ -514,8 +579,8 @@
   }
 
   function closeEvent() {
-    if (!career || !live || !live.finished) return;
-    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, live));
+    if (!career || !live || !liveOver) return;
+    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, live, liveStage, stageCarry));
   }
 
   /** Simula o campeonato inteiro sem tela (ou o resto, se havia um save no meio dele). */
@@ -524,7 +589,8 @@
     if (!me) return;
     eventError = null;
     try {
-      finalizeEvent(index, simulateSceneEvent(me, index, me.liveEvent?.eventIndex === index ? me.liveEvent.played : undefined));
+      const saved = me.liveEvent?.eventIndex === index ? me.liveEvent : null;
+      finalizeEvent(index, simulateSceneEvent(me, index, saved?.played, saved?.stage ?? null, saved?.carry));
     } catch (error) {
       console.error('[carreira] não simulou o campeonato', error);
       eventError = 'Não deu para simular este campeonato. Tente de novo.';
@@ -537,6 +603,18 @@
     runToken += 1;
     running = false;
     if (resolveFallback !== null) window.clearTimeout(resolveFallback);
+    if (liveStage) {
+      // Major: termina o stage atual e, se passar, os próximos stages rodam sozinhos.
+      const done = finishSceneStage(live, liveSetup);
+      const next = NEXT_STAGE[liveStage];
+      if (liveSetup.swissOnly && advancedFromSwiss(done) && next) {
+        const record = swissRecord(done);
+        finalizeEvent(liveIndex, simulateSceneEvent(career, liveIndex, undefined, next, { wins: stageCarry.wins + record.wins, losses: stageCarry.losses + record.losses }));
+      } else {
+        finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, done, liveStage, stageCarry));
+      }
+      return;
+    }
     finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, finishSceneEvent(live)));
   }
 
@@ -640,6 +718,7 @@
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
+  $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
   $: weekCards = career && currentEntry ? drawAgenda(career) : [];
   $: coachTips = career ? coachTipsOf(career) : [];
@@ -656,8 +735,9 @@
   $: playMode = (career?.playMode ?? 'all') as PlayMode;
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
+  $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
-  $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet) : [];
+  $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? majorEntryStage(career) ?? 'stage1' : null) : [];
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
   $: currentLevel = career ? orgOf(career.orgId).level : 5;
@@ -897,7 +977,7 @@
               </div>
               <ol class="season-strip" aria-label="Campeonatos da temporada">
                 {#each lastLog.tournaments as entry}
-                  <li class="place-{entry.placement}" title={`${entry.name} · ${entry.placement} · ${entry.rating.toFixed(2)}`}>{entry.placement}</li>
+                  <li class="place-{placeKey(entry.placement)}" title={`${entry.name} · ${entry.placement} · ${entry.rating.toFixed(2)}`}>{entry.placement}</li>
                 {/each}
               </ol>
               {#if lastLog.ageDecline}
@@ -958,11 +1038,12 @@
             </div>
           </section>
         {:else if live}
-          <div class="live-strip" class:done={live.finished}>
-            <span class="live-badge"><i></i>{live.finished ? 'ENCERRADO' : 'AO VIVO'}</span>
-            <strong>{career.calendar?.[liveIndex]?.name}</strong>
-            <span class="live-tag-tier">{LEVEL_LABEL[currentLevel]}</span>
+          <div class="live-strip" class:done={liveOver}>
+            <span class="live-badge"><i></i>{liveOver ? 'ENCERRADO' : 'AO VIVO'}</span>
+            <strong>{career.calendar?.[liveIndex]?.name}{liveStage ? ` · ${STAGE_NAME[liveStage]}` : ''}</strong>
+            <span class="live-tag-tier">{career.calendar?.[liveIndex]?.tier ? TIER_LABEL[career.calendar[liveIndex].tier ?? 'C'] : LEVEL_LABEL[currentLevel]}</span>
           </div>
+          {#if stageBanner}<p class="stage-banner" role="status">{stageBanner}</p>{/if}
 
           {#if bracketPath.length}
             <ol class="path" aria-label="Sua caminhada no campeonato">
@@ -1035,7 +1116,7 @@
                 </svelte:fragment>
               </SeriesViewer>
             {/key}
-          {:else if !live.finished}
+          {:else if !liveOver}
             <p class="chip-note">Chave correndo…</p>
           {/if}
 
@@ -1054,7 +1135,7 @@
             <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{autoCall ? ' · no seu estilo' : ''}</p>
           {/if}
 
-          {#if live.finished}
+          {#if liveOver}
             <div class="finish">
               <p class="series">{live.run.champion ? 'Campeão' : 'Eliminado'} · {PLACEMENT[live.run.placement === 'placementChampion' ? 'champion' : live.run.placement === 'placementRunnerUp' ? 'runnerUp' : live.run.placement === 'placement3to4' ? 'semi' : 'quarter'] ?? 'Quartas'}</p>
               <button class="cta" on:click={closeEvent}>Fechar campeonato</button>
@@ -1107,7 +1188,7 @@
             <section class="next" aria-label={currentEntry ? 'Próximo campeonato' : 'Próxima temporada'}>
               <div class="next-copy">
                 {#if currentEntry}
-                  <p class="eyebrow">Próximo · etapa {currentEntry.index + 1} de {career.calendar?.length ?? 0} · {LEVEL_LABEL[currentLevel]}</p>
+                  <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {currentEntry.tier ? TIER_LABEL[currentEntry.tier] : LEVEL_LABEL[currentLevel]}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
                   <h2 class="display">{currentEntry.name}</h2>
                 {:else if !career.calendar}
                   <p class="eyebrow">Entre temporadas · {career.year}</p>
@@ -1118,11 +1199,11 @@
                 {/if}
               </div>
               {#if lastEventReport}
-                <div class="report place-{lastEventReport.placement}" aria-label="Último campeonato">
+                <div class="report place-{placeKey(lastEventReport.placement)}" aria-label="Último campeonato">
                   <span class="place-badge">{lastEventReport.placement}</span>
                   <span class="report-copy">
                     <span class="label">Último · {lastEventReport.name}</span>
-                    <span class="report-line">{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b></span>
+                    <span class="report-line">{#if lastEventReport.placement === 'Não classificado'}Sem vaga no Major pelo ranking{:else}{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b>{/if}</span>
                   </span>
                   {#if lastEventReport.stats.length}<button class="link-btn" on:click={openStats}>Stats</button>{/if}
                 </div>
@@ -1232,9 +1313,9 @@
                   {#each career.calendar as entry, index}
                     {@const parts = eventParts(entry.name)}
                     <li>
-                      <button class="ev place-{entry.result?.placement ?? 'none'}" class:now={currentEntry?.index === index} class:played={Boolean(entry.result)} on:click={() => openEvent(index)} aria-label={`${entry.name}: ver detalhes`}>
+                      <button class="ev place-{placeKey(entry.result?.placement)}" class:now={currentEntry?.index === index} class:played={Boolean(entry.result)} on:click={() => openEvent(index)} aria-label={`${entry.name}: ver detalhes`}>
                         <span class="ev-top">
-                          <span class="ev-n">{index + 1}<small>{PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small></span>
+                          <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}<small class:major={entry.tier === 'Major'}>{entry.tier ? TIER_LABEL[entry.tier] : PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small></span>
                           {#if entry.result}
                             <span class="ev-place">{PLACE_SHORT[entry.result.placement] ?? entry.result.placement}</span>
                           {/if}
@@ -1303,9 +1384,11 @@
         </header>
         <h2 class="display event-title" id="event-title">{sheetEntry.name}</h2>
         <dl class="event-facts">
-          <div><dt>Formato</dt><dd>8 times · quartas, semis e final em MD3</dd></div>
+          <div><dt>Formato</dt><dd>{FORMAT_TEXT(sheetEntry)}</dd></div>
+          <div><dt>Quando e onde</dt><dd>{sheetEntry.month ? MONTH_FULL[sheetEntry.month - 1] : '—'}{sheetEntry.location ? ` · ${sheetEntry.location}` : ''}{sheetEntry.organizer ? ` · ${sheetEntry.organizer}` : ''}</dd></div>
+          {#if sheetEntry.prizePool}<div><dt>Premiação</dt><dd>US$ {sheetEntry.prizePool.toLocaleString('pt-BR')}</dd></div>{/if}
           {#if sheetEntry.result}
-            <div class="place-{sheetEntry.result.placement}"><dt>Sua colocação</dt><dd class="placed">{sheetEntry.result.placement}</dd></div>
+            <div class="place-{placeKey(sheetEntry.result.placement)}"><dt>Sua colocação</dt><dd class="placed">{sheetEntry.result.placement}</dd></div>
             <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}W–{sheetEntry.result.seriesLosses}L</dd></div>
             <div><dt>Seu rating</dt><dd class:hot={sheetEntry.result.rating >= 1.1}>{sheetEntry.result.rating.toFixed(2)}</dd></div>
           {:else}
@@ -1551,6 +1634,10 @@
   .place-Semis { --place: var(--semi); }
   .place-Vice { --place: var(--vice); }
   .place-Campeão { --place: var(--gold); }
+  .place-Suica { --place: color-mix(in srgb, var(--quarter) 70%, var(--muted)); }
+  .place-Stage, .place-Fora { --place: var(--muted); }
+  .stage-banner { margin: 0; padding: 10px 14px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--accent); font-weight: 600; }
+  .ev-n small.major { color: var(--gold); }
 
   /* Elenco */
   /* As 5 cartas nunca encolhem abaixo do que a carta do jogo precisa: sem espaço, a faixa rola com snap. */

@@ -6,6 +6,7 @@
 import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn } from './world';
+import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier } from './calendar';
 import { calibration, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
@@ -59,10 +60,15 @@ export const ROLE_META: Record<PlayerRole, { label: string; ratingBias: number; 
 
 export interface TournamentResult {
   name: string;
-  placement: string; // Estreia · Quartas · Semis · Vice · Campeão
+  /** Não classificado · Stage 1 · Stage 2 · Fase suíça · Quartas · Semis · Vice · Campeão */
+  placement: string;
   rating: number; // rating do kill feed real do motor (Rating 3.0)
   seriesWins: number;
   seriesLosses: number;
+  /** Não jogou (não se classificou para o Major): não conta na média, nem no corte. */
+  skipped?: boolean;
+  /** Tier do evento (Major, S, A, B, C), para o histórico de títulos. */
+  tier?: EventTier;
 }
 
 /** Um campeonato da temporada, disputado um a um no motor de Major. */
@@ -71,12 +77,23 @@ export interface CalendarEntry {
   name: string;
   status: 'UPCOMING' | 'PLAYED';
   result?: TournamentResult;
+  /** Campeonato real do circuito: mês (1-12), tier do evento, formato e final em MD3/MD5. */
+  month?: number;
+  tier?: EventTier;
+  format?: EventFormat;
+  finalBestOf?: 3 | 5;
+  organizer?: string;
+  location?: string;
+  prizePool?: number;
 }
 
 /** O que o save guarda de um evento em andamento: a chave e as séries já fechadas (rebuild determinístico). */
 export interface LiveEventSave {
   eventIndex: number;
   played: Record<string, unknown>;
+  /** Major: o stage em andamento e as séries dos stages já passados. */
+  stage?: 'stage1' | 'stage2' | 'stage3' | null;
+  carry?: { wins: number; losses: number };
 }
 
 /** Atributos que o treino entre campeonatos pode acumular de bônus (efeitos da Dinastia, dynasty/training.ts). */
@@ -205,13 +222,37 @@ export interface PlayerCareerState {
 const LAN_HOUSE = { id: 'lan-house', name: 'Lan House do Bairro', level: 5 };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-/** Eventos por temporada conforme o nível — densidade REAL: tier baixo joga muito mais (Alka 2026: 9). */
+/** Campeonatos por temporada do nível (o meio da faixa; a temporada sorteia dentro dela). */
 export const eventsFor = (orgId: string): number => {
-  const org = sceneOrgById.get(orgId);
-  if (!org) return 6; // lan house: o grind mensal do circuito
-  if (org.level === 4) return clamp(org.calendarDensity || 8, 7, 9);
-  return ({ 1: 4, 2: 5, 3: 6 })[org.level] ?? 6;
+  const [min, max] = EVENT_RANGE[orgOf(orgId).level] ?? [8, 10];
+  return Math.round((min + max) / 2);
 };
+
+/** A faixa "9-12" para mostrar nas ofertas. */
+export const eventsRangeFor = (orgId: string): string => {
+  const [min, max] = EVENT_RANGE[orgOf(orgId).level] ?? [8, 10];
+  return min === max ? `${min}` : `${min}-${max}`;
+};
+
+/** Os campeonatos reais do circuito do time, a partir de um mês (troca no meio da temporada). */
+function calendarFor(state: PlayerCareerState, orgId: string, seed: string, count: number, fromIndex = 0, afterMonth = 0): CalendarEntry[] {
+  const org = orgOf(orgId);
+  const orgCountry = 'country' in org ? (org.country as string | null) : null;
+  const region = regionOf(orgCountry ?? state.country);
+  const events = seasonEvents(org.level, region, count, seed).filter((event) => event.month > afterMonth);
+  return events.map((event, offset) => ({
+    index: fromIndex + offset,
+    name: `${event.name} ${state.year}`,
+    status: 'UPCOMING' as const,
+    month: event.month,
+    tier: event.tier,
+    format: event.format,
+    finalBestOf: event.finalBestOf,
+    ...(event.organizer ? { organizer: event.organizer } : {}),
+    ...(event.location ? { location: event.location } : {}),
+    ...(event.prizePool ? { prizePool: event.prizePool } : {})
+  }));
+}
 
 /** Valor de mercado do jogador pela fórmula de valuation do jogo (dinastia): 50k×1.09^(ovr−60), piso 30k. */
 export const marketValueUsd = (overall: number) => Math.max(30_000, Math.round((50_000 * Math.pow(1.09, overall - 60)) / 1000) * 1000);
@@ -328,23 +369,12 @@ export function ensureDraw(state: PlayerCareerState): PlayerCareerState {
 
 export const orgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
 
-const tournamentNameFor = (index: number, level: number, total: number) => {
-  if (level >= 4) return index % 2 === 0 ? `Circuito GC/CCT · Etapa ${index + 1}` : `CCT South America · Series ${index + 1}`;
-  if (level === 3) return `Challenger/Contenders · Etapa ${index + 1}`;
-  if (level === 2) return `Tier 2 Invite · Etapa ${index + 1}`;
-  return index === total - 1 ? 'MAJOR' : `Tier 1 Invitational · Etapa ${index + 1}`;
-};
-
-/** Abre a temporada: calendário com a densidade real do nível — cada campeonato disputado no motor de Major. */
+/** Abre a temporada: os campeonatos reais do circuito do nível, em ordem de mês, cada um no motor de Major. */
 export function startSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || state.pendingDraw || state.calendar) return state;
-  const count = eventsFor(state.orgId);
-  const calendar: CalendarEntry[] = Array.from({ length: count }, (_, index) => ({
-    index,
-    name: tournamentNameFor(index, orgOf(state.orgId).level, count),
-    status: 'UPCOMING'
-  }));
-  return { ...state, calendar };
+  const seed = `${state.seed}:season:${state.seasonNumber}:${state.orgId}`;
+  const count = eventCount(orgOf(state.orgId).level, seed);
+  return { ...state, calendar: calendarFor(state, state.orgId, seed, count) };
 }
 
 /** Registra o resultado de um campeonato jogado no motor (rating vem do kill feed real). */
@@ -385,7 +415,7 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
   const org = orgOf(state.orgId);
-  const results = state.calendar.flatMap((entry) => (entry.result ? [entry.result] : []));
+  const results = state.calendar.flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
   const titles = results.filter((result) => result.placement === 'Campeão').length;
   const seasonRating = results.length ? Number((results.reduce((sum, result) => sum + result.rating, 0) / results.length).toFixed(2)) : 0.9;
 
@@ -458,9 +488,9 @@ function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): Car
 }
 
 /** Rating esperado no nível: sobe com o circuito e acompanha o viés da função (entry/IGL rendem menos). */
-export const decentRatingFor = (role: PlayerRole, level: number) => (({ 1: 0.97, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.90 })[level] ?? 0.93) + ROLE_META[role].ratingBias;
+export const decentRatingFor = (role: PlayerRole, level: number) => (({ 0: 0.98, 1: 0.97, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.90 })[level] ?? 0.93) + ROLE_META[role].ratingBias;
 /** Régua de estrela para subir ao nível: degrau por degrau, a porta do tier 1 é a mais dura. */
-export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.22 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
+export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.18, 0: 1.25 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
 
 function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number): CareerOffer[] {
   const org = orgOf(state.orgId);
@@ -485,7 +515,7 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
     return offers;
   }
   const target = org.level - 1;
-  const upgrades = target >= 1 ? sceneOrgs.filter((candidate) => candidate.level === target) : [];
+  const upgrades = target >= 0 ? sceneOrgs.filter((candidate) => candidate.level === target) : [];
   const laterals = sceneOrgs.filter((candidate) => candidate.level === org.level && candidate.id !== org.id);
   const downgrades = sceneOrgs.filter((candidate) => candidate.level > org.level && candidate.level <= 4);
   // Título abre a porta de saída do C/B (campeão de CCT chama atenção); acima disso, só a régua de rating.
@@ -517,7 +547,7 @@ export function goToLanHouse(state: PlayerCareerState): PlayerCareerState {
 
 /** Média dos últimos campeonatos jogados na temporada (os mais recentes pesam a decisão do time). */
 export function recentRating(state: PlayerCareerState, last = 3): { average: number; played: number } | null {
-  const played = (state.calendar ?? []).filter((entry) => entry.result);
+  const played = (state.calendar ?? []).filter((entry) => entry.result && !entry.result.skipped);
   if (!played.length) return null;
   const recent = played.slice(-last);
   return { average: Number((recent.reduce((sum, entry) => sum + (entry.result?.rating ?? 0), 0) / recent.length).toFixed(2)), played: played.length };
@@ -562,7 +592,7 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
     };
   }
   const target = org.level - 1;
-  if (target >= 1 && recent.average >= starRatingFor(state.role, target) && rng() < 0.4) {
+  if (target >= 0 && recent.average >= starRatingFor(state.role, target) && rng() < 0.4) {
     const offers = pickFrom(sceneOrgs.filter((candidate) => candidate.level === target), 1, 0.06);
     if (offers.length) {
       return {
@@ -583,14 +613,11 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
 function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): PlayerCareerState {
   const calendar = state.calendar ?? [];
   const played = calendar.filter((entry) => entry.status === 'PLAYED');
-  const remainingShare = calendar.length ? (calendar.length - played.length) / calendar.length : 1;
-  const level = orgOf(orgId).level;
-  const remaining = Math.max(1, Math.round(eventsFor(orgId) * remainingShare));
-  const total = played.length + remaining;
-  const next: CalendarEntry[] = Array.from({ length: remaining }, (_, offset) => {
-    const index = played.length + offset;
-    return { index, name: tournamentNameFor(index, level, total), status: 'UPCOMING' as const };
-  });
+  // O time novo segue o circuito dele dali em diante (só os meses que ainda faltam).
+  const lastMonth = Math.max(0, ...played.map((entry) => entry.month ?? 0));
+  const seed = `${state.seed}:season:${state.seasonNumber}:${orgId}`;
+  let next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId).level, seed), played.length, lastMonth);
+  if (!next.length) next = calendarFor(state, orgId, seed, 1, played.length);
   const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? seatToTake(target, state.role) : null;
   return {

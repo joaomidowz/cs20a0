@@ -77,9 +77,14 @@ describe('temporada camp a camp (motor de Major)', () => {
   it('calendário abre com a densidade real do nível e vai de campeonato em campeonato', () => {
     const career = startSeason(careerAtRealOrg('cal2'));
     expect(career.calendar).not.toBeNull();
-    expect(career.calendar!.length).toBeGreaterThanOrEqual(7);
-    expect(career.calendar!.length).toBeLessThanOrEqual(9);
+    expect(career.calendar!.length).toBeGreaterThanOrEqual(9);
+    expect(career.calendar!.length).toBeLessThanOrEqual(12);
     expect(career.calendar!.every((entry) => entry.status === 'UPCOMING')).toBe(true);
+    // Campeonatos reais do circuito, em ordem de mês, com tier.
+    const months = career.calendar!.map((entry) => entry.month ?? 0);
+    expect(months).toEqual([...months].sort((a, b) => a - b));
+    expect(career.calendar!.every((entry) => entry.tier === 'C')).toBe(true);
+    expect(career.calendar!.some((entry) => /CCT|Gamers Club/.test(entry.name))).toBe(true);
   });
 
   it('um campeonato roda inteiro no motor: 8 na chave, séries BO3, colocação e rating do kill feed', () => {

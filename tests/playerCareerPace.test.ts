@@ -16,7 +16,7 @@ describe('simular um campeonato', () => {
   it('fecha com colocação válida, rating e W-L, e é determinístico', () => {
     const career = seasonAt('pace-sim');
     const first = simulateSceneEvent(career, 0);
-    expect(first.campaign.finished).toBe(true);
+    expect(first.campaign!.finished).toBe(true);
     expect(PLACEMENTS).toContain(first.result.placement);
     expect(first.result.rating).toBeGreaterThan(0);
     expect(first.result.seriesWins + first.result.seriesLosses).toBeGreaterThanOrEqual(1);
@@ -59,7 +59,7 @@ describe('onde estou na chave', () => {
   it('o caminho bate com o resultado final', () => {
     const career = seasonAt('path-1');
     const { campaign, result } = simulateSceneEvent(career, 2);
-    const path = userBracketPath(campaign);
+    const path = userBracketPath(campaign!);
     expect(path.map((step) => step.stage)).toEqual(['quarterfinal', 'semifinal', 'final']);
     const won = path.filter((step) => step.status === 'won').length;
     expect(won).toBe(result.seriesWins);

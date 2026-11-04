@@ -12,12 +12,13 @@ const average = (orgId: string) => {
 };
 
 describe('tiers da cena', () => {
-  it('tier 1 é o top do ranking real; Vitality é tier 1 e a academia não', () => {
-    const tier1 = sceneOrgs.filter((org) => org.level === 1);
-    expect(tier1.length).toBeGreaterThanOrEqual(12);
-    expect(tier1.length).toBeLessThanOrEqual(16);
-    for (const org of tier1) expect(org.worldRank).toBeLessThanOrEqual(16);
-    expect(sceneOrgById.get('vitality-2026')?.level).toBe(1);
+  it('Tier S é o top 8 e o tier 1 vai até o 16º do ranking real; Vitality é Tier S e a academia não', () => {
+    const elite = sceneOrgs.filter((org) => org.level <= 1);
+    expect(elite.length).toBeGreaterThanOrEqual(12);
+    expect(elite.length).toBeLessThanOrEqual(16);
+    for (const org of elite) expect(org.worldRank).toBeLessThanOrEqual(16);
+    for (const org of sceneOrgs.filter((candidate) => candidate.level === 0)) expect(org.worldRank).toBeLessThanOrEqual(8);
+    expect(sceneOrgById.get('vitality-2026')?.level).toBe(0);
     expect(sceneOrgById.get('legacy-2026')?.level).toBe(2);
     expect(sceneOrgById.get('red-canids-academy-2026')?.level).toBe(4);
   });
