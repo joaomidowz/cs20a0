@@ -111,6 +111,29 @@ describe('Major pelo ranking', () => {
     expect(field('stage3')).toHaveLength(16);
   });
 
+  it('Major de verdade: os 3 stages num campeonato só (16 times cada), com campeão e MVP', async () => {
+    const career = seasonAtOrg(orgAt(1).id, 'major-3stages', 82);
+    const index = career.calendar!.findIndex((entry) => entry.format === 'major');
+    const outcome = simulateSceneEvent(career, index, undefined, 'stage2');
+    const tournament = outcome.campaign!.run.tournament!;
+    expect(tournament.stages?.map((stage) => stage.stage)).toEqual(['stage1', 'stage2', 'stage3']);
+    for (const stage of tournament.stages!) expect(stage.standings).toHaveLength(16);
+    expect(outcome.result.champion).toBeTruthy();
+    expect(outcome.result.mvp).toBeTruthy();
+    expect(['Stage 2', 'Fase suíça', 'Quartas', 'Semis', 'Vice', 'Campeão']).toContain(outcome.result.placement);
+  }, 30000);
+
+  it('a tela do Major lista 8 + 8 + 16 times por stage, com você no seu stage', async () => {
+    const { eventTeams, majorEntryStage: entryOf } = await import('../src/lib/game/playerCareer/live');
+    const career = seasonAtOrg(orgAt(1).id, 'major-teams', 82);
+    const index = career.calendar!.findIndex((entry) => entry.format === 'major');
+    const groups = eventTeams(career, index);
+    expect(groups.map((group) => group.teams.length)).toEqual([8, 8, 16]);
+    const mine = groups.findIndex((group) => group.teams.some((team) => team.isUser));
+    expect(mine).toBe(({ stage3: 0, stage2: 1, stage1: 2 } as Record<string, number>)[entryOf(career)!]);
+    expect(new Set(groups.flatMap((group) => group.teams.map((team) => team.orgId))).size).toBe(32);
+  });
+
   it('"Não classificado" não conta na média da temporada', () => {
     let career = seasonAtOrg(orgAt(4).id, 'skip-1');
     const calendar = career.calendar!;

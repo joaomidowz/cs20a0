@@ -12,6 +12,8 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
+  import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
+  import TeamBadge from '$lib/components/TeamBadge.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
   import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
@@ -27,7 +29,7 @@
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
@@ -717,7 +719,9 @@
 
   function closeEvent() {
     if (!career || !live || !liveOver) return;
-    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, live, liveStage, stageCarry));
+    // Você saiu (ou o campeonato acabou): o resto roda sem tela para fechar campeão, MVP e chave.
+    const done = live.finished ? live : finishSceneEvent(live);
+    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, done, liveStage, stageCarry));
   }
 
   /** Simula o campeonato inteiro sem tela (ou o resto, se havia um save no meio dele). */
@@ -740,19 +744,8 @@
     runToken += 1;
     running = false;
     if (resolveFallback !== null) window.clearTimeout(resolveFallback);
-    if (liveStage) {
-      // Major: termina o stage atual e, se passar, os próximos stages rodam sozinhos.
-      const done = finishSceneStage(live, liveSetup);
-      const next = NEXT_STAGE[liveStage];
-      if (liveSetup.swissOnly && advancedFromSwiss(done) && next) {
-        const record = swissRecord(done);
-        finalizeEvent(liveIndex, simulateSceneEvent(career, liveIndex, undefined, next, { wins: stageCarry.wins + record.wins, losses: stageCarry.losses + record.losses }));
-      } else {
-        finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, done, liveStage, stageCarry));
-      }
-      return;
-    }
-    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, finishSceneEvent(live)));
+    // O resto do campeonato (no Major, os stages que faltam e os playoffs) roda sozinho.
+    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, finishSceneEvent(live), liveStage, stageCarry));
   }
 
   /** Pular a call: o round decisivo roda sem o seu edge e o campeonato segue. */
@@ -875,11 +868,21 @@
   $: playMode = (career?.playMode ?? 'all') as PlayMode;
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
+  $: liveStageNow = live && liveStage ? userStage(live) ?? liveStage : null;
+  $: liveAwards = overviewOpen && live ? awardsSoFar(live) : null;
   $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
   $: sheetStage = career && sheetEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? sheetStage ?? 'stage1' : null) : [];
   $: sheetInvites = career && sheetEntry?.format === 'major' && sheetStage !== 'stage3' ? majorInvites(career) : [];
+  $: sheetTeams = career && sheetEntry && eventSheet !== null ? eventTeams(career, eventSheet) : [];
+  /** Idioma da call e o melhor mapa de um time da cena (para o detalhe do campeonato). */
+  function teamInfo(orgId: string): { language: ReturnType<typeof teamLanguage>; map: string | null } | null {
+    if (!career || orgId === career.orgId) return null;
+    const org = orgIn(career.seed, career.seasonNumber, orgId);
+    if (!org) return null;
+    return { language: teamLanguage(org.roster), map: mapProfile(orgId, career.year, careerMapPool(career.year))[0]?.name ?? null };
+  }
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
   $: currentLevel = career ? orgOf(career.orgId, career).level : 5;
@@ -1211,11 +1214,33 @@
         {:else if live}
           <div class="live-strip" class:done={liveOver}>
             <span class="live-badge"><i></i>{liveOver ? 'ENCERRADO' : 'AO VIVO'}</span>
-            <strong>{career.calendar?.[liveIndex]?.name}{liveStage ? ` · ${STAGE_NAME[liveStage]}` : ''}</strong>
+            <strong>{career.calendar?.[liveIndex]?.name}{liveStageNow ? ` · ${STAGE_NAME[liveStageNow]}` : ''}</strong>
             {#if career.rival && career.rival.eventIndex === liveIndex}<span class="rival-chip" title={career.rival.line}>Rival: {career.rival.nick} ({career.rival.orgName})</span>{/if}
-            {#if live.run.tournament}<button class="link-btn live-overview-btn" on:click={() => (overviewOpen = true)}>Tabela e chave</button>{/if}
+            {#if live.run.tournament}<button class="link-btn live-overview-btn" on:click={() => (overviewOpen = true)}>{liveStage ? 'Visão do Major' : 'Tabela e chave'}</button>{/if}
             <span class="live-tag-tier">{career.calendar?.[liveIndex]?.tier ? TIER_LABEL[career.calendar[liveIndex].tier ?? 'C'] : LEVEL_LABEL[currentLevel]}</span>
           </div>
+          {#if liveOver}
+            <div class="finish">
+              <p class="series">{live.run.champion ? 'Campeão' : live.finished ? placementLabel(live.run.placement) : 'Você saiu'}{live.finished ? '' : ' · o resto roda ao fechar'}</p>
+              <button class="cta" on:click={closeEvent}>Fechar campeonato</button>
+            </div>
+          {:else}
+            <div class="run-controls">
+              <div class="speed-group">
+                <span>Velocidade</span>
+                <SegmentedControl value={speed} options={SPEED_OPTIONS} label="Velocidade da simulação" onChange={setSpeed} />
+              </div>
+              {#if running}
+                <button class="secondary-btn" on:click={pauseRun}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
+                  Pausar
+                </button>
+              {:else if !clutch && !callOutcome && !resolving}
+                <button class="cta inline" on:click={() => void run()}>{lastCall ? 'Continuar' : 'Jogar'}</button>
+              {/if}
+              <button class="secondary-btn" on:click={simulateRest}>Simular o resto</button>
+            </div>
+          {/if}
           {#if stageBanner}<p class="stage-banner" role="status">{stageBanner}</p>{/if}
 
           {#if bracketPath.length}
@@ -1308,28 +1333,6 @@
             <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{autoCall ? ' · no seu estilo' : ''}</p>
           {/if}
 
-          {#if liveOver}
-            <div class="finish">
-              <p class="series">{live.run.champion ? 'Campeão' : 'Eliminado'} · {PLACEMENT[live.run.placement === 'placementChampion' ? 'champion' : live.run.placement === 'placementRunnerUp' ? 'runnerUp' : live.run.placement === 'placement3to4' ? 'semi' : 'quarter'] ?? 'Quartas'}</p>
-              <button class="cta" on:click={closeEvent}>Fechar campeonato</button>
-            </div>
-          {:else}
-            <div class="run-controls">
-              <div class="speed-group">
-                <span>Velocidade</span>
-                <SegmentedControl value={speed} options={SPEED_OPTIONS} label="Velocidade da simulação" onChange={setSpeed} />
-              </div>
-              {#if running}
-                <button class="secondary-btn" on:click={pauseRun}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
-                  Pausar
-                </button>
-              {:else if !clutch && !callOutcome && !resolving}
-                <button class="cta inline" on:click={() => void run()}>{lastCall ? 'Continuar' : 'Jogar'}</button>
-              {/if}
-              <button class="secondary-btn" on:click={simulateRest}>Simular o resto</button>
-            </div>
-          {/if}
         {:else}
           {#if !career.calendar && lastLog}
             <section class="season-summary" aria-label="Como foi a temporada">
@@ -1494,12 +1497,17 @@
                       </button>
                     {/each}
                   </div>
-                  <div class="map-train" title="Mapa bem treinado vira seu pick no veto e dá força quando é jogado. Um treino de mapa por semana, cansa 5.">
-                    <span class="map-top">Mapas fortes: <b>{mapsLine(myMaps)}</b></span>
-                    <select bind:value={mapPick} aria-label="Mapa para treinar" disabled={!canTrainMap}>
-                      {#each myMaps as map (map.mapId)}<option value={map.mapId}>{map.name} · {map.score}{map.affinity !== 'EVEN' ? ` (${map.affinity})` : ''}</option>{/each}
-                    </select>
-                    <button class="link-btn" disabled={!canTrainMap || !mapPick} on:click={doTrainMap}>{canTrainMap ? 'Treinar mapa' : 'Mapa treinado'}</button>
+                  <div class="map-train">
+                    <div class="map-chips" role="radiogroup" aria-label="Mapa para treinar (mapa bem treinado vira seu pick no veto e dá força quando é jogado)">
+                      {#each myMaps as map, mapIndex (map.mapId)}
+                        <button type="button" role="radio" aria-checked={mapPick === map.mapId} class="map-chip" class:on={mapPick === map.mapId} class:top={mapIndex < 3} style={`--map: url(/maps/${map.mapId}.webp)`} disabled={!canTrainMap} on:click={() => (mapPick = map.mapId)} title={`${map.name}: ${map.score}${map.affinity !== 'EVEN' ? ` (${map.affinity})` : ''}${mapIndex < 3 ? ' · um dos seus 3 picks' : ''}`}>
+                          <b>{map.name}</b>
+                          <span class="mc-score">{map.score}{#if map.affinity !== 'EVEN'}<i>{map.affinity}</i>{/if}</span>
+                          <span class="mc-bar" aria-hidden="true"><i style={`width:${map.score}%`}></i></span>
+                        </button>
+                      {/each}
+                    </div>
+                    <button class="secondary-btn map-go" disabled={!canTrainMap || !mapPick} on:click={doTrainMap}>{canTrainMap ? `Treinar ${myMaps.find((map) => map.mapId === mapPick)?.name ?? 'mapa'} +8` : 'Mapa treinado'}</button>
                   </div>
                   {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{/if}
                   </div>
@@ -1630,33 +1638,31 @@
           </div>
         {:else}
         <div class="field">
-          {#if sheetEntry.format === 'major'}
-            <p class="label">{sheetStage ? `${STAGE_NAME[sheetStage]} · os 16 da sua fase, do mais forte ao mais fraco` : 'Sem vaga pelo ranking · quem joga o Stage 1'}</p>
-            {#if sheetInvites.length}
-              <p class="invites">Esperando no Stage 3 (top 8 do ranking): <b>{sheetInvites.map((org) => org.name).join(' · ')}</b>. Passe de fase para pegar eles.</p>
-            {/if}
-          {:else}
-            <p class="label">A chave · do mais forte ao mais fraco (média de overall do quinteto)</p>
-          {/if}
-          <ol>
-            {#each sheetField as team, rank (team.orgId)}
-              <li class:mine={team.isUser}>
-                <span class="field-rank">{rank + 1}</span>
-                {#if team.isUser}
-                  <b class="field-name">{team.name}</b>
-                {:else}
-                  <button class="field-name link" on:click={() => openOpponent(team.orgId)}>{team.name}</button>
-                {/if}
-                <span class="field-tags">
-                  {#if rank === 0}<span class="tag fav">Favorito</span>{/if}
-                  {#if team.isUser}<span class="tag me">Você</span>{/if}
-                  <span class="tag">{LEVEL_LABEL[team.level] ?? `Nível ${team.level}`}</span>
-                </span>
-                <span class="field-bar" aria-hidden="true"><i style={`width:${Math.max(8, Math.round(((team.overall - 50) / Math.max(1, sheetTop - 50)) * 100))}%`}></i></span>
-                <b class="field-ovr">{team.overall}</b>
-              </li>
-            {/each}
-          </ol>
+          {#if sheetEntry.format === 'major' && !sheetStage}<p class="invites">Seu time ainda não tem ranking para o Major: com a temporada atual, ficaria de fora.</p>{/if}
+          {#each sheetTeams as group (group.label)}
+            <p class="label">{group.label} · {group.teams.length} times</p>
+            <ul class="team-grid">
+              {#each group.teams as team, rank (team.orgId)}
+                {@const info = teamInfo(team.orgId)}
+                <li>
+                  <button class="team-tile" class:mine={team.isUser} class:rival={career.rival?.orgId === team.orgId} disabled={team.isUser} on:click={() => openOpponent(team.orgId)} title={team.isUser ? 'O seu time' : `Ver o elenco da ${team.name}`}>
+                    <TeamBadge id={team.orgId} name={team.name} size="md" highlight={team.isUser} />
+                    <span class="tt-main">
+                      <b class="tt-name">{team.name}</b>
+                      <span class="tt-meta">{LEVEL_LABEL[team.level] ?? `Nível ${team.level}`}{#if info} · {LANGUAGE_LABEL[info.language]}{info.map ? ` · ${info.map}` : ''}{/if}</span>
+                      <span class="tt-tags">
+                        {#if team.isUser}<span class="tag me">Você</span>{/if}
+                        {#if rank === 0 && !team.isUser}<span class="tag fav">Favorito</span>{/if}
+                        {#if career.rival?.orgId === team.orgId}<span class="tag rival-tag">Rival</span>{/if}
+                      </span>
+                    </span>
+                    <b class="tt-ovr">{team.overall}</b>
+                    <span class="tt-bar" aria-hidden="true"><i style={`width:${Math.max(8, Math.min(100, Math.round(((team.overall - 50) / 45) * 100)))}%`}></i></span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/each}
         </div>
         {/if}
         {#if currentEntry?.index === eventSheet}
@@ -1689,12 +1695,18 @@
     <div class="modal-backdrop" role="presentation" on:click|self={() => (overviewOpen = false)}>
       <div class="modal wide overview-modal" role="dialog" aria-modal="true" aria-labelledby="overview-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow" id="overview-title">{career.calendar?.[liveIndex]?.name}{liveStage ? ` · ${STAGE_NAME[liveStage]}` : ''} · tabela e chave</span>
+          <span class="eyebrow" id="overview-title">{career.calendar?.[liveIndex]?.name}{liveStageNow ? ` · agora no ${STAGE_NAME[liveStageNow]}` : ''} · visão geral</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={() => (overviewOpen = false)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
         <MajorOverview tournament={live.run.tournament} cursor={{ liveSeriesId: liveUserSeries?.config.id ?? null }} userTeamId={live.userTeamId} userTeamName={orgOf(career.orgId).name} language="pt-BR" />
+        {#if liveAwards}
+          <div class="overview-awards">
+            <p class="label">Os melhores até agora · pelo kill feed de tudo o que já foi jogado</p>
+            <MajorAwardsPanel awards={liveAwards} language="pt-BR" userTeamId={live.userTeamId} userTeamName={orgOf(career.orgId).name} />
+          </div>
+        {/if}
       </div>
     </div>
   {/if}
@@ -2342,11 +2354,23 @@
   .happening-choice small { display: block; margin-top: 4px; color: var(--muted); font: 500 13px/1.3 var(--body); }
   .rival-line { color: var(--accent-2); }
   .overview-modal { width: min(1180px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; }
-  .map-train { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .map-top { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-  .map-top b { color: var(--text); }
-  .map-train select { flex: 0 1 200px; min-width: 0; min-height: 32px; padding: 4px 8px; font-size: 13px; }
-  .map-train .link-btn { white-space: nowrap; }
+  .overview-awards { display: grid; gap: 8px; margin-top: 14px; }
+  /* Treino de mapa: cartões com a imagem do mapa, nota e afinidade; os 3 primeiros são os seus picks. */
+  .map-train { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 8px; min-width: 0; }
+  .map-chips { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(78px, 1fr); gap: 4px; min-width: 0; overflow-x: auto; }
+  .map-chip { all: unset; box-sizing: border-box; position: relative; display: grid; gap: 2px; min-width: 0; padding: 5px 7px; overflow: hidden; border: 1px solid var(--line); cursor: pointer;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 70%, transparent)), var(--map) center / cover; }
+  .map-chip b { overflow: hidden; color: var(--text); font: 800 12px/1 var(--display); letter-spacing: .04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .map-chip .mc-score { display: flex; align-items: baseline; gap: 4px; color: var(--muted); font: 700 11px/1 var(--body); font-variant-numeric: tabular-nums; }
+  .map-chip .mc-score i { color: var(--accent); font-style: normal; letter-spacing: .02em; }
+  .map-chip .mc-bar { display: block; height: 3px; background: color-mix(in srgb, var(--line) 80%, transparent); }
+  .map-chip .mc-bar i { display: block; height: 100%; background: var(--muted); }
+  .map-chip.top .mc-bar i { background: var(--accent); }
+  .map-chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .map-chip:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+  .map-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .map-chip:disabled { cursor: not-allowed; opacity: .55; }
+  .map-go { align-self: stretch; min-height: 0; padding: 0 14px; white-space: nowrap; }
   .opp-maps { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
   .opp-maps b { color: var(--text); }
   .lang-chip.warn { color: var(--accent-2); }
@@ -2459,6 +2483,26 @@
   .event-facts dd.hot { color: var(--accent); }
   .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  /* Os times do campeonato: escudo, tier, idioma, melhor mapa e força; clica para ver o elenco. */
+  .field .label { margin: 10px 0 6px; }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .field .team-grid > li { display: block; min-width: 0; padding: 0; border: 0; background: none; }
+  .team-tile { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 12px 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+  .team-tile:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); transform: translateY(-1px); }
+  .team-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .team-tile:disabled { cursor: default; }
+  .team-tile.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+  .team-tile.rival { border-color: var(--accent-2); }
+  .tt-main { display: grid; gap: 3px; min-width: 0; }
+  .tt-name { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .tt-meta { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .tt-tags { display: flex; gap: 4px; min-height: 0; }
+  .tt-tags:empty { display: none; }
+  .tt-ovr { font: 900 24px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .tt-bar { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: color-mix(in srgb, var(--line) 70%, transparent); }
+  .tt-bar i { display: block; height: 100%; background: var(--muted); }
+  .team-tile.mine .tt-bar i { background: var(--accent); }
+  .rival-tag { border-color: var(--accent-2); color: var(--accent-2); }
   /* Acontecimento: a situação, 3 caminhos e o resultado. */
   .happening { display: grid; gap: 14px; }
   .happening h2 { margin: 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.05; }
