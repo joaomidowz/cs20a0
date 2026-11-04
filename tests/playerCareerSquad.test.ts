@@ -67,7 +67,9 @@ describe('conversar entre campeonatos', () => {
     career = first.state;
     const before = career.relationships[mateId]!;
     const second = talkTo(career, mateId);
-    expect(Math.abs(second.state.relationships[mateId]! - before)).toBeLessThanOrEqual(Math.max(1, Math.abs(first.delta))); // metade
+    // A segunda no mesmo dia rende metade: no máximo 3 (metade da melhor conversa, +6), e o estado anda junto.
+    expect(Math.abs(second.delta)).toBeLessThanOrEqual(3);
+    expect(second.state.relationships[mateId]).toBe(Math.max(0, Math.min(100, before + second.delta)));
     const third = talkTo(second.state, mateId);
     expect(third.delta).toBe(0); // a partir da terceira no mesmo dia, conversa não move mais
     expect(third.line).toContain('bastante');

@@ -70,7 +70,8 @@ describe('o mundo troca jogadores', () => {
       const mover = rosterIn('w-3', 3, to.id).find((member) => member.nick.toLowerCase() === move.nick.toLowerCase());
       const partner = rosterIn('w-3', 3, from.id).find((member) => member.nick.toLowerCase() === move.swappedNick.toLowerCase());
       if (!mover || !partner) continue;
-      expect((memberCatalogOverall(mover) ?? from.power ?? 70)).toBeGreaterThanOrEqual(memberCatalogOverall(partner) ?? to.power ?? 70);
+      // Força da temporada (o mundo envelhece): quem subiu joga mais que quem desceu.
+      expect((mover.overall ?? memberCatalogOverall(mover) ?? from.power ?? 70)).toBeGreaterThanOrEqual(partner.overall ?? memberCatalogOverall(partner) ?? to.power ?? 70);
     }
     expect(orgIn('w-3', 3, 'vitality-2026')?.roster).toHaveLength(sceneOrgById.get('vitality-2026')!.roster.length);
   });

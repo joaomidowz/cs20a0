@@ -85,6 +85,25 @@ describe('elencos da planilha do usuário', () => {
       }
     }
     expect(repeated).toEqual([]);
-    expect(sheetConflicts.some((conflict) => conflict.nick === 'Ax1Le')).toBe(true);
+    // makazze fica na NAVI (escolha do usuário): a vaga dele no NAVI Junior da planilha vira conflito.
+    expect(sheetConflicts.some((conflict) => conflict.nick === 'makazze' && conflict.team === 'NAVI Junior')).toBe(true);
+  });
+
+  it('cada jogador repetido fica só no time que o usuário escolheu (Ax1Le no Cloud9, não no TDK)', async () => {
+    const { stayAt } = (await import('../src/lib/data/cs/career-roster-resolutions.game.json')).default as { stayAt: Record<string, string> };
+    const key = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/\s+(team|gaming|esports?|club)$/, '').replace(/[^a-z0-9]/g, '');
+    const teamsOf = (nick: string) => sceneOrgs.filter((org) => org.roster.some((member) => member.nick.toLowerCase() === nick.toLowerCase()));
+    expect(teamsOf('Ax1Le').map((org) => org.name)).toEqual(['Cloud9']);
+    expect(teamsOf('saadzin').map((org) => org.name)).toEqual(['Legacy']);
+    let checked = 0;
+    for (const [nick, team] of Object.entries(stayAt)) {
+      const teams = teamsOf(nick);
+      if (!teams.length) continue; // o time escolhido pode ter sido fundido (ex.: "Team Vitality" é a Vitality)
+      expect(teams.length, nick).toBe(1);
+      expect(key(teams[0].name), nick).toBe(key(team));
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(250);
+    for (const org of sceneOrgs) expect(org.roster.length, org.name).toBeGreaterThanOrEqual(5);
   });
 });

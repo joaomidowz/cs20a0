@@ -2,6 +2,7 @@
 // Times do guia de campeonatos por tier e região que a coleta da cena não trouxe, com os elencos que o usuário
 // pesquisou (career-extra-rosters.game.json: nick, função, país, nascimento), e elencos para quem veio sem
 // jogador. A coleta vence conflito (ninguém joga em dois times); a vaga que sobrar usa o gerador. Nicks reais quando o guia lista a lineup; o resto é gerado
+import rawProspects from '$lib/data/cs/career-prospects.game.json';
 import rawSheet from '$lib/data/cs/career-extra-rosters.game.json';
 import type { SceneOrg, SceneRosterMember } from './data';
 
@@ -16,23 +17,39 @@ const countryOf = (value: string | null) => (!value || value === 'Internacional'
 export interface SheetConflict { team: string; nick: string }
 export const sheetConflicts: SheetConflict[] = [];
 
-/** O elenco da planilha (nicks reais, função, país e nascimento); vagas em conflito ficam com nome gerado. */
+/** Onde cada jogador repetido fica (resolução do usuário): true = fica neste time, false = sai, undefined = sem regra. */
+type StayRule = (nick: string, teamName: string) => boolean | undefined;
+let stayRule: StayRule = () => undefined;
+export function setStayRule(rule: StayRule) {
+  stayRule = rule;
+}
+
+/** O elenco da planilha (nicks reais, função, país e nascimento); quem fica em outro time abre vaga com nome gerado. */
 function sheetRoster(team: SheetTeam): SceneRosterMember[] {
+  return sheetRosterOrNull(team) ?? generatedRoster(team.name, null);
+}
+
+/** null quando 4+ da lineup jogam em outro time: o time da planilha era cópia de outro (Detonate com o Boss). */
+function sheetRosterOrNull(team: SheetTeam): SceneRosterMember[] | null {
   const members: SceneRosterMember[] = [];
   for (const entry of team.roster) {
-    if (!entry.nick || usedNicks.has(entry.nick.toLowerCase())) {
+    const rule = entry.nick ? stayRule(entry.nick, team.name) : false;
+    // Sem regra, a coleta vence; com regra, vale a escolha do usuário (a cópia do outro time sai depois).
+    if (!entry.nick || rule === false || (rule !== true && usedNicks.has(entry.nick.toLowerCase()))) {
       if (entry.nick) sheetConflicts.push({ team: team.name, nick: entry.nick });
       continue;
     }
     usedNicks.add(entry.nick.toLowerCase());
     members.push({ nick: entry.nick, country: countryOf(entry.country), birthDate: entry.birthYear ? `${entry.birthYear}-07-01` : null, roles: [entry.role], catalogBaseId: null, prospect: null });
   }
+  if (team.roster.length - members.length >= 4) return null;
   const national = orgNationOf(members);
-  return members.length >= 5 ? members.slice(0, 5) : generatedRoster(team.name, national, [], members);
+  const missing = team.roster.map((entry) => entry.role).filter((role, index) => !members.some((member) => member.nick === team.roster[index].nick));
+  return members.length >= 5 ? members.slice(0, 5) : generatedRoster(team.name, national, [], members, missing);
 }
 
 /** País do elenco quando 3+ são do mesmo país (mesma regra de time nacional da cena). */
-function orgNationOf(members: SceneRosterMember[]): string | null {
+export function orgNationOf(members: SceneRosterMember[]): string | null {
   const counts = new Map<string, number>();
   for (const member of members) if (member.country) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
   const [country, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
@@ -93,20 +110,22 @@ function generateNick(rng: () => number): string {
   return `${leet(base, rng)}${pick(SUFFIXES, rng)}`;
 }
 
-/** Nicks já usados (os da coleta e os gerados): ninguém aparece em dois elencos, nem vira xará de um pro real. */
-const usedNicks = new Set<string>();
+/** Nicks já usados (os da coleta, as promessas e os gerados): ninguém aparece em dois elencos, nem vira xará. */
+const usedNicks = new Set<string>((rawProspects as unknown as { prospects: Array<{ nick: string }> }).prospects.map((kid) => kid.nick.toLowerCase()));
 export function reserveNicks(nicks: string[]) {
   for (const nick of nicks) usedNicks.add(nick.toLowerCase());
 }
 
 /** Completa o elenco até 5 (nicks reais primeiro), com funções embaralhadas pela seed do time. */
-export function generatedRoster(teamName: string, country: string | null, known: string[] = [], current: SceneRosterMember[] = []): SceneRosterMember[] {
+export function generatedRoster(teamName: string, country: string | null, known: string[] = [], current: SceneRosterMember[] = [], missingRoles: string[] = []): SceneRosterMember[] {
   const rng = rngOf(`roster:${teamName}`);
-  const roles = [...ROLES];
-  for (let index = roles.length - 1; index > 0; index -= 1) {
+  const shuffled = [...ROLES];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const swap = Math.floor(rng() * (index + 1));
-    [roles[index], roles[swap]] = [roles[swap], roles[index]];
+    [shuffled[index], shuffled[swap]] = [shuffled[swap], shuffled[index]];
   }
+  // Vaga aberta herda a função de quem saiu; o resto segue o sorteio do time.
+  const roles = [...current.map((member) => member.roles[0] ?? 'rifler'), ...missingRoles, ...shuffled];
   const members: SceneRosterMember[] = [...current];
   for (const nick of known) {
     if (members.length >= 5) break;
@@ -126,16 +145,19 @@ const slug = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 
 /** Os times da planilha que a coleta não trouxe, no formato da cena (fonte marcada; sem torneios coletados). */
 export function extraSceneOrgs(skip: (name: string) => boolean): SceneOrg[] {
-  return SHEET.filter((team) => !skip(team.name)).map((team) => ({
-    id: `${slug(team.name)}-2026`,
-    name: team.name,
-    level: team.level,
-    country: countryOf(team.country),
-    calendarDensity: team.level === 2 ? 9 : 10,
-    tournaments: [],
-    roster: sheetRoster(team),
-    sources: [{ tournament: 'Planilha de elencos do usuário (guia de campeonatos por tier e região, 2026)' }]
-  }));
+  return SHEET.filter((team) => !skip(team.name)).flatMap((team) => {
+    const roster = sheetRosterOrNull(team);
+    return roster ? [{
+      id: `${slug(team.name)}-2026`,
+      name: team.name,
+      level: team.level,
+      country: countryOf(team.country),
+      calendarDensity: team.level === 2 ? 9 : 10,
+      tournaments: [],
+      roster,
+      sources: [{ tournament: 'Planilha de elencos do usuário (guia de campeonatos por tier e região, 2026)' }]
+    }] : [];
+  });
 }
 
 /** País de um time coletado sem elenco, pelo circuito em que ele jogou (CCT South America, Oceania). */

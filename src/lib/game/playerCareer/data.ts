@@ -8,7 +8,8 @@ import rawPlayers from '$lib/data/cs/players.game.json';
 import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
-import { countryFromTournaments, extraSceneOrgs, generatedRoster, reserveNicks, sheetRosterFor } from './extraTeams';
+import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
+import { countryFromTournaments, extraSceneOrgs, generatedRoster, orgNationOf, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
 export interface SceneRosterMember {
@@ -52,6 +53,30 @@ export const ORG_BASE_POWER: Record<number, number> = { 0: 91, 1: 87, 2: 82, 3: 
 /** "Team Vitality" e "Vitality" são o mesmo time: o nome sem "team" e sem pontuação é a chave. */
 const teamKey = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/\s+(team|gaming|esports?|club)$/, '').replace(/[^a-z0-9]/g, '');
 
+/** Jogador repetido (trocou de time no meio de 2026): fica só no time que o usuário escolheu. */
+const STAY_AT = new Map(Object.entries((rawResolutions as { stayAt: Record<string, string> }).stayAt).map(([nick, team]) => [nick.toLowerCase(), teamKey(team)]));
+const staysIn = (nick: string, teamName: string): boolean | undefined => {
+  const key = STAY_AT.get(nick.toLowerCase());
+  return key === undefined ? undefined : key === teamKey(teamName);
+};
+
+/** Tira de cada time quem fica em outro e completa a vaga com a mesma função (nome gerado). Time que perde 4 ou
+ *  5 é cópia de outro na coleta (Luminosity com a lineup do Monte): some, e o id aponta para onde o elenco foi. */
+function applyStayRules(org: SceneOrg): SceneOrg | { duplicateOf: string; id: string } {
+  const kept = org.roster.filter((member) => staysIn(member.nick, org.name) !== false);
+  if (kept.length === org.roster.length) return org;
+  const gone = org.roster.filter((member) => !kept.includes(member));
+  if (org.roster.length >= 4 && gone.length >= 4) {
+    const targets = new Map<string, number>();
+    for (const member of gone) {
+      const target = STAY_AT.get(member.nick.toLowerCase());
+      if (target) targets.set(target, (targets.get(target) ?? 0) + 1);
+    }
+    return { id: org.id, duplicateOf: [...targets].sort((a, b) => b[1] - a[1])[0][0] };
+  }
+  return { ...org, roster: generatedRoster(org.name, orgNationOf(kept), [], kept, gone.map((member) => member.roles[0] ?? 'rifler')) };
+}
+
 /** Ranking real do catálogo do jogo: o melhor entre HLTV 2025 e 2026 (sourceRank). */
 const WORLD_RANK: Map<string, number> = (() => {
   const ranks = new Map<string, number>();
@@ -77,6 +102,7 @@ const normalized = (() => {
   const alias = new Map<string, string>();
   // Times coletados sem elenco: a planilha do usuário, ou jogadores gerados (país pelo circuito que jogaram).
   reserveNicks(scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)));
+  setStayRule(staysIn);
   const collected = scene.orgs.map((org): SceneOrg => {
     if (org.roster.length >= 5) return org;
     const country = org.country ?? countryFromTournaments(org);
@@ -85,13 +111,20 @@ const normalized = (() => {
   // Os times do guia de campeonatos que a coleta não trouxe, com a planilha de elencos do usuário.
   const collectedKeys = new Set(collected.map((org) => teamKey(org.name)));
   const extras = extraSceneOrgs((name) => collectedKeys.has(teamKey(name)));
-  for (const org of [...collected, ...extras]) {
+  const duplicates: Array<{ id: string; duplicateOf: string }> = [];
+  for (const resolved of [...collected, ...extras].map(applyStayRules)) {
+    if ('duplicateOf' in resolved) { duplicates.push(resolved); continue; }
+    const org = resolved;
     const key = teamKey(org.name);
     const kept = byKey.get(key);
     if (!kept) { byKey.set(key, org); continue; }
     const [winner, loser] = org.level < kept.level ? [org, kept] : [kept, org];
     byKey.set(key, winner);
     alias.set(loser.id, winner.id);
+  }
+  for (const duplicate of duplicates) {
+    const target = byKey.get(duplicate.duplicateOf);
+    if (target) alias.set(duplicate.id, target.id);
   }
   const orgs = [...byKey.values()].map((org): SceneOrg => {
     const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
