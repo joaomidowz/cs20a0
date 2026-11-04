@@ -11,6 +11,7 @@ import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, scene
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import type { Language } from './language';
+import type { MapId } from '../types';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -264,6 +265,9 @@ export interface PlayerCareerState {
   released?: boolean;
   /** Nível que os times ganharam ou perderam NESTA carreira (você carregou o time para cima, ou ele caiu). */
   orgLevels?: Record<string, number>;
+  /** Treino de mapa do seu time (0-30 por mapa, soma no perfil de mapas da org) e a semana do último treino. */
+  mapTraining?: Partial<Record<MapId, number>>;
+  mapTrainedWindow?: string | null;
   /** Fluência nos idiomas que não são o seu (0-100); o inglês sem valor parte do nível típico do seu país. */
   languages?: Partial<Record<Language, number>>;
   /** Reputação 0-100 (imagem com times, imprensa e torcida; começa em 50). */

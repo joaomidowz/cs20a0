@@ -26,11 +26,13 @@
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
+  import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
+  import type { MapId } from '$lib/game/types';
   import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
@@ -144,6 +146,7 @@
   let lastTalk: { mateId: string; line: string; delta: number } | null = null;
   /** Treino livre: as habilidades marcadas (até 4). */
   let pickedSkills: TrainedAttribute[] = [];
+  let mapPick: MapId | '' = '';
   /** O que aconteceu na semana (escolha feita) e o último retorno do coach. */
   let weekLine: string | null = null;
   let weekChips: AgendaChip[] = [];
@@ -400,6 +403,14 @@
     weekLine = result.line;
     weekChips = result.chips;
     pickedSkills = [];
+  }
+
+  function doTrainMap() {
+    if (!career || !mapPick) return;
+    const result = trainMap(career, mapPick);
+    career = result.state;
+    weekLine = result.line;
+    weekChips = [];
   }
 
   function chooseWeek(actionId: string) {
@@ -809,6 +820,7 @@
     ? (liveUserSeries.config.teamA.id === live.userTeamId ? liveUserSeries.config.teamB : liveUserSeries.config.teamA)
     : null;
   $: opponentOrg = opponentOrgId ? sceneOrgById.get(opponentOrgId) ?? null : null;
+  $: oppMaps = career && opponentOrg ? mapProfile(opponentOrg.id, career.year, careerMapPool(career.year)) : [];
   $: opponentRoster = career && opponentOrg
     ? sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
     : [];
@@ -860,6 +872,11 @@
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
   $: langFit = career ? myLanguageFit(career) : null;
+  $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
+  $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
+  $: canTrainMap = Boolean(career && trainingWindow && career.mapTrainedWindow !== trainingWindow);
+  const AFFINITY_LABEL: Record<string, string> = { '+++': '+++', '++': '++', '+': '+', EVEN: '' };
+  const mapsLine = (maps: MapRating[]) => maps.slice(0, 3).map((map) => `${map.name}${AFFINITY_LABEL[map.affinity] ? ` ${AFFINITY_LABEL[map.affinity]}` : ''}`).join(' · ');
   $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
@@ -1445,7 +1462,14 @@
                       </button>
                     {/each}
                   </div>
-                  {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{:else}<p class="coach-hint">O coach só indica o que treinar se você falar com ele.</p>{/if}
+                  <div class="map-train" title="Mapa bem treinado vira seu pick no veto e dá força quando é jogado. Um treino de mapa por semana, cansa 5.">
+                    <span class="map-top">Mapas fortes: <b>{mapsLine(myMaps)}</b></span>
+                    <select bind:value={mapPick} aria-label="Mapa para treinar" disabled={!canTrainMap}>
+                      {#each myMaps as map (map.mapId)}<option value={map.mapId}>{map.name} · {map.score}{map.affinity !== 'EVEN' ? ` (${map.affinity})` : ''}</option>{/each}
+                    </select>
+                    <button class="link-btn" disabled={!canTrainMap || !mapPick} on:click={doTrainMap}>{canTrainMap ? 'Treinar mapa' : 'Mapa treinado'}</button>
+                  </div>
+                  {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{/if}
                   </div>
                 </div>
               </section>
@@ -1552,6 +1576,7 @@
           {:else}
             <div><dt>Status</dt><dd>{currentEntry?.index === eventSheet ? 'Próximo a jogar' : 'Ainda vai acontecer'}</dd></div>
             <div><dt>Sua força</dt><dd>{sheetMyRank}º de {sheetField.length} na chave</dd></div>
+            <div><dt>Seus mapas</dt><dd>{mapsLine(myMaps)}</dd></div>
           {/if}
         </dl>
         {#if sheetEntry.result?.bracket?.length}
@@ -1618,6 +1643,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
+        <p class="opp-maps">Mapas fortes: <b>{mapsLine(oppMaps)}</b> · costuma banir <b>{oppMaps.at(-1)?.name ?? ''}</b>{#if myMaps.length} · o seu melhor: <b>{myMaps[0].name}</b>{/if}</p>
         <div class="opp-strip">
           {#each opponentRoster as player (player.id)}
             <CareerCard {player} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={opponentOrg.name} />
@@ -2100,7 +2126,7 @@
   .next-actions .cta { width: 100%; }
   .pace { display: flex; align-items: center; gap: 10px; }
   .pace > span { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
-  .path { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .path { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
   .step { position: relative; display: grid; gap: 3px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .step-stage { color: var(--muted); font: 800 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
   .step-opp { font: 800 18px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2211,7 +2237,9 @@
     /* A navbar acompanha a largura da carreira (só nesta página). */
     :global(body:has(.pc-page) .nav.shell) { width: min(1480px, calc(100% - 28px)); }
     .career { min-height: calc(100dvh - 68px - 36px); }
-    .rail { gap: 11px; padding: 16px 20px; }
+    .rail { gap: 11px; padding: 16px 20px; min-height: 0; max-height: calc(100dvh - 68px - 36px); overflow: hidden; }
+    /* A lista de temporadas cresce com a carreira: rola dentro do painel em vez de empurrar a página. */
+    .rail-seasons { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
     .ovr-num { font-size: 76px; }
     .stage { padding: 16px 22px; gap: 12px; }
   }
@@ -2239,6 +2267,13 @@
   .note.award b { color: var(--gold); }
   .note .link-btn { justify-self: start; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
+  .map-train { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .map-top { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .map-top b { color: var(--text); }
+  .map-train select { flex: 0 1 200px; min-width: 0; min-height: 32px; padding: 4px 8px; font-size: 13px; }
+  .map-train .link-btn { white-space: nowrap; }
+  .opp-maps { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+  .opp-maps b { color: var(--text); }
   .lang-chip.warn { color: var(--accent-2); }
   .warn-text { color: var(--accent-2); }
   .offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
@@ -2422,7 +2457,7 @@
     .skills-pick button { padding: 0 6px; font-size: 12px; min-height: 40px; }
     .ft-actions { flex-wrap: wrap; }
     .week-cards { grid-template-columns: minmax(0, 1fr); }
-    .path { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+    .path { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
     .path .step { padding: 6px 8px; }
     .path .step-opp { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
     .path .step-state { font-size: 11px; }

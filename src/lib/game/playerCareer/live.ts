@@ -29,6 +29,7 @@ import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
+import { applyCareerMapProfiles } from './careerMaps';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
@@ -267,6 +268,8 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
     neutralMapPool: careerMapPool(state.year),
     ...(played ? { played: played as never } : {})
   });
+  // Cada time com o seu perfil de mapas (o seu com o treino): veto e bônus de força no mapa jogado.
+  applyCareerMapProfiles(campaign, state.orgId, state.year, careerMapPool(state.year), state.mapTraining ?? {});
   // O SeriesViewer pinta "seu time" pelo isUser: marca a org no engine (vale pra TODAS as séries futuras,
   // que copiam o time da org) e a série que já abriu na criação da chave.
   const organization = campaign.engine.byId.get(campaign.userTeamId);
@@ -628,7 +631,9 @@ const STAGE_LABEL: Record<BracketStage, string> = { swiss: 'Suíça', quarterfin
 
 /** Onde você está na chave: as 3 fases com adversário, placar e o que já passou. */
 export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
-  const live = currentCampaignSeries(campaign);
+  // Série que acabou mas ainda não foi confirmada conta como decidida, não como "ao vivo".
+  const current = currentCampaignSeries(campaign);
+  const live = current && current.phase !== 'finished' ? current : null;
   const done = new Map<string, SeriesResult>();
   for (const series of campaign.run.matches) {
     // Só séries decididas: a que está rolando (ou mal abriu) aparece como "ao vivo", não como derrota.
@@ -636,15 +641,37 @@ export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
     if (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)) done.set(series.phase, series);
   }
   let eliminated = false;
-  // Eventos com suíça: o primeiro passo é a campanha (3 vitórias classifica, 3 derrotas cai).
+  // Eventos com suíça: jogo a jogo enquanto a suíça corre (3 vitórias classifica, 3 derrotas cai); passou para o
+  // mata-mata, a suíça vira um bloco só com a campanha.
   const swissSeries = campaign.run.matches.filter((series) => series.phase === 'stage3' && (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)));
+  const swissDone = swissSeries.filter((series) => series.winnerId && !(live && series.id === live.config.id));
   const swissSteps: BracketStep[] = [];
-  if (swissSeries.length || (live && live.config.phase === 'stage3')) {
+  const inSwiss = Boolean(live && live.config.phase === 'stage3' && isUserSeries(campaign, live));
+  if (swissDone.length || inSwiss) {
     const record = swissRecord(campaign);
-    const inSwiss = live && live.config.phase === 'stage3' && isUserSeries(campaign, live);
-    const status: BracketStep['status'] = record.losses >= 3 ? 'lost' : record.wins >= 3 ? 'won' : inSwiss ? 'live' : 'next';
-    if (status === 'lost') eliminated = true;
-    swissSteps.push({ stage: 'swiss', label: STAGE_LABEL.swiss, status, opponent: inSwiss ? (live!.config.teamA.id === campaign.userTeamId ? live!.config.teamB.name : live!.config.teamA.name) : null, score: `${record.wins}-${record.losses}` });
+    const over = record.wins >= 3 || record.losses >= 3;
+    if (record.losses >= 3) eliminated = true;
+    const reachedPlayoffs = record.wins >= 3 && campaign.run.matches.some((series) => series.phase !== 'stage3' && (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)));
+    if (reachedPlayoffs || (over && !inSwiss && record.wins >= 3 && !campaign.finished && live?.config.phase !== 'stage3')) {
+      swissSteps.push({ stage: 'swiss', label: STAGE_LABEL.swiss, status: 'won', opponent: 'Classificado', score: `${record.wins}-${record.losses}` });
+    } else {
+      swissDone.forEach((series, index) => {
+        const userIsA = isUserTeam(campaign, series.teamA.id);
+        swissSteps.push({
+          stage: 'swiss', label: `Rodada ${index + 1}`, status: isUserTeam(campaign, series.winnerId) ? 'won' : 'lost',
+          opponent: userIsA ? series.teamB.name : series.teamA.name,
+          score: userIsA ? `${series.scoreA}-${series.scoreB}` : `${series.scoreB}-${series.scoreA}`
+        });
+      });
+      if (inSwiss) {
+        const userIsA = live!.config.teamA.id === campaign.userTeamId;
+        swissSteps.push({
+          stage: 'swiss', label: `Rodada ${swissDone.length + 1} · ${record.wins}-${record.losses}`, status: 'live',
+          opponent: userIsA ? live!.config.teamB.name : live!.config.teamA.name,
+          score: userIsA ? `${live!.scoreA}-${live!.scoreB}` : `${live!.scoreB}-${live!.scoreA}`
+        });
+      }
+    }
   }
   return [...swissSteps, ...(['quarterfinal', 'semifinal', 'final'] as BracketStage[]).map((stage): BracketStep => {
     const series = done.get(stage);
@@ -670,9 +697,14 @@ export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
   })];
 }
 
-/** Sua campanha na fase suíça (Major e eventos de 16). */
+/** Sua campanha na fase suíça (Major e eventos de 16): só séries decididas (a que está rolando não conta). */
 export function swissRecord(campaign: CampaignMajorState): { wins: number; losses: number } {
-  return { wins: campaign.run.stage3?.wins ?? 0, losses: campaign.run.stage3?.losses ?? 0 };
+  const live = currentCampaignSeries(campaign);
+  const decided = campaign.run.matches.filter((series) => series.phase === 'stage3' && series.winnerId
+    && !(live && series.id === live.config.id && live.phase !== 'finished')
+    && (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)));
+  const wins = decided.filter((series) => isUserTeam(campaign, series.winnerId)).length;
+  return { wins, losses: decided.length - wins };
 }
 
 /** O campeonato (ou o stage do Major) acabou para você? Stage 1/2 terminam na suíça. */

@@ -75,3 +75,32 @@ describe('onde estou na chave', () => {
     expect(userBracketPath(campaign)[0].status).toBe('live');
   });
 });
+
+describe('suíça jogo a jogo', () => {
+  it('no meio da suíça: rodadas decididas + a rodada ao vivo; a série em andamento não conta como derrota', async () => {
+    const { stepSceneEvent, swissRecord } = await import('../src/lib/game/playerCareer/live');
+    const { sceneOrgs } = await import('../src/lib/game/playerCareer/data');
+    const base = createPlayerCareer({ nick: 'tester', country: 'Brazil', role: 'entry', seed: 'swiss-path' });
+    const career = startSeason({ ...base, orgId: sceneOrgs.find((org) => org.level === 0)!.id, pendingDraw: null, drawDone: true, seatsTaken: [] });
+    const index = career.calendar!.findIndex((entry) => entry.format === 'swiss16');
+    let campaign = startSceneEvent(career, index).campaign;
+    let checked = false;
+    for (let guard = 0; guard < 6000 && !campaign.finished && !checked; guard += 1) {
+      campaign = stepSceneEvent(campaign).campaign;
+      const live = currentCampaignSeries(campaign);
+      if (!live || live.phase === 'finished' || live.config.phase !== 'stage3' || live.maps.length === 0) continue;
+      const userInLive = live.config.teamA.id === campaign.userTeamId || live.config.teamB.id === campaign.userTeamId;
+      if (!userInLive) continue;
+      const path = userBracketPath(campaign);
+      const swiss = path.filter((step) => step.stage === 'swiss');
+      const record = swissRecord(campaign);
+      if (record.wins + record.losses < 2) continue;
+      expect(swiss.filter((step) => step.status !== 'live')).toHaveLength(record.wins + record.losses);
+      expect(swiss.at(-1)!.status).toBe('live');
+      expect(swiss.at(-1)!.label).toContain(`${record.wins}-${record.losses}`);
+      expect(record.losses).toBeLessThan(3);
+      checked = true;
+    }
+    expect(checked).toBe(true);
+  }, 60000);
+});

@@ -9,6 +9,9 @@ import type { Coach, Player, TrainingFocus } from '../types';
 import { memberRoles, ORG_BASE_POWER, sceneOrgById } from './data';
 import { orgIn } from './world';
 import { randomNick } from './extraTeams';
+import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
+import { MAP_NAMES } from '../maps';
+import type { MapId } from '../types';
 import { languagePenalty, learn, myFluency, nativeLanguage, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
@@ -222,6 +225,19 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
     fatigue,
     fame: (state.fame ?? 0) + fameGain,
     ...(knocked ? { form: clamp((state.form ?? 0) - 2, -3, 3), knock: 'Dor no punho de tanto treinar: forma −2 no próximo campeonato.' } : {})
+  };
+}
+
+/** Treina um mapa com o time (uma vez por semana): +8 no mapa (até +30), cansa 5. */
+export function trainMap(state: PlayerCareerState, mapId: MapId): { state: PlayerCareerState; line: string } {
+  const window = trainingWindowOf(state);
+  if (!window || state.mapTrainedWindow === window) return { state, line: 'O treino de mapa da semana já foi feito.' };
+  const before = state.mapTraining?.[mapId] ?? 0;
+  const after = Math.min(MAP_TRAIN_CAP, before + MAP_TRAIN_STEP);
+  const name = MAP_NAMES[mapId] ?? mapId;
+  return {
+    state: { ...state, mapTraining: { ...(state.mapTraining ?? {}), [mapId]: after }, mapTrainedWindow: window, fatigue: clamp((state.fatigue ?? 0) + 5, 0, 100) },
+    line: after > before ? `${name}: +${after - before} de entrosamento no mapa. Cansaço +5.` : `${name} já está no máximo de treino.`
   };
 }
 
