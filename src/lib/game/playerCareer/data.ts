@@ -11,6 +11,7 @@ import type { PlayerRole } from './engine';
 import { regionOf, type Region } from './calendar';
 import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
 import rawFills from '$lib/data/cs/career-slot-fills.game.json';
+import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
@@ -95,6 +96,42 @@ function applyFills(orgs: Map<string, SceneOrg>) {
     taken.add(nick);
     const member: SceneRosterMember = { nick: fill.nick, country: fill.country, birthDate: fill.birthYear ? `${fill.birthYear}-07-01` : null, roles: fill.role ? [roleId(fill.role)] : slot.roles, catalogBaseId: null, prospect: null };
     orgs.set(teamKey(fill.team), { ...org, roster: org.roster.map((other) => (other === slot ? member : other)) });
+  }
+}
+
+interface RosterOverride { team: string; members: Array<{ nick: string; country?: string | null; role?: string }> }
+const OVERRIDES = (rawOverrides as unknown as { teams: RosterOverride[] }).teams;
+const LINEUP_ROLES = ['igl', 'awp', 'entry', 'support', 'lurker'];
+
+/**
+ * Elencos atuais informados pelo usuário (Legacy, ODDIK, Folha Amarela…): vencem coleta, planilhas e resoluções.
+ * Quem já existe na cena leva os dados dele (catálogo, nascimento, função); quem sai de outro time abre vaga
+ * com a mesma função.
+ */
+function applyOverrides(orgs: Map<string, SceneOrg>, known: Map<string, SceneRosterMember>) {
+  const claimed = new Map<string, string>();
+  for (const override of OVERRIDES) for (const member of override.members) claimed.set(member.nick.toLowerCase(), teamKey(override.team));
+  for (const [key, org] of orgs) {
+    const kept = org.roster.filter((member) => (claimed.get(member.nick.toLowerCase()) ?? key) === key);
+    if (kept.length === org.roster.length) continue;
+    const gone = org.roster.filter((member) => !kept.includes(member)).map((member) => member.roles[0] ?? 'rifler');
+    orgs.set(key, { ...org, roster: generatedRoster(org.name, orgNationOf(kept), [], kept, gone) });
+  }
+  for (const override of OVERRIDES) {
+    const key = teamKey(override.team);
+    const org = orgs.get(key);
+    if (!org) continue;
+    const members = override.members.map((entry): SceneRosterMember => {
+      const base = known.get(entry.nick.toLowerCase());
+      const roles = entry.role ? [entry.role] : base?.roles.length ? base.roles : [];
+      return base
+        ? { ...base, nick: entry.nick, country: entry.country ?? base.country, roles, generated: undefined }
+        : { nick: entry.nick, country: entry.country ?? null, birthDate: null, roles, catalogBaseId: null, prospect: null };
+    });
+    // Quem veio sem função ganha uma das que faltam na lineup.
+    const free = LINEUP_ROLES.filter((role) => !members.some((member) => roleId(member.roles[0]) === roleId(role)));
+    const roster = members.map((member) => (member.roles.length ? member : { ...member, roles: [free.shift() ?? 'rifler'] }));
+    orgs.set(key, { ...org, roster });
   }
 }
 
@@ -210,6 +247,13 @@ const normalized = (() => {
     if (target) alias.set(duplicate.id, target.id);
   }
   applyFills(byKey);
+  // Os dados de cada jogador conhecido (o da coleta primeiro, que tem catálogo e nascimento).
+  const known = new Map<string, SceneRosterMember>();
+  for (const org of [...scene.orgs, ...byKey.values()]) for (const member of org.roster) {
+    const key = member.nick.toLowerCase();
+    if (!member.generated && (!known.has(key) || (!known.get(key)!.catalogBaseId && member.catalogBaseId))) known.set(key, member);
+  }
+  applyOverrides(byKey, known);
   const orgs = [...byKey.values()].map((org): SceneOrg => {
     const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
     const elite = rank !== null && rank <= ELITE_RANK;
@@ -276,6 +320,10 @@ const ENTRY_AGE = 22;
  * Ano de nascimento: o da coleta (Liquipedia) ou, sem ele, uma ESTIMATIVA pela estreia no catálogo (estreia
  * aos 22, a mediana real). FalleN estreia em 2013 no catálogo, o que dá 1991, o ano real. Sem nenhum dos dois, null.
  */
+/** Ano em que o jogador apareceu no topo (primeiro ano no catálogo), quando ele está no catálogo. */
+export const memberDebutYear = (member: SceneRosterMember): number | null =>
+  (member.catalogBaseId ? CATALOG_FIRST_YEAR.get(member.catalogBaseId.toLowerCase()) ?? null : null);
+
 export function memberBirthYear(member: SceneRosterMember): number | null {
   if (member.birthDate) return Number(member.birthDate.slice(0, 4));
   const first = member.catalogBaseId ? CATALOG_FIRST_YEAR.get(member.catalogBaseId.toLowerCase()) : undefined;

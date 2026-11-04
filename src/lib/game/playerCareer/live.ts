@@ -20,7 +20,7 @@ import type { LiveSeriesState } from '../online/live-series';
 import { armClutchCall } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
 import { drawClutchSituation, resolveClutchEdge } from './decisions';
-import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear } from '../maps';
+import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
 import { computeMajorAwards } from '../majorAwards';
@@ -29,7 +29,7 @@ import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { regionOf, type Region } from './calendar';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
-import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, TournamentResult } from './engine';
+import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
@@ -473,6 +473,7 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
   const awards = computeMajorAwards(result.rounds, championId);
   const me = `${state.seed}:me`;
   const plays = countPlays(series, me);
+  const highlights = playHighlights(series, me, campaign, myTeam);
   const bracket: BracketLine[] = series
     .filter((item): item is typeof item & { phase: BracketLine['phase'] } => item.phase === 'quarterfinal' || item.phase === 'semifinal' || item.phase === 'final')
     .map((item) => ({
@@ -493,8 +494,30 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ...(final ? { champion: nameOf(final.winnerId === final.teamA.id ? final.teamA : final.teamB) } : {}),
     ...(mvp ? { mvp } : {}),
     ...(plays.aces + plays.quads + plays.clutches > 0 ? { plays } : {}),
-    ...(bracket.length ? { bracket } : {})
+    ...(bracket.length ? { bracket } : {}),
+    ...(highlights.length ? { highlights } : {})
   };
+}
+
+const HIGHLIGHT_WEIGHT = (highlight: PlayHighlight) =>
+  highlight.kind === 'ace' ? 100 : highlight.kind === 'clutch' ? 40 + (highlight.against ?? 1) * 12 : highlight.kind === 'quad' ? 50 : 20;
+
+/** As suas melhores jogadas do evento: tipo, mapa, round e contra quem (ace primeiro, depois clutch difícil, quad). */
+function playHighlights(series: SeriesResult[], playerId: string, campaign: CampaignMajorState, myTeam: string): PlayHighlight[] {
+  const list: PlayHighlight[] = [];
+  for (const item of series) {
+    const opponent = isUserTeam(campaign, item.teamA.id) ? item.teamB.name : isUserTeam(campaign, item.teamB.id) ? item.teamA.name : null;
+    if (!opponent) continue;
+    for (const map of item.maps) for (const round of map.details ?? []) {
+      const highlight = round.highlight;
+      if (!highlight || highlight.playerId !== playerId) continue;
+      list.push({
+        kind: highlight.kind, kills: highlight.kills, ...(highlight.against ? { against: highlight.against } : {}),
+        map: map.mapId ? MAP_NAMES[map.mapId] ?? map.mapId : `Mapa ${map.map}`, round: round.number, opponent: opponent === myTeam ? item.teamB.name : opponent
+      });
+    }
+  }
+  return list.filter((highlight) => highlight.kind !== 'triple').sort((a, b) => HIGHLIGHT_WEIGHT(b) - HIGHLIGHT_WEIGHT(a)).slice(0, 8);
 }
 
 /** Ace, quad e clutch seus, contados direto dos destaques dos rounds do kill feed. */

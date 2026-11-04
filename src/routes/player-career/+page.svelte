@@ -24,7 +24,7 @@
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
-    type BracketLine, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
+    type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
@@ -299,6 +299,21 @@
     { phase: 'quarterfinal', label: 'Quartas' }, { phase: 'semifinal', label: 'Semis' }, { phase: 'final', label: 'Final' }
   ];
   const TROPHY_TIERS: EventTier[] = ['Major', 'S', 'A', 'B', 'C'];
+  const ROOM_TABS = [{ key: 'titulos', label: 'Títulos' }, { key: 'premios', label: 'Prêmios e HLTV' }, { key: 'jogadas', label: 'Jogadas' }] as const;
+  let roomTab: (typeof ROOM_TABS)[number]['key'] = 'titulos';
+  const PLAY_LABEL = (play: PlayHighlight) =>
+    play.kind === 'ace' ? 'Ace' : play.kind === 'quad' ? '4K' : play.kind === 'clutch' ? `Clutch 1v${play.against ?? 1}` : `${play.kills}K`;
+
+  /** Todas as jogadas guardadas da carreira, das mais raras para as comuns e das mais novas para as velhas. */
+  function careerPlays(state: PlayerCareerState) {
+    const all: Array<PlayHighlight & { event: string; order: number }> = [];
+    let order = 0;
+    const take = (result: TournamentResult) => { order += 1; for (const play of result.highlights ?? []) all.push({ ...play, event: result.name, order }); };
+    state.history.forEach((log) => log.tournaments.forEach(take));
+    (state.calendar ?? []).forEach((entry) => entry.result && take(entry.result));
+    const weight = (play: PlayHighlight) => (play.kind === 'ace' ? 100 : play.kind === 'clutch' ? 40 + (play.against ?? 1) * 12 : 50);
+    return all.sort((a, b) => weight(b) - weight(a) || b.order - a.order).slice(0, 60);
+  }
 
   /** Momentos da carreira: títulos, MVPs e aces, do mais novo para o mais antigo. */
   function careerMoments(state: PlayerCareerState) {
@@ -843,8 +858,9 @@
   /** O resultado da call só cabe dentro do viewer enquanto o mapa está ao vivo; fora disso vai embaixo dele. */
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
-  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0 };
+  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
+  $: playReel = career && trophiesOpen ? careerPlays(career) : [];
   $: lastLog = career?.history[career.history.length - 1] ?? null;
   $: currentSeat = career?.seatsTaken[career.seatsTaken.length - 1] ?? null;
 </script>
@@ -1088,6 +1104,13 @@
               {#if career.released}
                 <div class="note warn"><b>O {orgOf(career.orgId).name} não renovou.</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada, sem título. Escolha uma oferta ou volte para a Lan House.</span></div>
               {/if}
+              {#if lastLog.hltvRank || lastLog.rookieEligible}
+                <div class="note" class:award={lastLog.hltvRank !== null && lastLog.hltvRank !== undefined && lastLog.hltvRank <= 20 || lastLog.rookie?.you}>
+                  {#if lastLog.hltvRank}<b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'melhor jogador do mundo' : `#${lastLog.hltvRank} do mundo`}{lastLog.hltvRank > 1 && lastLog.hltvRank <= 20 ? ' · Top 20' : ''}</b>{/if}
+                  {#if lastLog.rookie?.you}<span>Rookie of the Year: você, o melhor estreante de Major.</span>{:else if lastLog.rookieEligible && lastLog.rookie}<span>Rookie of the Year ficou com {lastLog.rookie.nick} ({lastLog.rookie.team}).</span>{/if}
+                  <button class="link-btn" on:click={() => { roomTab = 'premios'; openTrophies(); }}>Ver Top 20</button>
+                </div>
+              {/if}
               {#if lastLog.moves?.length}
                 <div class="note"><b>Trocas na temporada</b><span>{lastLog.moves.join(' · ')}</span></div>
               {/if}
@@ -1265,6 +1288,14 @@
                 <span>rating {lastLog.seasonRating.toFixed(2)}{lastLog.titles ? ` · ${lastLog.titles} título${lastLog.titles > 1 ? 's' : ''}` : ''}</span>
               </div>
               <div class="ss-notes">
+                {#if lastLog.hltvRank}
+                  <p class:up-note={lastLog.hltvRank <= 20}><b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'você é o melhor do mundo!' : `#${lastLog.hltvRank} do mundo`}</b>{lastLog.hltvRank <= 20 ? ' Top 20 da temporada.' : ''}</p>
+                {/if}
+                {#if lastLog.rookie?.you}
+                  <p class="up-note"><b>Rookie of the Year {lastLog.year}.</b> O melhor estreante de Major da temporada.</p>
+                {:else if lastLog.rookieEligible && lastLog.rookie}
+                  <p><b>Rookie of the Year:</b> {lastLog.rookie.nick} ({lastLog.rookie.team}) levou. Era o seu ano de estreia em Major.</p>
+                {/if}
                 {#if lastLog.orgChange}
                   <p class:up-note={lastLog.orgChange.to < lastLog.orgChange.from} class:warn={lastLog.orgChange.to > lastLog.orgChange.from}><b>{lastLog.orgName} {lastLog.orgChange.to < lastLog.orgChange.from ? 'subiu' : 'caiu'} para o {LEVEL_LABEL[lastLog.orgChange.to]}.</b> {lastLog.orgChange.to < lastLog.orgChange.from ? 'Você carregou o time: o circuito agora é outro.' : 'Nenhuma semifinal na temporada.'}</p>
                 {/if}
@@ -1272,7 +1303,7 @@
                 {#if lastLog.injury}<p class="warn"><b>Lesão:</b> {lastLog.injury}.</p>{/if}
                 {#if lastLog.moves?.length}<p><b>Trocas:</b> {lastLog.moves.join(' · ')}</p>{/if}
                 {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
-                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
+                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange && !lastLog.hltvRank && !lastLog.rookieEligible}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
               </div>
               {#if sceneProspects.length}
                 <div class="ss-market ss-prospects">
@@ -1398,7 +1429,7 @@
                     </div>
                     <div class="ft-actions">
                       <button class="secondary-btn" disabled={!canTrain || !pickedSkills.length} on:click={trainFree}>{pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
-                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach}>Falar com o coach · {talksLeft}/3 na temporada</button>
+                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach} title="3 conversas por temporada">Falar com o coach · {talksLeft}/3</button>
                     </div>
                   </div>
                   <div class="week-right">
@@ -1436,7 +1467,7 @@
                     <li>
                       <button class="ev place-{placeKey(entry.result?.placement)}" class:now={currentEntry?.index === index} class:played={Boolean(entry.result)} on:click={() => openEvent(index)} aria-label={`${entry.name}: ver detalhes`}>
                         <span class="ev-top">
-                          <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}<small class:major={entry.tier === 'Major'}>{entry.tier ? TIER_LABEL[entry.tier] : PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small></span>
+                          <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}{#if !entry.result || entry.tier === 'Major'}<small class:major={entry.tier === 'Major'}>{entry.tier ? TIER_LABEL[entry.tier] : PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small>{/if}</span>
                           {#if entry.result}
                             <span class="ev-place">{PLACE_SHORT[entry.result.placement] ?? entry.result.placement}</span>
                           {/if}
@@ -1602,29 +1633,92 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
-        <dl class="trophy-tiers">
-          {#each TROPHY_TIERS as tier (tier)}
-            <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{TIER_LABEL[tier]}</dt><dd>{trophies.byTier[tier]}</dd></div>
+        <div class="room-tabs" role="tablist" aria-label="Seções da sala de troféus">
+          {#each ROOM_TABS as tab (tab.key)}
+            <button role="tab" aria-selected={roomTab === tab.key} class:on={roomTab === tab.key} on:click={() => (roomTab = tab.key)}>{tab.label}</button>
           {/each}
-          <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
-          <div class:has={trophies.aces > 0}><dt>Aces</dt><dd>{trophies.aces}</dd></div>
-        </dl>
-        {#if moments.length}
-          <ol class="moments">
-            {#each moments as moment (moment.key)}
-              <li class:title={moment.placement === 'Campeão'}>
-                <span class="moment-name">{moment.name}</span>
-                <span class="moment-tags">
-                  {#if moment.tier}<span class="tag" class:major={moment.tier === 'Major'}>{TIER_LABEL[moment.tier]}</span>{/if}
-                  {#if moment.placement === 'Campeão'}<span class="tag gold">Campeão</span>{/if}
-                  {#if moment.mvp}<span class="tag gold">MVP</span>{/if}
-                  {#if moment.aces}<span class="tag">{moment.aces} ace{moment.aces > 1 ? 's' : ''}</span>{/if}
-                </span>
-              </li>
+        </div>
+
+        {#if roomTab === 'titulos'}
+          <dl class="trophy-tiers">
+            {#each TROPHY_TIERS as tier (tier)}
+              <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{TIER_LABEL[tier]}</dt><dd>{trophies.byTier[tier]}</dd></div>
             {/each}
-          </ol>
+            <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
+          </dl>
+          {#if moments.length}
+            <ol class="moments">
+              {#each moments as moment (moment.key)}
+                <li class:title={moment.placement === 'Campeão'}>
+                  <span class="moment-name">{moment.name}</span>
+                  <span class="moment-tags">
+                    {#if moment.tier}<span class="tag" class:major={moment.tier === 'Major'}>{TIER_LABEL[moment.tier]}</span>{/if}
+                    {#if moment.placement === 'Campeão'}<span class="tag gold">Campeão</span>{/if}
+                    {#if moment.mvp}<span class="tag gold">MVP</span>{/if}
+                    {#if moment.aces}<span class="tag">{moment.aces} ace{moment.aces > 1 ? 's' : ''}</span>{/if}
+                  </span>
+                </li>
+              {/each}
+            </ol>
+          {:else}
+            <p class="muted-line">Nenhum título ainda. Título, MVP de evento e ace entram aqui.</p>
+          {/if}
+
+        {:else if roomTab === 'premios'}
+          <dl class="trophy-tiers">
+            <div class:has={trophies.hltvBest !== null} class:major={trophies.hltvBest === 1}><dt>Melhor HLTV</dt><dd>{trophies.hltvBest ? `#${trophies.hltvBest}` : '—'}</dd></div>
+            <div class:has={trophies.hltvTop1 > 0} class:major={trophies.hltvTop1 > 0}><dt>Top 1 do mundo</dt><dd>{trophies.hltvTop1}</dd></div>
+            <div class:has={trophies.hltvTop20 > 0}><dt>Anos no Top 20</dt><dd>{trophies.hltvTop20}</dd></div>
+            <div class:has={trophies.rookie} class:major={trophies.rookie}><dt>Rookie of the Year</dt><dd>{trophies.rookie ? 'Sim' : 'Não'}</dd></div>
+            <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
+          </dl>
+          {#if career.history.length}
+            <ol class="season-awards">
+              {#each [...career.history].reverse() as log (log.seasonNumber)}
+                <li>
+                  <span class="sa-year">{log.year}</span>
+                  <span class="sa-team">{log.orgName} · rating {log.seasonRating.toFixed(2)}</span>
+                  <span class="moment-tags">
+                    {#if log.hltvRank}<span class="tag" class:gold={log.hltvRank === 1} class:major={log.hltvRank <= 20 && log.hltvRank > 1}>HLTV #{log.hltvRank}</span>{:else}<span class="tag">Sem ranking</span>{/if}
+                    {#if log.tournaments.some((result) => result.mvp?.you)}<span class="tag">{log.tournaments.filter((result) => result.mvp?.you).length} MVP</span>{/if}
+                    {#if log.titles}<span class="tag">{log.titles} título{log.titles > 1 ? 's' : ''}</span>{/if}
+                    {#if log.rookie?.you}<span class="tag gold">Rookie of the Year</span>{/if}
+                  </span>
+                </li>
+              {/each}
+            </ol>
+            {@const lastTop = career.history.at(-1)?.hltvTop ?? []}
+            {#if lastTop.length}
+              <p class="label">Top 20 HLTV de {career.history.at(-1)?.year}{career.history.at(-1)?.rookie ? ` · Rookie of the Year: ${career.history.at(-1)?.rookie?.you ? 'você' : `${career.history.at(-1)?.rookie?.nick} (${career.history.at(-1)?.rookie?.team})`}` : ''}</p>
+              <ol class="hltv-top">
+                {#each lastTop as player, rank (player.nick)}
+                  <li class:you={player.you}><span class="ht-rank">{rank + 1}</span><b>{player.you ? `${player.nick} (você)` : player.nick}</b><span class="ht-team">{player.team}</span></li>
+                {/each}
+              </ol>
+            {/if}
+          {:else}
+            <p class="muted-line">O Top 20 HLTV e o Rookie of the Year saem no fim de cada temporada. Rookie só vale no ano da sua estreia em Major.</p>
+          {/if}
+
         {:else}
-          <p class="muted-line">Nenhum título ainda. Título, MVP de evento e ace entram aqui.</p>
+          <dl class="trophy-tiers">
+            <div class:has={trophies.aces > 0} class:major={trophies.aces > 0}><dt>Aces</dt><dd>{trophies.aces}</dd></div>
+            <div class:has={trophies.clutches > 0}><dt>Clutches</dt><dd>{trophies.clutches}</dd></div>
+            <div class:has={playReel.length > 0}><dt>Guardadas</dt><dd>{playReel.length}</dd></div>
+          </dl>
+          {#if playReel.length}
+            <ol class="play-reel">
+              {#each playReel as play, playIndex (playIndex)}
+                <li>
+                  <span class="tag" class:gold={play.kind === 'ace'} class:major={play.kind === 'clutch' && (play.against ?? 1) >= 3}>{PLAY_LABEL(play)}</span>
+                  <span class="pr-where"><b>{play.map}</b> · round {play.round} · vs {play.opponent}</span>
+                  <span class="pr-event">{play.event}</span>
+                </li>
+              {/each}
+            </ol>
+          {:else}
+            <p class="muted-line">Ace, quad e clutch seus aparecem aqui com mapa, round, adversário e campeonato.</p>
+          {/if}
         {/if}
       </div>
     </div>
@@ -1827,8 +1921,8 @@
   .ovr-num { font: 900 104px/.78 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
   .ovr-label { margin: 0 0 6px; }
   .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0; }
-  .facts div { display: grid; gap: 4px; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--surface-2); }
-  .facts dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .facts div { display: grid; gap: 4px; min-width: 0; padding: 6px 7px; border: 1px solid var(--line); background: var(--surface-2); }
+  .facts dt { overflow: hidden; color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .02em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
   .facts dd { margin: 0; font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; }
   .facts dd.gold { color: var(--gold); }
   .pyramid { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
@@ -1928,6 +2022,30 @@
   .tag.gold { border-color: var(--gold); color: var(--gold); }
   .tag.major { border-color: var(--gold); color: var(--text); }
   .muted-line { margin: 0; color: var(--muted); font-size: 14px; }
+  .trophy-room { display: grid; gap: 12px; }
+  .room-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+  .room-tabs button { all: unset; cursor: pointer; padding: 8px 12px; color: var(--muted); font: 800 12px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; border-bottom: 2px solid transparent; }
+  .room-tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .room-tabs button:focus-visible { outline: 2px solid var(--accent); }
+  .trophy-tiers div.has.major dt { color: var(--gold); }
+  .season-awards, .play-reel, .hltv-top { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+  .season-awards li, .play-reel li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .sa-year { font: 800 18px/1 var(--display); }
+  .sa-team, .pr-where { min-width: 0; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+  .pr-where b { color: var(--text); }
+  .pr-event { color: var(--muted); font-size: 12px; text-align: right; }
+  .play-reel { max-height: min(46vh, 420px); overflow-y: auto; }
+  .hltv-top { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+  .hltv-top li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 4px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .hltv-top li.you { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .hltv-top li.you b { color: var(--accent); }
+  .ht-rank { color: var(--muted); font: 800 14px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .ht-team { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 560px) {
+    .hltv-top { grid-template-columns: minmax(0, 1fr); }
+    .play-reel li { grid-template-columns: auto minmax(0, 1fr); }
+    .pr-event { grid-column: 2; text-align: left; }
+  }
   @media (max-width: 560px) { .bracket { grid-template-columns: minmax(0, 1fr); } }
   .link-btn { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--accent); font: 800 12px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 
@@ -1965,9 +2083,9 @@
   .ev.now .ev-name { color: var(--accent); }
   .ev-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .ev-n { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font: 800 16px/1 var(--display); }
-  .ev-n small { font: 700 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .ev-n small { font: 700 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
   .ev.now .ev-n { color: var(--accent); }
-  .ev-place { color: var(--place, var(--text)); font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; }
+  .ev-place { color: var(--place, var(--text)); font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
   .ev-name { font: 800 16px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ev-sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ev-sub em { font-style: normal; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -2012,7 +2130,7 @@
   .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }
   .week .section-head { margin-bottom: 0; }
   .week-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; }
-  .free-train { display: grid; gap: 6px; align-content: start; padding: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+  .free-train { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 10px; border: 1px solid var(--line); background: var(--surface-2); }
   .ft-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .ft-head b { font: 800 18px/1 var(--display); text-transform: uppercase; }
   .ft-head span { color: var(--muted); font-size: 12px; }
@@ -2026,7 +2144,7 @@
   .skills-pick button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
   .skills-pick button:disabled { opacity: .5; cursor: not-allowed; }
   .ft-actions .secondary-btn { min-height: 36px; }
-  .ft-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .ft-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
   .ft-actions .link-btn { white-space: nowrap; }
   .week-right { display: grid; gap: 6px; min-width: 0; }
   .coach-hint, .coach-line { min-height: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; }
@@ -2113,6 +2231,9 @@
   .note { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); color: var(--muted); font-size: 14px; }
   .note.warn { border-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 8%, var(--surface)); }
   .note.warn b { color: var(--accent-2); }
+  .note.award { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
+  .note.award b { color: var(--gold); }
+  .note .link-btn { justify-self: start; }
   .offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
   .offer { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--muted) 40%, var(--line)); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .16s ease, transform .16s ease; }
   .offer:hover { border-color: var(--accent); transform: translateY(-3px); }
@@ -2294,7 +2415,10 @@
     .skills-pick button { padding: 0 6px; font-size: 12px; min-height: 40px; }
     .ft-actions { flex-wrap: wrap; }
     .week-cards { grid-template-columns: minmax(0, 1fr); }
-    .path { grid-template-columns: minmax(0, 1fr); }
+    .path { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+    .path .step { padding: 6px 8px; }
+    .path .step-opp { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .path .step-state { font-size: 11px; }
     .pace { flex-wrap: wrap; }
     .field li { grid-template-columns: 22px minmax(0, 1fr) 32px; gap: 4px 10px; padding: 8px 10px; }
     .field-tags { grid-column: 2 / -1; grid-row: 2; flex-wrap: wrap; }

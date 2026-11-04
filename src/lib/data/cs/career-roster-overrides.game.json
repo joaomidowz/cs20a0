@@ -1,0 +1,81 @@
+{
+ "source": "Elencos atuais informados pelo usuário (prints da HLTV/Liquipedia, 2026). Vencem a coleta, as planilhas e as resoluções de repetidos.",
+ "teams": [
+  {
+   "team": "Folha Amarela",
+   "members": [
+    {
+     "nick": "f4stzin",
+     "country": "Brazil"
+    },
+    {
+     "nick": "mello",
+     "country": "Brazil"
+    },
+    {
+     "nick": "ckzao",
+     "country": "Brazil"
+    },
+    {
+     "nick": "RCF",
+     "country": "Brazil"
+    },
+    {
+     "nick": "s1cko",
+     "country": "Brazil"
+    }
+   ]
+  },
+  {
+   "team": "Legacy",
+   "members": [
+    {
+     "nick": "arT",
+     "country": "Brazil",
+     "role": "igl"
+    },
+    {
+     "nick": "dumau",
+     "country": "Brazil"
+    },
+    {
+     "nick": "latto",
+     "country": "Brazil"
+    },
+    {
+     "nick": "try",
+     "country": "Argentina"
+    },
+    {
+     "nick": "ksloks",
+     "country": "Brazil"
+    }
+   ]
+  },
+  {
+   "team": "ODDIK",
+   "members": [
+    {
+     "nick": "diozera",
+     "country": "Brazil"
+    },
+    {
+     "nick": "nardes",
+     "country": "Brazil"
+    },
+    {
+     "nick": "Ceruttera",
+     "country": "Brazil"
+    },
+    {
+     "nick": "NEKIZ",
+     "country": "Brazil"
+    },
+    {
+     "nick": "righi",
+     "country": "Argentina"
+    }
+   ]
+  }
+ ]
+}

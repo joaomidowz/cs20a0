@@ -143,7 +143,9 @@ describe('conversa com o coach', () => {
     expect(applyCustomTraining(state, ['awp']).state.trained.awp).toBe(3);
     const nextWindow = recordEventResult(state, 0, { name: 'x', placement: 'Semis', rating: 1, seriesWins: 1, seriesLosses: 1 });
     expect(coachTalksLeft(nextWindow)).toBe(0);
-    expect(coachTipsOf(nextWindow)).toEqual(coachTipsOf(state));
+    // A dica marcada no treino livre vale só a semana em que o coach falou.
+    expect(coachTipsOf(state).length).toBeGreaterThan(0);
+    expect(coachTipsOf(nextWindow)).toEqual([]);
     const nextSeason = { ...nextWindow, seasonNumber: nextWindow.seasonNumber + 1 };
     expect(coachTalksLeft(nextSeason)).toBe(3);
     expect(coachTipsOf(nextSeason)).toEqual([]);

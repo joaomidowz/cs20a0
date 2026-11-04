@@ -365,7 +365,7 @@ export interface CoachTalkResult {
 /** Conversa com o coach: até 3 por temporada, cada uma com um retorno diferente; a dica vale a temporada toda. */
 export function coachTalk(state: PlayerCareerState, me: Player = myPlayerOf(state)): CoachTalkResult {
   const window = coachKeyOf(state);
-  const current = state.coachTalk && window && state.coachTalk.window === window ? state.coachTalk : { window: window ?? '', count: 0, tips: [] as TrainedAttribute[] };
+  const current: { window: string; count: number; tips: TrainedAttribute[]; tipWindow?: string } = state.coachTalk && window && state.coachTalk.window === window ? state.coachTalk : { window: window ?? '', count: 0, tips: [] as TrainedAttribute[] };
   if (!window || current.count >= COACH_TALKS_PER_WINDOW) {
     return { state, line: 'O coach já falou tudo o que tinha para esta temporada.', tips: current.tips, talksLeft: 0 };
   }
@@ -395,13 +395,15 @@ export function coachTalk(state: PlayerCareerState, me: Player = myPlayerOf(stat
     if ((state.form ?? 0) < 1) next = { ...next, form: Math.min(3, (state.form ?? 0) + 1) };
   }
   const count = current.count + 1;
-  return { state: { ...next, coachTalk: { window, count, tips } }, line, tips, talksLeft: COACH_TALKS_PER_WINDOW - count };
+  // A dica (o que treinar) vale só a semana em que ele falou; o limite de conversas é da temporada.
+  return { state: { ...next, coachTalk: { window, count, tips, tipWindow: current.count === 0 ? trainingWindowOf(state) ?? '' : current.tipWindow ?? '' } }, line, tips, talksLeft: COACH_TALKS_PER_WINDOW - count };
 }
 
-/** As dicas do coach valem a temporada em que ele falou. */
+/** As dicas do coach valem só a semana em que ele falou (a marca no treino livre some no próximo campeonato). */
 export function coachTipsOf(state: PlayerCareerState): TrainedAttribute[] {
   const window = coachKeyOf(state);
-  return window && state.coachTalk?.window === window ? state.coachTalk.tips : [];
+  const week = trainingWindowOf(state);
+  return window && week && state.coachTalk?.window === window && state.coachTalk.tipWindow === week ? state.coachTalk.tips : [];
 }
 
 export function coachTalksLeft(state: PlayerCareerState): number {

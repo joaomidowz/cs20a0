@@ -9,6 +9,7 @@ import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier, type Region } from './calendar';
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
+import { seasonAwards } from './awards';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -77,12 +78,16 @@ export interface TournamentResult {
   plays?: EventPlays;
   /** O mata-mata inteiro: quem passou, quem caiu e os placares. */
   bracket?: BracketLine[];
+  /** Suas jogadas do evento com mapa, round e adversário (as melhores, até 8). */
+  highlights?: PlayHighlight[];
 }
+
+export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kills: number; against?: number; map: string; round: number; opponent: string }
 
 /** Tier de um resultado antigo (antes do calendário real): pelo nível do time na temporada. */
 const legacyTier = (orgLevel: number): EventTier => (orgLevel <= 1 ? 'A' : orgLevel === 2 ? 'B' : 'C');
 
-export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; aces: number; total: number }
+export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
 
 /** Sala de troféus: títulos por tier (Major, S, A, B, C), MVPs de evento e aces da carreira (inclui a temporada em curso). */
 export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar' | 'orgId'>): TrophyCase {
@@ -94,10 +99,18 @@ export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar'
     if (result.mvp?.you) mvps += 1;
     aces += result.plays?.aces ?? 0;
   };
-  for (const log of state.history) for (const result of log.tournaments) count(result, log.orgLevel);
+  let clutches = 0;
+  for (const log of state.history) for (const result of log.tournaments) { count(result, log.orgLevel); clutches += result.plays?.clutches ?? 0; }
   const level = orgOf(state.orgId).level;
-  for (const entry of state.calendar ?? []) if (entry.result) count(entry.result, level);
-  return { byTier, mvps, aces, total: Object.values(byTier).reduce((sum, value) => sum + value, 0) };
+  for (const entry of state.calendar ?? []) if (entry.result) { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
+  const ranks = state.history.flatMap((log) => (log.hltvRank ? [log.hltvRank] : []));
+  return {
+    byTier, mvps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
+    hltvBest: ranks.length ? Math.min(...ranks) : null,
+    hltvTop1: ranks.filter((rank) => rank === 1).length,
+    hltvTop20: ranks.filter((rank) => rank <= 20).length,
+    rookie: state.history.some((log) => log.rookie?.you)
+  };
 }
 
 export interface EventMvp { nick: string; team: string; rating: number; you?: boolean }
@@ -171,7 +184,15 @@ export interface SeasonLog {
   moves?: string[];
   /** O seu time subiu ou caiu de tier no fim da temporada. */
   orgChange?: { from: number; to: number };
+  /** Top 20 HLTV da temporada (você incluso, se entrou) e a sua posição (null: jogou pouco para ranquear). */
+  hltvTop?: RankedPlayer[];
+  hltvRank?: number | null;
+  /** Rookie of the Year da temporada (quem estreou em Major) e se foi você. */
+  rookie?: RankedPlayer | null;
+  rookieEligible?: boolean;
 }
+
+export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean }
 
 export interface CareerVerdict {
   seasons: number;
@@ -233,7 +254,7 @@ export interface PlayerCareerState {
   /** Pancada leve por cansaço (vale até o próximo campeonato). */
   knock?: string | null;
   /** Conversas com o coach na janela atual (até 3) e o que ele indicou treinar. */
-  coachTalk?: { window: string; count: number; tips: TrainedAttribute[] };
+  coachTalk?: { window: string; count: number; tips: TrainedAttribute[]; /** Semana em que a dica foi dada. */ tipWindow?: string };
   /** Corte ou proposta esperando decisão (entre campeonatos). */
   pendingMove?: PendingMove | null;
   /** Trocas de time da temporada em andamento (vão para o SeasonLog). */
@@ -562,6 +583,12 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     retireHint,
     ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
+  // Prêmios da temporada: Top 20 HLTV e Rookie of the Year (estreia em Major).
+  const awards = seasonAwards(state, org.level, org.name);
+  log.hltvTop = awards.hltvTop;
+  log.hltvRank = awards.hltvRank;
+  log.rookie = awards.rookie;
+  log.rookieEligible = awards.rookieEligible;
   // Acesso e rebaixamento do seu time pela temporada (quem acabou de chegar por troca também conta).
   const newLevel = org.id === LAN_HOUSE.id ? org.level : orgLevelChange(org.level, results);
   if (newLevel !== org.level) log.orgChange = { from: org.level, to: newLevel };

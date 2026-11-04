@@ -239,6 +239,19 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
 function placeProspects(seed: string, season: number, rosters: Map<string, SceneRosterMember[]>, dev: Map<string, MemberDev>, debuts: SceneDebut[], year: number) {
   for (const kid of PROSPECTS) {
     const rng = createSeededRng(`${seed}:prospect:${kid.nick}`);
+    // Já está na cena (gtw na RED Canids Academy, rkzinho no Players): vira promessa ali mesmo, sem cópia.
+    const already = [...rosters].find(([, roster]) => roster.some((member) => member.nick.toLowerCase() === kid.nick.toLowerCase()));
+    if (already) {
+      const [orgId, roster] = already;
+      const [low, high] = kid.potentialRange;
+      rosters.set(orgId, roster.map((member) => {
+        if (member.nick.toLowerCase() !== kid.nick.toLowerCase()) return member;
+        const current = dev.get(memberKey(member));
+        dev.set(memberKey(member), { overall: current?.overall ?? kid.overall, potential: Math.max(current?.overall ?? kid.overall, low + Math.round(rng() * (high - low))), rate: kid.developmentRate });
+        return { ...member, prospect: true, hltv: kid.hltv };
+      }));
+      continue;
+    }
     const reference = kid.referenceTeam ? sceneOrgs.find((org) => org.name.toLowerCase() === kid.referenceTeam!.toLowerCase() && org.level >= 3) : undefined;
     const regions = PROSPECT_REGION[kid.region] ?? ['eu'];
     const pool = sceneOrgs.filter((org) => org.level >= 3 && org.level <= 4 && regions.includes(regionOf(org.country)) && nationFits(rosters.get(org.id) ?? [], kid.country));

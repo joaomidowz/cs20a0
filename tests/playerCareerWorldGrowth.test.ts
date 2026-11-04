@@ -45,10 +45,11 @@ describe('o mundo envelhece de verdade', () => {
 describe('promessas da base real', () => {
   it('as 19 estreiam na virada para 2027, em time de CCT/GC ou Challenger da região', () => {
     const debuts = sceneDebuts('kids-1', 2);
-    expect(debuts.length).toBeGreaterThanOrEqual(17);
+    expect(debuts.length).toBeGreaterThanOrEqual(12);
     expect(debuts.every((debut) => debut.season === 2)).toBe(true);
-    const gtw = debuts.find((debut) => debut.nick === 'gtw');
-    expect(gtw?.orgName).toBe('RED Canids Academy');
+    // gtw já está na RED Canids Academy da coleta: vira promessa ali mesmo, sem estreia nem cópia.
+    const academy = sceneWorld('kids-1', 2).rosters.get(sceneOrgs.find((org) => org.name === 'RED Canids Academy')!.id)!;
+    expect(academy.find((member) => member.nick === 'gtw')?.hltv).toBeTruthy();
     for (const debut of debuts) expect(sceneOrgs.find((org) => org.id === debut.orgId)!.level).toBeGreaterThanOrEqual(3);
     expect(risingProspects('kids-1', 2, 4).every((kid) => kid.curated)).toBe(true);
   });
@@ -94,9 +95,13 @@ describe('elencos da planilha do usuário', () => {
     const key = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/\s+(team|gaming|esports?|club)$/, '').replace(/[^a-z0-9]/g, '');
     const teamsOf = (nick: string) => sceneOrgs.filter((org) => org.roster.some((member) => member.nick.toLowerCase() === nick.toLowerCase()));
     expect(teamsOf('Ax1Le').map((org) => org.name)).toEqual(['Cloud9']);
-    expect(teamsOf('saadzin').map((org) => org.name)).toEqual(['Legacy']);
+    // saadzin ficou na Legacy pela resolução, mas o elenco atual da Legacy não tem ele: está sem time.
+    expect(teamsOf('saadzin').length).toBeLessThanOrEqual(1);
     let checked = 0;
+    const { teams: overrides } = (await import('../src/lib/data/cs/career-roster-overrides.game.json')).default as { teams: Array<{ members: Array<{ nick: string }> }> };
+    const current = new Set(overrides.flatMap((team) => team.members.map((member) => member.nick.toLowerCase())));
     for (const [nick, team] of Object.entries(stayAt)) {
+      if (current.has(nick.toLowerCase())) continue; // elenco atual informado depois vence a resolução
       const teams = teamsOf(nick);
       if (!teams.length) continue; // o time escolhido pode ter sido fundido (ex.: "Team Vitality" é a Vitality)
       expect(teams.length, nick).toBe(1);
@@ -134,6 +139,18 @@ describe('elencos da planilha do usuário', () => {
     expect(createPlayerCareer({ nick: '', country: 'Brazil', role: 'awper', seed: 'nick-1' }).nick).toBe(a.nick);
     expect(createPlayerCareer({ nick: 'midowz', country: 'Brazil', role: 'awper', seed: 'nick-1' }).nick).toBe('midowz');
     expect(new Set(Array.from({ length: 20 }, (_, index) => randomNick(`r-${index}`))).size).toBeGreaterThan(12);
+  });
+
+  it('elencos atuais do usuário vencem tudo: Legacy com ksloks, ODDIK com NEKIZ e righi, Folha Amarela real', () => {
+    const roster = (name: string) => sceneOrgs.find((org) => org.name.toLowerCase() === name.toLowerCase())!.roster.map((member) => member.nick);
+    expect(roster('Legacy').sort()).toEqual(['arT', 'dumau', 'ksloks', 'latto', 'try'].sort());
+    expect(roster('ODDIK').sort()).toEqual(['Ceruttera', 'diozera', 'NEKIZ', 'nardes', 'righi'].sort());
+    expect(roster('Folha Amarela').sort()).toEqual(['ckzao', 'f4stzin', 'mello', 'RCF', 's1cko'].sort());
+    const teamsOf = (nick: string) => sceneOrgs.filter((org) => org.roster.some((member) => member.nick === nick)).map((org) => org.name);
+    for (const nick of ['ksloks', 'NEKIZ', 'righi', 'mello', 'ckzao', 'nardes', 'latto']) expect(teamsOf(nick), nick).toHaveLength(1);
+    // Quem já existia na cena leva o catálogo (overall real) junto.
+    expect(sceneOrgs.find((org) => org.name === 'ODDIK')!.roster.find((member) => member.nick === 'NEKIZ')?.catalogBaseId).toBeTruthy();
+    expect(sceneOrgs.every((org) => org.roster.length >= 5)).toBe(true);
   });
 });
 
