@@ -99,3 +99,17 @@ describe('escolhas que mexem no calendário e no time', () => {
     expect(after.pendingMove!.offers.length).toBeGreaterThan(0);
   });
 });
+
+describe('o seu time na mesma régua dos rivais', () => {
+  it('a força do seu time no motor é a mesma conta de um time da cena com os mesmos jogadores', async () => {
+    const { calculateHistoricalTeamPower } = await import('../src/lib/game/simulation');
+    const { sceneOrgToEngineTeam, startSceneEvent } = await import('../src/lib/game/playerCareer/live');
+    const furia = sceneOrgs.find((org) => org.name === 'FURIA')!;
+    const base = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: 'fair-1' });
+    const state = startSeason({ ...base, orgId: furia.id, pendingDraw: null, drawDone: true, seatsTaken: [], overall: 85, truePotential: 85 });
+    const index = state.calendar!.findIndex((entry) => entry.format !== 'major');
+    const { campaign, userPlayers } = startSceneEvent(state, index);
+    const expected = calculateHistoricalTeamPower(sceneOrgToEngineTeam({ ...furia, id: campaign.userTeamId, name: furia.name }, userPlayers), userPlayers).power;
+    expect(campaign.engine.byId.get(campaign.userTeamId)!.team.power).toBeCloseTo(expected, 5);
+  });
+});

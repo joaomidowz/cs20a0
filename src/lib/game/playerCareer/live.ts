@@ -25,7 +25,7 @@ import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, 
 import { createRunStats } from '../runStats';
 import { computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
-import { createSeededRng } from '../simulation';
+import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
@@ -337,16 +337,22 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   // que copiam o time da org) e a série que já abriu na criação da chave.
   const organization = campaign.engine.byId.get(campaign.userTeamId);
   // O seu time com o nome da sua org em todas as telas (tabela, chave, visão do Major), não o "yourOrg" do motor.
-  const userName = orgOf(state.orgId, state).name;
+  const userOrg = orgOf(state.orgId, state);
+  const userName = userOrg.name;
+  // O seu time na MESMA régua dos rivais: a força sai da conta dos times da cena (média dos jogadores, química
+  // padrão, elenco completo). Antes saía da conta da Dinastia, que deixava o time do jogador 5 a 8 pontos acima de
+  // um time do computador com os mesmos jogadores (FURIA com você ganhava 72% dos Tier S; sem você, uns 40%).
+  const fair = calculateHistoricalTeamPower(sceneOrgToEngineTeam({ ...(userOrg as SceneOrg), id: campaign.userTeamId, name: userName }, userPlayers), allPlayers);
+  const level = { name: userName, isUser: true, power: fair.power, mental: fair.mental, clutch: fair.clutch, experience: fair.experience, consistency: fair.consistency };
   if (organization) {
     organization.name = userName;
-    organization.team = { ...organization.team, name: userName, isUser: true };
+    organization.team = { ...organization.team, ...level };
   }
   for (const standing of campaign.engine.standings) if (standing.organizationId === campaign.userTeamId) standing.name = userName;
   const openSeries = currentCampaignSeries(campaign);
   if (openSeries) {
-    if (openSeries.config.teamA.id === campaign.userTeamId) openSeries.config.teamA = { ...openSeries.config.teamA, name: userName, isUser: true };
-    else openSeries.config.teamB = { ...openSeries.config.teamB, name: userName, isUser: true };
+    if (openSeries.config.teamA.id === campaign.userTeamId) openSeries.config.teamA = { ...openSeries.config.teamA, ...level };
+    else openSeries.config.teamB = { ...openSeries.config.teamB, ...level };
   }
   return { campaign, userPlayers };
 }
