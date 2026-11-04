@@ -106,4 +106,13 @@ describe('elencos da planilha do usuário', () => {
     expect(checked).toBeGreaterThan(250);
     for (const org of sceneOrgs) expect(org.roster.length, org.name).toBeGreaterThanOrEqual(5);
   });
+
+  it('sugestões das vagas entram só quando o jogador está livre (coldzera no RED Canids; FalleN segue na FURIA)', () => {
+    const teamOf = (nick: string) => sceneOrgs.filter((org) => org.roster.some((member) => member.nick === nick)).map((org) => org.name);
+    expect(teamOf('coldzera')).toEqual(['RED Canids']);
+    expect(teamOf('FalleN')).toEqual(['FURIA']);
+    const real = sceneOrgs.flatMap((org) => org.roster.filter((member) => !member.generated).map((member) => member.nick.toLowerCase()));
+    expect(real.length - new Set(real).size).toBe(0);
+    expect(sceneOrgs.flatMap((org) => org.roster.filter((member) => member.generated)).length).toBeLessThan(120);
+  });
 });

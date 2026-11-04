@@ -112,6 +112,9 @@ function generateNick(rng: () => number): string {
 
 /** Nicks já usados (os da coleta, as promessas e os gerados): ninguém aparece em dois elencos, nem vira xará. */
 const usedNicks = new Set<string>((rawProspects as unknown as { prospects: Array<{ nick: string }> }).prospects.map((kid) => kid.nick.toLowerCase()));
+const PROSPECT_NICKS = new Set((rawProspects as unknown as { prospects: Array<{ nick: string }> }).prospects.map((kid) => kid.nick.toLowerCase()));
+export const isProspectNick = (nick: string) => PROSPECT_NICKS.has(nick.toLowerCase());
+
 export function reserveNicks(nicks: string[]) {
   for (const nick of nicks) usedNicks.add(nick.toLowerCase());
 }
@@ -136,7 +139,7 @@ export function generatedRoster(teamName: string, country: string | null, known:
     const nick = generateNick(rng);
     if (usedNicks.has(nick.toLowerCase())) continue;
     usedNicks.add(nick.toLowerCase());
-    members.push({ nick, country, birthDate: null, roles: [roles[members.length]], catalogBaseId: null, prospect: null });
+    members.push({ nick, country, birthDate: null, roles: [roles[members.length]], catalogBaseId: null, prospect: null, generated: true });
   }
   return members;
 }

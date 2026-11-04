@@ -1,0 +1,1167 @@
+{
+ "source": "vagas-carreira-168-preenchidas-provisorio.csv do usuário (sugestões provisórias). Só entra quem não joga em outro time nem foi resolvido para outro time.",
+ "fills": [
+  {
+   "team": "100t",
+   "slotRole": "IGL",
+   "nick": "HooXi",
+   "country": "Denmark",
+   "birthYear": 1995
+  },
+  {
+   "team": "AMKAL",
+   "slotRole": "AWPer",
+   "nick": "deko",
+   "country": "Russia",
+   "birthYear": 2001
+  },
+  {
+   "team": "Cloud9",
+   "slotRole": "IGL",
+   "nick": "Boombl4",
+   "country": "Russia",
+   "birthYear": 1998
+  },
+  {
+   "team": "Cloud9",
+   "slotRole": "Entry",
+   "nick": "Patsi",
+   "country": "Russia",
+   "birthYear": 2003
+  },
+  {
+   "team": "Complexity",
+   "slotRole": "IGL",
+   "nick": "JT",
+   "country": "South Africa",
+   "birthYear": 1999
+  },
+  {
+   "team": "Complexity",
+   "slotRole": "Entry",
+   "nick": "EliGE",
+   "country": "United States",
+   "birthYear": 1997
+  },
+  {
+   "team": "Eternal Fire",
+   "slotRole": "AWPer",
+   "nick": "woxic",
+   "country": "Turkey",
+   "birthYear": 1998
+  },
+  {
+   "team": "Eternal Fire",
+   "slotRole": "IGL",
+   "nick": "MAJ3R",
+   "country": "Turkey",
+   "birthYear": 1991
+  },
+  {
+   "team": "Eternal Fire",
+   "slotRole": "Entry",
+   "nick": "imoRR",
+   "country": "Turkey",
+   "birthYear": 1999
+  },
+  {
+   "team": "FaZe Clan",
+   "slotRole": "Rifler",
+   "nick": "ropz",
+   "country": "Estonia",
+   "birthYear": 1999
+  },
+  {
+   "team": "KOI",
+   "slotRole": "IGL",
+   "nick": "alex",
+   "country": "Spain",
+   "birthYear": 1995
+  },
+  {
+   "team": "KOI",
+   "slotRole": "Rifler",
+   "nick": "SunPayus",
+   "country": "Spain",
+   "birthYear": 1998
+  },
+  {
+   "team": "Nine To Five",
+   "slotRole": "Rifler",
+   "nick": "dycha",
+   "country": "Poland",
+   "birthYear": 1997
+  },
+  {
+   "team": "Nouns",
+   "slotRole": "Entry",
+   "nick": "Swisher",
+   "country": "United States",
+   "birthYear": 1998
+  },
+  {
+   "team": "Party Astronauts",
+   "slotRole": "Lurker",
+   "nick": "autimatic",
+   "country": "United States",
+   "birthYear": 1996
+  },
+  {
+   "team": "RED Canids",
+   "slotRole": "Rifler",
+   "nick": "coldzera",
+   "country": "Brazil",
+   "birthYear": 1994
+  },
+  {
+   "team": "SAW",
+   "slotRole": "AWPer",
+   "nick": "story",
+   "country": "Portugal",
+   "birthYear": 2002
+  },
+  {
+   "team": "00 Nation",
+   "slotRole": "IGL",
+   "nick": "TACO",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "00 Nation",
+   "slotRole": "Rifler",
+   "nick": "boltz",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "00 Nation",
+   "slotRole": "AWPer",
+   "nick": "HEN1",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "ALTERNATE aTTaX",
+   "slotRole": "AWPer",
+   "nick": "syrsoN",
+   "country": "Germany",
+   "birthYear": 1996
+  },
+  {
+   "team": "Astralis Talent",
+   "slotRole": "Rifler",
+   "nick": "Altekz",
+   "country": "Denmark",
+   "birthYear": 2003
+  },
+  {
+   "team": "BESTIA",
+   "slotRole": "Rifler",
+   "nick": "Luken",
+   "country": "Argentina",
+   "birthYear": 1997
+  },
+  {
+   "team": "Betclic Apogee Esports",
+   "slotRole": "AWPer",
+   "nick": "mynio",
+   "country": "Poland",
+   "birthYear": 1995
+  },
+  {
+   "team": "Case Esports",
+   "slotRole": "Rifler",
+   "nick": "dumau",
+   "country": "Brazil",
+   "birthYear": 2003
+  },
+  {
+   "team": "Dusty Roots",
+   "slotRole": "Rifler",
+   "nick": "exit",
+   "country": "Brazil",
+   "birthYear": 1996
+  },
+  {
+   "team": "Endpoint",
+   "slotRole": "Entry",
+   "nick": "CYPHER",
+   "country": "United Kingdom",
+   "birthYear": 2002
+  },
+  {
+   "team": "Endpoint",
+   "slotRole": "Lurker",
+   "nick": "mezii",
+   "country": "United Kingdom",
+   "birthYear": 1998
+  },
+  {
+   "team": "Esport Academy Copenhagen",
+   "slotRole": "rifle",
+   "nick": "acoR",
+   "country": "Denmark",
+   "birthYear": 1997
+  },
+  {
+   "team": "Fluffy Aimers",
+   "slotRole": "Rifler",
+   "nick": "Cooper",
+   "country": "United States",
+   "birthYear": 1994
+  },
+  {
+   "team": "IHC Esports",
+   "slotRole": "IGL",
+   "nick": "bLitz",
+   "country": "Mongolia",
+   "birthYear": 1998
+  },
+  {
+   "team": "IHC Esports",
+   "slotRole": "Entry",
+   "nick": "Techno4K",
+   "country": "Mongolia",
+   "birthYear": 2005
+  },
+  {
+   "team": "ITB",
+   "slotRole": "AWPer",
+   "nick": "mhL",
+   "country": "Poland",
+   "birthYear": 2002
+  },
+  {
+   "team": "ITB",
+   "slotRole": "AWPer",
+   "nick": "snatchie",
+   "country": "Poland",
+   "birthYear": 1998
+  },
+  {
+   "team": "K23",
+   "slotRole": "Entry",
+   "nick": "buster",
+   "country": "Kazakhstan",
+   "birthYear": 1999
+  },
+  {
+   "team": "K23",
+   "slotRole": "Rifler",
+   "nick": "Qikert",
+   "country": "Kazakhstan",
+   "birthYear": 1999
+  },
+  {
+   "team": "K23",
+   "slotRole": "Lurker",
+   "nick": "kair0N-",
+   "country": "Russia",
+   "birthYear": 2004
+  },
+  {
+   "team": "NAVI Junior",
+   "slotRole": "Entry",
+   "nick": "npl",
+   "country": "Ukraine",
+   "birthYear": 2005
+  },
+  {
+   "team": "NAVI Junior",
+   "slotRole": "Rifler",
+   "nick": "headtr1ck",
+   "country": "Ukraine",
+   "birthYear": 2004
+  },
+  {
+   "team": "Nemiga Gaming",
+   "slotRole": "Rifler",
+   "nick": "lollipop21k",
+   "country": "Belarus",
+   "birthYear": 1996
+  },
+  {
+   "team": "Nexus Gaming",
+   "slotRole": "IGL",
+   "nick": "BTN",
+   "country": "Romania",
+   "birthYear": 1989
+  },
+  {
+   "team": "OG",
+   "slotRole": "IGL",
+   "nick": "hampus",
+   "country": "Sweden",
+   "birthYear": 1998
+  },
+  {
+   "team": "Permitta",
+   "slotRole": "Lurker",
+   "nick": "reatz",
+   "country": "Poland",
+   "birthYear": 1994
+  },
+  {
+   "team": "Renewal",
+   "slotRole": "Rifler",
+   "nick": "somebody",
+   "country": "China",
+   "birthYear": 1995
+  },
+  {
+   "team": "Sashi Esports",
+   "slotRole": "IGL",
+   "nick": "gla1ve",
+   "country": "Denmark",
+   "birthYear": 1995
+  },
+  {
+   "team": "Talon Esports",
+   "slotRole": "Entry",
+   "nick": "jks",
+   "country": "Australia",
+   "birthYear": 1995
+  },
+  {
+   "team": "Talon Esports",
+   "slotRole": "Rifler",
+   "nick": "INS",
+   "country": "Australia",
+   "birthYear": 1998
+  },
+  {
+   "team": "Talon Esports",
+   "slotRole": "Lurker",
+   "nick": "AZR",
+   "country": "Australia",
+   "birthYear": 1992
+  },
+  {
+   "team": "TDK",
+   "slotRole": "rifle",
+   "nick": "NickelBack",
+   "country": "Russia",
+   "birthYear": 1997
+  },
+  {
+   "team": "Wings Up",
+   "slotRole": "Rifler",
+   "nick": "JamYoung",
+   "country": "China",
+   "birthYear": 2001
+  },
+  {
+   "team": "Wings Up",
+   "slotRole": "Lurker",
+   "nick": "Mercury",
+   "country": "China",
+   "birthYear": 2000
+  },
+  {
+   "team": "Young Ninjas",
+   "slotRole": "Entry",
+   "nick": "REZ",
+   "country": "Sweden",
+   "birthYear": 1998
+  },
+  {
+   "team": "5star eSports",
+   "slotRole": "IGL",
+   "nick": "Senzu",
+   "country": "Mongolia",
+   "birthYear": 2006
+  },
+  {
+   "team": "9z Academy",
+   "slotRole": "Rifler",
+   "nick": "meyern",
+   "country": "Argentina",
+   "birthYear": 2002
+  },
+  {
+   "team": "A NATA",
+   "slotRole": "Rifler",
+   "nick": "try",
+   "country": "Argentina",
+   "birthYear": 2004
+  },
+  {
+   "team": "Alzon",
+   "slotRole": "Rifler",
+   "nick": "Lucaozy",
+   "country": "Brazil",
+   "birthYear": 2001
+  },
+  {
+   "team": "Alzon",
+   "slotRole": "Rifler",
+   "nick": "vsm",
+   "country": "Brazil",
+   "birthYear": 1999
+  },
+  {
+   "team": "Back to Back",
+   "slotRole": "AWP",
+   "nick": "saffee",
+   "country": "Brazil",
+   "birthYear": 1994
+  },
+  {
+   "team": "Bad Luck",
+   "slotRole": "Rifler",
+   "nick": "trk",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "Bad Luck",
+   "slotRole": "Rifler",
+   "nick": "hardzao",
+   "country": "Brazil",
+   "birthYear": 2000
+  },
+  {
+   "team": "BASEMENT BOYS",
+   "slotRole": "rifle",
+   "nick": "sdy",
+   "country": "Ukraine",
+   "birthYear": 1997
+  },
+  {
+   "team": "BBBMBCBS",
+   "slotRole": "Rifler",
+   "nick": "Liazz",
+   "country": "Australia",
+   "birthYear": 1997
+  },
+  {
+   "team": "Blitzkrieg (Mexican team)",
+   "slotRole": "Entry",
+   "nick": "dgt",
+   "country": "Uruguay",
+   "birthYear": 2001
+  },
+  {
+   "team": "Blitzkrieg (Mexican team)",
+   "slotRole": "Rifler",
+   "nick": "dav1deuS",
+   "country": "Chile",
+   "birthYear": 2000
+  },
+  {
+   "team": "Blitzkrieg (Mexican team)",
+   "slotRole": "Entry",
+   "nick": "max",
+   "country": "Uruguay",
+   "birthYear": 1999
+  },
+  {
+   "team": "Boca Juniors",
+   "slotRole": "Entry",
+   "nick": "buda",
+   "country": "Argentina",
+   "birthYear": null
+  },
+  {
+   "team": "Bounty Hunters Esports",
+   "slotRole": "Entry",
+   "nick": "felps",
+   "country": "Brazil",
+   "birthYear": 1996
+  },
+  {
+   "team": "Bravos",
+   "slotRole": "IGL",
+   "nick": "steel",
+   "country": "Brazil",
+   "birthYear": 1993
+  },
+  {
+   "team": "Bravos",
+   "slotRole": "Rifler",
+   "nick": "SHOOWTiME",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "Crashers",
+   "slotRole": "Rifler",
+   "nick": "pancc",
+   "country": "Brazil",
+   "birthYear": 1998
+  },
+  {
+   "team": "Crashers",
+   "slotRole": "Rifler",
+   "nick": "Tuurtle",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "ECSTATIC",
+   "slotRole": "IGL",
+   "nick": "Snappi",
+   "country": "Denmark",
+   "birthYear": 1990
+  },
+  {
+   "team": "Entropy Gaming",
+   "slotRole": "Entry",
+   "nick": "ztr",
+   "country": "Sweden",
+   "birthYear": 2003
+  },
+  {
+   "team": "ex-ENCE",
+   "slotRole": "rifle",
+   "nick": "Goofy",
+   "country": "Poland",
+   "birthYear": 2000
+  },
+  {
+   "team": "ex-ENCE",
+   "slotRole": "rifle",
+   "nick": "hades",
+   "country": "Poland",
+   "birthYear": 2000
+  },
+  {
+   "team": "ex-KRÜ Esports",
+   "slotRole": "Rifler",
+   "nick": "KSCERATO",
+   "country": "Brazil",
+   "birthYear": 1999
+  },
+  {
+   "team": "ex-Vexa E-Sports",
+   "slotRole": "Suporte",
+   "nick": "KHTEX",
+   "country": "Brazil",
+   "birthYear": 1999
+  },
+  {
+   "team": "ex-Vexa E-Sports",
+   "slotRole": "Rifler",
+   "nick": "JOTA",
+   "country": "Brazil",
+   "birthYear": 1998
+  },
+  {
+   "team": "EYEBALLERS",
+   "slotRole": "rifle",
+   "nick": "flusha",
+   "country": "Sweden",
+   "birthYear": 1993
+  },
+  {
+   "team": "EYEBALLERS",
+   "slotRole": "Rifle",
+   "nick": "f0rest",
+   "country": "Sweden",
+   "birthYear": 1988
+  },
+  {
+   "team": "Fake do Biru",
+   "slotRole": "rifle",
+   "nick": "fer",
+   "country": "Brazil",
+   "birthYear": 1991
+  },
+  {
+   "team": "Fnatic",
+   "slotRole": "lurk",
+   "nick": "Brollan",
+   "country": "Sweden",
+   "birthYear": 2002
+  },
+  {
+   "team": "Furious Gaming",
+   "slotRole": "Rifler",
+   "nick": "Kjaerbye",
+   "country": "Denmark",
+   "birthYear": 1998
+  },
+  {
+   "team": "Furious Gaming",
+   "slotRole": "Lurker",
+   "nick": "nqz",
+   "country": "Brazil",
+   "birthYear": 2005
+  },
+  {
+   "team": "Galorys",
+   "slotRole": "Suporte",
+   "nick": "NEKIZ",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "Galorys",
+   "slotRole": "Entry",
+   "nick": "latto",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "Game Hunters",
+   "slotRole": "Rifler",
+   "nick": "b4rtiN",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "Ground Zero Gaming",
+   "slotRole": "rifle",
+   "nick": "aliStair",
+   "country": "Australia",
+   "birthYear": 1998
+  },
+  {
+   "team": "Hacha Esports",
+   "slotRole": "Rifler",
+   "nick": "LUCAS1",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "Havan Liberty",
+   "slotRole": "Rifler",
+   "nick": "fnx",
+   "country": "Brazil",
+   "birthYear": 1990
+  },
+  {
+   "team": "HereWeGoAgain",
+   "slotRole": "Rifler",
+   "nick": "PKL",
+   "country": "Brazil",
+   "birthYear": 1994
+  },
+  {
+   "team": "Imperial Esports",
+   "slotRole": "AWPer",
+   "nick": "FalleN",
+   "country": "Brazil",
+   "birthYear": 1991
+  },
+  {
+   "team": "insane players",
+   "slotRole": "rifle",
+   "nick": "oSee",
+   "country": "United States",
+   "birthYear": 1999
+  },
+  {
+   "team": "insane players",
+   "slotRole": "Rifler",
+   "nick": "Sonic",
+   "country": "South Africa",
+   "birthYear": 1998
+  },
+  {
+   "team": "Intense Game",
+   "slotRole": "Entry",
+   "nick": "bT",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "Intense Game",
+   "slotRole": "Lurker",
+   "nick": "leo_drk",
+   "country": "Brazil",
+   "birthYear": 1999
+  },
+  {
+   "team": "Isurus",
+   "slotRole": "AWPer",
+   "nick": "rox",
+   "country": "Argentina",
+   "birthYear": 2002
+  },
+  {
+   "team": "Joga de terno",
+   "slotRole": "Rifler",
+   "nick": "togs",
+   "country": "Brazil",
+   "birthYear": 2001
+  },
+  {
+   "team": "Joga de terno",
+   "slotRole": "Rifler",
+   "nick": "zqkS",
+   "country": "Brazil",
+   "birthYear": 1992
+  },
+  {
+   "team": "Joga de terno",
+   "slotRole": "Rifler",
+   "nick": "bit",
+   "country": "Brazil",
+   "birthYear": 1990
+  },
+  {
+   "team": "Life's A Game",
+   "slotRole": "Rifle",
+   "nick": "Grim",
+   "country": "United States",
+   "birthYear": 2000
+  },
+  {
+   "team": "Life's A Game",
+   "slotRole": "IGL",
+   "nick": "stanislaw",
+   "country": "Canada",
+   "birthYear": 1994
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "Rifler",
+   "nick": "righi",
+   "country": "Argentina",
+   "birthYear": null
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "Rifler",
+   "nick": "C4LLM3SU3",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "Rifler",
+   "nick": "destiny",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "Low Cortisol",
+   "slotRole": "IGL",
+   "nick": "nak",
+   "country": "Brazil",
+   "birthYear": 1987
+  },
+  {
+   "team": "Low Cortisol",
+   "slotRole": "Rifler",
+   "nick": "skullz",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "Low Cortisol",
+   "slotRole": "Rifler",
+   "nick": "lux",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "Marcos Gaming",
+   "slotRole": "Rifler",
+   "nick": "skRossi",
+   "country": "India",
+   "birthYear": 1997
+  },
+  {
+   "team": "Marsborne",
+   "slotRole": "rifle",
+   "nick": "cxzi",
+   "country": "United States",
+   "birthYear": 2001
+  },
+  {
+   "team": "Marsborne",
+   "slotRole": "rifle",
+   "nick": "reck",
+   "country": "United States",
+   "birthYear": 2003
+  },
+  {
+   "team": "Martians",
+   "slotRole": "IGL",
+   "nick": "dexter",
+   "country": "Australia",
+   "birthYear": 1994
+  },
+  {
+   "team": "Metanoia Wolves",
+   "slotRole": "Rifler",
+   "nick": "xand",
+   "country": "Brazil",
+   "birthYear": 1995
+  },
+  {
+   "team": "Metizport",
+   "slotRole": "rifle",
+   "nick": "nilo",
+   "country": "Sweden",
+   "birthYear": 2005
+  },
+  {
+   "team": "MIBR Academy",
+   "slotRole": "Rifler",
+   "nick": "insani",
+   "country": "Brazil",
+   "birthYear": 2004
+  },
+  {
+   "team": "MIBR Academy",
+   "slotRole": "Rifler",
+   "nick": "brnz4n",
+   "country": "Brazil",
+   "birthYear": 2003
+  },
+  {
+   "team": "MIRA",
+   "slotRole": "Rifler",
+   "nick": "kye",
+   "country": "Brazil",
+   "birthYear": 2004
+  },
+  {
+   "team": "MIRA",
+   "slotRole": "Entry",
+   "nick": "arT",
+   "country": "Brazil",
+   "birthYear": 1996
+  },
+  {
+   "team": "MIRA",
+   "slotRole": "Rifler",
+   "nick": "guerri",
+   "country": "Brazil",
+   "birthYear": 1990
+  },
+  {
+   "team": "Mythic",
+   "slotRole": "AWPer",
+   "nick": "wiz",
+   "country": "United States",
+   "birthYear": 2001
+  },
+  {
+   "team": "NuTsunami",
+   "slotRole": "Rifler",
+   "nick": "junior",
+   "country": "United States",
+   "birthYear": 2000
+  },
+  {
+   "team": "ODDIK",
+   "slotRole": "AWPer",
+   "nick": "cass1n",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "Outfit 49",
+   "slotRole": "Rifler",
+   "nick": "Cryptic",
+   "country": "United States",
+   "birthYear": 2002
+  },
+  {
+   "team": "Outfit 49",
+   "slotRole": "Rifler",
+   "nick": "RUSH",
+   "country": "United States",
+   "birthYear": 1994
+  },
+  {
+   "team": "OverKnight",
+   "slotRole": "Rifler",
+   "nick": "malbsMd",
+   "country": "Guatemala",
+   "birthYear": 2002
+  },
+  {
+   "team": "OverKnight",
+   "slotRole": "Entry",
+   "nick": "dapr",
+   "country": "United States",
+   "birthYear": 1999
+  },
+  {
+   "team": "OverKnight",
+   "slotRole": "Rifler",
+   "nick": "Gratisfaction",
+   "country": "New Zealand",
+   "birthYear": 1996
+  },
+  {
+   "team": "Paquetá",
+   "slotRole": "AWPer",
+   "nick": "zevy",
+   "country": "Brazil",
+   "birthYear": 2001
+  },
+  {
+   "team": "Paquetá",
+   "slotRole": "Rifler",
+   "nick": "biguzera",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "Paquetá",
+   "slotRole": "Entry",
+   "nick": "n1ssim",
+   "country": "Brazil",
+   "birthYear": 2001
+  },
+  {
+   "team": "Players",
+   "slotRole": "Rifler",
+   "nick": "shz",
+   "country": "Brazil",
+   "birthYear": 1998
+  },
+  {
+   "team": "Players",
+   "slotRole": "Rifler",
+   "nick": "venomzera",
+   "country": "Brazil",
+   "birthYear": 2004
+  },
+  {
+   "team": "RED Canids Academy",
+   "slotRole": "AWPer",
+   "nick": "saadzin",
+   "country": "Brazil",
+   "birthYear": 2004
+  },
+  {
+   "team": "regain",
+   "slotRole": "AWPer",
+   "nick": "nitr0",
+   "country": "United States",
+   "birthYear": 1995
+  },
+  {
+   "team": "Revenant",
+   "slotRole": "Rifler",
+   "nick": "f1ku",
+   "country": "Poland",
+   "birthYear": 2003
+  },
+  {
+   "team": "Revenant",
+   "slotRole": "Lurker",
+   "nick": "bodyy",
+   "country": "France",
+   "birthYear": 1997
+  },
+  {
+   "team": "River Plate",
+   "slotRole": "IGL",
+   "nick": "tutehen",
+   "country": "Argentina",
+   "birthYear": 2002
+  },
+  {
+   "team": "River Plate",
+   "slotRole": "Lurker",
+   "nick": "Stewie2K",
+   "country": "United States",
+   "birthYear": 1998
+  },
+  {
+   "team": "Rooster",
+   "slotRole": "AWPer",
+   "nick": "sterling",
+   "country": "New Zealand",
+   "birthYear": 1998
+  },
+  {
+   "team": "Rooster",
+   "slotRole": "Entry",
+   "nick": "Vexite",
+   "country": "Australia",
+   "birthYear": 2004
+  },
+  {
+   "team": "Rooster",
+   "slotRole": "Lurker",
+   "nick": "Hatz",
+   "country": "Australia",
+   "birthYear": 1998
+  },
+  {
+   "team": "Satriales",
+   "slotRole": "IGL",
+   "nick": "Sico",
+   "country": "Australia",
+   "birthYear": 1994
+  },
+  {
+   "team": "Satriales",
+   "slotRole": "Rifler",
+   "nick": "hazr",
+   "country": "Australia",
+   "birthYear": 2001
+  },
+  {
+   "team": "ShindeN",
+   "slotRole": "Suporte",
+   "nick": "tomi",
+   "country": "Argentina",
+   "birthYear": 2000
+  },
+  {
+   "team": "ShindeN",
+   "slotRole": "IGL",
+   "nick": "Noktse",
+   "country": "Argentina",
+   "birthYear": 1997
+  },
+  {
+   "team": "SportsBetExpert",
+   "slotRole": "rifle",
+   "nick": "stamina",
+   "country": "United States",
+   "birthYear": 2000
+  },
+  {
+   "team": "SportsBetExpert",
+   "slotRole": "AWPer",
+   "nick": "freakazoid",
+   "country": "United States",
+   "birthYear": 1992
+  },
+  {
+   "team": "SportsBetExpert",
+   "slotRole": "Rifler",
+   "nick": "FaNg",
+   "country": "Canada",
+   "birthYear": 2002
+  },
+  {
+   "team": "Team Aether",
+   "slotRole": "IGL",
+   "nick": "daps",
+   "country": "Canada",
+   "birthYear": 1993
+  },
+  {
+   "team": "Team Aether",
+   "slotRole": "Rifler",
+   "nick": "Walco",
+   "country": "Canada",
+   "birthYear": 2001
+  },
+  {
+   "team": "Team Nemesis",
+   "slotRole": "Rifler",
+   "nick": "r3salt",
+   "country": "Russia",
+   "birthYear": 2005
+  },
+  {
+   "team": "Team Nemesis",
+   "slotRole": "Rifler",
+   "nick": "Krad",
+   "country": "Russia",
+   "birthYear": 1999
+  },
+  {
+   "team": "Team Voca",
+   "slotRole": "Rifle",
+   "nick": "jba",
+   "country": "United States",
+   "birthYear": 2003
+  },
+  {
+   "team": "Team Voca",
+   "slotRole": "AWPer",
+   "nick": "slaxz-",
+   "country": "Germany",
+   "birthYear": 1998
+  },
+  {
+   "team": "timbermen",
+   "slotRole": "Entry",
+   "nick": "CLASIA",
+   "country": "United States",
+   "birthYear": 2003
+  },
+  {
+   "team": "Tricked Esport",
+   "slotRole": "IGL",
+   "nick": "MSL",
+   "country": "Denmark",
+   "birthYear": 1994
+  },
+  {
+   "team": "Underworld",
+   "slotRole": "Rifler",
+   "nick": "zews",
+   "country": "Brazil",
+   "birthYear": 1987
+  },
+  {
+   "team": "Underworld",
+   "slotRole": "Rifler",
+   "nick": "piriajr",
+   "country": "Brazil",
+   "birthYear": 2000
+  },
+  {
+   "team": "Underworld",
+   "slotRole": "Rifler",
+   "nick": "dzt",
+   "country": "Brazil",
+   "birthYear": 1997
+  },
+  {
+   "team": "UNO MILLE",
+   "slotRole": "Rifler",
+   "nick": "card",
+   "country": "Brazil",
+   "birthYear": 2003
+  },
+  {
+   "team": "Ursa",
+   "slotRole": "AWPer",
+   "nick": "sh1ro",
+   "country": "Russia",
+   "birthYear": 2001
+  },
+  {
+   "team": "Vikings KR",
+   "slotRole": "Entry",
+   "nick": "yuurih",
+   "country": "Brazil",
+   "birthYear": 1999
+  },
+  {
+   "team": "Virtus.pro",
+   "slotRole": "AWPer",
+   "nick": "Jame",
+   "country": "Russia",
+   "birthYear": 1998
+  },
+  {
+   "team": "WOPA Esport",
+   "slotRole": "IGL",
+   "nick": "karrigan",
+   "country": "Denmark",
+   "birthYear": 1990
+  },
+  {
+   "team": "Yawara E-Sports",
+   "slotRole": "AWPer",
+   "nick": "t9rnay",
+   "country": "Brazil",
+   "birthYear": 2002
+  },
+  {
+   "team": "YNG Warriors",
+   "slotRole": "Entry",
+   "nick": "snow",
+   "country": "Brazil",
+   "birthYear": 2007
+  }
+ ]
+}

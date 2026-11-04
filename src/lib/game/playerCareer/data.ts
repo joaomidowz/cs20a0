@@ -9,7 +9,8 @@ import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
 import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
-import { countryFromTournaments, extraSceneOrgs, generatedRoster, orgNationOf, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
+import rawFills from '$lib/data/cs/career-slot-fills.game.json';
+import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
 export interface SceneRosterMember {
@@ -23,6 +24,8 @@ export interface SceneRosterMember {
   overall?: number;
   /** Identidade curada de promessa (link HLTV), quando o jogador veio da base real. */
   hltv?: string;
+  /** Vaga sem jogador real conhecido: nick gerado (placeholder). */
+  generated?: boolean;
 }
 export interface SceneOrg {
   id: string;
@@ -59,6 +62,38 @@ const staysIn = (nick: string, teamName: string): boolean | undefined => {
   const key = STAY_AT.get(nick.toLowerCase());
   return key === undefined ? undefined : key === teamKey(teamName);
 };
+
+/** Função escrita de qualquer jeito ("rifle", "AWPer", "lurk", "Suporte") para uma chave só. */
+const roleId = (raw: string | undefined) => {
+  const value = (raw ?? '').toLowerCase();
+  if (value.startsWith('awp')) return 'awper';
+  if (value.startsWith('igl') || value.includes('leader')) return 'igl';
+  if (value.startsWith('entry')) return 'entry';
+  if (value.startsWith('sup')) return 'support';
+  if (value.startsWith('lurk')) return 'lurker';
+  return 'rifler';
+};
+
+interface SlotFill { team: string; slotRole: string; nick: string; country: string | null; birthYear: number | null }
+const FILLS = (rawFills as unknown as { fills: SlotFill[] }).fills;
+
+/** Troca nomes gerados pelas sugestões do usuário, só quando o jogador está livre (não joga em outro time, não foi
+ *  resolvido para outro time e não é uma promessa curada). A vaga certa é a da mesma função. */
+function applyFills(orgs: Map<string, SceneOrg>) {
+  const taken = new Set<string>();
+  for (const org of orgs.values()) for (const member of org.roster) if (!member.generated) taken.add(member.nick.toLowerCase());
+  for (const fill of FILLS) {
+    const nick = fill.nick.toLowerCase();
+    const org = orgs.get(teamKey(fill.team));
+    if (!org || taken.has(nick) || isProspectNick(fill.nick) || staysIn(fill.nick, fill.team) === false) continue;
+    const slots = org.roster.filter((member) => member.generated);
+    const slot = slots.find((member) => roleId(member.roles[0]) === roleId(fill.slotRole)) ?? slots[0];
+    if (!slot) continue;
+    taken.add(nick);
+    const member: SceneRosterMember = { nick: fill.nick, country: fill.country, birthDate: fill.birthYear ? `${fill.birthYear}-07-01` : null, roles: slot.roles, catalogBaseId: null, prospect: null };
+    orgs.set(teamKey(fill.team), { ...org, roster: org.roster.map((other) => (other === slot ? member : other)) });
+  }
+}
 
 /** Tira de cada time quem fica em outro e completa a vaga com a mesma função (nome gerado). Time que perde 4 ou
  *  5 é cópia de outro na coleta (Luminosity com a lineup do Monte): some, e o id aponta para onde o elenco foi. */
@@ -126,6 +161,7 @@ const normalized = (() => {
     const target = byKey.get(duplicate.duplicateOf);
     if (target) alias.set(duplicate.id, target.id);
   }
+  applyFills(byKey);
   const orgs = [...byKey.values()].map((org): SceneOrg => {
     const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
     const elite = rank !== null && rank <= ELITE_RANK;
