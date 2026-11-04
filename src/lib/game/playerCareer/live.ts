@@ -88,7 +88,9 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
     // overall é o da temporada (o jovem cresce, o veterano cai).
     const real = member ? member.overall ?? memberCatalogOverall(member) : null;
     const overall = clamp((real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise) - commsPenalty, 40, 99);
-    return enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
+    const player = enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
+    // baseId do catálogo (ou o nick) para a foto licenciada aparecer na carta.
+    return member && !member.generated ? { ...player, baseId: member.catalogBaseId ?? nick.toLowerCase() } : player;
   });
 }
 
@@ -480,6 +482,9 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
   const me = `${state.seed}:me`;
   const plays = countPlays(series, me);
   const highlights = playHighlights(series, me, campaign, myTeam);
+  const opponents = series
+    .filter((item) => item.winnerId && (isUserTeam(campaign, item.teamA.id) || isUserTeam(campaign, item.teamB.id)))
+    .map((item) => ({ team: isUserTeam(campaign, item.teamA.id) ? item.teamB.name : item.teamA.name, won: isUserTeam(campaign, item.winnerId) }));
   const bracket: BracketLine[] = series
     .filter((item): item is typeof item & { phase: BracketLine['phase'] } => item.phase === 'quarterfinal' || item.phase === 'semifinal' || item.phase === 'final')
     .map((item) => ({
@@ -501,7 +506,8 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ...(mvp ? { mvp } : {}),
     ...(plays.aces + plays.quads + plays.clutches > 0 ? { plays } : {}),
     ...(bracket.length ? { bracket } : {}),
-    ...(highlights.length ? { highlights } : {})
+    ...(highlights.length ? { highlights } : {}),
+    ...(opponents.length ? { opponents } : {})
   };
 }
 

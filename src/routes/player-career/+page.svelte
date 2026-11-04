@@ -11,6 +11,7 @@
   import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
+  import MajorOverview from '$lib/components/MajorOverview.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
   import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
@@ -33,6 +34,7 @@
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
   import type { MapId } from '$lib/game/types';
+  import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
@@ -135,6 +137,8 @@
   let menuOpen = false;
   let statsOpen = false;
   let trophiesOpen = false;
+  /** Visão do campeonato ao vivo (suíça, tabela com Buchholz e chave), a mesma do Major offline e do online. */
+  let overviewOpen = false;
   /** Resultado do acontecimento escolhido (fica na tela até "Continuar") e o campeonato que esperava por ele. */
   let happeningResult: { situation: string; trigger: string; line: string; chips: HappeningChip[]; success: boolean } | null = null;
   let queuedStart: { index: number; mode: 'pace' | 'live' | 'sim' } | null = null;
@@ -151,7 +155,7 @@
   let weekLine: string | null = null;
   let weekChips: AgendaChip[] = [];
   let coachLine: string | null = null;
-  let lastEventReport: { index: number; name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[]; result: TournamentResult } | null = null;
+  let lastEventReport: { index: number; name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[]; result: TournamentResult; rivalLine?: string | null } | null = null;
 
   $: if (career) persist(career);
 
@@ -262,6 +266,9 @@
     if (career.preRolled !== key) {
       career = rollHappening({ ...career, preRolled: key }, 'pre', { eventIndex: index });
       if (career.pendingHappening) { queuedStart = { index, mode }; return; }
+      // Sem acontecimento, pode vir a provocação de um rival da chave.
+      career = rollRival(career, index);
+      if (career.pendingRival) { queuedStart = { index, mode }; return; }
     }
     launchEntry(index, mode);
   }
@@ -279,6 +286,23 @@
     const outcome = resolveHappening(career, choiceIndex);
     career = outcome.state;
     happeningResult = { situation: event?.situation ?? '', trigger, line: outcome.line, chips: outcome.chips, success: outcome.success };
+  }
+
+  let rivalResult: { title: string; line: string } | null = null;
+
+  function chooseRival(response: (typeof RIVAL_CHOICES)[number]['key']) {
+    if (!career?.pendingRival) return;
+    const rival = career.pendingRival;
+    const answer = answerRival(career, response);
+    career = answer.state;
+    rivalResult = { title: `${rival.nick} (${rival.role} da ${rival.orgName})`, line: answer.line };
+  }
+
+  function closeRival() {
+    rivalResult = null;
+    const queued = queuedStart;
+    queuedStart = null;
+    if (queued) launchEntry(queued.index, queued.mode);
   }
 
   function closeHappening() {
@@ -378,6 +402,7 @@
     if (confirming) closeConfirm();
     else if (statsOpen) closeStats();
     else if (trophiesOpen) closeTrophies();
+    else if (overviewOpen) overviewOpen = false;
     else if (opponentOrgId) closeOpponent();
     else if (eventSheet !== null) closeEventSheet();
     else if (detailsPlayer) closeSheet();
@@ -659,9 +684,13 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId, career).level, {
+    const celebrated = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId, career).level, {
       mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
     });
+    // O rival do campeonato: enfrentou? ganhou ou perdeu dele?
+    const settled = settleRival(celebrated, index, result);
+    const recorded = settled.state;
+    if (lastEventReport) lastEventReport = { ...lastEventReport, rivalLine: settled.line };
     live = null;
     clutch = null;
     callOutcome = null;
@@ -1183,6 +1212,8 @@
           <div class="live-strip" class:done={liveOver}>
             <span class="live-badge"><i></i>{liveOver ? 'ENCERRADO' : 'AO VIVO'}</span>
             <strong>{career.calendar?.[liveIndex]?.name}{liveStage ? ` · ${STAGE_NAME[liveStage]}` : ''}</strong>
+            {#if career.rival && career.rival.eventIndex === liveIndex}<span class="rival-chip" title={career.rival.line}>Rival: {career.rival.nick} ({career.rival.orgName})</span>{/if}
+            {#if live.run.tournament}<button class="link-btn live-overview-btn" on:click={() => (overviewOpen = true)}>Tabela e chave</button>{/if}
             <span class="live-tag-tier">{career.calendar?.[liveIndex]?.tier ? TIER_LABEL[career.calendar[liveIndex].tier ?? 'C'] : LEVEL_LABEL[currentLevel]}</span>
           </div>
           {#if stageBanner}<p class="stage-banner" role="status">{stageBanner}</p>{/if}
@@ -1370,6 +1401,7 @@
                   <span class="report-copy">
                     <span class="label">Último · {lastEventReport.name}</span>
                     <span class="report-line">{#if lastEventReport.placement === 'Não classificado'}Sem vaga no Major pelo ranking{:else}{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b>{/if}</span>
+                    {#if lastEventReport.rivalLine}<span class="report-mvp rival-line">{lastEventReport.rivalLine}</span>{/if}
                     {#if lastEventReport.result.mvp}
                       <span class="report-mvp" class:you={lastEventReport.result.mvp.you}>{lastEventReport.result.mvp.you ? 'Você foi o MVP' : `MVP ${lastEventReport.result.mvp.nick} · ${lastEventReport.result.mvp.team}`} · {lastEventReport.result.mvp.rating.toFixed(2)}{#if lastEventReport.result.plays?.aces} · {lastEventReport.result.plays.aces} ace{lastEventReport.result.plays.aces > 1 ? 's' : ''}{/if}</span>
                     {/if}
@@ -1653,6 +1685,20 @@
     </div>
   {/if}
 
+  {#if overviewOpen && live?.run.tournament && career}
+    <div class="modal-backdrop" role="presentation" on:click|self={() => (overviewOpen = false)}>
+      <div class="modal wide overview-modal" role="dialog" aria-modal="true" aria-labelledby="overview-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="overview-title">{career.calendar?.[liveIndex]?.name}{liveStage ? ` · ${STAGE_NAME[liveStage]}` : ''} · tabela e chave</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={() => (overviewOpen = false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <MajorOverview tournament={live.run.tournament} cursor={{ liveSeriesId: liveUserSeries?.config.id ?? null }} userTeamId={live.userTeamId} userTeamName={orgOf(career.orgId).name} language="pt-BR" />
+      </div>
+    </div>
+  {/if}
+
   {#if trophiesOpen && career}
     <div class="modal-backdrop" role="presentation" on:click|self={closeTrophies}>
       <div class="modal wide trophy-room" role="dialog" aria-modal="true" aria-labelledby="trophy-title" use:focusInside>
@@ -1763,6 +1809,29 @@
           </button>
         </header>
         <RunStatsGrid stats={lastEventReport.stats} players={lastEventReport.players} language="pt-BR" compact={true} />
+      </div>
+    </div>
+  {/if}
+
+  {#if career && !live && !career.pendingHappening && !happeningResult && (career.pendingRival || rivalResult)}
+    <div class="modal-backdrop" role="presentation">
+      <div class="modal wide happening rival" role="alertdialog" aria-modal="true" aria-labelledby="rival-title" use:focusInside>
+        {#if rivalResult}
+          <span class="eyebrow">Provocação · sua resposta</span>
+          <h2 class="display" id="rival-title">{rivalResult.title}</h2>
+          <p class="happening-line">{rivalResult.line}</p>
+          <button class="cta" data-autofocus on:click={closeRival}>{queuedStart ? 'Ir para o campeonato' : 'Continuar'}</button>
+        {:else if career.pendingRival}
+          <span class="eyebrow">Provocação · antes do {career.calendar?.[career.pendingRival.eventIndex]?.name ?? 'campeonato'}</span>
+          <h2 class="display" id="rival-title">{career.pendingRival.nick} ({career.pendingRival.role} da {career.pendingRival.orgName}) falou de você</h2>
+          <blockquote class="rival-quote">{career.pendingRival.line}</blockquote>
+          <div class="happening-choices">
+            {#each RIVAL_CHOICES as choice, choiceIndex (choice.key)}
+              <button class="happening-choice" data-autofocus={choiceIndex === 0 ? '' : undefined} on:click={() => chooseRival(choice.key)}><span>{choice.text}</span><small>{choice.hint}</small></button>
+            {/each}
+          </div>
+          <p class="happening-odds">Se a {career.pendingRival.orgName} cruzar o seu caminho neste campeonato, o confronto vale moral e fãs.</p>
+        {/if}
       </div>
     </div>
   {/if}
@@ -2267,6 +2336,12 @@
   .note.award b { color: var(--gold); }
   .note .link-btn { justify-self: start; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
+  .live-overview-btn { margin-left: auto; white-space: nowrap; }
+  .rival-chip { padding: 3px 8px; border: 1px solid var(--accent-2); color: var(--accent-2); font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .rival-quote { margin: 0; padding: 10px 14px; border-left: 3px solid var(--accent-2); color: var(--text); font-size: 18px; font-style: italic; line-height: 1.4; }
+  .happening-choice small { display: block; margin-top: 4px; color: var(--muted); font: 500 13px/1.3 var(--body); }
+  .rival-line { color: var(--accent-2); }
+  .overview-modal { width: min(1180px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; }
   .map-train { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .map-top { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
   .map-top b { color: var(--text); }

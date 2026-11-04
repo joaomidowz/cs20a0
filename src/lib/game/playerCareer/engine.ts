@@ -11,6 +11,7 @@ import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, scene
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import type { Language } from './language';
+import type { Rival } from './rivals';
 import type { MapId } from '../types';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
@@ -80,6 +81,8 @@ export interface TournamentResult {
   plays?: EventPlays;
   /** O mata-mata inteiro: quem passou, quem caiu e os placares. */
   bracket?: BracketLine[];
+  /** Todos os times que você enfrentou no evento e se ganhou a série. */
+  opponents?: Array<{ team: string; won: boolean }>;
   /** Suas jogadas do evento com mapa, round e adversário (as melhores, até 8). */
   highlights?: PlayHighlight[];
 }
@@ -278,6 +281,9 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
+  pendingRival?: Rival | null;
+  rival?: Rival | null;
   /** Campeonato que já sorteou o acontecimento de antes do jogo (não sorteia de novo ao continuar). */
   preRolled?: string | null;
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */

@@ -3,6 +3,7 @@
   // sempre à vista e, na sua carta, quanto falta pro próximo degrau. Rodapé livre (slot) pra relação/ações.
   import { CAREER_RARITY_LABEL, careerRarity } from '$lib/game/playerCareer/cards';
   import type { Player } from '$lib/game/types';
+  import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
 
   export let player: Player;
   /** Rótulo da função ("Entry fragger"). */
@@ -30,6 +31,8 @@
   $: values = ATTRIBUTES.map((attribute) => ({ ...attribute, value: Number(player[attribute.key] ?? 0), gain: trained?.[attribute.key] ?? 0 }));
   $: best = new Set([...values].sort((a, b) => b.value - a.value).slice(0, 2).map((attribute) => attribute.key));
   $: initials = (player.nickname ?? '?').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
+  // Foto licenciada do jogador real (registro em licensed-images.json), nunca na sua carta.
+  $: photo = me ? null : licensedImageFor('player', player.baseId ?? null) ?? licensedImageFor('player', (player.nickname ?? '').toLowerCase());
 </script>
 
 <article class="ccard r-{info.rarity} size-{size}" class:me>
@@ -41,7 +44,11 @@
     on:click={() => onOpen?.()}
     role={onOpen ? undefined : 'group'}
   >
-    <span class="mono" aria-hidden="true">{initials}</span>
+    {#if photo}
+      <img class="photo" src={licensedImageSrc(photo)} alt="" decoding="async" loading="lazy" />
+    {:else}
+      <span class="mono" aria-hidden="true">{initials}</span>
+    {/if}
     <span class="top">
       <span class="ovr-block">
         <span class="ovr">{overall}</span>
@@ -141,6 +148,24 @@
     color: color-mix(in srgb, var(--r) 14%, transparent);
     pointer-events: none;
   }
+  /* Rosto à direita, sob a etiqueta de raridade, sumindo para a esquerda e para baixo: os status ficam por cima. */
+  .photo {
+    position: absolute;
+    right: 0;
+    top: 26px;
+    z-index: 0;
+    width: 62%;
+    height: 72%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: .5;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to left, #000 35%, transparent 95%), linear-gradient(to bottom, #000 45%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to left, #000 35%, transparent 95%), linear-gradient(to bottom, #000 45%, transparent 100%);
+    mask-composite: intersect;
+  }
+  .size-sheet .photo { top: 40px; width: 58%; height: 70%; }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
   .ovr-block { display: grid; gap: 3px; }
   .ovr { font: 900 38px/.82 var(--display); color: var(--r-ink); font-variant-numeric: tabular-nums; }
