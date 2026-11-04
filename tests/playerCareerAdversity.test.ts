@@ -98,7 +98,7 @@ describe('recuperação do cansaço', () => {
 
   it('férias na virada da temporada: sobra um quinto do cansaço', async () => {
     const { finishSeason } = await import('../src/lib/game/playerCareer/engine');
-    let career = { ...seasonAt('rec-2'), fatigue: 90 };
+    let career: PlayerCareerState = { ...seasonAt('rec-2'), fatigue: 90 };
     for (const entry of career.calendar!) career = recordEventResult(career, entry.index, { name: entry.name, placement: 'Quartas', rating: 1, seriesWins: 0, seriesLosses: 1 });
     expect(finishSeason(career).fatigue).toBe(18);
   });
