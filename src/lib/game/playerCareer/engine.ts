@@ -6,7 +6,7 @@
 import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn, rosterIn } from './world';
-import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier } from './calendar';
+import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier, type Region } from './calendar';
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 
@@ -274,8 +274,9 @@ export const eventsRangeFor = (orgId: string, state?: Pick<PlayerCareerState, 'o
 /** Os campeonatos reais do circuito do time, a partir de um mês (troca no meio da temporada). */
 function calendarFor(state: PlayerCareerState, orgId: string, seed: string, count: number, fromIndex = 0, afterMonth = 0): CalendarEntry[] {
   const org = orgOf(orgId, state);
+  const orgRegion = 'region' in org ? (org.region as Region | undefined) : undefined;
   const orgCountry = 'country' in org ? (org.country as string | null) : null;
-  const region = regionOf(orgCountry ?? state.country);
+  const region = orgRegion ?? regionOf(orgCountry ?? state.country);
   const events = seasonEvents(org.level, region, count, seed, state.year).filter((event) => event.month > afterMonth);
   return events.map((event, offset) => ({
     index: fromIndex + offset,

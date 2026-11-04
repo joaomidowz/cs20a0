@@ -27,6 +27,7 @@ import { computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
 import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
+import { regionOf, type Region } from './calendar';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
@@ -141,19 +142,39 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
   const setup = eventSetup(state, eventIndex, stage);
   const seed = `${state.seed}:event:${state.seasonNumber}:${eventIndex}${stage ? `:${stage}` : ''}`;
   const rng = createSeededRng(`${seed}:field`);
+  // Quanto do campo é da sua região: lan house e tier C só região; tier B maioria; tier A regional meio a meio;
+  // elite internacional e Major, o mundo todo.
+  const entry = state.calendar?.[eventIndex];
+  const userLevel = orgOf(state.orgId, state).level;
+  const share = entry?.format === 'major' ? 0
+    : userLevel >= 4 || entry?.tier === 'C' ? 1
+    : entry?.tier === 'B' ? 0.7
+    : entry?.tier === 'A' && userLevel >= 2 ? 0.5
+    : 0;
+  const home = userRegion(state);
+  const regional = Math.round(setup.opponents * share);
+  const inBand = (low: number, high: number, local: boolean | null) => sceneOrgs.filter((org) =>
+    org.id !== state.orgId && levelIn(state, org) >= low && levelIn(state, org) <= high && (local === null || (org.region === home) === local));
   // Rivais da faixa do evento; se faltar gente (Tier S tem 8 times), abre a faixa um degrau por vez.
-  let [low, high] = setup.levels;
-  let pool = sceneOrgs.filter((org) => org.id !== state.orgId && levelIn(state, org) >= low && levelIn(state, org) <= high);
-  while (pool.length < setup.opponents && (low > 0 || high < 4)) {
-    low = Math.max(0, low - 1);
-    high = Math.min(4, high + 1);
-    pool = sceneOrgs.filter((org) => org.id !== state.orgId && levelIn(state, org) >= low && levelIn(state, org) <= high);
-  }
+  const widen = (local: boolean | null, needed: number) => {
+    let [low, high] = setup.levels;
+    let pool = inBand(low, high, local);
+    while (pool.length < needed && (low > 0 || high < 4)) {
+      low = Math.max(0, low - 1);
+      high = Math.min(4, high + 1);
+      pool = inBand(low, high, local);
+    }
+    return pool;
+  };
   const picked: SceneOrg[] = [];
-  while (picked.length < setup.opponents && picked.length < pool.length) {
-    const candidate = pool[Math.floor(rng() * pool.length)];
-    if (!picked.includes(candidate)) picked.push(candidate);
-  }
+  const draw = (pool: SceneOrg[], until: number) => {
+    const available = pool.filter((org) => !picked.includes(org));
+    while (picked.length < until && available.length) picked.push(available.splice(Math.floor(rng() * available.length), 1)[0]);
+  };
+  if (regional > 0) draw(widen(true, regional), regional);
+  // O resto vem de fora da região (ou de qualquer lugar, se a região não fechar a chave).
+  if (share < 1) draw(widen(share > 0 ? false : null, setup.opponents - picked.length), setup.opponents);
+  draw(widen(null, setup.opponents), setup.opponents);
   // Elencos da temporada (o mundo troca jogadores entre temporadas).
   const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
   return { seed, picked, rosters };
@@ -166,6 +187,12 @@ export interface SceneFieldTeam {
   /** Média de overall dos 5 que entram em quadra (o seu time já com a sinergia). */
   overall: number;
   isUser: boolean;
+}
+
+/** A região do seu time (lan house: a do seu país). */
+export function userRegion(state: PlayerCareerState): Region {
+  const org = sceneOrgById.get(state.orgId);
+  return org?.region ?? regionOf(org?.country ?? state.country);
 }
 
 /** A chave de 8 do campeonato, do mais forte pro mais fraco — o que o detalhe do calendário mostra. */

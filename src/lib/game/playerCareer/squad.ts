@@ -8,6 +8,7 @@ import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
 import { memberRoles, ORG_BASE_POWER, sceneOrgById } from './data';
 import { orgIn } from './world';
+import { randomNick } from './extraTeams';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
@@ -104,9 +105,11 @@ function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
 export function matesOf(state: PlayerCareerState): SquadMate[] {
   const org = orgOf(state.orgId, state);
   const seasonKey = `${state.seed}:season:${state.seasonNumber}`;
+  // Lan house: você + 4 da galera (as funções que faltam; quem é rifler empurra o suporte para fora), com nicks
+  // gerados fixos pela seed da carreira.
   const roster: Player[] = org.id === 'lan-house'
-    ? SLOTS.filter((role) => role !== state.role)
-        .map((role, index) => enginePlayer(`${state.seed}:mate:${role}`, `Mate ${index + 1}`, ORG_BASE_POWER[5], role, createSeededRng(`${state.seed}:mates:${seasonKey}`)))
+    ? SLOTS.filter((role) => role !== state.role).slice(0, 4)
+        .map((role) => enginePlayer(`${state.seed}:mate:${role}`, randomNick(`${state.seed}:lan:${role}`), ORG_BASE_POWER[5], role, createSeededRng(`${state.seed}:mates:${seasonKey}:${role}`)))
     : withoutSeat(sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? (org as never), seasonKey), state);
   return roster.map((player) => {
     const relationship = relationshipOf(state, player.id);

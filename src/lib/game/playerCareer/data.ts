@@ -8,6 +8,7 @@ import rawPlayers from '$lib/data/cs/players.game.json';
 import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
+import { regionOf, type Region } from './calendar';
 import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
 import rawFills from '$lib/data/cs/career-slot-fills.game.json';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
@@ -40,6 +41,8 @@ export interface SceneOrg {
   worldRank?: number | null;
   /** Força base do time no motor (média do quinteto antes dos jogadores reais do catálogo). */
   power?: number;
+  /** Região do circuito (pelo país; sem país, pelo circuito que o time jogou). */
+  region?: Region;
 }
 interface SceneFile {
   referenceYear: number;
@@ -132,6 +135,45 @@ export const ELITE_RANK = 16;
  * times duplicados ("Team Vitality" no 2, "Vitality" no 1). Aqui: um time por nome (fica o de nível mais alto),
  * nível 1 só para o top 16 do ranking real, o resto do Major desce para o 2, e a força segue o ranking.
  */
+/** Região de um time: pelo país; sem país, pelo circuito dos campeonatos coletados (CCT South America…). */
+function regionOfOrg(org: SceneOrg): Region {
+  if (org.country) return regionOf(org.country);
+  const names = org.tournaments.map((tournament) => tournament.name).join(' ');
+  if (/South America/i.test(names)) return 'sa';
+  if (/North America/i.test(names)) return 'na';
+  if (/Oceania/i.test(names)) return 'oce';
+  if (/Asia/i.test(names)) return 'asia';
+  return 'eu';
+}
+
+/** Quanto o time já jogou de alto nível na coleta: o melhor tier de campeonato (S > A > B > C) e quantos jogou. */
+const TOURNAMENT_TIER_SCORE: Record<string, number> = { S: 40, A: 30, B: 20, C: 10 };
+const sceneScore = (org: SceneOrg) =>
+  Math.max(0, ...org.tournaments.map((tournament) => TOURNAMENT_TIER_SCORE[tournament.tier] ?? 5)) + org.tournaments.length;
+
+/**
+ * Pirâmide por região: a coleta tem 71 times de CCT/GC na América do Sul para 8 no Challenger, e a Oceania tem 2
+ * Challengers. Cada região ganha um mínimo de Tier 2 e Challenger, subindo os times da região que jogaram mais
+ * alto (academias não sobem). A Europa já tem pirâmide cheia e não mexe.
+ */
+const REGION_FLOOR: Record<Region, { 2: number; 3: number }> = { sa: { 2: 8, 3: 16 }, na: { 2: 6, 3: 10 }, asia: { 2: 6, 3: 12 }, oce: { 2: 3, 3: 6 }, eu: { 2: 0, 3: 0 } };
+function rebalanceTiers(orgs: SceneOrg[]): SceneOrg[] {
+  const levels = new Map(orgs.map((org) => [org.id, org.level]));
+  for (const region of Object.keys(REGION_FLOOR) as Region[]) {
+    for (const level of [2, 3] as const) {
+      const here = orgs.filter((org) => org.region === region && levels.get(org.id) === level).length;
+      const candidates = orgs
+        .filter((org) => org.region === region && levels.get(org.id) === level + 1 && !/academy|junior|talent|nxt/i.test(org.name))
+        .sort((a, b) => sceneScore(b) - sceneScore(a) || a.name.localeCompare(b.name));
+      for (const org of candidates.slice(0, Math.max(0, REGION_FLOOR[region][level] - here))) levels.set(org.id, level);
+    }
+  }
+  return orgs.map((org) => {
+    const level = levels.get(org.id)!;
+    return level === org.level ? org : { ...org, level, power: ORG_BASE_POWER[level] };
+  });
+}
+
 const normalized = (() => {
   const byKey = new Map<string, SceneOrg>();
   const alias = new Map<string, string>();
@@ -173,9 +215,9 @@ const normalized = (() => {
     const elite = rank !== null && rank <= ELITE_RANK;
     const level = elite ? (rank! <= TIER_S_RANK ? 0 : 1) : org.level === 1 ? 2 : org.level;
     const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? Math.max(78, 84 - (rank - ELITE_RANK) * 0.4) : ORG_BASE_POWER[level];
-    return { ...org, level, worldRank: rank, power: Math.round(power * 10) / 10 };
+    return { ...org, level, worldRank: rank, power: Math.round(power * 10) / 10, region: regionOfOrg(org) };
   });
-  return { orgs, alias };
+  return { orgs: rebalanceTiers(orgs), alias };
 })();
 
 export const sceneOrgs = normalized.orgs;
