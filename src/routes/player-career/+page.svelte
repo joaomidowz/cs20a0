@@ -34,7 +34,7 @@
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
-  const LEVEL_LABEL: Record<number, string> = { 1: 'Tier 1 · Major', 2: 'Tier 2 · Invites', 3: 'Challenger', 4: 'CCT/GC · circuito real', 5: 'Lan House' };
+  const LEVEL_LABEL: Record<number, string> = { 0: 'Tier S', 1: 'Tier 1', 2: 'Tier 2', 3: 'Challenger', 4: 'CCT/GC', 5: 'Lan House' };
   /** O mesmo controle de velocidade do resto do jogo (sandbox): mesmos rótulos, mesmos delays. Padrão ULTRA. */
   const SPEED_DELAYS = { normal: 1500, fast: 650, ultra: 180, insta: 0 } as const;
   const SPEED_OPTIONS = [
@@ -45,7 +45,8 @@
   ];
   /** A pirâmide da cena, de cima pra baixo: onde a carreira pode chegar e onde você está. */
   const PYRAMID = [
-    { level: 1, label: 'Tier 1 · Major', short: 'Major' },
+    { level: 0, label: 'Tier S', short: 'S' },
+    { level: 1, label: 'Tier 1', short: 'T1' },
     { level: 2, label: 'Tier 2', short: 'Tier 2' },
     { level: 3, label: 'Challenger', short: 'Chall.' },
     { level: 4, label: 'CCT / GC', short: 'CCT' },
@@ -1612,10 +1613,10 @@
   .facts dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
   .facts dd { margin: 0; font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; }
   .facts dd.gold { color: var(--gold); }
-  .pyramid { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-  .pyramid li { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 34px; padding: 6px 12px; border: 1px solid var(--line); color: var(--muted); font: 700 12px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .pyramid { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .pyramid li { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 28px; padding: 6px 12px; border: 1px solid var(--line); color: var(--muted); font: 700 12px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
   .pyramid li.been { color: var(--text); border-color: color-mix(in srgb, var(--muted) 45%, var(--line)); }
-  .pyramid li.here { flex-wrap: wrap; min-height: 50px; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); color: var(--accent); }
+  .pyramid li.here { flex-wrap: wrap; min-height: 44px; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); color: var(--accent); }
   .rung-org { width: 100%; color: var(--text); font: 800 22px/1 var(--display); letter-spacing: .01em; overflow-wrap: break-word; }
   .rung-mark { font-size: 11px; color: var(--muted); }
   .rung-short { display: none; }
@@ -1830,7 +1831,7 @@
     /* A navbar acompanha a largura da carreira (só nesta página). */
     :global(body:has(.pc-page) .nav.shell) { width: min(1480px, calc(100% - 28px)); }
     .career { min-height: calc(100dvh - 68px - 36px); }
-    .rail { gap: 14px; padding: 18px 20px; }
+    .rail { gap: 11px; padding: 16px 20px; }
     .ovr-num { font-size: 76px; }
     .stage { padding: 16px 22px; gap: 12px; }
   }
@@ -2002,7 +2003,7 @@
     .rail { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 20px; padding: 18px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
     .rail-head { grid-column: 1 / -1; }
     .ovr-num { font-size: 76px; }
-    .pyramid { grid-column: 1 / -1; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+    .pyramid { grid-column: 1 / -1; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
     .pyramid li { justify-content: center; text-align: center; min-height: 40px; padding: 4px; font-size: 11px; letter-spacing: .04em; }
     .pyramid li.here { min-height: 40px; flex-wrap: nowrap; }
     .rung-org, .rung-mark { display: none; }
