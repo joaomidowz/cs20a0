@@ -30,6 +30,7 @@
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
+  import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
@@ -72,6 +73,7 @@
   const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora' };
   /** Colocação → chave de CSS sem espaço nem acento. */
   const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora' };
+  const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
   const FORMAT_TEXT = (entry: { format?: string; finalBestOf?: number } | null | undefined) =>
     entry?.format === 'major' ? 'Major: Stage 1 e 2 em suíça de 16 (3 vitórias avança); Stage 3 suíça + playoffs, final MD5'
@@ -130,6 +132,9 @@
   let menuOpen = false;
   let statsOpen = false;
   let trophiesOpen = false;
+  /** Resultado do acontecimento escolhido (fica na tela até "Continuar") e o campeonato que esperava por ele. */
+  let happeningResult: { situation: string; trigger: string; line: string; chips: HappeningChip[]; success: boolean } | null = null;
+  let queuedStart: { index: number; mode: 'pace' | 'live' | 'sim' } | null = null;
   /** Campeonato aberto no detalhe do calendário (índice) — null fechado. */
   let eventSheet: number | null = null;
   let eventError: string | null = null;
@@ -226,7 +231,7 @@
 
   function playFromSheet(index: number) {
     closeEventSheet();
-    enterEvent(index);
+    begin(index, 'live');
   }
 
   /** "Circuito GC/CCT — Etapa 3" → circuito numa linha, etapa na outra. */
@@ -244,6 +249,39 @@
   function closeStats() {
     statsOpen = false;
     if (!detailsPlayer && !opponentOrgId && !confirming) document.body.classList.remove('modal-open');
+  }
+
+  /** Antes de cada campeonato pode rolar um acontecimento; ele espera a sua escolha e o campeonato segue depois. */
+  function begin(index: number, mode: 'pace' | 'live' | 'sim') {
+    if (!career) return;
+    const key = `${career.seasonNumber}:${index}`;
+    if (career.preRolled !== key) {
+      career = rollHappening({ ...career, preRolled: key }, 'pre', { eventIndex: index });
+      if (career.pendingHappening) { queuedStart = { index, mode }; return; }
+    }
+    launchEntry(index, mode);
+  }
+
+  function launchEntry(index: number, mode: 'pace' | 'live' | 'sim') {
+    if (mode === 'sim') simulateEvent(index);
+    else if (mode === 'live') enterEvent(index);
+    else startEntry(index);
+  }
+
+  function chooseHappening(choiceIndex: number) {
+    if (!career?.pendingHappening) return;
+    const event = HAPPENING_BY_ID.get(career.pendingHappening.id);
+    const trigger = TRIGGER_LABEL[career.pendingHappening.trigger];
+    const outcome = resolveHappening(career, choiceIndex);
+    career = outcome.state;
+    happeningResult = { situation: event?.situation ?? '', trigger, line: outcome.line, chips: outcome.chips, success: outcome.success };
+  }
+
+  function closeHappening() {
+    happeningResult = null;
+    const queued = queuedStart;
+    queuedStart = null;
+    if (queued) launchEntry(queued.index, queued.mode);
   }
 
   function openTrophies() {
@@ -615,6 +653,9 @@
       const mates = matesOf(recorded);
       const relationshipAverage = mates.length ? mates.reduce((sum, mate) => sum + mate.relationship, 0) / mates.length : 55;
       career = midSeasonCheck(recorded, relationshipAverage);
+      // Depois do campeonato (ou na semana) pode rolar um acontecimento: chance pelo momento da carreira.
+      career = rollHappening(career, 'post', { eventIndex: index, result });
+      if (!career.pendingHappening) career = rollHappening(career, 'between', { eventIndex: index + 1 });
     }
   }
 
@@ -965,8 +1006,11 @@
           <span class="label ovr-label">Overall</span>
         </div>
         <dl class="facts">
-          <div class="value" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
-            <dt>Valor de mercado</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
+          <div class="money" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
+            <dt>Valor</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
+          </div>
+          <div class="money" title="Sua parte das premiações e o que os acontecimentos deram ou custaram.">
+            <dt>Caixa</dt><dd>US$ {moneyLabel(career.money ?? 0)}</dd>
           </div>
           <div class="trophy-fact">
             <dt>Títulos</dt>
@@ -974,8 +1018,9 @@
           </div>
           <div title="Moral alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
           <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
-          <div title="Seguidores: títulos, MVPs, stream e entrevistas."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
+          <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
           <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
+          <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
         </dl>
 
         <ol class="pyramid" aria-label="A pirâmide da cena">
@@ -1286,11 +1331,11 @@
               {/if}
               {#if currentEntry}
                 <div class="next-actions">
-                  <button class="cta" on:click={() => currentEntry && (nextPace === 'live' ? enterEvent(currentEntry.index) : startEntry(currentEntry.index))}>{PACE_CTA[nextPace]}</button>
+                  <button class="cta" on:click={() => currentEntry && begin(currentEntry.index, nextPace === 'live' ? 'live' : 'pace')}>{PACE_CTA[nextPace]}</button>
                   {#if nextPace === 'live'}
-                    <button class="link-btn" on:click={() => currentEntry && simulateEvent(currentEntry.index)}>Só simular</button>
+                    <button class="link-btn" on:click={() => currentEntry && begin(currentEntry.index, 'sim')}>Só simular</button>
                   {:else}
-                    <button class="link-btn" on:click={() => currentEntry && enterEvent(currentEntry.index)}>Jogar ao vivo</button>
+                    <button class="link-btn" on:click={() => currentEntry && begin(currentEntry.index, 'live')}>Jogar ao vivo</button>
                   {/if}
                 </div>
               {:else if !career.calendar}
@@ -1353,7 +1398,7 @@
                     </div>
                     <div class="ft-actions">
                       <button class="secondary-btn" disabled={!canTrain || !pickedSkills.length} on:click={trainFree}>{pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
-                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach}>Falar com o coach · {talksLeft}/3</button>
+                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach}>Falar com o coach · {talksLeft}/3 na temporada</button>
                     </div>
                   </div>
                   <div class="week-right">
@@ -1595,6 +1640,36 @@
           </button>
         </header>
         <RunStatsGrid stats={lastEventReport.stats} players={lastEventReport.players} language="pt-BR" compact={true} />
+      </div>
+    </div>
+  {/if}
+
+  {#if career && !live && (career.pendingHappening || happeningResult)}
+    {@const pendingEvent = career.pendingHappening ? HAPPENING_BY_ID.get(career.pendingHappening.id) : null}
+    <div class="modal-backdrop" role="presentation">
+      <div class="modal wide happening" role="alertdialog" aria-modal="true" aria-labelledby="happening-title" use:focusInside>
+        {#if happeningResult}
+          <span class="eyebrow">{happeningResult.trigger} · {happeningResult.success ? 'deu certo' : 'deu errado'}</span>
+          <h2 class="display" id="happening-title">{happeningResult.situation}</h2>
+          <p class="happening-line" class:bad={!happeningResult.success}>{happeningResult.line}</p>
+          {#if happeningResult.chips.length}
+            <ul class="happening-chips">
+              {#each happeningResult.chips as chip (chip.label)}
+                <li class:up={chip.value > 0} class:down={chip.value < 0}>{chip.display ?? `${chip.label} ${chip.value > 0 ? '+' : '−'}${Math.abs(chip.value)}`}</li>
+              {/each}
+            </ul>
+          {/if}
+          <button class="cta" data-autofocus on:click={closeHappening}>{queuedStart ? 'Ir para o campeonato' : 'Continuar'}</button>
+        {:else if pendingEvent && career.pendingHappening}
+          <span class="eyebrow">Acontecimento · {TRIGGER_LABEL[career.pendingHappening.trigger]} · {pendingEvent.phase}</span>
+          <h2 class="display" id="happening-title">{pendingEvent.situation}</h2>
+          <div class="happening-choices">
+            {#each pendingEvent.choices as choice, choiceIndex (choiceIndex)}
+              <button class="happening-choice" data-autofocus={choiceIndex === 0 ? '' : undefined} on:click={() => chooseHappening(choiceIndex)}>{choice.text}</button>
+            {/each}
+          </div>
+          <p class="happening-odds">Chance de sair como você quer: <b>{Math.round(happeningSuccessChance(career) * 100)}%</b> (seu Mental e sua moral).</p>
+        {/if}
       </div>
     </div>
   {/if}
@@ -2146,6 +2221,21 @@
   .event-facts dd.hot { color: var(--accent); }
   .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  /* Acontecimento: a situação, 3 caminhos e o resultado. */
+  .happening { display: grid; gap: 14px; }
+  .happening h2 { margin: 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.05; }
+  .happening-choices { display: grid; gap: 8px; }
+  .happening-choice { all: unset; box-sizing: border-box; cursor: pointer; padding: 14px 16px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 600 16px/1.3 var(--body); }
+  .happening-choice:hover, .happening-choice:focus-visible { border-color: var(--accent); }
+  .happening-odds { margin: 0; color: var(--muted); font-size: 13px; }
+  .happening-odds b { color: var(--text); }
+  .happening-line { margin: 0; font-size: 16px; line-height: 1.45; }
+  .happening-line.bad { color: var(--accent-2); }
+  .happening-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .happening-chips li { padding: 4px 8px; border: 1px solid var(--line); font: 700 12px/1 var(--body); color: var(--muted); }
+  .happening-chips li.up { border-color: var(--accent); color: var(--accent); }
+  .happening-chips li.down { border-color: var(--accent-2); color: var(--accent-2); }
+  .facts .money dd { font-size: 15px; }
   .invites { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.45; }
   .invites b { color: var(--text); }
   .field li { display: grid; grid-template-columns: 28px minmax(0, 1.3fr) auto minmax(80px, 1fr) 36px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line); background: var(--surface-2); }

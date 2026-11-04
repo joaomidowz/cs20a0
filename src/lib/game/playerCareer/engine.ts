@@ -242,6 +242,16 @@ export interface PlayerCareerState {
   released?: boolean;
   /** Nível que os times ganharam ou perderam NESTA carreira (você carregou o time para cima, ou ele caiu). */
   orgLevels?: Record<string, number>;
+  /** Reputação 0-100 (imagem com times, imprensa e torcida; começa em 50). */
+  reputation?: number;
+  /** Caixa em US$: a sua parte das premiações e o que os acontecimentos dão ou custam. */
+  money?: number;
+  /** Acontecimento esperando a sua escolha (antes do jogo, depois do jogo ou na semana). */
+  pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
+  /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
+  happeningLog?: Record<string, number>;
+  /** Campeonato que já sorteou o acontecimento de antes do jogo (não sorteia de novo ao continuar). */
+  preRolled?: string | null;
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */
   relationships: Record<string, number>;
   /** Conversas desta janela entre campeonatos (zera quando um evento é jogado). */
@@ -456,12 +466,29 @@ export function startSeason(state: PlayerCareerState): PlayerCareerState {
 }
 
 /** Registra o resultado de um campeonato jogado no motor (rating vem do kill feed real). */
+/** Premiação de referência quando o catálogo não traz a do evento (regionais, qualificatórias, lan house). */
+const DEFAULT_POOL: Record<string, number> = { Major: 1250000, S: 1000000, A: 60000, B: 20000, C: 4000 };
+const PRIZE_SHARE: Record<string, number> = { 'Campeão': 0.4, Vice: 0.16, Semis: 0.08, Quartas: 0.04, 'Fase suíça': 0.02, 'Stage 1': 0.01, 'Stage 2': 0.015 };
+
+/** A sua parte do prêmio (a do time dividida por 5). Lan house paga só o simbólico. */
+export function prizeShare(entry: Pick<CalendarEntry, 'prizePool' | 'tier'> | undefined, placement: string, orgId: string): number {
+  const pool = entry?.prizePool ?? DEFAULT_POOL[entry?.tier ?? 'C'] ?? 4000;
+  const scaled = orgId === LAN_HOUSE.id ? Math.min(pool, 1000) : pool;
+  return Math.round((scaled * (PRIZE_SHARE[placement] ?? 0)) / 5);
+}
+
+/** Quantos campeonatos a carreira já jogou (o relógio do cooldown dos acontecimentos). */
+export const playedCount = (state: Pick<PlayerCareerState, 'history' | 'calendar'>) =>
+  state.history.reduce((sum, log) => sum + log.tournaments.length, 0) + (state.calendar ?? []).filter((entry) => entry.status === 'PLAYED').length;
+
 export function recordEventResult(state: PlayerCareerState, index: number, result: TournamentResult): PlayerCareerState {
   if (!state.calendar) return state;
-  const calendar = state.calendar.map((entry) => (entry.index === index ? { ...entry, status: 'PLAYED' as const, result } : entry));
+  const entry = state.calendar.find((candidate) => candidate.index === index);
+  const calendar = state.calendar.map((candidate) => (candidate.index === index ? { ...candidate, status: 'PLAYED' as const, result } : candidate));
   // Campeonato jogado: a janela de conversas fecha, o treino libera de novo.
-  // A forma da semana valia só para este campeonato.
-  return { ...state, calendar, liveEvent: null, talks: {}, form: 0, knock: null };
+  // A forma da semana valia só para este campeonato. A premiação cai no caixa.
+  const prize = result.skipped ? 0 : prizeShare(entry, result.placement, state.orgId);
+  return { ...state, calendar, liveEvent: null, talks: {}, form: 0, knock: null, money: (state.money ?? 0) + prize };
 }
 
 /** Fecha a temporada: lesão, aging calibrado e janela de mercado. */

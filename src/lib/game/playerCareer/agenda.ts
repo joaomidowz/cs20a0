@@ -349,7 +349,10 @@ export const ROLE_SKILLS: Record<PlayerRole, TrainedAttribute[]> = {
   support: ['support', 'igl', 'consistency', 'firepower']
 };
 
-export const COACH_TALKS_PER_WINDOW = 3;
+/** Conversas com o coach por TEMPORADA (não por campeonato). */
+export const COACH_TALKS_PER_SEASON = 3;
+export const COACH_TALKS_PER_WINDOW = COACH_TALKS_PER_SEASON;
+const coachKeyOf = (state: PlayerCareerState) => (state.status === 'ACTIVE' ? `season:${state.seasonNumber}` : null);
 
 export interface CoachTalkResult {
   state: PlayerCareerState;
@@ -359,12 +362,12 @@ export interface CoachTalkResult {
   talksLeft: number;
 }
 
-/** Conversa com o coach entre campeonatos: até 3 por janela, cada uma com um retorno diferente. */
+/** Conversa com o coach: até 3 por temporada, cada uma com um retorno diferente; a dica vale a temporada toda. */
 export function coachTalk(state: PlayerCareerState, me: Player = myPlayerOf(state)): CoachTalkResult {
-  const window = trainingWindowOf(state);
+  const window = coachKeyOf(state);
   const current = state.coachTalk && window && state.coachTalk.window === window ? state.coachTalk : { window: window ?? '', count: 0, tips: [] as TrainedAttribute[] };
   if (!window || current.count >= COACH_TALKS_PER_WINDOW) {
-    return { state, line: 'O coach já falou tudo o que tinha para esta semana.', tips: current.tips, talksLeft: 0 };
+    return { state, line: 'O coach já falou tudo o que tinha para esta temporada.', tips: current.tips, talksLeft: 0 };
   }
   const value = (attribute: TrainedAttribute) => Number(me[attribute] ?? 60);
   const skills = ROLE_SKILLS[state.role];
@@ -374,7 +377,7 @@ export function coachTalk(state: PlayerCareerState, me: Player = myPlayerOf(stat
   let next: PlayerCareerState = state;
   if (current.count === 0) {
     tips = sorted.slice(0, 2);
-    line = `Seu ponto fraco é ${ATTR_LABEL[tips[0]]} (${value(tips[0])}). Treina ${ATTR_LABEL[tips[0]]} e ${ATTR_LABEL[tips[1]]} esta semana.`;
+    line = `Seu ponto fraco é ${ATTR_LABEL[tips[0]]} (${value(tips[0])}). Treina ${ATTR_LABEL[tips[0]]} e ${ATTR_LABEL[tips[1]]} nesta temporada.`;
   } else if (current.count === 1) {
     const morale = state.morale ?? 60;
     if (morale < 45) {
@@ -395,13 +398,13 @@ export function coachTalk(state: PlayerCareerState, me: Player = myPlayerOf(stat
   return { state: { ...next, coachTalk: { window, count, tips } }, line, tips, talksLeft: COACH_TALKS_PER_WINDOW - count };
 }
 
-/** As dicas do coach só valem na janela em que ele falou. */
+/** As dicas do coach valem a temporada em que ele falou. */
 export function coachTipsOf(state: PlayerCareerState): TrainedAttribute[] {
-  const window = trainingWindowOf(state);
+  const window = coachKeyOf(state);
   return window && state.coachTalk?.window === window ? state.coachTalk.tips : [];
 }
 
 export function coachTalksLeft(state: PlayerCareerState): number {
-  const window = trainingWindowOf(state);
+  const window = coachKeyOf(state);
   return window && state.coachTalk?.window === window ? Math.max(0, COACH_TALKS_PER_WINDOW - state.coachTalk.count) : COACH_TALKS_PER_WINDOW;
 }

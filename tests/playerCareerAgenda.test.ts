@@ -129,7 +129,7 @@ describe('conversa com o coach', () => {
     expect(first.talksLeft).toBe(2);
   });
 
-  it('até 3 por janela, não gasta a semana e zera no próximo campeonato', () => {
+  it('até 3 por TEMPORADA: jogar um campeonato não devolve conversa; a temporada nova sim', () => {
     let state = seasonAt('coach-2');
     const lines: string[] = [];
     for (let talk = 0; talk < 4; talk += 1) {
@@ -142,7 +142,10 @@ describe('conversa com o coach', () => {
     expect(coachTalksLeft(state)).toBe(0);
     expect(applyCustomTraining(state, ['awp']).state.trained.awp).toBe(3);
     const nextWindow = recordEventResult(state, 0, { name: 'x', placement: 'Semis', rating: 1, seriesWins: 1, seriesLosses: 1 });
-    expect(coachTalksLeft(nextWindow)).toBe(3);
-    expect(coachTipsOf(nextWindow)).toEqual([]);
+    expect(coachTalksLeft(nextWindow)).toBe(0);
+    expect(coachTipsOf(nextWindow)).toEqual(coachTipsOf(state));
+    const nextSeason = { ...nextWindow, seasonNumber: nextWindow.seasonNumber + 1 };
+    expect(coachTalksLeft(nextSeason)).toBe(3);
+    expect(coachTipsOf(nextSeason)).toEqual([]);
   });
 });

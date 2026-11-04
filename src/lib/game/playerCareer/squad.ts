@@ -71,9 +71,13 @@ export function myPlayerOf(state: PlayerCareerState): Player {
   const rng = createSeededRng(`${state.seed}:me:${state.seasonNumber}`);
   const overall = clamp(state.overall + clamp(state.form ?? 0, -3, 3) - fatiguePenalty(state.fatigue), 40, 99);
   const card = applyTrained(enginePlayer(`${state.seed}:me`, state.nick, overall, state.role, rng), state.trained ?? {});
-  const mental = moraleBump(state.morale);
+  // Torcida joga junto: com 20 mil fãs +1 de Mental, com 100 mil +2 (a pressão vira combustível).
+  const mental = moraleBump(state.morale) + fanBoost(state.fame);
   return mental ? { ...card, mental: clamp(Number(card.mental ?? 60) + mental, 40, 99) } : card;
 }
+
+/** Quanto a torcida soma no Mental em quadra. */
+export const fanBoost = (fame: number | undefined): number => ((fame ?? 0) >= 100000 ? 2 : (fame ?? 0) >= 20000 ? 1 : 0);
 
 /** Entrosada joga junto: relação alta dá até +3 de overall pro parceiro, baixa tira até 2. */
 export const synergyBump = (relationship: number): number => clamp(Math.round((relationship - 55) / 15), -2, 3);

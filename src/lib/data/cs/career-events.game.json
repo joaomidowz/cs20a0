@@ -1,0 +1,7130 @@
+{
+ "source": "eventos_cs2_carreira_150.csv do usuário: 150 acontecimentos por fase da carreira, com gatilho, peso, cooldown e 3 escolhas.",
+ "events": [
+  {
+   "id": "EV001",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Seu primeiro campeonato tem premiação de R$ 200",
+   "trigger": "between",
+   "weight": 8,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Treinar mapa fraco com o quinteto",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Jogar ranked até a hora da estreia",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Dormir cedo e revisar duas táticas",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV002",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Seu duo exige ser o AWPer titular",
+   "trigger": "post",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Testar o duo em scrims",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Manter o AWPer que já treina",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Fazer rodízio durante o torneio",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV003",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Um adversário provoca no chat antes da MD1",
+   "trigger": "pre",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Ignorar e focar nas calls",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Responder publicamente com provocação",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Usar o ataque para motivar o time",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV004",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "A internet cai vinte minutos antes do jogo",
+   "trigger": "between",
+   "weight": 8,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Usar reserva e avisar o admin",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Pedir adiamento com evidências",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Insistir em jogar com conexão instável",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV005",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Você é convidado a entrar em uma stack melhor",
+   "trigger": "post",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aceitar o convite imediatamente",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Terminar o campeonato com a stack atual",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Negociar entrada após a final",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV006",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "A inscrição custa dinheiro do seu bolso",
+   "trigger": "pre",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Dividir igualmente os custos",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Pagar tudo para garantir presença",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Buscar um apoiador local",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV007",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Seu time não tem IGL definido",
+   "trigger": "between",
+   "weight": 8,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Assumir as calls",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Escolher o colega mais comunicativo",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Revezar IGL por mapa",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV008",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Você tem prova na manhã seguinte à final",
+   "trigger": "post",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Estudar e diminuir o treino",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Virar a noite treinando",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Pedir revisão de VOD ao colega e descansar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV009",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Um colega falta ao treino sem avisar",
+   "trigger": "pre",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Conversar e definir regras",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Expulsá-lo no mesmo dia",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Cobrir a ausência sem questionar",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV010",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Você perde uma clutch fácil em transmissão",
+   "trigger": "between",
+   "weight": 8,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Pedir feedback e rever o lance",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Culpar o ping no chat",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Evitar jogar situações de clutch",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV011",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Um jogador desconhecido domina seus pugs",
+   "trigger": "post",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Convidá-lo para teste com critérios",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Oferecer vaga titular imediatamente",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Observar mais partidas antes de agir",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV012",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Seu time vence com estratégia improvisada",
+   "trigger": "pre",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Registrar a jogada no playbook",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Repeti-la em todos os mapas",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Trocar por uma abordagem mais segura",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV013",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Uma organização amadora oferece apenas camisa",
+   "trigger": "between",
+   "weight": 8,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Aceitar em troca de divulgação",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Negociar ajuda com inscrições e servidor",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Recusar para manter independência",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV014",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Um streamer quer entrevistar você após eliminação",
+   "trigger": "post",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aceitar e assumir os erros",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Recusar e proteger o time",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Dar entrevista culpando o adversário",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV015",
+   "phase": "Online amador",
+   "tierMin": 1,
+   "situation": "Chega sua primeira final online",
+   "trigger": "pre",
+   "weight": 8,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Jogar agressivo para surpreender",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Seguir o plano treinado",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Simplificar o jogo para diminuir nervos",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV016",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Seu time ganha seguidores depois de um highlight",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Publicar bastidores com a equipe",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Fazer stream diária para crescer",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Manter foco em treinos e publicar pouco",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV017",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Um narrador erra seu nick ao vivo",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Corrigir educadamente depois",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Ironizar o narrador em público",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Ignorar para evitar desgaste",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV018",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Você recebe convite para campeonato de madrugada",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Participar mesmo cansado",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Recusar por causa da rotina",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Enviar o time reserva",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV019",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Uma derrota 13 a 2 vira meme",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Publicar análise dos erros",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Responder aos memes com humor",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Sumir das redes por uma semana",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV020",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Um colega quer trocar função depois de três derrotas",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Testar mudança em dois treinos",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Rejeitar sem abrir discussão",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Trocar funções já no próximo oficial",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV021",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Surge suspeita infundada de cheat contra um colega",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Defendê-lo e pedir apuração séria",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Atacar os acusadores sem provas",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Afastá-lo preventivamente até averiguação",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV022",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Seu time começa a faltar às scrims",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Criar agenda de presença",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Aplicar punição imediata aos faltosos",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Reduzir os treinos para evitar conflitos",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV023",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Uma final coincide com aniversário da família",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Conversar e combinar os horários",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Priorizar a partida sem avisar",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Procurar substituto confiável",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV024",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Você recebe oferta de uma skin para divulgar casa de apostas",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Recusar a publicidade",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aceitar sem ler as condições",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Pedir avaliação de contrato e regras",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV025",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Um novato perde a cabeça após rounds ruins",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Pedir pausa tática e ajudá-lo",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Cobrá-lo duramente em voz alta",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Substituí-lo na próxima partida",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV026",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Dois jogadores brigam pela posição de lurker",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Definir prioridade por desempenho",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Deixar os dois disputarem sem intervenção",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Trocar o sistema tático para acomodar ambos",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV027",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Sua primeira montagem de highlights viraliza",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Agradecer e marcar o time",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Usar a fama para exigir protagonismo",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Contratar editor com parte do prêmio",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV028",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Um capitão rival propõe scrim de última hora",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Aceitar para testar defaults",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Recusar para preservar táticas",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Aceitar somente com mapa reserva",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV029",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "Um patrocinador oferece periféricos com exclusividade",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Avaliar contrato e aceitar se equilibrado",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Assinar na hora",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Recusar por preferir seus equipamentos",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV030",
+   "phase": "Circuito comunitário",
+   "tierMin": 2,
+   "situation": "A comunidade vota você como promessa local",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Agradecer com humildade",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Prometer ser o próximo número um",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Evitar comentários e voltar a treinar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV031",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "A qualificatória tem quatro MD1 no mesmo dia",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Rotacionar mapas e preservar energia",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Treinar mais duas horas entre jogos",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Jogar sempre seu melhor mapa",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV032",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "O adversário utiliza uma tática inesperada no pistol",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Adaptar a defesa com informação",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Forçar o mesmo setup até funcionar",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Responder com agressão imediata",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV033",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Você é o último vivo em round decisivo",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Buscar clutch calculada",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Guardar arma para próximo round",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Arriscar confronto de baixa probabilidade",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV034",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "O IGL esquece o veto combinado",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Pedir pausa e reorganizar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Discutir em voz alta durante o mapa",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Assumir calls sem combinar",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV035",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Um ex-colega revela suas execuções públicas",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Atualizar detalhes das execuções",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Acusá-lo publicamente de traição",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Manter o plano acreditando na mira",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV036",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Você começa 0/8 em mapa eliminatório",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Pedir funções mais simples temporariamente",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Forçar duelos para recuperar estatísticas",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Concentrar-se em utilitárias e informação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV037",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "A equipe fica sem coach por uma semana",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Dividir análise de demos",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Contratar analista freelance por diária",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Deixar treinamento livre",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV038",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Você recebe proposta para jogar por outra região com ping alto",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Testar desempenho no servidor",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Aceitar pela premiação",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Recusar e consolidar elenco local",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV039",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Sua equipe enfrenta um time famoso da comunidade",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Preparar anti-strat específica",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Jogar sem estudar para não intimidar",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Mudar todo o estilo em cima da hora",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV040",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Uma pane no servidor causa round controverso",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Solicitar revisão formal",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aceitar o resultado e seguir",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Abandonar a série em protesto",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV041",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Seu entry fragger está em má fase",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Ajustar flashes e trade",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Colocá-lo no banco imediatamente",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Mandá-lo entrar sozinho para ganhar confiança",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV042",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Você tem só uma hora entre duas séries",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Fazer revisão breve e comer",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Rever todos os rounds da série anterior",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Participar de live com seguidores",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV043",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "A torcida acusa seu time de jogar lento demais",
+   "trigger": "between",
+   "weight": 7,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Explicar a estratégia pós-jogo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Alterar ritmo por pressão externa",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Manter identidade sem responder",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV044",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "Você conquista a vaga no closed qualifier",
+   "trigger": "post",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Celebrar e descansar um dia",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Começar treino pesado na mesma noite",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Fazer conteúdo com toda a lineup",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV045",
+   "phase": "CCT/GC classificatórias",
+   "tierMin": 3,
+   "situation": "A derrota por 2 a 1 vem após perder 12 a 8",
+   "trigger": "pre",
+   "weight": 7,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Rever decisões e economia",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Culpar uma pessoa no grupo",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Mudar o IGL imediatamente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV046",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Uma LAN nacional exige viagem de ônibus de 12 horas",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Viajar um dia antes",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Chegar no próprio dia e economizar",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Buscar apoio para transporte melhor",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV047",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "A primeira entrevista em LAN pergunta sobre favoritismo",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Responder com confiança moderada",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Provocar todos os rivais",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Dizer que não há expectativa",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV048",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "A torcida local vaia seu time na entrada",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Usar proteção acústica e foco",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Responder com gestos à torcida",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Tentar transformar vaias em motivação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV049",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Um jornalista pergunta sobre salário atrasado",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Responder com fatos aprovados pelo time",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Expor mensagens privadas ao vivo",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Não comentar e procurar direção",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV050",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Você perde o pistol por falha de comunicação",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reorganizar protocolo de comunicação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Gritar com o colega responsável",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Ignorar e acelerar o próximo round",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV051",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "A produção oferece entrevista dez minutos antes do mapa",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Pedir para falar após a série",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Aceitar para ganhar visibilidade",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Enviar outro membro do time",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV052",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Seu time joga uma MD3 em palco pela primeira vez",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Repetir rotinas de aquecimento",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Dobrar a dose de cafeína",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Inventar um ritual diferente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV053",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Um adversário oferece aperto de mão após provocação",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Cumprimentá-lo profissionalmente",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Recusar diante das câmeras",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Conversar sobre o ocorrido em particular",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV054",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "O patrocinador exige gravação na véspera da semifinal",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Negociar horário curto",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Cumprir agenda integral",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Recusar todas as obrigações",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV055",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "O coach quer chamar timeout no último round",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Confiar na leitura dele",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Dispensar a pausa para manter ritmo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Pedir que o IGL decida",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV056",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Você fica em quarto e recebe muitos elogios",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reconhecer progresso e lacunas",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Publicar que foi injustiça",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Mudar toda a equipe por não ganhar",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV057",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Um astro nacional quer jogar FACEIT com você na folga",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aceitar por tempo limitado",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Jogar até de madrugada",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar para descansar",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV058",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "O time perde por 13 a 0 em mapa televisionado",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Rever a série sem caça às bruxas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Pedir desculpas e assumir toda a culpa",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Atacar a organização do evento",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV059",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Seu amigo de infância não consegue acompanhar o nível",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Conversar sobre função ou banco",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Mantê-lo titular por lealdade",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Retirá-lo sem explicar",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV060",
+   "phase": "Campeonato nacional",
+   "tierMin": 4,
+   "situation": "Você sobe ao palco para uma final nacional",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Manter protocolo de comunicação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Fazer trash talk para ganhar notoriedade",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Jogar conservador para evitar vexame",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV061",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Primeira viagem internacional sem experiência",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Planejar fuso e sono com antecedência",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Aproveitar turismo até tarde",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Chegar no último dia por economia",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV062",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Um entrevistador pergunta se sua região é inferior",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Defender a região sem desrespeito",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Ridicularizar times estrangeiros",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Desconversar totalmente",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV063",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Seu inglês atrapalha as calls com novo reforço",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Criar vocabulário padronizado",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Cobrar que o reforço aprenda português",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Deixar cada um falar seu idioma",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV064",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "O time tem quatro jogos em três dias",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Definir blocos de recuperação",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Marcar treinos após cada partida",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Cancelar preparação tática",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV065",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Um coach estrangeiro quer assistir seu treino",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Permitir somente VOD selecionada",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Mostrar todas as táticas",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Recusar qualquer interação",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV066",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "A organização pede fotos publicitárias no descanso",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Negociar sessões rápidas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Fazer tudo para agradar",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Não comparecer sem aviso",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV067",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Você recebe proposta em dólar de equipe maior",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Pedir contrato e avaliar papel",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Aceitar verbalmente na hora",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Recusar sem escutar por lealdade",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV068",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Seu time perde para adversário considerado fraco",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reavaliar preparo sem subestimar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Criticar os rivais nas redes",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Treinar por oito horas como punição",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV069",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "O IGL sofre pressão por estatísticas baixas",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Defender impacto tático com dados",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Trocar IGL apenas pelo rating",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Ignorar sinais de comunicação ruim",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV070",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Um analista mostra vulnerabilidade no seu bombsite",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Praticar novas rotações",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Jogar mais agressivo sem coordenação",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Esconder a análise dos colegas",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV071",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Seu time chega à final após cinco séries intensas",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reduzir treino e revisar veto",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Fazer um bootcamp noturno",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Ir a festa para aliviar tensão",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV072",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Torcedores estrangeiros pedem selfies após derrota",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Atender brevemente com respeito",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Recusar de forma ríspida",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Postergar para depois do descanso",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV073",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Seu passaporte quase vence antes da próxima LAN",
+   "trigger": "between",
+   "weight": 6,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Resolver documentação já",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Esperar confirmação da vaga",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Pedir para jogar remotamente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV074",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "Um rival chama sua equipe de surpresa passageira",
+   "trigger": "post",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Responder dentro do servidor",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Fazer vídeo provocando o rival",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Evitar completamente mídia",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV075",
+   "phase": "Challenger internacional",
+   "tierMin": 5,
+   "situation": "A equipe ganha primeira premiação em moeda estrangeira",
+   "trigger": "pre",
+   "weight": 6,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Criar divisão transparente",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Exigir bônus pessoal maior",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Reinvestir tudo sem consultar jogadores",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV076",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Um clube oferece contrato de dois anos com multa alta",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Negociar multa e metas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Assinar pelo salário",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar qualquer vínculo longo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV077",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Você recebe posição de estrela, mas seu suporte perde espaço",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Negociar sistema equilibrado",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Exigir recursos em todos os rounds",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Recusar a função de estrela",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV078",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Três derrotas seguidas levantam rumores de disband",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reunir elenco e plano de 30 dias",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Negar tudo sem conversar",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Cobrar mudanças públicas",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV079",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Você bate recorde pessoal de rating em LAN",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Celebrar mérito do grupo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Publicar comparações com rivais",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Usar VOD para corrigir erros",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV080",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Um colega pede dois dias por problema familiar",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Apoiar e adaptar treinamento",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Pressionar presença normal",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Buscar stand-in temporário",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV081",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Um time de Tier 1 quer contratar seu rifler",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Preparar sucessão e negociar",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Impedir a saída a qualquer custo",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Deixar sair sem exigir transição",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV082",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Uma sequência de viagens causa insônia",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Procurar suporte e ajustar carga",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Usar cafeína para compensar",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Ignorar até o próximo evento",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV083",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Você é acusado de ser jogador de highlights",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Mostrar impacto em rounds",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Começar a caçar eliminações",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Parar de publicar clipes",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV084",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "O gerente exige presença em evento comercial",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Conciliar agenda com preparação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Aceitar tudo por visibilidade",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Faltar sem justificar",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV085",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "O time sofre reverse sweep em semifinal",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Analisar adaptação entre mapas",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Trocar dois jogadores imediatamente",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Dobrar treinos sem descanso",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV086",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Você recebe convite de podcast de duas horas",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Participar em dia livre",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aceitar na véspera de final",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar permanentemente a imprensa",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV087",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Seu coach critica suas decisões em reunião",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Escutar e propor testes",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Responder atacando o coach",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -3,
+      "reputation": -4,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Pedir avaliação individual depois",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV088",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Você pode contratar psicólogo esportivo do prêmio",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Investir em apoio mental",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Distribuir todo o prêmio entre jogadores",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -3,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Contratar apenas analista tático",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV089",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Começam conversas sobre venda de sua vaga no torneio",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Exigir transparência contratual",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Aceitar segredo da diretoria",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Falar publicamente sem provas",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -2,
+      "reputation": -2,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV090",
+   "phase": "Tier 2 consolidado",
+   "tierMin": 6,
+   "situation": "Sua equipe precisa vencer um tiebreak para a liga principal",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Planejar veto e anti-strat",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Jogá-lo como qualquer treino",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Arriscar estratégias nunca usadas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV091",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Você enfrenta o top 10 do mundo pela primeira vez",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Estudar hábitos e preparar respostas",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Pedir autógrafos antes da partida",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Jogar sem preparar para surpreender",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -3,
+      "reputation": -3,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV092",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "A imprensa pergunta quem é o elo fraco do elenco",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Valorizar funções diferentes",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Nomear um companheiro",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Encerrar entrevista abruptamente",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV093",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "A organização oferece bootcamp de 25 dias",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aceitar com dias de descanso",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Treinar 12 horas diariamente",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -3,
+      "reputation": -3,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Preferir trabalho remoto com metas",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV094",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Seu time lidera 11 a 3 e perde o mapa",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Rever economia e calls de fechamento",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Punir o último a morrer",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -4,
+      "reputation": -5,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Culpar pressão da torcida",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV095",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Um astro rival elogia sua mira nas redes",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Agradecer e manter foco",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Provocá-lo por engajamento",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -5,
+      "reputation": -4,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Pedir troca de camisa publicamente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV096",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "O capitão perde a voz antes de uma MD3",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Ativar plano de calls reserva",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Deixar o time sem IGL",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -4,
+      "reputation": -5,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Assumir todas as calls sem ensaio",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV097",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Sua equipe pode mudar para comunicação em inglês",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Treinar inglês e migrar gradualmente",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Mudar tudo na próxima série",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Recusar qualquer mudança linguística",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV098",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Um agente promete vaga no Tier 1 sem proposta escrita",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Solicitar documento e referências",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Pagar comissão antecipada",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -3,
+      "reputation": -3,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Divulgar promessa como contratação",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV099",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Você sente dor no punho após semanas intensas",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Procurar avaliação e ajustar carga",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Continuar jogando ignorando dor",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -4,
+      "reputation": -5,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Mudar sensibilidade durante oficial",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV100",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Você é alvo de conteúdo malicioso após derrota",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Registrar abusos e limitar exposição",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Responder a cada comentário",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -5,
+      "reputation": -4,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Desativar canais sem avisar patrocinadores",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV101",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "A equipe tem vaga para torneio fechado ou LAN menor",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Priorizar torneio de maior potencial",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Ir à LAN menor pelo prêmio imediato",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Tentar ambos mesmo com conflito",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -3,
+      "reputation": -3,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV102",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Um experiente IGL quer sua vaga atual no elenco",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Debater funções e méritos",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Exigir saída dele",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Aceitar banco sem conversa",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV103",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Seu time surpreende e elimina favorito",
+   "trigger": "between",
+   "weight": 5,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Dar crédito ao plano coletivo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Declarar que todos foram superestimados",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -3,
+      "reputation": -3,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Esconder o resultado para manter humildade",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV104",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Seu contrato vence durante sequência de classificatórias",
+   "trigger": "post",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Negociar com antecedência",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Adiar toda conversa até acabar",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -4,
+      "reputation": -5,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Assinar qualquer extensão para não pensar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV105",
+   "phase": "Rumo ao Tier 1",
+   "tierMin": 7,
+   "situation": "Você chega ao primeiro torneio Tier 1 sem convite direto",
+   "trigger": "pre",
+   "weight": 5,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Preparar rotina de adversários fortes",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Fazer entrevistas provocativas diárias",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -5,
+      "reputation": -4,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Tratar torneio apenas como experiência",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV106",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Seu primeiro jogo em Major é contra candidato ao título",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Seguir plano e administrar ansiedade",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Mudar totalmente o estilo por medo",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Assumir riscos calculados em rounds-chave",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV107",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Você recebe pergunta sobre eliminação histórica da sua região",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Reconhecer história e mirar o presente",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Prometer vingança aos rivais",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Dizer que não acompanha o cenário",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV108",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Seu time fica 0 a 2 no suíço",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Revisar veto e moral sem pânico",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Cobrar treino extra de madrugada",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Mudar o quinteto durante o evento",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV109",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Você vence uma série eliminatória na prorrogação",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Priorizar recuperação antes do próximo jogo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Fazer stream comemorativa por horas",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Usar VOD breve para corrigir overtime",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV110",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Um clipe seu vira meme internacional",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aproveitar com bom humor",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Atacar quem compartilha",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Pedir retirada de todo conteúdo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV111",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "O coach aponta que seu estilo é previsível",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Treinar variações de timing",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Ignorar por causa do rating",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Trocar de função de imediato",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV112",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Chega uma oferta de publicidade milionária fora do jogo",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Conferir cláusulas e reputação da marca",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Assinar por dinheiro sem análise",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Recusar qualquer publicidade",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV113",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "O time alcança playoffs de arena pela primeira vez",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Agendar treino de palco e som",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Aumentar a rotina ao máximo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Evitar treinos para preservar surpresa",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV114",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Um rival te chama de superestimado na coletiva",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Responder com respeito e confiança",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Iniciar discussão pessoal",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Pedir ao IGL que responda",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV115",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Você perde quatro clutches na mesma série",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Trabalhar decisões com analista",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Evitar todas as clutches futuras",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Treinar sozinho até amanhecer",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV116",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Seu elenco sofre eliminação em 13 a 0 numa semifinal",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Assumir erros coletivos e reavaliar",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Apontar colega como culpado",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Descartar a série como acaso",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV117",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "O time tem três propostas de organizações",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Comparar estrutura e garantias",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Escolher maior salário imediato",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Permanecer sem discutir condições",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV118",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Você é convidado para all-star no meio do calendário",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Participar se houver janela segura",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Aceitar mesmo comprometendo treinos",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Recusar para reduzir exposição",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV119",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "A torcida exige a demissão do coach",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Avaliar resultados com critérios",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Apoiar a pressão pública",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Defender coach sem revisar problemas",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV120",
+   "phase": "Tier 1 e majors",
+   "tierMin": 8,
+   "situation": "Seu time chega à final de Major",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Executar rotina que funcionou",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Mudar mouse e configuração por superstição",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Preparar uma tática surpresa específica",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV121",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Você entra no top 20 de jogadores do ano",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Agradecer equipe e manter metas",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Usar ranking para pedir todos os recursos",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Ignorar a premiação e treinar dobrado",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV122",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Um rival oferece duelo de trash talk antes da final",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Brincar sem ataques pessoais",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Atacar família do rival",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar interação e focar",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV123",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Após seis títulos, o elenco demonstra exaustão",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Programar férias e rodízio de carga",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Continuar calendário completo",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Trocar titulares por reservas sem diálogo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV124",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Uma série decisiva termina com erro seu no último round",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Assumir e analisar a decisão",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Culpar o companheiro de trade",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Evitar entrevistas após o jogo",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV125",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Seu time vira favorito absoluto do campeonato",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Definir metas de processo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Prometer vitória invicta",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Abandonar análise de rivais inferiores",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV126",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "O clube quer gravar documentário durante bootcamp",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Autorizar acesso limitado",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Liberar câmeras em todas as reuniões",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Recusar mesmo com obrigação contratual",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV127",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Você pode trocar prêmio pessoal por bônus coletivo",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Negociar distribuição transparente",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Exigir todo bônus individual",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Doar tudo sem consultar seu futuro financeiro",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV128",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "A temporada tem três torneios em quatro semanas",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Escolher prioridades com staff",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Jogar todos com treino completo",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Cancelar todos para recuperar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV129",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Uma final é interrompida por falha técnica longa",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Manter aquecimento e rotina",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Reclamar agressivamente com admins",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Relaxar demais e sair do foco",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV130",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Um analista rival revela padrão em suas posições",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Adicionar variações planejadas",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Forçar agressão imprevisível em todos os rounds",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Ignorar pois funcionou antes",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV131",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Você recebe convite para liderar associação de atletas",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Aceitar com delegação de tarefas",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Usar cargo apenas para autopromoção",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Recusar por falta de tempo",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV132",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Um companheiro sofre ataques racistas online",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Apoiar e denunciar pelos canais adequados",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Transformar caso em provocação pública",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Pedir que ele ignore sozinho",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV133",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Seu time cai cedo no torneio onde era favorito",
+   "trigger": "between",
+   "weight": 4,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Reavaliar descanso e preparação",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Dobrar horas de DM até o próximo",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Pedir troca de elenco imediatamente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV134",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Um jovem reserva impressiona nos treinos",
+   "trigger": "post",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Criar plano de desenvolvimento",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Descartá-lo como ameaça",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Colocá-lo titular na final sem preparação",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV135",
+   "phase": "Elite mundial",
+   "tierMin": 9,
+   "situation": "Você disputa o prêmio de melhor jogador do mundo",
+   "trigger": "pre",
+   "weight": 4,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Manter consistência e papel coletivo",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Buscar estatísticas mesmo perdendo rounds",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Reduzir exposição e planejar offseason",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV136",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Você vence um Major e recebe centenas de convites",
+   "trigger": "between",
+   "weight": 3,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Selecionar poucas aparições estratégicas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aceitar todos os eventos",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Sumir sem responder parceiros",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV137",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Uma marca oferece campanha global com conflito de agenda",
+   "trigger": "post",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Negociar calendário protegido",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Assinar e faltar treinos",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Recusar sem examinar proposta",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV138",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Seu time tem chance de conquistar era histórica",
+   "trigger": "pre",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Preservar sistema e evoluir detalhes",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Trocar jogadores para gerar manchetes",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Aumentar volume de campeonatos sem pausa",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV139",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Um jovem estrela pede mentoria remunerada",
+   "trigger": "between",
+   "weight": 3,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Criar encontros limitados",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Ensinar tudo durante a temporada",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar qualquer contato",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV140",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Você perde final após abrir 12 a 4",
+   "trigger": "post",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Analisar fechamento e aprender",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Culpar arbitragem sem evidência",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Pedir demissão do IGL no palco",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV141",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Fãs exigem que você jogue lesionado em grande final",
+   "trigger": "pre",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Seguir orientação clínica",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Ocultar sintomas e jogar",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Trocar equipamento por conta própria",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV142",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Uma emissora quer entrevista sobre rivalidade histórica",
+   "trigger": "between",
+   "weight": 3,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Contar bastidores sem expor privacidade",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Revelar segredos confidenciais",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Dar respostas evasivas e hostis",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV143",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Seu companheiro anuncia aposentadoria antes do Major",
+   "trigger": "post",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Apoiar anúncio e organizar transição",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Exigir que esconda até o fim",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Pedir mudança imediata de elenco",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV144",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Você recebe proposta para virar IGL e capitão",
+   "trigger": "pre",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Avaliar função com comissão",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aceitar sem treino porque é estrela",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar por medo de estatísticas menores",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    }
+   ]
+  },
+  {
+   "id": "EV145",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Uma organização rival oferece salário recorde",
+   "trigger": "between",
+   "weight": 3,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Comparar projeto, contrato e cultura",
+     "effects": {
+      "performance": 4,
+      "fatigue": 3,
+      "reputation": 1,
+      "money": -1,
+      "chemistry": 1
+     },
+     "consequence": "Você testa solução competitiva de alto esforço e retorno potencial."
+    },
+    {
+     "text": "Aceitar apenas pelo valor",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Vazar oferta para inflar mercado",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV146",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Você entra em crise de motivação após vencer tudo",
+   "trigger": "post",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Planejar pausa e novas metas",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Aumentar horas até voltar vontade",
+     "effects": {
+      "performance": -3,
+      "fame": 2,
+      "fatigue": 4,
+      "mental": -6,
+      "reputation": -5,
+      "money": -1,
+      "chemistry": -3
+     },
+     "consequence": "A reação precipitada pode destruir preparação, clima e credibilidade."
+    },
+    {
+     "text": "Anunciar aposentadoria impulsivamente",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  },
+  {
+   "id": "EV147",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Um título é contestado por falha de regulamento",
+   "trigger": "pre",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Pedir avaliação formal e transparente",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Atacar organizadores pessoalmente",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": 2,
+      "mental": -1,
+      "money": 4
+     },
+     "consequence": "Você protege caixa e compromissos, arriscando evolução competitiva."
+    },
+    {
+     "text": "Ignorar protesto dos adversários",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    }
+   ]
+  },
+  {
+   "id": "EV148",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Uma live sua causa polêmica por comentário impulsivo",
+   "trigger": "between",
+   "weight": 3,
+   "cooldown": 3,
+   "choices": [
+    {
+     "text": "Assumir responsabilidade e reparar",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    },
+    {
+     "text": "Dobrar a provocação por audiência",
+     "effects": {
+      "performance": -1,
+      "fame": 5,
+      "fatigue": 3,
+      "mental": -2,
+      "reputation": 1,
+      "money": 3,
+      "chemistry": -1
+     },
+     "consequence": "Ganha alcance e oportunidades, mas perde foco e tempo de recuperação."
+    },
+    {
+     "text": "Apagar sem reconhecer o ocorrido",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    }
+   ]
+  },
+  {
+   "id": "EV149",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Você pode abrir academia de base na sua região",
+   "trigger": "post",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Montar projeto sustentável com staff",
+     "effects": {
+      "performance": 3,
+      "fatigue": 2,
+      "mental": 1,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 2
+     },
+     "consequence": "A preparação melhora a execução, mas consome tempo e recursos."
+    },
+    {
+     "text": "Anunciar sem recursos e prometer vagas",
+     "effects": {
+      "performance": 2,
+      "fame": 3,
+      "fatigue": 4,
+      "mental": -4,
+      "reputation": -4,
+      "money": 1,
+      "chemistry": -2
+     },
+     "consequence": "Pode gerar jogada memorável; um erro será cobrado pela torcida e pelo time."
+    },
+    {
+     "text": "Recusar por priorizar carreira",
+     "effects": {
+      "performance": -1,
+      "fame": -1,
+      "fatigue": -4,
+      "mental": 3,
+      "reputation": 1,
+      "chemistry": 1
+     },
+     "consequence": "A energia volta, mas você abre mão de ritmo ou exposição imediata."
+    }
+   ]
+  },
+  {
+   "id": "EV150",
+   "phase": "Tier S e legado",
+   "tierMin": 10,
+   "situation": "Última grande final do seu contrato como superstar",
+   "trigger": "pre",
+   "weight": 3,
+   "cooldown": 5,
+   "choices": [
+    {
+     "text": "Preparar jogo e avaliar futuro depois",
+     "effects": {
+      "performance": 1,
+      "fame": 1,
+      "fatigue": 1,
+      "mental": 2,
+      "reputation": 3,
+      "chemistry": 2
+     },
+     "consequence": "Sua postura fortalece confiança e imagem de longo prazo."
+    },
+    {
+     "text": "Fazer anúncio de saída antes da final",
+     "effects": {
+      "performance": 2,
+      "fame": 4,
+      "fatigue": 2,
+      "mental": -5,
+      "reputation": -6,
+      "money": 2,
+      "chemistry": -5
+     },
+     "consequence": "Você pode virar manchete, mas cria atrito no elenco e pressão pública."
+    },
+    {
+     "text": "Usar o resultado para decidir tudo impulsivamente",
+     "effects": {
+      "performance": 1,
+      "fatigue": 1,
+      "mental": 3,
+      "reputation": 2,
+      "money": -1,
+      "chemistry": 5
+     },
+     "consequence": "O grupo se aproxima; a concessão pode custar oportunidade individual."
+    }
+   ]
+  }
+ ]
+}
