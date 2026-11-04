@@ -81,7 +81,7 @@ describe('distribuição de desfechos por arquétipo (simulação N=' + N + ')',
       );
     }
     console.log('\n=== Desfechos por arquétipo (aging + mercado reais; resultados por evento amostrados) ===\n' + lines.join('\n'));
-  }, 30000); // N=150 carreiras inteiras, com o mundo (trocas, aposentadorias) calculado por seed
+  }, 90000); // N=150 carreiras inteiras, com o mundo (trocas, aposentadorias, idade de todos) calculado por seed
 
   it('a ORDEM prometida pelos arquétipos se cumpre nas médias', () => {
     const prodigio = results.get('prodigio')!;

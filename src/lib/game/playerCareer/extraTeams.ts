@@ -1,117 +1,52 @@
 // src/lib/game/playerCareer/extraTeams.ts
-// Times do guia de campeonatos por tier e região (base de estudo do usuário, 2026) que a coleta da cena não
-// trouxe, e elencos para quem veio sem jogador. Os times do guia ainda NÃO entram no jogo: o usuário vai coletar
-// os elencos reais (planilha elencos-pendentes-carreira.csv); o gerador fica para quem continuar sem jogador. Nicks reais quando o guia lista a lineup; o resto é gerado
-// (gerador do usuário: raiz + leetspeak, prefixo ou sufixo), determinístico pelo nome do time e marcado como
-// placeholder (sem data de nascimento nem catálogo). Países só para times de cena nacional; misto fica null.
+// Times do guia de campeonatos por tier e região que a coleta da cena não trouxe, com os elencos que o usuário
+// pesquisou (career-extra-rosters.game.json: nick, função, país, nascimento), e elencos para quem veio sem
+// jogador. A coleta vence conflito (ninguém joga em dois times); a vaga que sobrar usa o gerador. Nicks reais quando o guia lista a lineup; o resto é gerado
+import rawSheet from '$lib/data/cs/career-extra-rosters.game.json';
 import type { SceneOrg, SceneRosterMember } from './data';
 
-export interface ExtraTeam {
-  name: string;
-  /** 2 = Tier 2 · 3 = Challenger · 4 = CCT/GC */
-  level: 2 | 3 | 4;
-  /** País do time (define o circuito regional). */
-  country: string | null;
-  /** Elenco de um país só (os jogadores herdam o país do time). */
-  national: boolean;
-  /** Lineup real listada no guia. */
-  nicks?: string[];
+interface SheetMember { nick: string; role: string; country: string | null; birthYear: number | null }
+interface SheetTeam { name: string; level: 2 | 3 | 4; region: string; country: string | null; roster: SheetMember[] }
+const SHEET = (rawSheet as unknown as { teams: SheetTeam[] }).teams;
+
+/** "Internacional" na planilha é elenco misto: país null. */
+const countryOf = (value: string | null) => (!value || value === 'Internacional' ? null : value);
+
+/** Jogador da planilha que a coleta já põe em outro time (ou repetido na planilha): a coleta vence. */
+export interface SheetConflict { team: string; nick: string }
+export const sheetConflicts: SheetConflict[] = [];
+
+/** O elenco da planilha (nicks reais, função, país e nascimento); vagas em conflito ficam com nome gerado. */
+function sheetRoster(team: SheetTeam): SceneRosterMember[] {
+  const members: SceneRosterMember[] = [];
+  for (const entry of team.roster) {
+    if (!entry.nick || usedNicks.has(entry.nick.toLowerCase())) {
+      if (entry.nick) sheetConflicts.push({ team: team.name, nick: entry.nick });
+      continue;
+    }
+    usedNicks.add(entry.nick.toLowerCase());
+    members.push({ nick: entry.nick, country: countryOf(entry.country), birthDate: entry.birthYear ? `${entry.birthYear}-07-01` : null, roles: [entry.role], catalogBaseId: null, prospect: null });
+  }
+  const national = orgNationOf(members);
+  return members.length >= 5 ? members.slice(0, 5) : generatedRoster(team.name, national, [], members);
 }
 
-const T = (name: string, level: 2 | 3 | 4, country: string | null, national: boolean, nicks?: string[]): ExtraTeam => ({ name, level, country, national, ...(nicks ? { nicks } : {}) });
+/** País do elenco quando 3+ são do mesmo país (mesma regra de time nacional da cena). */
+function orgNationOf(members: SceneRosterMember[]): string | null {
+  const counts = new Map<string, number>();
+  for (const member of members) if (member.country) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
+  const [country, count] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+  return count >= 3 ? country : null;
+}
 
-export const EXTRA_TEAMS: ExtraTeam[] = [
-  // América do Sul
-  T('BESTIA', 3, 'Argentina', true, ['Noktse', 'luchov', 'zock', 'tomaszin', 'naz']),
-  T('Dusty Roots', 3, 'Brazil', true, ['tom1jed', 'maxxkor', 'rzk', 'guty', 'next']),
-  T('Solid', 3, 'Brazil', true, ['Ltz', 'nardes', 'gbb', 'destiny', 'mello']),
-  T('Case Esports', 3, 'Brazil', true, ['snow', 'yeel', 'reaz3n', 'RCF', 'm4T']),
-  T('W7M', 3, 'Brazil', true),
-  T('00 Nation', 3, 'Brazil', true),
-  T('KRÜ Esports', 3, 'Argentina', true),
-  T('Intense Game', 4, 'Brazil', true),
-  T('Vikings KR', 4, 'Brazil', true),
-  T('YNG Warriors', 4, 'Brazil', true),
-  T('SWS', 4, 'Brazil', true),
-  T('Corinthians Esports', 4, 'Brazil', true),
-  T('Havan Liberty', 4, 'Brazil', true),
-  T('Bravos', 4, 'Brazil', true),
-  T('Paquetá', 4, 'Brazil', true),
-  T('Meta Gaming', 4, 'Brazil', true),
-  T('River Plate', 4, 'Argentina', true),
-  T('Boca Juniors', 4, 'Argentina', true),
-  T('Furious Gaming', 4, 'Argentina', true),
-  T('9z Academy', 4, 'Argentina', true),
-  // Europa e CIS
-  T('Eternal Fire', 2, 'Turkey', true),
-  T('Cloud9', 2, null, false),
-  T('1WIN', 2, 'Russia', true),
-  T('AMKAL', 2, 'Russia', true),
-  T('FORZE', 2, 'Russia', true),
-  T('SAW', 2, 'Portugal', true),
-  T('Nine To Five', 2, null, false),
-  T('Nemiga Gaming', 3, null, false, ['Xant3r', '1eeR', 'riskyb0b', 'sowalio', 'khaN']),
-  T('Sangal Esports', 3, null, false, ['xfl0ud', 'LNZ', 'yxngstxr', 'L4R3N', 'Sapec']),
-  T('Zero Tenacity', 3, null, false, ['simke', 'Cptkurt01', 'aress', 'brut3', 'nemanja']),
-  T('Rhyno Esports', 3, 'Portugal', true, ['DDias', 'TMKj', 'Icarus', 'rafax', 'snpy']),
-  T('Preasy', 3, 'Denmark', true),
-  T('Sashi Esports', 3, 'Denmark', true),
-  T('NAVI Junior', 3, 'Ukraine', true),
-  T('MOUZ NXT', 3, null, false),
-  T('Astralis Talent', 3, 'Denmark', true),
-  T('Young Ninjas', 3, 'Sweden', true),
-  T('ALTERNATE aTTaX', 3, 'Germany', true),
-  T('Permitta', 3, 'Poland', true),
-  T('9 Pandas', 3, 'Russia', true),
-  T('K23', 3, 'Kazakhstan', true),
-  T('Nexus Gaming', 3, 'Romania', true),
-  T('Dynamo Eclot', 3, null, false),
-  T('Endpoint', 3, null, false),
-  T('ITB', 3, null, false),
-  // América do Norte (elencos mistos: só o circuito é o da região)
-  T('Complexity', 2, 'United States', false),
-  T('Nouns', 2, 'United States', false),
-  T('Party Astronauts', 2, 'United States', false),
-  T('Boss', 3, 'United States', false, ['d3rn', 'brett', 'cryptic', 'micro', 'freshie']),
-  T('Fluffy Aimers', 3, 'United States', false, ['Jason', 'Joga', 'slump', 'PNaDa', 'ERIN']),
-  T('Limitless', 3, 'United States', false, ['Makzwell', 'KMZ', 'grape', 'Sandman', 'phantom']),
-  T('Take Flyte', 3, 'United States', false),
-  T('Carpe Diem', 3, 'United States', false),
-  T('Lag Gaming', 4, 'United States', false),
-  T('Wanted Goons', 4, 'United States', false),
-  T('NuTsunami', 4, 'United States', false),
-  T('Detonate', 4, 'United States', false),
-  T('Strife', 4, 'United States', false),
-  T('timbermen', 4, 'United States', false),
-  // Ásia e Oceania
-  T('ATOX Esports', 3, 'Mongolia', true, ['dobu', 'kabal', 'MiQ', 'Zelos', 'y3k']),
-  T('Steel Helmet', 3, 'China', true, ['captainMo', 'DD', 'AE', '18yM', 'mo']),
-  T('Bad News Kangaroos', 3, 'Australia', true, ['marke', 'damyo', 'hazr', 'm2c', 'pzz']),
-  T('IHC Esports', 3, 'Mongolia', true),
-  T('Gods Reign', 3, 'India', true),
-  T('Vantage', 3, 'Australia', true),
-  T('CatEvil', 3, 'China', true),
-  T('Wings Up', 3, 'China', true),
-  T('Renewal', 3, 'China', true),
-  T('Talon Esports', 3, 'Hong Kong', false),
-  T('Chinggis Warriors', 4, 'Mongolia', true),
-  T('Team Kobolds', 4, 'Mongolia', true),
-  T('Sunday School', 4, 'Australia', true),
-  T('Vertical', 4, 'Australia', true),
-  T('True Rippers', 4, 'India', true),
-  T('Revenant', 4, 'India', true),
-  T('Marcos Gaming', 4, 'India', true),
-  T('Wicked', 4, 'India', true),
-  T('Enigma Gaming', 4, 'India', true),
-  T('Team Vladivostok', 4, 'Russia', true),
-  // País a confirmar com a coleta do usuário.
-  T('KOI', 2, null, false),
-  T('Stake', 3, null, false),
-  T('Space', 3, null, false),
-  T('Enterprise', 3, null, false),
-  T('Verdant', 3, null, false),
-  T('GR Gaming', 3, null, false)
-];
+const sheetKey = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const SHEET_BY_KEY = new Map(SHEET.map((team) => [sheetKey(team.name), team]));
+
+/** Elenco da planilha para um time coletado sem jogadores (Peladona, Rooster…), quando ela traz. */
+export function sheetRosterFor(name: string): SceneRosterMember[] | null {
+  const team = SHEET_BY_KEY.get(sheetKey(name));
+  return team ? sheetRoster(team) : null;
+}
 
 // Gerador de nicks do guia: raiz competitiva + leetspeak leve, prefixo ou sufixo.
 const PREFIXES = ['x_', 'v1_', 'z_', 'k3_', 'neo_', 'f3_', 'sl_'];
@@ -189,17 +124,17 @@ export function generatedRoster(teamName: string, country: string | null, known:
 
 const slug = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-/** Os times do guia no formato da cena (fonte marcada; sem torneios coletados). */
-export function extraSceneOrgs(): SceneOrg[] {
-  return EXTRA_TEAMS.map((team) => ({
+/** Os times da planilha que a coleta não trouxe, no formato da cena (fonte marcada; sem torneios coletados). */
+export function extraSceneOrgs(skip: (name: string) => boolean): SceneOrg[] {
+  return SHEET.filter((team) => !skip(team.name)).map((team) => ({
     id: `${slug(team.name)}-2026`,
     name: team.name,
     level: team.level,
-    country: team.country,
+    country: countryOf(team.country),
     calendarDensity: team.level === 2 ? 9 : 10,
     tournaments: [],
-    roster: generatedRoster(team.name, team.national ? team.country : null, team.nicks),
-    sources: [{ tournament: 'Guia de campeonatos CS2 por tier e região (base de estudo, 2026)' }]
+    roster: sheetRoster(team),
+    sources: [{ tournament: 'Planilha de elencos do usuário (guia de campeonatos por tier e região, 2026)' }]
   }));
 }
 

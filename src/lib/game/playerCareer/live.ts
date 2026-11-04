@@ -79,8 +79,9 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
     const member = bySlot[index];
     const nick = member ? memberNick(member) : `${org.name} ${index + 1}`;
     const noise = Math.round((rng() - 0.5) * 8);
-    // Quem está no catálogo joga perto do overall real dele (60% real, 40% a base do time).
-    const real = member ? memberCatalogOverall(member) : null;
+    // Quem está no catálogo joga perto do overall real dele (60% real, 40% a base do time); no mundo da carreira o
+    // overall é o da temporada (o jovem cresce, o veterano cai).
+    const real = member ? member.overall ?? memberCatalogOverall(member) : null;
     const overall = clamp(real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise, 40, 99);
     return enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
   });

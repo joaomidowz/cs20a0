@@ -29,7 +29,7 @@
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
-  import { headlineRetirements, headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
+  import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
@@ -756,6 +756,7 @@
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
   $: sceneRetired = career && !career.calendar && career.seasonNumber > 1 ? headlineRetirements(career.seed, career.seasonNumber, 3) : [];
+  $: sceneProspects = career && !career.calendar && career.seasonNumber > 1 ? risingProspects(career.seed, career.seasonNumber, 4) : [];
   $: weekCards = career && currentEntry ? drawAgenda(career) : [];
   $: coachTips = career ? coachTipsOf(career) : [];
   $: talksLeft = career ? coachTalksLeft(career) : 3;
@@ -1216,6 +1217,16 @@
                 {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
                 {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
               </div>
+              {#if sceneProspects.length}
+                <div class="ss-market ss-prospects">
+                  <p class="label">Promessas da cena · até 21 anos</p>
+                  <ul>
+                    {#each sceneProspects as kid (kid.nick)}
+                      <li><b>{kid.nick}</b> {kid.age} anos · {kid.orgName} ({LEVEL_LABEL[kid.level]}) <span>· overall {kid.overall}{kid.delta > 0 ? ` (+${kid.delta})` : kid.delta < 0 ? ` (−${Math.abs(kid.delta)})` : ''}{kid.curated ? ' · base real' : ''}</span></li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
               {#if sceneMarket.length || sceneRetired.length}
                 <div class="ss-market">
                   <p class="label">Mercado da cena · {career.year}</p>

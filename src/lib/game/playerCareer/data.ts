@@ -8,7 +8,7 @@ import rawPlayers from '$lib/data/cs/players.game.json';
 import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
-import { countryFromTournaments, generatedRoster, reserveNicks } from './extraTeams';
+import { countryFromTournaments, extraSceneOrgs, generatedRoster, reserveNicks, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
 export interface SceneRosterMember {
@@ -18,6 +18,10 @@ export interface SceneRosterMember {
   roles: string[];
   catalogBaseId: string | null;
   prospect: boolean | null;
+  /** Overall da temporada no mundo da carreira (evolui com a idade; ausente na cena coletada = catálogo). */
+  overall?: number;
+  /** Identidade curada de promessa (link HLTV), quando o jogador veio da base real. */
+  hltv?: string;
 }
 export interface SceneOrg {
   id: string;
@@ -71,15 +75,17 @@ export const ELITE_RANK = 16;
 const normalized = (() => {
   const byKey = new Map<string, SceneOrg>();
   const alias = new Map<string, string>();
-  // Times coletados sem elenco ganham jogadores gerados (país pelo circuito que jogaram).
+  // Times coletados sem elenco: a planilha do usuário, ou jogadores gerados (país pelo circuito que jogaram).
   reserveNicks(scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)));
   const collected = scene.orgs.map((org): SceneOrg => {
     if (org.roster.length >= 5) return org;
     const country = org.country ?? countryFromTournaments(org);
-    return { ...org, country, roster: generatedRoster(org.name, country, [], org.roster) };
+    return { ...org, country, roster: sheetRosterFor(org.name) ?? generatedRoster(org.name, country, [], org.roster) };
   });
-  // Os times do guia (extraTeams.ts) só entram quando os elencos reais chegarem: sem nome aleatório neles.
-  for (const org of collected) {
+  // Os times do guia de campeonatos que a coleta não trouxe, com a planilha de elencos do usuário.
+  const collectedKeys = new Set(collected.map((org) => teamKey(org.name)));
+  const extras = extraSceneOrgs((name) => collectedKeys.has(teamKey(name)));
+  for (const org of [...collected, ...extras]) {
     const key = teamKey(org.name);
     const kept = byKey.get(key);
     if (!kept) { byKey.set(key, org); continue; }

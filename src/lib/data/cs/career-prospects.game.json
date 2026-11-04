@@ -1,0 +1,310 @@
+{
+  "source": "Identidades curadas do mundo do modo Manager (Studio, youth-profiles-batch-01-2026-09-15). Só nick, link HLTV, país e time de referência são reais; idade, função, overall e potencial são gerados.",
+  "referenceYear": 2026,
+  "prospects": [
+    {
+      "nick": "lezy",
+      "hltvPlayerId": "24146",
+      "hltv": "https://www.hltv.org/player/24146/lezy",
+      "age": 16,
+      "role": "igl",
+      "overall": 68,
+      "potentialRange": [
+        74,
+        87
+      ],
+      "developmentRate": 1.09,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "k0gass",
+      "hltvPlayerId": "26299",
+      "hltv": "https://www.hltv.org/player/26299/k0gass",
+      "age": 18,
+      "role": "support",
+      "overall": 69,
+      "potentialRange": [
+        75,
+        88
+      ],
+      "developmentRate": 1.22,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "tatu",
+      "hltvPlayerId": "24089",
+      "hltv": "https://www.hltv.org/player/24089/tatu",
+      "age": 16,
+      "role": "awper",
+      "overall": 66,
+      "potentialRange": [
+        72,
+        85
+      ],
+      "developmentRate": 1.08,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "n0rths",
+      "hltvPlayerId": "24835",
+      "hltv": "https://www.hltv.org/player/24835/n0rths",
+      "age": 16,
+      "role": "awper",
+      "overall": 64,
+      "potentialRange": [
+        70,
+        83
+      ],
+      "developmentRate": 1.07,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "blick",
+      "hltvPlayerId": "23536",
+      "hltv": "https://www.hltv.org/player/23536/blick",
+      "age": 17,
+      "role": "igl",
+      "overall": 61,
+      "potentialRange": [
+        67,
+        80
+      ],
+      "developmentRate": 1.12,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "sherman",
+      "hltvPlayerId": "26002",
+      "hltv": "https://www.hltv.org/player/26002/sherman",
+      "age": 17,
+      "role": "support",
+      "overall": 69,
+      "potentialRange": [
+        75,
+        88
+      ],
+      "developmentRate": 1.03,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "hrdina",
+      "hltvPlayerId": "25676",
+      "hltv": "https://www.hltv.org/player/25676/hrdina",
+      "age": 16,
+      "role": "awper",
+      "overall": 63,
+      "potentialRange": [
+        69,
+        82
+      ],
+      "developmentRate": 1.08,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "s1nside",
+      "hltvPlayerId": "25911",
+      "hltv": "https://www.hltv.org/player/25911/s1nside",
+      "age": 17,
+      "role": "lurker",
+      "overall": 67,
+      "potentialRange": [
+        73,
+        86
+      ],
+      "developmentRate": 1.03,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "katkame",
+      "hltvPlayerId": "26157",
+      "hltv": "https://www.hltv.org/player/26157/katkame",
+      "age": 17,
+      "role": "support",
+      "overall": 63,
+      "potentialRange": [
+        69,
+        82
+      ],
+      "developmentRate": 1.14,
+      "region": "North America",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "mail09",
+      "hltvPlayerId": "24083",
+      "hltv": "https://www.hltv.org/player/24083/mail09",
+      "age": 16,
+      "role": "lurker",
+      "overall": 68,
+      "potentialRange": [
+        74,
+        87
+      ],
+      "developmentRate": 1.19,
+      "region": "North America",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "irux",
+      "hltvPlayerId": "26012",
+      "hltv": "https://www.hltv.org/player/26012/irux",
+      "age": 17,
+      "role": "entry",
+      "overall": 69,
+      "potentialRange": [
+        75,
+        88
+      ],
+      "developmentRate": 1.08,
+      "region": "North America",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "holy",
+      "hltvPlayerId": "25331",
+      "hltv": "https://www.hltv.org/player/25331/holy",
+      "age": 16,
+      "role": "entry",
+      "overall": 65,
+      "potentialRange": [
+        71,
+        84
+      ],
+      "developmentRate": 1.2,
+      "region": "South America",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "tired73",
+      "hltvPlayerId": "25902",
+      "hltv": "https://www.hltv.org/player/25902/tired73",
+      "age": 17,
+      "role": "entry",
+      "overall": 63,
+      "potentialRange": [
+        69,
+        82
+      ],
+      "developmentRate": 1.25,
+      "region": "South America",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "rkzinho",
+      "hltvPlayerId": "25087",
+      "hltv": "https://www.hltv.org/player/25087/rkzinho",
+      "age": 17,
+      "role": "lurker",
+      "overall": 66,
+      "potentialRange": [
+        72,
+        85
+      ],
+      "developmentRate": 1.17,
+      "region": "South America",
+      "country": "Brazil",
+      "referenceTeam": "paiN"
+    },
+    {
+      "nick": "hakaiii8",
+      "hltvPlayerId": "26010",
+      "hltv": "https://www.hltv.org/player/26010/hakaiii8",
+      "age": 17,
+      "role": "lurker",
+      "overall": 68,
+      "potentialRange": [
+        74,
+        87
+      ],
+      "developmentRate": 1.07,
+      "region": "Asia",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "sential",
+      "hltvPlayerId": "24666",
+      "hltv": "https://www.hltv.org/player/24666/sential",
+      "age": 18,
+      "role": "support",
+      "overall": 68,
+      "potentialRange": [
+        74,
+        87
+      ],
+      "developmentRate": 1.18,
+      "region": "Asia",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "k6rdon",
+      "hltvPlayerId": "25999",
+      "hltv": "https://www.hltv.org/player/25999/k6rdon",
+      "age": 18,
+      "role": "igl",
+      "overall": 61,
+      "potentialRange": [
+        67,
+        80
+      ],
+      "developmentRate": 1.06,
+      "region": "Oceania",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "yoki",
+      "hltvPlayerId": "25674",
+      "hltv": "https://www.hltv.org/player/25674/yoki",
+      "age": 17,
+      "role": "igl",
+      "overall": 61,
+      "potentialRange": [
+        67,
+        80
+      ],
+      "developmentRate": 1.03,
+      "region": "Europe",
+      "country": null,
+      "referenceTeam": null
+    },
+    {
+      "nick": "gtw",
+      "hltvPlayerId": "24477",
+      "hltv": "https://www.hltv.org/player/24477/gtw",
+      "age": 16,
+      "role": "entry",
+      "overall": 60,
+      "potentialRange": [
+        66,
+        79
+      ],
+      "developmentRate": 1.17,
+      "region": "South America",
+      "country": "Brazil",
+      "referenceTeam": "RED Canids Academy"
+    }
+  ]
+}

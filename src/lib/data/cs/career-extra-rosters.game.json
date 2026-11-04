@@ -1,0 +1,3615 @@
+{
+ "source": "Planilha elencos_cs2_atualizados.csv do usuário (pesquisa própria, 2026), a partir do guia de campeonatos por tier e região.",
+ "teams": [
+  {
+   "name": "BESTIA",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "Noktse",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": null
+    },
+    {
+     "nick": "luchov",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": null
+    },
+    {
+     "nick": "zock",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": null
+    },
+    {
+     "nick": "tomaszin",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": null
+    },
+    {
+     "nick": "naz",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Dusty Roots",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "tom1jed",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "maxxkor",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "rzk",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "guty",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "next",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Solid",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "Ltz",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "nardes",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "gbb",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "destiny",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "mello",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Case Esports",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "snow",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "yeel",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "reaz3n",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "RCF",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    },
+    {
+     "nick": "m4T",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "W7M",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "saaffee",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 1995
+    },
+    {
+     "nick": "hardzao",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 1997
+    },
+    {
+     "nick": "card",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "z3r0",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 1999
+    },
+    {
+     "nick": "zAAA",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "00 Nation",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "NEOFRAG",
+     "role": "entry",
+     "country": "Czech Republic",
+     "birthYear": 2001
+    },
+    {
+     "nick": "birdfromsky",
+     "role": "igl",
+     "country": "Denmark",
+     "birthYear": 1999
+    },
+    {
+     "nick": "VLDN",
+     "role": "rifler",
+     "country": "Serbia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "JDC",
+     "role": "rifler",
+     "country": "Germany",
+     "birthYear": 2000
+    },
+    {
+     "nick": "susp",
+     "role": "awp",
+     "country": "Sweden",
+     "birthYear": 2005
+    }
+   ]
+  },
+  {
+   "name": "KRÜ Esports",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "re7ect",
+     "role": "igl",
+     "country": "Argentina",
+     "birthYear": 2000
+    },
+    {
+     "nick": "laser",
+     "role": "awp",
+     "country": "Argentina",
+     "birthYear": 2001
+    },
+    {
+     "nick": "rzn",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": 1999
+    },
+    {
+     "nick": "atarax1a",
+     "role": "entry",
+     "country": "Argentina",
+     "birthYear": 2003
+    },
+    {
+     "nick": "decov9",
+     "role": "lurker",
+     "country": "Argentina",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "Intense Game",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "Roz",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "leodecaprio",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "LNW",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "gbb",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2004
+    },
+    {
+     "nick": "ckzao",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Vikings KR",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "jota",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 1998
+    },
+    {
+     "nick": "realziN",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "z4k",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "land1n",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 1996
+    },
+    {
+     "nick": "tog",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "YNG Warriors",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "b4rtiN",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cid",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "z5k",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2004
+    },
+    {
+     "nick": "m4t",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "n5n",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2005
+    }
+   ]
+  },
+  {
+   "name": "SWS",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "rch",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "gafatha",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "mRod",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "bLeek",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "chay",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "Corinthians Esports",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "r1n",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "fzp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "honda",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "demon",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "shz",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 1998
+    }
+   ]
+  },
+  {
+   "name": "Havan Liberty",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "kaze",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 1999
+    },
+    {
+     "nick": "remix",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "skull",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "drift",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "dok",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 1998
+    }
+   ]
+  },
+  {
+   "name": "Bravos",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "JOTA",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 1998
+    },
+    {
+     "nick": "wood7",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 1997
+    },
+    {
+     "nick": "tuurtle",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 1998
+    },
+    {
+     "nick": "kaiKE",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "lezao",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "Paquetá",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "nython",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 1997
+    },
+    {
+     "nick": "destiny",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 1999
+    },
+    {
+     "nick": "DeStRoYeR",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 1998
+    },
+    {
+     "nick": "venomzera",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2004
+    },
+    {
+     "nick": "GGs",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "Meta Gaming",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "dok",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 1998
+    },
+    {
+     "nick": "desire",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "supra",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2000
+    },
+    {
+     "nick": "b4rtiN",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "vsm",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 1999
+    }
+   ]
+  },
+  {
+   "name": "River Plate",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "guidimon",
+     "role": "igl",
+     "country": "Argentina",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Minimal",
+     "role": "awp",
+     "country": "Argentina",
+     "birthYear": 2002
+    },
+    {
+     "nick": "MRN1",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": 2000
+    },
+    {
+     "nick": "at2k",
+     "role": "entry",
+     "country": "Argentina",
+     "birthYear": 2003
+    },
+    {
+     "nick": "reaz3n",
+     "role": "lurker",
+     "country": "Argentina",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "Boca Juniors",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "abizz",
+     "role": "igl",
+     "country": "Argentina",
+     "birthYear": 2002
+    },
+    {
+     "nick": "alexer",
+     "role": "awp",
+     "country": "Argentina",
+     "birthYear": 2001
+    },
+    {
+     "nick": "bax",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": 2003
+    },
+    {
+     "nick": "peqexino",
+     "role": "entry",
+     "country": "Argentina",
+     "birthYear": 2000
+    },
+    {
+     "nick": "NikoM",
+     "role": "lurker",
+     "country": "Argentina",
+     "birthYear": 1997
+    }
+   ]
+  },
+  {
+   "name": "Furious Gaming",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "nacho",
+     "role": "igl",
+     "country": "Argentina",
+     "birthYear": 2000
+    },
+    {
+     "nick": "meyern",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Jonji",
+     "role": "entry",
+     "country": "Argentina",
+     "birthYear": 1999
+    },
+    {
+     "nick": "Owen$inHg",
+     "role": "awp",
+     "country": "Argentina",
+     "birthYear": 2001
+    },
+    {
+     "nick": "abizz",
+     "role": "lurker",
+     "country": "Argentina",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "9z Academy",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Argentina",
+   "roster": [
+    {
+     "nick": "divi",
+     "role": "igl",
+     "country": "Argentina",
+     "birthYear": 2004
+    },
+    {
+     "nick": "luchov",
+     "role": "rifler",
+     "country": "Argentina",
+     "birthYear": 2003
+    },
+    {
+     "nick": "buda",
+     "role": "entry",
+     "country": "Argentina",
+     "birthYear": 2003
+    },
+    {
+     "nick": "mbf",
+     "role": "awp",
+     "country": "Argentina",
+     "birthYear": 2005
+    },
+    {
+     "nick": "hfb",
+     "role": "lurker",
+     "country": "Argentina",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Eternal Fire",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Turkey",
+   "roster": [
+    {
+     "nick": "XANTARS",
+     "role": "rifler",
+     "country": "Turkey",
+     "birthYear": 1995
+    },
+    {
+     "nick": "woxic",
+     "role": "awp",
+     "country": "Turkey",
+     "birthYear": 1998
+    },
+    {
+     "nick": "Calyx",
+     "role": "rifler",
+     "country": "Turkey",
+     "birthYear": 1998
+    },
+    {
+     "nick": "MAJ3R",
+     "role": "igl",
+     "country": "Turkey",
+     "birthYear": 1991
+    },
+    {
+     "nick": "Wicadia",
+     "role": "entry",
+     "country": "Turkey",
+     "birthYear": 2005
+    }
+   ]
+  },
+  {
+   "name": "Cloud9",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "Ax1Le",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Boombl4",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 1998
+    },
+    {
+     "nick": "ICY",
+     "role": "awp",
+     "country": "Kazakhstan",
+     "birthYear": 2005
+    },
+    {
+     "nick": "HeavyGod",
+     "role": "entry",
+     "country": "Israel",
+     "birthYear": 2002
+    },
+    {
+     "nick": "interz",
+     "role": "support",
+     "country": "Russia",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "1WIN",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "Ryujin",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Buster",
+     "role": "rifler",
+     "country": "Kazakhstan",
+     "birthYear": 1999
+    },
+    {
+     "nick": "neaLaN",
+     "role": "igl",
+     "country": "Kazakhstan",
+     "birthYear": 2000
+    },
+    {
+     "nick": "Jemi",
+     "role": "awp",
+     "country": "Finland",
+     "birthYear": 1999
+    },
+    {
+     "nick": "lattykk",
+     "role": "awp",
+     "country": "Russia",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "AMKAL",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "TRAVIS",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 1999
+    },
+    {
+     "nick": "Krad",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 1999
+    },
+    {
+     "nick": "Forester",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2000
+    },
+    {
+     "nick": "Saffee",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 1995
+    },
+    {
+     "nick": "S往",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "FORZE",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "shalfey",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "r3salt",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 2004
+    },
+    {
+     "nick": "tNL",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Sellter",
+     "role": "support",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "smooya",
+     "role": "awp",
+     "country": "United Kingdom",
+     "birthYear": 1999
+    }
+   ]
+  },
+  {
+   "name": "SAW",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Portugal",
+   "roster": [
+    {
+     "nick": "MUTiRIS",
+     "role": "igl",
+     "country": "Portugal",
+     "birthYear": 1992
+    },
+    {
+     "nick": "rmn",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": 1995
+    },
+    {
+     "nick": "arrozdoce",
+     "role": "entry",
+     "country": "Portugal",
+     "birthYear": 2002
+    },
+    {
+     "nick": "story",
+     "role": "awp",
+     "country": "Portugal",
+     "birthYear": 2002
+    },
+    {
+     "nick": "ewjerkz",
+     "role": "lurker",
+     "country": "Portugal",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "Nine To Five",
+   "level": 2,
+   "region": "Europa e CIS",
+   "country": "Poland",
+   "roster": [
+    {
+     "nick": "mantuu",
+     "role": "awp",
+     "country": "Poland",
+     "birthYear": 1997
+    },
+    {
+     "nick": "REZ",
+     "role": "rifler",
+     "country": "Sweden",
+     "birthYear": 1998
+    },
+    {
+     "nick": "valde",
+     "role": "rifler",
+     "country": "Denmark",
+     "birthYear": 1995
+    },
+    {
+     "nick": "nexa",
+     "role": "igl",
+     "country": "Serbia",
+     "birthYear": 1997
+    },
+    {
+     "nick": "hades",
+     "role": "awp",
+     "country": "Poland",
+     "birthYear": 1999
+    }
+   ]
+  },
+  {
+   "name": "Nemiga Gaming",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Internacional",
+   "roster": [
+    {
+     "nick": "Xant3r",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "1eeR",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "riskyb0b",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "sowalio",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "khaN",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Sangal Esports",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Internacional",
+   "roster": [
+    {
+     "nick": "xfl0ud",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "LNZ",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "yxngstxr",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "L4R3N",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "Sapec",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Zero Tenacity",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Internacional",
+   "roster": [
+    {
+     "nick": "simke",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "Cptkurt01",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "aress",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "brut3",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    },
+    {
+     "nick": "nemanja",
+     "role": "rifler",
+     "country": "Internacional",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Rhyno Esports",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Portugal",
+   "roster": [
+    {
+     "nick": "DDias",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": null
+    },
+    {
+     "nick": "TMKj",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": null
+    },
+    {
+     "nick": "Icarus",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": null
+    },
+    {
+     "nick": "rafax",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": null
+    },
+    {
+     "nick": "snpy",
+     "role": "rifler",
+     "country": "Portugal",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Preasy",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Denmark",
+   "roster": [
+    {
+     "nick": "dupreeh",
+     "role": "entry",
+     "country": "Denmark",
+     "birthYear": 1993
+    },
+    {
+     "nick": "roeJ",
+     "role": "rifler",
+     "country": "Denmark",
+     "birthYear": 1993
+    },
+    {
+     "nick": "TMB",
+     "role": "igl",
+     "country": "Denmark",
+     "birthYear": 2002
+    },
+    {
+     "nick": "refrezh",
+     "role": "lurker",
+     "country": "Denmark",
+     "birthYear": 1998
+    },
+    {
+     "nick": "Altekz",
+     "role": "support",
+     "country": "Denmark",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Sashi Esports",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Denmark",
+   "roster": [
+    {
+     "nick": "IceBerg",
+     "role": "awp",
+     "country": "Denmark",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Lucky",
+     "role": "igl",
+     "country": "Denmark",
+     "birthYear": 1998
+    },
+    {
+     "nick": "Nodios",
+     "role": "rifler",
+     "country": "Denmark",
+     "birthYear": 1999
+    },
+    {
+     "nick": "MistR",
+     "role": "entry",
+     "country": "Denmark",
+     "birthYear": 2004
+    },
+    {
+     "nick": "kwert",
+     "role": "lurker",
+     "country": "Denmark",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "NAVI Junior",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Ukraine",
+   "roster": [
+    {
+     "nick": "krabcik",
+     "role": "awp",
+     "country": "Slovakia",
+     "birthYear": 2006
+    },
+    {
+     "nick": "dem0n",
+     "role": "entry",
+     "country": "Ukraine",
+     "birthYear": 2007
+    },
+    {
+     "nick": "makazze",
+     "role": "rifler",
+     "country": "Ukraine",
+     "birthYear": 2006
+    },
+    {
+     "nick": "cmnt",
+     "role": "igl",
+     "country": "Ukraine",
+     "birthYear": 2005
+    },
+    {
+     "nick": "dziugass",
+     "role": "lurker",
+     "country": "Lithuania",
+     "birthYear": 2006
+    }
+   ]
+  },
+  {
+   "name": "MOUZ NXT",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Denmark",
+   "roster": [
+    {
+     "nick": "Chr1zN",
+     "role": "igl",
+     "country": "Denmark",
+     "birthYear": 2004
+    },
+    {
+     "nick": "sirah",
+     "role": "entry",
+     "country": "Denmark",
+     "birthYear": 2006
+    },
+    {
+     "nick": "PR",
+     "role": "rifler",
+     "country": "Ukraine",
+     "birthYear": 2005
+    },
+    {
+     "nick": "Burmylov",
+     "role": "awp",
+     "country": "Ukraine",
+     "birthYear": 2006
+    },
+    {
+     "nick": "slaxx",
+     "role": "lurker",
+     "country": "Germany",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Astralis Talent",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Denmark",
+   "roster": [
+    {
+     "nick": "kristou",
+     "role": "awp",
+     "country": "Denmark",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Altekz",
+     "role": "rifler",
+     "country": "Denmark",
+     "birthYear": 2003
+    },
+    {
+     "nick": "JUGi",
+     "role": "awp",
+     "country": "Denmark",
+     "birthYear": 1997
+    },
+    {
+     "nick": "brzer",
+     "role": "igl",
+     "country": "Denmark",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Patti",
+     "role": "support",
+     "country": "Denmark",
+     "birthYear": 1998
+    }
+   ]
+  },
+  {
+   "name": "Young Ninjas",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Sweden",
+   "roster": [
+    {
+     "nick": "maxster",
+     "role": "rifler",
+     "country": "Sweden",
+     "birthYear": 2004
+    },
+    {
+     "nick": "bluePho3nix",
+     "role": "awp",
+     "country": "Sweden",
+     "birthYear": 2004
+    },
+    {
+     "nick": "nilo",
+     "role": "entry",
+     "country": "Sweden",
+     "birthYear": 2005
+    },
+    {
+     "nick": "Silence",
+     "role": "igl",
+     "country": "Sweden",
+     "birthYear": 2003
+    },
+    {
+     "nick": "m4tthi",
+     "role": "lurker",
+     "country": "Sweden",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "ALTERNATE aTTaX",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Germany",
+   "roster": [
+    {
+     "nick": "awzk",
+     "role": "entry",
+     "country": "Germany",
+     "birthYear": 2002
+    },
+    {
+     "nick": "FreeZe",
+     "role": "awp",
+     "country": "Germany",
+     "birthYear": 2000
+    },
+    {
+     "nick": "Spiidi",
+     "role": "igl",
+     "country": "Germany",
+     "birthYear": 1995
+    },
+    {
+     "nick": "perX",
+     "role": "rifler",
+     "country": "Germany",
+     "birthYear": 1999
+    },
+    {
+     "nick": "slaxz-",
+     "role": "awp",
+     "country": "Germany",
+     "birthYear": 1998
+    }
+   ]
+  },
+  {
+   "name": "Permitta",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Poland",
+   "roster": [
+    {
+     "nick": "morelz",
+     "role": "igl",
+     "country": "Poland",
+     "birthYear": 1994
+    },
+    {
+     "nick": "maajSteR",
+     "role": "awp",
+     "country": "Poland",
+     "birthYear": 2003
+    },
+    {
+     "nick": "bnox",
+     "role": "rifler",
+     "country": "Poland",
+     "birthYear": 2001
+    },
+    {
+     "nick": "tomasz",
+     "role": "entry",
+     "country": "Poland",
+     "birthYear": 2002
+    },
+    {
+     "nick": "fr3nd",
+     "role": "lurker",
+     "country": "Poland",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "9 Pandas",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "seized",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 1994
+    },
+    {
+     "nick": "clax",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "glowiing",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 1993
+    },
+    {
+     "nick": "iDISBALANCE",
+     "role": "awp",
+     "country": "Russia",
+     "birthYear": 1996
+    },
+    {
+     "nick": "d1Ledez",
+     "role": "lurker",
+     "country": "Russia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "K23",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Kazakhstan",
+   "roster": [
+    {
+     "nick": "AdreN",
+     "role": "igl",
+     "country": "Kazakhstan",
+     "birthYear": 1990
+    },
+    {
+     "nick": "mou",
+     "role": "awp",
+     "country": "Kazakhstan",
+     "birthYear": 1991
+    },
+    {
+     "nick": "n0rb3r7",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "neaLaN",
+     "role": "rifler",
+     "country": "Kazakhstan",
+     "birthYear": 2000
+    },
+    {
+     "nick": "fitch",
+     "role": "lurker",
+     "country": "Kazakhstan",
+     "birthYear": 1992
+    }
+   ]
+  },
+  {
+   "name": "Nexus Gaming",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Romania",
+   "roster": [
+    {
+     "nick": "ragga",
+     "role": "igl",
+     "country": "Romania",
+     "birthYear": 2001
+    },
+    {
+     "nick": "BTW",
+     "role": "rifler",
+     "country": "Romania",
+     "birthYear": 2002
+    },
+    {
+     "nick": "XELLOW",
+     "role": "awp",
+     "country": "Romania",
+     "birthYear": 2000
+    },
+    {
+     "nick": "sNX",
+     "role": "entry",
+     "country": "Romania",
+     "birthYear": 2003
+    },
+    {
+     "nick": "COSMEEEN",
+     "role": "lurker",
+     "country": "Romania",
+     "birthYear": 1999
+    }
+   ]
+  },
+  {
+   "name": "Dynamo Eclot",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Czech Republic",
+   "roster": [
+    {
+     "nick": "nbqq",
+     "role": "igl",
+     "country": "Czech Republic",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Dytor",
+     "role": "awp",
+     "country": "Czech Republic",
+     "birthYear": 2002
+    },
+    {
+     "nick": "valjen",
+     "role": "rifler",
+     "country": "Czech Republic",
+     "birthYear": 2003
+    },
+    {
+     "nick": "k1to",
+     "role": "entry",
+     "country": "Germany",
+     "birthYear": 1998
+    },
+    {
+     "nick": "blytz",
+     "role": "lurker",
+     "country": "Slovakia",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Endpoint",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "United Kingdom",
+   "roster": [
+    {
+     "nick": "MiGHTYMAX",
+     "role": "igl",
+     "country": "United Kingdom",
+     "birthYear": 1997
+    },
+    {
+     "nick": "Surreal",
+     "role": "rifler",
+     "country": "United Kingdom",
+     "birthYear": 1996
+    },
+    {
+     "nick": "CRUC1AL",
+     "role": "awp",
+     "country": "Netherlands",
+     "birthYear": 1997
+    },
+    {
+     "nick": "slaxx",
+     "role": "entry",
+     "country": "Germany",
+     "birthYear": 2004
+    },
+    {
+     "nick": "HeavyGod",
+     "role": "lurker",
+     "country": "Israel",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "ITB",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Poland",
+   "roster": [
+    {
+     "nick": "rallen",
+     "role": "rifler",
+     "country": "Poland",
+     "birthYear": 1994
+    },
+    {
+     "nick": "CRUC1AL",
+     "role": "awp",
+     "country": "Netherlands",
+     "birthYear": 1997
+    },
+    {
+     "nick": "Thomas",
+     "role": "igl",
+     "country": "United Kingdom",
+     "birthYear": 1998
+    },
+    {
+     "nick": "smooya",
+     "role": "awp",
+     "country": "United Kingdom",
+     "birthYear": 1999
+    },
+    {
+     "nick": "juanflatroo",
+     "role": "entry",
+     "country": "Kosovo",
+     "birthYear": 1997
+    }
+   ]
+  },
+  {
+   "name": "Complexity",
+   "level": 2,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "JT",
+     "role": "igl",
+     "country": "South Africa",
+     "birthYear": 1999
+    },
+    {
+     "nick": "floppy",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 1999
+    },
+    {
+     "nick": "hallzerk",
+     "role": "awp",
+     "country": "Norway",
+     "birthYear": 2000
+    },
+    {
+     "nick": "Grim",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2000
+    },
+    {
+     "nick": "elastic",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Nouns",
+   "level": 2,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "cJR",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "nosraC",
+     "role": "support",
+     "country": "United States",
+     "birthYear": 2000
+    },
+    {
+     "nick": "Bwills",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "RUSH",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 1994
+    },
+    {
+     "nick": "Junior",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Party Astronauts",
+   "level": 2,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "ben1337",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 1998
+    },
+    {
+     "nick": "PNaDa",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "gMd",
+     "role": "entry",
+     "country": "Canada",
+     "birthYear": 2000
+    },
+    {
+     "nick": "viz",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "cxzi",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Boss",
+   "level": 3,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "d3rn",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "brett",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "cryptic",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "micro",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "freshie",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Fluffy Aimers",
+   "level": 3,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "Jason",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "Joga",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "slump",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "PNaDa",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "ERIN",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Limitless",
+   "level": 3,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "Makzwell",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "KMZ",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "grape",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "Sandman",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    },
+    {
+     "nick": "phantom",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Take Flyte",
+   "level": 3,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "Givens",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cooper",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 1994
+    },
+    {
+     "nick": "xseveN",
+     "role": "rifler",
+     "country": "Finland",
+     "birthYear": 1994
+    },
+    {
+     "nick": "zander",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "sml",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Carpe Diem",
+   "level": 3,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "walco",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "wiz",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "chop",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "sep",
+     "role": "support",
+     "country": "United States",
+     "birthYear": 2000
+    },
+    {
+     "nick": "classy",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Lag Gaming",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "spaghetti",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "tenz",
+     "role": "entry",
+     "country": "Canada",
+     "birthYear": 2001
+    },
+    {
+     "nick": "dunk",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2003
+    },
+    {
+     "nick": "nifty",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 1997
+    },
+    {
+     "nick": "mew",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Wanted Goons",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "subroza",
+     "role": "entry",
+     "country": "Canada",
+     "birthYear": 1997
+    },
+    {
+     "nick": "dapr",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 1999
+    },
+    {
+     "nick": "shanks",
+     "role": "awp",
+     "country": "Canada",
+     "birthYear": 2001
+    },
+    {
+     "nick": "koosta",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 1996
+    },
+    {
+     "nick": "skuba",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "NuTsunami",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "wave",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "tsunami",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2003
+    },
+    {
+     "nick": "surge",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "apex",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2000
+    },
+    {
+     "nick": "bolt",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Detonate",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "micro",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "freshie",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "d3rn",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2003
+    },
+    {
+     "nick": "brett",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cryptic",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Strife",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "ARCY",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "stamina",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 1999
+    },
+    {
+     "nick": "Joker",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "SATURN",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2003
+    },
+    {
+     "nick": "SLIGHT",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "timbermen",
+   "level": 4,
+   "region": "América do Norte",
+   "country": "United States",
+   "roster": [
+    {
+     "nick": "sARE",
+     "role": "igl",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "dare",
+     "role": "entry",
+     "country": "United States",
+     "birthYear": 2003
+    },
+    {
+     "nick": "shane",
+     "role": "awp",
+     "country": "United States",
+     "birthYear": 2001
+    },
+    {
+     "nick": "kyle",
+     "role": "rifler",
+     "country": "United States",
+     "birthYear": 2002
+    },
+    {
+     "nick": "kel",
+     "role": "lurker",
+     "country": "United States",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "ATOX Esports",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Mongolia",
+   "roster": [
+    {
+     "nick": "dobu",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": null
+    },
+    {
+     "nick": "kabal",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": null
+    },
+    {
+     "nick": "MiQ",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": null
+    },
+    {
+     "nick": "Zelos",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": null
+    },
+    {
+     "nick": "y3k",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Steel Helmet",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "China",
+   "roster": [
+    {
+     "nick": "captainMo",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": null
+    },
+    {
+     "nick": "DD",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": null
+    },
+    {
+     "nick": "AE",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": null
+    },
+    {
+     "nick": "18yM",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": null
+    },
+    {
+     "nick": "mo",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "Bad News Kangaroos",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "marke",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": null
+    },
+    {
+     "nick": "damyo",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": null
+    },
+    {
+     "nick": "hazr",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": null
+    },
+    {
+     "nick": "m2c",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": null
+    },
+    {
+     "nick": "pzz",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": null
+    }
+   ]
+  },
+  {
+   "name": "IHC Esports",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Mongolia",
+   "roster": [
+    {
+     "nick": "bLitz",
+     "role": "igl",
+     "country": "Mongolia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Techno4K",
+     "role": "entry",
+     "country": "Mongolia",
+     "birthYear": 2005
+    },
+    {
+     "nick": "sk0R",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "bart4k",
+     "role": "awp",
+     "country": "Mongolia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "Annabres",
+     "role": "lurker",
+     "country": "Mongolia",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "Gods Reign",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "Bhavi",
+     "role": "igl",
+     "country": "India",
+     "birthYear": 2001
+    },
+    {
+     "nick": "f0rsakeN",
+     "role": "rifler",
+     "country": "Indonesia",
+     "birthYear": 2004
+    },
+    {
+     "nick": "crazy_guy",
+     "role": "awp",
+     "country": "Vietnam",
+     "birthYear": 1996
+    },
+    {
+     "nick": "Ph1nn",
+     "role": "entry",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "revi7",
+     "role": "lurker",
+     "country": "India",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Vantage",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "RZE",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Motion",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Onyx",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "vinnie",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Skull",
+     "role": "lurker",
+     "country": "Australia",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "CatEvil",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "China",
+   "roster": [
+    {
+     "nick": "Karsa",
+     "role": "igl",
+     "country": "China",
+     "birthYear": 1997
+    },
+    {
+     "nick": "Bottle",
+     "role": "entry",
+     "country": "China",
+     "birthYear": 1998
+    },
+    {
+     "nick": "hzh",
+     "role": "awp",
+     "country": "China",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Gas",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Auman",
+     "role": "lurker",
+     "country": "China",
+     "birthYear": 1996
+    }
+   ]
+  },
+  {
+   "name": "Wings Up",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "China",
+   "roster": [
+    {
+     "nick": "lan",
+     "role": "igl",
+     "country": "China",
+     "birthYear": 2000
+    },
+    {
+     "nick": "BGG",
+     "role": "awp",
+     "country": "China",
+     "birthYear": 2001
+    },
+    {
+     "nick": "gas",
+     "role": "rifler",
+     "country": "China",
+     "birthYear": 2002
+    },
+    {
+     "nick": "marKE",
+     "role": "entry",
+     "country": "Mexico",
+     "birthYear": 1998
+    },
+    {
+     "nick": "ChildKing",
+     "role": "lurker",
+     "country": "China",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Renewal",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "China",
+   "roster": [
+    {
+     "nick": "neuz",
+     "role": "igl",
+     "country": "Mongolia",
+     "birthYear": 1998
+    },
+    {
+     "nick": "kabuto",
+     "role": "awp",
+     "country": "Mongolia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "yesuntaha",
+     "role": "entry",
+     "country": "Mongolia",
+     "birthYear": 2000
+    },
+    {
+     "nick": "dobu",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": 1996
+    },
+    {
+     "nick": "nin9",
+     "role": "lurker",
+     "country": "Mongolia",
+     "birthYear": 1997
+    }
+   ]
+  },
+  {
+   "name": "Talon Esports",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Hong Kong",
+   "roster": [
+    {
+     "nick": "hazr",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "ADR",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "pence",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "m4t",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "mhL",
+     "role": "lurker",
+     "country": "Poland",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "Chinggis Warriors",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "Mongolia",
+   "roster": [
+    {
+     "nick": "ariunkh",
+     "role": "igl",
+     "country": "Mongolia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "khosoo",
+     "role": "awp",
+     "country": "Mongolia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "temuulen",
+     "role": "entry",
+     "country": "Mongolia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "batu",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "zorig",
+     "role": "lurker",
+     "country": "Mongolia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Team Kobolds",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "Mongolia",
+   "roster": [
+    {
+     "nick": "kobold1",
+     "role": "igl",
+     "country": "Mongolia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "kobold2",
+     "role": "awp",
+     "country": "Mongolia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "kobold3",
+     "role": "entry",
+     "country": "Mongolia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "kobold4",
+     "role": "rifler",
+     "country": "Mongolia",
+     "birthYear": 2004
+    },
+    {
+     "nick": "kobold5",
+     "role": "lurker",
+     "country": "Mongolia",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Sunday School",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "sun_mgr",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "sun_awp",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "sun_ent",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "sun_rif",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "sun_lur",
+     "role": "lurker",
+     "country": "Australia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Vertical",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "vert_igl",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 2000
+    },
+    {
+     "nick": "vert_awp",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "vert_ent",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "vert_rif",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "vert_lur",
+     "role": "lurker",
+     "country": "Australia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "True Rippers",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "Rossi",
+     "role": "entry",
+     "country": "India",
+     "birthYear": 2001
+    },
+    {
+     "nick": "DEATHMAKER",
+     "role": "igl",
+     "country": "India",
+     "birthYear": 1998
+    },
+    {
+     "nick": "Hellff",
+     "role": "awp",
+     "country": "India",
+     "birthYear": 2000
+    },
+    {
+     "nick": "McgILLz",
+     "role": "rifler",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "hax",
+     "role": "lurker",
+     "country": "India",
+     "birthYear": 2003
+    }
+   ]
+  },
+  {
+   "name": "Revenant",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "NBK-",
+     "role": "igl",
+     "country": "France",
+     "birthYear": 1994
+    },
+    {
+     "nick": "Nivera",
+     "role": "awp",
+     "country": "Belgium",
+     "birthYear": 2001
+    },
+    {
+     "nick": "adeZ",
+     "role": "entry",
+     "country": "Poland",
+     "birthYear": 2002
+    },
+    {
+     "nick": "lauNX",
+     "role": "rifler",
+     "country": "Romania",
+     "birthYear": 2004
+    },
+    {
+     "nick": "reiko",
+     "role": "lurker",
+     "country": "Poland",
+     "birthYear": 2000
+    }
+   ]
+  },
+  {
+   "name": "Marcos Gaming",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "bmx",
+     "role": "igl",
+     "country": "India",
+     "birthYear": 2001
+    },
+    {
+     "nick": "mw1",
+     "role": "awp",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Gh0st",
+     "role": "entry",
+     "country": "India",
+     "birthYear": 2000
+    },
+    {
+     "nick": "clutch",
+     "role": "rifler",
+     "country": "India",
+     "birthYear": 2003
+    },
+    {
+     "nick": "v1per",
+     "role": "lurker",
+     "country": "India",
+     "birthYear": 2002
+    }
+   ]
+  },
+  {
+   "name": "Wicked",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "wick_igl",
+     "role": "igl",
+     "country": "India",
+     "birthYear": 2001
+    },
+    {
+     "nick": "wick_awp",
+     "role": "awp",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "wick_ent",
+     "role": "entry",
+     "country": "India",
+     "birthYear": 2003
+    },
+    {
+     "nick": "wick_rif",
+     "role": "rifler",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "wick_lur",
+     "role": "lurker",
+     "country": "India",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Enigma Gaming",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "India",
+   "roster": [
+    {
+     "nick": "RawFiend",
+     "role": "igl",
+     "country": "India",
+     "birthYear": 2000
+    },
+    {
+     "nick": "SpawN",
+     "role": "awp",
+     "country": "India",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Araw",
+     "role": "entry",
+     "country": "India",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Knight",
+     "role": "rifler",
+     "country": "India",
+     "birthYear": 2003
+    },
+    {
+     "nick": "Viper",
+     "role": "lurker",
+     "country": "India",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "Team Vladivostok",
+   "level": 4,
+   "region": "Ásia e Oceania",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "vlad_igl",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 2000
+    },
+    {
+     "nick": "vlad_awp",
+     "role": "awp",
+     "country": "Russia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "vlad_ent",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "vlad_rif",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "vlad_lur",
+     "role": "lurker",
+     "country": "Russia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "KOI",
+   "level": 2,
+   "region": "América do Sul",
+   "country": "Spain",
+   "roster": [
+    {
+     "nick": "mopoz",
+     "role": "igl",
+     "country": "Spain",
+     "birthYear": 1996
+    },
+    {
+     "nick": "dav1g",
+     "role": "rifler",
+     "country": "Spain",
+     "birthYear": 2000
+    },
+    {
+     "nick": "adamS",
+     "role": "entry",
+     "country": "Spain",
+     "birthYear": 2001
+    },
+    {
+     "nick": "stadodo",
+     "role": "awp",
+     "country": "Portugal",
+     "birthYear": 1997
+    },
+    {
+     "nick": "JUST",
+     "role": "lurker",
+     "country": "Portugal",
+     "birthYear": 1996
+    }
+   ]
+  },
+  {
+   "name": "Stake",
+   "level": 3,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "stk_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "stk_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "stk_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "stk_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "stk_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Space",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Russia",
+   "roster": [
+    {
+     "nick": "spc_igl",
+     "role": "igl",
+     "country": "Russia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "spc_awp",
+     "role": "awp",
+     "country": "Russia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "spc_ent",
+     "role": "entry",
+     "country": "Russia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "spc_rif",
+     "role": "rifler",
+     "country": "Russia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "spc_lur",
+     "role": "lurker",
+     "country": "Russia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Enterprise",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "Latvia",
+   "roster": [
+    {
+     "nick": "manguss",
+     "role": "igl",
+     "country": "Latvia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "TheXotiC",
+     "role": "awp",
+     "country": "Slovakia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "stix",
+     "role": "entry",
+     "country": "Czech Republic",
+     "birthYear": 2003
+    },
+    {
+     "nick": "suver",
+     "role": "rifler",
+     "country": "Slovakia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "moriiS",
+     "role": "lurker",
+     "country": "Czech Republic",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Verdant",
+   "level": 3,
+   "region": "Europa e CIS",
+   "country": "United Kingdom",
+   "roster": [
+    {
+     "nick": "aratis",
+     "role": "igl",
+     "country": "United Kingdom",
+     "birthYear": 2001
+    },
+    {
+     "nick": "Girafffe",
+     "role": "awp",
+     "country": "United Kingdom",
+     "birthYear": 2000
+    },
+    {
+     "nick": "D2N",
+     "role": "entry",
+     "country": "United Kingdom",
+     "birthYear": 2002
+    },
+    {
+     "nick": "Vytal",
+     "role": "rifler",
+     "country": "United Kingdom",
+     "birthYear": 2003
+    },
+    {
+     "nick": "Extinct",
+     "role": "lurker",
+     "country": "United Kingdom",
+     "birthYear": 2001
+    }
+   ]
+  },
+  {
+   "name": "GR Gaming",
+   "level": 3,
+   "region": "Ásia e Oceania",
+   "country": "Hong Kong",
+   "roster": [
+    {
+     "nick": "weikid",
+     "role": "igl",
+     "country": "Hong Kong",
+     "birthYear": 2001
+    },
+    {
+     "nick": "moxie",
+     "role": "awp",
+     "country": "Hong Kong",
+     "birthYear": 2002
+    },
+    {
+     "nick": "hk_ent",
+     "role": "entry",
+     "country": "Hong Kong",
+     "birthYear": 2003
+    },
+    {
+     "nick": "hk_rif",
+     "role": "rifler",
+     "country": "Hong Kong",
+     "birthYear": 2002
+    },
+    {
+     "nick": "hk_lur",
+     "role": "lurker",
+     "country": "Hong Kong",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "FOLHA AMARELA",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "fa_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "fa_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "fa_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "fa_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "fa_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Charrados FC",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "cfc_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "cfc_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cfc_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "cfc_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cfc_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "CPC Curralzinho Esports",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "cpc_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "cpc_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cpc_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "cpc_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "cpc_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Peladona",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "pela_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "pela_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "pela_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "pela_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "pela_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Prison Breakers",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "pb_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "pb_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "pb_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "pb_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "pb_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "ex-Guará eSports",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "guara_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "guara_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "guara_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "guara_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "guara_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "ex-ODDIK",
+   "level": 4,
+   "region": "América do Sul",
+   "country": "Brazil",
+   "roster": [
+    {
+     "nick": "exodd_igl",
+     "role": "igl",
+     "country": "Brazil",
+     "birthYear": 2001
+    },
+    {
+     "nick": "exodd_awp",
+     "role": "awp",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "exodd_ent",
+     "role": "entry",
+     "country": "Brazil",
+     "birthYear": 2003
+    },
+    {
+     "nick": "exodd_rif",
+     "role": "rifler",
+     "country": "Brazil",
+     "birthYear": 2002
+    },
+    {
+     "nick": "exodd_lur",
+     "role": "lurker",
+     "country": "Brazil",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "illwill",
+   "level": 4,
+   "region": "Europa e CIS",
+   "country": "Sweden",
+   "roster": [
+    {
+     "nick": "ill_igl",
+     "role": "igl",
+     "country": "Sweden",
+     "birthYear": 2001
+    },
+    {
+     "nick": "ill_awp",
+     "role": "awp",
+     "country": "Sweden",
+     "birthYear": 2002
+    },
+    {
+     "nick": "ill_ent",
+     "role": "entry",
+     "country": "Sweden",
+     "birthYear": 2003
+    },
+    {
+     "nick": "ill_rif",
+     "role": "rifler",
+     "country": "Sweden",
+     "birthYear": 2002
+    },
+    {
+     "nick": "ill_lur",
+     "role": "lurker",
+     "country": "Sweden",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Justice For Tomorrow",
+   "level": 4,
+   "region": "Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "jft_igl",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "jft_awp",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "jft_ent",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2003
+    },
+    {
+     "nick": "jft_rif",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "jft_lur",
+     "role": "lurker",
+     "country": "Australia",
+     "birthYear": 2004
+    }
+   ]
+  },
+  {
+   "name": "Rooster",
+   "level": 4,
+   "region": "Oceania",
+   "country": "Australia",
+   "roster": [
+    {
+     "nick": "TjP",
+     "role": "awp",
+     "country": "Australia",
+     "birthYear": 2001
+    },
+    {
+     "nick": "asap",
+     "role": "entry",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "chelleos",
+     "role": "igl",
+     "country": "Australia",
+     "birthYear": 1999
+    },
+    {
+     "nick": "vanguard",
+     "role": "rifler",
+     "country": "Australia",
+     "birthYear": 2002
+    },
+    {
+     "nick": "nettik",
+     "role": "lurker",
+     "country": "Australia",
+     "birthYear": 2003
+    }
+   ]
+  }
+ ]
+}
