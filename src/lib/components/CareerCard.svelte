@@ -178,7 +178,7 @@
   .size-sheet .stat .v { font-size: 26px; }
 
   /* Tela grande e alta: a carta cresce em retrato (o hub cabe numa tela e ainda sobra altura). */
-  @media (min-width: 1500px) and (min-height: 1050px) {
+  @media (min-width: 1500px) and (min-height: 960px) {
     .size-mate .face { gap: 11px; padding: 16px 14px; }
     .size-mate .ovr { font-size: 58px; }
     .size-mate .mono { font-size: 120px; top: 44px; }

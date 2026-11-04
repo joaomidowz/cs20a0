@@ -1147,7 +1147,7 @@
                     <div class="skills-pick" role="group" aria-label="Habilidades para treinar">
                       {#each TRAINABLE as attribute}
                         <button type="button" aria-pressed={pickedSkills.includes(attribute)} class:on={pickedSkills.includes(attribute)} class:tip={coachTips.includes(attribute)} disabled={!canTrain} on:click={() => toggleSkill(attribute)} title={coachTips.includes(attribute) ? 'O coach indicou treinar' : undefined}>
-                          <span>{ATTR_LABEL[attribute]}</span>
+                          <span>{attribute === 'consistency' ? 'Consist.' : ATTR_LABEL[attribute]}</span>
                           {#if splitPreview[attribute]}<b>+{splitPreview[attribute]}</b>{/if}
                         </button>
                       {/each}
@@ -1626,7 +1626,7 @@
   .ft-head b { font: 800 18px/1 var(--display); text-transform: uppercase; }
   .ft-head span { color: var(--muted); font-size: 12px; }
   .skills-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
-  .skills-pick button { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 600 13px/1 var(--body); cursor: pointer; }
+  .skills-pick button { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-width: 0; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 600 13px/1 var(--body); cursor: pointer; }
   .skills-pick button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .skills-pick button b { color: var(--accent); font: 800 15px/1 var(--display); }
   .skills-pick button.tip::after { content: ''; flex: none; width: 6px; height: 6px; background: var(--accent-2); }
@@ -1856,6 +1856,8 @@
   @media (max-width: 680px) {
     .grid2 { grid-template-columns: minmax(0, 1fr); }
     .week-grid { grid-template-columns: minmax(0, 1fr); }
+    .skills-pick button { padding: 0 6px; font-size: 12px; min-height: 40px; }
+    .ft-actions { flex-wrap: wrap; }
     .week-cards { grid-template-columns: minmax(0, 1fr); }
     .path { grid-template-columns: minmax(0, 1fr); }
     .pace { flex-wrap: wrap; }
