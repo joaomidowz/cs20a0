@@ -147,6 +147,16 @@ export function reserveNicks(nicks: string[]) {
   for (const nick of nicks) usedNicks.add(nick.toLowerCase());
 }
 
+/** Nick sorteado para o seu jogador (mesmo gerador dos times, nunca um nick real nem sósia de um). */
+export function randomNick(seedText: string): string {
+  const rng = rngOf(`player-nick:${seedText}`);
+  for (let guard = 0; guard < 400; guard += 1) {
+    const nick = generateNick(rng);
+    if (!usedNicks.has(nick.toLowerCase()) && !looksReal(nick)) return nick;
+  }
+  return `player${Math.floor(rng() * 9000) + 1000}`;
+}
+
 /** Completa o elenco até 5 (nicks reais primeiro), com funções embaralhadas pela seed do time. */
 export function generatedRoster(teamName: string, country: string | null, known: string[] = [], current: SceneRosterMember[] = [], missingRoles: string[] = []): SceneRosterMember[] {
   const rng = rngOf(`roster:${teamName}`);

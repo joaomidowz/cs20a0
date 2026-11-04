@@ -8,6 +8,7 @@ import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier } from './calendar';
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { randomNick } from './extraTeams';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -347,7 +348,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
   return {
     version: 1,
     seed,
-    nick: input.nick.trim().slice(0, 16) || 'cascavel',
+    nick: input.nick.trim().slice(0, 16) || randomNick(seed), // campo vazio: um nick sorteado
     country: input.country,
     role: input.role,
     archetype,

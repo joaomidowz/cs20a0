@@ -124,5 +124,16 @@ describe('elencos da planilha do usuário', () => {
     expect(generated.length).toBeGreaterThan(0);
     for (const member of generated) expect(realFaces.has(faceOf(member.nick, true)), member.nick).toBe(false);
   });
+
+  it('nick vazio vira um nick sorteado (nada de "cascavel" fixo), determinístico pela seed', async () => {
+    const { createPlayerCareer } = await import('../src/lib/game/playerCareer/engine');
+    const { randomNick } = await import('../src/lib/game/playerCareer/extraTeams');
+    const a = createPlayerCareer({ nick: '  ', country: 'Brazil', role: 'awper', seed: 'nick-1' });
+    expect(a.nick).not.toBe('cascavel');
+    expect(a.nick.length).toBeGreaterThan(1);
+    expect(createPlayerCareer({ nick: '', country: 'Brazil', role: 'awper', seed: 'nick-1' }).nick).toBe(a.nick);
+    expect(createPlayerCareer({ nick: 'midowz', country: 'Brazil', role: 'awper', seed: 'nick-1' }).nick).toBe('midowz');
+    expect(new Set(Array.from({ length: 20 }, (_, index) => randomNick(`r-${index}`))).size).toBeGreaterThan(12);
+  });
 });
 

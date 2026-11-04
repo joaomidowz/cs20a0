@@ -29,6 +29,7 @@
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
+  import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
@@ -91,7 +92,8 @@
   };
 
   let career: PlayerCareerState | null = null;
-  let nick = 'cascavel';
+  // Vazio no servidor; no navegador já vem um nick sorteado (dá para sortear de novo ou apagar e digitar).
+  let nick = '';
   let country = 'Brazil';
   let role: PlayerRole = 'awper';
   let archetype: PlayerArchetype = 'prodigio';
@@ -157,7 +159,10 @@
     try { usedIds = JSON.parse(localStorage.getItem(`${STORAGE_KEY}:situations:${seed}`) ?? '[]') as string[]; } catch { usedIds = []; }
   }
 
+  const rollNick = () => { nick = randomNick(`${Date.now()}:${Math.random()}`); };
+
   onMount(() => {
+    if (!nick) rollNick();
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) career = ensureSquad(ensureDraw(JSON.parse(saved) as PlayerCareerState));
@@ -825,7 +830,12 @@
       <h1 class="display">Do Lan House<br />ao Major</h1>
       <p class="lede">Crie seu jogador e sorteie o começo: três times reais do CCT/GC ou a lan house. Os campeonatos rodam round a round, e o round decisivo é seu.</p>
       <div class="grid2">
-        <label>Nick<input bind:value={nick} maxlength="16" placeholder="cascavel" /></label>
+        <label>Nick
+          <span class="nick-row">
+            <input bind:value={nick} maxlength="16" placeholder="Seu nick" />
+            <button type="button" class="link-btn" on:click={rollNick}>Sortear</button>
+          </span>
+        </label>
         <label>País
           <select bind:value={country}>
             {#each sceneCountries as option}<option value={option}>{option}</option>{/each}
@@ -1693,6 +1703,8 @@
   label { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
   input, select { min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 0; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 500 15px/1.2 var(--body); }
   .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 0 0; }
+  .nick-row { display: flex; align-items: center; gap: 12px; }
+  .nick-row input { flex: 1; min-width: 0; }
   .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; }
   .choice { position: relative; display: grid; gap: 4px; min-width: 0; text-align: left; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .16s ease; }
   .choice:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
