@@ -1,9 +1,11 @@
 // src/lib/game/playerCareer/decisions.ts
-// A matriz de decisões do CS2 (6 funções × 10 situações × 3 alternativas = 180), trazida pelo dono do jogo.
+// A matriz de decisões do CS2: as 10 situações originais de cada função (trazidas pelo dono do jogo), mais 35
+// extras por função e 60 gerais (situations.ts). Cada função sorteia de mais de 100 situações.
 // Cada alternativa tem um PERFIL de consequência que vira edge de probabilidade no round decisivo — o RNG
 // do motor decide o round; a leitura certa inclina a moeda. Os textos são da matriz, verbatim.
 import { createSeededRng } from '../simulation';
 import type { PlayerRole } from './engine';
+import { EXTRA_ROWS, SHARED_ROWS, type SituationRow } from './situations';
 
 /** Como cada decisão inclina o round: disciplinada, leitura de jogo, aposta ou jogo de time. */
 export type ClutchProfile = 'solid' | 'read' | 'gamble' | 'team';
@@ -15,14 +17,15 @@ export interface ClutchAlternative {
 
 export interface ClutchSituation {
   id: string;
-  role: PlayerRole;
+  /** Função dona da situação ('any' nas gerais; o sorteio devolve com a função de quem joga). */
+  role: PlayerRole | 'any';
   text: string;
   alternatives: [ClutchAlternative, ClutchAlternative, ClutchAlternative];
 }
 
-const build = (role: PlayerRole, rows: Array<[string, [string, ClutchProfile], [string, ClutchProfile], [string, ClutchProfile]]>): ClutchSituation[] =>
+const build = (role: PlayerRole | 'any', rows: SituationRow[], offset = 0): ClutchSituation[] =>
   rows.map(([text, a, b, c], index) => ({
-    id: `${role}-${index + 1}`,
+    id: `${role === 'any' ? 'all' : role}-${offset + index + 1}`,
     role,
     text,
     alternatives: [
@@ -32,7 +35,7 @@ const build = (role: PlayerRole, rows: Array<[string, [string, ClutchProfile], [
     ]
   }));
 
-export const DECISION_MATRIX: Record<PlayerRole, ClutchSituation[]> = {
+const BASE_MATRIX: Record<PlayerRole, ClutchSituation[]> = {
   awper: build('awper', [
     ['Errou o primeiro tiro de AWP', ['Recuar e reposicionar', 'solid'], ['Reabrir o mesmo ângulo', 'read'], ['Trocar para pistola e lutar', 'gamble']],
     ['Conseguiu a primeira kill', ['Avançar e conquistar espaço', 'gamble'], ['Reposicionar e segurar outro ângulo', 'solid'], ['Continuar na mesma posição', 'read']],
@@ -107,13 +110,24 @@ export const DECISION_MATRIX: Record<PlayerRole, ClutchSituation[]> = {
   ])
 };
 
+/** As situações de cada função: as 10 originais (ids preservados) + as 35 extras, numeradas em sequência. */
+export const DECISION_MATRIX = Object.fromEntries(
+  (Object.entries(BASE_MATRIX) as Array<[PlayerRole, ClutchSituation[]]>).map(([role, base]) => [role, [...base, ...build(role, EXTRA_ROWS[role], base.length)]])
+) as Record<PlayerRole, ClutchSituation[]>;
+
+/** As 60 situações que servem a qualquer função. */
+export const SHARED_SITUATIONS: ClutchSituation[] = build('any', SHARED_ROWS);
+
+/** Tudo o que pode cair para uma função: as dela + as gerais. */
+export const situationsFor = (role: PlayerRole): ClutchSituation[] => [...DECISION_MATRIX[role], ...SHARED_SITUATIONS];
+
 /** Sorteio determinístico da situação da vez, sem repetir o que já caiu (até esgotar a função). */
 export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = []): ClutchSituation {
-  const all = DECISION_MATRIX[role];
+  const all = situationsFor(role);
   const fresh = all.filter((situation) => !usedIds.includes(situation.id));
   const pool = fresh.length ? fresh : all;
   const rng = createSeededRng(`${seed}:situation`);
-  return pool[Math.floor(rng() * pool.length)];
+  return { ...pool[Math.floor(rng() * pool.length)], role };
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));

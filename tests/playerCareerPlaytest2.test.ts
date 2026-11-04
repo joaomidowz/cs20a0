@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { chooseStartingOrg, createPlayerCareer, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 import { careerMapPool, runSceneEvent, startSceneEvent } from '../src/lib/game/playerCareer/live';
-import { clutchStory, DECISION_MATRIX } from '../src/lib/game/playerCareer/decisions';
+import { clutchStory, DECISION_MATRIX, SHARED_SITUATIONS } from '../src/lib/game/playerCareer/decisions';
 import { matesOf } from '../src/lib/game/playerCareer/squad';
 
 function careerAtRealOrg(seed: string): PlayerCareerState {
@@ -42,7 +42,7 @@ describe('a vaga tomada', () => {
 
 describe('história do round decisivo', () => {
   it('conjuga a call: nunca "você" + infinitivo', () => {
-    for (const situation of Object.values(DECISION_MATRIX).flat()) {
+    for (const situation of [...Object.values(DECISION_MATRIX).flat(), ...SHARED_SITUATIONS]) {
       for (const alternative of situation.alternatives) {
         for (const won of [true, false]) {
           const story = clutchStory(alternative.profile, alternative.text, won, 1);

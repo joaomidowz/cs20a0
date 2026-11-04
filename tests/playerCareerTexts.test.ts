@@ -2,7 +2,7 @@
 // Textos da Carreira de Jogador sem travessão: origens, funções, nomes de campeonato, histórias da call e falas.
 import { describe, expect, it } from 'vitest';
 import { ARCHETYPES, ROLE_META, chooseStartingOrg, createPlayerCareer, startSeason } from '../src/lib/game/playerCareer/engine';
-import { clutchStory, DECISION_MATRIX } from '../src/lib/game/playerCareer/decisions';
+import { clutchStory, DECISION_MATRIX, SHARED_SITUATIONS } from '../src/lib/game/playerCareer/decisions';
 import { talkTo, matesOf } from '../src/lib/game/playerCareer/squad';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 
@@ -25,7 +25,7 @@ describe('textos sem travessão', () => {
   });
 
   it('histórias da call', () => {
-    for (const situation of Object.values(DECISION_MATRIX).flat()) {
+    for (const situation of [...Object.values(DECISION_MATRIX).flat(), ...SHARED_SITUATIONS]) {
       for (const alternative of situation.alternatives) {
         for (const won of [true, false]) expect(clutchStory(alternative.profile, alternative.text, won, 2)).not.toMatch(DASH);
       }

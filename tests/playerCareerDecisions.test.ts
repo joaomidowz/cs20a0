@@ -1,40 +1,48 @@
 // tests/playerCareerDecisions.test.ts
-// Contrato da matriz de decisões do CS2 (6 funções × 10 situações × 3 alternativas): textos verbatim, perfis de
+// Contrato da matriz de decisões do CS2 (45 situações por função + 60 gerais, 3 alternativas cada): textos verbatim, perfis de
 // consequência, sorteio determinístico sem repetição, edge com RNG seeded e o efeito real do edge no round do motor.
 import { describe, expect, it } from 'vitest';
 import { armClutchCall, MAX_CLUTCH_EDGE, createMapState, isMapFinished, playNextRound } from '../src/lib/game/rounds';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { CombatTeam, TeamSide } from '../src/lib/game/types';
-import { DECISION_MATRIX, drawClutchSituation, resolveClutchEdge, type ClutchProfile } from '../src/lib/game/playerCareer/decisions';
+import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, resolveClutchEdge, situationsFor, type ClutchProfile } from '../src/lib/game/playerCareer/decisions';
 import { clutchGate, playClutchRound, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
 import { chooseStartingOrg, createPlayerCareer, startSeason } from '../src/lib/game/playerCareer/engine';
 
 const ROLES = ['awper', 'rifler', 'entry', 'support', 'lurker', 'igl'] as const;
 
-describe('matriz de decisões (6 × 10 × 3)', () => {
-  it('cobre as 6 funções com 10 situações de 3 alternativas cada, ids únicos e textos preenchidos', () => {
+describe('matriz de decisões (6 funções × 45 + 60 gerais)', () => {
+  it('cada função tem 45 próprias e sorteia de mais de 100; ids únicos, 3 alternativas e os 4 perfis', () => {
     expect(Object.keys(DECISION_MATRIX).sort()).toEqual([...ROLES].sort());
     const allIds = new Set<string>();
     const profiles: ClutchProfile[] = ['solid', 'read', 'gamble', 'team'];
-    let alternatives = 0;
+    const check = (situation: (typeof SHARED_SITUATIONS)[number]) => {
+      expect(situation.text.length).toBeGreaterThan(3);
+      expect(situation.text).not.toMatch(/—|\|/);
+      expect(allIds.has(situation.id)).toBe(false);
+      allIds.add(situation.id);
+      expect(situation.alternatives).toHaveLength(3);
+      for (const alternative of situation.alternatives) {
+        expect(alternative.text.length).toBeGreaterThan(2);
+        expect(alternative.text).not.toMatch(/—|:/);
+        expect(profiles).toContain(alternative.profile);
+      }
+    };
     for (const role of ROLES) {
       const situations = DECISION_MATRIX[role];
-      expect(situations).toHaveLength(10);
+      expect(situations).toHaveLength(45);
+      expect(situations[0].id).toBe(`${role}-1`);
       for (const situation of situations) {
         expect(situation.role).toBe(role);
-        expect(situation.text.length).toBeGreaterThan(3);
-        expect(allIds.has(situation.id)).toBe(false);
-        allIds.add(situation.id);
-        expect(situation.alternatives).toHaveLength(3);
-        for (const alternative of situation.alternatives) {
-          expect(alternative.text.length).toBeGreaterThan(2);
-          expect(profiles).toContain(alternative.profile);
-          alternatives += 1;
-        }
+        check(situation);
       }
+      const pool = situationsFor(role);
+      expect(pool.length).toBeGreaterThanOrEqual(100);
+      expect(new Set(pool.flatMap((situation) => situation.alternatives.map((alternative) => alternative.profile))).size).toBe(4);
     }
-    expect(allIds.size).toBe(60);
-    expect(alternatives).toBe(180);
+    expect(SHARED_SITUATIONS).toHaveLength(60);
+    for (const situation of SHARED_SITUATIONS) check(situation);
+    expect(allIds.size).toBe(6 * 45 + 60);
   });
 
   it('o sorteio é determinístico e não repete situação até esgotar a função', () => {
@@ -48,7 +56,8 @@ describe('matriz de decisões (6 × 10 × 3)', () => {
       seen.add(situation.id);
       used.push(situation.id);
     }
-    expect(used).toHaveLength(10); // as 10 do IGL, sem repetir
+    expect(used).toHaveLength(10); // 10 sorteios do IGL, sem repetir
+    for (const situation of used.map((id) => situationsFor('igl').find((candidate) => candidate.id === id)!)) expect(situation).toBeTruthy();
   });
 
   it('edge fica sempre dentro do teto: solid empurra, read escala com o nível, gamble é moeda, time segue o elenco', () => {
