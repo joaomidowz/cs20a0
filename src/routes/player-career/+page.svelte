@@ -875,6 +875,14 @@
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
   $: liveStageNow = live && liveStage ? userStage(live) ?? liveStage : null;
+  // Fogo em volta do jogo: prorrogação ou mapa decidido por um round esquentam; campeão pega fogo de verdade.
+  $: liveChampion = Boolean(live?.finished && live.run.champion);
+  $: hardGame = (() => {
+    const map = liveUserSeries?.current?.state;
+    if (!map || liveUserSeries?.phase !== 'live') return false;
+    const total = map.scoreA + map.scoreB;
+    return total >= 24 || (total >= 20 && Math.abs(map.scoreA - map.scoreB) <= 1 && Math.max(map.scoreA, map.scoreB) >= 11);
+  })();
   $: liveAwards = overviewOpen && live ? awardsSoFar(live) : null;
   $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
@@ -1262,6 +1270,8 @@
           {/if}
 
           {#if viewerSeries && liveUserSeries}
+            <div class="fire-frame" class:hot={hardGame} class:champion={liveChampion}>
+            {#if liveChampion}<span class="fire-banner">Campeão · {career.calendar?.[liveIndex]?.name}</span>{/if}
             {#key liveUserSeries.config.id}
               <SeriesViewer
                 series={viewerSeries}
@@ -1320,6 +1330,7 @@
                 </svelte:fragment>
               </SeriesViewer>
             {/key}
+            </div>
           {:else if !liveOver}
             <p class="chip-note">Chave correndo…</p>
           {/if}
@@ -1688,7 +1699,15 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
-        <p class="opp-maps">Mapas fortes: <b>{mapsLine(oppMaps)}</b> · costuma banir <b>{oppMaps.at(-1)?.name ?? ''}</b>{#if myMaps.length} · o seu melhor: <b>{myMaps[0].name}</b>{/if}</p>
+        <div class="opp-maps" aria-label="Mapas do adversário, do mais forte para o mais fraco">
+          {#each oppMaps as map, mapIndex (map.mapId)}
+            <span class="opp-map" class:best={mapIndex === 0} class:ban={mapIndex === oppMaps.length - 1} style={`--map: url(/maps/${map.mapId}.webp); --glow: ${Math.max(0, 1 - mapIndex * 0.28)}; opacity: ${Math.max(0.45, 1 - mapIndex * 0.09)}`}>
+              <b>{map.name}</b>
+              <span>{map.score}{#if map.affinity !== 'EVEN'} · {map.affinity}{/if}{#if mapIndex === oppMaps.length - 1} · bane{/if}</span>
+            </span>
+          {/each}
+        </div>
+        {#if myMaps.length}<p class="opp-maps-note">O seu melhor: <b>{myMaps[0].name} ({myMaps[0].score})</b>. Mapa deles que é o seu forte vira briga de veto.</p>{/if}
         <div class="opp-strip">
           {#each opponentRoster as player (player.id)}
             <CareerCard {player} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={opponentOrg.name} />
@@ -2374,13 +2393,65 @@
   .map-chip .mc-bar { display: block; height: 3px; background: color-mix(in srgb, var(--line) 80%, transparent); }
   .map-chip .mc-bar i { display: block; height: 100%; background: var(--muted); }
   .map-chip.top .mc-bar i { background: var(--accent); }
+  .map-chip:first-child { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); animation: mapGlow 2.4s ease-in-out infinite; }
   .map-chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .map-chip:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
   .map-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .map-chip:disabled { cursor: not-allowed; opacity: .55; }
   .map-go { align-self: stretch; min-height: 0; padding: 0 14px; white-space: nowrap; }
-  .opp-maps { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
-  .opp-maps b { color: var(--text); }
+  /* Mapas do adversário em ordem: o mais forte brilha, os outros vão apagando; o último é o que ele bane. */
+  .opp-maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; margin: 0 0 6px; }
+  .opp-map { position: relative; display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); overflow: hidden;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, transparent), color-mix(in srgb, var(--surface) 62%, transparent)), var(--map) center / cover;
+    box-shadow: 0 0 calc(18px * var(--glow)) color-mix(in srgb, var(--accent) calc(60% * var(--glow)), transparent); }
+  .opp-map b { font: 800 13px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+  .opp-map span { color: var(--muted); font: 700 11px/1 var(--body); font-variant-numeric: tabular-nums; }
+  .opp-map.best { border-color: var(--accent); animation: mapGlow 2.4s ease-in-out infinite; }
+  .opp-map.best span { color: var(--accent); }
+  .opp-map.ban { border-style: dashed; }
+  .opp-map.ban span { color: var(--accent-2); }
+  @keyframes mapGlow { 0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent); } 50% { box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 75%, transparent); } }
+  .opp-maps-note { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .opp-maps-note b { color: var(--text); }
+
+  /* Fogo em volta do jogo: jogo duro esquenta, título pega fogo. */
+  .fire-frame { position: relative; display: grid; gap: 8px; border-radius: 2px; }
+  .fire-frame.hot::before, .fire-frame.champion::before {
+    content: ''; position: absolute; inset: -6px; z-index: 0; pointer-events: none; border-radius: 4px;
+    background:
+      radial-gradient(60% 30% at 15% 100%, rgba(255, 120, 20, .55), transparent 70%),
+      radial-gradient(50% 28% at 55% 100%, rgba(255, 70, 10, .5), transparent 70%),
+      radial-gradient(55% 30% at 90% 100%, rgba(255, 160, 40, .5), transparent 70%),
+      radial-gradient(40% 22% at 0% 50%, rgba(255, 90, 10, .35), transparent 70%),
+      radial-gradient(40% 22% at 100% 50%, rgba(255, 90, 10, .35), transparent 70%);
+    filter: blur(6px);
+    animation: flicker 1.1s ease-in-out infinite alternate;
+  }
+  .fire-frame.champion::before {
+    inset: -12px;
+    background:
+      radial-gradient(60% 40% at 10% 100%, rgba(255, 140, 20, .8), transparent 70%),
+      radial-gradient(55% 45% at 40% 100%, rgba(255, 60, 0, .75), transparent 70%),
+      radial-gradient(55% 45% at 70% 100%, rgba(255, 190, 40, .75), transparent 70%),
+      radial-gradient(60% 40% at 100% 100%, rgba(255, 90, 10, .8), transparent 70%),
+      radial-gradient(35% 50% at 0% 40%, rgba(255, 120, 20, .55), transparent 70%),
+      radial-gradient(35% 50% at 100% 40%, rgba(255, 120, 20, .55), transparent 70%),
+      radial-gradient(70% 25% at 50% 0%, rgba(255, 200, 60, .45), transparent 70%);
+    animation-duration: .7s;
+  }
+  .fire-frame > :global(*) { position: relative; z-index: 1; }
+  .fire-frame.hot { box-shadow: 0 0 0 1px rgba(255, 120, 20, .6); }
+  .fire-frame.champion { box-shadow: 0 0 0 2px var(--gold), 0 0 40px rgba(255, 140, 20, .45); }
+  .fire-banner { justify-self: center; padding: 6px 14px; border: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); color: var(--gold); font: 900 16px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; animation: bannerIn .5s ease-out both; }
+  @keyframes flicker {
+    0% { opacity: .75; transform: translateY(0) scaleY(1); }
+    50% { opacity: 1; transform: translateY(-2px) scaleY(1.03); }
+    100% { opacity: .85; transform: translateY(-1px) scaleY(1.06); }
+  }
+  @keyframes bannerIn { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fire-frame.hot::before, .fire-frame.champion::before, .opp-map.best, .fire-banner { animation: none; }
+  }
   .lang-chip.warn { color: var(--accent-2); }
   .warn-text { color: var(--accent-2); }
   .offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
