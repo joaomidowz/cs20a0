@@ -10,7 +10,7 @@ import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
 import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
 import rawFills from '$lib/data/cs/career-slot-fills.game.json';
-import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
+import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
 export interface SceneRosterMember {
@@ -74,7 +74,7 @@ const roleId = (raw: string | undefined) => {
   return 'rifler';
 };
 
-interface SlotFill { team: string; slotRole: string; nick: string; country: string | null; birthYear: number | null }
+interface SlotFill { team: string; slotRole: string; nick: string; country: string | null; birthYear: number | null; /** Função nova, quando o usuário indicou outra. */ role?: string }
 const FILLS = (rawFills as unknown as { fills: SlotFill[] }).fills;
 
 /** Troca nomes gerados pelas sugestões do usuário, só quando o jogador está livre (não joga em outro time, não foi
@@ -90,7 +90,7 @@ function applyFills(orgs: Map<string, SceneOrg>) {
     const slot = slots.find((member) => roleId(member.roles[0]) === roleId(fill.slotRole)) ?? slots[0];
     if (!slot) continue;
     taken.add(nick);
-    const member: SceneRosterMember = { nick: fill.nick, country: fill.country, birthDate: fill.birthYear ? `${fill.birthYear}-07-01` : null, roles: slot.roles, catalogBaseId: null, prospect: null };
+    const member: SceneRosterMember = { nick: fill.nick, country: fill.country, birthDate: fill.birthYear ? `${fill.birthYear}-07-01` : null, roles: fill.role ? [roleId(fill.role)] : slot.roles, catalogBaseId: null, prospect: null };
     orgs.set(teamKey(fill.team), { ...org, roster: org.roster.map((other) => (other === slot ? member : other)) });
   }
 }
@@ -137,6 +137,12 @@ const normalized = (() => {
   const alias = new Map<string, string>();
   // Times coletados sem elenco: a planilha do usuário, ou jogadores gerados (país pelo circuito que jogaram).
   reserveNicks(scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)));
+  // O gerador não cria sósia de ninguém real: cena, catálogo inteiro (lendas incluídas), sugestões e promessas.
+  reserveLookalikes([
+    ...scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)),
+    ...(rawPlayers as Array<{ nickname?: string }>).flatMap((player) => (player.nickname ? [player.nickname] : [])),
+    ...FILLS.map((fill) => fill.nick)
+  ]);
   setStayRule(staysIn);
   const collected = scene.orgs.map((org): SceneOrg => {
     if (org.roster.length >= 5) return org;

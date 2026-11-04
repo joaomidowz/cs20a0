@@ -1,5 +1,5 @@
 {
- "source": "vagas-carreira-168-preenchidas-provisorio.csv do usuário (sugestões provisórias). Só entra quem não joga em outro time nem foi resolvido para outro time.",
+ "source": "Sugestões do usuário para as vagas (vagas-carreira-168-preenchidas-provisorio.csv e vagas-restantes-carreira-triagem.csv). Só entra quem não joga em outro time nem foi resolvido para outro time.",
  "fills": [
   {
    "team": "100t",
@@ -1162,6 +1162,366 @@
    "nick": "snow",
    "country": "Brazil",
    "birthYear": 2007
+  },
+  {
+   "team": "Cloud9",
+   "slotRole": "igl",
+   "nick": "nafany",
+   "country": "Russia",
+   "birthYear": 2001
+  },
+  {
+   "team": "Eternal Fire",
+   "slotRole": "igl",
+   "nick": "paz",
+   "country": "Turkey",
+   "birthYear": null
+  },
+  {
+   "team": "FaZe Clan",
+   "slotRole": "rifler",
+   "nick": "YEKINDAR",
+   "country": "Latvia",
+   "birthYear": 1999,
+   "role": "entry"
+  },
+  {
+   "team": "KOI",
+   "slotRole": "igl",
+   "nick": "dav1g",
+   "country": "Spain",
+   "birthYear": 2001,
+   "role": "entry"
+  },
+  {
+   "team": "KOI",
+   "slotRole": "rifler",
+   "nick": "sausol",
+   "country": "Spain",
+   "birthYear": null
+  },
+  {
+   "team": "00 Nation",
+   "slotRole": "awp",
+   "nick": "nqz",
+   "country": "Brazil",
+   "birthYear": 2005
+  },
+  {
+   "team": "Astralis Talent",
+   "slotRole": "rifler",
+   "nick": "Zyphon",
+   "country": "Denmark",
+   "birthYear": 2004,
+   "role": "lurker"
+  },
+  {
+   "team": "BESTIA",
+   "slotRole": "rifler",
+   "nick": "deco",
+   "country": "Argentina",
+   "birthYear": null
+  },
+  {
+   "team": "Case Esports",
+   "slotRole": "rifler",
+   "nick": "honda",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Dusty Roots",
+   "slotRole": "rifler",
+   "nick": "luchov",
+   "country": "Argentina",
+   "birthYear": null
+  },
+  {
+   "team": "Endpoint",
+   "slotRole": "lurker",
+   "nick": "volt",
+   "country": "Romania",
+   "birthYear": null
+  },
+  {
+   "team": "K23",
+   "slotRole": "entry",
+   "nick": "neaLaN",
+   "country": "Kazakhstan",
+   "birthYear": null
+  },
+  {
+   "team": "NAVI Junior",
+   "slotRole": "entry",
+   "nick": "DemQQ",
+   "country": "Ukraine",
+   "birthYear": null
+  },
+  {
+   "team": "Wings Up",
+   "slotRole": "rifler",
+   "nick": "somebody",
+   "country": "China",
+   "birthYear": null
+  },
+  {
+   "team": "Wings Up",
+   "slotRole": "entry",
+   "nick": "Moseyuh",
+   "country": "China",
+   "birthYear": null
+  },
+  {
+   "team": "Wings Up",
+   "slotRole": "lurker",
+   "nick": "aumaN",
+   "country": "China",
+   "birthYear": null
+  },
+  {
+   "team": "Young Ninjas",
+   "slotRole": "entry",
+   "nick": "hampus",
+   "country": "Sweden",
+   "birthYear": null
+  },
+  {
+   "team": "5star eSports",
+   "slotRole": "igl",
+   "nick": "controlez",
+   "country": "Mongolia",
+   "birthYear": null
+  },
+  {
+   "team": "Alzon",
+   "slotRole": "rifler",
+   "nick": "b2r",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Back to Back",
+   "slotRole": "AWP",
+   "nick": "kNgV-",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "BASEMENT BOYS",
+   "slotRole": "rifle",
+   "nick": "s4",
+   "country": "Ukraine",
+   "birthYear": null
+  },
+  {
+   "team": "Blitzkrieg (Mexican team)",
+   "slotRole": "entry",
+   "nick": "Maluk3",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Bounty Hunters Esports",
+   "slotRole": "entry",
+   "nick": "naitte",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Bravos",
+   "slotRole": "entry",
+   "nick": "LUCAS1",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Crashers",
+   "slotRole": "rifler",
+   "nick": "kauez",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "ECSTATIC",
+   "slotRole": "igl",
+   "nick": "MSL",
+   "country": "Denmark",
+   "birthYear": null
+  },
+  {
+   "team": "ex-ENCE",
+   "slotRole": "rifle",
+   "nick": "dycha",
+   "country": "Poland",
+   "birthYear": null
+  },
+  {
+   "team": "ex-KRÜ Esports",
+   "slotRole": "rifler",
+   "nick": "KUN",
+   "country": "Argentina",
+   "birthYear": null
+  },
+  {
+   "team": "ex-Vexa E-Sports",
+   "slotRole": "rifler",
+   "nick": "vLa",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Fake do Biru",
+   "slotRole": "rifle",
+   "nick": "REDSTAR",
+   "country": "Bulgaria",
+   "birthYear": null
+  },
+  {
+   "team": "Galorys",
+   "slotRole": "support",
+   "nick": "slowi",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Imperial Esports",
+   "slotRole": "awp",
+   "nick": "cerq",
+   "country": "Bulgaria",
+   "birthYear": null
+  },
+  {
+   "team": "insane players",
+   "slotRole": "rifler",
+   "nick": "jitter",
+   "country": "United States",
+   "birthYear": null
+  },
+  {
+   "team": "Life's A Game",
+   "slotRole": "Rifle",
+   "nick": "CLASIA",
+   "country": "United States",
+   "birthYear": null
+  },
+  {
+   "team": "Life's A Game",
+   "slotRole": "igl",
+   "nick": "cynic",
+   "country": "United States",
+   "birthYear": null
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "rifler",
+   "nick": "frosty",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "rifler",
+   "nick": "roz",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Los Niños",
+   "slotRole": "rifler",
+   "nick": "pedrin",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Low Cortisol",
+   "slotRole": "rifler",
+   "nick": "r4ul",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Martians",
+   "slotRole": "igl",
+   "nick": "malta",
+   "country": "Australia",
+   "birthYear": null
+  },
+  {
+   "team": "Metizport",
+   "slotRole": "rifle",
+   "nick": "ztr",
+   "country": "Sweden",
+   "birthYear": null
+  },
+  {
+   "team": "MIBR Academy",
+   "slotRole": "rifler",
+   "nick": "venom",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "MIRA",
+   "slotRole": "rifler",
+   "nick": "fnx",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "NEXVOID",
+   "slotRole": "rifle",
+   "nick": "dobu",
+   "country": "Mongolia",
+   "birthYear": null
+  },
+  {
+   "team": "OverKnight",
+   "slotRole": "entry",
+   "nick": "FASHR",
+   "country": "Netherlands",
+   "birthYear": null
+  },
+  {
+   "team": "OverKnight",
+   "slotRole": "rifler",
+   "nick": "d0cC",
+   "country": "Netherlands",
+   "birthYear": null
+  },
+  {
+   "team": "Paquetá",
+   "slotRole": "awp",
+   "nick": "zqk",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Paquetá",
+   "slotRole": "entry",
+   "nick": "SHiPZ",
+   "country": "Bulgaria",
+   "birthYear": null
+  },
+  {
+   "team": "Players",
+   "slotRole": "rifler",
+   "nick": "doc",
+   "country": "Brazil",
+   "birthYear": null
+  },
+  {
+   "team": "Revenant",
+   "slotRole": "lurker",
+   "nick": "hAdji",
+   "country": "France",
+   "birthYear": null
+  },
+  {
+   "team": "ShindeN",
+   "slotRole": "igl",
+   "nick": "tge",
+   "country": "Argentina",
+   "birthYear": null
   }
  ]
 }

@@ -40,6 +40,7 @@ function sheetRosterOrNull(team: SheetTeam): SceneRosterMember[] | null {
       continue;
     }
     usedNicks.add(entry.nick.toLowerCase());
+    reserveLookalikes([entry.nick]);
     members.push({ nick: entry.nick, country: countryOf(entry.country), birthDate: entry.birthYear ? `${entry.birthYear}-07-01` : null, roles: [entry.role], catalogBaseId: null, prospect: null });
   }
   if (team.roster.length - members.length >= 4) return null;
@@ -100,6 +101,31 @@ function rngOf(text: string): () => number {
 const pick = <T>(list: T[], rng: () => number) => list[Math.floor(rng() * list.length)];
 const leet = (text: string, rng: () => number) => [...text].map((char) => (rng() < 0.35 && LEET[char.toLowerCase()] ? LEET[char.toLowerCase()] : char)).join('');
 
+/** A "cara" de um nick, para não gerar sósia de jogador real: sem prefixo/sufixo do gerador, sem leetspeak, só
+ *  letras ("k3_sasha" e "sasha", "Nitr0" e "nitr0", "Taz" e "TaZ" têm a mesma cara). */
+const DELEET: Record<string, string> = { '3': 'e', '4': 'a', '0': 'o', '1': 'i', '5': 's', z: 's' };
+const SUFFIXES_BY_LENGTH = [...SUFFIXES].sort((a, b) => b.length - a.length);
+export function faceOf(nick: string, generated = false): string {
+  let value = nick.toLowerCase();
+  if (generated) {
+    const prefix = PREFIXES.find((candidate) => value.startsWith(candidate));
+    if (prefix) value = value.slice(prefix.length);
+    const suffix = SUFFIXES_BY_LENGTH.find((candidate) => value.endsWith(candidate.toLowerCase()) && value.length > candidate.length + 1);
+    if (suffix) value = value.slice(0, -suffix.length);
+  }
+  return [...value].map((char) => DELEET[char] ?? char).join('').replace(/[^a-z]/g, '');
+}
+
+/** Caras de todo jogador real conhecido (cena, catálogo, planilhas, promessas): o gerador não repete nenhuma. */
+const realFaces = new Set<string>();
+export function reserveLookalikes(nicks: string[]) {
+  for (const nick of nicks) {
+    const face = faceOf(nick);
+    if (face.length >= 2) realFaces.add(face);
+  }
+}
+const looksReal = (nick: string) => realFaces.has(faceOf(nick, true)) || realFaces.has(faceOf(nick));
+
 function generateNick(rng: () => number): string {
   const style = pick(['simple', 'leet', 'prefixed', 'suffixed', 'combo'], rng);
   const base = pick(ROOT_WORDS, rng);
@@ -114,6 +140,8 @@ function generateNick(rng: () => number): string {
 const usedNicks = new Set<string>((rawProspects as unknown as { prospects: Array<{ nick: string }> }).prospects.map((kid) => kid.nick.toLowerCase()));
 const PROSPECT_NICKS = new Set((rawProspects as unknown as { prospects: Array<{ nick: string }> }).prospects.map((kid) => kid.nick.toLowerCase()));
 export const isProspectNick = (nick: string) => PROSPECT_NICKS.has(nick.toLowerCase());
+// Promessas e toda a planilha entram antes de qualquer geração (a ordem dos times não pode criar sósia).
+reserveLookalikes([...PROSPECT_NICKS, ...SHEET.flatMap((team) => team.roster.map((entry) => entry.nick))]);
 
 export function reserveNicks(nicks: string[]) {
   for (const nick of nicks) usedNicks.add(nick.toLowerCase());
@@ -135,9 +163,9 @@ export function generatedRoster(teamName: string, country: string | null, known:
     usedNicks.add(nick.toLowerCase());
     members.push({ nick, country, birthDate: null, roles: [roles[members.length]], catalogBaseId: null, prospect: null });
   }
-  for (let guard = 0; members.length < 5 && guard < 200; guard += 1) {
+  for (let guard = 0; members.length < 5 && guard < 400; guard += 1) {
     const nick = generateNick(rng);
-    if (usedNicks.has(nick.toLowerCase())) continue;
+    if (usedNicks.has(nick.toLowerCase()) || looksReal(nick)) continue;
     usedNicks.add(nick.toLowerCase());
     members.push({ nick, country, birthDate: null, roles: [roles[members.length]], catalogBaseId: null, prospect: null, generated: true });
   }

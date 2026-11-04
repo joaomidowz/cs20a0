@@ -115,4 +115,14 @@ describe('elencos da planilha do usuário', () => {
     expect(real.length - new Set(real).size).toBe(0);
     expect(sceneOrgs.flatMap((org) => org.roster.filter((member) => member.generated)).length).toBeLessThan(120);
   });
+
+  it('nome gerado nunca é sósia de jogador real (sem "k3_sasha", "Nitr0", "Taz")', async () => {
+    const { faceOf } = await import('../src/lib/game/playerCareer/extraTeams');
+    const realFaces = new Set(sceneOrgs.flatMap((org) => org.roster.filter((member) => !member.generated).map((member) => faceOf(member.nick))));
+    for (const legend of ['sasha', 'nitr0', 'TaZ', 'tatu', 'FalleN', 's1mple']) realFaces.add(faceOf(legend));
+    const generated = sceneOrgs.flatMap((org) => org.roster.filter((member) => member.generated));
+    expect(generated.length).toBeGreaterThan(0);
+    for (const member of generated) expect(realFaces.has(faceOf(member.nick, true)), member.nick).toBe(false);
+  });
 });
+
