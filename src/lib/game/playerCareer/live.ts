@@ -17,7 +17,7 @@ import {
   type CampaignMajorState
 } from '../campaign-major';
 import type { LiveSeriesState } from '../online/live-series';
-import { armClutchCall } from '../rounds';
+import { armClutchCall, getCurrentSideA } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
 import { drawClutchSituation, resolveClutchEdge } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
@@ -265,6 +265,13 @@ export function eventTeams(state: PlayerCareerState, eventIndex: number): Array<
   });
 }
 
+/** Posição do time no ranking mundial da carreira (força da temporada, sem a oscilação do VRS). */
+export function worldRankOf(state: PlayerCareerState, orgId: string): number {
+  const powerOf = (id: string) => (orgOf(id, state) as SceneOrg).power ?? ORG_BASE_POWER[orgOf(id, state).level] ?? 60;
+  const mine = powerOf(orgId);
+  return 1 + sceneOrgs.filter((org) => org.id !== orgId && powerOf(org.id) > mine).length;
+}
+
 /** Quem espera direto no Stage 3 (o top 8 do ranking). */
 export const majorInvites = (state: PlayerCareerState): SceneOrg[] => majorRanking(state).slice(0, 8);
 
@@ -411,6 +418,16 @@ export interface SceneStepResult {
   clutch: SceneClutchMoment | null;
 }
 
+/** O lado do seu time no próximo round da série (CT ou TR). */
+function userSideOf(campaign: CampaignMajorState, live: LiveSeriesState): 't' | 'ct' | null {
+  const map = live.current?.state;
+  if (!map) return null;
+  const sideA = getCurrentSideA(map);
+  if (!sideA) return null;
+  const userIsA = live.config.teamA.id === campaign.userTeamId;
+  return userIsA ? sideA : sideA === 'ct' ? 't' : 'ct';
+}
+
 /** Um passo do evento: rounds das outras séries rodam sozinhos; a sua anda um round por vez. */
 export function stepSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchContext): SceneStepResult {
   let next = campaign;
@@ -429,7 +446,7 @@ export function stepSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchCo
       return {
         campaign: next,
         clutch: {
-          situation: drawClutchSituation(ctx.role, drawSeed, ctx.usedSituationIds),
+          situation: drawClutchSituation(ctx.role, drawSeed, ctx.usedSituationIds, userSideOf(next, live)),
           series: live,
           mapIndex: live.current?.index ?? 0,
           roundNumber,
@@ -533,7 +550,7 @@ export function awardsSoFar(campaign: CampaignMajorState) {
   return computeMajorAwards(result.rounds, result.championId);
 }
 
-export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[] }
+export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[]; highlights?: PlayHighlight[]; opponents?: TournamentResult['opponents']; stages?: TournamentResult['stages'] }
 
 /**
  * Prêmios do evento pelo kill feed de TODAS as séries (o motor joga o campo inteiro): campeão, MVP (o mesmo
@@ -552,7 +569,21 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
   const highlights = playHighlights(series, me, campaign, myTeam);
   const opponents = series
     .filter((item) => item.winnerId && (isUserTeam(campaign, item.teamA.id) || isUserTeam(campaign, item.teamB.id)))
-    .map((item) => ({ team: isUserTeam(campaign, item.teamA.id) ? item.teamB.name : item.teamA.name, won: isUserTeam(campaign, item.winnerId) }));
+    .map((item) => {
+      const userIsA = isUserTeam(campaign, item.teamA.id);
+      return {
+        team: userIsA ? item.teamB.name : item.teamA.name, won: isUserTeam(campaign, item.winnerId), phase: item.phase,
+        score: userIsA ? `${item.scoreA}-${item.scoreB}` : `${item.scoreB}-${item.scoreA}`
+      };
+    });
+  // Major: a tabela final de cada stage (para rever o Major depois).
+  const stages = result.stages?.map((entry) => ({
+    stage: entry.stage,
+    standings: entry.standings.map((standing) => ({
+      name: isUserTeam(campaign, standing.organizationId) ? myTeam : standing.name, wins: standing.wins, losses: standing.losses, status: standing.status,
+      ...(isUserTeam(campaign, standing.organizationId) ? { you: true } : {})
+    }))
+  }));
   const bracket: BracketLine[] = series
     .filter((item): item is typeof item & { phase: BracketLine['phase'] } => item.phase === 'quarterfinal' || item.phase === 'semifinal' || item.phase === 'final')
     .map((item) => ({
@@ -575,7 +606,8 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ...(plays.aces + plays.quads + plays.clutches > 0 ? { plays } : {}),
     ...(bracket.length ? { bracket } : {}),
     ...(highlights.length ? { highlights } : {}),
-    ...(opponents.length ? { opponents } : {})
+    ...(opponents.length ? { opponents } : {}),
+    ...(stages?.length ? { stages } : {})
   };
 }
 

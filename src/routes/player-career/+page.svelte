@@ -14,6 +14,7 @@
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
   import TeamBadge from '$lib/components/TeamBadge.svelte';
+  import CareerHltvTop from '$lib/components/CareerHltvTop.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
   import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
@@ -23,13 +24,13 @@
   import { MAP_NAMES } from '$lib/game/maps';
   import { toSeriesResult } from '$lib/game/online/live-series';
   import { createRunStats } from '$lib/game/runStats';
-  import { clutchStory, type ClutchProfile } from '$lib/game/playerCareer/decisions';
+  import { clutchStory, situationBomb, type ClutchProfile } from '$lib/game/playerCareer/decisions';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
@@ -80,6 +81,7 @@
   const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora' };
   /** Colocação → chave de CSS sem espaço nem acento. */
   const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora' };
+  const REGION_LABEL: Record<string, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
   const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
   const FORMAT_TEXT = (entry: { format?: string; finalBestOf?: number } | null | undefined) =>
@@ -153,6 +155,8 @@
   /** Treino livre: as habilidades marcadas (até 4). */
   let pickedSkills: TrainedAttribute[] = [];
   let mapPick: MapId | '' = '';
+  let sheetStageTab: string | null = null;
+  const PHASE_LABEL: Record<string, string> = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', quarterfinal: 'Quartas', semifinal: 'Semis', final: 'Final' };
   /** O que aconteceu na semana (escolha feita) e o último retorno do coach. */
   let weekLine: string | null = null;
   let weekChips: AgendaChip[] = [];
@@ -231,6 +235,7 @@
 
   function openEvent(index: number) {
     eventSheet = index;
+    sheetStageTab = null;
     document.body.classList.add('modal-open');
   }
 
@@ -464,7 +469,12 @@
   function choose(orgId: string) { if (career) career = acceptOffer(career, orgId); }
   function stay() { if (career) career = stayAtOrg(career); }
   function toLanHouse() { if (career) career = goToLanHouse(career); }
-  function takeMove(orgId: string) { if (career) career = acceptMove(career, orgId); }
+  function takeMove(orgId: string) {
+    if (!career) return;
+    const moved = acceptMove(career, orgId);
+    // Troca no fim do ano (nenhum campeonato pela frente): a temporada fecha na hora.
+    career = moved.calendar?.length && moved.calendar.every((entry) => entry.status === 'PLAYED') ? finishSeason(moved) : moved;
+  }
   function refuseMove() { if (career) career = declineMove(career); }
   function hangTheMouse() { if (career) career = retire(career); }
   function reset() {
@@ -848,10 +858,15 @@
     ? (liveUserSeries.config.teamA.id === live.userTeamId ? liveUserSeries.config.teamB : liveUserSeries.config.teamA)
     : null;
   $: opponentOrg = opponentOrgId ? sceneOrgById.get(opponentOrgId) ?? null : null;
-  $: oppMaps = career && opponentOrg ? mapProfile(opponentOrg.id, career.year, careerMapPool(career.year)) : [];
+  $: oppMaps = career && opponentOrg ? (viewingOwn ? myMaps : mapProfile(opponentOrg.id, career.year, careerMapPool(career.year))) : [];
+  $: viewingOwn = Boolean(career && opponentOrgId === career.orgId);
+  // O seu time: você e os 4 parceiros (com sinergia); adversário: o elenco da temporada no mundo da carreira.
   $: opponentRoster = career && opponentOrg
-    ? sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
+    ? viewingOwn ? userEnginePlayers(career) : sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
     : [];
+  $: oppRank = career && opponentOrg ? worldRankOf(career, opponentOrg.id) : null;
+  $: oppAverage = opponentRoster.length ? Math.round(opponentRoster.reduce((sum, player) => sum + (player.overall ?? 60), 0) / opponentRoster.length) : null;
+  $: oppLanguage = career && opponentOrg ? teamLanguage((orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg).roster) : 'en';
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
@@ -875,6 +890,15 @@
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
   $: liveStageNow = live && liveStage ? userStage(live) ?? liveStage : null;
+  /** O momento do round na call: a decisão é no meio do round (relógio e C4 batem com a situação). */
+  $: clutchMoment = clutch ? (() => {
+    let hash = 0;
+    for (const char of clutch.drawSeed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    const bomb = situationBomb(clutch.situation);
+    if (bomb === 'planted') return { planted: true, text: `C4 plantada · ${8 + (hash % 25)}s para explodir` };
+    const clock = 20 + (hash % 55);
+    return { planted: false, text: `${bomb === 'unplanted' ? 'C4 ainda não plantada · ' : 'Meio do round · '}${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')} no relógio` };
+  })() : null;
   // Fogo em volta do jogo: prorrogação ou mapa decidido por um round esquentam; campeão pega fogo de verdade.
   $: liveChampion = Boolean(live?.finished && live.run.champion);
   $: hardGame = (() => {
@@ -1176,6 +1200,9 @@
                   <button class="link-btn" on:click={() => { roomTab = 'premios'; openTrophies(); }}>Ver Top 20</button>
                 </div>
               {/if}
+              {#if career.blockedOffers?.length}
+                <div class="note warn"><b>Recusaram por causa do inglês</b><span>{career.blockedOffers.map((entry) => `${entry.orgName} (pede ${entry.need})`).join(' · ')}. O seu inglês: {myFluency(career, 'en')}. Aulas de inglês na semana e jogar em time de call em inglês sobem o nível.</span></div>
+              {/if}
               {#if lastLog.moves?.length}
                 <div class="note"><b>Trocas na temporada</b><span>{lastLog.moves.join(' · ')}</span></div>
               {/if}
@@ -1185,6 +1212,9 @@
                 <div class="note"><span>{lastLog.agingNote}</span></div>
               {/if}
             </section>
+            {#if lastLog.hltvTop?.length}
+              <CareerHltvTop year={lastLog.year} top={lastLog.hltvTop} rookie={lastLog.rookie ?? null} myRank={lastLog.hltvRank ?? null} myRating={lastLog.seasonRating} />
+            {/if}
           {/if}
 
           <section aria-label="Janela de mercado">
@@ -1283,8 +1313,8 @@
                 controlledDelay={resolving ? SPEED_DELAYS.normal : SPEED_DELAYS[speed]}
                 offlineEffects={true}
                 userTeamName={orgOf(career.orgId).name}
-                interactiveTeamIds={liveOpponent && liveOpponent.id !== career.orgId ? [liveOpponent.id] : []}
-                onTeamClick={(teamId) => openOpponent(teamId)}
+                interactiveTeamIds={[...(liveOpponent && liveOpponent.id !== career.orgId ? [liveOpponent.id] : []), live.userTeamId, career.orgId]}
+                onTeamClick={(teamId) => openOpponent(teamId === live?.userTeamId || teamId === 'user' ? career?.orgId ?? teamId : teamId)}
                 phaseLabel={`${career.calendar?.[liveIndex]?.name ?? 'Campeonato'} · MD${viewerSeries.bestOf}`}
                 labels={VIEWER_LABELS}
                 onRoundResolved={onViewerRoundResolved}
@@ -1299,7 +1329,7 @@
                         <span class="side-cell right"><span class="money">{money(board.right.money)}</span><b class="side side-{board.right.side}">{sideLabel(board.right.side)}</b></span>
                       </div>
                       <div class="clutch-q">
-                        <p class="eyebrow">Sua call</p>
+                        <p class="eyebrow">Sua call{#if clutchMoment} · <span class="moment" class:planted={clutchMoment.planted}>{clutchMoment.text}</span>{/if}</p>
                         <h2 class="display">{clutch.situation.text}</h2>
                       </div>
                       <div class="calls">
@@ -1360,7 +1390,7 @@
               </div>
               <div class="ss-notes">
                 {#if lastLog.hltvRank}
-                  <p class:up-note={lastLog.hltvRank <= 20}><b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'você é o melhor do mundo!' : `#${lastLog.hltvRank} do mundo`}</b>{lastLog.hltvRank <= 20 ? ' Top 20 da temporada.' : ''}</p>
+                  <p class:up-note={lastLog.hltvRank <= 20}><b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'você é o melhor do mundo!' : `#${lastLog.hltvRank} do mundo`}</b>{lastLog.hltvRank <= 20 ? ' Top 20 da temporada.' : ''} <button class="link-btn" on:click={() => { roomTab = 'premios'; openTrophies(); }}>Ver Top 20</button></p>
                 {/if}
                 {#if lastLog.rookie?.you}
                   <p class="up-note"><b>Rookie of the Year {lastLog.year}.</b> O melhor estreante de Major da temporada.</p>
@@ -1637,6 +1667,40 @@
             <div><dt>Seus mapas</dt><dd>{mapsLine(myMaps)}</dd></div>
           {/if}
         </dl>
+        {#if sheetEntry.result?.opponents?.length}
+          <p class="label">Seus jogos</p>
+          <ol class="my-games">
+            {#each sheetEntry.result.opponents as game, gameIndex (gameIndex)}
+              <li class:won={game.won} class:lost={!game.won}>
+                <span class="mg-phase">{PHASE_LABEL[game.phase ?? ''] ?? 'Série'}</span>
+                <TeamBadge id={game.team} name={game.team} size="sm" />
+                <b class="mg-team">{game.team}</b>
+                <span class="mg-score">{game.score ?? ''}</span>
+                <span class="mg-result">{game.won ? 'Venceu' : 'Perdeu'}</span>
+              </li>
+            {/each}
+          </ol>
+        {/if}
+        {#if sheetEntry.result?.stages?.length}
+          {@const stages = sheetEntry.result.stages}
+          {@const shown = stages.find((entry) => entry.stage === sheetStageTab) ?? stages.find((entry) => entry.standings.some((standing) => standing.you)) ?? stages[stages.length - 1]}
+          <div class="stage-tabs" role="tablist" aria-label="Tabela de cada stage">
+            {#each stages as entry (entry.stage)}
+              <button role="tab" aria-selected={shown.stage === entry.stage} class:on={shown.stage === entry.stage} on:click={() => (sheetStageTab = entry.stage)}>{PHASE_LABEL[entry.stage]}</button>
+            {/each}
+          </div>
+          <ol class="stage-table">
+            {#each shown.standings as standing, standingIndex (standing.name + standingIndex)}
+              <li class:you={standing.you} class:out={standing.status === 'eliminated'}>
+                <span class="st-rank">{standingIndex + 1}</span>
+                <TeamBadge id={standing.name} name={standing.name} size="sm" highlight={standing.you} />
+                <b>{standing.name}{standing.you ? ' · você' : ''}</b>
+                <span class="st-record">{standing.wins}-{standing.losses}</span>
+                <span class="st-status">{standing.status === 'eliminated' ? 'Eliminado' : standing.status === 'champion' ? 'Campeão' : 'Classificado'}</span>
+              </li>
+            {/each}
+          </ol>
+        {/if}
         {#if sheetEntry.result?.bracket?.length}
           {@const bracket = sheetEntry.result.bracket}
           <div class="bracket" aria-label="Mata-mata do campeonato">
@@ -1657,20 +1721,20 @@
         {:else}
         <div class="field">
           {#if sheetEntry.format === 'major' && !sheetStage}<p class="invites">Seu time ainda não tem ranking para o Major: com a temporada atual, ficaria de fora.</p>{/if}
-          {#each sheetTeams as group (group.label)}
+          {#each sheetTeams as group, groupIndex (group.label)}
             <p class="label">{group.label} · {group.teams.length} times</p>
             <ul class="team-grid">
               {#each group.teams as team, rank (team.orgId)}
                 {@const info = teamInfo(team.orgId)}
                 <li>
-                  <button class="team-tile" class:mine={team.isUser} class:rival={career.rival?.orgId === team.orgId} disabled={team.isUser} on:click={() => openOpponent(team.orgId)} title={team.isUser ? 'O seu time' : `Ver o elenco da ${team.name}`}>
+                  <button class="team-tile" class:mine={team.isUser} class:rival={career.rival?.orgId === team.orgId} on:click={() => openOpponent(team.orgId)} title={team.isUser ? 'Ver o seu time' : `Ver o elenco da ${team.name}`}>
                     <TeamBadge id={team.orgId} name={team.name} size="md" highlight={team.isUser} />
                     <span class="tt-main">
                       <b class="tt-name">{team.name}</b>
                       <span class="tt-meta">{LEVEL_LABEL[team.level] ?? `Nível ${team.level}`}{#if info} · {LANGUAGE_LABEL[info.language]}{info.map ? ` · ${info.map}` : ''}{/if}</span>
                       <span class="tt-tags">
                         {#if team.isUser}<span class="tag me">Você</span>{/if}
-                        {#if rank === 0 && !team.isUser}<span class="tag fav">Favorito</span>{/if}
+                        {#if rank === 0 && !team.isUser}<span class="tag" class:fav={groupIndex === 0} class:dog={groupIndex > 0}>{groupIndex === 0 ? 'Favorito' : 'Underdog'}</span>{/if}
                         {#if career.rival?.orgId === team.orgId}<span class="tag rival-tag">Rival</span>{/if}
                       </span>
                     </span>
@@ -1694,23 +1758,33 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeOpponent}>
       <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="opp-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow" id="opp-title">Adversário · {opponentOrg.name} · {LEVEL_LABEL[opponentOrg.level]} · call em {LANGUAGE_LABEL[teamLanguage(opponentOrg.roster)]}</span>
+          <span class="eyebrow" id="opp-title">{viewingOwn ? 'Seu time' : 'Adversário'} · {opponentOrg.name}</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeOpponent}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
-        <div class="opp-maps" aria-label="Mapas do adversário, do mais forte para o mais fraco">
-          {#each oppMaps as map, mapIndex (map.mapId)}
-            <span class="opp-map" class:best={mapIndex === 0} class:ban={mapIndex === oppMaps.length - 1} style={`--map: url(/maps/${map.mapId}.webp); --glow: ${Math.max(0, 1 - mapIndex * 0.28)}; opacity: ${Math.max(0.45, 1 - mapIndex * 0.09)}`}>
+        <div class="opp-head">
+          <TeamBadge id={opponentOrg.id} name={opponentOrg.name} size="lg" highlight={viewingOwn} />
+          <dl class="opp-facts">
+            {#if oppRank}<div><dt>Ranking</dt><dd>#{oppRank}</dd></div>{/if}
+            <div><dt>Tier</dt><dd>{LEVEL_LABEL[orgOf(opponentOrg.id, career).level] ?? '—'}</dd></div>
+            {#if oppAverage}<div><dt>Média</dt><dd>{oppAverage}</dd></div>{/if}
+            <div><dt>Região</dt><dd>{REGION_LABEL[opponentOrg.region ?? 'eu'] ?? '—'}</dd></div>
+            <div><dt>Call</dt><dd>{LANGUAGE_LABEL[oppLanguage]}</dd></div>
+          </dl>
+        </div>
+        <div class="opp-maps" aria-label="Os 3 mapas mais fortes do time">
+          {#each oppMaps.slice(0, 3) as map, mapIndex (map.mapId)}
+            <span class="opp-map" class:best={mapIndex === 0} style={`--map: url(/maps/${map.mapId}.webp); --glow: ${Math.max(0, 1 - mapIndex * 0.4)}; opacity: ${1 - mapIndex * 0.12}`}>
               <b>{map.name}</b>
-              <span>{map.score}{#if map.affinity !== 'EVEN'} · {map.affinity}{/if}{#if mapIndex === oppMaps.length - 1} · bane{/if}</span>
+              <span>{map.score}{#if map.affinity !== 'EVEN'} · {map.affinity}{/if}</span>
             </span>
           {/each}
         </div>
-        {#if myMaps.length}<p class="opp-maps-note">O seu melhor: <b>{myMaps[0].name} ({myMaps[0].score})</b>. Mapa deles que é o seu forte vira briga de veto.</p>{/if}
+        <p class="opp-maps-note">{#if oppMaps.length}Costuma banir <b>{oppMaps.at(-1)?.name}</b>.{/if}{#if !viewingOwn && myMaps.length} O seu melhor: <b>{myMaps[0].name} ({myMaps[0].score})</b>.{/if}</p>
         <div class="opp-strip">
           {#each opponentRoster as player (player.id)}
-            <CareerCard {player} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={opponentOrg.name} />
+            <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
       </div>
@@ -1800,14 +1874,9 @@
                 </li>
               {/each}
             </ol>
-            {@const lastTop = career.history.at(-1)?.hltvTop ?? []}
-            {#if lastTop.length}
-              <p class="label">Top 20 HLTV de {career.history.at(-1)?.year}{career.history.at(-1)?.rookie ? ` · Rookie of the Year: ${career.history.at(-1)?.rookie?.you ? 'você' : `${career.history.at(-1)?.rookie?.nick} (${career.history.at(-1)?.rookie?.team})`}` : ''}</p>
-              <ol class="hltv-top">
-                {#each lastTop as player, rank (player.nick)}
-                  <li class:you={player.you}><span class="ht-rank">{rank + 1}</span><b>{player.you ? `${player.nick} (você)` : player.nick}</b><span class="ht-team">{player.team}</span></li>
-                {/each}
-              </ol>
+            {@const lastLog2 = career.history.at(-1)}
+            {#if lastLog2?.hltvTop?.length}
+              <CareerHltvTop year={lastLog2.year} top={lastLog2.hltvTop} rookie={lastLog2.rookie ?? null} myRank={lastLog2.hltvRank ?? null} myRating={lastLog2.seasonRating} compact={true} />
             {/if}
           {:else}
             <p class="muted-line">O Top 20 HLTV e o Rookie of the Year saem no fim de cada temporada. Rookie só vale no ano da sua estreia em Major.</p>
@@ -2373,6 +2442,8 @@
   .note.award { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
   .note.award b { color: var(--gold); }
   .note .link-btn { justify-self: start; }
+  .clutch-q .moment { color: var(--muted); letter-spacing: .06em; }
+  .clutch-q .moment.planted { color: var(--accent-2); }
   .bench-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--accent-2); font-size: 13px; font-weight: 700; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
   .live-overview-btn { margin-left: auto; white-space: nowrap; }
@@ -2400,7 +2471,7 @@
   .map-chip:disabled { cursor: not-allowed; opacity: .55; }
   .map-go { align-self: stretch; min-height: 0; padding: 0 14px; white-space: nowrap; }
   /* Mapas do adversário em ordem: o mais forte brilha, os outros vão apagando; o último é o que ele bane. */
-  .opp-maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; margin: 0 0 6px; }
+  .opp-maps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 6px; }
   .opp-map { position: relative; display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); overflow: hidden;
     background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, transparent), color-mix(in srgb, var(--surface) 62%, transparent)), var(--map) center / cover;
     box-shadow: 0 0 calc(18px * var(--glow)) color-mix(in srgb, var(--accent) calc(60% * var(--glow)), transparent); }
@@ -2412,6 +2483,11 @@
   .opp-map.ban span { color: var(--accent-2); }
   @keyframes mapGlow { 0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent); } 50% { box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 75%, transparent); } }
   .opp-maps-note { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .opp-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .opp-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+  .opp-facts div { display: grid; gap: 3px; min-width: 76px; padding: 6px 10px; border: 1px solid var(--line); background: var(--surface-2); }
+  .opp-facts dt { color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; }
+  .opp-facts dd { margin: 0; font: 800 17px/1 var(--display); }
   .opp-maps-note b { color: var(--text); }
 
   /* Fogo em volta do jogo: jogo duro esquenta, título pega fogo. */
@@ -2575,13 +2651,37 @@
   .tt-main { display: grid; gap: 3px; min-width: 0; }
   .tt-name { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .tt-meta { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .tt-tags { display: flex; gap: 4px; min-height: 0; }
-  .tt-tags:empty { display: none; }
+  /* Altura fixa da linha de etiquetas: cartão com ou sem "Favorito" tem o mesmo tamanho. */
+  .tt-tags { display: flex; gap: 4px; min-height: 18px; }
+  .tag.dog { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--accent); }
   .tt-ovr { font: 900 24px/1 var(--display); font-variant-numeric: tabular-nums; }
   .tt-bar { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: color-mix(in srgb, var(--line) 70%, transparent); }
   .tt-bar i { display: block; height: 100%; background: var(--muted); }
   .team-tile.mine .tt-bar i { background: var(--accent); }
   .rival-tag { border-color: var(--accent-2); color: var(--accent-2); }
+  /* Campeonato jogado: os seus jogos, a tabela de cada stage (Major) e a chave. */
+  .my-games, .stage-table { display: grid; gap: 3px; margin: 0 0 10px; padding: 0; list-style: none; }
+  .my-games li { display: grid; grid-template-columns: 78px auto minmax(0, 1fr) 48px 64px; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-left-width: 3px; background: var(--surface-2); font-size: 14px; }
+  .my-games li.won { border-left-color: var(--accent); }
+  .my-games li.lost { border-left-color: var(--accent-2); }
+  .mg-phase { color: var(--muted); font: 800 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .mg-team { overflow: hidden; font: 800 15px/1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .mg-score { font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+  .my-games li.won .mg-result { color: var(--accent); }
+  .my-games li.lost .mg-result { color: var(--accent-2); }
+  .mg-result { font: 800 11px/1 var(--body); letter-spacing: .08em; text-align: right; text-transform: uppercase; }
+  .stage-tabs { display: flex; gap: 4px; margin: 4px 0 6px; }
+  .stage-tabs button { all: unset; cursor: pointer; padding: 6px 12px; border: 1px solid var(--line); color: var(--muted); font: 800 12px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .stage-tabs button.on { border-color: var(--accent); color: var(--text); }
+  .stage-table { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+  .stage-table li { display: grid; grid-template-columns: 22px auto minmax(0, 1fr) 40px 86px; align-items: center; gap: 8px; padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .stage-table li.you { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .stage-table li.out { opacity: .6; }
+  .stage-table b { overflow: hidden; font: 800 13px/1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .st-rank { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .st-record { font: 800 14px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .st-status { color: var(--muted); font: 700 10px/1 var(--body); letter-spacing: .06em; text-align: right; text-transform: uppercase; }
+  @media (max-width: 640px) { .stage-table { grid-template-columns: minmax(0, 1fr); } .my-games li { grid-template-columns: 64px auto minmax(0, 1fr) 40px; } .mg-result { display: none; } }
   /* Acontecimento: a situação, 3 caminhos e o resultado. */
   .happening { display: grid; gap: 14px; }
   .happening h2 { margin: 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.05; }

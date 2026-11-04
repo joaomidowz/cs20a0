@@ -122,8 +122,25 @@ export const SHARED_SITUATIONS: ClutchSituation[] = build('any', SHARED_ROWS);
 export const situationsFor = (role: PlayerRole): ClutchSituation[] => [...DECISION_MATRIX[role], ...SHARED_SITUATIONS];
 
 /** Sorteio determinístico da situação da vez, sem repetir o que já caiu (até esgotar a função). */
-export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = []): ClutchSituation {
-  const all = situationsFor(role);
+/** De que lado é a situação: pós-plant e "sem plantar" são do TR; desarmar, retake e bomba inimiga plantada, do CT. */
+export function situationSide(situation: Pick<ClutchSituation, 'text' | 'alternatives'>): 't' | 'ct' | null {
+  const all = `${situation.text} ${situation.alternatives.map((alternative) => alternative.text).join(' ')}`.toLowerCase();
+  if (/pós-plant|pos-plant|sem plantar|plantar em|ouviu o defuse|defuse começar|você plantou|seu time plantou|carrega a bomba|com a bomba no/.test(all)) return 't';
+  if (/defus|desarm|retake|retomad|plantou|kit de defuse|bomba plantada|bomba vindo|antes do plant/.test(all)) return 'ct';
+  return null;
+}
+
+/** Como está a bomba no momento da call (para mostrar o round no meio, com credibilidade). */
+export function situationBomb(situation: Pick<ClutchSituation, 'text' | 'alternatives'>): 'planted' | 'unplanted' | null {
+  const all = `${situation.text} ${situation.alternatives.map((alternative) => alternative.text).join(' ')}`.toLowerCase();
+  if (/plantad|plantou|pós-plant|pos-plant|segundos de bomba|ouviu o defuse|defuse começar|retake|desarm|defus/.test(all)) return 'planted';
+  if (/sem plantar|antes do plant|bomba vindo|plantar em/.test(all)) return 'unplanted';
+  return null;
+}
+
+export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = [], side: 't' | 'ct' | null = null): ClutchSituation {
+  // Só situações do seu lado no round: CT não planta, TR não desarma.
+  const all = situationsFor(role).filter((situation) => !side || !situationSide(situation) || situationSide(situation) === side);
   const fresh = all.filter((situation) => !usedIds.includes(situation.id));
   const pool = fresh.length ? fresh : all;
   const rng = createSeededRng(`${seed}:situation`);

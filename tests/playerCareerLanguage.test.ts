@@ -74,3 +74,16 @@ describe('times da cena', () => {
     for (const org of sceneOrgs) expect(npcLanguagePenalty(org.roster)).toBeLessThanOrEqual(1);
   });
 });
+
+describe('exigência de inglês', () => {
+  it('time de call em inglês do Tier S/1 não faz proposta com inglês abaixo do mínimo; fluente, faz', async () => {
+    const { englishGate, ENGLISH_REQUIRED } = await import('../src/lib/game/playerCareer/engine');
+    const career = at('ODDIK', 'Brazil', 'eng-1');
+    const vitality = sceneOrgs.find((org) => org.name === 'Vitality')!;
+    expect(teamLanguage(vitality.roster)).toBe('en');
+    expect(englishGate(career, vitality)).toBe(ENGLISH_REQUIRED[vitality.level]);
+    expect(englishGate({ ...career, languages: { en: 80 } }, vitality)).toBeNull();
+    // Time que fala o seu idioma não exige inglês.
+    expect(englishGate(career, sceneOrgs.find((org) => org.name === 'ODDIK')!)).toBeNull();
+  });
+});

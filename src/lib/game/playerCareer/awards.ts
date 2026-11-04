@@ -48,6 +48,10 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
   }
   const replaced = new Set(state.seatsTaken.filter((seat) => seat.orgId === state.orgId).map((seat) => seat.nick.toLowerCase()));
   const best = new Map<string, RankedPlayer & { age: number | null; elite: boolean; debut: boolean }>();
+  const myRating = (() => {
+    const played = results.filter((result) => !result.skipped);
+    return played.length ? Number((played.reduce((sum, result) => sum + result.rating, 0) / played.length).toFixed(2)) : undefined;
+  })();
   for (const org of sceneOrgs.filter((candidate) => candidate.level <= 2)) {
     for (const member of rosterIn(state.seed, state.seasonNumber, org.id)) {
       const nick = memberNick(member);
@@ -55,18 +59,19 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
       if (member.generated || (org.id === state.orgId && replaced.has(key))) continue;
       const overall = member.overall ?? memberCatalogOverall(member) ?? org.power ?? 80;
       const noise = (createSeededRng(`${state.seed}:hltv:${state.seasonNumber}:${key}`)() - 0.5) * 0.1;
+      const rating = Number((0.95 + (overall - 60) * 0.006 + noise * 0.6).toFixed(2));
       const score = 0.95 + (overall - 60) * 0.006 + (LEVEL_BONUS[org.level] ?? 0) + noise
         + (mvpOf.get(key) ?? 0) * 0.015 + Math.min(0.05, (titlesOf.get(org.name) ?? 0) * 0.01);
       const born = memberBirthYear(member);
       // Estreante: promessa que subiu (da base real ou da base do time) ou quem entrou no topo neste ano.
       const debut = Boolean(member.prospect) || memberDebutYear(member) === year;
-      const entry = { nick, team: org.name, score: Number(score.toFixed(3)), age: born === null ? null : year - born, elite: org.level <= 1, debut };
+      const entry = { nick, team: org.name, teamId: org.id, rating, score: Number(score.toFixed(3)), age: born === null ? null : year - born, elite: org.level <= 1, debut };
       if (!best.has(key) || best.get(key)!.score < entry.score) best.set(key, entry);
     }
   }
   const mine = seasonScore(results, orgLevel);
   const field = [...best.values()];
-  const ranked: RankedPlayer[] = [...field.map(({ nick, team, score }) => ({ nick, team, score })), ...(mine === null ? [] : [{ nick: state.nick, team: orgName, score: mine, you: true }])]
+  const ranked: RankedPlayer[] = [...field.map(({ nick, team, teamId, score, rating, age }) => ({ nick, team, teamId, score, rating, age })), ...(mine === null ? [] : [{ nick: state.nick, team: orgName, teamId: state.orgId, score: mine, rating: myRating, age: state.age, you: true }])]
     .sort((a, b) => b.score - a.score || a.nick.localeCompare(b.nick));
   const hltvRank = mine === null ? null : ranked.findIndex((player) => player.you) + 1;
 
@@ -77,8 +82,8 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
   const rookieEligible = playedMajorNow && !playedMajorBefore;
   const npcRookie = field.filter((player) => player.elite && player.debut).sort((a, b) => b.score - a.score)[0];
   const rookie: RankedPlayer | null = rookieEligible && mine !== null && (!npcRookie || mine >= npcRookie.score)
-    ? { nick: state.nick, team: orgName, score: mine, you: true }
-    : npcRookie ? { nick: npcRookie.nick, team: npcRookie.team, score: npcRookie.score } : null;
+    ? { nick: state.nick, team: orgName, teamId: state.orgId, score: mine, rating: myRating, age: state.age, you: true }
+    : npcRookie ? { nick: npcRookie.nick, team: npcRookie.team, teamId: npcRookie.teamId, score: npcRookie.score, rating: npcRookie.rating, age: npcRookie.age } : null;
 
   return { hltvTop: ranked.slice(0, 20), hltvRank, rookie, rookieEligible };
 }

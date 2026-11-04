@@ -168,7 +168,8 @@ export function seasonEvents(level: number, region: Region, count: number, seed:
   const guide = guideRegion(region);
   const majors = majorsOf(year);
   let events: EventTemplate[];
-  if (level <= 1) events = [...majors, ...pick(elitePool(year), count - 2)];
+  // Pedido de poucos eventos (troca no fim do ano): nunca enfia os 2 Majors à força.
+  if (level <= 1) events = count >= 3 ? [...majors, ...pick(elitePool(year), count - 2)] : pick(elitePool(year), count);
   // Regional não é tier A do mundo: o topo regional (CBCS Masters, ESL Challenger SA…) é tier B, e as ligas e
   // temporadas regionais (CBCS Season, Gamers Club Série S…) são tier C, como no guia (CBCS = Tier 3/B/C).
   else if (level === 2) events = [...pick(spread(REGIONAL[guide].A, 'B', guide, REGIONAL_BO5), count - 1), majors[0]];

@@ -10,7 +10,7 @@ import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
-import type { Language } from './language';
+import { myFluency, teamLanguage, type Language } from './language';
 import type { Rival } from './rivals';
 import type { MapId } from '../types';
 
@@ -83,8 +83,10 @@ export interface TournamentResult {
   plays?: EventPlays;
   /** O mata-mata inteiro: quem passou, quem caiu e os placares. */
   bracket?: BracketLine[];
-  /** Todos os times que você enfrentou no evento e se ganhou a série. */
-  opponents?: Array<{ team: string; won: boolean }>;
+  /** Todos os times que você enfrentou no evento, a fase, o placar (seu lado primeiro) e se ganhou a série. */
+  opponents?: Array<{ team: string; won: boolean; phase?: string; score?: string }>;
+  /** Major: a tabela final de cada stage (time, campanha e se passou). */
+  stages?: Array<{ stage: string; standings: Array<{ name: string; wins: number; losses: number; status: string; you?: boolean }> }>;
   /** Suas jogadas do evento com mapa, round e adversário (as melhores, até 8). */
   highlights?: PlayHighlight[];
 }
@@ -199,7 +201,7 @@ export interface SeasonLog {
   rookieEligible?: boolean;
 }
 
-export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean }
+export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean; /** Rating da temporada (o seu é o real; o da cena, pela força). */ rating?: number; teamId?: string; age?: number | null }
 
 export interface CareerVerdict {
   seasons: number;
@@ -283,6 +285,8 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */
+  blockedOffers?: Array<{ orgName: string; need: number }>;
   /** Campeonatos que você passa no banco (aceitou perder a vaga num acontecimento): o substituto joga. */
   benchedEvents?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
@@ -614,7 +618,8 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   const promotedState = orgLevels === state.orgLevels ? state : { ...state, orgLevels };
 
   // O mercado olha a temporada no nível em que ela foi jogada (a promoção vale para a próxima).
-  const offers = buildOffers(state, seasonRating, titles, rng);
+  const blockedOffers: Array<{ orgName: string; need: number }> = [];
+  const offers = buildOffers(state, seasonRating, titles, rng, blockedOffers);
   // Temporada ruim sem título numa org real: não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
   const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
   const next: PlayerCareerState = {
@@ -628,6 +633,7 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     history: [...state.history, log],
     calendar: null,
     pendingOffers: offers.length ? offers : released ? [] : null,
+    blockedOffers,
     pendingMove: null,
     seasonMoves: [],
     released
@@ -651,7 +657,17 @@ export const decentRatingFor = (role: PlayerRole, level: number) => (({ 0: 0.98,
 /** Régua de estrela para subir ao nível: degrau por degrau, a porta do tier 1 é a mais dura. */
 export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.18, 0: 1.25 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
 
-function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number): CareerOffer[] {
+/** Inglês mínimo para assinar com time de call em inglês: Tier S 55, Tier 1 50, Tier 2 40 (abaixo, ninguém exige). */
+export const ENGLISH_REQUIRED: Record<number, number> = { 0: 55, 1: 50, 2: 40 };
+
+/** Quanto de inglês o time exige de você (null: não exige ou você já tem). */
+export function englishGate(state: PlayerCareerState, candidate: SceneOrg): number | null {
+  const need = ENGLISH_REQUIRED[levelIn(state, candidate)];
+  if (!need || teamLanguage(candidate.roster) !== 'en') return null;
+  return myFluency(state, 'en') >= need ? null : need;
+}
+
+function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number, blocked: Array<{ orgName: string; need: number }> = []): CareerOffer[] {
   const org = orgOf(state.orgId, state);
   const isLanHouse = org.id === LAN_HOUSE.id;
   const decentFor = (level: number) => decentRatingFor(state.role, level);
@@ -666,6 +682,12 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
     for (let i = 0; i < tries && offers.length < 3; i += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      // Time de call em inglês exige o idioma: abaixo do mínimo, a proposta não sai (e você fica sabendo).
+      const need = englishGate(state, candidate);
+      if (need) {
+        if (!blocked.some((entry) => entry.orgName === candidate.name)) blocked.push({ orgName: candidate.name, need });
+        continue;
+      }
       offers.push(offerFrom(candidate, state, bump));
     }
   };
@@ -733,6 +755,7 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
     for (let tries = 0; tries < count * 3 && offers.length < count; tries += 1) {
       const candidate = pool[Math.floor(rng() * pool.length)];
       if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      if (englishGate(state, candidate)) continue;
       offers.push(offerFrom(candidate, state, bump));
     }
     return offers;
@@ -779,8 +802,12 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
   // O time novo segue o circuito dele dali em diante (só os meses que ainda faltam).
   const lastMonth = Math.max(0, ...played.map((entry) => entry.month ?? 0));
   const seed = `${state.seed}:season:${state.seasonNumber}:${orgId}`;
-  let next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId, state).level, seed), played.length, lastMonth);
-  if (!next.length) next = calendarFor(state, orgId, seed, 1, played.length);
+  // Só os meses que faltam; se a troca é no fim do ano, a temporada acaba com o que já foi jogado (antes, um
+  // "campeonato extra" de elite trazia os 2 Majors de novo: a temporada com 4 Majors).
+  const playedMajors = played.filter((entry) => entry.format === 'major').length;
+  const next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId, state).level, seed), played.length, lastMonth)
+    .filter((entry, index, list) => entry.format !== 'major' || playedMajors + list.slice(0, index + 1).filter((other) => other.format === 'major').length <= 2)
+    .map((entry, offset) => ({ ...entry, index: played.length + offset }));
   const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? seatToTake(target, state.role) : null;
   return {
