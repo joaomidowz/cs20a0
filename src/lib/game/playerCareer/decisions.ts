@@ -177,17 +177,17 @@ const STORIES: Record<ClutchProfile, { won: string[]; lost: string[] }> = {
       'Disciplina: você escolheu {alt}. O time inteiro na mesma página e o round veio pelo plano, não pelo milagre.'
     ],
     lost: [
-      'Você escolheu {alt}, mas o adversário leu o ritmo — round deles no detalhe.',
+      'Você escolheu {alt}, mas o adversário leu o ritmo. Round deles no detalhe.',
       'O plano era certo, a execução não: a call foi {alt} e o round escapou por pouco.'
     ]
   },
   read: {
     won: [
       'Leitura certeira: a call foi {alt} e caiu exatamente no ponto fraco deles. A arena viu a jogada acontecer.',
-      'Você decidiu {alt} antes do adversário pensar — o round pareceu fácil porque você leu primeiro.'
+      'Você decidiu {alt} antes do adversário pensar. Você leu primeiro.'
     ],
     lost: [
-      'Você escolheu {alt}, mas o adversário estava um passo à frente — te bangaram no ângulo e o round foi embora.',
+      'Você escolheu {alt}, mas eles estavam um passo à frente. Te bangaram no ângulo.',
       'A leitura não veio: a call foi {alt} e o crossfire deles te pegou de jeito.'
     ]
   },
@@ -198,16 +198,16 @@ const STORIES: Record<ClutchProfile, { won: string[]; lost: string[] }> = {
     ],
     lost: [
       'A aposta não pagou: você tentou {alt} e te bangaram antes da jogada nascer. Round deles, culpa na mesa.',
-      'Você arriscou {alt} e o timing traiu — o round morreu na sua decisão.'
+      'Você arriscou {alt} e o timing traiu. O round morreu ali.'
     ]
   },
   team: {
     won: [
       'Jogo de time: a call foi {alt} e a jogada coordenada abriu o bombsite. Round construído, não roubado.',
-      'Você escolheu {alt} — o companheiro certo, na hora certa. É assim que time ganha round difícil.'
+      'Você escolheu {alt}. Companheiro certo, na hora certa.'
     ],
     lost: [
-      'A call foi {alt}, mas a coordenação demorou um round a mais — o adversário puniu.',
+      'A call foi {alt}, mas a coordenação atrasou. O adversário puniu.',
       'A jogada de time saiu torta: a call foi {alt}, o trade não veio e o round ficou lá.'
     ]
   }

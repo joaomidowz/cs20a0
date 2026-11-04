@@ -25,22 +25,22 @@ export interface ArchetypeMeta {
 export const ARCHETYPES: Record<PlayerArchetype, ArchetypeMeta> = {
   prodigio: {
     label: 'Prodígio',
-    blurb: 'Entra aos 16 já chamando atenção. O teto é dos maiores — ZywOo, coldzera — se (e somente se) chegar lá. Também é o que mais estaciona quando não entrega.',
+    blurb: 'Entra aos 16 chamando atenção. Teto de estrela, mas é quem mais trava se não entregar.',
     entryAge: [16, 16], startOverall: [65, 70], potential: [86, 97], devRate: [0.85, 1.3]
   },
   'talento-bruto': {
     label: 'Talento bruto',
-    blurb: 'Chega cru, longe do topo hoje. O teto pode ser enorme — late bloomer que explode mais tarde.',
+    blurb: 'Chega cru e longe do topo. Pode explodir mais tarde.',
     entryAge: [16, 17], startOverall: [57, 62], potential: [80, 94], devRate: [0.85, 1.25]
   },
   solido: {
     label: 'Player sólido',
-    blurb: 'Carreira honesta de circuito: Tier C/B quase garantido, o salto pro tier 1 é raro.',
+    blurb: 'Carreira estável no circuito. Chegar ao tier 1 é raro.',
     entryAge: [17, 18], startOverall: [64, 69], potential: [70, 82], devRate: [0.9, 1.05]
   },
   tardio: {
     label: 'Estreia tardia',
-    blurb: 'Chega mais velho e mais pronto, com janela curta: ou vira peça de tier 1 logo, ou eterno challenger.',
+    blurb: 'Chega mais velho e pronto. Janela curta: sobe logo ou fica no challenger.',
     entryAge: [19, 20], startOverall: [68, 73], potential: [76, 90], devRate: [1.0, 1.15]
   }
 };
@@ -48,7 +48,7 @@ export const ARCHETYPES: Record<PlayerArchetype, ArchetypeMeta> = {
 /** Trade-offs de função: viés de rating, oscilação e o quanto carrega o time (filosofia do artifact + ROLE_WEIGHTS). */
 export const ROLE_META: Record<PlayerRole, { label: string; ratingBias: number; variance: number; teamImpact: number; blurb: string }> = {
   awper: { label: 'AWPer', ratingBias: 0.08, variance: 0.16, teamImpact: 0, blurb: 'Rating alto, oscila mais. Carrega o time nos dias bons.' },
-  rifler: { label: 'Rifler', ratingBias: 0.02, variance: 0.08, teamImpact: 0, blurb: 'Rifle puro: duelo em qualquer distância, pedaço em qualquer lugar.' },
+  rifler: { label: 'Rifler', ratingBias: 0.02, variance: 0.08, teamImpact: 0, blurb: 'Duelo em qualquer distância. Joga onde o time precisar.' },
   entry: { label: 'Entry fragger', ratingBias: -0.05, variance: 0.10, teamImpact: 0, blurb: 'Abre os bombs. Morre primeiro, rating mais baixo.' },
   igl: { label: 'IGL', ratingBias: -0.10, variance: 0.07, teamImpact: 3, blurb: 'Faz a call. Rating menor, time bem mais forte.' },
   lurker: { label: 'Lurker', ratingBias: 0.0, variance: 0.05, teamImpact: 0, blurb: 'Joga sozinho no outro lado do mapa. Consistente.' },
@@ -219,7 +219,7 @@ export function seatToTake(org: SceneOrg, role: PlayerRole): SeatTaken {
   const byRole = org.roster.find((member) => member.roles.some((listed) => aliases.includes(listed.toLowerCase().trim())));
   const generic = org.roster.find((member) => !member.roles.length);
   const chosen = byRole ?? generic ?? org.roster[0];
-  return { orgId: org.id, orgName: org.name, nick: chosen?.nick ?? '—', viaRole: Boolean(byRole) };
+  return { orgId: org.id, orgName: org.name, nick: chosen?.nick ?? 'a definir', viaRole: Boolean(byRole) };
 }
 
 /** Sorteio inicial: 3 orgs reais do nível CCT/GC (preferindo o país do jogador) + a opção Lan House. */
@@ -325,10 +325,10 @@ export function ensureDraw(state: PlayerCareerState): PlayerCareerState {
 export const orgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
 
 const tournamentNameFor = (index: number, level: number, total: number) => {
-  if (level >= 4) return index % 2 === 0 ? `Circuito GC/CCT — Etapa ${index + 1}` : `CCT South America — Series ${index + 1}`;
-  if (level === 3) return `Challenger/Contenders — Etapa ${index + 1}`;
-  if (level === 2) return `Tier 2 Invite — Etapa ${index + 1}`;
-  return index === total - 1 ? 'MAJOR' : `Tier 1 Invitational — Etapa ${index + 1}`;
+  if (level >= 4) return index % 2 === 0 ? `Circuito GC/CCT · Etapa ${index + 1}` : `CCT South America · Series ${index + 1}`;
+  if (level === 3) return `Challenger/Contenders · Etapa ${index + 1}`;
+  if (level === 2) return `Tier 2 Invite · Etapa ${index + 1}`;
+  return index === total - 1 ? 'MAJOR' : `Tier 1 Invitational · Etapa ${index + 1}`;
 };
 
 /** Abre a temporada: calendário com a densidade real do nível — cada campeonato disputado no motor de Major. */
@@ -595,7 +595,7 @@ export function retire(state: PlayerCareerState): PlayerCareerState {
   const bestOverall = Math.max(state.overall, ...state.history.map((log) => log.overallAfter));
   const line = topLog && topLog.orgLevel <= 1
     ? 'Do lan house ao Major: carreira de filme.'
-    : topLog && topLog.orgLevel <= 2 ? 'Pisou no tier 1 e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no circuito challenger.' : 'Guerreiro do circuito — o bairro se lembra.';
+    : topLog && topLog.orgLevel <= 2 ? 'Pisou no tier 1 e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no circuito challenger.' : 'Guerreiro do circuito. O bairro se lembra.';
   return {
     ...state,
     status: 'RETIRED',

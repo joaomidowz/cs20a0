@@ -209,8 +209,9 @@
 
   /** "Circuito GC/CCT — Etapa 3" → circuito numa linha, etapa na outra. */
   function eventParts(name: string) {
-    const [circuit, ...rest] = name.split(' — ');
-    return { circuit, stage: rest.join(' — ') || '' };
+    // Nomes novos usam " · "; saves antigos ainda têm o travessão.
+    const [circuit, ...rest] = name.split(/ · | — /);
+    return { circuit, stage: rest.join(' · ') || '' };
   }
 
   function openStats() {
@@ -700,7 +701,7 @@
     <section class="intro">
       <p class="eyebrow">CARREIRA · JOGADOR</p>
       <h1 class="display">Do Lan House<br />ao Major</h1>
-      <p class="lede">Crie seu jogador e entre no sorteio: três orgs reais do CCT/GC — ou a lan house. A pirâmide embaixo de você é <strong>real</strong>, e o campeonato corre round a round até o round decisivo ser seu.</p>
+      <p class="lede">Crie seu jogador e sorteie o começo: três times reais do CCT/GC ou a lan house. Os campeonatos rodam round a round, e o round decisivo é seu.</p>
       <div class="grid2">
         <label>Nick<input bind:value={nick} maxlength="16" placeholder="cascavel" /></label>
         <label>País
@@ -736,7 +737,7 @@
     <section class="intro">
       <p class="eyebrow">SORTEIO · {career.year}</p>
       <h1 class="display">O sorteio de {career.nick}</h1>
-      <p class="lede">Você joga de <strong>{ROLE_META[career.role].label}</strong>: ao assinar, toma a vaga de quem joga na sua função.</p>
+      <p class="lede">Você é <strong>{ROLE_META[career.role].label}</strong>. Ao assinar, você toma a vaga de quem joga nessa função.</p>
       <div class="cards">
         {#each career.pendingDraw as option, index}
           <button class="card deal" class:lan={option.kind === 'lan-house'} style={`--deal:${index * 90}ms`} on:click={() => sign(option.orgId)}>
@@ -920,7 +921,7 @@
                 <button class="offer" on:click={() => choose(offer.orgId)}>
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
                   <b class="display">{offer.orgName}</b>
-                  <span class="ln">Vaga de <b>{seat?.nick ?? '—'}</b></span>
+                  <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
@@ -1166,7 +1167,7 @@
                       </button>
                     {/each}
                   </div>
-                  {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{:else}<p class="coach-hint">Sem conversa, o coach não indica nada. Fale com ele para saber o que treinar.</p>{/if}
+                  {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{:else}<p class="coach-hint">O coach só indica o que treinar se você falar com ele.</p>{/if}
                   </div>
                 </div>
               </section>

@@ -107,19 +107,19 @@ export interface TalkResult {
 
 const TALK_LINES = {
   good: [
-    'Papo reto sobre o circuito — ele te mostrou demo do adversário da próxima etapa.',
-    'Ficou até tarde treinando mira com você no servidor da org.',
-    'Te chamou pra pizza depois do treino: o time tá leve.',
-    'Abriu o jogo com você: tá sentindo pressão, mas confia na call.'
+    'Papo reto: ele te mostrou a demo do próximo adversário.',
+    'Ficou até tarde treinando mira com você.',
+    'Pizza depois do treino. O time está leve.',
+    'Ele está sentindo pressão, mas confia na call.'
   ],
   neutral: [
     'Trocou ideia rápida sobre o mapa da semana.',
-    'Conversa normal de aquecimento, nada demais.',
-    'Ele prefere focar no aquecimento e deixei quieto.'
+    'Conversa rápida de aquecimento.',
+    'Ele preferiu focar no aquecimento.'
   ],
   friction: [
-    'Vocês discordaram sobre a exec de A — ficou um clima.',
-    'Ele ainda cobra aquele round que você não esperou o trade.'
+    'Vocês discordaram sobre a execução do A. Ficou um clima.',
+    'Ele ainda cobra o round em que você não esperou o trade.'
   ]
 } as const;
 
@@ -131,7 +131,7 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
   const base = kind === 'good' ? 3 + Math.floor(rng() * 4) : kind === 'neutral' ? 1 : -2;
   const delta = talked >= 2 ? 0 : Math.round(base * (talked === 1 ? 0.5 : 1));
   const lines = TALK_LINES[kind];
-  const line = delta === 0 && talked >= 2 ? 'Vocês já conversaram bastante essa semana — foco no servidor.' : lines[Math.floor(rng() * lines.length)];
+  const line = delta === 0 && talked >= 2 ? 'Vocês já conversaram bastante esta semana. Foco no servidor.' : lines[Math.floor(rng() * lines.length)];
   const current = relationshipOf(state, mateId);
   return {
     state: {
@@ -213,7 +213,7 @@ const TRAIN_LINES: Record<TrainingFocus, string> = {
 export function trainMe(state: PlayerCareerState, meBase: Player, focus: TrainingFocus): TrainResult {
   const window = trainingWindowOf(state);
   if (!window || state.trainedWindow === window) {
-    return { state, focus, gained: {}, overallUp: false, line: 'Já treinou nesta janela — o próximo treino abre depois do próximo campeonato.' };
+    return { state, focus, gained: {}, overallUp: false, line: 'Já treinou nesta semana. O próximo treino abre depois do campeonato.' };
   }
   const trained = applyTraining(meBase, focus);
   const gained: Partial<Record<TrainedAttribute, number>> = {};
@@ -245,6 +245,6 @@ export function trainMe(state: PlayerCareerState, meBase: Player, focus: Trainin
     focus,
     gained,
     overallUp,
-    line: anyGain ? TRAIN_LINES[focus] + (overallUp ? ' O treino consistente sentou: overall +1.' : '') : 'Treino feito, mas esse atributo já está no teto do treino — o resto vem jogando.'
+    line: anyGain ? TRAIN_LINES[focus] + (overallUp ? ' Treino em dia: overall +1.' : '') : 'Esse atributo já está no teto do treino. O resto vem jogando.'
   };
 }
