@@ -5,7 +5,7 @@
 // do seu mental e da sua moral: a mesma decisão pode sair melhor ou pior.
 import rawEvents from '$lib/data/cs/career-events.game.json';
 import { createSeededRng } from '../simulation';
-import { orgOf, playedCount, trophyCase, type PlayerCareerState, type TournamentResult } from './engine';
+import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type TournamentResult } from './engine';
 import { matesOf, myPlayerOf } from './squad';
 
 export type HappeningTrigger = 'pre' | 'post' | 'between';
@@ -172,8 +172,25 @@ export interface HappeningOutcome {
 }
 
 /** Escolhas que tiram você do time no próximo campeonato (o documento diz "aceitar banco", "procurar substituto"). */
-const BENCH_CHOICES: Record<string, Record<number, number>> = { EV102: { 2: 1 }, EV023: { 2: 1 } };
+const BENCH_CHOICES: Record<string, Record<number, number>> = { EV102: { 2: 1 }, EV023: { 2: 1 }, EV018: { 2: 1 } };
 export const benchOf = (eventId: string, choiceIndex: number): number => BENCH_CHOICES[eventId]?.[choiceIndex] ?? 0;
+
+/** Escolhas que mexem de verdade no calendário ou no time: folga tira um campeonato, "aceitar todos" põe mais um,
+ *  aceitar proposta abre a tela de mercado. */
+type CalendarMove = 'skip' | 'add' | 'up' | 'region';
+const CALENDAR_CHOICES: Record<string, Record<number, CalendarMove>> = {
+  EV018: { 1: 'skip' },
+  EV123: { 0: 'skip' },
+  EV146: { 0: 'skip' },
+  EV101: { 2: 'add' },
+  EV136: { 1: 'add' },
+  EV138: { 2: 'add' },
+  EV005: { 0: 'up' },
+  EV067: { 1: 'up' },
+  EV145: { 1: 'up' },
+  EV038: { 1: 'region' }
+};
+export const calendarMoveOf = (eventId: string, choiceIndex: number): CalendarMove | null => CALENDAR_CHOICES[eventId]?.[choiceIndex] ?? null;
 
 /** Chance de a escolha sair como você planejou: mental da carta e moral (25% a 90%). */
 export function happeningSuccessChance(state: PlayerCareerState): number {
@@ -225,6 +242,30 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
   if (fatigueDelta) chips.push({ label: 'Cansaço', value: -fatigueDelta, display: `Cansaço ${fatigueDelta > 0 ? '+' : '−'}${Math.abs(fatigueDelta)}` });
   const bench = benchOf(event.id, choiceIndex);
   if (bench) chips.push({ label: 'Banco', value: -bench, display: `Banco no próximo campeonato` });
-  const line = `${choice.consequence} ${success ? 'Saiu como você queria.' : 'Não saiu como você queria.'}${bench ? ' Você fica de fora do próximo campeonato.' : ''}`;
-  return { state: next, success, line, chips };
+  // O que muda no calendário ou no time (independe de sair como você queria: a decisão foi tomada).
+  let moved = next;
+  let extraLine = '';
+  const calendarMove = calendarMoveOf(event.id, choiceIndex);
+  if (calendarMove === 'skip') {
+    const skipped = skipEvent(moved, pending.trigger === 'pre' ? pending.eventIndex : undefined);
+    moved = skipped.state;
+    if (skipped.name) {
+      extraLine = ` O time abriu mão do ${skipped.name}.`;
+      chips.push({ label: 'Calendário', value: 1, display: 'Um campeonato a menos' });
+    }
+  } else if (calendarMove === 'add') {
+    const added = addExtraEvent(moved);
+    moved = added.state;
+    if (added.name) {
+      extraLine = ` Entrou no calendário: ${added.name}.`;
+      chips.push({ label: 'Calendário', value: -1, display: 'Um campeonato a mais' });
+    }
+  } else if (calendarMove) {
+    const reason = calendarMove === 'up' ? `${event.situation}. A proposta virou oferta de verdade.` : `${event.situation}. O time de fora quer você.`;
+    const offered = happeningOffers(moved, calendarMove, reason);
+    if (offered.pendingMove) extraLine = ' A proposta chegou: decida na tela de mercado.';
+    moved = offered;
+  }
+  const line = `${choice.consequence} ${success ? 'Saiu como você queria.' : 'Não saiu como você queria.'}${bench ? ' Você fica de fora do próximo campeonato.' : ''}${extraLine}`;
+  return { state: moved, success, line, chips };
 }

@@ -897,6 +897,53 @@ export function requestTransfer(state: PlayerCareerState, relationships: Record<
   return { ...base, pendingMove: { kind: 'request', average: recent?.average ?? 0, reason, offers } };
 }
 
+/** O time abre mão de um campeonato (folga, rodízio, recusa): fica no calendário como "Folga", sem prêmio e sem
+ *  contar no rating, e o cansaço cai 25. Major não se pula. `preferIndex`: o campeonato que estava para começar. */
+export function skipEvent(state: PlayerCareerState, preferIndex?: number): { state: PlayerCareerState; name: string | null } {
+  const calendar = state.calendar ?? [];
+  const open = calendar.filter((entry) => entry.status === 'UPCOMING' && entry.format !== 'major' && entry.tier !== 'Major');
+  const entry = open.find((candidate) => candidate.index === preferIndex) ?? open[0];
+  if (!entry) return { state, name: null };
+  const result: TournamentResult = { name: entry.name, placement: 'Folga', rating: 0, seriesWins: 0, seriesLosses: 0, skipped: true, ...(entry.tier ? { tier: entry.tier } : {}) };
+  return {
+    state: { ...state, calendar: calendar.map((candidate) => (candidate === entry ? { ...candidate, status: 'PLAYED' as const, result } : candidate)), fatigue: Math.max(0, (state.fatigue ?? 0) - 25) },
+    name: entry.name
+  };
+}
+
+/** Mais um campeonato na temporada ("aceitar todos os eventos"): um do circuito do seu nível que ainda não está no
+ *  calendário, no fim do ano. Cansa mais, mas é mais uma chance de título. */
+export function addExtraEvent(state: PlayerCareerState): { state: PlayerCareerState; name: string | null } {
+  const calendar = state.calendar ?? [];
+  if (!calendar.length) return { state, name: null };
+  const extra = calendarFor(state, state.orgId, `${state.seed}:extra:${state.seasonNumber}:${calendar.length}`, 12, calendar.length)
+    .find((entry) => entry.format !== 'major' && entry.tier !== 'Major' && !calendar.some((other) => other.name === entry.name));
+  if (!extra) return { state, name: null };
+  const lastMonth = Math.max(0, ...calendar.map((entry) => entry.month ?? 0));
+  const entry: CalendarEntry = { ...extra, index: calendar.length, month: Math.min(12, Math.max(lastMonth, extra.month ?? lastMonth)) };
+  return { state: { ...state, calendar: [...calendar, entry] }, name: entry.name };
+}
+
+/** Proposta que nasce de um acontecimento ("aceitar a proposta em dólar", "salário recorde", "outra região"): vira
+ *  oferta de verdade na tela de mercado, que você aceita ou recusa. `up`: um degrau acima (ou o topo); `region`: mesmo
+ *  nível em outra região. */
+export function happeningOffers(state: PlayerCareerState, kind: 'up' | 'region', reason: string): PlayerCareerState {
+  if (state.status !== 'ACTIVE' || state.pendingMove || state.orgId === LAN_HOUSE.id) return state;
+  const org = orgOf(state.orgId, state);
+  const region = 'region' in org ? (org as SceneOrg).region : undefined;
+  const rng = createSeededRng(`${state.seed}:happening-offer:${state.seasonNumber}:${playedCount(state)}:${kind}`);
+  const target = kind === 'up' ? Math.max(0, org.level - 1) : org.level;
+  const pool = sceneOrgs.filter((candidate) => candidate.id !== org.id && levelIn(state, candidate) === target && nationFits(candidate.roster, state.country)
+    && !englishGate(state, candidate) && (kind === 'region' ? candidate.region !== region : true));
+  const offers: CareerOffer[] = [];
+  for (let tries = 0; tries < 12 && offers.length < 2; tries += 1) {
+    const candidate = pool[Math.floor(rng() * pool.length)];
+    if (candidate && !offers.some((offer) => offer.orgId === candidate.id)) offers.push(offerFrom(candidate, state, kind === 'up' ? 0.04 : 0.02));
+  }
+  if (!offers.length) return state;
+  return { ...state, pendingMove: { kind: 'poach', average: recentRating(state)?.average ?? 0, reason, offers } };
+}
+
 export function retire(state: PlayerCareerState, options: { coach?: boolean } = {}): PlayerCareerState {
   if (state.status === 'RETIRED') return state;
   const best = state.history.reduce((acc, log) => (log.seasonRating > acc ? log.seasonRating : acc), 0);

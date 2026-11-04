@@ -79,9 +79,9 @@
   ];
   const PACE_CTA = { live: 'Jogar campeonato', sim: 'Simular campeonato', final: 'Simular até a final' } as const;
   /** Colocação curta pro quadradinho do calendário. */
-  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora' };
+  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora', Folga: 'Folga' };
   /** Colocação → chave de CSS sem espaço nem acento. */
-  const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora' };
+  const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora', Folga: 'Fora' };
   const REGION_LABEL: Record<string, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
   const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
@@ -371,7 +371,12 @@
     happeningResult = null;
     const queued = queuedStart;
     queuedStart = null;
-    if (queued) launchEntry(queued.index, queued.mode);
+    if (!career) return;
+    // A escolha pode ter tirado o campeonato (folga), te posto no banco ou aberto uma proposta.
+    if (career.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) { career = finishSeason(career); return; }
+    if (!queued || career.pendingMove || career.calendar?.[queued.index]?.status !== 'UPCOMING') return;
+    if ((career.benchedEvents ?? 0) > 0) simulateEvent(queued.index);
+    else launchEntry(queued.index, queued.mode);
   }
 
   function openTrophies() {
@@ -2135,7 +2140,7 @@
               {/each}
             </ul>
           {/if}
-          <button class="cta" data-autofocus on:click={closeHappening}>{queuedStart ? 'Ir para o campeonato' : 'Continuar'}</button>
+          <button class="cta" data-autofocus on:click={closeHappening}>{queuedStart && career?.calendar?.[queuedStart.index]?.status === 'UPCOMING' && !career?.pendingMove ? ((career?.benchedEvents ?? 0) > 0 ? 'Ver o time jogar sem você' : 'Ir para o campeonato') : 'Continuar'}</button>
         {:else if pendingEvent && career.pendingHappening}
           <span class="eyebrow">Acontecimento · {TRIGGER_LABEL[career.pendingHappening.trigger]} · {pendingEvent.phase}</span>
           <h2 class="display" id="happening-title">{pendingEvent.situation}</h2>

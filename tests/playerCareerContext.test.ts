@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, startSeason, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { drawClutchSituation, situationFits, situationsFor, type RoundContext } from '../src/lib/game/playerCareer/decisions';
-import { HAPPENING_BY_ID, rollHappening } from '../src/lib/game/playerCareer/happenings';
+import { HAPPENING_BY_ID, resolveHappening, rollHappening } from '../src/lib/game/playerCareer/happenings';
 
 const winning: RoundContext = { round: 7, us: 5, them: 1, winStreak: 3, lossStreak: 0, lastWon: true, money: 5370, theirMoney: 1500 };
 
@@ -63,5 +63,39 @@ describe('acontecimento com o resultado real', () => {
       const state = rollHappening(at(`pre-${index}`), 'pre', { eventIndex: 0 });
       expect(['EV015', 'EV054', 'EV060', 'EV108', 'EV120', 'EV129', 'EV141', 'EV150']).not.toContain(state.pendingHappening?.id);
     }
+  });
+});
+
+describe('escolhas que mexem no calendário e no time', () => {
+  const choose = (state: PlayerCareerState, id: string, choice: number, trigger: 'pre' | 'post' | 'between' = 'between') =>
+    resolveHappening({ ...state, pendingHappening: { id, trigger, eventIndex: 0 } }, choice);
+
+  it('"Programar férias" tira um campeonato de verdade (Folga, sem prêmio) e o cansaço cai', () => {
+    const state = { ...at('cal-1'), fatigue: 60 };
+    const before = state.calendar!.filter((entry) => entry.status === 'UPCOMING').length;
+    const { state: after, line } = choose(state, 'EV123', 0, 'pre');
+    expect(after.calendar!.filter((entry) => entry.status === 'UPCOMING').length).toBe(before - 1);
+    const skipped = after.calendar!.find((entry) => entry.result?.placement === 'Folga')!;
+    expect(skipped.result!.skipped).toBe(true);
+    expect(skipped.tier).not.toBe('Major');
+    expect(after.fatigue).toBeLessThan(60);
+    expect(line).toContain('abriu mão');
+  });
+
+  it('"Aceitar todos os eventos" põe mais um campeonato no calendário', () => {
+    const state = at('cal-2');
+    const { state: after, line } = choose(state, 'EV136', 1);
+    expect(after.calendar!.length).toBe(state.calendar!.length + 1);
+    expect(after.calendar!.at(-1)!.status).toBe('UPCOMING');
+    expect(line).toContain('Entrou no calendário');
+  });
+
+  it('"Aceitar verbalmente" a proposta de time maior abre a tela de mercado com oferta de cima', () => {
+    const base = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'rifler', seed: 'cal-3' });
+    const org = sceneOrgs.find((candidate) => candidate.level === 2 && candidate.region === 'sa')!;
+    const state = startSeason({ ...base, orgId: org.id, pendingDraw: null, drawDone: true, seatsTaken: [] });
+    const { state: after } = choose(state, 'EV067', 1);
+    expect(after.pendingMove?.kind).toBe('poach');
+    expect(after.pendingMove!.offers.length).toBeGreaterThan(0);
   });
 });
