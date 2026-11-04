@@ -26,7 +26,7 @@
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
     type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult
   } from '$lib/game/playerCareer/engine';
-  import { lineupOf, playClutchRound, sceneEventField, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { advanceToFinal, finishSceneEvent, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainMe, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
 
@@ -63,6 +63,13 @@
     gamble: { label: 'All-in', hint: 'Moeda: ou ganha o round no braço, ou custa caro.' },
     team: { label: 'Coletivo', hint: 'Depende do nível dos parceiros contra o deles.' }
   };
+  type PlayMode = NonNullable<PlayerCareerState['playMode']>;
+  const PLAY_MODE_OPTIONS = [
+    { value: 'all', label: 'Jogar todos' },
+    { value: 'every2', label: '1 a cada 2' },
+    { value: 'finals', label: 'Só as finais' }
+  ];
+  const PACE_CTA = { live: 'Jogar campeonato', sim: 'Simular campeonato', final: 'Simular até a final' } as const;
   /** Colocação curta pro quadradinho do calendário. */
   const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título' };
   /** Função curta pra caber na carta. */
@@ -307,7 +314,7 @@
 
   function openSeason() { if (career) career = startSeason(career); }
 
-  function enterEvent(index: number) {
+  function enterEvent(index: number, toFinal = false) {
     const me = career;
     if (!me) return;
     eventError = null;
@@ -319,8 +326,8 @@
       eventError = 'Não foi possível montar a chave deste campeonato. Tente de novo; se persistir, o save desta temporada precisa de correção.';
       return;
     }
-    live = field.campaign;
     liveIndex = index;
+    live = toFinal ? advanceToFinal(field.campaign) : field.campaign;
     clutch = null;
     lastCall = null;
     callOutcome = null;
@@ -331,6 +338,12 @@
     const mates = field.userPlayers.filter((player) => player.id !== `${me.seed}:me`);
     matesOverall = mates.length ? Math.round(mates.reduce((sum, player) => sum + (player.overall ?? 70), 0) / mates.length) : 70;
     loadUsedIds(me.seed);
+    if (live.finished) {
+      // "Só as finais" e você caiu antes da final: o campeonato fecha direto.
+      finalizeEvent(index, sceneEventResult(me, index, live));
+      return;
+    }
+    if (toFinal) persistLive();
     void run();
   }
 
@@ -444,39 +457,84 @@
     career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live) } };
   }
 
-  function closeEvent() {
-    if (!career || !live || !live.finished) return;
-    const me = career;
-    const placementKey = live.run.placement;
-    const placement = placementKey === 'placementChampion' ? 'champion' : placementKey === 'placementRunnerUp' ? 'runnerUp' : placementKey === 'placement3to4' ? 'semi' : 'quarter';
-    const field = startSceneEvent(me, liveIndex);
-    const userSeries = live.run.matches.filter((series) => series.teamA.id === 'user' || series.teamB.id === 'user');
-    const stats = createRunStats(field.userPlayers, live.run, `${me.seed}:event:${me.seasonNumber}:${liveIndex}`, lineupOf(field.userPlayers));
-    const mine = stats.find((stat) => stat.playerId === `${me.seed}:me`);
-    const wins = userSeries.filter((series) => series.winnerId === 'user').length;
-    const result: TournamentResult = {
-      name: me.calendar?.[liveIndex]?.name ?? `Campeonato ${liveIndex + 1}`,
-      placement: PLACEMENT[placement] ?? 'Quartas',
-      rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
-      seriesWins: wins,
-      seriesLosses: userSeries.length - wins
-    };
+  /** Fecha o campeonato (jogado ou simulado): relatório, resultado no calendário, elenco e fim de temporada. */
+  function finalizeEvent(index: number, outcome: SceneEventOutcome) {
+    if (!career) return;
+    const { result } = outcome;
     lastEventReport = {
       name: result.name,
       placement: result.placement,
       rating: result.rating,
-      wins,
-      losses: userSeries.length - wins,
-      stats,
-      players: field.userPlayers
+      wins: result.seriesWins,
+      losses: result.seriesLosses,
+      stats: outcome.stats,
+      players: outcome.players
     };
-    const recorded = celebrateResult(recordEventResult(me, liveIndex, result), result.placement);
+    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement);
     live = null;
     clutch = null;
     callOutcome = null;
+    resolving = false;
+    frozenView = null;
+    pendingOutcome = null;
     trainLine = null;
     lastTalk = null;
     career = recorded.calendar?.every((entry) => entry.status === 'PLAYED') ? finishSeason(recorded) : recorded;
+  }
+
+  function closeEvent() {
+    if (!career || !live || !live.finished) return;
+    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, live));
+  }
+
+  /** Simula o campeonato inteiro sem tela (ou o resto, se havia um save no meio dele). */
+  function simulateEvent(index: number) {
+    const me = career;
+    if (!me) return;
+    eventError = null;
+    try {
+      finalizeEvent(index, simulateSceneEvent(me, index, me.liveEvent?.eventIndex === index ? me.liveEvent.played : undefined));
+    } catch (error) {
+      console.error('[carreira] não simulou o campeonato', error);
+      eventError = 'Não deu para simular este campeonato. Tente de novo.';
+    }
+  }
+
+  /** Durante o jogo: o resto do campeonato roda sozinho, sem parar nas calls. */
+  function simulateRest() {
+    if (!career || !live) return;
+    runToken += 1;
+    running = false;
+    if (resolveFallback !== null) window.clearTimeout(resolveFallback);
+    finalizeEvent(liveIndex, sceneEventResult(career, liveIndex, finishSceneEvent(live)));
+  }
+
+  /** Pular a call: o round decisivo roda sem o seu edge e o campeonato segue. */
+  function skipClutch() {
+    if (!live || !clutch) return;
+    usedIds = [...usedIds, clutch.situation.id];
+    persistUsedIds();
+    clutch = null;
+    live = stepSceneEvent(live).campaign;
+    persistLive();
+    void run();
+  }
+
+  /** O ritmo escolhido para este campeonato: ao vivo, simulado ou simulado até a final. */
+  function paceOf(index: number): 'live' | 'sim' | 'final' {
+    if (playMode === 'every2') return index % 2 === 0 ? 'live' : 'sim';
+    if (playMode === 'finals') return 'final';
+    return 'live';
+  }
+
+  function startEntry(index: number) {
+    const pace = paceOf(index);
+    if (pace === 'sim') simulateEvent(index);
+    else enterEvent(index, pace === 'final');
+  }
+
+  function setPlayMode(value: string) {
+    if (career) career = { ...career, playMode: value as PlayMode };
   }
 
   onDestroy(() => { runToken += 1; if (resolveFallback !== null) window.clearTimeout(resolveFallback); });
@@ -551,6 +609,9 @@
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
+  $: playMode = (career?.playMode ?? 'all') as PlayMode;
+  $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
+  $: bracketPath = live ? userBracketPath(live) : [];
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet) : [];
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
@@ -824,6 +885,18 @@
             <span class="live-tag-tier">{LEVEL_LABEL[currentLevel]}</span>
           </div>
 
+          {#if bracketPath.length}
+            <ol class="path" aria-label="Sua caminhada no campeonato">
+              {#each bracketPath as step}
+                <li class="step step-{step.status}" aria-current={step.status === 'live' ? 'step' : undefined}>
+                  <span class="step-stage">{step.label}</span>
+                  <b class="step-opp">{step.opponent ? `vs ${step.opponent}` : step.status === 'out' ? 'Fora' : 'A definir'}</b>
+                  <span class="step-state">{step.status === 'won' ? `Venceu ${step.score}` : step.status === 'lost' ? `Perdeu ${step.score}` : step.status === 'live' ? `Agora · ${step.score}` : step.status === 'out' ? 'Eliminado antes' : 'Próxima fase'}</span>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+
           {#if viewerSeries && liveUserSeries}
             {#key liveUserSeries.config.id}
               <SeriesViewer
@@ -864,10 +937,13 @@
                           </button>
                         {/each}
                       </div>
-                      <label class="auto">
-                        <input type="checkbox" bind:checked={autoCall} />
-                        <span>Nas próximas, decidir no meu estilo <b>({RISK[autoProfile].label})</b></span>
-                      </label>
+                      <div class="clutch-foot">
+                        <label class="auto">
+                          <input type="checkbox" bind:checked={autoCall} />
+                          <span>Nas próximas, decidir no meu estilo <b>({RISK[autoProfile].label})</b></span>
+                        </label>
+                        <button class="link-btn" on:click={skipClutch}>Pular e deixar o time decidir</button>
+                      </div>
                     </section>
                   {:else if callOutcome && !outcomeOutside}
                     <section class="outcome" class:lost={!callOutcome.won} use:scrollToPanel aria-label="Resultado da sua call">
@@ -918,6 +994,7 @@
               {:else if !clutch && !callOutcome && !resolving}
                 <button class="cta inline" on:click={() => void run()}>{lastCall ? 'Continuar' : 'Jogar'}</button>
               {/if}
+              <button class="secondary-btn" on:click={simulateRest}>Simular o resto</button>
             </div>
           {/if}
         {:else}
@@ -946,7 +1023,14 @@
                 </div>
               {/if}
               {#if currentEntry}
-                <button class="cta" on:click={() => currentEntry && enterEvent(currentEntry.index)}>Jogar campeonato</button>
+                <div class="next-actions">
+                  <button class="cta" on:click={() => currentEntry && (nextPace === 'live' ? enterEvent(currentEntry.index) : startEntry(currentEntry.index))}>{PACE_CTA[nextPace]}</button>
+                  {#if nextPace === 'live'}
+                    <button class="link-btn" on:click={() => currentEntry && simulateEvent(currentEntry.index)}>Só simular</button>
+                  {:else}
+                    <button class="link-btn" on:click={() => currentEntry && enterEvent(currentEntry.index)}>Jogar ao vivo</button>
+                  {/if}
+                </div>
               {:else if !career.calendar}
                 <button class="cta" on:click={openSeason}>Abrir temporada · {eventsFor(career.orgId)} camps</button>
               {/if}
@@ -1009,7 +1093,10 @@
               <section class="calendar" aria-label="Calendário da temporada">
                 <div class="section-head">
                   <p class="label">Temporada {career.seasonNumber} · {career.calendar.length} campeonatos</p>
-                  <span>Clique num campeonato para ver a chave.</span>
+                  <div class="pace">
+                    <span>Como jogar</span>
+                    <SegmentedControl value={playMode} options={PLAY_MODE_OPTIONS} label="Como jogar a temporada" onChange={setPlayMode} />
+                  </div>
                 </div>
                 <ol class="events-row">
                   {#each career.calendar as entry, index}
@@ -1384,6 +1471,23 @@
   .ev-sub em.hot { color: var(--accent); }
   .ev.played:not(.place-Campeão) .ev-name { color: color-mix(in srgb, var(--text) 80%, var(--muted)); }
 
+  .next-actions { display: grid; gap: 4px; justify-items: center; }
+  .next-actions .cta { width: 100%; }
+  .pace { display: flex; align-items: center; gap: 10px; }
+  .pace > span { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+  .path { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .step { position: relative; display: grid; gap: 3px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
+  .step-stage { color: var(--muted); font: 800 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
+  .step-opp { font: 800 18px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step-state { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .step-won { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .step-won .step-state { color: var(--accent); }
+  .step-lost { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+  .step-lost .step-state { color: var(--danger); }
+  .step-live { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--accent); }
+  .step-live .step-stage, .step-live .step-state { color: var(--accent); }
+  .step-out, .step-next { opacity: .6; }
+  .clutch-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
   .rail-seasons ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
   .rail-seasons li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .rail-seasons li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1573,6 +1677,8 @@
   /* Celular: o elenco vira faixa com snap; nada estoura a largura */
   @media (max-width: 680px) {
     .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .path { grid-template-columns: minmax(0, 1fr); }
+    .pace { flex-wrap: wrap; }
     .field li { grid-template-columns: 22px minmax(0, 1fr) 32px; gap: 4px 10px; padding: 8px 10px; }
     .field-tags { grid-column: 2 / -1; grid-row: 2; flex-wrap: wrap; }
     .field-bar { display: none; }

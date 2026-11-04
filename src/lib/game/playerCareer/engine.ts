@@ -158,6 +158,8 @@ export interface PlayerCareerState {
   pendingDraw: StartingOption[] | null;
   seatsTaken: SeatTaken[];
   pendingOffers: CareerOffer[] | null;
+  /** Como jogar a temporada: todos ao vivo, 1 a cada 2 (o outro simulado) ou simular até a final. */
+  playMode?: 'all' | 'every2' | 'finals';
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */
   relationships: Record<string, number>;
   /** Conversas desta janela entre campeonatos (zera quando um evento é jogado). */

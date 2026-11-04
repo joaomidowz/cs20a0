@@ -21,10 +21,11 @@ import { armClutchCall } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
 import { drawClutchSituation, resolveClutchEdge } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear } from '../maps';
-import type { HistoricalTeam, OrgStyle, Player, SelectedPlayer, TeamSide } from '../types';
+import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
+import { createRunStats } from '../runStats';
 import { createSeededRng } from '../simulation';
 import { ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
-import type { PlayerCareerState, PlayerRole } from './engine';
+import type { PlayerCareerState, PlayerRole, TournamentResult } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -314,3 +315,109 @@ export function runSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchCon
 
 /** Serialização do evento em andamento no padrão do modo manager (séries fechadas → rebuild determinístico). */
 export const serializeSceneEvent = (campaign: CampaignMajorState): Record<string, unknown> => campaignPlayedSeries(campaign) as unknown as Record<string, unknown>;
+
+/** Colocação do run do motor → rótulo da carreira. */
+export function placementLabel(placement: string): TournamentResult['placement'] {
+  if (placement === 'placementChampion') return 'Campeão';
+  if (placement === 'placementRunnerUp') return 'Vice';
+  if (placement === 'placement3to4') return 'Semis';
+  return 'Quartas';
+}
+
+export interface SceneEventOutcome {
+  result: TournamentResult;
+  stats: PlayerRunStats[];
+  players: Player[];
+}
+
+const isUserTeam = (campaign: CampaignMajorState, id: string) => id === 'user' || id === campaign.userTeamId;
+
+/** O fechamento de um campeonato jogado (ao vivo ou simulado): colocação, seu rating do kill feed e W-L. */
+export function sceneEventResult(state: PlayerCareerState, eventIndex: number, campaign: CampaignMajorState): SceneEventOutcome {
+  const players = userEnginePlayers(state);
+  const userSeries = campaign.run.matches.filter((series) => isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id));
+  const stats = createRunStats(players, campaign.run, `${state.seed}:event:${state.seasonNumber}:${eventIndex}`, lineupOf(players));
+  const mine = stats.find((stat) => stat.playerId === `${state.seed}:me`);
+  const wins = userSeries.filter((series) => isUserTeam(campaign, series.winnerId)).length;
+  return {
+    result: {
+      name: state.calendar?.[eventIndex]?.name ?? `Campeonato ${eventIndex + 1}`,
+      placement: placementLabel(campaign.run.placement),
+      rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
+      seriesWins: wins,
+      seriesLosses: userSeries.length - wins
+    },
+    stats,
+    players
+  };
+}
+
+/** Roda o resto do campeonato sem pausas (o time decide os rounds decisivos sozinho). */
+export function finishSceneEvent(campaign: CampaignMajorState, maxSteps = 8000): CampaignMajorState {
+  let current = campaign;
+  for (let guard = 0; guard < maxSteps && !current.finished; guard += 1) current = stepSceneEvent(current).campaign;
+  return current;
+}
+
+/** Simula um campeonato inteiro (ou o resto dele, a partir de um save) e devolve o fechamento. */
+export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>): SceneEventOutcome & { campaign: CampaignMajorState } {
+  const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played).campaign);
+  return { ...sceneEventResult(state, eventIndex, campaign), campaign };
+}
+
+/** "Só as finais": simula até a sua série da final começar; se você cair antes, o campeonato acaba ali. */
+export function advanceToFinal(campaign: CampaignMajorState, maxSteps = 8000): CampaignMajorState {
+  let current = campaign;
+  for (let guard = 0; guard < maxSteps && !current.finished; guard += 1) {
+    const live = currentCampaignSeries(current);
+    if (live && live.config.phase === 'final' && isUserSeries(current, live)) return current;
+    current = stepSceneEvent(current).campaign;
+  }
+  return current;
+}
+
+export type BracketStage = 'quarterfinal' | 'semifinal' | 'final';
+export interface BracketStep {
+  stage: BracketStage;
+  label: string;
+  status: 'won' | 'lost' | 'live' | 'next' | 'out';
+  opponent: string | null;
+  /** Placar em mapas do seu lado primeiro ("2-1"). */
+  score: string | null;
+}
+
+const STAGE_LABEL: Record<BracketStage, string> = { quarterfinal: 'Quartas', semifinal: 'Semis', final: 'Final' };
+
+/** Onde você está na chave: as 3 fases com adversário, placar e o que já passou. */
+export function userBracketPath(campaign: CampaignMajorState): BracketStep[] {
+  const live = currentCampaignSeries(campaign);
+  const done = new Map<string, SeriesResult>();
+  for (const series of campaign.run.matches) {
+    // Só séries decididas: a que está rolando (ou mal abriu) aparece como "ao vivo", não como derrota.
+    if (!series.winnerId || (live && series.id === live.config.id)) continue;
+    if (isUserTeam(campaign, series.teamA.id) || isUserTeam(campaign, series.teamB.id)) done.set(series.phase, series);
+  }
+  let eliminated = false;
+  return (['quarterfinal', 'semifinal', 'final'] as BracketStage[]).map((stage) => {
+    const series = done.get(stage);
+    if (series) {
+      const userIsA = isUserTeam(campaign, series.teamA.id);
+      const won = isUserTeam(campaign, series.winnerId);
+      if (!won) eliminated = true;
+      return {
+        stage, label: STAGE_LABEL[stage], status: won ? 'won' : 'lost',
+        opponent: userIsA ? series.teamB.name : series.teamA.name,
+        score: userIsA ? `${series.scoreA}-${series.scoreB}` : `${series.scoreB}-${series.scoreA}`
+      };
+    }
+    if (live && live.config.phase === stage && isUserSeries(campaign, live)) {
+      const userIsA = live.config.teamA.id === campaign.userTeamId;
+      return {
+        stage, label: STAGE_LABEL[stage], status: 'live',
+        opponent: userIsA ? live.config.teamB.name : live.config.teamA.name,
+        score: userIsA ? `${live.scoreA}-${live.scoreB}` : `${live.scoreB}-${live.scoreA}`
+      };
+    }
+    return { stage, label: STAGE_LABEL[stage], status: eliminated ? 'out' : 'next', opponent: null, score: null };
+  });
+}
