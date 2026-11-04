@@ -8,7 +8,7 @@ import { createSeededRng } from '../simulation';
 import type { Player, TrainingFocus } from '../types';
 import type { PlayerCareerState, PlayerRole, TrainedAttribute, TrainedBonus } from './engine';
 import { matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
-import { LANGUAGE_LABEL, learn, myFluency } from './language';
+import { LANGUAGE_LABEL, learn, myFluency, NON_NATIVE_MAX } from './language';
 
 export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado';
 
@@ -183,10 +183,10 @@ export function agendaAvailable(state: PlayerCareerState, action: AgendaAction):
   if (needs.realOrg && state.orgId === 'lan-house') return false;
   if (needs.fame && (state.fame ?? 0) < needs.fame) return false;
   if (needs.roles && !needs.roles.includes(state.role)) return false;
-  if (needs.language === 'en' && myFluency(state, 'en') >= 100) return false;
+  if (needs.language === 'en' && myFluency(state, 'en') >= NON_NATIVE_MAX) return false;
   if (needs.language === 'team') {
     const fit = myLanguageFit(state);
-    if (fit.language === 'en' || fit.fluency >= 100) return false;
+    if (fit.language === 'en' || fit.fluency >= NON_NATIVE_MAX) return false;
   }
   return true;
 }

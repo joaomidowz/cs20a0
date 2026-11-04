@@ -5,7 +5,7 @@
 // do seu mental e da sua moral: a mesma decisão pode sair melhor ou pior.
 import rawEvents from '$lib/data/cs/career-events.game.json';
 import { createSeededRng } from '../simulation';
-import { orgOf, playedCount, type PlayerCareerState, type TournamentResult } from './engine';
+import { orgOf, playedCount, trophyCase, type PlayerCareerState, type TournamentResult } from './engine';
 import { matesOf, myPlayerOf } from './squad';
 
 export type HappeningTrigger = 'pre' | 'post' | 'between';
@@ -57,6 +57,85 @@ export function happeningChance(state: PlayerCareerState, trigger: HappeningTrig
   return Math.min(0.5, 0.2 + (big ? 0.15 : 0) + famous);
 }
 
+/** O que o acontecimento afirma precisa ser verdade: "perde a final" só depois de um vice, "0 a 2 no suíço" só com
+ *  campanha ruim no Major. Os que falam de final/semifinal do campeonato saem DEPOIS do jogo (o resultado existe). */
+interface NeedContext { state: PlayerCareerState; trigger: HappeningTrigger; result?: TournamentResult; last?: TournamentResult; next?: NonNullable<PlayerCareerState['calendar']>[number] }
+type Need = (context: NeedContext) => boolean;
+
+const PLAYOFF = new Set(['quarterfinal', 'semifinal', 'final']);
+const reachedFinal = (result?: TournamentResult) => result?.placement === 'Campeão' || result?.placement === 'Vice';
+const champion = (result?: TournamentResult) => result?.placement === 'Campeão';
+const lostSeries = (result?: TournamentResult) => (result?.opponents ?? []).some((game) => !game.won);
+const wonPlayoff = (result?: TournamentResult) => (result?.opponents ?? []).some((game) => game.won && PLAYOFF.has(game.phase ?? ''));
+const bigEvent = (result?: TournamentResult) => result?.tier === 'Major' || result?.tier === 'S';
+/** Os campeonatos jogados, do mais recente ao mais antigo (temporada atual e as anteriores). */
+function playedResults(state: PlayerCareerState): TournamentResult[] {
+  const now = (state.calendar ?? []).flatMap((entry) => (entry.result ? [entry.result] : []));
+  return [...state.history.flatMap((log) => log.tournaments), ...now].reverse();
+}
+const badRun = (state: PlayerCareerState) => {
+  const recent = playedResults(state).slice(0, 2);
+  return recent.length === 2 && recent.every((result) => !['Campeão', 'Vice', 'Semis'].includes(result.placement));
+};
+
+/** Depois do jogo: o resultado do campeonato que acabou. Antes/na semana: o último campeonato jogado. */
+const NEEDS: Record<string, Need> = {
+  EV008: ({ result }) => reachedFinal(result),
+  EV010: ({ last }) => lostSeries(last),
+  EV012: ({ result }) => wonPlayoff(result),
+  EV014: ({ result }) => !!result && !champion(result),
+  EV015: ({ state, result }) => reachedFinal(result) && !playedResults(state).slice(1).some(reachedFinal),
+  EV019: ({ last }) => lostSeries(last),
+  EV020: ({ state }) => badRun(state),
+  EV023: ({ result }) => reachedFinal(result),
+  EV025: ({ last }) => lostSeries(last),
+  EV036: ({ result }) => !!result && !champion(result),
+  EV041: ({ result }) => !!result && !reachedFinal(result),
+  EV045: ({ last }) => lostSeries(last),
+  EV050: ({ result }) => lostSeries(result),
+  EV054: ({ result }) => !!result && ['Semis', 'Vice', 'Campeão'].includes(result.placement),
+  EV058: ({ last }) => lostSeries(last),
+  EV060: ({ result }) => reachedFinal(result) && !bigEvent(result),
+  EV068: ({ result }) => !!result && !champion(result) && lostSeries(result),
+  EV071: ({ result }) => reachedFinal(result),
+  EV072: ({ last }) => lostSeries(last),
+  EV078: ({ state }) => badRun(state),
+  EV079: ({ last }) => (last?.rating ?? 0) >= 1.25,
+  EV085: ({ last }) => last?.placement === 'Semis',
+  EV090: () => false,
+  EV094: ({ last }) => lostSeries(last),
+  EV100: ({ last }) => lostSeries(last),
+  EV103: ({ last }) => wonPlayoff(last),
+  EV106: ({ state, next }) => next?.format === 'major' && !playedResults(state).some((result) => result.tier === 'Major'),
+  EV107: ({ result }) => !!result && !champion(result),
+  EV108: ({ result }) => result?.tier === 'Major' && ['Stage 1', 'Stage 2', 'Fase suíça'].includes(result.placement),
+  EV109: ({ last }) => wonPlayoff(last),
+  EV113: ({ result }) => !!result && bigEvent(result) && ['Quartas', 'Semis', 'Vice', 'Campeão'].includes(result.placement),
+  EV115: ({ last }) => lostSeries(last),
+  EV116: ({ result }) => result?.placement === 'Semis',
+  EV120: ({ result }) => result?.tier === 'Major' && reachedFinal(result),
+  EV122: ({ result }) => reachedFinal(result),
+  EV123: ({ state }) => trophyCase(state).total >= 6,
+  EV125: ({ result }) => champion(result),
+  EV129: ({ result }) => reachedFinal(result),
+  EV135: ({ state }) => state.history.some((log) => (log.hltvRank ?? 99) <= 3),
+  EV136: ({ last }) => last?.tier === 'Major' && champion(last),
+  EV140: ({ result }) => result?.placement === 'Vice',
+  EV141: ({ result }) => reachedFinal(result) && bigEvent(result),
+  EV146: ({ result }) => champion(result) && bigEvent(result),
+  EV147: ({ result }) => champion(result),
+  EV150: ({ result }) => reachedFinal(result) && bigEvent(result)
+};
+
+/** Os que o documento põe antes do jogo, mas contam o que aconteceu NO campeonato: saem depois dele. */
+const AFTER_THE_GAME = new Set(['EV012', 'EV015', 'EV036', 'EV054', 'EV060', 'EV108', 'EV120', 'EV129', 'EV141', 'EV147', 'EV150']);
+export const triggerOf = (event: Happening): HappeningTrigger => (AFTER_THE_GAME.has(event.id) ? 'post' : event.trigger);
+
+function fits(event: Happening, context: NeedContext): boolean {
+  const need = NEEDS[event.id];
+  return !need || need(context);
+}
+
 /** Sorteia (ou não) um acontecimento para o gatilho e deixa esperando a sua escolha. */
 export function rollHappening(state: PlayerCareerState, trigger: HappeningTrigger, context: HappeningContext): PlayerCareerState {
   if (state.status !== 'ACTIVE' || state.pendingHappening || state.pendingMove) return state;
@@ -65,8 +144,12 @@ export function rollHappening(state: PlayerCareerState, trigger: HappeningTrigge
   if (rng() >= happeningChance(state, trigger, context)) return state;
   const [low, high] = PHASES_BY_LEVEL[orgOf(state.orgId, state).level] ?? [1, 2];
   const log = state.happeningLog ?? {};
-  const pool = HAPPENINGS.filter((event) => event.trigger === trigger && event.tierMin >= low && event.tierMin <= high
-    && (log[event.id] === undefined || played - log[event.id] >= Math.max(event.cooldown, 8)));
+  const needContext: NeedContext = {
+    state, trigger, result: trigger === 'post' ? context.result : undefined,
+    last: context.result ?? playedResults(state)[0], next: state.calendar?.[context.eventIndex]
+  };
+  const pool = HAPPENINGS.filter((event) => triggerOf(event) === trigger && event.tierMin >= low && event.tierMin <= high
+    && (log[event.id] === undefined || played - log[event.id] >= Math.max(event.cooldown, 8)) && fits(event, needContext));
   const total = pool.reduce((sum, event) => sum + event.weight, 0);
   if (!total) return state;
   let ticket = rng() * total;

@@ -12,6 +12,8 @@ import { regionOf, type Region } from './calendar';
 import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
 import rawFills from '$lib/data/cs/career-slot-fills.game.json';
 import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
+import rawIdentities from '$lib/data/cs/identities.game.json';
+import { countryOfFlag } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
@@ -265,6 +267,21 @@ const normalized = (() => {
 })();
 
 export const sceneOrgs = normalized.orgs;
+
+const IDENTITY_COUNTRY = (rawIdentities as unknown as { players: Record<string, { country?: string | null }> }).players;
+
+/** País do jogador para a call e para a carta: o da coleta; sem ele, o do catálogo do jogo (ZywOo, apEX e ropz
+ *  vieram sem país) e, por fim, o do time (BORRACHEIROS sem nenhum país é brasileiro). O mundo (trocas e times
+ *  nacionais) continua lendo só o da coleta. */
+export function memberCountryIn(member: SceneRosterMember, org?: { country: string | null } | null): string | null {
+  if (member.country) return member.country;
+  const code = IDENTITY_COUNTRY[(member.catalogBaseId ?? member.nick).toLowerCase()]?.country;
+  return countryOfFlag(code) ?? org?.country ?? null;
+}
+
+/** O elenco com o país de todos resolvido (para o idioma da call). */
+export const resolvedRoster = (org: { roster: SceneRosterMember[]; country: string | null }): SceneRosterMember[] =>
+  org.roster.map((member) => (member.country ? member : { ...member, country: memberCountryIn(member, org) }));
 const orgsById = new Map(sceneOrgs.map((org) => [org.id, org]));
 /** Busca por id; ids de times duplicados (saves antigos) caem no time que ficou. */
 export const sceneOrgById = {

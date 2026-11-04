@@ -138,9 +138,58 @@ export function situationBomb(situation: Pick<ClutchSituation, 'text' | 'alterna
   return null;
 }
 
-export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = [], side: 't' | 'ct' | null = null): ClutchSituation {
-  // Só situações do seu lado no round: CT não planta, TR não desarma.
-  const all = situationsFor(role).filter((situation) => !side || !situationSide(situation) || situationSide(situation) === side);
+/** O momento do mapa na hora da call: round, placar, sequência e dinheiro (por jogador) dos dois lados. */
+export interface RoundContext {
+  round: number;
+  us: number;
+  them: number;
+  winStreak: number;
+  lossStreak: number;
+  /** O seu time ganhou o round anterior (null no round 1). */
+  lastWon: boolean | null;
+  money: number | null;
+  theirMoney: number | null;
+}
+
+/** Abaixo disso o time está no eco/dinheiro curto; abaixo da compra cheia, força. */
+const LOW_MONEY = 2400;
+const FULL_BUY = 3600;
+/** Rounds para fechar o mapa: 13 no tempo normal; na prorrogação, 16, 19, 22… */
+const mapTarget = (us: number, them: number) => (Math.min(us, them) >= 12 ? 16 + 3 * Math.floor((Math.min(us, them) - 12) / 3) : 13);
+
+/** A situação só cai quando o que ela diz é verdade no mapa: "perderam três seguidos" só depois de três derrotas,
+ *  "último round do half" só no 12, eco só com o dinheiro curto. Sem regra, serve a qualquer momento. */
+const CONTEXT_RULES: Array<[RegExp, (ctx: RoundContext) => boolean]> = [
+  [/perde(ram|u) (três|3) rounds/, (ctx) => ctx.lossStreak >= 3],
+  [/ganhou dois rounds seguidos/, (ctx) => ctx.winStreak >= 2],
+  [/perdeu o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === false],
+  [/ganhou o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === true],
+  [/depois do pistol/, (ctx) => ctx.round === 2 || ctx.round === 14],
+  [/pistol round|pistola no round 1/, (ctx) => ctx.round === 1 || ctx.round === 13],
+  [/último round do half|decisivo para o half/, (ctx) => ctx.round === 12],
+  [/empatado em 12 a 12/, (ctx) => ctx.us === 12 && ctx.them === 12],
+  [/primeiro round da prorrogação/, (ctx) => ctx.round >= 25 && (ctx.round - 25) % 6 === 0],
+  [/(último round|última entrada) para (fechar|ganhar) o mapa|último round do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - ctx.us === 1],
+  [/fim do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - Math.max(ctx.us, ctx.them) <= 2],
+  [/cinco rounds atrás/, (ctx) => ctx.them - ctx.us >= 5],
+  [/perdendo e sem energia/, (ctx) => ctx.them - ctx.us >= 3],
+  [/placar apertado/, (ctx) => Math.abs(ctx.us - ctx.them) <= 2 && ctx.us + ctx.them >= 12],
+  [/eco round|está no eco|economia do time|economia apertada|dinheiro curto|sem dinheiro|pouco dinheiro/, (ctx) => ctx.money !== null && ctx.money < LOW_MONEY],
+  [/round de força/, (ctx) => ctx.money !== null && ctx.money < FULL_BUY],
+  [/anti-eco|contra eco|economia quebrada/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < LOW_MONEY],
+  [/contra força|fez força/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < FULL_BUY]
+];
+
+export function situationFits(situation: Pick<ClutchSituation, 'text'>, ctx: RoundContext | null): boolean {
+  const text = situation.text.toLowerCase();
+  const rules = CONTEXT_RULES.filter(([pattern]) => pattern.test(text));
+  if (!rules.length) return true;
+  return Boolean(ctx) && rules.every(([, fits]) => fits(ctx!));
+}
+
+export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = [], side: 't' | 'ct' | null = null, round: RoundContext | null = null): ClutchSituation {
+  // Só situações do seu lado no round (CT não planta, TR não desarma) e que batem com o placar e o dinheiro.
+  const all = situationsFor(role).filter((situation) => (!side || !situationSide(situation) || situationSide(situation) === side) && situationFits(situation, round));
   const fresh = all.filter((situation) => !usedIds.includes(situation.id));
   const pool = fresh.length ? fresh : all;
   const rng = createSeededRng(`${seed}:situation`);

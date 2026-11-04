@@ -54,7 +54,7 @@ export function teamLanguage(roster: Array<Pick<SceneRosterMember, 'country'>>):
 export function npcFluency(member: Pick<SceneRosterMember, 'country'>, language: Language): number {
   if (!member.country) return 70;
   if (nativeLanguage(member.country) === language) return 100;
-  return language === 'en' ? Math.min(100, englishBase(member.country) + 15) : 60;
+  return language === 'en' ? Math.min(NON_NATIVE_MAX, englishBase(member.country) + 15) : 60;
 }
 
 /** Coesão da call de um time da cena: −1 de força quando um terço ou mais não se comunica bem (fluência < 60). */
@@ -71,17 +71,51 @@ export interface LanguageState { country: string; languages?: Partial<Record<Lan
 /** A sua fluência num idioma (0-100). */
 export function myFluency(state: LanguageState, language: Language): number {
   if (nativeLanguage(state.country) === language) return 100;
-  return state.languages?.[language] ?? (language === 'en' ? englishBase(state.country) : 0);
+  return Math.min(NON_NATIVE_MAX, state.languages?.[language] ?? (language === 'en' ? englishBase(state.country) : 0));
 }
+
+/** Quem não nasceu falando nunca vira nativo: o teto é "muito bom". */
+export const NON_NATIVE_MAX = 95;
 
 /** Quanto a call trava: 0 (fluente, 70+), 1 (básico, 40+), 2 (não fala). Tira sinergia dos parceiros em quadra. */
 export const languagePenalty = (fluency: number): number => (fluency >= 70 ? 0 : fluency >= 40 ? 1 : 2);
 
 export const fluencyLabel = (fluency: number): string =>
-  fluency >= 100 ? 'nativo' : fluency >= 70 ? 'fluente' : fluency >= 40 ? 'básico' : fluency > 0 ? 'iniciante' : 'não fala';
+  fluency >= 100 ? 'nativo' : fluency >= 90 ? 'muito bom' : fluency >= 70 ? 'fluente' : fluency >= 40 ? 'básico' : fluency > 0 ? 'iniciante' : 'não fala';
 
 /** Aprende: soma fluência (até 100) no idioma. */
 export function learn(state: LanguageState, language: Language, amount: number): Partial<Record<Language, number>> {
   if (nativeLanguage(state.country) === language) return state.languages ?? {};
-  return { ...(state.languages ?? {}), [language]: Math.min(100, myFluency(state, language) + amount) };
+  return { ...(state.languages ?? {}), [language]: Math.min(NON_NATIVE_MAX, myFluency(state, language) + amount) };
+}
+
+/** Bandeira (código do flag-icons) pelo país como a coleta grava ("Brazil" → br). Desconhecido: sem bandeira. */
+const FLAG_OF: Record<string, string> = {
+  Brazil: 'br', 'United States': 'us', USA: 'us', Russia: 'ru', Argentina: 'ar', Denmark: 'dk', Poland: 'pl', Australia: 'au', Sweden: 'se',
+  Mongolia: 'mn', Ukraine: 'ua', China: 'cn', Kazakhstan: 'kz', Turkey: 'tr', France: 'fr', Romania: 'ro', 'United Kingdom': 'gb', India: 'in',
+  Israel: 'il', Canada: 'ca', Germany: 'de', Portugal: 'pt', Lithuania: 'lt', Kosovo: 'xk', 'Czech Republic': 'cz', Uruguay: 'uy', Spain: 'es',
+  Peru: 'pe', Bulgaria: 'bg', Finland: 'fi', Colombia: 'co', Latvia: 'lv', Serbia: 'rs', Belarus: 'by', Slovakia: 'sk', 'North Macedonia': 'mk',
+  Chile: 'cl', 'Bosnia and Herzegovina': 'ba', 'South Africa': 'za', Mexico: 'mx', 'Hong Kong': 'hk', Hungary: 'hu', Estonia: 'ee', Belgium: 'be',
+  'New Zealand': 'nz', Netherlands: 'nl', Lebanon: 'lb', Vietnam: 'vn', Guatemala: 'gt', Venezuela: 've', Taiwan: 'tw', Palestine: 'ps',
+  Montenegro: 'me', Iraq: 'iq', Georgia: 'ge', Azerbaijan: 'az', Norway: 'no', Indonesia: 'id', Switzerland: 'ch', Austria: 'at', Ireland: 'ie',
+  Uzbekistan: 'uz', Kyrgyzstan: 'kg', Malaysia: 'my', Jordan: 'jo', Paraguay: 'py', Bolivia: 'bo', Ecuador: 'ec', Croatia: 'hr'
+};
+export const flagOf = (country: string | null | undefined): string | null => (country ? FLAG_OF[country] ?? null : null);
+const COUNTRY_OF_FLAG = new Map<string, string>();
+for (const [country, code] of Object.entries(FLAG_OF)) if (!COUNTRY_OF_FLAG.has(code)) COUNTRY_OF_FLAG.set(code, country);
+/** O país (como a coleta grava) pelo código da bandeira do catálogo do jogo ("fr" → France). */
+export const countryOfFlag = (code: string | null | undefined): string | null => (code ? COUNTRY_OF_FLAG.get(code.toLowerCase()) ?? null : null);
+
+/** Idiomas que não mudam a call (contam como "outro"), só para mostrar o que o jogador fala. */
+const SPOKEN_OTHER: Record<string, string> = {
+  Romania: 'Romeno', India: 'Hindi', Israel: 'Hebraico', Lithuania: 'Lituano', Kosovo: 'Albanês', 'Czech Republic': 'Tcheco', Bulgaria: 'Búlgaro',
+  Latvia: 'Letão', Serbia: 'Sérvio', Slovakia: 'Eslovaco', 'North Macedonia': 'Macedônio', 'Bosnia and Herzegovina': 'Bósnio', Hungary: 'Húngaro',
+  Estonia: 'Estoniano', Netherlands: 'Holandês', Lebanon: 'Árabe', Vietnam: 'Vietnamita', Palestine: 'Árabe', Montenegro: 'Montenegrino', Iraq: 'Árabe',
+  Georgia: 'Georgiano', Azerbaijan: 'Azeri', Indonesia: 'Indonésio', Croatia: 'Croata', Malaysia: 'Malaio', Jordan: 'Árabe'
+};
+
+/** O idioma nativo para mostrar na carta ("Português", "Dinamarquês", "Estoniano"). */
+export function spokenLabel(country: string | null | undefined): string {
+  const language = nativeLanguage(country);
+  return language === 'other' ? SPOKEN_OTHER[country ?? ''] ?? 'Outro idioma' : LANGUAGE_LABEL[language];
 }

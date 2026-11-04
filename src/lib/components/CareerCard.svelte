@@ -3,6 +3,7 @@
   // sempre à vista e, na sua carta, quanto falta pro próximo degrau. Rodapé livre (slot) pra relação/ações.
   import { CAREER_RARITY_LABEL, careerRarity } from '$lib/game/playerCareer/cards';
   import type { Player } from '$lib/game/types';
+  import type { CardInfo } from '$lib/game/playerCareer/scout';
   import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
 
   export let player: Player;
@@ -14,6 +15,11 @@
   /** Bônus de treino por atributo (só a sua carta tem). */
   export let trained: Partial<Record<string, number>> | null = null;
   export let onOpen: (() => void) | null = null;
+  /** País, idioma, idade e a língua da call (no lugar da linha de apoio). */
+  export let profile: CardInfo | null = null;
+  /** Aviso rápido em cima da carta (conversa, vestiário); a página some com ele em 5 s. */
+  export let notice: { who: string; text: string; tone: 'good' | 'bad' | 'neutral' } | null = null;
+  export let onNoticeClose: (() => void) | null = null;
   /** 'sheet' é a versão grande da modal. */
   export let size: 'mate' | 'sheet' = 'mate';
 
@@ -32,6 +38,9 @@
   $: best = new Set([...values].sort((a, b) => b.value - a.value).slice(0, 2).map((attribute) => attribute.key));
   $: initials = (player.nickname ?? '?').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
   // Foto licenciada do jogador real (registro em licensed-images.json), nunca na sua carta.
+  // Bandeira que não está no pacote do jogo: some sem quebrar a linha.
+  let flagMissing = false;
+  $: profile?.flag, (flagMissing = false);
   $: photo = me ? null : licensedImageFor('player', player.baseId ?? null) ?? licensedImageFor('player', (player.nickname ?? '').toLowerCase());
 </script>
 
@@ -59,6 +68,15 @@
     <span class="id">
       <b class="nick">{player.nickname ?? player.id}</b>
       {#if caption}<span class="cap">{caption}</span>{/if}
+      {#if profile}
+        <span class="cap meta" title={profile.detail}>
+          {#if profile.flag && !flagMissing}<img class="flag" src={`/flags/${profile.flag}.svg`} alt={profile.country ?? ''} width="16" height="12" on:error={() => (flagMissing = true)} />{/if}
+          <span class="lang">{profile.spoken}</span>
+          {#if profile.age !== null}<span class="age">· {profile.age} anos</span>{/if}
+          {#if profile.call}<span class="call" class:warn={!profile.call.ok} title={`Call em ${profile.call.label}: ${profile.call.fluency}/100`}>{profile.call.code}</span>{/if}
+        </span>
+        {#if size === 'sheet'}<span class="cap detail">{profile.detail}</span>{/if}
+      {/if}
     </span>
     <span class="stats">
       {#each values as attribute}
@@ -80,6 +98,14 @@
     {/if}
   </svelte:element>
   {#if $$slots.default}<div class="foot"><slot /></div>{/if}
+  {#if notice}
+    <div class="notice tone-{notice.tone}" role="status">
+      <p><b>{notice.who}</b> {notice.text}</p>
+      <button type="button" class="notice-x" aria-label="Fechar aviso" on:click={() => onNoticeClose?.()}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </div>
+  {/if}
 </article>
 
 <style>
@@ -176,6 +202,24 @@
   .id { display: grid; gap: 2px; min-width: 0; margin-top: 2px; }
   .nick { font: 800 21px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cap { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .notice { position: absolute; top: 6px; right: 6px; left: 6px; z-index: 4; padding: 8px 30px 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--muted); background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 8px 24px rgb(0 0 0 / 35%); animation: notice-in .18s cubic-bezier(.16, 1, .3, 1); }
+  .notice.tone-good { border-left-color: var(--accent); }
+  .notice.tone-bad { border-left-color: var(--accent-2, #ff8a3d); }
+  .notice p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--text); font-size: 12px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; }
+  .notice b { font-weight: 800; }
+  .notice.tone-good b { color: var(--accent); }
+  .notice.tone-bad b { color: var(--accent-2, #ff8a3d); }
+  .notice-x { position: absolute; top: 2px; right: 2px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
+  .notice-x:hover { color: var(--text); }
+  .notice-x:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @keyframes notice-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .notice { animation: none; } }
+  .meta { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .meta .flag { flex: none; width: 16px; height: 12px; object-fit: cover; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .meta .lang { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .meta .age { flex: none; }
+  .meta .call { flex: none; margin-left: auto; padding: 1px 4px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); font-size: 10px; font-weight: 800; line-height: 1.2; letter-spacing: .06em; }
+  .meta .call.warn { border-color: color-mix(in srgb, var(--accent-2, #ff8a3d) 60%, transparent); color: var(--accent-2, #ff8a3d); }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
   .stat { display: grid; justify-items: center; gap: 2px; padding: 4px 2px; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
   .stat .k { color: var(--muted); font: 800 10px/1 Archivo, Inter, sans-serif; letter-spacing: .08em; }
@@ -197,6 +241,7 @@
   .size-sheet .mono { font-size: 150px; top: 50px; }
   .size-sheet .nick { font-size: 40px; }
   .size-sheet .cap { font-size: 14px; }
+  .size-sheet .detail { white-space: normal; }
   .size-sheet .stats { gap: 6px; }
   .size-sheet .stat { padding: 10px 6px; }
   .size-sheet .stat .k { font-size: 11px; }

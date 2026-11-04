@@ -43,9 +43,9 @@
           <b>{player.nick}{player.you ? ' · você' : ''}</b>
           <small>{player.team}{player.age ? ` · ${player.age} anos` : ''}</small>
         </span>
-        <span class="rating {ratingClass(player.rating)}">
+        <span class="hl-rating {ratingClass(player.rating)}">
           {player.rating !== undefined ? player.rating.toFixed(2) : '—'}
-          <i style={`width:${Math.max(10, Math.round(((player.rating ?? 1) - 0.9) / Math.max(0.05, best - 0.9) * 100))}%`}></i>
+          {#if player.rating !== undefined}<i style={`width:${Math.max(10, Math.round((player.rating - 0.9) / Math.max(0.05, best - 0.9) * 100))}%`}></i>{/if}
         </span>
       </li>
     {/each}
@@ -79,13 +79,13 @@
   .who b { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .you .who b { color: var(--accent); }
   .who small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .rating { display: grid; gap: 3px; justify-items: end; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
-  .rating i { display: block; width: 100%; height: 3px; background: var(--muted); justify-self: stretch; }
-  .rating.hot { color: var(--gold, #d9a441); }
-  .rating.hot i { background: var(--gold, #d9a441); }
-  .rating.good { color: var(--accent); }
-  .rating.good i { background: var(--accent); }
-  .rating.low { color: var(--muted); }
+  .hl-rating { display: grid; gap: 3px; justify-items: end; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .hl-rating i { display: block; width: 100%; height: 3px; background: var(--muted); justify-self: stretch; }
+  .hl-rating.hot { color: var(--gold, #d9a441); }
+  .hl-rating.hot i { background: var(--gold, #d9a441); }
+  .hl-rating.good { color: var(--accent); }
+  .hl-rating.good i { background: var(--accent); }
+  .hl-rating.low { color: var(--muted); }
   .me-out { margin: 0; color: var(--muted); font-size: 13px; }
   .me-out b { color: var(--text); }
   .compact .hltv-head h3 { font-size: 22px; }

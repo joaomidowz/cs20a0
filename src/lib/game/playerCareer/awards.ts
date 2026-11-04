@@ -7,6 +7,7 @@ import { createSeededRng } from '../simulation';
 import { memberBirthYear, memberCatalogOverall, memberDebutYear, memberNick, sceneOrgs } from './data';
 import type { PlayerCareerState, RankedPlayer, TournamentResult } from './engine';
 import { rosterIn, yearOfSeason } from './world';
+import { seatedNicks } from './squad';
 
 /** Peso do campeonato no ranking: Major e Tier S valem mais; Tier A internacional mais que o regional; tier B e C
  *  quase não pesam (ninguém entra no Top 20 da HLTV ganhando Challenger). */
@@ -46,7 +47,7 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
     if (result.mvp && !result.mvp.you) mvpOf.set(result.mvp.nick.toLowerCase(), (mvpOf.get(result.mvp.nick.toLowerCase()) ?? 0) + 1);
     if (result.champion && result.champion !== orgName) titlesOf.set(result.champion, (titlesOf.get(result.champion) ?? 0) + 1);
   }
-  const replaced = new Set(state.seatsTaken.filter((seat) => seat.orgId === state.orgId).map((seat) => seat.nick.toLowerCase()));
+  const replaced = new Set(state.seatsTaken.filter((seat) => seat.orgId === state.orgId).flatMap((seat) => seatedNicks(state, seat)));
   const best = new Map<string, RankedPlayer & { age: number | null; elite: boolean; debut: boolean }>();
   const myRating = (() => {
     const played = results.filter((result) => !result.skipped);

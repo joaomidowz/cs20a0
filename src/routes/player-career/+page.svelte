@@ -31,15 +31,16 @@
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
-  import { sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
+  import { seatsWithSeason, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
   import type { MapId } from '$lib/game/types';
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
-  import { headlineRetirements, headlineTransfers, orgIn, risingProspects } from '$lib/game/playerCareer/world';
+  import { headlineRetirements, headlineTransfers, orgIn, registerSeats, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
+  import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
@@ -143,6 +144,9 @@
   let trophiesOpen = false;
   /** Visão do campeonato ao vivo (suíça, tabela com Buchholz e chave), a mesma do Major offline e do online. */
   let overviewOpen = false;
+  /** Busca de jogador (onde foi parar o ZywOo). */
+  let scoutOpen = false;
+  let scoutQuery = '';
   /** Resultado do acontecimento escolhido (fica na tela até "Continuar") e o campeonato que esperava por ele. */
   let happeningResult: { situation: string; trigger: string; line: string; chips: HappeningChip[]; success: boolean } | null = null;
   let queuedStart: { index: number; mode: 'pace' | 'live' | 'sim' } | null = null;
@@ -160,7 +164,18 @@
   const orgIdByName = (name: string) => sceneOrgs.find((org) => org.name === name)?.id ?? name;
   /** Escolha de função nova (aberta pelo elenco) e o recado do vestiário (troca de função, saída de parceiro). */
   let roleSheetOpen = false;
-  let squadNews: string | null = null;
+  /** Aviso rápido em cima de uma carta (conversa, troca de função, saída de parceiro): some em 5 s. */
+  let cardNotice: { id: string; who: string; text: string; tone: 'good' | 'bad' | 'neutral' } | null = null;
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  function notify(id: string, who: string, text: string, tone: 'good' | 'bad' | 'neutral') {
+    if (noticeTimer) clearTimeout(noticeTimer);
+    cardNotice = { id, who, text, tone };
+    noticeTimer = setTimeout(() => (cardNotice = null), 5000);
+  }
+  function dismissNotice() {
+    if (noticeTimer) clearTimeout(noticeTimer);
+    cardNotice = null;
+  }
   const ROLE_CHOICES: PlayerRole[] = ['igl', 'awper', 'entry', 'lurker', 'support'];
   function roleChance(state: PlayerCareerState, role: PlayerRole): number {
     const me = myPlayerOf(state);
@@ -171,7 +186,7 @@
     if (!career) return;
     const result = changeRole(career, role);
     career = result.state;
-    squadNews = result.line;
+    notify(`${result.state.seed}:me`, result.good ? 'Encaixou.' : 'Não encaixou.', result.line.replace(/^(Encaixou|Ainda não encaixou): /, ''), result.good ? 'good' : 'bad');
     roleSheetOpen = false;
   }
   function askKick(mateId: string, nick: string) {
@@ -185,7 +200,7 @@
         if (!career) return;
         const result = kickMate(career, mateId);
         career = result.state;
-        squadNews = result.line;
+        notify(`${result.state.seed}:me`, 'Vestiário:', result.line, result.accepted ? 'good' : 'bad');
         closeSheet();
       }
     });
@@ -197,6 +212,8 @@
   let coachLine: string | null = null;
   let lastEventReport: { index: number; name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[]; result: TournamentResult; rivalLine?: string | null } | null = null;
 
+  // Quem cedeu a vaga para você vai para outro time no mundo (antes de qualquer leitura de elenco).
+  $: if (career) registerSeats(career.seed, seatsWithSeason(career));
   $: if (career) persist(career);
 
   function persist(state: PlayerCareerState) {
@@ -264,6 +281,8 @@
     const result = talkTo(career, mateId);
     career = result.state;
     lastTalk = { mateId: result.mateId, line: result.line, delta: result.delta };
+    const nick = matesOf(result.state).find((mate) => mate.player.id === result.mateId)?.player.nickname ?? 'Parceiro';
+    notify(result.mateId, `${nick}:`, `${result.line}${result.delta ? ` Relação ${result.delta > 0 ? '+' : '−'}${Math.abs(result.delta)}.` : ''}`, result.delta > 0 ? 'good' : result.delta < 0 ? 'bad' : 'neutral');
   }
 
 
@@ -388,13 +407,13 @@
 
   /** Momentos da carreira: títulos, MVPs e aces, do mais novo para o mais antigo. */
   function careerMoments(state: PlayerCareerState) {
-    const rows: Array<{ key: string; name: string; tier: EventTier | null; placement: string; mvp: boolean; aces: number; clutches: number }> = [];
-    const push = (result: TournamentResult, key: string) => {
+    const rows: Array<{ key: string; year: number; name: string; tier: EventTier | null; placement: string; mvp: boolean; aces: number; clutches: number }> = [];
+    const push = (result: TournamentResult, key: string, year: number) => {
       if (result.placement !== 'Campeão' && !result.mvp?.you && !(result.plays?.aces)) return;
-      rows.push({ key, name: result.name, tier: result.tier ?? null, placement: result.placement, mvp: Boolean(result.mvp?.you), aces: result.plays?.aces ?? 0, clutches: result.plays?.clutches ?? 0 });
+      rows.push({ key, year, name: result.name, tier: result.tier ?? null, placement: result.placement, mvp: Boolean(result.mvp?.you), aces: result.plays?.aces ?? 0, clutches: result.plays?.clutches ?? 0 });
     };
-    state.history.forEach((log) => log.tournaments.forEach((result, index) => push(result, `${log.seasonNumber}:${index}`)));
-    (state.calendar ?? []).forEach((entry) => entry.result && push(entry.result, `now:${entry.index}`));
+    state.history.forEach((log) => log.tournaments.forEach((result, index) => push(result, `${log.seasonNumber}:${index}`, log.year)));
+    (state.calendar ?? []).forEach((entry) => entry.result && push(entry.result, `now:${entry.index}`, state.year));
     return rows.reverse();
   }
 
@@ -455,12 +474,34 @@
     });
   }
 
+  const SCOUT_STATUS: Record<ScoutHit['status'], string> = { titular: 'Titular', reserva: 'Reserva', aposentado: 'Aposentado', voce: 'Você' };
+  function openScout(query = '') {
+    menuOpen = false;
+    scoutQuery = query;
+    scoutOpen = true;
+    document.body.classList.add('modal-open');
+  }
+  function closeScout() {
+    scoutOpen = false;
+    document.body.classList.remove('modal-open');
+  }
+  /** Bandeira fora do pacote do jogo: some sem deixar ícone quebrado. */
+  function hideBroken(event: Event) {
+    (event.currentTarget as HTMLImageElement).hidden = true;
+  }
+  function scoutTeam(orgId: string | null) {
+    if (!orgId || !sceneOrgById.has(orgId)) return;
+    scoutOpen = false;
+    openOpponent(orgId);
+  }
+
   function onKey(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
     if (confirming) closeConfirm();
     else if (statsOpen) closeStats();
     else if (trophiesOpen) closeTrophies();
     else if (overviewOpen) overviewOpen = false;
+    else if (scoutOpen) closeScout();
     else if (opponentOrgId) closeOpponent();
     else if (eventSheet !== null) closeEventSheet();
     else if (detailsPlayer) closeSheet();
@@ -915,7 +956,7 @@
     : [];
   $: oppRank = career && opponentOrg ? worldRankOf(career, opponentOrg.id) : null;
   $: oppAverage = opponentRoster.length ? Math.round(opponentRoster.reduce((sum, player) => sum + (player.overall ?? 60), 0) / opponentRoster.length) : null;
-  $: oppLanguage = career && opponentOrg ? teamLanguage((orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg).roster) : 'en';
+  $: oppLanguage = career && opponentOrg ? teamLanguage(resolvedRoster(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg)) : 'en';
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
@@ -968,7 +1009,7 @@
     if (!career || orgId === career.orgId) return null;
     const org = orgIn(career.seed, career.seasonNumber, orgId);
     if (!org) return null;
-    return { language: teamLanguage(org.roster), map: mapProfile(orgId, career.year, careerMapPool(career.year))[0]?.name ?? null };
+    return { language: teamLanguage(resolvedRoster(org)), map: mapProfile(orgId, career.year, careerMapPool(career.year))[0]?.name ?? null };
   }
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
@@ -979,7 +1020,6 @@
   $: trajectory = career ? trajectoryOf(career) : [];
   $: overallCurve = career ? curveOf(career) : null;
   $: namedTitles = career?.history.flatMap((log) => log.tournaments.filter((entry) => entry.placement === 'Campeão').map((entry) => `${entry.name}${entry.tier ? ` (${TIER_LABEL[entry.tier]})` : ''}${entry.mvp?.you ? ' · MVP' : ''}`)) ?? [];
-  $: lastTalkMate = lastTalk ? squadMates.find((mate) => mate.player.id === lastTalk?.mateId) ?? null : null;
   $: trainingWindow = career ? trainingWindowOf(career) : null;
   $: canTrain = Boolean(career && myPlayer && trainingWindow && career.trainedWindow !== trainingWindow);
   $: liveUserSeries = live ? liveUserSeriesOf(live) : null;
@@ -991,12 +1031,16 @@
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
   $: langFit = career ? myLanguageFit(career) : null;
+  $: myCardInfo = career ? cardInfoFor(career, career.orgId) : null;
+  $: oppCardInfo = career && opponentOrg ? cardInfoFor(career, viewingOwn ? career.orgId : opponentOrg.id) : null;
+  $: scoutHits = career && scoutOpen ? scoutPlayers(career, scoutQuery) : [];
+  $: seatMove = career && currentSeat ? seatMovesOf(career.seed).find((move) => move.fromId === currentSeat?.orgId && move.nick.toLowerCase() === currentSeat?.nick.toLowerCase()) ?? null : null;
   $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
   $: canTrainMap = Boolean(career && trainingWindow && career.mapTrainedWindow !== trainingWindow);
   const AFFINITY_LABEL: Record<string, string> = { '+++': '+++', '++': '++', '+': '+', EVEN: '' };
   const mapsLine = (maps: MapRating[]) => maps.slice(0, 3).map((map) => `${map.name}${AFFINITY_LABEL[map.affinity] ? ` ${AFFINITY_LABEL[map.affinity]}` : ''}`).join(' · ');
-  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
+  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, majorMvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
   $: lastLog = career?.history[career.history.length - 1] ?? null;
@@ -1149,6 +1193,7 @@
             {#if menuOpen}
               <div class="menu-pop" role="menu">
                 <button role="menuitem" on:click={() => { menuOpen = false; openMySheet(); }}>Ver minha carta</button>
+                <button role="menuitem" on:click={() => openScout()}>Buscar jogador</button>
                 <button role="menuitem" class="danger" on:click={askReset}>Apagar e começar outra carreira</button>
               </div>
             {/if}
@@ -1191,7 +1236,7 @@
         </ol>
 
         {#if currentSeat}
-          <p class="seat-line">Você tomou a vaga de <b>{currentSeat.nick}</b>.</p>
+          <p class="seat-line">Você tomou a vaga de <button class="seat-link" on:click={() => currentSeat && openScout(currentSeat.nick)} title="Ver onde ele está">{currentSeat.nick}</button>{#if seatMove}, que foi para a <b>{seatMove.toName}</b>{/if}.</p>
         {/if}
 
         {#if career.history.length}
@@ -1279,7 +1324,7 @@
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
                   <b class="display">{offer.orgName}</b>
                   <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
-                  {#if target}{@const offerLanguage = teamLanguage(target.roster)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
+                  {#if target}{@const offerLanguage = teamLanguage(resolvedRoster(target))}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
@@ -1531,16 +1576,15 @@
                 <div class="section-head">
                   <p class="label" title="Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.">Elenco · {orgOf(career.orgId).name}{#if langFit}{' · '}<span class="lang-chip" class:warn={langFit.penalty > 0} title={langFit.penalty ? `Call em ${LANGUAGE_LABEL[langFit.language]}: os parceiros perdem ${langFit.penalty} de overall em quadra e as conversas rendem menos até você aprender. Cada campeonato ensina um pouco; a semana tem aulas.` : 'Você fala o idioma da call.'}>call em {LANGUAGE_LABEL[langFit.language]} · você {fluencyLabel(langFit.fluency)}{langFit.penalty ? ` · −${langFit.penalty} sinergia` : ''}</span>{/if}</p>
                   <span class="squad-actions">
-                    {#if canChangeRole(career)}<button class="link-btn" on:click={() => (roleSheetOpen = true)} title="Trocar de função (uma vez por temporada)">Trocar de função</button>{/if}
-                    {#if canRequestTransfer(career)}<button class="link-btn transfer-btn" on:click={askTransfer} title="Pedir para sair e procurar outro time (uma vez por temporada)">Procurar outro time</button>{/if}
+                    {#if canChangeRole(career)}<button class="secondary-btn small squad-btn" on:click={() => (roleSheetOpen = true)} title="Uma vez por temporada. Pode subir ou derrubar o seu overall.">Trocar de função</button>{/if}
+                    {#if canRequestTransfer(career)}<button class="secondary-btn small squad-btn transfer-btn" on:click={askTransfer} title="Uma vez por temporada. O elenco não gosta de saber.">Procurar outro time</button>{/if}
                   </span>
-                  <span class="talk-line" aria-live="polite">{#if squadNews}<b>Vestiário:</b> {squadNews}{:else}{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{/if}{/if}</span>
                 </div>
                 <div class="squad-strip">
-                  <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} caption={`Você · ${career.age} anos`} trained={career.trained ?? null} onOpen={openMySheet} />
+                  <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} profile={myCardInfo?.(myPlayer) ?? null} caption={myCardInfo ? '' : `Você · ${career.age} anos`} trained={career.trained ?? null} onOpen={openMySheet} notice={cardNotice?.id === myPlayer.id ? cardNotice : null} onNoticeClose={dismissNotice} />
                   {#each squadMates as mate (mate.player.id)}
                     {@const bump = synergyBump(mate.relationship)}
-                    <CareerCard player={mate.player} roleLabel={ROLE_SHORT[mate.player.role as PlayerRole] ?? ''} caption={orgOf(career.orgId).name} onOpen={() => openMateSheet(mate)}>
+                    <CareerCard player={mate.player} roleLabel={ROLE_SHORT[mate.player.role as PlayerRole] ?? ''} profile={myCardInfo?.(mate.player) ?? null} caption={myCardInfo ? '' : orgOf(career.orgId).name} onOpen={() => openMateSheet(mate)} notice={cardNotice?.id === mate.player.id ? cardNotice : null} onNoticeClose={dismissNotice}>
                       <div class="mate-foot">
                         <div class="bond">
                           <div class="bond-bar" role="img" aria-label={`Relação ${mate.relationship} de 100`}><i class:high={mate.relationship >= 70} class:low={mate.relationship < 35} style={`width:${mate.relationship}%`}></i></div>
@@ -1671,7 +1715,7 @@
           </button>
         </header>
         {#if sheetMate}
-          <CareerCard size="sheet" player={detailsPlayer} roleLabel={ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={orgOf(career?.orgId ?? '').name}>
+          <CareerCard size="sheet" player={detailsPlayer} roleLabel={ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={orgOf(career?.orgId ?? '').name} profile={myCardInfo?.(detailsPlayer) ?? null}>
             <div class="sheet-bond">
               <div class="sheet-bond-copy">
                 <span class="label">Relação</span>
@@ -1685,7 +1729,7 @@
             </div>
           </CareerCard>
         {:else}
-          <CareerCard size="sheet" player={detailsPlayer} me={sheetIsMe} roleLabel={sheetIsMe && career ? ROLE_META[career.role].label : ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={sheetIsMe ? `Você · ${orgOf(career?.orgId ?? '').name}` : orgOf(career?.orgId ?? '').name} trained={sheetIsMe ? career?.trained ?? null : null} />
+          <CareerCard size="sheet" player={detailsPlayer} me={sheetIsMe} roleLabel={sheetIsMe && career ? ROLE_META[career.role].label : ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={sheetIsMe ? `Você · ${orgOf(career?.orgId ?? '').name}` : orgOf(career?.orgId ?? '').name} trained={sheetIsMe ? career?.trained ?? null : null} profile={myCardInfo?.(detailsPlayer) ?? null} />
           {#if sheetIsMe && career}
             <p class="modal-note">Os números verdes ao lado dos atributos são o que o treino já somou.</p>
           {/if}
@@ -1838,9 +1882,58 @@
         <p class="opp-maps-note">{#if oppMaps.length}Costuma banir <b>{oppMaps.at(-1)?.name}</b>.{/if}{#if !viewingOwn && myMaps.length} O seu melhor: <b>{myMaps[0].name} ({myMaps[0].score})</b>.{/if}</p>
         <div class="opp-strip">
           {#each opponentRoster as player (player.id)}
-            <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
+            <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if scoutOpen && career}
+    <div class="modal-backdrop" role="presentation" on:click|self={closeScout}>
+      <div class="modal scout-modal" role="dialog" aria-modal="true" aria-labelledby="scout-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="scout-title">Buscar jogador · {career.year}</span>
+          <button class="icon-btn" aria-label="Fechar" on:click={closeScout}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <label class="scout-field">
+          <span class="label">Nick do jogador</span>
+          <input type="search" bind:value={scoutQuery} placeholder="ZywOo, FalleN, donk" autocomplete="off" spellcheck="false" data-autofocus />
+        </label>
+        {#if scoutQuery.trim().length < 2}
+          <p class="modal-note">Digite 2 letras ou mais. A busca cobre o mundo inteiro da carreira: titulares, reservas e aposentados.</p>
+        {:else if !scoutHits.length}
+          <p class="modal-note">Nenhum jogador com "{scoutQuery.trim()}" no mundo de {career.year}.</p>
+        {:else}
+          <ul class="scout-list">
+            {#each scoutHits as hit (hit.nick + (hit.orgId ?? hit.orgName ?? ''))}
+              <li class="scout-hit status-{hit.status}">
+                <div class="scout-top">
+                  {#if hit.orgId && sceneOrgById.has(hit.orgId)}<TeamBadge id={hit.orgId} name={hit.orgName ?? ''} size="md" highlight={hit.status === 'voce'} />{/if}
+                  <div class="scout-who">
+                    <b>{hit.nick}</b>
+                    <span>
+                      {#if hit.flag}<img class="scout-flag" src={`/flags/${hit.flag}.svg`} alt="" width="16" height="12" on:error={hideBroken} />{/if}
+                      {[hit.spoken, hit.age !== null ? `${hit.age} anos` : null, hit.role ? ROLE_META[hit.role as PlayerRole]?.label ?? hit.role : null].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                  {#if hit.overall}<span class="scout-ovr" title="Overall nesta temporada">{hit.overall}</span>{/if}
+                </div>
+                <p class="scout-note"><span class="scout-status">{SCOUT_STATUS[hit.status]}</span>{hit.note}</p>
+                {#if hit.history.length}
+                  <ol class="scout-history" aria-label={`Caminho de ${hit.nick}`}>
+                    {#each hit.history as line}<li><span>{line.year}</span>{line.text}</li>{/each}
+                  </ol>
+                {/if}
+                {#if hit.orgId && hit.status !== 'voce' && sceneOrgById.has(hit.orgId)}
+                  <button class="link-btn scout-team" on:click={() => scoutTeam(hit.orgId)}>Ver o elenco da {hit.orgName}</button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </div>
     </div>
   {/if}
@@ -1902,19 +1995,21 @@
         {#if roomTab === 'titulos'}
           <dl class="trophy-tiers">
             {#each TROPHY_TIERS as tier (tier)}
-              <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{TIER_LABEL[tier]}</dt><dd>{trophies.byTier[tier]}</dd></div>
+              <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{tier === 'Major' ? 'Majors' : `Títulos ${TIER_LABEL[tier]}`}</dt><dd>{trophies.byTier[tier]}</dd></div>
             {/each}
-            <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
+            <div class:has={trophies.majorMvps > 0} class:major={trophies.majorMvps > 0}><dt>MVP de Major</dt><dd>{trophies.majorMvps}</dd></div>
+            <div class:has={trophies.mvps - trophies.majorMvps > 0}><dt>MVP de evento</dt><dd>{trophies.mvps - trophies.majorMvps}</dd></div>
           </dl>
           {#if moments.length}
             <ol class="moments">
               {#each moments as moment (moment.key)}
-                <li class:title={moment.placement === 'Campeão'}>
-                  <span class="moment-name">{moment.name}</span>
+                {@const isMajor = moment.tier === 'Major'}
+                <li class:title={moment.placement === 'Campeão'} class:major-row={isMajor && (moment.placement === 'Campeão' || moment.mvp)}>
+                  <span class="moment-year">{moment.year}</span>
+                  <span class="moment-name">{moment.name}{#if moment.tier && !isMajor}<small>{TIER_LABEL[moment.tier]}</small>{/if}</span>
                   <span class="moment-tags">
-                    {#if moment.tier}<span class="tag" class:major={moment.tier === 'Major'}>{TIER_LABEL[moment.tier]}</span>{/if}
-                    {#if moment.placement === 'Campeão'}<span class="tag gold">Campeão</span>{/if}
-                    {#if moment.mvp}<span class="tag gold">MVP</span>{/if}
+                    {#if moment.placement === 'Campeão'}<span class="award" class:award-major={isMajor}>{isMajor ? 'Campeão do Major' : 'Campeão'}</span>{/if}
+                    {#if moment.mvp}<span class="award mvp" class:award-major={isMajor}>{isMajor ? 'MVP do Major' : 'MVP'}</span>{/if}
                     {#if moment.aces}<span class="tag">{moment.aces} ace{moment.aces > 1 ? 's' : ''}</span>{/if}
                   </span>
                 </li>
@@ -1930,23 +2025,32 @@
             <div class:has={trophies.hltvTop1 > 0} class:major={trophies.hltvTop1 > 0}><dt>Top 1 do mundo</dt><dd>{trophies.hltvTop1}</dd></div>
             <div class:has={trophies.hltvTop20 > 0}><dt>Anos no Top 20</dt><dd>{trophies.hltvTop20}</dd></div>
             <div class:has={trophies.rookie} class:major={trophies.rookie}><dt>Rookie of the Year</dt><dd>{trophies.rookie ? 'Sim' : 'Não'}</dd></div>
-            <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
+            <div class:has={trophies.majorMvps > 0} class:major={trophies.majorMvps > 0}><dt>MVP de Major</dt><dd>{trophies.majorMvps}</dd></div>
           </dl>
           {#if career.history.length}
-            <ol class="season-awards">
+            <div class="season-table" role="table" aria-label="Temporada a temporada">
+              <div class="st-row st-head" role="row">
+                <span role="columnheader">Ano</span><span role="columnheader">Time</span><span role="columnheader">Rating</span><span role="columnheader">HLTV</span><span role="columnheader">Títulos</span><span role="columnheader">MVPs</span><span role="columnheader">Destaque</span>
+              </div>
               {#each [...career.history].reverse() as log (log.seasonNumber)}
-                <li>
-                  <span class="sa-year">{log.year}</span>
-                  <span class="sa-team">{log.orgName} · rating {log.seasonRating.toFixed(2)}</span>
-                  <span class="moment-tags">
-                    {#if log.hltvRank}<span class="tag" class:gold={log.hltvRank === 1} class:major={log.hltvRank <= 20 && log.hltvRank > 1}>HLTV #{log.hltvRank}</span>{:else}<span class="tag">Sem ranking</span>{/if}
-                    {#if log.tournaments.some((result) => result.mvp?.you)}<span class="tag">{log.tournaments.filter((result) => result.mvp?.you).length} MVP</span>{/if}
-                    {#if log.titles}<span class="tag">{log.titles} título{log.titles > 1 ? 's' : ''}</span>{/if}
-                    {#if log.rookie?.you}<span class="tag gold">Rookie of the Year</span>{/if}
+                {@const majorTitles = log.tournaments.filter((result) => result.placement === 'Campeão' && result.tier === 'Major').length}
+                {@const mvpAll = log.tournaments.filter((result) => result.mvp?.you).length}
+                {@const mvpMajor = log.tournaments.filter((result) => result.mvp?.you && result.tier === 'Major').length}
+                <div class="st-row" role="row" class:st-gold={log.hltvRank === 1 || majorTitles > 0}>
+                  <span class="st-year" role="cell">{log.year}</span>
+                  <span class="st-team" role="cell"><TeamBadge id={log.orgId} name={log.orgName} size="sm" /><b>{log.orgName}</b></span>
+                  <span class="st-rating" role="cell" class:hot={log.seasonRating >= 1.2} class:good={log.seasonRating >= 1.08 && log.seasonRating < 1.2} class:low={log.seasonRating < 0.98}>{log.seasonRating.toFixed(2)}</span>
+                  <span class="st-hltv" role="cell">{#if log.hltvRank}<span class="st-rank" class:top1={log.hltvRank === 1} class:top20={log.hltvRank > 1 && log.hltvRank <= 20}>#{log.hltvRank}</span>{:else}<span class="st-dim">fora</span>{/if}</span>
+                  <span class="st-num" role="cell">{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                  <span class="st-num" role="cell">{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                  <span class="st-badges" role="cell">
+                    {#if log.hltvRank === 1}<span class="award award-major small">Melhor do mundo</span>{/if}
+                    {#if log.rookie?.you}<span class="award small">Rookie of the Year</span>{/if}
+                    {#if log.hltvRank !== 1 && !log.rookie?.you}<span class="st-dim">·</span>{/if}
                   </span>
-                </li>
+                </div>
               {/each}
-            </ol>
+            </div>
             {@const lastLog2 = career.history.at(-1)}
             {#if lastLog2?.hltvTop?.length}
               <CareerHltvTop year={lastLog2.year} top={lastLog2.hltvTop} rookie={lastLog2.rookie ?? null} myRank={lastLog2.hltvRank ?? null} myRating={lastLog2.seasonRating} compact={true} />
@@ -2061,7 +2165,7 @@
               <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
               <b class="display">{offer.orgName}</b>
               <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
-                  {#if target}{@const offerLanguage = teamLanguage(target.roster)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
+                  {#if target}{@const offerLanguage = teamLanguage(resolvedRoster(target))}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
               <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
             </button>
           {/each}
@@ -2213,6 +2317,31 @@
   .rung-short { display: none; }
   .seat-line { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .seat-line b { color: var(--text); }
+  .seat-link { padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; cursor: pointer; }
+  .seat-link:hover { color: var(--accent); }
+  .scout-modal { width: min(680px, calc(100vw - 32px)); }
+  .scout-field { display: grid; gap: 6px; }
+  .scout-field input { min-height: 48px; padding: 0 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 700 18px/1 var(--body); }
+  .scout-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .scout-list { display: grid; gap: 8px; max-height: min(62vh, 600px); margin: 0; padding: 0 2px 0 0; overflow-y: auto; list-style: none; }
+  .scout-hit { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-left-width: 3px; background: var(--surface-2); }
+  .scout-hit.status-titular { border-left-color: var(--accent); }
+  .scout-hit.status-reserva { border-left-color: var(--accent-2); }
+  .scout-hit.status-voce { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+  .scout-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .scout-who { display: grid; flex: 1; gap: 4px; min-width: 0; }
+  .scout-who b { overflow: hidden; font: 900 26px/1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .scout-who span { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .scout-flag { flex: none; width: 16px; height: 12px; object-fit: cover; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .scout-ovr { color: var(--accent); font: 900 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .scout-note { margin: 0; font-size: 14px; line-height: 1.45; }
+  .scout-status { display: inline-block; margin-right: 8px; padding: 3px 6px; border: 1px solid var(--line); color: var(--muted); font: 800 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; vertical-align: 1px; }
+  .status-titular .scout-status, .status-voce .scout-status { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
+  .status-reserva .scout-status { border-color: color-mix(in srgb, var(--accent-2) 50%, transparent); color: var(--accent-2); }
+  .scout-history { display: grid; gap: 4px; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.4; list-style: none; }
+  .scout-history li { display: grid; grid-template-columns: 42px 1fr; gap: 8px; }
+  .scout-history span { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .scout-team { justify-self: start; min-height: 32px; padding: 0; }
   .stage { display: flex; flex-direction: column; gap: 26px; min-width: 0; padding: 28px clamp(16px, 3vw, 36px); }
 
   .alert { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
@@ -2294,7 +2423,41 @@
   .trophy-tiers div.has.major { border-color: var(--gold); }
   .trophy-tiers div.has.major dd { color: var(--gold); }
   .moments { display: grid; gap: 4px; max-height: min(46vh, 420px); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
-  .moments li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .moments li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; font-size: 14px; }
+  .moments li.major-row { border-left-color: var(--gold); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 12%, transparent), transparent 70%); }
+  .moment-year { color: var(--muted); font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .moments li.major-row .moment-year { color: var(--gold); }
+  .moment-name small { margin-left: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .award { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--accent); font: 800 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .award::before { content: ''; width: 6px; height: 6px; background: currentColor; transform: rotate(45deg); }
+  .award.mvp { border-color: var(--line); color: var(--text); }
+  .award.award-major { border-color: var(--gold); background: var(--gold); color: #17130a; }
+  .award.award-major::before { background: #17130a; }
+  .award.small { padding: 3px 6px; font-size: 10px; }
+  .season-table { display: grid; margin: 0; border: 1px solid var(--line); background: var(--surface-2); }
+  .st-row { display: grid; grid-template-columns: 60px minmax(0, 1.5fr) 64px 64px minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.3fr); align-items: center; gap: 10px; min-height: 52px; padding: 6px 14px; border-top: 1px solid var(--line); border-left: 3px solid transparent; }
+  .st-row.st-head { min-height: 0; padding-top: 10px; padding-bottom: 8px; border-top: 0; color: var(--muted); font: 800 10px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
+  .st-row.st-gold { border-left-color: var(--gold); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 9%, transparent), transparent 60%); }
+  .st-year { font: 900 24px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .st-gold .st-year { color: var(--gold); }
+  .st-team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .st-team b { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .st-rating { font: 900 20px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .st-rating.hot { color: var(--gold); }
+  .st-rating.good { color: var(--accent); }
+  .st-rating.low { color: var(--muted); }
+  .st-rank { display: inline-block; min-width: 40px; padding: 4px 6px; border: 1px solid var(--line); font: 900 16px/1 var(--display); font-variant-numeric: tabular-nums; text-align: center; }
+  .st-rank.top20 { border-color: var(--accent); color: var(--accent); }
+  .st-rank.top1 { border-color: var(--gold); background: var(--gold); color: #17130a; }
+  .st-num { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .st-num b { font: 900 20px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .st-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+  .st-dim { color: var(--muted); }
+  @media (max-width: 760px) {
+    .st-head { display: none !important; }
+    .st-row { grid-template-columns: 52px minmax(0, 1fr) auto auto; row-gap: 6px; }
+    .st-num, .st-badges { grid-column: 2 / -1; }
+  }
   .moments li.title .moment-name { font-weight: 700; }
   .moment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .moment-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
@@ -2524,9 +2687,11 @@
     .squad .section-head > .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .squad .section-head .talk-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
-  @media (min-width: 960px) and (hover: hover) and (pointer: fine) { .squad .squad-actions .link-btn { min-height: 24px; } }
-  .squad-actions .link-btn { white-space: nowrap; }
-  .transfer-btn { color: var(--accent-2); }
+  @media (min-width: 960px) and (hover: hover) and (pointer: fine) { .squad .squad-actions .squad-btn { min-height: 26px; } }
+  .squad-actions .squad-btn { white-space: nowrap; }
+  .squad-actions { gap: 6px 8px; align-items: center; }
+  .transfer-btn { border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line)); color: var(--accent-2); }
+  .transfer-btn:hover:not(:disabled) { border-color: var(--accent-2); color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 10%, var(--surface-2)); }
   .kick-btn { justify-self: start; color: var(--accent-2); }
   .role-sheet { width: min(520px, calc(100vw - 32px)); display: grid; gap: 12px; }
   .bench-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--accent-2); font-size: 13px; font-weight: 700; }

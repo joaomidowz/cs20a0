@@ -7,7 +7,7 @@ import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier, type Region } from './calendar';
-import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, resolvedRoster, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import { myFluency, teamLanguage, type Language } from './language';
@@ -96,16 +96,18 @@ export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kil
 /** Tier de um resultado antigo (antes do calendário real): pelo nível do time na temporada. */
 const legacyTier = (orgLevel: number): EventTier => (orgLevel <= 1 ? 'A' : orgLevel === 2 ? 'B' : 'C');
 
-export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
+export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; /** MVPs de Major (já contados em `mvps`). */ majorMvps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
 
 /** Sala de troféus: títulos por tier (Major, S, A, B, C), MVPs de evento e aces da carreira (inclui a temporada em curso). */
 export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar' | 'orgId'>): TrophyCase {
   const byTier: Record<EventTier, number> = { Major: 0, S: 0, A: 0, B: 0, C: 0 };
   let mvps = 0;
+  let majorMvps = 0;
   let aces = 0;
   const count = (result: TournamentResult, orgLevel: number) => {
     if (result.placement === 'Campeão') byTier[result.tier ?? legacyTier(orgLevel)] += 1;
     if (result.mvp?.you) mvps += 1;
+    if (result.mvp?.you && result.tier === 'Major') majorMvps += 1;
     aces += result.plays?.aces ?? 0;
   };
   let clutches = 0;
@@ -114,7 +116,7 @@ export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar'
   for (const entry of state.calendar ?? []) if (entry.result) { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
   const ranks = state.history.flatMap((log) => (log.hltvRank ? [log.hltvRank] : []));
   return {
-    byTier, mvps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
+    byTier, mvps, majorMvps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
     hltvBest: ranks.length ? Math.min(...ranks) : null,
     hltvTop1: ranks.filter((rank) => rank === 1).length,
     hltvTop20: ranks.filter((rank) => rank <= 20).length,
@@ -216,7 +218,7 @@ export interface CareerVerdict {
   becameCoach?: boolean;
 }
 
-export interface SeatTaken { orgId: string; orgName: string; nick: string; viaRole: boolean }
+export interface SeatTaken { orgId: string; orgName: string; nick: string; viaRole: boolean; /** Temporada em que você tomou a vaga (saves antigos: sem). */ season?: number }
 
 export interface StartingOption {
   orgId: string; // 'lan-house' ou id real da cena
@@ -672,7 +674,7 @@ export const ENGLISH_REQUIRED: Record<number, number> = { 0: 55, 1: 50, 2: 40 };
 /** Quanto de inglês o time exige de você (null: não exige ou você já tem). */
 export function englishGate(state: PlayerCareerState, candidate: SceneOrg): number | null {
   const need = ENGLISH_REQUIRED[levelIn(state, candidate)];
-  if (!need || teamLanguage(candidate.roster) !== 'en') return null;
+  if (!need || teamLanguage(resolvedRoster(candidate)) !== 'en') return null;
   return myFluency(state, 'en') >= need ? null : need;
 }
 
@@ -722,7 +724,7 @@ export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCare
   if (!offer) return state;
   // A vaga é de quem está no time NESTA temporada (o mundo também troca jogadores).
   const org = orgIn(state.seed, state.seasonNumber, orgId);
-  const seat = org ? seatToTake(org, state.role) : null;
+  const seat = org ? { ...seatToTake(org, state.role), season: state.seasonNumber } : null;
   return { ...state, orgId, pendingOffers: null, ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
 }
 
@@ -818,7 +820,7 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
     .filter((entry, index, list) => entry.format !== 'major' || playedMajors + list.slice(0, index + 1).filter((other) => other.format === 'major').length <= 2)
     .map((entry, offset) => ({ ...entry, index: played.length + offset }));
   const target = orgIn(state.seed, state.seasonNumber, orgId);
-  const seat = target ? seatToTake(target, state.role) : null;
+  const seat = target ? { ...seatToTake(target, state.role), season: state.seasonNumber } : null;
   return {
     ...state,
     orgId,

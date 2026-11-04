@@ -19,7 +19,7 @@ import {
 import type { LiveSeriesState } from '../online/live-series';
 import { armClutchCall, getCurrentSideA } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
-import { drawClutchSituation, resolveClutchEdge } from './decisions';
+import { drawClutchSituation, resolveClutchEdge, type RoundContext } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
@@ -428,6 +428,30 @@ function userSideOf(campaign: CampaignMajorState, live: LiveSeriesState): 't' | 
   return userIsA ? sideA : sideA === 'ct' ? 't' : 'ct';
 }
 
+/** O momento do mapa para a call: round, placar, sequência e dinheiro de cada lado (do ponto de vista do seu time). */
+export function roundContextOf(campaign: CampaignMajorState, live: LiveSeriesState): RoundContext | null {
+  const map = live.current?.state;
+  if (!map) return null;
+  const mine: 'a' | 'b' = live.config.teamA.id === campaign.userTeamId ? 'a' : 'b';
+  const theirs: 'a' | 'b' = mine === 'a' ? 'b' : 'a';
+  const won = map.rounds.map((round, index) => round[mine] > (map.rounds[index - 1]?.[mine] ?? 0));
+  const streak = (value: boolean) => {
+    let count = 0;
+    for (let index = won.length - 1; index >= 0 && won[index] === value; index -= 1) count += 1;
+    return count;
+  };
+  return {
+    round: map.rounds.length + 1,
+    us: mine === 'a' ? map.scoreA : map.scoreB,
+    them: mine === 'a' ? map.scoreB : map.scoreA,
+    winStreak: streak(true),
+    lossStreak: streak(false),
+    lastWon: won.length ? won[won.length - 1] : null,
+    money: map.teams[mine]?.money ?? null,
+    theirMoney: map.teams[theirs]?.money ?? null
+  };
+}
+
 /** Um passo do evento: rounds das outras séries rodam sozinhos; a sua anda um round por vez. */
 export function stepSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchContext): SceneStepResult {
   let next = campaign;
@@ -446,7 +470,7 @@ export function stepSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchCo
       return {
         campaign: next,
         clutch: {
-          situation: drawClutchSituation(ctx.role, drawSeed, ctx.usedSituationIds, userSideOf(next, live)),
+          situation: drawClutchSituation(ctx.role, drawSeed, ctx.usedSituationIds, userSideOf(next, live), roundContextOf(next, live)),
           series: live,
           mapIndex: live.current?.index ?? 0,
           roundNumber,

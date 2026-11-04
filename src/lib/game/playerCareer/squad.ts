@@ -6,13 +6,13 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { memberRoles, ORG_BASE_POWER, sceneOrgById } from './data';
-import { orgIn } from './world';
+import { memberRoles, ORG_BASE_POWER, resolvedRoster, sceneOrgById } from './data';
+import { orgIn, seatMovesOf } from './world';
 import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
 import { MAP_NAMES } from '../maps';
 import type { MapId } from '../types';
-import { languagePenalty, learn, myFluency, nativeLanguage, teamLanguage, type Language } from './language';
+import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
@@ -100,11 +100,28 @@ export function relationshipOf(state: PlayerCareerState, mateId: string): number
   return typeof stored === 'number' ? stored : 35 + Math.floor(createSeededRng(`${state.seed}:bond:${mateId}`)() * 31);
 }
 
+/** As vagas com a temporada em que você as tomou (saves antigos não guardavam: a do time inicial é a 1; as outras,
+ *  a primeira temporada em que você aparece naquele time, ou a atual). */
+export function seatsWithSeason(state: PlayerCareerState): Array<PlayerCareerState['seatsTaken'][number] & { season: number }> {
+  return (state.seatsTaken ?? []).map((seat, index) => ({
+    ...seat,
+    season: seat.season ?? (index === 0 ? 1 : state.history.find((log) => log.orgId === seat.orgId)?.seasonNumber ?? state.seasonNumber)
+  }));
+}
+
+/** Os nicks que a sua vaga tirou do time: quem cedeu e, se ele trocou de time, quem veio no lugar. */
+export function seatedNicks(state: PlayerCareerState, seat: { orgId: string; nick: string }): string[] {
+  const move = seatMovesOf(state.seed).find((entry) => entry.fromId === seat.orgId && entry.nick.toLowerCase() === seat.nick.toLowerCase());
+  return [seat.nick.toLowerCase(), ...(move ? [move.standIn.toLowerCase()] : [])];
+}
+
 /** Sai do elenco quem cedeu a vaga (agora na posição da função real dele); sem vaga registrada, sai o da sua
  *  função. Os 4 que ficam são os seus parceiros. */
 function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
   const seat = [...state.seatsTaken].reverse().find((taken) => taken.orgId === state.orgId);
-  const bySeat = seat ? players.find((player) => (player.nickname ?? "").toLowerCase() === seat.nick.toLowerCase()) : undefined;
+  // Quem cedeu a vaga pode ter ido para outro time; aí quem fica no banco é quem veio no lugar dele.
+  const nicks = seat ? seatedNicks(state, seat) : [];
+  const bySeat = players.find((player) => nicks.includes((player.nickname ?? '').toLowerCase()));
   const leaving = bySeat ?? players.find((player) => player.role === state.role) ?? players.at(-1);
   return players.filter((player) => player !== leaving).slice(0, 4);
 }
@@ -112,7 +129,7 @@ function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
 /** O idioma da call do seu time e o quanto você fala (lan house: a galera fala o seu idioma). */
 export function myLanguageFit(state: PlayerCareerState): { language: Language; fluency: number; penalty: number } {
   const org = orgIn(state.seed, state.seasonNumber, state.orgId);
-  const language = org ? teamLanguage(org.roster) : nativeLanguage(state.country);
+  const language = org ? teamLanguage(resolvedRoster(org)) : nativeLanguage(state.country);
   const fluency = myFluency(state, language);
   return { language, fluency, penalty: languagePenalty(fluency) };
 }
@@ -228,7 +245,7 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
   const knocked = peak >= 85 && rng() < 0.5;
   // Imersão: cada campeonato no time ensina um pouco do idioma da call.
   const fit = myLanguageFit(state);
-  const languages = fit.fluency < 100 ? learn(state, fit.language, 5) : state.languages;
+  const languages = fit.fluency < NON_NATIVE_MAX ? learn(state, fit.language, 5) : state.languages;
   return {
     ...state,
     ...(languages ? { languages } : {}),

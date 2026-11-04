@@ -311,10 +311,91 @@ function promoteRisers(rng: () => number, rosters: Map<string, SceneRosterMember
   }
 }
 
+/** Quem cedeu a vaga para você não fica parado: assina com um time do mesmo nível (ou um abaixo) que joga na
+ *  mesma função, trocando com o mais fraco dela. O trocado vira o reserva do seu time (e volta a jogar quando você
+ *  sai). A página registra as vagas da carreira; sem registro (simulação, testes) o mundo é só o da seed. */
+export interface SeatMove { season: number; nick: string; fromId: string; fromName: string; toId: string; toName: string; standIn: string }
+
+const seatRegistry = new Map<string, { signature: string; moves: SeatMove[] }>();
+const overlaid = new Map<string, Map<number, Map<string, SceneRosterMember[]>>>();
+const sameNick = (member: SceneRosterMember, nick: string) => memberNick(member).toLowerCase() === nick.toLowerCase();
+
+function seatMove(seed: string, seat: { orgId: string; nick: string; season?: number }): SeatMove | null {
+  const season = Math.max(1, seat.season ?? 1);
+  const world = sceneWorld(seed, season);
+  const from = sceneOrgById.get(seat.orgId);
+  const leaving = from ? (world.rosters.get(from.id) ?? []).find((member) => sameNick(member, seat.nick)) : undefined;
+  if (!from || !leaving) return null;
+  const role = memberRoles(leaving)[0] ?? null;
+  const power = strength(leaving, from);
+  const rng = createSeededRng(`${seed}:seat-move:${from.id}:${seat.nick.toLowerCase()}:${season}`);
+  for (const level of [from.level, from.level + 1, from.level - 1]) {
+    const options = sceneOrgs.flatMap((org) => {
+      if (org.id === from.id || org.level !== level) return [];
+      const roster = world.rosters.get(org.id) ?? [];
+      const weakest = roster.filter((member) => (role ? memberRoles(member)[0] === role : true)).sort((a, b) => strength(a, org) - strength(b, org))[0];
+      if (!weakest || strength(weakest, org) >= power || roster.some((member) => sameNick(member, seat.nick))) return [];
+      return nationFits(roster.filter((member) => member !== weakest), leaving.country) ? [{ org, weakest }] : [];
+    });
+    if (!options.length) continue;
+    const { org, weakest } = options[Math.floor(rng() * options.length)];
+    return { season, nick: memberNick(leaving), fromId: from.id, fromName: from.name, toId: org.id, toName: org.name, standIn: memberNick(weakest) };
+  }
+  return null;
+}
+
+/** Registra as vagas que a carreira tomou (a página chama a cada mudança; repetir é de graça). */
+export function registerSeats(seed: string, seats: ReadonlyArray<{ orgId: string; nick: string; season?: number }>) {
+  const signature = seats.map((seat) => `${seat.orgId}:${seat.nick}:${seat.season ?? 1}`).join('|');
+  if (seatRegistry.get(seed)?.signature === signature) return;
+  const moves: SeatMove[] = [];
+  for (const seat of seats) {
+    const move = seatMove(seed, seat);
+    if (move && !moves.some((other) => other.nick.toLowerCase() === move.nick.toLowerCase())) moves.push(move);
+  }
+  seatRegistry.set(seed, { signature, moves });
+  overlaid.delete(seed);
+}
+
+export const seatMovesOf = (seed: string): SeatMove[] => seatRegistry.get(seed)?.moves ?? [];
+
+/** Os elencos da temporada com as trocas das suas vagas por cima (quem saiu está no time novo). */
+function rostersOf(seed: string, season: number): Map<string, SceneRosterMember[]> {
+  const base = sceneWorld(seed, season).rosters;
+  const moves = seatMovesOf(seed).filter((move) => move.season <= season);
+  if (!moves.length) return base;
+  const bySeason = overlaid.get(seed) ?? new Map<number, Map<string, SceneRosterMember[]>>();
+  overlaid.set(seed, bySeason);
+  const cached = bySeason.get(season);
+  if (cached) return cached;
+  const rosters = new Map(base);
+  const find = (nick: string) => [...rosters].find(([, roster]) => roster.some((member) => sameNick(member, nick)));
+  for (const move of moves) {
+    const leaving = find(move.nick);
+    const coming = find(move.standIn);
+    if (!leaving || !coming || leaving[0] === coming[0]) continue;
+    const [fromId, fromRoster] = leaving;
+    const [toId, toRoster] = coming;
+    const player = fromRoster.find((member) => sameNick(member, move.nick))!;
+    const standIn = toRoster.find((member) => sameNick(member, move.standIn))!;
+    rosters.set(fromId, fromRoster.map((member) => (member === player ? standIn : member)));
+    rosters.set(toId, toRoster.map((member) => (member === standIn ? player : member)));
+  }
+  bySeason.set(season, rosters);
+  return rosters;
+}
+
 /** O elenco do time na temporada N da carreira. */
 export function rosterIn(seed: string, season: number, orgId: string): SceneRosterMember[] {
-  return sceneWorld(seed, season).rosters.get(sceneOrgById.get(orgId)?.id ?? orgId) ?? sceneOrgById.get(orgId)?.roster ?? [];
+  return rostersOf(seed, season).get(sceneOrgById.get(orgId)?.id ?? orgId) ?? sceneOrgById.get(orgId)?.roster ?? [];
 }
+
+/** Todos os elencos da temporada (com as trocas das suas vagas): para a busca de jogador. */
+export const worldRosters = (seed: string, season: number) => rostersOf(seed, season);
+export const worldHistory = (seed: string, season: number) => {
+  const world = sceneWorld(seed, season);
+  return { transfers: world.transfers, retirements: world.retirements, debuts: world.debuts };
+};
 
 /** O time como ele está na temporada N (mesmo time, elenco atualizado pelas trocas). */
 export function orgIn(seed: string, season: number, orgId: string): SceneOrg | undefined {
