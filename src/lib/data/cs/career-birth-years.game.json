@@ -1,0 +1,29 @@
+{
+  "_sobre": "Ano de nascimento de quem veio sem data na coleta (Liquipedia, dado público). Sem isso a idade era estimada pela estreia no catálogo (2016 - 22), o que deixava todo veterano com 1994. Chave: catalogBaseId ou nick em minúsculas.",
+  "players": {
+    "fallen": 1991,
+    "fer": 1991,
+    "karrigan": 1990,
+    "apex": 1993,
+    "rain": 1994,
+    "krimz": 1994,
+    "nitr0": 1995,
+    "s1mple": 1997,
+    "elige": 1997,
+    "naf": 1997,
+    "electronic": 1998,
+    "boombl4": 1998,
+    "jame": 1998,
+    "woxic": 1998,
+    "yuurih": 1999,
+    "kscerato": 1999,
+    "ropz": 1999,
+    "twistzz": 1999,
+    "zywoo": 2000,
+    "b1t": 2003
+  },
+  "announcedRetirement": {
+    "_sobre": "Quem já anunciou que vai parar: a partir do ano indicado a chance de pendurar é de pelo menos 70% por virada de temporada (ainda pode continuar).",
+    "fallen": 2027
+  }
+}

@@ -4,7 +4,7 @@
 // o caminho dele temporada a temporada (trocas, a vaga que cedeu para você, estreia, aposentadoria).
 import { countryName } from '../visuals/flags';
 import type { Player } from '../types';
-import { memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
+import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
 import type { PlayerCareerState } from './engine';
 import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, teamLanguage, type Language } from './language';
 import { myLanguageFit, seatedNicks } from './squad';
@@ -147,7 +147,7 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
       age: born === null ? null : year - born, overall: member.overall ?? memberCatalogOverall(member) ?? null,
       flag: flagOf(memberCountryIn(member, org)), spoken: spokenLabel(memberCountryIn(member, org)),
       status: onBench ? 'reserva' : 'titular',
-      note: onBench ? `Reserva da ${org?.name}: está no banco desde que você chegou.` : `Titular da ${org?.name}.`,
+      note: `${onBench ? `Reserva da ${org?.name}: está no banco desde que você chegou.` : `Titular da ${org?.name}.`}${(announcedRetirementYear(member) ?? 9999) <= year ? ' Anunciou que ia parar, mas segue jogando.' : ''}`,
       history: historyOf(state, nick)
     };
   };

@@ -39,7 +39,7 @@ const at = (seed: string): PlayerCareerState => {
 };
 
 const result = (placement: string, tier: TournamentResult['tier'] = 'S'): TournamentResult => ({
-  name: 'Teste', placement, tier, rating: 1.2, wins: 5, losses: placement === 'Campeão' ? 0 : 1,
+  name: 'Teste', placement, tier, rating: 1.2, wins: 5, losses: placement === 'Campeão' ? 0 : 1, seriesWins: 3, seriesLosses: placement === 'Campeão' ? 0 : 1,
   opponents: [{ team: 'A', won: true, phase: 'quarterfinal' }, { team: 'B', won: true, phase: 'semifinal' }, { team: 'C', won: placement === 'Campeão', phase: 'final' }]
 } as TournamentResult);
 

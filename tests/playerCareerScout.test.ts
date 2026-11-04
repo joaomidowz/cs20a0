@@ -94,3 +94,24 @@ describe('cartas com país, idioma e idade', () => {
     expect(spokenLabel('Denmark')).toBe('Dinamarquês');
   });
 });
+
+describe('idade real e aposentadoria anunciada', () => {
+  it('FalleN nasceu em 1991: 36 anos em 2027, não 33', async () => {
+    const { memberBirthYear } = await import('../src/lib/game/playerCareer/data');
+    const fallen = sceneOrgs.flatMap((org) => org.roster).find((member) => member.nick === 'FalleN')!;
+    expect(memberBirthYear(fallen)).toBe(1991);
+    const zywoo = sceneOrgs.flatMap((org) => org.roster).find((member) => member.nick === 'ZywOo' || member.nick === 'zywoo')!;
+    expect(memberBirthYear(zywoo)).toBe(2000);
+  });
+
+  it('FalleN anunciou que para: na virada para 2027 ele pendura na maioria dos mundos, mas às vezes segue', async () => {
+    const { sceneWorld } = await import('../src/lib/game/playerCareer/world');
+    let retired = 0;
+    const seeds = 80;
+    for (let index = 0; index < seeds; index += 1) {
+      if (sceneWorld(`fallen-${index}`, 2).retirements.some((entry) => entry.nick === 'FalleN')) retired += 1;
+    }
+    expect(retired / seeds).toBeGreaterThan(0.55);
+    expect(retired / seeds).toBeLessThan(0.85);
+  });
+});

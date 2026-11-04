@@ -13,6 +13,7 @@ import rawResolutions from '$lib/data/cs/career-roster-resolutions.game.json';
 import rawFills from '$lib/data/cs/career-slot-fills.game.json';
 import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
 import rawIdentities from '$lib/data/cs/identities.game.json';
+import rawBirthYears from '$lib/data/cs/career-birth-years.game.json';
 import { countryOfFlag } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
@@ -341,8 +342,19 @@ const ENTRY_AGE = 22;
 export const memberDebutYear = (member: SceneRosterMember): number | null =>
   (member.catalogBaseId ? CATALOG_FIRST_YEAR.get(member.catalogBaseId.toLowerCase()) ?? null : null);
 
+const BIRTH = rawBirthYears as unknown as { players: Record<string, number>; announcedRetirement: Record<string, number | string> };
+const birthKey = (member: SceneRosterMember) => (member.catalogBaseId ?? member.nick).toLowerCase();
+
+/** Ano em que o jogador anunciou que para (FalleN em 2027); null para quem não anunciou. */
+export function announcedRetirementYear(member: SceneRosterMember): number | null {
+  const year = BIRTH.announcedRetirement[birthKey(member)] ?? BIRTH.announcedRetirement[member.nick.toLowerCase()];
+  return typeof year === 'number' ? year : null;
+}
+
 export function memberBirthYear(member: SceneRosterMember): number | null {
   if (member.birthDate) return Number(member.birthDate.slice(0, 4));
+  const known = BIRTH.players[birthKey(member)] ?? BIRTH.players[member.nick.toLowerCase()];
+  if (known) return known;
   const first = member.catalogBaseId ? CATALOG_FIRST_YEAR.get(member.catalogBaseId.toLowerCase()) : undefined;
   return first ? first - ENTRY_AGE : null;
 }

@@ -8,7 +8,7 @@ import rawProspects from '$lib/data/cs/career-prospects.game.json';
 import { applyAging } from '../career/aging';
 import { createSeededRng } from '../simulation';
 import { regionOf } from './calendar';
-import { calibration, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgNation, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
+import { announcedRetirementYear, calibration, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgNation, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
 
 export interface SceneTransfer {
   season: number;
@@ -72,6 +72,9 @@ function headroom(age: number | null, rng: () => number): number {
 
 /** Ano real da temporada N da carreira (a 1 é 2026). */
 export const yearOfSeason = (season: number) => 2025 + season;
+
+/** Quem anunciou a aposentadoria e ainda não parou: chance mínima de parar a cada virada. */
+export const ANNOUNCED_RETIRE_CHANCE = 0.7;
 
 /** Chance de pendurar na virada da temporada: nada antes dos 33, sobe 12 pontos por ano, certo aos 38. */
 export const npcRetireChance = (age: number): number => (age >= 38 ? 1 : age >= 33 ? 0.15 + (age - 33) * 0.12 : 0);
@@ -181,7 +184,10 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
       const born = memberBirthYear(member);
       if (born === null) continue;
       const age = year - born;
-      if (rng() >= npcRetireChance(age)) continue;
+      // Quem anunciou que para tem 70% ou mais de pendurar a cada virada (FalleN ainda pode jogar mais um ano).
+      const announced = announcedRetirementYear(member);
+      const chance = announced !== null && year >= announced ? Math.max(ANNOUNCED_RETIRE_CHANCE, npcRetireChance(age)) : npcRetireChance(age);
+      if (rng() >= chance) continue;
       const role = memberRoles(member)[0] ?? null;
       const donors = sceneOrgs.filter((candidate) => candidate.level === org.level + 1 || candidate.level === org.level + 2);
       let replacement: SceneRosterMember | null = null;
