@@ -69,7 +69,39 @@ export interface TournamentResult {
   skipped?: boolean;
   /** Tier do evento (Major, S, A, B, C), para o histórico de títulos. */
   tier?: EventTier;
+  /** Campeão do evento e o MVP (pelo kill feed de todas as séries, como no modo online). */
+  champion?: string;
+  mvp?: EventMvp;
+  /** Suas jogadas no evento (ace, quad, clutch): viram fãs e marcam o histórico. */
+  plays?: EventPlays;
+  /** O mata-mata inteiro: quem passou, quem caiu e os placares. */
+  bracket?: BracketLine[];
 }
+
+/** Tier de um resultado antigo (antes do calendário real): pelo nível do time na temporada. */
+const legacyTier = (orgLevel: number): EventTier => (orgLevel <= 1 ? 'A' : orgLevel === 2 ? 'B' : 'C');
+
+export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; aces: number; total: number }
+
+/** Sala de troféus: títulos por tier (Major, S, A, B, C), MVPs de evento e aces da carreira (inclui a temporada em curso). */
+export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar' | 'orgId'>): TrophyCase {
+  const byTier: Record<EventTier, number> = { Major: 0, S: 0, A: 0, B: 0, C: 0 };
+  let mvps = 0;
+  let aces = 0;
+  const count = (result: TournamentResult, orgLevel: number) => {
+    if (result.placement === 'Campeão') byTier[result.tier ?? legacyTier(orgLevel)] += 1;
+    if (result.mvp?.you) mvps += 1;
+    aces += result.plays?.aces ?? 0;
+  };
+  for (const log of state.history) for (const result of log.tournaments) count(result, log.orgLevel);
+  const level = orgOf(state.orgId).level;
+  for (const entry of state.calendar ?? []) if (entry.result) count(entry.result, level);
+  return { byTier, mvps, aces, total: Object.values(byTier).reduce((sum, value) => sum + value, 0) };
+}
+
+export interface EventMvp { nick: string; team: string; rating: number; you?: boolean }
+export interface EventPlays { aces: number; quads: number; clutches: number }
+export interface BracketLine { phase: 'quarterfinal' | 'semifinal' | 'final'; a: string; b: string; scoreA: number; scoreB: number; aWon: boolean; /** Lado do seu time na série, quando é sua. */ you?: 'a' | 'b' }
 
 /** Um campeonato da temporada, disputado um a um no motor de Major. */
 export interface CalendarEntry {

@@ -166,7 +166,9 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
 }
 
 /** Resultado de campeonato aperta o elenco: título cria laço, eliminação cobra um preço pequeno. */
-export function celebrateResult(state: PlayerCareerState, placement: string, level = 4): PlayerCareerState {
+export interface ResultExtras { mvp?: boolean; aces?: number; quads?: number; clutches?: number }
+
+export function celebrateResult(state: PlayerCareerState, placement: string, level = 4, extras: ResultExtras = {}): PlayerCareerState {
   const delta = placement === 'Campeão' ? 5 : placement === 'Vice' ? 2 : placement === 'Semis' ? 0 : -3;
   const relationships: Record<string, number> = { ...state.relationships };
   // Laço não fica no teto sozinho: depois do resultado, a relação volta 8% em direção a 60.
@@ -176,10 +178,13 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
   }
   // Moral: título levanta, cair nas quartas pesa, e tudo volta 15% para o normal (60).
   const moraleDelta = placement === 'Campeão' ? 8 : placement === 'Vice' ? 3 : placement === 'Semis' ? 0 : -6;
-  const moraleAfter = clamp((state.morale ?? 60) + moraleDelta, 0, 100);
+  const moraleAfter = clamp((state.morale ?? 60) + moraleDelta + (extras.mvp ? 3 : 0), 0, 100);
   // Jogar campeonato cansa (+8); fãs vêm de resultado, mais no tier alto.
   const tierWeight = Math.max(1, 6 - level);
-  const fameGain = placement === 'Campeão' ? 120 * tierWeight * tierWeight : placement === 'Vice' ? 50 * tierWeight * tierWeight : placement === 'Semis' ? 15 * tierWeight * tierWeight : 0;
+  const placeFame = placement === 'Campeão' ? 120 * tierWeight * tierWeight : placement === 'Vice' ? 50 * tierWeight * tierWeight : placement === 'Semis' ? 15 * tierWeight * tierWeight : 0;
+  // MVP e jogada absurda (ace, quad, clutch) viralizam: rendem fãs mesmo sem título.
+  const playFame = ((extras.aces ?? 0) * 25 + (extras.quads ?? 0) * 8 + (extras.clutches ?? 0) * 4) * tierWeight;
+  const fameGain = placeFame + (extras.mvp ? 60 * tierWeight * tierWeight : 0) + playFame;
   const fatigue = clamp((state.fatigue ?? 0) + 8, 0, 100);
   // Corpo no limite (85+): metade das vezes vem uma pancada leve e a forma cai 2 até o próximo campeonato.
   const rng = createSeededRng(`${state.seed}:knock:${state.seasonNumber}:${(state.calendar ?? []).filter((entry) => entry.result).length}`);

@@ -23,10 +23,12 @@ import { drawClutchSituation, resolveClutchEdge } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
+import { computeMajorAwards } from '../majorAwards';
+import { toResult } from '../online/tournament-engine';
 import { createSeededRng } from '../simulation';
 import { orgIn } from './world';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
-import type { PlayerCareerState, PlayerRole, TournamentResult } from './engine';
+import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, TournamentResult } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -385,6 +387,59 @@ export interface SceneEventOutcome {
 
 const isUserTeam = (campaign: CampaignMajorState, id: string) => id === 'user' || id === campaign.userTeamId;
 
+export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[] }
+
+/**
+ * Prêmios do evento pelo kill feed de TODAS as séries (o motor joga o campo inteiro): campeão, MVP (o mesmo
+ * cálculo do modo online), suas jogadas e o mata-mata completo. Stage 1/2 do Major não têm final: só jogadas.
+ */
+export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorState): EventAwards {
+  const result = toResult(campaign.engine);
+  const myTeam = sceneOrgById.get(state.orgId)?.name ?? 'Lan House do Bairro';
+  const nameOf = (team: { id: string; name: string }) => (isUserTeam(campaign, team.id) ? myTeam : team.name);
+  const series = result.rounds.flatMap((round) => round.series);
+  const final = series.find((item) => item.phase === 'final');
+  const championId = final ? final.winnerId : null;
+  const awards = computeMajorAwards(result.rounds, championId);
+  const me = `${state.seed}:me`;
+  const plays = countPlays(series, me);
+  const bracket: BracketLine[] = series
+    .filter((item): item is typeof item & { phase: BracketLine['phase'] } => item.phase === 'quarterfinal' || item.phase === 'semifinal' || item.phase === 'final')
+    .map((item) => ({
+      phase: item.phase, a: nameOf(item.teamA), b: nameOf(item.teamB), scoreA: item.scoreA, scoreB: item.scoreB,
+      aWon: item.winnerId === item.teamA.id,
+      ...(isUserTeam(campaign, item.teamA.id) ? { you: 'a' as const } : isUserTeam(campaign, item.teamB.id) ? { you: 'b' as const } : {})
+    }));
+  // MVP de evento sai do campeão; o vice só leva se jogou muito mais (0.15 de rating acima do melhor campeão).
+  const ranked = awards?.topPlayers ?? [];
+  const runnerUpId = final ? (final.winnerId === final.teamA.id ? final.teamB.id : final.teamA.id) : null;
+  const bestChampion = ranked.find((award) => award.teamId === championId);
+  const bestRunnerUp = ranked.find((award) => award.teamId === runnerUpId);
+  const pick = bestChampion && bestRunnerUp && bestRunnerUp.rating >= bestChampion.rating + 0.15 ? bestRunnerUp : bestChampion ?? bestRunnerUp ?? awards?.mvp ?? null;
+  const mvp = final && pick
+    ? { nick: pick.playerId === me ? state.nick : pick.name, team: isUserTeam(campaign, pick.teamId) ? myTeam : pick.teamName, rating: pick.rating, ...(pick.playerId === me ? { you: true } : {}) }
+    : undefined;
+  return {
+    ...(final ? { champion: nameOf(final.winnerId === final.teamA.id ? final.teamA : final.teamB) } : {}),
+    ...(mvp ? { mvp } : {}),
+    ...(plays.aces + plays.quads + plays.clutches > 0 ? { plays } : {}),
+    ...(bracket.length ? { bracket } : {})
+  };
+}
+
+/** Ace, quad e clutch seus, contados direto dos destaques dos rounds do kill feed. */
+function countPlays(series: SeriesResult[], playerId: string): EventPlays {
+  const plays = { aces: 0, quads: 0, clutches: 0 };
+  for (const item of series) for (const map of item.maps) for (const round of map.details ?? []) {
+    const highlight = round.highlight;
+    if (!highlight || highlight.playerId !== playerId) continue;
+    if (highlight.kind === 'ace') plays.aces += 1;
+    else if (highlight.kind === 'quad') plays.quads += 1;
+    else if (highlight.kind === 'clutch') plays.clutches += 1;
+  }
+  return plays;
+}
+
 /** O fechamento de um campeonato jogado (ao vivo ou simulado): colocação, seu rating do kill feed e W-L. */
 export function sceneEventResult(state: PlayerCareerState, eventIndex: number, campaign: CampaignMajorState, stage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }): SceneEventOutcome {
   const players = userEnginePlayers(state);
@@ -402,7 +457,8 @@ export function sceneEventResult(state: PlayerCareerState, eventIndex: number, c
       rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
       seriesWins: wins + carry.wins,
       seriesLosses: decided.length - wins + carry.losses,
-      ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {})
+      ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {}),
+      ...eventAwards(state, campaign)
     },
     stats,
     players

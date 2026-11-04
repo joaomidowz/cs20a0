@@ -45,7 +45,7 @@ export const ORG_BASE_POWER: Record<number, number> = { 0: 91, 1: 87, 2: 82, 3: 
 
 
 /** "Team Vitality" e "Vitality" são o mesmo time: o nome sem "team" e sem pontuação é a chave. */
-const teamKey = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/[^a-z0-9]/g, '');
+const teamKey = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/\s+(team|gaming|esports?|club)$/, '').replace(/[^a-z0-9]/g, '');
 
 /** Ranking real do catálogo do jogo: o melhor entre HLTV 2025 e 2026 (sourceRank). */
 const WORLD_RANK: Map<string, number> = (() => {

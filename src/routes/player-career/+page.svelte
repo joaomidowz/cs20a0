@@ -23,14 +23,14 @@
   import { clutchStory, type ClutchProfile } from '$lib/game/playerCareer/decisions';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
-    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
-    type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
+    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
+    type BracketLine, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { headlineRetirements, headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
-  import { MONTH_LABEL, TIER_LABEL } from '$lib/game/playerCareer/calendar';
+  import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
@@ -127,6 +127,7 @@
   let autoProfile: ClutchProfile = 'solid';
   let menuOpen = false;
   let statsOpen = false;
+  let trophiesOpen = false;
   /** Campeonato aberto no detalhe do calendário (índice) — null fechado. */
   let eventSheet: number | null = null;
   let eventError: string | null = null;
@@ -139,7 +140,7 @@
   let weekLine: string | null = null;
   let weekChips: AgendaChip[] = [];
   let coachLine: string | null = null;
-  let lastEventReport: { name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[] } | null = null;
+  let lastEventReport: { index: number; name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[]; result: TournamentResult } | null = null;
 
   $: if (career) persist(career);
 
@@ -240,6 +241,34 @@
     if (!detailsPlayer && !opponentOrgId && !confirming) document.body.classList.remove('modal-open');
   }
 
+  function openTrophies() {
+    trophiesOpen = true;
+    document.body.classList.add('modal-open');
+  }
+
+  function closeTrophies() {
+    trophiesOpen = false;
+    if (!detailsPlayer && !opponentOrgId && !confirming && !statsOpen && eventSheet === null) document.body.classList.remove('modal-open');
+  }
+
+  /** O mata-mata de um evento, fase a fase (quartas, semis, final). */
+  const BRACKET_PHASES: Array<{ phase: BracketLine['phase']; label: string }> = [
+    { phase: 'quarterfinal', label: 'Quartas' }, { phase: 'semifinal', label: 'Semis' }, { phase: 'final', label: 'Final' }
+  ];
+  const TROPHY_TIERS: EventTier[] = ['Major', 'S', 'A', 'B', 'C'];
+
+  /** Momentos da carreira: títulos, MVPs e aces, do mais novo para o mais antigo. */
+  function careerMoments(state: PlayerCareerState) {
+    const rows: Array<{ key: string; name: string; tier: EventTier | null; placement: string; mvp: boolean; aces: number; clutches: number }> = [];
+    const push = (result: TournamentResult, key: string) => {
+      if (result.placement !== 'Campeão' && !result.mvp?.you && !(result.plays?.aces)) return;
+      rows.push({ key, name: result.name, tier: result.tier ?? null, placement: result.placement, mvp: Boolean(result.mvp?.you), aces: result.plays?.aces ?? 0, clutches: result.plays?.clutches ?? 0 });
+    };
+    state.history.forEach((log) => log.tournaments.forEach((result, index) => push(result, `${log.seasonNumber}:${index}`)));
+    (state.calendar ?? []).forEach((entry) => entry.result && push(entry.result, `now:${entry.index}`));
+    return rows.reverse();
+  }
+
   function askConfirm(next: NonNullable<typeof confirming>) {
     menuOpen = false;
     confirming = next;
@@ -286,6 +315,7 @@
     if (event.key !== 'Escape') return;
     if (confirming) closeConfirm();
     else if (statsOpen) closeStats();
+    else if (trophiesOpen) closeTrophies();
     else if (opponentOrgId) closeOpponent();
     else if (eventSheet !== null) closeEventSheet();
     else if (detailsPlayer) closeSheet();
@@ -549,6 +579,8 @@
     if (!career) return;
     const { result } = outcome;
     lastEventReport = {
+      index,
+      result,
       name: result.name,
       placement: result.placement,
       rating: result.rating,
@@ -557,7 +589,9 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId).level);
+    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId).level, {
+      mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
+    });
     live = null;
     clutch = null;
     callOutcome = null;
@@ -748,7 +782,7 @@
   $: seasonSpan = career?.history.length ? `${career.history[0].year}–${career.history.at(-1)!.year}` : career ? `${career.year}` : '';
   $: trajectory = career ? trajectoryOf(career) : [];
   $: overallCurve = career ? curveOf(career) : null;
-  $: namedTitles = career?.history.flatMap((log) => log.tournaments.filter((entry) => entry.placement === 'Campeão').map((entry) => `${entry.name} · ${log.year}`)) ?? [];
+  $: namedTitles = career?.history.flatMap((log) => log.tournaments.filter((entry) => entry.placement === 'Campeão').map((entry) => `${entry.name}${entry.tier ? ` (${TIER_LABEL[entry.tier]})` : ''}${entry.mvp?.you ? ' · MVP' : ''}`)) ?? [];
   $: lastTalkMate = lastTalk ? squadMates.find((mate) => mate.player.id === lastTalk?.mateId) ?? null : null;
   $: trainingWindow = career ? trainingWindowOf(career) : null;
   $: canTrain = Boolean(career && myPlayer && trainingWindow && career.trainedWindow !== trainingWindow);
@@ -760,6 +794,8 @@
   /** O resultado da call só cabe dentro do viewer enquanto o mapa está ao vivo; fora disso vai embaixo dele. */
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
+  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, aces: 0, total: 0 };
+  $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: lastLog = career?.history[career.history.length - 1] ?? null;
   $: currentSeat = career?.seatsTaken[career.seatsTaken.length - 1] ?? null;
 </script>
@@ -919,7 +955,10 @@
           <div class="value" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
             <dt>Valor de mercado</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
           </div>
-          <div><dt>Títulos</dt><dd class:gold={totalTitles > 0}>{totalTitles}</dd></div>
+          <div class="trophy-fact">
+            <dt>Títulos</dt>
+            <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
+          </div>
           <div title="Moral alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
           <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
           <div title="Seguidores: títulos, MVPs, stream e entrevistas."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
@@ -1209,8 +1248,14 @@
                   <span class="report-copy">
                     <span class="label">Último · {lastEventReport.name}</span>
                     <span class="report-line">{#if lastEventReport.placement === 'Não classificado'}Sem vaga no Major pelo ranking{:else}{lastEventReport.wins}W–{lastEventReport.losses}L · rating <b>{lastEventReport.rating.toFixed(2)}</b>{/if}</span>
+                    {#if lastEventReport.result.mvp}
+                      <span class="report-mvp" class:you={lastEventReport.result.mvp.you}>{lastEventReport.result.mvp.you ? 'Você foi o MVP' : `MVP ${lastEventReport.result.mvp.nick} · ${lastEventReport.result.mvp.team}`} · {lastEventReport.result.mvp.rating.toFixed(2)}{#if lastEventReport.result.plays?.aces} · {lastEventReport.result.plays.aces} ace{lastEventReport.result.plays.aces > 1 ? 's' : ''}{/if}</span>
+                    {/if}
                   </span>
-                  {#if lastEventReport.stats.length}<button class="link-btn" on:click={openStats}>Stats</button>{/if}
+                  <span class="report-links">
+                    {#if lastEventReport.result.bracket?.length}<button class="link-btn" on:click={() => lastEventReport && openEvent(lastEventReport.index)}>Chave</button>{/if}
+                    {#if lastEventReport.stats.length}<button class="link-btn" on:click={openStats}>Stats</button>{/if}
+                  </span>
                 </div>
               {/if}
               {#if currentEntry}
@@ -1382,7 +1427,7 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeEventSheet}>
       <div class="modal wide event-sheet" role="dialog" aria-modal="true" aria-labelledby="event-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow">Campeonato {eventSheet + 1} de {career.calendar?.length ?? 0} · {LEVEL_LABEL[currentLevel]}</span>
+          <span class="eyebrow">Campeonato {eventSheet + 1} de {career.calendar?.length ?? 0} · {sheetEntry.tier ? TIER_LABEL[sheetEntry.tier] : LEVEL_LABEL[currentLevel]}</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeEventSheet}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
@@ -1396,11 +1441,32 @@
             <div class="place-{placeKey(sheetEntry.result.placement)}"><dt>Sua colocação</dt><dd class="placed">{sheetEntry.result.placement}</dd></div>
             <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}W–{sheetEntry.result.seriesLosses}L</dd></div>
             <div><dt>Seu rating</dt><dd class:hot={sheetEntry.result.rating >= 1.1}>{sheetEntry.result.rating.toFixed(2)}</dd></div>
+            {#if sheetEntry.result.champion}<div><dt>Campeão</dt><dd>{sheetEntry.result.champion}</dd></div>{/if}
+            {#if sheetEntry.result.mvp}<div><dt>MVP</dt><dd class:mvp-you={sheetEntry.result.mvp.you}>{sheetEntry.result.mvp.you ? 'Você' : sheetEntry.result.mvp.nick} · {sheetEntry.result.mvp.team} · {sheetEntry.result.mvp.rating.toFixed(2)}</dd></div>{/if}
+            {#if sheetEntry.result.plays}<div><dt>Suas jogadas</dt><dd>{[sheetEntry.result.plays.aces ? `${sheetEntry.result.plays.aces} ace` : '', sheetEntry.result.plays.quads ? `${sheetEntry.result.plays.quads} quad` : '', sheetEntry.result.plays.clutches ? `${sheetEntry.result.plays.clutches} clutch` : ''].filter(Boolean).join(' · ')}</dd></div>{/if}
           {:else}
             <div><dt>Status</dt><dd>{currentEntry?.index === eventSheet ? 'Próximo a jogar' : 'Ainda vai acontecer'}</dd></div>
             <div><dt>Sua força</dt><dd>{sheetMyRank}º de {sheetField.length} na chave</dd></div>
           {/if}
         </dl>
+        {#if sheetEntry.result?.bracket?.length}
+          {@const bracket = sheetEntry.result.bracket}
+          <div class="bracket" aria-label="Mata-mata do campeonato">
+            {#each BRACKET_PHASES as column (column.phase)}
+              <div class="bracket-col">
+                <p class="label">{column.label}</p>
+                <div class="bracket-games">
+                {#each bracket.filter((line) => line.phase === column.phase) as line, lineIndex (`${column.phase}-${lineIndex}`)}
+                  <div class="bracket-match" class:mine={Boolean(line.you)}>
+                    <span class:won={line.aWon} class:me={line.you === 'a'}><em>{line.a}</em><b>{line.scoreA}</b></span>
+                    <span class:won={!line.aWon} class:me={line.you === 'b'}><em>{line.b}</em><b>{line.scoreB}</b></span>
+                  </div>
+                {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
         <div class="field">
           <p class="label">A chave · do mais forte ao mais fraco (média de overall do quinteto)</p>
           <ol>
@@ -1423,6 +1489,7 @@
             {/each}
           </ol>
         </div>
+        {/if}
         {#if currentEntry?.index === eventSheet}
           <button class="cta" on:click={() => eventSheet !== null && playFromSheet(eventSheet)}>Jogar este campeonato</button>
         {/if}
@@ -1444,6 +1511,43 @@
             <CareerCard {player} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} caption={opponentOrg.name} />
           {/each}
         </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if trophiesOpen && career}
+    <div class="modal-backdrop" role="presentation" on:click|self={closeTrophies}>
+      <div class="modal wide trophy-room" role="dialog" aria-modal="true" aria-labelledby="trophy-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="trophy-title">Sala de troféus · {career.nick}</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeTrophies}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <dl class="trophy-tiers">
+          {#each TROPHY_TIERS as tier (tier)}
+            <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{TIER_LABEL[tier]}</dt><dd>{trophies.byTier[tier]}</dd></div>
+          {/each}
+          <div class:has={trophies.mvps > 0}><dt>MVPs</dt><dd>{trophies.mvps}</dd></div>
+          <div class:has={trophies.aces > 0}><dt>Aces</dt><dd>{trophies.aces}</dd></div>
+        </dl>
+        {#if moments.length}
+          <ol class="moments">
+            {#each moments as moment (moment.key)}
+              <li class:title={moment.placement === 'Campeão'}>
+                <span class="moment-name">{moment.name}</span>
+                <span class="moment-tags">
+                  {#if moment.tier}<span class="tag" class:major={moment.tier === 'Major'}>{TIER_LABEL[moment.tier]}</span>{/if}
+                  {#if moment.placement === 'Campeão'}<span class="tag gold">Campeão</span>{/if}
+                  {#if moment.mvp}<span class="tag gold">MVP</span>{/if}
+                  {#if moment.aces}<span class="tag">{moment.aces} ace{moment.aces > 1 ? 's' : ''}</span>{/if}
+                </span>
+              </li>
+            {/each}
+          </ol>
+        {:else}
+          <p class="muted-line">Nenhum título ainda. Título, MVP de evento e ace entram aqui.</p>
+        {/if}
       </div>
     </div>
   {/if}
@@ -1676,6 +1780,45 @@
   .report-copy .label { margin: 0; max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .report-line { font-size: 14px; font-variant-numeric: tabular-nums; }
   .report-line b { color: var(--accent); }
+  .report-mvp { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .report-mvp.you { color: var(--gold); font-weight: 800; }
+  .report-links { display: flex; gap: 10px; margin-left: auto; }
+  .trophy-btn { all: unset; cursor: pointer; font: inherit; color: inherit; border-bottom: 1px dashed var(--line); }
+  .trophy-btn.gold { color: var(--gold); }
+  .trophy-btn small { color: var(--muted); font: 700 12px/1 var(--body); }
+  .trophy-btn:hover { border-bottom-color: currentColor; }
+
+  /* Mata-mata do evento jogado: três colunas, a sua série marcada. */
+  .bracket { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .bracket-col { display: grid; grid-template-rows: auto 1fr; gap: 6px; min-width: 0; }
+  .bracket-games { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+  .bracket-col .label { margin: 0 0 2px; }
+  .bracket-match { display: grid; border: 1px solid var(--line); background: var(--surface-2); }
+  .bracket-match.mine { border-color: var(--accent); }
+  .bracket-match span { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; color: var(--muted); font-size: 13px; }
+  .bracket-match span + span { border-top: 1px solid var(--line); }
+  .bracket-match span.won { color: var(--text); font-weight: 700; }
+  .bracket-match span.me em { color: var(--accent); }
+  .bracket-match em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+  .bracket-match b { font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums; }
+
+  /* Sala de troféus: contagem por tier e os momentos da carreira. */
+  .trophy-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; margin: 0; }
+  .trophy-tiers div { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
+  .trophy-tiers dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .trophy-tiers dd { margin: 0; color: var(--muted); font: 900 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .trophy-tiers div.has dd { color: var(--text); }
+  .trophy-tiers div.has.major { border-color: var(--gold); }
+  .trophy-tiers div.has.major dd { color: var(--gold); }
+  .moments { display: grid; gap: 4px; max-height: min(46vh, 420px); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+  .moments li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .moments li.title .moment-name { font-weight: 700; }
+  .moment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .moment-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+  .tag.gold { border-color: var(--gold); color: var(--gold); }
+  .tag.major { border-color: var(--gold); color: var(--text); }
+  .muted-line { margin: 0; color: var(--muted); font-size: 14px; }
+  @media (max-width: 560px) { .bracket { grid-template-columns: minmax(0, 1fr); } }
   .link-btn { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--accent); font: 800 12px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 
   .squad { grid-area: squad; display: grid; gap: 10px; min-width: 0; }
@@ -1965,6 +2108,7 @@
   .event-facts dd { margin: 0; font: 600 15px/1.3 var(--body); }
   .event-facts dd.placed { color: var(--place); font: 900 24px/1 var(--display); text-transform: uppercase; }
   .event-facts dd.hot { color: var(--accent); }
+  .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .field li { display: grid; grid-template-columns: 28px minmax(0, 1.3fr) auto minmax(80px, 1fr) 36px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .field li.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
