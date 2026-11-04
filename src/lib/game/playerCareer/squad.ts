@@ -6,7 +6,8 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { ORG_BASE_POWER, sceneOrgById } from './data';
+import { memberRoles, ORG_BASE_POWER, sceneOrgById } from './data';
+import { orgIn } from './world';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
@@ -26,6 +27,10 @@ function fixCurrentSeat(state: PlayerCareerState) {
   let index = -1;
   seats.forEach((seat, position) => { if (seat.orgId === state.orgId) index = position; });
   if (!org || index < 0) return seats;
+  // Só corrige vaga claramente errada: o jogador guardado tem função conhecida e não é a sua (apEX ≠ AWPer).
+  const stored = org.roster.find((member) => member.nick.toLowerCase() === seats[index].nick.toLowerCase());
+  const roles = stored ? memberRoles(stored) : [];
+  if (!stored || !roles.length || roles.includes(state.role)) return seats;
   const fixed = seatToTake(org, state.role);
   return fixed.nick === seats[index].nick ? seats : seats.map((seat, position) => (position === index ? fixed : seat));
 }
@@ -101,7 +106,7 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
   const roster: Player[] = org.id === 'lan-house'
     ? SLOTS.filter((role) => role !== state.role)
         .map((role, index) => enginePlayer(`${state.seed}:mate:${role}`, `Mate ${index + 1}`, ORG_BASE_POWER[5], role, createSeededRng(`${state.seed}:mates:${seasonKey}`)))
-    : withoutSeat(sceneOrgEnginePlayers(org as never, seasonKey), state);
+    : withoutSeat(sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? (org as never), seasonKey), state);
   return roster.map((player) => {
     const relationship = relationshipOf(state, player.id);
     return { player: { ...player, overall: clamp((player.overall ?? 60) + synergyBump(relationship), 40, 99) }, relationship, synergy: clamp(relationship, 0, 100) };

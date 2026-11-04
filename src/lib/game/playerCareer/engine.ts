@@ -5,6 +5,7 @@
 // forte) e os pesos do worldGen. Tudo determinístico por seed da carreira.
 import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
+import { orgIn } from './world';
 import { calibration, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
@@ -111,6 +112,11 @@ export interface SeasonLog {
   titles: number;
   injury: string | null;
   agingNote: string | null;
+  /** Idade ao fim da temporada e quanto a idade tirou de overall (declínio de veterano). */
+  age?: number;
+  ageDecline?: number;
+  /** O corpo pediu para parar (risco real de aposentadoria pela idade): só um aviso, a decisão é sua. */
+  retireHint?: boolean;
   /** Trocas de time durante a temporada (cortes, propostas aceitas). */
   moves?: string[];
 }
@@ -123,6 +129,8 @@ export interface CareerVerdict {
   topOrgLevel: number;
   bestSeasonRating: number;
   line: string;
+  /** Chegou aos 40: pendurou o mouse e virou coach. */
+  becameCoach?: boolean;
 }
 
 export interface SeatTaken { orgId: string; orgName: string; nick: string; viaRole: boolean }
@@ -344,6 +352,30 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
 }
 
 /** Fecha a temporada: lesão, aging calibrado e janela de mercado. */
+/** Idade limite de jogador: aos 40, pendura o mouse e vira coach. */
+export const MAX_CAREER_AGE = 40;
+
+/**
+ * Declínio de veterano por temporada. A curva real do catálogo tem amostra boa até ~29 anos; depois quase não há
+ * jogador para medir e a média oscila. Aqui o desgaste é explícito: −1 aos 29-30, −2 aos 31-33, −3 dos 34 em diante.
+ */
+export const ageDecline = (age: number): number => (age >= 34 ? 3 : age >= 31 ? 2 : age >= 29 ? 1 : 0);
+
+/** Quanto mais velho, mais lesão: 6% até os 24, +2,5 pontos por ano depois, até 45%. */
+export const injuryChance = (age: number): number => Math.min(0.45, 0.06 + Math.max(0, age - 24) * 0.025);
+
+/** Fase da carreira pela idade (pico real do catálogo: mediana 23, p90 27). */
+export function agePhase(age: number): { label: string; detail: string } {
+  if (age <= 21) return { label: 'Em formação', detail: 'Sobe rápido se jogar bem.' };
+  if (age <= 26) return { label: 'Auge', detail: 'Melhor fase da carreira.' };
+  if (age <= 28) return { label: 'Experiente', detail: 'Parou de crescer. Segura o nível.' };
+  const next = ageDecline(age + 1);
+  return { label: age <= 33 ? 'Veterano' : 'Fim de carreira', detail: `Perde ${next} de overall por temporada. Limite: ${MAX_CAREER_AGE}.` };
+}
+
+const INJURIES_YOUNG = ['Tendinite no punho', 'Lombalgia'];
+const INJURIES_OLD = ['Tendinite crônica no punho', 'Hérnia de disco', 'Lesão no ombro', 'Dor nas costas'];
+
 export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
@@ -352,22 +384,25 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   const titles = results.filter((result) => result.placement === 'Campeão').length;
   const seasonRating = results.length ? Number((results.reduce((sum, result) => sum + result.rating, 0) / results.length).toFixed(2)) : 0.9;
 
-  // Lesão (Fase 5 em versão mínima): ~10%/temporada, contundiu no meio do calendário.
-  const injured = rng() < 0.1;
-  const injury = injured ? (rng() < 0.5 ? 'Tendinite no punho' : 'Lombalgia') : null;
+  // Lesão: a chance e o peso sobem com a idade.
+  const injured = rng() < injuryChance(state.age);
+  const injuryPool = state.age >= 30 ? INJURIES_OLD : INJURIES_YOUNG;
+  const injury = injured ? injuryPool[Math.floor(rng() * injuryPool.length)] : null;
+  const injuryWeight = injured ? 0.03 + 0.012 * Math.max(0, state.age - 27) : 0;
 
   const before = state.overall;
   const aged = applyAging({
-    entity: { id: `${state.seed}:me`, age: state.age, overall: state.overall, truePotential: state.truePotential, developmentRate: state.developmentRate, runRating: seasonRating - (injured ? 0.03 : 0) },
+    entity: { id: `${state.seed}:me`, age: state.age, overall: state.overall, truePotential: state.truePotential, developmentRate: state.developmentRate, runRating: seasonRating - injuryWeight },
     calibration,
     seasonKey: `${state.seed}:season:${state.seasonNumber}`
   });
-  const eventNote = aged.events[0];
-  const agingNote = eventNote
-    ? eventNote.type === 'GROWTH' ? `Evoluiu para ${eventNote.to} de overall`
-      : eventNote.type === 'DECLINE' ? `Caiu para ${eventNote.to} de overall`
-      : eventNote.type === 'PLATEAU' ? 'Manteve o nível' : 'Pendurou o mouse'
-    : null;
+  // O sorteio de aposentadoria do motor de idade vira AVISO (o corpo pede para parar); quem decide é você.
+  const retireHint = aged.retired;
+  const decline = ageDecline(aged.entity.age) + (injured && state.age >= 30 ? 1 : 0);
+  const finalOverall = Math.max(40, Math.min(99, aged.entity.overall - decline));
+  const agingNote = finalOverall > before ? `Evoluiu para ${finalOverall} de overall`
+    : finalOverall < before ? `Caiu para ${finalOverall} de overall`
+    : 'Manteve o nível';
 
   const log: SeasonLog = {
     seasonNumber: state.seasonNumber,
@@ -378,20 +413,23 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     tournaments: results,
     seasonRating,
     overallBefore: before,
-    overallAfter: aged.entity.overall,
+    overallAfter: finalOverall,
     titles,
     injury,
     agingNote,
+    age: aged.entity.age,
+    ageDecline: decline,
+    retireHint,
     ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
 
   const offers = buildOffers(state, seasonRating, titles, rng);
   // Temporada ruim sem título numa org real: não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
   const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
-  return {
+  const next: PlayerCareerState = {
     ...state,
     age: aged.entity.age,
-    overall: aged.entity.overall,
+    overall: finalOverall,
     seasonNumber: state.seasonNumber + 1,
     year: state.year + 1,
     history: [...state.history, log],
@@ -401,6 +439,8 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     seasonMoves: [],
     released
   };
+  // Aos 40 a carreira de jogador acaba: pendura o mouse e vira coach.
+  return next.age >= MAX_CAREER_AGE ? retire(next, { coach: true }) : next;
 }
 
 function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
@@ -453,7 +493,8 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
 export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCareerState {
   const offer = state.pendingOffers?.find((candidate) => candidate.orgId === orgId);
   if (!offer) return state;
-  const org = sceneOrgById.get(orgId);
+  // A vaga é de quem está no time NESTA temporada (o mundo também troca jogadores).
+  const org = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = org ? seatToTake(org, state.role) : null;
   return { ...state, orgId, pendingOffers: null, ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
 }
@@ -545,7 +586,7 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
     const index = played.length + offset;
     return { index, name: tournamentNameFor(index, level, total), status: 'UPCOMING' as const };
   });
-  const target = sceneOrgById.get(orgId);
+  const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? seatToTake(target, state.role) : null;
   return {
     ...state,
@@ -578,20 +619,21 @@ export function declineMove(state: PlayerCareerState): PlayerCareerState {
   return { ...state, pendingMove: null, morale: Math.min(100, (state.morale ?? 60) + 4) };
 }
 
-export function retire(state: PlayerCareerState): PlayerCareerState {
+export function retire(state: PlayerCareerState, options: { coach?: boolean } = {}): PlayerCareerState {
   if (state.status === 'RETIRED') return state;
   const best = state.history.reduce((acc, log) => (log.seasonRating > acc ? log.seasonRating : acc), 0);
   const topLog = state.history.reduce<SeasonLog | null>((acc, log) => (!acc || log.orgLevel < acc.orgLevel ? log : acc), null);
   const titles = state.history.reduce((sum, log) => sum + log.titles, 0);
   const bestOverall = Math.max(state.overall, ...state.history.map((log) => log.overallAfter));
-  const line = topLog && topLog.orgLevel <= 1
+  const career = topLog && topLog.orgLevel <= 1
     ? 'Do lan house ao Major: carreira de filme.'
-    : topLog && topLog.orgLevel <= 2 ? 'Pisou no tier 1 e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no circuito challenger.' : 'Guerreiro do circuito. O bairro se lembra.';
+    : topLog && topLog.orgLevel <= 2 ? 'Chegou ao tier 2 e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no circuito challenger.' : 'Guerreiro do circuito. O bairro se lembra.';
+  const line = options.coach ? `Aos ${state.age}, pendurou o mouse e virou coach. ${career}` : career;
   return {
     ...state,
     status: 'RETIRED',
     pendingOffers: null,
-    verdict: { seasons: state.history.length, titles, bestOverall, topOrgName: topLog?.orgName ?? null, topOrgLevel: topLog?.orgLevel ?? 9, bestSeasonRating: best, line }
+    verdict: { seasons: state.history.length, titles, bestOverall, topOrgName: topLog?.orgName ?? null, topOrgLevel: topLog?.orgLevel ?? 9, bestSeasonRating: best, line, ...(options.coach ? { becameCoach: true } : {}) }
   };
 }
 

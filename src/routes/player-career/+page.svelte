@@ -22,13 +22,14 @@
   import { createRunStats } from '$lib/game/runStats';
   import { clutchStory, type ClutchProfile } from '$lib/game/playerCareer/decisions';
   import {
-    ARCHETYPES, ROLE_META, acceptMove, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
     type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { advanceToFinal, finishSceneEvent, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
+  import { headlineTransfers, orgIn } from '$lib/game/playerCareer/world';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
@@ -634,11 +635,12 @@
     : null;
   $: opponentOrg = opponentOrgId ? sceneOrgById.get(opponentOrgId) ?? null : null;
   $: opponentRoster = career && opponentOrg
-    ? sceneOrgEnginePlayers(opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
+    ? sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
     : [];
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
+  $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
   $: weekCards = career && currentEntry ? drawAgenda(career) : [];
   $: coachTips = career ? coachTipsOf(career) : [];
   $: talksLeft = career ? coachTalksLeft(career) : 3;
@@ -758,7 +760,7 @@
   {:else if career.status === 'RETIRED' && career.verdict}
     <section class="retired">
       <div class="retired-head">
-        <p class="eyebrow">Pendurou o mouse · {seasonSpan}</p>
+        <p class="eyebrow">{career.verdict.becameCoach ? `Virou coach aos ${career.age}` : 'Pendurou o mouse'} · {seasonSpan}</p>
         <h1 class="display">{career.nick}</h1>
         <p class="verdict">“{career.verdict.line}”</p>
       </div>
@@ -802,8 +804,9 @@
         <div class="rail-head">
           <div class="who">
             <p class="eyebrow">Carreira · T{career.seasonNumber} · {career.year}</p>
-            <h1 class="display nick">{career.nick}</h1>
+            <h1 class="display nick" class:long={career.nick.length > 7} class:xlong={career.nick.length > 10}>{career.nick}</h1>
             <p class="sub">{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
+            <p class="age-phase" class:old={career.age >= 29}><b>{agePhase(career.age).label}</b> {agePhase(career.age).detail}</p>
             {#if myPlayer}
               <dl class="skills-now">
                 <div class="mental"><dt>Mental</dt><dd>{myPlayer.mental}</dd></div>
@@ -895,6 +898,12 @@
                   <li class="place-{entry.placement}" title={`${entry.name} · ${entry.placement} · ${entry.rating.toFixed(2)}`}>{entry.placement}</li>
                 {/each}
               </ol>
+              {#if lastLog.ageDecline}
+                <div class="note"><b>A idade pesou: −{lastLog.ageDecline} de overall</b><span>Aos {lastLog.age ?? career.age} anos o corpo já não responde igual. Treino segura, mas não reverte.</span></div>
+              {/if}
+              {#if lastLog.retireHint}
+                <div class="note warn"><b>O corpo pede para parar.</b><span>Você pode seguir até os 40 ou pendurar o mouse agora.</span><button class="danger-btn note-btn" on:click={askRetire}>Pendurar o mouse</button></div>
+              {/if}
               {#if career.released}
                 <div class="note warn"><b>O {orgOf(career.orgId).name} não renovou.</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada, sem título. Escolha uma oferta ou volte para a Lan House.</span></div>
               {/if}
@@ -916,7 +925,7 @@
             </div>
             <div class="offers">
               {#each career.pendingOffers as offer}
-                {@const target = sceneOrgById.get(offer.orgId)}
+                {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
                 {@const seat = target ? seatToTake(target, career.role) : null}
                 <button class="offer" on:click={() => choose(offer.orgId)}>
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
@@ -926,6 +935,11 @@
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
               {/each}
+              <button class="offer stay retire-offer" on:click={askRetire}>
+                <span class="label">Encerrar</span>
+                <b class="display">Pendurar o mouse</b>
+                <span class="ln">Fim da carreira de jogador aos {career.age}</span>
+              </button>
               {#if career.released}
                 <button class="offer stay" on:click={toLanHouse}>
                   <span class="label">Recomeçar</span>
@@ -1061,6 +1075,32 @@
             </div>
           {/if}
         {:else}
+          {#if !career.calendar && lastLog}
+            <section class="season-summary" aria-label="Como foi a temporada">
+              <div class="ss-delta">
+                <span class="label">Temporada {lastLog.seasonNumber} · {lastLog.year}</span>
+                <b class:down={lastLog.overallAfter < lastLog.overallBefore} class:up={lastLog.overallAfter > lastLog.overallBefore}>{lastLog.overallBefore} → {lastLog.overallAfter}</b>
+                <span>rating {lastLog.seasonRating.toFixed(2)}{lastLog.titles ? ` · ${lastLog.titles} título${lastLog.titles > 1 ? 's' : ''}` : ''}</span>
+              </div>
+              <div class="ss-notes">
+                {#if lastLog.ageDecline}<p><b>Idade:</b> −{lastLog.ageDecline} de overall aos {lastLog.age ?? career.age} anos.</p>{/if}
+                {#if lastLog.injury}<p class="warn"><b>Lesão:</b> {lastLog.injury}.</p>{/if}
+                {#if lastLog.moves?.length}<p><b>Trocas:</b> {lastLog.moves.join(' · ')}</p>{/if}
+                {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
+                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
+              </div>
+              {#if sceneMarket.length}
+                <div class="ss-market">
+                  <p class="label">Mercado da cena · {career.year}</p>
+                  <ul>
+                    {#each sceneMarket as move}
+                      <li><b>{move.nick}</b> {move.fromName} → {move.toName} <span>(troca com {move.swappedNick})</span></li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+            </section>
+          {/if}
           <div class="hub" class:has-calendar={Boolean(career.calendar)}>
             <section class="next" aria-label={currentEntry ? 'Próximo campeonato' : 'Próxima temporada'}>
               <div class="next-copy">
@@ -1341,7 +1381,7 @@
         <p class="move-reason" id="move-reason">{move.reason}{move.kind === 'cut' ? ' Escolha para onde ir. A temporada continua no time novo.' : ' Se aceitar, você joga o resto da temporada lá.'}</p>
         <div class="offers">
           {#each move.offers as offer}
-            {@const target = sceneOrgById.get(offer.orgId)}
+            {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
             {@const seat = target ? seatToTake(target, career.role) : null}
             <button class="offer" data-autofocus on:click={() => takeMove(offer.orgId)}>
               <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
@@ -1662,6 +1702,30 @@
   .mate-foot .bond { gap: 3px; }
   .mate-foot .bond-num { text-align: left; white-space: nowrap; font-size: 11px; }
   .mate-foot .secondary-btn.small { min-height: 32px; padding: 0 8px; font-size: 11px; }
+  .nick.long { font-size: 44px; }
+  .nick.xlong { font-size: 34px; }
+  .age-phase { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
+  .age-phase b { color: var(--text); font-weight: 700; margin-right: 4px; }
+  .age-phase.old b { color: var(--accent-2); }
+  .note-btn { justify-self: start; margin-top: 6px; min-height: 36px; }
+  .retire-offer { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+  .retire-offer > b { color: var(--danger); }
+  .season-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 24px; align-items: center; padding: 12px 18px; border: 1px solid var(--line); background: var(--surface-2); }
+  .ss-delta { display: grid; gap: 4px; }
+  .ss-delta .label { margin: 0; }
+  .ss-delta b { font: 900 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .ss-delta b.up { color: var(--accent); }
+  .ss-delta b.down { color: var(--accent-2); }
+  .ss-delta span:last-child { color: var(--muted); font-size: 13px; }
+  .ss-notes { display: grid; gap: 4px; }
+  .ss-market { grid-column: 1 / -1; display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .ss-market .label { margin: 0; }
+  .ss-market ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+  .ss-market b { color: var(--text); }
+  .ss-market li span { font-size: 12px; }
+  .ss-notes p { margin: 0; font-size: 14px; color: var(--muted); }
+  .ss-notes b { color: var(--text); }
+  .ss-notes p.warn b { color: var(--accent-2); }
   .rail-seasons ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
   .rail-seasons li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .rail-seasons li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1855,6 +1919,7 @@
   /* Celular: o elenco vira faixa com snap; nada estoura a largura */
   @media (max-width: 680px) {
     .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .season-summary { grid-template-columns: minmax(0, 1fr); }
     .week-grid { grid-template-columns: minmax(0, 1fr); }
     .skills-pick button { padding: 0 6px; font-size: 12px; min-height: 40px; }
     .ft-actions { flex-wrap: wrap; }

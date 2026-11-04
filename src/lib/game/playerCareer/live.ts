@@ -24,7 +24,8 @@ import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
 import { createSeededRng } from '../simulation';
-import { memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { orgIn } from './world';
+import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { PlayerCareerState, PlayerRole, TournamentResult } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
@@ -67,13 +68,17 @@ export function enginePlayer(id: string, nick: string, overall: number, role: Pl
 /** Elenco do motor de uma org da cena: nicks REAIS onde a coleta trouxe, força derivada da faixa do nível. */
 export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[] {
   const rng = createSeededRng(`${seasonKey}:org:${org.id}`);
-  const base = ORG_BASE_POWER[org.level] ?? 60;
+  // Base pelo ranking real (Vitality acima de Passion UA); sem ranking, a faixa do nível.
+  const base = org.power ?? ORG_BASE_POWER[org.level] ?? 60;
   // Cada nick na posição da função real dele (ZywOo no AWP, apEX no IGL), não na ordem do elenco.
   const bySlot = rosterBySlot(org, SLOTS);
   return SLOTS.map((role, index) => {
     const member = bySlot[index];
     const nick = member ? memberNick(member) : `${org.name} ${index + 1}`;
-    const overall = clamp(base + Math.round((rng() - 0.5) * 8), 40, 99);
+    const noise = Math.round((rng() - 0.5) * 8);
+    // Quem está no catálogo joga perto do overall real dele (60% real, 40% a base do time).
+    const real = member ? memberCatalogOverall(member) : null;
+    const overall = clamp(real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise, 40, 99);
     return enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
   });
 }
@@ -110,7 +115,8 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
     const candidate = pool[Math.floor(rng() * pool.length)];
     if (!picked.includes(candidate)) picked.push(candidate);
   }
-  const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(org, seed)]));
+  // Elencos da temporada (o mundo troca jogadores entre temporadas).
+  const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
   return { seed, picked, rosters };
 }
 

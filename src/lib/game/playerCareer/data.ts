@@ -5,6 +5,7 @@
 import rawScene from '$lib/data/cs/career-scene.game.json';
 import rawCalibration from '$lib/data/cs/career-calibration.game.json';
 import rawPlayers from '$lib/data/cs/players.game.json';
+import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
 
@@ -26,6 +27,10 @@ export interface SceneOrg {
   tournaments: SceneTournamentRef[];
   roster: SceneRosterMember[];
   sources: Array<{ tournament?: string; url?: string }>;
+  /** Posição no ranking real (HLTV 2025/2026 do catálogo), quando o time aparece nele. */
+  worldRank?: number | null;
+  /** Força base do time no motor (média do quinteto antes dos jogadores reais do catálogo). */
+  power?: number;
 }
 interface SceneFile {
   referenceYear: number;
@@ -34,15 +39,66 @@ interface SceneFile {
 }
 
 export const scene = rawScene as unknown as SceneFile;
-export const sceneOrgs = scene.orgs;
-export const sceneOrgById = new Map(sceneOrgs.map((org) => [org.id, org]));
+
+/** Faixa de força base por nível da pirâmide (mecânica derivada; o elenco do catálogo ajusta quando existe). */
+export const ORG_BASE_POWER: Record<number, number> = { 1: 88, 2: 82, 3: 74, 4: 66, 5: 58 };
+
+
+/** "Team Vitality" e "Vitality" são o mesmo time: o nome sem "team" e sem pontuação é a chave. */
+const teamKey = (name: string) => name.toLowerCase().replace(/^team\s+/, '').replace(/[^a-z0-9]/g, '');
+
+/** Ranking real do catálogo do jogo: o melhor entre HLTV 2025 e 2026 (sourceRank). */
+const WORLD_RANK: Map<string, number> = (() => {
+  const ranks = new Map<string, number>();
+  for (const team of rawTeams as Array<{ name?: string; year?: number; sourceRank?: number | null }>) {
+    if (!team.name || !team.sourceRank || (team.year !== 2025 && team.year !== 2026)) continue;
+    const key = teamKey(team.name);
+    ranks.set(key, Math.min(ranks.get(key) ?? 999, team.sourceRank));
+  }
+  return ranks;
+})();
+
+/** Tier 1 de verdade: os 16 melhores do ranking real (finalistas e semifinalistas de Major, top da HLTV). */
+export const ELITE_RANK = 16;
+
+/**
+ * A cena coletada marca como nível 1 todo mundo que jogou o Major (36 times, de Vitality a Rare Atom) e tem
+ * times duplicados ("Team Vitality" no 2, "Vitality" no 1). Aqui: um time por nome (fica o de nível mais alto),
+ * nível 1 só para o top 16 do ranking real, o resto do Major desce para o 2, e a força segue o ranking.
+ */
+const normalized = (() => {
+  const byKey = new Map<string, SceneOrg>();
+  const alias = new Map<string, string>();
+  for (const org of scene.orgs) {
+    const key = teamKey(org.name);
+    const kept = byKey.get(key);
+    if (!kept) { byKey.set(key, org); continue; }
+    const [winner, loser] = org.level < kept.level ? [org, kept] : [kept, org];
+    byKey.set(key, winner);
+    alias.set(loser.id, winner.id);
+  }
+  const orgs = [...byKey.values()].map((org): SceneOrg => {
+    const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
+    const elite = rank !== null && rank <= ELITE_RANK;
+    const level = elite ? 1 : org.level === 1 ? 2 : org.level;
+    const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? Math.max(78, 84 - (rank - ELITE_RANK) * 0.4) : ORG_BASE_POWER[level];
+    return { ...org, level, worldRank: rank, power: Math.round(power * 10) / 10 };
+  });
+  return { orgs, alias };
+})();
+
+export const sceneOrgs = normalized.orgs;
+const orgsById = new Map(sceneOrgs.map((org) => [org.id, org]));
+/** Busca por id; ids de times duplicados (saves antigos) caem no time que ficou. */
+export const sceneOrgById = {
+  get: (id: string): SceneOrg | undefined => orgsById.get(id) ?? orgsById.get(normalized.alias.get(id) ?? ''),
+  has: (id: string): boolean => orgsById.has(id) || normalized.alias.has(id)
+};
 export const calibration = rawCalibration as unknown as AgingCalibration;
 
 export const orgsByLevel = (level: number): SceneOrg[] => sceneOrgs.filter((org) => org.level === level);
 export const sceneCountries = [...new Set(sceneOrgs.map((org) => org.country).filter((country): country is string => Boolean(country)))].sort();
 
-/** Faixa de força base por nível da pirâmide (mecânica derivada; o elenco do catálogo ajusta quando existe). */
-export const ORG_BASE_POWER: Record<number, number> = { 1: 88, 2: 82, 3: 74, 4: 66, 5: 58 };
 
 /** Como a função do jogo casa com as funções escritas na Liquipedia (infobox roles). */
 export const ROLE_ALIASES: Record<PlayerRole, string[]> = {
@@ -55,6 +111,23 @@ export const ROLE_ALIASES: Record<PlayerRole, string[]> = {
 };
 
 const ROLES = Object.keys(ROLE_ALIASES) as PlayerRole[];
+
+/** Overall do jogador no catálogo (o ano mais recente), para pôr a força real dele em quadra. */
+const CATALOG_OVERALL: Map<string, number> = (() => {
+  const latest = new Map<string, { year: number; overall: number }>();
+  for (const player of rawPlayers as Array<{ baseId?: string; overall?: number; year?: number }>) {
+    const baseId = player.baseId?.toLowerCase();
+    if (!baseId || typeof player.overall !== 'number') continue;
+    const year = player.year ?? 0;
+    const current = latest.get(baseId);
+    if (!current || year >= current.year) latest.set(baseId, { year, overall: player.overall });
+  }
+  return new Map([...latest].map(([baseId, entry]) => [baseId, entry.overall]));
+})();
+
+export function memberCatalogOverall(member: SceneRosterMember): number | null {
+  return member.catalogBaseId ? CATALOG_OVERALL.get(member.catalogBaseId.toLowerCase()) ?? null : null;
+}
 
 /** Grafia do nick no catálogo do jogo (ZywOo, apEX), por baseId. */
 const CATALOG_NICK: Map<string, string> = new Map(
