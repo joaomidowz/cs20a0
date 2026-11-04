@@ -26,7 +26,10 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     talks: state.talks ?? {},
     trained: state.trained ?? {},
     trainedWindow: state.trainedWindow ?? null,
-    trainCount: state.trainCount ?? 0
+    trainCount: state.trainCount ?? 0,
+    morale: state.morale ?? 60,
+    form: state.form ?? 0,
+    fame: state.fame ?? 0
   };
 }
 
@@ -40,10 +43,16 @@ export function applyTrained(player: Player, trained: TrainedBonus): Player {
   return boosted;
 }
 
-/** Sua carta fora do servidor: a MESMA que entra em quadra (overall + função + treino acumulado). */
+/** Moral alta acalma (Mental +), baixa trava (Mental −): até 3 pontos pra cada lado. */
+export const moraleBump = (morale: number | undefined): number => clamp(Math.round(((morale ?? 60) - 60) / 12), -3, 3);
+
+/** Sua carta fora do servidor: a MESMA que entra em quadra (overall + forma da semana + função + treino + moral). */
 export function myPlayerOf(state: PlayerCareerState): Player {
   const rng = createSeededRng(`${state.seed}:me:${state.seasonNumber}`);
-  return applyTrained(enginePlayer(`${state.seed}:me`, state.nick, state.overall, state.role, rng), state.trained ?? {});
+  const overall = clamp(state.overall + clamp(state.form ?? 0, -3, 3), 40, 99);
+  const card = applyTrained(enginePlayer(`${state.seed}:me`, state.nick, overall, state.role, rng), state.trained ?? {});
+  const mental = moraleBump(state.morale);
+  return mental ? { ...card, mental: clamp(Number(card.mental ?? 60) + mental, 40, 99) } : card;
 }
 
 /** Entrosada joga junto: relação alta dá até +3 de overall pro parceiro, baixa tira até 2. */
@@ -141,7 +150,9 @@ export function celebrateResult(state: PlayerCareerState, placement: string): Pl
   const delta = placement === 'Campeão' ? 5 : placement === 'Vice' ? 3 : placement === 'Semis' ? 1 : -1;
   const relationships: Record<string, number> = { ...state.relationships };
   for (const mate of matesOf(state)) relationships[mate.player.id] = clamp(relationshipOf(state, mate.player.id) + delta, 0, 100);
-  return { ...state, relationships };
+  // Resultado mexe na moral: título levanta, cair nas quartas pesa.
+  const moraleDelta = placement === 'Campeão' ? 8 : placement === 'Vice' ? 4 : placement === 'Semis' ? 1 : -4;
+  return { ...state, relationships, morale: clamp((state.morale ?? 60) + moraleDelta, 0, 100) };
 }
 
 /** Janela atual de treino: uma por intervalo entre campeonatos (nenhuma se a temporada acabou). */

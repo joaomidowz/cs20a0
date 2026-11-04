@@ -103,11 +103,11 @@
     position: relative;
     display: grid;
     align-content: start;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     width: 100%;
     margin: 0;
-    padding: 12px 12px 12px;
+    padding: 10px 10px 10px;
     overflow: hidden;
     border: 0;
     border-radius: 0;
@@ -134,27 +134,27 @@
   .mono {
     position: absolute;
     right: -6px;
-    top: 34px;
+    top: 30px;
     z-index: 0;
-    font: 900 88px/.8 var(--display);
+    font: 900 76px/.8 var(--display);
     letter-spacing: -.02em;
     color: color-mix(in srgb, var(--r) 14%, transparent);
     pointer-events: none;
   }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
   .ovr-block { display: grid; gap: 3px; }
-  .ovr { font: 900 44px/.82 var(--display); color: var(--r-ink); font-variant-numeric: tabular-nums; }
+  .ovr { font: 900 38px/.82 var(--display); color: var(--r-ink); font-variant-numeric: tabular-nums; }
   .r-common .ovr { color: var(--text); }
   .pos { color: var(--muted); font: 800 11px/1 Archivo, Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 11ch; }
   .rar { padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--r) 60%, transparent); color: var(--r-ink); font: 800 10px/1 Archivo, Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
   .r-common .rar { color: var(--muted); border-color: var(--line); }
   .id { display: grid; gap: 2px; min-width: 0; margin-top: 2px; }
-  .nick { font: 800 24px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nick { font: 800 21px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cap { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
-  .stat { display: grid; justify-items: center; gap: 2px; padding: 5px 2px; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .stat { display: grid; justify-items: center; gap: 2px; padding: 4px 2px; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
   .stat .k { color: var(--muted); font: 800 10px/1 Archivo, Inter, sans-serif; letter-spacing: .08em; }
-  .stat .v { font: 800 17px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .stat .v { font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
   .stat .v small { margin-left: 1px; color: var(--accent); font: 800 10px/1 Archivo, Inter, sans-serif; }
   .stat.best { border-color: color-mix(in srgb, var(--r) 55%, transparent); }
   .stat.best .v { color: var(--r-ink); }
@@ -165,7 +165,7 @@
   .climb-line b { color: var(--accent); white-space: nowrap; }
   .climb-bar { height: 5px; background: color-mix(in srgb, var(--line) 80%, transparent); }
   .climb-bar i { display: block; height: 100%; background: var(--accent); }
-  .foot { display: grid; gap: 6px; padding: 8px; border-top: 1px solid color-mix(in srgb, var(--r) 30%, var(--line)); background: var(--surface); }
+  .foot { display: grid; gap: 5px; padding: 6px 8px 8px; border-top: 1px solid color-mix(in srgb, var(--r) 30%, var(--line)); background: var(--surface); }
 
   .size-sheet .face { gap: 12px; padding: 20px; }
   .size-sheet .ovr { font-size: 72px; }
@@ -178,7 +178,7 @@
   .size-sheet .stat .v { font-size: 26px; }
 
   /* Tela grande e alta: a carta cresce em retrato (o hub cabe numa tela e ainda sobra altura). */
-  @media (min-width: 1500px) and (min-height: 900px) {
+  @media (min-width: 1500px) and (min-height: 1050px) {
     .size-mate .face { gap: 11px; padding: 16px 14px; }
     .size-mate .ovr { font-size: 58px; }
     .size-mate .mono { font-size: 120px; top: 44px; }

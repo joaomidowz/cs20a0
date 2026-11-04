@@ -12,8 +12,8 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
-  import { suggestTraining } from '$lib/game/dynasty/training';
-  import type { Player, PlayerRunStats, TrainingFocus } from '$lib/game/types';
+  import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, agendaChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
+  import type { Player, PlayerRunStats } from '$lib/game/types';
   import type { CampaignMajorState } from '$lib/game/campaign-major';
   import type { LiveSeriesState } from '$lib/game/online/live-series';
   import { getCurrentSideA } from '$lib/game/rounds';
@@ -24,10 +24,10 @@
   import {
     ARCHETYPES, ROLE_META, acceptOffer, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg,
-    type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult
+    type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { advanceToFinal, finishSceneEvent, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainMe, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
@@ -48,13 +48,6 @@
     { level: 3, label: 'Challenger', short: 'Chall.' },
     { level: 4, label: 'CCT / GC', short: 'CCT' },
     { level: 5, label: 'Lan House', short: 'Lan' }
-  ];
-  const TRAIN_FOCUSES: Array<{ value: TrainingFocus; label: string }> = [
-    { value: 'aim', label: 'Mira' },
-    { value: 'utility', label: 'Utilitária' },
-    { value: 'clutch', label: 'Clutch' },
-    { value: 'opening', label: 'Abertura' },
-    { value: 'recovery', label: 'Recuperação' }
   ];
   /** O risco de cada call, do jeito que resolveClutchEdge (decisions.ts) de fato resolve o round. */
   const RISK: Record<ClutchProfile, { label: string; hint: string }> = {
@@ -113,9 +106,6 @@
   let sheetMate: SquadMate | null = null;
   let sheetIsMe = false;
   let opponentOrgId: string | null = null;
-  let trainChoice: TrainingFocus = 'aim';
-  /** Até você escolher, o foco acompanha a sugestão (o ponto fraco da sua carta). */
-  let trainTouched = false;
   /** Nas próximas calls o jogo decide no seu estilo (o perfil da última call que você fez). */
   let autoCall = false;
   let autoProfile: ClutchProfile = 'solid';
@@ -127,7 +117,12 @@
   /** Ação destrutiva esperando confirmação (apagar a carreira, pendurar o mouse). */
   let confirming: { title: string; body: string; confirmLabel: string; danger: boolean; run: () => void } | null = null;
   let lastTalk: { mateId: string; line: string; delta: number } | null = null;
-  let trainLine: string | null = null;
+  /** Treino livre: as habilidades marcadas (até 4). */
+  let pickedSkills: TrainedAttribute[] = [];
+  /** O que aconteceu na semana (escolha feita) e o último retorno do coach. */
+  let weekLine: string | null = null;
+  let weekChips: AgendaChip[] = [];
+  let coachLine: string | null = null;
   let lastEventReport: { name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[] } | null = null;
 
   $: if (career) persist(career);
@@ -196,10 +191,6 @@
     lastTalk = { mateId: result.mateId, line: result.line, delta: result.delta };
   }
 
-  function pickFocus(focus: TrainingFocus) {
-    trainChoice = focus;
-    trainTouched = true;
-  }
 
   function openEvent(index: number) {
     eventSheet = index;
@@ -290,12 +281,37 @@
     target?.focus();
   }
 
-  function train() {
-    if (!career || !myPlayer) return;
-    const result = trainMe(career, myPlayer, trainChoice);
-    career = result.state;
-    trainLine = result.line;
+  function toggleSkill(attribute: TrainedAttribute) {
+    pickedSkills = pickedSkills.includes(attribute)
+      ? pickedSkills.filter((picked) => picked !== attribute)
+      : pickedSkills.length >= 4 ? pickedSkills : [...pickedSkills, attribute];
   }
+
+  function trainFree() {
+    if (!career) return;
+    const result = applyCustomTraining(career, pickedSkills);
+    career = result.state;
+    weekLine = result.line;
+    weekChips = result.chips;
+    pickedSkills = [];
+  }
+
+  function chooseWeek(actionId: string) {
+    if (!career) return;
+    const result = applyAgenda(career, actionId);
+    career = result.state;
+    weekLine = result.line;
+    weekChips = result.chips;
+  }
+
+  function talkCoach() {
+    if (!career || !myPlayer) return;
+    const result = coachTalk(career, myPlayer);
+    career = result.state;
+    coachLine = result.line;
+  }
+
+  const chipText = (chip: AgendaChip) => `${chip.value > 0 ? '+' : '−'}${Math.abs(chip.value).toLocaleString('pt-BR')} ${chip.label}`;
 
   function start() { career = createPlayerCareer({ nick, country, role, archetype }); }
   function sign(orgId: string) { if (career) career = chooseStartingOrg(career, orgId); }
@@ -477,7 +493,10 @@
     resolving = false;
     frozenView = null;
     pendingOutcome = null;
-    trainLine = null;
+    weekLine = null;
+    weekChips = [];
+    coachLine = null;
+    pickedSkills = [];
     lastTalk = null;
     career = recorded.calendar?.every((entry) => entry.status === 'PLAYED') ? finishSeason(recorded) : recorded;
   }
@@ -609,6 +628,17 @@
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
+  $: weekCards = career && currentEntry ? drawAgenda(career) : [];
+  $: coachTips = career ? coachTipsOf(career) : [];
+  $: talksLeft = career ? coachTalksLeft(career) : 3;
+  $: splitPreview = customTrainingSplit(pickedSkills);
+  $: mainSkills = career && myPlayer
+    ? [...ROLE_SKILLS[career.role]].filter((key) => key !== 'mental').map((key) => ({ key, label: ATTR_LABEL[key], value: Number(myPlayer?.[key] ?? 0) })).sort((a, b) => b.value - a.value).slice(0, 3)
+    : [];
+  $: evolving = career ? (Object.entries(career.trained ?? {}) as Array<[TrainedAttribute, number]>).filter(([, bonus]) => bonus).map(([key, bonus]) => ({ label: ATTR_LABEL[key], bonus })).sort((a, b) => b.bonus - a.bonus) : [];
+  $: morale = career?.morale ?? 60;
+  $: form = career?.form ?? 0;
+  $: fame = career?.fame ?? 0;
   $: playMode = (career?.playMode ?? 'all') as PlayMode;
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
@@ -616,8 +646,6 @@
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet) : [];
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
-  $: trainSuggested = myPlayer ? suggestTraining([myPlayer]) : 'aim';
-  $: if (!trainTouched) trainChoice = trainSuggested;
   $: currentLevel = career ? orgOf(career.orgId).level : 5;
   $: visitedLevels = new Set([...(career?.history.map((log) => log.orgLevel) ?? []), currentLevel]);
   $: board = clutch && liveUserSeries && live && career ? boardOf(liveUserSeries, live.userTeamId) : null;
@@ -765,6 +793,13 @@
             <p class="eyebrow">Carreira · T{career.seasonNumber} · {career.year}</p>
             <h1 class="display nick">{career.nick}</h1>
             <p class="sub">{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
+            {#if myPlayer}
+              <dl class="skills-now">
+                <div class="mental"><dt>Mental</dt><dd>{myPlayer.mental}</dd></div>
+                {#each mainSkills as skill (skill.key)}<div><dt>{skill.label}</dt><dd>{skill.value}</dd></div>{/each}
+              </dl>
+              <p class="evolving"><span>Evoluindo</span>{#if evolving.length}{#each evolving as item}<b class:neg={item.bonus < 0}>{item.label} {item.bonus > 0 ? '+' : '−'}{Math.abs(item.bonus)}</b>{/each}{:else}<em>nada ainda</em>{/if}</p>
+            {/if}
           </div>
           <div class="menu">
             <button class="icon-btn" aria-label="Opções da carreira" aria-expanded={menuOpen} aria-haspopup="menu" on:click={() => (menuOpen = !menuOpen)}>
@@ -784,10 +819,13 @@
           <span class="label ovr-label">Overall</span>
         </div>
         <dl class="facts">
-          <div title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
+          <div class="value" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
             <dt>Valor de mercado</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
           </div>
           <div><dt>Títulos</dt><dd class:gold={totalTitles > 0}>{totalTitles}</dd></div>
+          <div title="Moral alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
+          <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
+          <div title="Seguidores: stream, vídeos e entrevistas."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
         </dl>
 
         <ol class="pyramid" aria-label="A pirâmide da cena">
@@ -1040,18 +1078,20 @@
               <section class="squad" aria-label="Elenco">
                 <div class="section-head">
                   <p class="label">Elenco · {orgOf(career.orgId).name}</p>
-                  <span>Relação acima de 70 soma +1 de overall em quadra; abaixo de 35 tira 1.</span>
+                  <span class="talk-line" aria-live="polite">{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{:else}Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.{/if}</span>
                 </div>
                 <div class="squad-strip">
                   <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} caption={`Você · ${career.age} anos`} trained={career.trained ?? null} onOpen={openMySheet} />
                   {#each squadMates as mate (mate.player.id)}
                     {@const bump = synergyBump(mate.relationship)}
                     <CareerCard player={mate.player} roleLabel={ROLE_SHORT[mate.player.role as PlayerRole] ?? ''} caption={orgOf(career.orgId).name} onOpen={() => openMateSheet(mate)}>
-                      <div class="bond">
-                        <div class="bond-bar" role="img" aria-label={`Relação ${mate.relationship} de 100`}><i class:high={mate.relationship >= 70} class:low={mate.relationship < 35} style={`width:${mate.relationship}%`}></i></div>
-                        <span class="bond-num" class:high={mate.relationship >= 70} class:low={mate.relationship < 35}>Relação {mate.relationship}{bump !== 0 ? ` · ${bump > 0 ? '+' : '−'}${Math.abs(bump)}` : ''}</span>
+                      <div class="mate-foot">
+                        <div class="bond">
+                          <div class="bond-bar" role="img" aria-label={`Relação ${mate.relationship} de 100`}><i class:high={mate.relationship >= 70} class:low={mate.relationship < 35} style={`width:${mate.relationship}%`}></i></div>
+                          <span class="bond-num" class:high={mate.relationship >= 70} class:low={mate.relationship < 35}>{mate.relationship}{bump !== 0 ? ` · ${bump > 0 ? '+' : '−'}${Math.abs(bump)}` : ''}</span>
+                        </div>
+                        <button class="secondary-btn small" on:click={() => chat(mate.player.id)} aria-label={`Conversar com ${mate.player.nickname}`}>Conversar</button>
                       </div>
-                      <button class="secondary-btn small" on:click={() => chat(mate.player.id)}>Conversar</button>
                     </CareerCard>
                   {/each}
                   {#if coach}
@@ -1067,25 +1107,44 @@
                     </article>
                   {/if}
                 </div>
-                <p class="talk-line" aria-live="polite">{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{:else}Converse entre campeonatos: relação boa vira overall em quadra.{/if}</p>
               </section>
             {/if}
 
             {#if career.calendar && currentEntry && myPlayer}
-              <section class="train" aria-label="Treino">
+              <section class="week" aria-label="Semana até o próximo campeonato">
                 <div class="section-head">
-                  <p class="label">Treino da janela · a cada 3 treinos, +1 de overall</p>
-                  <span class="train-line" class:done={Boolean(trainLine)} aria-live="polite">{trainLine ?? (canTrain ? 'Um treino por janela, o foco é seu.' : 'Volte depois do próximo campeonato.')}</span>
+                  <p class="label">Semana até o próximo campeonato · uma escolha · 3 treinos = +1 overall</p>
+                  <span class="train-line" class:done={Boolean(weekLine)} aria-live="polite">{weekLine ?? (canTrain ? 'Monte um treino ou escolha uma atividade.' : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
                 </div>
-                <div class="focuses" role="radiogroup" aria-label="Foco do treino">
-                  {#each TRAIN_FOCUSES as focus}
-                    <button type="button" role="radio" aria-checked={trainChoice === focus.value} class:on={trainChoice === focus.value} on:click={() => pickFocus(focus.value)}>
-                      <b>{focus.label}</b>
-                      {#if focus.value === trainSuggested}<small>Sugerido</small>{/if}
-                    </button>
-                  {/each}
+                <div class="week-grid">
+                  <div class="free-train">
+                    <div class="ft-head"><b>Treino livre</b><span>escolha até 4</span></div>
+                    <div class="skills-pick" role="group" aria-label="Habilidades para treinar">
+                      {#each TRAINABLE as attribute}
+                        <button type="button" aria-pressed={pickedSkills.includes(attribute)} class:on={pickedSkills.includes(attribute)} class:tip={coachTips.includes(attribute)} disabled={!canTrain} on:click={() => toggleSkill(attribute)} title={coachTips.includes(attribute) ? 'O coach indicou treinar' : undefined}>
+                          <span>{ATTR_LABEL[attribute]}</span>
+                          {#if splitPreview[attribute]}<b>+{splitPreview[attribute]}</b>{/if}
+                        </button>
+                      {/each}
+                    </div>
+                    <div class="ft-actions">
+                      <button class="secondary-btn" disabled={!canTrain || !pickedSkills.length} on:click={trainFree}>{pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
+                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach}>Falar com o coach · {talksLeft}/3</button>
+                    </div>
+                  </div>
+                  <div class="week-right">
+                  <div class="week-cards">
+                    {#each weekCards as card (card.id)}
+                      <button class="wcard" disabled={!canTrain} on:click={() => chooseWeek(card.id)} title={card.text} aria-label={`${card.title}: ${card.text}`}>
+                        <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}</span>
+                        <b>{card.title}</b>
+                        <span class="wchips">{#each agendaChips(card.effects).slice(0, 3) as chip}<i class:neg={chip.value < 0}>{chipText(chip)}</i>{/each}</span>
+                      </button>
+                    {/each}
+                  </div>
+                  {#if coachLine}<p class="coach-line"><b>Coach:</b> {coachLine}</p>{:else if coachTips.length}<p class="coach-line"><b>Coach indicou:</b> {coachTips.map((tip) => ATTR_LABEL[tip]).join(' e ')}</p>{:else}<p class="coach-hint">Sem conversa, o coach não indica nada. Fale com ele para saber o que treinar.</p>{/if}
+                  </div>
                 </div>
-                <button class="secondary-btn train-btn" disabled={!canTrain} on:click={train}>{canTrain ? `Treinar ${TRAIN_FOCUSES.find((focus) => focus.value === trainChoice)?.label.toLowerCase()}` : 'Treino feito nesta janela'}</button>
               </section>
             {/if}
 
@@ -1095,7 +1154,11 @@
                   <p class="label">Temporada {career.seasonNumber} · {career.calendar.length} campeonatos</p>
                   <div class="pace">
                     <span>Como jogar</span>
-                    <SegmentedControl value={playMode} options={PLAY_MODE_OPTIONS} label="Como jogar a temporada" onChange={setPlayMode} />
+                    <div class="pace-pick" role="group" aria-label="Como jogar a temporada">
+                      {#each PLAY_MODE_OPTIONS as option}
+                        <button type="button" aria-pressed={playMode === option.value} class:on={playMode === option.value} on:click={() => setPlayMode(option.value)}>{option.label}</button>
+                      {/each}
+                    </div>
                   </div>
                 </div>
                 <ol class="events-row">
@@ -1307,7 +1370,7 @@
   .secondary-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid color-mix(in srgb, var(--muted) 45%, var(--line)); background: var(--surface-2); color: var(--text); font: 700 13px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: border-color .16s ease, color .16s ease; }
   .secondary-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .secondary-btn:disabled { opacity: 1; border-style: dashed; color: var(--muted); background: transparent; }
-  .secondary-btn.small { min-height: 40px; padding: 0 8px; font-size: 12px; letter-spacing: .04em; }
+  .secondary-btn.small { min-height: 34px; padding: 0 8px; font-size: 12px; letter-spacing: .04em; }
   .danger-btn { min-height: 44px; padding: 0 16px; border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line)); background: transparent; color: var(--danger); font: 700 13px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
   .danger-btn:hover, .danger-btn.solid { background: var(--danger); color: #140404; border-color: var(--danger); }
   .icon-btn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; }
@@ -1358,15 +1421,15 @@
   .ovr { display: flex; align-items: flex-end; gap: 16px; }
   .ovr-num { font: 900 104px/.78 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
   .ovr-label { margin: 0 0 6px; }
-  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
-  .facts div { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); background: var(--surface-2); }
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0; }
+  .facts div { display: grid; gap: 4px; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--surface-2); }
   .facts dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
   .facts dd { margin: 0; font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; }
   .facts dd.gold { color: var(--gold); }
   .pyramid { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-  .pyramid li { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 42px; padding: 6px 12px; border: 1px solid var(--line); color: var(--muted); font: 700 12px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .pyramid li { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 34px; padding: 6px 12px; border: 1px solid var(--line); color: var(--muted); font: 700 12px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
   .pyramid li.been { color: var(--text); border-color: color-mix(in srgb, var(--muted) 45%, var(--line)); }
-  .pyramid li.here { flex-wrap: wrap; min-height: 58px; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); color: var(--accent); }
+  .pyramid li.here { flex-wrap: wrap; min-height: 50px; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); color: var(--accent); }
   .rung-org { width: 100%; color: var(--text); font: 800 22px/1 var(--display); letter-spacing: .01em; overflow-wrap: break-word; }
   .rung-mark { font-size: 11px; color: var(--muted); }
   .rung-short { display: none; }
@@ -1404,13 +1467,14 @@
 
 
   /* Hub entre campeonatos: cabe numa tela no desktop — próximo, elenco (+ coach), treino e calendário. */
-  .hub { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'next' 'calendar' 'squad' 'train'; gap: 16px; align-content: start; }
+  .hub { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'next' 'calendar' 'squad' 'week'; gap: 10px; align-content: start; }
   .hub:not(.has-calendar) { grid-template-areas: 'next' 'squad'; }
-  .next { grid-area: next; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(220px, 280px); gap: 14px 22px; align-items: center; padding: 16px 20px; border: 1px solid color-mix(in srgb, var(--muted) 40%, var(--line)); background: var(--surface-2); }
+  .next { grid-area: next; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(220px, 260px); gap: 10px 20px; align-items: center; padding: 12px 18px; border: 1px solid color-mix(in srgb, var(--muted) 40%, var(--line)); background: var(--surface-2); }
   .next-copy { min-width: 0; }
   .next-copy .eyebrow { margin-bottom: 6px; }
-  .next h2 { font-size: clamp(30px, 2.8vw, 44px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .next .cta { margin-top: 0; }
+  .next h2 { font-size: clamp(26px, 2.3vw, 36px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .next .cta { margin-top: 0; min-height: 48px; font-size: 20px; }
+  .next-actions .link-btn { min-height: 28px; }
   .report { display: flex; align-items: center; gap: 12px; padding-left: 18px; border-left: 1px solid var(--line); }
   .report .place-badge { font-size: 18px; }
   .report-copy { display: grid; gap: 4px; }
@@ -1426,7 +1490,7 @@
   .squad-strip > :global(*) { scroll-snap-align: start; }
   .opp-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
   .bond { display: grid; gap: 5px; }
-  .talk-line { min-height: 20px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .talk-line { color: var(--muted); font-size: 13px; line-height: 1.4; }
   .talk-line b { color: var(--text); }
   .coach-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 60%), var(--surface-2); }
   .coach-card .label { margin: 0; color: var(--accent-2); }
@@ -1437,23 +1501,14 @@
   .coach-card li i { grid-column: 1 / -1; grid-row: 2; height: 4px; background: linear-gradient(90deg, var(--accent-2) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
   .coach-card li b { color: var(--text); font-variant-numeric: tabular-nums; }
 
-  .train { grid-area: train; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-content: start; }
-  .train .section-head { grid-column: 1 / -1; margin-bottom: 0; }
-  .focuses { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-  .focuses button { display: grid; gap: 3px; align-content: center; min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; }
-  .focuses button:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-  .focuses button b { font: 600 14px/1.1 var(--body); }
-  .focuses button small { color: var(--accent); font: 800 10px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; }
-  .focuses button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .train-btn { min-height: 44px; }
-  .train-line { min-width: 0; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .train-line { min-width: 0; color: var(--muted); font-size: 13px; }
   .train-line.done { color: var(--accent); font-weight: 600; }
 
   .calendar { grid-area: calendar; display: grid; gap: 10px; align-content: start; min-width: 0; }
   .calendar .section-head { margin-bottom: 0; }
 
   .events-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(118px, 1fr); gap: 6px; margin: 0; padding: 0 0 4px; list-style: none; overflow-x: auto; }
-  .ev { display: grid; gap: 4px; overflow: hidden; width: 100%; height: 100%; min-height: 72px; padding: 8px 10px; border: 1px solid var(--place, var(--line)); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .14s ease, transform .14s ease; }
+  .ev { display: grid; gap: 3px; overflow: hidden; width: 100%; height: 100%; min-height: 58px; padding: 6px 10px; border: 1px solid var(--place, var(--line)); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .14s ease, transform .14s ease; }
   .ev:hover { border-color: var(--accent); transform: translateY(-2px); }
   .ev.place-none:not(.now) { --place: var(--line); }
   .ev.place-Campeão { background: color-mix(in srgb, var(--gold) 14%, var(--surface-2)); }
@@ -1488,6 +1543,64 @@
   .step-live .step-stage, .step-live .step-state { color: var(--accent); }
   .step-out, .step-next { opacity: .6; }
   .clutch-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+  .skills-now { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 0; }
+  .skills-now div { display: flex; align-items: baseline; gap: 5px; padding: 4px 7px; border: 1px solid var(--line); background: var(--surface-2); }
+  .skills-now dt { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .04em; }
+  .skills-now dd { margin: 0; font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .skills-now .mental { border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); }
+  .skills-now .mental dd { color: var(--accent-2); }
+  .evolving { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 8px 0 0; font-size: 12px; }
+  .evolving span { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+  .evolving b { color: var(--accent); font-weight: 700; }
+  .evolving b.neg { color: var(--accent-2); }
+  .evolving em { color: var(--muted); font-style: normal; }
+  .facts dd.low { color: var(--accent-2); }
+  .facts dd.high { color: var(--accent); }
+  .facts .value { grid-column: span 2; }
+  .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }
+  .week .section-head { margin-bottom: 0; }
+  .week-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .free-train { display: grid; gap: 6px; align-content: start; padding: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+  .ft-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .ft-head b { font: 800 18px/1 var(--display); text-transform: uppercase; }
+  .ft-head span { color: var(--muted); font-size: 12px; }
+  .skills-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .skills-pick button { display: flex; justify-content: space-between; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 600 13px/1 var(--body); cursor: pointer; }
+  .skills-pick button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .skills-pick button b { color: var(--accent); font: 800 15px/1 var(--display); }
+  .skills-pick button.tip::after { content: ''; flex: none; width: 6px; height: 6px; background: var(--accent-2); }
+  .skills-pick button.tip b { margin-left: auto; }
+  .skills-pick button.tip { border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line)); }
+  .skills-pick button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+  .skills-pick button:disabled { opacity: .5; cursor: not-allowed; }
+  .ft-actions .secondary-btn { min-height: 36px; }
+  .ft-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .ft-actions .link-btn { white-space: nowrap; }
+  .week-right { display: grid; gap: 6px; min-width: 0; }
+  .coach-hint, .coach-line { min-height: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; }
+  .coach-hint { margin: 0; padding: 4px 8px; border-left: 2px solid var(--line); color: var(--muted); font-size: 12px; }
+  .coach-line { margin: 0; padding: 4px 8px; border-left: 2px solid var(--accent-2); background: color-mix(in srgb, var(--accent-2) 7%, transparent); font-size: 13px; line-height: 1.4; }
+  .coach-line b { color: var(--accent-2); }
+  .week-chips, .wchips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 0 0 0 8px; vertical-align: middle; }
+  .wchips { margin: 0; }
+  .week-chips i, .wchips i { padding: 3px 5px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); color: var(--accent); font: 700 11px/1 var(--body); font-style: normal; white-space: nowrap; }
+  .week-chips i.neg, .wchips i.neg { border-color: color-mix(in srgb, var(--accent-2) 40%, var(--line)); color: var(--accent-2); }
+  .week-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .wcard { display: grid; align-content: start; gap: 5px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .14s ease, transform .14s ease; }
+  .wcard:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); }
+  .wcard:disabled { opacity: .5; cursor: not-allowed; }
+  .wcat { display: flex; gap: 6px; color: var(--muted); font: 700 10px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
+  .wcat em { color: var(--accent-2); font-style: normal; }
+  .wcard b { font: 800 17px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wtext { color: var(--muted); font-size: 12px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pace-pick { display: flex; border: 1px solid var(--line); }
+  .pace-pick button { min-height: 32px; padding: 0 10px; border: 0; border-right: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+  .pace-pick button:last-child { border-right: 0; }
+  .pace-pick button.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .mate-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+  .mate-foot .bond { gap: 3px; }
+  .mate-foot .bond-num { text-align: left; white-space: nowrap; font-size: 11px; }
+  .mate-foot .secondary-btn.small { min-height: 32px; padding: 0 8px; font-size: 11px; }
   .rail-seasons ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
   .rail-seasons li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .rail-seasons li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1499,9 +1612,9 @@
     /* A navbar acompanha a largura da carreira (só nesta página). */
     :global(body:has(.pc-page) .nav.shell) { width: min(1480px, calc(100% - 28px)); }
     .career { min-height: calc(100dvh - 68px - 36px); }
-    .rail { gap: 18px; padding: 22px 22px; }
-    .ovr-num { font-size: 92px; }
-    .stage { padding: 20px 26px; gap: 16px; }
+    .rail { gap: 14px; padding: 18px 20px; }
+    .ovr-num { font-size: 76px; }
+    .stage { padding: 16px 22px; gap: 12px; }
   }
   @media (max-width: 1180px) {
     .next { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1677,6 +1790,8 @@
   /* Celular: o elenco vira faixa com snap; nada estoura a largura */
   @media (max-width: 680px) {
     .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .week-grid { grid-template-columns: minmax(0, 1fr); }
+    .week-cards { grid-template-columns: minmax(0, 1fr); }
     .path { grid-template-columns: minmax(0, 1fr); }
     .pace { flex-wrap: wrap; }
     .field li { grid-template-columns: 22px minmax(0, 1fr) 32px; gap: 4px 10px; padding: 8px 10px; }
@@ -1686,8 +1801,6 @@
     .next h2 { white-space: normal; }
     .report { padding-left: 0; border-left: 0; }
     .squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 164px; scroll-snap-type: x mandatory; scroll-padding-inline: 14px; margin-inline: -14px; padding: 0 14px 8px; }
-    .train { grid-template-columns: minmax(0, 1fr); }
-    .focuses { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .rail { grid-template-columns: minmax(0, 1fr); }
     .ovr { gap: 12px; }
     .pyramid li { font-size: 11px; letter-spacing: .02em; }

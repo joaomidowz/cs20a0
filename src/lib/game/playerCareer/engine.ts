@@ -88,7 +88,7 @@ export interface LiveEventSave {
 }
 
 /** Atributos que o treino entre campeonatos pode acumular de bônus (efeitos da Dinastia, dynasty/training.ts). */
-export type TrainedAttribute = 'firepower' | 'support' | 'clutch' | 'entry' | 'mental' | 'consistency' | 'igl';
+export type TrainedAttribute = 'firepower' | 'support' | 'clutch' | 'entry' | 'mental' | 'consistency' | 'igl' | 'awp';
 export type TrainedBonus = Partial<Record<TrainedAttribute, number>>;
 
 export interface CareerOffer {
@@ -160,6 +160,14 @@ export interface PlayerCareerState {
   pendingOffers: CareerOffer[] | null;
   /** Como jogar a temporada: todos ao vivo, 1 a cada 2 (o outro simulado) ou simular até a final. */
   playMode?: 'all' | 'every2' | 'finals';
+  /** Moral 0-100 (60 = normal): puxa o Mental da sua carta pra cima ou pra baixo. */
+  morale?: number;
+  /** Forma −3..+3: vale só no próximo campeonato (overall em quadra) e zera depois dele. */
+  form?: number;
+  /** Seguidores (stream, vídeos, entrevistas). */
+  fame?: number;
+  /** Conversas com o coach na janela atual (até 3) e o que ele indicou treinar. */
+  coachTalk?: { window: string; count: number; tips: TrainedAttribute[] };
   /** Relacionamento (0-100) com cada parceiro, por id estável (org:função) — sinergia do elenco. */
   relationships: Record<string, number>;
   /** Conversas desta janela entre campeonatos (zera quando um evento é jogado). */
@@ -263,6 +271,9 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     trained: {},
     trainedWindow: null,
     trainCount: 0,
+    morale: 60,
+    form: 0,
+    fame: 0,
     pendingOffers: null,
     status: 'ACTIVE',
     verdict: null
@@ -320,7 +331,8 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
   if (!state.calendar) return state;
   const calendar = state.calendar.map((entry) => (entry.index === index ? { ...entry, status: 'PLAYED' as const, result } : entry));
   // Campeonato jogado: a janela de conversas fecha, o treino libera de novo.
-  return { ...state, calendar, liveEvent: null, talks: {} };
+  // A forma da semana valia só para este campeonato.
+  return { ...state, calendar, liveEvent: null, talks: {}, form: 0 };
 }
 
 /** Fecha a temporada: lesão, aging calibrado e janela de mercado. */
