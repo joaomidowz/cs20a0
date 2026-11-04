@@ -275,7 +275,7 @@ function calendarFor(state: PlayerCareerState, orgId: string, seed: string, coun
   const org = orgOf(orgId, state);
   const orgCountry = 'country' in org ? (org.country as string | null) : null;
   const region = regionOf(orgCountry ?? state.country);
-  const events = seasonEvents(org.level, region, count, seed).filter((event) => event.month > afterMonth);
+  const events = seasonEvents(org.level, region, count, seed, state.year).filter((event) => event.month > afterMonth);
   return events.map((event, offset) => ({
     index: fromIndex + offset,
     name: `${event.name} ${state.year}`,

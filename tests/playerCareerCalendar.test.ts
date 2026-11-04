@@ -2,7 +2,7 @@
 // Calendário real por nível (quantidade, mês, tier, formato) e o Major com stages pela entrada no ranking.
 import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, finishSeason, recordEventResult, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
-import { EVENT_RANGE } from '../src/lib/game/playerCareer/calendar';
+import { EVENT_RANGE, majorsOf, seasonEvents } from '../src/lib/game/playerCareer/calendar';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { PLACEMENT_ORDER, majorEntryStage, notQualified, simulateSceneEvent } from '../src/lib/game/playerCareer/live';
 
@@ -34,6 +34,37 @@ describe('calendário real por nível', () => {
     expect(elite.every((entry) => ['Major', 'S', 'A'].includes(entry.tier!))).toBe(true);
     const circuit = seasonAtOrg(orgAt(4).id, 'cal-cct').calendar!;
     expect(circuit.every((entry) => entry.tier === 'C' && entry.format === 'bracket8')).toBe(true);
+  });
+});
+
+describe('campeonatos do guia por região e tier', () => {
+  it('cada região joga a sua tabela: CBCS no Brasil, ESEA na América do Norte, MESA na Ásia', () => {
+    const names = (level: number, region: Parameters<typeof seasonEvents>[1]) => seasonEvents(level, region, 11, `guide-${level}-${region}`).map((event) => event.name);
+    expect(names(3, 'sa').some((name) => /CBCS|Gamers Club|RedZone|Gamergy/.test(name))).toBe(true);
+    expect(names(4, 'na').some((name) => /ESEA|Fragadelphia|NACE/.test(name))).toBe(true);
+    expect(names(3, 'asia').some((name) => /MESA|LPL|5E|Perfect World/.test(name))).toBe(true);
+    expect(names(3, 'oce')).toEqual(names(3, 'oce'));
+    for (const level of [2, 3, 4]) for (const region of ['sa', 'eu', 'na', 'asia'] as const) {
+      const events = seasonEvents(level, region, EVENT_RANGE[level][1], `guide-max-${level}-${region}`);
+      expect(new Set(events.map((event) => event.name)).size).toBe(events.length);
+    }
+  });
+
+  it('Majors do ano: 2026 Colônia e Singapura; 2027 fecha em Xangai; sempre MD5 em junho e novembro', () => {
+    expect(majorsOf(2026).map((event) => event.name)).toEqual(['IEM Cologne Major', 'PGL Major Singapore']);
+    expect(majorsOf(2027)[1].name).toBe('Perfect World Shanghai Major');
+    for (const year of [2026, 2027, 2030]) {
+      expect(majorsOf(year).map((event) => event.month)).toEqual([6, 11]);
+      expect(majorsOf(year).every((event) => event.format === 'major' && event.finalBestOf === 5)).toBe(true);
+    }
+  });
+
+  it('Tier S tem final MD5; Colônia volta a ser IEM Tier S depois de 2026', () => {
+    const elite = seasonEvents(0, 'eu', 12, 'guide-elite', 2028);
+    expect(elite.filter((event) => event.tier === 'S').every((event) => event.finalBestOf === 5)).toBe(true);
+    const all = Array.from({ length: 12 }, (_, index) => seasonEvents(0, 'eu', 12, `guide-cgn-${index}`, 2028)).flat();
+    expect(all.some((event) => event.name === 'Intel Extreme Masters Cologne')).toBe(true);
+    expect(Array.from({ length: 12 }, (_, index) => seasonEvents(0, 'eu', 12, `guide-cgn-${index}`, 2026)).flat().some((event) => event.name === 'Intel Extreme Masters Cologne')).toBe(false);
   });
 });
 

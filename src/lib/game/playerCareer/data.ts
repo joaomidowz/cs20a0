@@ -8,6 +8,7 @@ import rawPlayers from '$lib/data/cs/players.game.json';
 import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
+import { countryFromTournaments, generatedRoster, reserveNicks } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
 export interface SceneRosterMember {
@@ -70,7 +71,15 @@ export const ELITE_RANK = 16;
 const normalized = (() => {
   const byKey = new Map<string, SceneOrg>();
   const alias = new Map<string, string>();
-  for (const org of scene.orgs) {
+  // Times coletados sem elenco ganham jogadores gerados (país pelo circuito que jogaram).
+  reserveNicks(scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)));
+  const collected = scene.orgs.map((org): SceneOrg => {
+    if (org.roster.length >= 5) return org;
+    const country = org.country ?? countryFromTournaments(org);
+    return { ...org, country, roster: generatedRoster(org.name, country, [], org.roster) };
+  });
+  // Os times do guia (extraTeams.ts) só entram quando os elencos reais chegarem: sem nome aleatório neles.
+  for (const org of collected) {
     const key = teamKey(org.name);
     const kept = byKey.get(key);
     if (!kept) { byKey.set(key, org); continue; }

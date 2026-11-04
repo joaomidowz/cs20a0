@@ -1,8 +1,8 @@
 // src/lib/game/playerCareer/calendar.ts
-// O calendário da temporada com campeonatos REAIS: o catálogo de eventos da Dinastia (circuit-events.game.json:
-// organizador, premiação, local) e os campeonatos que a coleta da cena 2026 registrou por time (IEM, BLAST
-// Bounty, Thunderpick, CCT por região, Gamers Club Série A, ESL Challenger League). Cada nível joga o seu
-// circuito, com mês, tier do evento e formato (mata-mata de 8, suíça de 16 ou Major com stages).
+// O calendário da temporada com campeonatos REAIS: o guia de campeonatos CS2 por tier e região (base de estudo
+// do usuário, 2026: Tier S, Tier A internacional e as tabelas regionais A/B/C de SA, EU, NA e Ásia/Oceania) e o
+// catálogo de eventos (circuit-events.game.json: organizador, premiação, local). Cada nível joga o seu circuito,
+// com mês, tier do evento e formato (mata-mata de 8, suíça de 16 ou Major com stages).
 import circuitEventsJson from '$lib/data/cs/circuit-events.game.json';
 import { createSeededRng } from '../simulation';
 
@@ -29,44 +29,58 @@ const catalog = (name: string): Partial<EventTemplate> => {
   return found ? { organizer: found.organizer, location: found.location, prizePool: found.prizePool } : {};
 };
 
-const E = (name: string, tier: EventTier, month: number, format: EventFormat = 'bracket8', finalBestOf: 3 | 5 = 3): EventTemplate =>
-  ({ name, tier, month, format, finalBestOf, ...catalog(name) });
+interface EventExtra { location?: string; prizePool?: number; organizer?: string }
 
-/** Os dois Majors do ano (o de Colônia está na coleta da cena 2026). */
-export const MAJORS: EventTemplate[] = [
-  E('IEM Cologne Major', 'Major', 6, 'major', 5),
-  E('Major de Dezembro', 'Major', 12, 'major', 5)
+/** Um evento: o que o guia de campeonatos traz (local, premiação) vence o catálogo. */
+const E = (name: string, tier: EventTier, month: number, format: EventFormat = 'bracket8', finalBestOf: 3 | 5 = 3, extra: EventExtra = {}): EventTemplate =>
+  ({ name, tier, month, format, finalBestOf, ...catalog(name), ...extra });
+
+/**
+ * Os dois Majors do ano (Stage 1, 2 e 3 pelo VRS, final MD5). 2026: IEM Cologne (junho) e PGL Singapore
+ * (24/11 a 13/12); 2027: Perfect World Shanghai em novembro (guia). Além disso, os organizadores revezam com as
+ * sedes que eles já usaram em Majors.
+ */
+const MAJOR_ROTATION: Array<[string, string]> = [
+  ['IEM Katowice Major', 'Katowice, Polônia'],
+  ['BLAST Paris Major', 'Paris, França'],
+  ['PGL Major Copenhagen', 'Copenhague, Dinamarca'],
+  ['StarLadder Budapest Major', 'Budapeste, Hungria'],
+  ['IEM Rio Major', 'Rio de Janeiro, Brasil']
 ];
 
-/** Elite: tier S e tier 1. */
-const ELITE: EventTemplate[] = [
-  E('BLAST Bounty Winter', 'A', 1),
-  E('Intel Extreme Masters Kraków', 'S', 2, 'swiss16', 5),
-  E('BLAST Open Spring', 'S', 3, 'swiss16', 5),
-  E('Intel Extreme Masters Rio', 'A', 4),
-  E('PGL Bucharest', 'A', 4),
-  E('Intel Extreme Masters Atlanta', 'A', 5),
-  E('Esports World Cup', 'S', 8, 'swiss16', 5),
-  E('FISSURE Playground', 'A', 9),
-  E('CS Asia Championships', 'A', 9),
-  E('Intel Extreme Masters Beijing', 'A', 10),
-  E('StarLadder StarSeries Fall', 'A', 10),
-  E('BLAST Bounty Fall', 'A', 11)
-];
+export function majorsOf(year: number): EventTemplate[] {
+  const major = (name: string, month: number, location: string) => E(name, 'Major', month, 'major', 5, { location, prizePool: 1250000 });
+  if (year <= 2026) return [E('IEM Cologne Major', 'Major', 6, 'major', 5), major('PGL Major Singapore', 11, 'Singapura')];
+  const offset = (year - 2027) * 2;
+  const [firstName, firstPlace] = MAJOR_ROTATION[offset % MAJOR_ROTATION.length];
+  const second = year === 2027 ? ['Perfect World Shanghai Major', 'Xangai, China'] : MAJOR_ROTATION[(offset + 1) % MAJOR_ROTATION.length];
+  return [major(firstName, 6, firstPlace), major(second[0], 11, second[1])];
+}
 
-/** Tier 2: eventos B e abertos. */
-const TIER2: EventTemplate[] = [
-  E('BLAST Bounty Winter · qualificatória', 'B', 1),
-  E('Thunderpick World Championship', 'B', 2),
-  E('PGL Bucharest · qualificatória', 'B', 3),
-  E('Asian Champions League', 'B', 4),
-  E('ESL Challenger League · finais', 'B', 5),
-  E('Thunderpick World Championship · Europa', 'B', 7),
-  E('CCT Global Finals', 'B', 8),
-  E('StarLadder StarSeries Fall · qualificatória', 'B', 9),
-  E('FISSURE Playground · qualificatória', 'B', 10),
-  E('BLAST Bounty Fall · qualificatória', 'B', 11)
-];
+/** Elite mundial (Tier S e Tier A internacional) do guia, com local e premiação. */
+function elitePool(year: number): EventTemplate[] {
+  return [
+    E('BLAST Bounty Winter', 'A', 1),
+    E('Intel Extreme Masters Kraków', 'S', 2, 'swiss16', 5),
+    E('BLAST Open Spring', 'S', 3, 'swiss16', 5),
+    E('ESL Pro League', 'S', 3, 'swiss16', 5, { location: 'Katowice, Polônia', prizePool: 1000000, organizer: 'ESL' }),
+    E('PGL Bucharest', 'A', 4),
+    E('Intel Extreme Masters Rio', 'A', 4),
+    E('Stake Ranked', 'A', 5, 'bracket8', 5, { location: 'Barcelona, Espanha (online)', prizePool: 100000, organizer: 'Stake' }),
+    E('Intel Extreme Masters Atlanta', 'A', 5),
+    E('XSE Pro League', 'A', 7, 'bracket8', 5, { location: 'Guangzhou, China', prizePool: 1000000 }),
+    E('Esports World Cup', 'S', 8, 'swiss16', 5, { location: 'Paris, França', prizePool: 2000000 }),
+    // Colônia é o Major de 2026; dali em diante volta a ser IEM Tier S em agosto (guia).
+    ...(year >= 2027 ? [E('Intel Extreme Masters Cologne', 'S', 8, 'swiss16', 5, { location: 'Colônia, Alemanha', prizePool: 1000000, organizer: 'ESL' })] : []),
+    E('CS Asia Championships', 'S', 9, 'bracket8', 5, { location: 'Xangai, China', prizePool: 1000000 }),
+    E('FISSURE Playground', 'A', 9, 'bracket8', 5, { location: 'Suzhou, China', prizePool: 1000000 }),
+    E('StarLadder StarSeries Fall', 'S', 10, 'bracket8', 5, { location: 'Barcelona, Espanha', prizePool: 500000 }),
+    E('Intel Extreme Masters Beijing', 'S', 10, 'swiss16', 5, { location: 'Pequim, China', prizePool: 1250000 }),
+    E('Thunderpick World Championship', 'A', 11, 'bracket8', 5, { location: 'Malta (híbrido)', prizePool: 1000000, organizer: 'Thunderpick' }),
+    E('BLAST Rivals Fall', 'S', 11, 'bracket8', 5, { location: 'Chek Lap Kok, Hong Kong', prizePool: 350000, organizer: 'BLAST' }),
+    E('BLAST Bounty Fall', 'A', 11)
+  ];
+}
 
 export type Region = 'sa' | 'na' | 'eu' | 'asia' | 'oce';
 const REGION_OF: Record<string, Region> = {
@@ -76,35 +90,42 @@ const REGION_OF: Record<string, Region> = {
   Australia: 'oce', 'New Zealand': 'oce'
 };
 export const regionOf = (country: string | null | undefined): Region => (country ? REGION_OF[country] ?? 'eu' : 'eu');
-const CCT_REGION: Record<Region, string> = { sa: 'CCT South America', na: 'CCT North America', eu: 'CCT Europe', asia: 'CS Asia · circuito', oce: 'CCT Oceania' };
-const ECL_REGION: Record<Region, string> = { sa: 'ESL Challenger League South America', na: 'ESL Challenger League North America', eu: 'ESL Challenger League Europe', asia: 'ESL Challenger League Asia-Pacific', oce: 'ESL Challenger League Asia-Pacific' };
 
-/** Challenger: liga regional, qualificatórias e os eventos C mais fortes. */
-function challengerPool(region: Region): EventTemplate[] {
-  return [
-    E(`${ECL_REGION[region]} · Temporada 1`, 'C', 2),
-    E(`${CCT_REGION[region]} · Series 3`, 'C', 3),
-    E('FISSURE Playground · fase aberta', 'C', 4),
-    E(`${ECL_REGION[region]} · Temporada 2`, 'C', 5),
-    E(`${CCT_REGION[region]} · Series 7`, 'C', 6),
-    E('CS Asia Championships · qualificatória', 'C', 7),
-    E(`${ECL_REGION[region]} · Temporada 3`, 'C', 8),
-    E('Thunderpick World Championship · qualificatória', 'C', 9),
-    E(`${CCT_REGION[region]} · Series 12`, 'C', 10),
-    E('CCT Global Finals · qualificatória', 'C', 11),
-    E(`${ECL_REGION[region]} · finais regionais`, 'C', 12)
-  ];
-}
+/** Nome da região no guia (Ásia e Oceania são uma macrorregião só). */
+type GuideRegion = 'sa' | 'eu' | 'na' | 'apac';
+const guideRegion = (region: Region): GuideRegion => (region === 'asia' || region === 'oce' ? 'apac' : region);
+const REGION_PLACE: Record<GuideRegion, string> = { sa: 'América do Sul', eu: 'Europa', na: 'América do Norte', apac: 'Ásia e Oceania' };
 
-const MONTH_GC = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+/** Espalha uma tabela do guia pelo ano (jan a nov), na ordem em que o guia lista. */
+const spread = (names: string[], tier: EventTier, region: GuideRegion, finals: string[] = []): EventTemplate[] =>
+  names.map((name, index) => E(name, tier, 1 + Math.round((index * 10) / Math.max(1, names.length - 1)), 'bracket8', finals.includes(name) ? 5 : 3, { location: REGION_PLACE[region] }));
 
-/** CCT/GC: séries do CCT da região e, no Brasil, a Liga Série A da Gamers Club. */
-function circuitPool(region: Region): EventTemplate[] {
-  const series = Array.from({ length: 12 }, (_, index) => E(`${CCT_REGION[region]} · Series ${index + 1}`, 'C', index + 1));
-  if (region !== 'sa') return series;
-  const gc = MONTH_GC.map((month, index) => E(`Gamers Club Liga Série A · ${month}`, 'C', index + 1));
-  return series.flatMap((event, index) => [event, gc[index]]);
-}
+/** As tabelas regionais do guia: Tier A (Tier 2 do jogo), Tier B (Challenger) e Tier C (CCT/GC). */
+const REGIONAL: Record<GuideRegion, Record<'A' | 'B' | 'C', string[]>> = {
+  sa: {
+    A: ['CBCS Masters', 'FiReLEAGUE Global Finals · qualificatória SA', 'ESL Challenger · qualificatória SA', 'Thunderpick SA Series', 'CCT South America Series · playoffs', 'BetBoom Dacha · qualificatória SA', 'EPL World Series SA', 'TG Talent Cup Masters', 'KaBuM! Legends Open', 'CBCS Invitational'],
+    B: ['CBCS Season 4', 'Circuito Gamers Club Masters', 'CCT South America · fase suíça', 'Liga Gamers Club Série S', 'Desafio dos Gigantes SA', 'BGS Esports · qualificatória SA', 'EPL SA Season · fase de grupos', 'RedZone PRO League', 'CBCS Retake Series', 'Gamergy Argentina Cup', 'CBCS Season 5'],
+    C: ['Liga Gamers Club Série B', 'Seletiva aberta do CBCS', 'Seletiva aberta CCT SA', 'Liga Gamers Club Série A', 'Liga TyC Sports SA', 'RedZone Academy Cup', 'Gamers Club Academy League', 'Qualificatória aberta do Major · SA', 'Copa Sul-Americana de CS', 'Qualificatória aberta ESL Challenger SA', 'Liga Gamers Club Série A · Copa', 'Seletiva aberta CCT SA · 2']
+  },
+  eu: {
+    A: ['ESL Challenger Europe', 'BLAST Bounty · qualificatória', '1win Private Club Cup', 'BetBoom Dacha Europe', 'Roobet Cup Europe', 'Thunderpick World Championship · qualificatória Europa', 'FISSURE Playground · qualificatória', 'StarLadder StarSeries Fall · qualificatória', 'CCT European Finals', 'Stake Ranked · qualificatória'],
+    B: ['CCT Europe Series', 'European Pro League (EPL)', 'RES Regional Series Europe', 'YaLLa Compass', 'BLAST Risings Europe', 'Exemplar European League', 'United21 League Europe', 'ESEA Advanced Europe', 'Thunderpick · seletiva Europa', 'Gamegune European Open', 'CCT Europe Series · finais'],
+    C: ['WePlay Academy League', 'ESL Meisterschaft', 'ESEA Main Europe', 'Mistgames Heroes League', 'Seletiva aberta CCT Europe', 'Svenska Elitserien', 'Mistrzostwa Polski', 'Liga Portuguesa de CS (LPCS)', 'UKIC Beyond League', 'Qualificatória aberta do Major · Europa', 'ESEA Intermediate Europe', 'Seletiva aberta CCT Europe · 2']
+  },
+  na: {
+    A: ['ESL Challenger NA', 'ACE North American Masters', 'CCT North America Finals', 'FiReLEAGUE · qualificatória NA', 'Thunderpick NA Series', 'BetBoom Dacha · qualificatória NA', 'EPL World Series NA', 'ECL NA Finals', 'fragster League NA', 'NACS Cup Series'],
+    B: ['ESL Challenger League NA', 'CCT North America Series', 'EPL NA · fase de grupos', 'Fragadelphia Main Event', 'BLAST Risings NA', 'NCT Season NA', 'EAGLE NA Cup', 'Mythic Cup', 'Cash Cup NA', 'EAGLE Masters NA', 'CCT North America Series · finais'],
+    C: ['ESEA Advanced NA', 'Fragadelphia · qualificatórias LAN', 'NACE Starleague', 'Qualificatória aberta do Major · NA', 'Seletiva aberta CCT NA', 'ESEA Main NA', 'College CS Open', 'LANXperience Open', 'GamerzArena NA Cup', "Bally's Esports Open", 'ESEA Intermediate NA', 'Seletiva aberta CCT NA · 2']
+  },
+  apac: {
+    A: ['Asian Champions League', 'eXTREMESLAND Asia', 'ESL Challenger Asia-Pacific', 'PGL Major · qualificatória Ásia', 'CS Asia Championships · qualificatória', 'BetBoom Dacha · qualificatória Ásia', 'FiReLEAGUE Asia Series', 'XSE Pro League · etapa asiática', 'Perfect World Asia League', 'Skyesports Masters Asia'],
+    B: ['ESL Challenger League Asia', 'LPL Pro Oceania', 'Perfect World Arena Premier', 'MESA Pro Series', 'BLAST Risings Asia', 'Skyesports Souvenir Asia', 'EPL Asia Series', '5E Arena Asia Cup', 'OCE Cash Cup Series', 'LPL Challenger Oceania', 'ESL Challenger League Asia · finais'],
+    C: ['Qualificatória aberta do Major · Ásia', '5E Play · qualificatórias abertas', 'MESA National Championship', 'LPL Open League Oceania', 'Skyesports Open India', 'Oriente Médio · qualificatórias abertas', 'Sudeste Asiático · qualificatórias abertas', '5E Arena Beginner Series', 'eXTREMESLAND · seletivas abertas', 'ESEA Open Asia-Pacific', 'MESA National Championship · finais', '5E Play · qualificatórias abertas 2']
+  }
+};
+
+/** Finais MD5 dos regionais grandes (os que o guia mostra decididos em 3-x). */
+const REGIONAL_BO5 = ['CBCS Masters', 'Asian Champions League', 'ESL Challenger Europe', 'ESL Challenger NA', 'ESL Challenger Asia-Pacific'];
 
 const lanPool = (): EventTemplate[] => Array.from({ length: 12 }, (_, index) => E(`Circuito amador da lan house · Etapa ${index + 1}`, 'C', index + 1));
 
@@ -117,8 +138,12 @@ export function eventCount(level: number, seed: string): number {
   return min + Math.floor(createSeededRng(`${seed}:count`)() * (max - min + 1));
 }
 
-/** Sorteia `count` campeonatos do circuito do nível (sem repetir), em ordem de mês. Tier S e 1 sempre têm os 2 Majors. */
-export function seasonEvents(level: number, region: Region, count: number, seed: string): EventTemplate[] {
+/**
+ * Sorteia `count` campeonatos do circuito do nível (sem repetir), em ordem de mês. Tier S e 1 jogam a elite
+ * mundial e os 2 Majors; Tier 2 joga o Tier A regional do guia; Challenger o Tier B; CCT/GC o Tier C. Tier 2 e
+ * Challenger ainda podem pegar o Major do meio do ano pelo ranking (VRS).
+ */
+export function seasonEvents(level: number, region: Region, count: number, seed: string, year = 2026): EventTemplate[] {
   const rng = createSeededRng(`${seed}:events`);
   const pick = (pool: EventTemplate[], amount: number) => {
     const copy = [...pool];
@@ -126,12 +151,13 @@ export function seasonEvents(level: number, region: Region, count: number, seed:
     while (chosen.length < amount && copy.length) chosen.push(copy.splice(Math.floor(rng() * copy.length), 1)[0]);
     return chosen;
   };
+  const guide = guideRegion(region);
+  const majors = majorsOf(year);
   let events: EventTemplate[];
-  if (level <= 1) events = [...MAJORS, ...pick(ELITE, count - 2)];
-  else if (level === 2) events = [...pick(TIER2, count - 1), MAJORS[0]];
-  // Challenger também pode pegar o Major (Stage 1) se o ranking da temporada deixar.
-  else if (level === 3) events = [...pick(challengerPool(region), count - 1), MAJORS[0]];
-  else if (level === 4) events = pick(circuitPool(region), count);
+  if (level <= 1) events = [...majors, ...pick(elitePool(year), count - 2)];
+  else if (level === 2) events = [...pick(spread(REGIONAL[guide].A, 'A', guide, REGIONAL_BO5), count - 1), majors[0]];
+  else if (level === 3) events = [...pick(spread(REGIONAL[guide].B, 'B', guide), count - 1), majors[0]];
+  else if (level === 4) events = pick(spread(REGIONAL[guide].C, 'C', guide), count);
   else events = lanPool().slice(0, count);
   return events.sort((a, b) => a.month - b.month);
 }
