@@ -106,3 +106,30 @@ describe('fim de temporada', () => {
     expect(done.released).toBe(false);
   });
 });
+
+describe('pedir para sair', () => {
+  it('uma vez por temporada: o agente acha time (ou não), o elenco esfria e dá para desistir', async () => {
+    const { canRequestTransfer, requestTransfer } = await import('../src/lib/game/playerCareer/engine');
+    let withOffers = 0;
+    for (let index = 0; index < 10; index += 1) {
+      const base = { ...seasonAt(`request-${index}`), morale: 60, reputation: 50 };
+      expect(canRequestTransfer(base)).toBe(true);
+      const mateId = Object.keys(base.relationships)[0];
+      const asked = requestTransfer(base, { 'mate-x': 70 });
+      expect(asked.pendingMove?.kind).toBe('request');
+      expect(asked.morale).toBe(56);
+      expect(asked.reputation).toBe(48);
+      expect(asked.relationships['mate-x']).toBe(64);
+      expect(canRequestTransfer({ ...asked, pendingMove: null })).toBe(false);
+      if (asked.pendingMove!.offers.length) {
+        withOffers += 1;
+        const offer = asked.pendingMove!.offers[0];
+        expect(acceptMove(asked, offer.orgId).orgId).toBe(offer.orgId);
+      }
+      expect(declineMove(asked).pendingMove).toBeNull();
+      expect(declineMove(asked).morale).toBe(asked.morale);
+      void mateId;
+    }
+    expect(withOffers).toBeGreaterThan(3);
+  });
+});

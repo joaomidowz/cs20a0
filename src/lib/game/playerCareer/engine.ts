@@ -164,7 +164,8 @@ export interface CareerOffer {
 
 /** Corte ou proposta no meio da temporada, esperando a sua decisão. */
 export interface PendingMove {
-  kind: 'cut' | 'poach';
+  /** cut: o time te cortou · poach: um time de cima te chamou · request: você pediu para sair. */
+  kind: 'cut' | 'poach' | 'request';
   /** Média de rating dos últimos campeonatos que motivou a mudança. */
   average: number;
   reason: string;
@@ -285,6 +286,14 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** Troca de função: a de antes (o parceiro dela assume a sua antiga), a temporada e como foi a adaptação. */
+  roleChange?: { from: PlayerRole; season: number; outcome: 'adapting' | 'good' | 'bad' } | null;
+  /** Parceiros que saíram a seu pedido (por org): nick que saiu e o substituto que entrou. */
+  kickedMates?: Record<string, Array<{ nick: string; replacement: string; delta: number }>>;
+  /** Temporada em que você já pediu a saída de alguém (uma vez por temporada). */
+  kickRequestedSeason?: number;
+  /** Temporada em que você já pediu para sair (uma vez por temporada). */
+  transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */
   blockedOffers?: Array<{ orgName: string; need: number }>;
   /** Campeonatos que você passa no banco (aceitou perder a vaga num acontecimento): o substituto joga. */
@@ -837,8 +846,53 @@ export function acceptMove(state: PlayerCareerState, orgId: string): PlayerCaree
 
 /** Recusa a proposta de um time de cima: o elenco atual gosta (moral +4). Corte não dá pra recusar. */
 export function declineMove(state: PlayerCareerState): PlayerCareerState {
-  if (!state.pendingMove || state.pendingMove.kind !== 'poach') return state;
+  if (!state.pendingMove || state.pendingMove.kind === 'cut') return state;
+  // Pediu para sair e desistiu: fica, sem o bônus de moral de quem recusou proposta.
+  if (state.pendingMove.kind === 'request') return { ...state, pendingMove: null };
   return { ...state, pendingMove: null, morale: Math.min(100, (state.morale ?? 60) + 4) };
+}
+
+/** Pode pedir para sair agora? (time de verdade, temporada em andamento, uma vez por temporada) */
+export function canRequestTransfer(state: PlayerCareerState): boolean {
+  return state.status === 'ACTIVE' && state.orgId !== LAN_HOUSE.id && !state.pendingMove && state.transferRequestedSeason !== state.seasonNumber
+    && Boolean(state.calendar?.some((entry) => entry.status === 'UPCOMING'));
+}
+
+/**
+ * Você pede para sair (ambição, querer ser maior): o agente procura times do mesmo nível e, se você está bem,
+ * de um acima. O elenco não gosta (moral −4, relação −6 com os parceiros, reputação −2). Sem proposta, você fica
+ * com o clima pior. Uma vez por temporada.
+ */
+export function requestTransfer(state: PlayerCareerState, relationships: Record<string, number> = state.relationships): PlayerCareerState {
+  if (!canRequestTransfer(state)) return state;
+  const org = orgOf(state.orgId, state);
+  const rng = createSeededRng(`${state.seed}:request:${state.seasonNumber}:${playedCount(state)}`);
+  const recent = recentRating(state);
+  const good = (recent?.average ?? 1) >= decentRatingFor(state.role, org.level) + 0.05 || state.overall >= 80;
+  const pool = (level: number) => sceneOrgs.filter((candidate) => candidate.id !== org.id && levelIn(state, candidate) === level && nationFits(candidate.roster, state.country) && !englishGate(state, candidate));
+  const offers: CareerOffer[] = [];
+  const take = (candidates: SceneOrg[], count: number, bump: number) => {
+    for (let tries = 0; tries < count * 4 && offers.length < 3; tries += 1) {
+      const candidate = candidates[Math.floor(rng() * candidates.length)];
+      if (!candidate || offers.some((offer) => offer.orgId === candidate.id)) continue;
+      offers.push(offerFrom(candidate, state, bump));
+      if (offers.length >= count) break;
+    }
+  };
+  if (good && org.level > 0) take(pool(org.level - 1), 1, 0.04);
+  take(pool(org.level), good ? 2 : 1, 0);
+  const cooled = Object.fromEntries(Object.entries(relationships).map(([id, value]) => [id, Math.max(0, value - 6)]));
+  const base: PlayerCareerState = {
+    ...state,
+    transferRequestedSeason: state.seasonNumber,
+    morale: Math.max(0, (state.morale ?? 60) - 4),
+    reputation: Math.max(0, (state.reputation ?? 50) - 2),
+    relationships: cooled
+  };
+  const reason = offers.length
+    ? `Você pediu para sair do ${org.name}. O agente achou ${offers.length} interessado${offers.length > 1 ? 's' : ''}.`
+    : `Você pediu para sair do ${org.name}, mas ninguém fez proposta agora. O clima no time ficou pesado.`;
+  return { ...base, pendingMove: { kind: 'request', average: recent?.average ?? 0, reason, offers } };
 }
 
 export function retire(state: PlayerCareerState, options: { coach?: boolean } = {}): PlayerCareerState {

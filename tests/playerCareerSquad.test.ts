@@ -132,3 +132,47 @@ describe('treino entre campeonatos', () => {
     expect(applyTrained(base, { firepower: 99 }).firepower).toBe(99); // cap 99
   });
 });
+
+describe('troca de função e saída de parceiro', () => {
+  it('trocar de função: o parceiro da nova função assume a sua; resultado bom ou ruim mexe no overall; 1x por temporada', async () => {
+    const { canChangeRole, changeRole } = await import('../src/lib/game/playerCareer/squad');
+    let good = 0;
+    for (let index = 0; index < 12; index += 1) {
+      const career = careerAtRealOrg(`role-${index}`);
+      if (!career.calendar) continue;
+      const from = career.role;
+      const target = from === 'awper' ? 'igl' : 'awper';
+      const result = changeRole(career, target);
+      expect(result.state.role).toBe(target);
+      expect(result.state.overall).toBe(career.overall + (result.good ? 1 : -2));
+      if (result.good) good += 1;
+      const roles = matesOf(result.state).map((mate) => mate.player.role);
+      expect(roles).not.toContain(target);
+      expect(canChangeRole(result.state)).toBe(false);
+    }
+    expect(good).toBeGreaterThan(0);
+  });
+
+  it('pedir a saída: aceito, entra substituto e o elenco esfria; recusado, a relação com ele despenca', async () => {
+    const { canKickMate, kickMate } = await import('../src/lib/game/playerCareer/squad');
+    let accepted = 0;
+    let refused = 0;
+    for (let index = 0; index < 16; index += 1) {
+      const career = { ...careerAtRealOrg(`kick-${index}`), fame: 60000, reputation: 70 };
+      const mate = matesOf(career)[0];
+      const result = kickMate(career, mate.player.id);
+      expect(canKickMate(result.state)).toBe(false);
+      if (result.accepted) {
+        accepted += 1;
+        const nicks = matesOf(result.state).map((other) => other.player.nickname);
+        expect(nicks).not.toContain(mate.player.nickname);
+        expect(matesOf(result.state)).toHaveLength(4);
+      } else {
+        refused += 1;
+        expect(relationshipOf(result.state, mate.player.id)).toBeLessThan(mate.relationship);
+      }
+    }
+    expect(accepted + refused).toBe(16);
+    expect(accepted).toBeGreaterThan(0);
+  });
+});

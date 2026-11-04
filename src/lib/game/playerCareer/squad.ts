@@ -15,7 +15,7 @@ import type { MapId } from '../types';
 import { languagePenalty, learn, myFluency, nativeLanguage, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
-import { orgOf, seatToTake, type PlayerCareerState, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, seatToTake, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -129,7 +129,19 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
     : withoutSeat(sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? (org as never), seasonKey), state);
   // Call num idioma que você não domina custa sinergia: os parceiros perdem até 2 de overall em quadra.
   const { penalty } = myLanguageFit(state);
-  return roster.map((player) => {
+  // Quem saiu a seu pedido dá lugar ao substituto (mesma função, um pouco melhor ou pior).
+  const kicked = state.kickedMates?.[state.orgId] ?? [];
+  const adjusted = roster.map((player) => {
+    const gone = kicked.find((entry) => entry.nick.toLowerCase() === (player.nickname ?? '').toLowerCase());
+    if (gone) {
+      const rng = createSeededRng(`${state.seed}:replacement:${gone.replacement}`);
+      return enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, clamp((player.overall ?? 70) + gone.delta, 40, 99), (player.role ?? 'support') as PlayerRole, rng);
+    }
+    // Trocou de função: o parceiro da sua nova função assume a sua antiga.
+    if (state.roleChange && player.role === state.role) return { ...player, role: state.roleChange.from, eligibleSlotRoles: [state.roleChange.from] };
+    return player;
+  });
+  return adjusted.map((player) => {
     const relationship = relationshipOf(state, player.id);
     return { player: { ...player, overall: clamp((player.overall ?? 60) + synergyBump(relationship) - penalty, 40, 99) }, relationship, synergy: clamp(relationship, 0, 100) };
   });
@@ -238,6 +250,73 @@ export function trainMap(state: PlayerCareerState, mapId: MapId): { state: Playe
   return {
     state: { ...state, mapTraining: { ...(state.mapTraining ?? {}), [mapId]: after }, mapTrainedWindow: window, fatigue: clamp((state.fatigue ?? 0) + 5, 0, 100) },
     line: after > before ? `${name}: +${after - before} de entrosamento no mapa. Cansaço +5.` : `${name} já está no máximo de treino.`
+  };
+}
+
+/** Pode trocar de função agora? (uma vez por temporada, temporada em andamento) */
+export const canChangeRole = (state: PlayerCareerState): boolean =>
+  state.status === 'ACTIVE' && Boolean(state.calendar?.some((entry) => entry.status === 'UPCOMING')) && state.roleChange?.season !== state.seasonNumber;
+
+/**
+ * Troca de função: você passa a jogar `role` e o parceiro dela assume a sua antiga. É aposta: a chance de dar certo
+ * sobe com os atributos da nova função; deu certo, +1 de overall; deu errado, −2 até o fim da temporada.
+ */
+export function changeRole(state: PlayerCareerState, role: PlayerRole): { state: PlayerCareerState; good: boolean; line: string } {
+  if (!canChangeRole(state) || role === state.role) return { state, good: false, line: '' };
+  const me = myPlayerOf(state);
+  const skill = role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower;
+  const chance = clamp(0.45 + ((Number(skill ?? 60) - Number(me.overall ?? 70)) / 40) + ((state.morale ?? 60) - 60) / 200, 0.2, 0.85);
+  const good = createSeededRng(`${state.seed}:role:${state.seasonNumber}:${role}`)() < chance;
+  const from = state.role;
+  const next: PlayerCareerState = {
+    ...state,
+    role,
+    overall: clamp(state.overall + (good ? 1 : -2), 40, 99),
+    roleChange: { from, season: state.seasonNumber, outcome: good ? 'good' : 'bad' },
+    morale: clamp((state.morale ?? 60) + (good ? 3 : -4), 0, 100)
+  };
+  const line = good
+    ? `Encaixou: você virou ${ROLE_NAME[role]} e o time gostou. +1 de overall.`
+    : `Ainda não encaixou: ${ROLE_NAME[role]} exige outra leitura. −2 de overall até se adaptar.`;
+  return { state: next, good, line };
+}
+
+const ROLE_NAME: Record<PlayerRole, string> = { awper: 'AWPer', igl: 'IGL', entry: 'entry', support: 'suporte', lurker: 'lurker', rifler: 'rifler' };
+
+/** Pode pedir a saída de um parceiro agora? (time de verdade, uma vez por temporada) */
+export const canKickMate = (state: PlayerCareerState): boolean =>
+  state.status === 'ACTIVE' && state.orgId !== 'lan-house' && state.kickRequestedSeason !== state.seasonNumber;
+
+/**
+ * Você pede à diretoria a saída de um parceiro. Pesa a sua força contra a dele, reputação, fãs e a relação com
+ * ele. Aceitou: entra um substituto (às vezes melhor, às vezes pior) e o elenco sente (−3 com todos). Recusou: a
+ * relação com ele despenca (−25), moral −5.
+ */
+export function kickMate(state: PlayerCareerState, mateId: string): { state: PlayerCareerState; accepted: boolean; line: string } {
+  if (!canKickMate(state)) return { state, accepted: false, line: '' };
+  const mates = matesOf(state);
+  const mate = mates.find((candidate) => candidate.player.id === mateId);
+  if (!mate) return { state, accepted: false, line: '' };
+  const rng = createSeededRng(`${state.seed}:kick:${state.seasonNumber}:${mateId}`);
+  const fame = state.fame ?? 0;
+  const chance = clamp(0.3 + (state.overall - Number(mate.player.overall ?? 70)) / 30 + ((state.reputation ?? 50) - 50) / 150 + (fame >= 50000 ? 0.15 : fame >= 10000 ? 0.07 : 0) - mate.relationship / 400, 0.08, 0.85);
+  const accepted = rng() < chance;
+  const nick = mate.player.nickname ?? 'parceiro';
+  const base = { ...state, kickRequestedSeason: state.seasonNumber };
+  if (!accepted) {
+    return {
+      state: { ...base, relationships: { ...state.relationships, [mateId]: clamp(mate.relationship - 25, 0, 100) }, morale: clamp((state.morale ?? 60) - 5, 0, 100) },
+      accepted, line: `A diretoria segurou ${nick}. Ele soube do pedido: a relação despencou.`
+    };
+  }
+  const replacement = randomNick(`${state.seed}:replacement:${state.seasonNumber}:${mateId}`);
+  const delta = Math.round((rng() - 0.45) * 8);
+  const relationships = Object.fromEntries(mates.filter((other) => other.player.id !== mateId).map((other) => [other.player.id, clamp(other.relationship - 3, 0, 100)]));
+  const kicked = { ...(state.kickedMates ?? {}) };
+  kicked[state.orgId] = [...(kicked[state.orgId] ?? []), { nick, replacement, delta }];
+  return {
+    state: { ...base, kickedMates: kicked, relationships: { ...state.relationships, ...relationships } },
+    accepted, line: `${nick} saiu. Entra ${replacement} (${delta >= 0 ? '+' : '−'}${Math.abs(delta)} de overall em relação a ele). O vestiário sentiu.`
   };
 }
 

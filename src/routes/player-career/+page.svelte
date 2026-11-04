@@ -26,13 +26,13 @@
   import { createRunStats } from '$lib/game/runStats';
   import { clutchStory, situationBomb, type ClutchProfile } from '$lib/game/playerCareer/decisions';
   import {
-    ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
-  import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
+  import { celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
@@ -156,6 +156,40 @@
   let pickedSkills: TrainedAttribute[] = [];
   let mapPick: MapId | '' = '';
   let sheetStageTab: string | null = null;
+  /** Id da org pelo nome (para o escudo certo nas listas que guardam só o nome). */
+  const orgIdByName = (name: string) => sceneOrgs.find((org) => org.name === name)?.id ?? name;
+  /** Escolha de função nova (aberta pelo elenco) e o recado do vestiário (troca de função, saída de parceiro). */
+  let roleSheetOpen = false;
+  let squadNews: string | null = null;
+  const ROLE_CHOICES: PlayerRole[] = ['igl', 'awper', 'entry', 'lurker', 'support'];
+  function roleChance(state: PlayerCareerState, role: PlayerRole): number {
+    const me = myPlayerOf(state);
+    const skill = role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower;
+    return Math.round(Math.max(0.2, Math.min(0.85, 0.45 + ((Number(skill ?? 60) - Number(me.overall ?? 70)) / 40) + ((state.morale ?? 60) - 60) / 200)) * 100);
+  }
+  function pickRole(role: PlayerRole) {
+    if (!career) return;
+    const result = changeRole(career, role);
+    career = result.state;
+    squadNews = result.line;
+    roleSheetOpen = false;
+  }
+  function askKick(mateId: string, nick: string) {
+    if (!career || !canKickMate(career)) return;
+    askConfirm({
+      title: `Pedir a saída de ${nick}?`,
+      body: 'A diretoria decide pela sua força contra a dele, sua reputação, seus fãs e a relação de vocês. Se aceitar, entra um substituto (pode ser melhor ou pior) e o elenco sente. Se recusar, ele fica sabendo. Uma vez por temporada.',
+      confirmLabel: 'Pedir a saída',
+      danger: true,
+      run: () => {
+        if (!career) return;
+        const result = kickMate(career, mateId);
+        career = result.state;
+        squadNews = result.line;
+        closeSheet();
+      }
+    });
+  }
   const PHASE_LABEL: Record<string, string> = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', quarterfinal: 'Quartas', semifinal: 'Semis', final: 'Final' };
   /** O que aconteceu na semana (escolha feita) e o último retorno do coach. */
   let weekLine: string | null = null;
@@ -392,6 +426,21 @@
       confirmLabel: career.status === 'RETIRED' ? 'Começar do zero' : 'Apagar carreira',
       danger: career.status !== 'RETIRED',
       run: reset
+    });
+  }
+
+  /** Pedir para sair (ambição): o agente procura time; o elenco não gosta. Uma vez por temporada. */
+  function askTransfer() {
+    if (!career || !canRequestTransfer(career)) return;
+    askConfirm({
+      title: `Pedir para sair do ${orgOf(career.orgId).name}?`,
+      body: 'O agente procura times do mesmo nível (e um acima, se você está bem). O elenco não gosta: moral −4, relação −6 com os parceiros, reputação −2. Sem proposta, você fica com o clima pesado. Uma vez por temporada.',
+      confirmLabel: 'Pedir para sair',
+      danger: true,
+      run: () => {
+        if (!career) return;
+        career = requestTransfer(career, Object.fromEntries(matesOf(career).map((mate) => [mate.player.id, mate.relationship])));
+      }
     });
   }
 
@@ -1480,8 +1529,12 @@
             {#if myPlayer}
               <section class="squad" aria-label="Elenco">
                 <div class="section-head">
-                  <p class="label">Elenco · {orgOf(career.orgId).name}{#if langFit}{' · '}<span class="lang-chip" class:warn={langFit.penalty > 0} title={langFit.penalty ? `Call em ${LANGUAGE_LABEL[langFit.language]}: os parceiros perdem ${langFit.penalty} de overall em quadra e as conversas rendem menos até você aprender. Cada campeonato ensina um pouco; a semana tem aulas.` : 'Você fala o idioma da call.'}>call em {LANGUAGE_LABEL[langFit.language]} · você {fluencyLabel(langFit.fluency)}{langFit.penalty ? ` · −${langFit.penalty} sinergia` : ''}</span>{/if}</p>
-                  <span class="talk-line" aria-live="polite">{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{:else}Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.{/if}</span>
+                  <p class="label" title="Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.">Elenco · {orgOf(career.orgId).name}{#if langFit}{' · '}<span class="lang-chip" class:warn={langFit.penalty > 0} title={langFit.penalty ? `Call em ${LANGUAGE_LABEL[langFit.language]}: os parceiros perdem ${langFit.penalty} de overall em quadra e as conversas rendem menos até você aprender. Cada campeonato ensina um pouco; a semana tem aulas.` : 'Você fala o idioma da call.'}>call em {LANGUAGE_LABEL[langFit.language]} · você {fluencyLabel(langFit.fluency)}{langFit.penalty ? ` · −${langFit.penalty} sinergia` : ''}</span>{/if}</p>
+                  <span class="squad-actions">
+                    {#if canChangeRole(career)}<button class="link-btn" on:click={() => (roleSheetOpen = true)} title="Trocar de função (uma vez por temporada)">Trocar de função</button>{/if}
+                    {#if canRequestTransfer(career)}<button class="link-btn transfer-btn" on:click={askTransfer} title="Pedir para sair e procurar outro time (uma vez por temporada)">Procurar outro time</button>{/if}
+                  </span>
+                  <span class="talk-line" aria-live="polite">{#if squadNews}<b>Vestiário:</b> {squadNews}{:else}{#if lastTalk && lastTalkMate}<b>{lastTalkMate.player.nickname}:</b> {lastTalk.line}{lastTalk.delta ? ` (relação ${lastTalk.delta > 0 ? '+' : ''}${lastTalk.delta})` : ''}{/if}{/if}</span>
                 </div>
                 <div class="squad-strip">
                   <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} caption={`Você · ${career.age} anos`} trained={career.trained ?? null} onOpen={openMySheet} />
@@ -1628,6 +1681,7 @@
               <div class="bond-bar"><i class:high={sheetMate.relationship >= 70} class:low={sheetMate.relationship < 35} style={`width:${sheetMate.relationship}%`}></i></div>
               <button class="cta sheet-talk" on:click={() => { if (!career || !sheetMate) return; const mateId = sheetMate.player.id; chat(mateId); sheetMate = matesOf(career).find((mate) => mate.player.id === mateId) ?? sheetMate; }}>Conversar com {detailsPlayer.nickname}</button>
               {#if lastTalk && lastTalk.mateId === sheetMate.player.id}<p class="sheet-talk-line">{lastTalk.line}</p>{/if}
+              {#if career && canKickMate(career)}<button class="link-btn kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')}>Pedir a saída de {detailsPlayer.nickname}</button>{/if}
             </div>
           </CareerCard>
         {:else}
@@ -1673,7 +1727,7 @@
             {#each sheetEntry.result.opponents as game, gameIndex (gameIndex)}
               <li class:won={game.won} class:lost={!game.won}>
                 <span class="mg-phase">{PHASE_LABEL[game.phase ?? ''] ?? 'Série'}</span>
-                <TeamBadge id={game.team} name={game.team} size="sm" />
+                <TeamBadge id={orgIdByName(game.team)} orgId={orgIdByName(game.team)} name={game.team} size="sm" />
                 <b class="mg-team">{game.team}</b>
                 <span class="mg-score">{game.score ?? ''}</span>
                 <span class="mg-result">{game.won ? 'Venceu' : 'Perdeu'}</span>
@@ -1693,7 +1747,7 @@
             {#each shown.standings as standing, standingIndex (standing.name + standingIndex)}
               <li class:you={standing.you} class:out={standing.status === 'eliminated'}>
                 <span class="st-rank">{standingIndex + 1}</span>
-                <TeamBadge id={standing.name} name={standing.name} size="sm" highlight={standing.you} />
+                <TeamBadge id={orgIdByName(standing.name)} orgId={orgIdByName(standing.name)} name={standing.name} size="sm" highlight={standing.you} />
                 <b>{standing.name}{standing.you ? ' · você' : ''}</b>
                 <span class="st-record">{standing.wins}-{standing.losses}</span>
                 <span class="st-status">{standing.status === 'eliminated' ? 'Eliminado' : standing.status === 'champion' ? 'Campeão' : 'Classificado'}</span>
@@ -1807,6 +1861,25 @@
             <MajorAwardsPanel awards={liveAwards} language="pt-BR" userTeamId={live.userTeamId} userTeamName={orgOf(career.orgId).name} />
           </div>
         {/if}
+      </div>
+    </div>
+  {/if}
+
+  {#if roleSheetOpen && career}
+    <div class="modal-backdrop" role="presentation" on:click|self={() => (roleSheetOpen = false)}>
+      <div class="modal role-sheet" role="dialog" aria-modal="true" aria-labelledby="role-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="role-title">Trocar de função · hoje você é {ROLE_META[career.role].label}</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={() => (roleSheetOpen = false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <p class="happening-odds">O parceiro da função nova assume a sua antiga. Deu certo: +1 de overall. Deu errado: −2 até o fim da temporada. Uma vez por temporada.</p>
+        <div class="happening-choices">
+          {#each ROLE_CHOICES.filter((role) => role !== career?.role) as role (role)}
+            <button class="happening-choice" on:click={() => pickRole(role)}><span>{ROLE_META[role].label}</span><small>Chance de encaixar: {roleChance(career, role)}%</small></button>
+          {/each}
+        </div>
       </div>
     </div>
   {/if}
@@ -1977,9 +2050,9 @@
     {@const move = career.pendingMove}
     <div class="modal-backdrop" role="presentation">
       <div class="modal wide move-sheet" class:cut={move.kind === 'cut'} role="alertdialog" aria-modal="true" aria-labelledby="move-title" aria-describedby="move-reason" use:focusInside>
-        <p class="eyebrow">{move.kind === 'cut' ? 'Mercado · corte' : 'Mercado · proposta no meio da temporada'}</p>
-        <h2 class="display" id="move-title">{move.kind === 'cut' ? `O ${orgOf(career.orgId).name} te cortou` : `${move.offers[0]?.orgName ?? 'Um time de cima'} quer você agora`}</h2>
-        <p class="move-reason" id="move-reason">{move.reason}{move.kind === 'cut' ? ' Escolha para onde ir. A temporada continua no time novo.' : ' Se aceitar, você joga o resto da temporada lá.'}</p>
+        <p class="eyebrow">{move.kind === 'cut' ? 'Mercado · corte' : move.kind === 'request' ? 'Mercado · você pediu para sair' : 'Mercado · proposta no meio da temporada'}</p>
+        <h2 class="display" id="move-title">{move.kind === 'cut' ? `O ${orgOf(career.orgId).name} te cortou` : move.kind === 'request' ? (move.offers.length ? 'Quem quer você' : 'Ninguém fez proposta') : `${move.offers[0]?.orgName ?? 'Um time de cima'} quer você agora`}</h2>
+        <p class="move-reason" id="move-reason">{move.reason}{move.kind === 'cut' ? ' Escolha para onde ir. A temporada continua no time novo.' : move.offers.length ? ' Se aceitar, você joga o resto da temporada lá.' : ''}</p>
         <div class="offers">
           {#each move.offers as offer}
             {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
@@ -2000,9 +2073,9 @@
             </button>
           {:else}
             <button class="offer stay" on:click={refuseMove}>
-              <span class="label">Recusar</span>
+              <span class="label">{move.kind === 'request' ? 'Desistir' : 'Recusar'}</span>
               <b class="display">Ficar no {orgOf(career.orgId).name}</b>
-              <span class="ln">O elenco gosta: moral +4</span>
+              <span class="ln">{move.kind === 'request' ? 'O clima segue pesado por um tempo' : 'O elenco gosta: moral +4'}</span>
             </button>
           {/if}
         </div>
@@ -2444,6 +2517,18 @@
   .note .link-btn { justify-self: start; }
   .clutch-q .moment { color: var(--muted); letter-spacing: .06em; }
   .clutch-q .moment.planted { color: var(--accent-2); }
+  .squad-actions { display: flex; flex-wrap: wrap; gap: 0 12px; margin-left: auto; }
+  .squad .section-head .talk-line:empty { display: none; }
+  @media (min-width: 960px) {
+    .squad .section-head { flex-wrap: nowrap; }
+    .squad .section-head > .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .squad .section-head .talk-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+  @media (min-width: 960px) and (hover: hover) and (pointer: fine) { .squad .squad-actions .link-btn { min-height: 24px; } }
+  .squad-actions .link-btn { white-space: nowrap; }
+  .transfer-btn { color: var(--accent-2); }
+  .kick-btn { justify-self: start; color: var(--accent-2); }
+  .role-sheet { width: min(520px, calc(100vw - 32px)); display: grid; gap: 12px; }
   .bench-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--accent-2); font-size: 13px; font-weight: 700; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
   .live-overview-btn { margin-left: auto; white-space: nowrap; }
