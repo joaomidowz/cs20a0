@@ -92,6 +92,18 @@ describe('Major pelo ranking', () => {
     if (outcome.result.placement === 'Stage 1') expect(outcome.result.seriesLosses).toBe(3);
   }, 30000);
 
+  it('stages pelo ranking: o top 8 está todo no Stage 3 e nenhum dele no Stage 1 ou 2', async () => {
+    const { majorInvites, sceneEventField } = await import('../src/lib/game/playerCareer/live');
+    const career = seasonAtOrg(orgAt(2).id, 'major-field', 78);
+    const index = career.calendar!.findIndex((entry) => entry.format === 'major');
+    const top = majorInvites(career).map((org) => org.id);
+    expect(top).toHaveLength(8);
+    const field = (stage: 'stage1' | 'stage2' | 'stage3') => sceneEventField(career, index, stage).map((team) => team.orgId);
+    for (const id of top) expect(field('stage3')).toContain(id);
+    for (const stage of ['stage1', 'stage2'] as const) for (const id of top) expect(field(stage)).not.toContain(id);
+    expect(field('stage3')).toHaveLength(16);
+  });
+
   it('"Não classificado" não conta na média da temporada', () => {
     let career = seasonAtOrg(orgAt(4).id, 'skip-1');
     const calendar = career.calendar!;

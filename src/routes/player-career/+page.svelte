@@ -26,7 +26,7 @@
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { celebrateResult, coachOf, ensureSquad, matesOf, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { sceneCountries, sceneOrgById } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
@@ -779,7 +779,9 @@
   $: bracketPath = live ? userBracketPath(live) : [];
   $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
-  $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? majorEntryStage(career) ?? 'stage1' : null) : [];
+  $: sheetStage = career && sheetEntry?.format === 'major' ? majorEntryStage(career) : null;
+  $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? sheetStage ?? 'stage1' : null) : [];
+  $: sheetInvites = career && sheetEntry?.format === 'major' && sheetStage !== 'stage3' ? majorInvites(career) : [];
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
   $: currentLevel = career ? orgOf(career.orgId, career).level : 5;
@@ -1492,7 +1494,14 @@
           </div>
         {:else}
         <div class="field">
-          <p class="label">A chave · do mais forte ao mais fraco (média de overall do quinteto)</p>
+          {#if sheetEntry.format === 'major'}
+            <p class="label">{sheetStage ? `${STAGE_NAME[sheetStage]} · os 16 da sua fase, do mais forte ao mais fraco` : 'Sem vaga pelo ranking · quem joga o Stage 1'}</p>
+            {#if sheetInvites.length}
+              <p class="invites">Esperando no Stage 3 (top 8 do ranking): <b>{sheetInvites.map((org) => org.name).join(' · ')}</b>. Passe de fase para pegar eles.</p>
+            {/if}
+          {:else}
+            <p class="label">A chave · do mais forte ao mais fraco (média de overall do quinteto)</p>
+          {/if}
           <ol>
             {#each sheetField as team, rank (team.orgId)}
               <li class:mine={team.isUser}>
@@ -2137,6 +2146,8 @@
   .event-facts dd.hot { color: var(--accent); }
   .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .invites { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .invites b { color: var(--text); }
   .field li { display: grid; grid-template-columns: 28px minmax(0, 1.3fr) auto minmax(80px, 1fr) 36px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .field li.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
   .field-rank { color: var(--muted); font: 800 18px/1 var(--display); }

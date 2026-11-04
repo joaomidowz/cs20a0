@@ -167,6 +167,12 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
     return pool;
   };
   const picked: SceneOrg[] = [];
+  // Major: cada stage pelo ranking, como no real (o top 8 só entra no Stage 3).
+  if (entry?.format === 'major' && setup.stage) {
+    picked.push(...majorStageField(state, setup.stage, rng));
+    const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
+    return { seed, picked, rosters };
+  }
   const draw = (pool: SceneOrg[], until: number) => {
     const available = pool.filter((org) => !picked.includes(org));
     while (picked.length < until && available.length) picked.push(available.splice(Math.floor(rng() * available.length), 1)[0]);
@@ -188,6 +194,41 @@ export interface SceneFieldTeam {
   overall: number;
   isUser: boolean;
 }
+
+/** Ranking do mundo para os convites do Major (VRS simulado: a força do time, com a oscilação da temporada). */
+export function majorRanking(state: PlayerCareerState): SceneOrg[] {
+  return sceneOrgs
+    .filter((org) => org.id !== state.orgId && levelIn(state, org) <= 3)
+    .map((org) => {
+      const power = (orgOf(org.id, state) as SceneOrg).power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 66;
+      return { org, score: power + createSeededRng(`${state.seed}:vrs:${state.seasonNumber}:${org.id}`)() * 1.5 };
+    })
+    .sort((a, b) => b.score - a.score || a.org.name.localeCompare(b.org.name))
+    .map((entry) => entry.org);
+}
+
+/**
+ * Os 15 rivais de cada stage do Major, como na Valve: Stage 3 tem o top 8 do ranking convidado direto e 7 que
+ * vieram do Stage 2 (9º ao 24º); Stage 2 tem o 9º ao 16º e 7 que vieram do Stage 1; Stage 1 tem o 17º ao 26º e 5
+ * das qualificatórias regionais.
+ */
+const MAJOR_FIELD: Record<MajorStageKey, { direct: [number, number]; rest: [number, number] }> = {
+  stage3: { direct: [0, 8], rest: [8, 24] },
+  stage2: { direct: [8, 16], rest: [16, 40] },
+  stage1: { direct: [16, 26], rest: [26, 64] }
+};
+
+export function majorStageField(state: PlayerCareerState, stage: MajorStageKey, rng: () => number): SceneOrg[] {
+  const ranking = majorRanking(state);
+  const { direct, rest } = MAJOR_FIELD[stage];
+  const picked = ranking.slice(direct[0], direct[1]);
+  const pool = ranking.slice(rest[0], rest[1]);
+  while (picked.length < 15 && pool.length) picked.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  return picked;
+}
+
+/** Quem espera direto no Stage 3 (o top 8 do ranking). */
+export const majorInvites = (state: PlayerCareerState): SceneOrg[] => majorRanking(state).slice(0, 8);
 
 /** A região do seu time (lan house: a do seu país). */
 export function userRegion(state: PlayerCareerState): Region {
