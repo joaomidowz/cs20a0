@@ -6,14 +6,14 @@
 
 export type CareerRarity = 'common' | 'rare' | 'elite' | 'superstar' | 'legend' | 'goat';
 
-/** Overall mínimo de cada raridade, de baixo pra cima. */
+/** Overall mínimo de cada raridade, de baixo pra cima: Legend é 97-98 e GOAT é só o 99. */
 export const CAREER_RARITY_STEPS: ReadonlyArray<{ rarity: CareerRarity; from: number }> = [
   { rarity: 'common', from: 0 },
   { rarity: 'rare', from: 70 },
   { rarity: 'elite', from: 77 },
   { rarity: 'superstar', from: 83 },
-  { rarity: 'legend', from: 88 },
-  { rarity: 'goat', from: 93 }
+  { rarity: 'legend', from: 97 },
+  { rarity: 'goat', from: 99 }
 ];
 
 export const CAREER_RARITY_LABEL: Record<CareerRarity, string> = {

@@ -174,8 +174,12 @@ export interface PlayerCareerState {
   morale?: number;
   /** Forma −3..+3: vale só no próximo campeonato (overall em quadra) e zera depois dele. */
   form?: number;
-  /** Seguidores (stream, vídeos, entrevistas). */
+  /** Seguidores (stream, vídeos, entrevistas, títulos e MVPs). */
   fame?: number;
+  /** Cansaço 0-100: treino e bootcamp cansam, descanso recupera; cansado rende menos e se machuca mais. */
+  fatigue?: number;
+  /** Pancada leve por cansaço (vale até o próximo campeonato). */
+  knock?: string | null;
   /** Conversas com o coach na janela atual (até 3) e o que ele indicou treinar. */
   coachTalk?: { window: string; count: number; tips: TrainedAttribute[] };
   /** Corte ou proposta esperando decisão (entre campeonatos). */
@@ -290,6 +294,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     morale: 60,
     form: 0,
     fame: 0,
+    fatigue: 0,
     pendingOffers: null,
     status: 'ACTIVE',
     verdict: null
@@ -348,7 +353,7 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
   const calendar = state.calendar.map((entry) => (entry.index === index ? { ...entry, status: 'PLAYED' as const, result } : entry));
   // Campeonato jogado: a janela de conversas fecha, o treino libera de novo.
   // A forma da semana valia só para este campeonato.
-  return { ...state, calendar, liveEvent: null, talks: {}, form: 0 };
+  return { ...state, calendar, liveEvent: null, talks: {}, form: 0, knock: null };
 }
 
 /** Fecha a temporada: lesão, aging calibrado e janela de mercado. */
@@ -385,7 +390,7 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   const seasonRating = results.length ? Number((results.reduce((sum, result) => sum + result.rating, 0) / results.length).toFixed(2)) : 0.9;
 
   // Lesão: a chance e o peso sobem com a idade.
-  const injured = rng() < injuryChance(state.age);
+  const injured = rng() < Math.min(0.6, injuryChance(state.age) + (state.fatigue ?? 0) / 250);
   const injuryPool = state.age >= 30 ? INJURIES_OLD : INJURIES_YOUNG;
   const injury = injured ? injuryPool[Math.floor(rng() * injuryPool.length)] : null;
   const injuryWeight = injured ? 0.03 + 0.012 * Math.max(0, state.age - 27) : 0;

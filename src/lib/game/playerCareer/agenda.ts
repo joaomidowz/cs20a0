@@ -20,6 +20,8 @@ export interface AgendaEffects {
   team?: number;
   /** Conta como sessão de treino (a cada 3, +1 de overall até o teto da carreira). */
   trainStep?: boolean;
+  /** Cansaço (positivo cansa, negativo recupera). Sem valor, vale o padrão da categoria. */
+  fatigue?: number;
 }
 
 export interface AgendaAction {
@@ -152,6 +154,22 @@ export const AGENDA: AgendaAction[] = [
 
 export const AGENDA_BY_ID = new Map(AGENDA.map((action) => [action.id, action]));
 
+/** Cansaço padrão de cada categoria: treinar e viajar cansam, descansar recupera. */
+const CATEGORY_FATIGUE: Record<AgendaCategory, number> = {
+  treino: 15, amigos: 8, bootcamp: 20, stream: 6, coach: 4, externo: -6, time: 0, descanso: -25, mercado: 0
+};
+
+/** Ajustes do cansaço por ação (o resto segue a categoria). */
+const FATIGUE_OVERRIDE: Record<string, number> = {
+  'treino-recuperacao': -25, 'treino-maratona': 30, 'stream-maratona': 22, 'faceit-noite': 15, 'coach-mira-particular': 10,
+  balada: 12, academia: -5, 'outro-jogo': -12, familia: -30, folga: -35, 'viagem-time': -15, 'ajustar-sono': -15, 'sair-redes': -10
+};
+
+export const fatigueOf = (action: AgendaAction): number => action.effects.fatigue ?? FATIGUE_OVERRIDE[action.id] ?? CATEGORY_FATIGUE[action.category];
+
+/** Cansado (70+) o treino rende metade e não conta para o +1 de overall. */
+export const TIRED_AT = 70;
+
 export function agendaAvailable(state: PlayerCareerState, action: AgendaAction): boolean {
   const needs = action.needs;
   if (!needs) return true;
@@ -184,7 +202,7 @@ export function drawAgenda(state: PlayerCareerState): AgendaAction[] {
   return picked;
 }
 
-export interface AgendaChip { label: string; value: number; kind: 'attr' | 'morale' | 'form' | 'fame' | 'team' | 'train' }
+export interface AgendaChip { label: string; value: number; kind: 'attr' | 'morale' | 'form' | 'fame' | 'team' | 'train' | 'fatigue' }
 
 /** Os efeitos em chips curtos ("+2 Mira", "−1 Forma") para a carta da semana. */
 export function agendaChips(effects: AgendaEffects): AgendaChip[] {
@@ -196,8 +214,12 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.morale) chips.push({ label: 'Moral', value: effects.morale, kind: 'morale' });
   if (effects.team) chips.push({ label: 'Elenco', value: effects.team, kind: 'team' });
   if (effects.fame) chips.push({ label: 'Fãs', value: effects.fame, kind: 'fame' });
+  if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue, kind: 'fatigue' });
   return chips;
 }
+
+/** Chips da carta da semana, já com o cansaço da ação. */
+export const actionChips = (action: AgendaAction): AgendaChip[] => agendaChips({ ...action.effects, fatigue: fatigueOf(action) });
 
 export interface AgendaResult {
   state: PlayerCareerState;
@@ -228,13 +250,15 @@ function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: A
     for (const mate of matesOf(state)) relationships[mate.player.id] = clamp(relationshipOf(state, mate.player.id) + effects.team, 0, 100);
     chips.push({ label: 'Elenco', value: effects.team, kind: 'team' });
   }
+  const fatigue = clamp((state.fatigue ?? 0) + (effects.fatigue ?? 0), 0, 100);
+  if (fatigue !== (state.fatigue ?? 0)) chips.push({ label: 'Cansaço', value: fatigue - (state.fatigue ?? 0), kind: 'fatigue' });
   const morale = clamp((state.morale ?? 60) + (effects.morale ?? 0), 0, 100);
   const form = clamp((state.form ?? 0) + (effects.form ?? 0), -3, 3);
   const fame = Math.max(0, (state.fame ?? 0) + (effects.fame ?? 0));
   if (morale !== (state.morale ?? 60)) chips.push({ label: 'Moral', value: morale - (state.morale ?? 60), kind: 'morale' });
   if (form !== (state.form ?? 0)) chips.push({ label: 'Forma', value: form - (state.form ?? 0), kind: 'form' });
   if (fame !== (state.fame ?? 0)) chips.push({ label: 'Fãs', value: fame - (state.fame ?? 0), kind: 'fame' });
-  return { ...state, trained, relationships, morale, form, fame };
+  return { ...state, trained, relationships, morale, form, fame, fatigue };
 }
 
 /** Escolhe a ação da semana: vale uma por janela (a mesma vaga do treino). */
@@ -245,19 +269,23 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
     return { state, action, line: 'A semana já está decidida. A próxima abre depois do campeonato.', chips: [], riskHit: false, overallUp: false };
   }
   const chips: AgendaChip[] = [];
-  let next = applyEffects(state, action.effects, chips);
+  const tired = (state.fatigue ?? 0) >= TIRED_AT;
+  const attrs = tired && action.effects.attrs
+    ? Object.fromEntries(Object.entries(action.effects.attrs).map(([key, value]) => [key, value > 0 ? Math.floor(value / 2) : value]))
+    : action.effects.attrs;
+  let next = applyEffects(state, { ...action.effects, attrs, fatigue: fatigueOf(action) }, chips);
   const rng = createSeededRng(`${state.seed}:agenda:${window}:${action.id}`);
   const riskHit = Boolean(action.risk && rng() < action.risk.chance);
   if (riskHit && action.risk) next = applyEffects(next, action.risk.effects, chips);
   let overallUp = false;
   let trainCount = next.trainCount ?? 0;
-  if (action.effects.trainStep) {
+  if (action.effects.trainStep && !tired) {
     trainCount += 1;
     overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
   }
   next = { ...next, trainedWindow: window, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) };
   const merged = mergeChips(chips);
-  const line = [action.line, riskHit && action.risk ? action.risk.line : null, overallUp ? 'Treino em dia: overall +1.' : null].filter(Boolean).join(' ');
+  const line = [tired && action.effects.attrs ? 'Cansado: rendeu metade.' : null, action.line, riskHit && action.risk ? action.risk.line : null, overallUp ? 'Treino em dia: overall +1.' : null].filter(Boolean).join(' ');
   return { state: next, action, line, chips: merged, riskHit, overallUp };
 }
 
@@ -289,13 +317,16 @@ export function applyCustomTraining(state: PlayerCareerState, attributes: Traine
     return { state, action: null, line: names.length ? 'A semana já está decidida. A próxima abre depois do campeonato.' : 'Escolha pelo menos uma habilidade.', chips: [], riskHit: false, overallUp: false };
   }
   const chips: AgendaChip[] = [];
-  let next = applyEffects(state, { attrs: split }, chips);
-  const trainCount = (next.trainCount ?? 0) + 1;
-  const overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
+  const tired = (state.fatigue ?? 0) >= TIRED_AT;
+  const attrs = tired ? Object.fromEntries(Object.entries(split).map(([key, value]) => [key, Math.floor((value ?? 0) / 2)])) : split;
+  let next = applyEffects(state, { attrs, fatigue: 12 + Object.keys(split).length * 2 }, chips);
+  const trainCount = (next.trainCount ?? 0) + (tired ? 0 : 1);
+  const overallUp = !tired && trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
   next = { ...next, trainedWindow: window, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) };
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names.at(-1)}` : names[0];
-  const capped = chips.length === 0 ? ' Essas habilidades já estão no teto do treino.' : '';
-  return { state: next, action: null, line: `Semana de treino: ${list}.${capped}${overallUp ? ' Treino em dia: overall +1.' : ''}`, chips: mergeChips(chips), riskHit: false, overallUp };
+  const capped = !chips.some((chip) => chip.kind === 'attr') ? ' Essas habilidades já estão no teto do treino.' : '';
+  const tiredLine = tired ? ' Cansado: rendeu metade e não contou para o overall.' : '';
+  return { state: next, action: null, line: `Semana de treino: ${list}.${tiredLine}${capped}${overallUp ? ' Treino em dia: overall +1.' : ''}`, chips: mergeChips(chips), riskHit: false, overallUp };
 }
 
 /** O que importa em cada função: o coach olha estas habilidades para achar o seu ponto fraco. */

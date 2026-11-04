@@ -12,7 +12,7 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
-  import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, agendaChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
+  import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
   import type { CampaignMajorState } from '$lib/game/campaign-major';
   import type { LiveSeriesState } from '$lib/game/online/live-series';
@@ -491,7 +491,7 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement);
+    const recorded = celebrateResult(recordEventResult(career, index, result), result.placement, orgOf(career.orgId).level);
     live = null;
     clutch = null;
     callOutcome = null;
@@ -652,6 +652,7 @@
   $: morale = career?.morale ?? 60;
   $: form = career?.form ?? 0;
   $: fame = career?.fame ?? 0;
+  $: fatigue = career?.fatigue ?? 0;
   $: playMode = (career?.playMode ?? 'all') as PlayMode;
   $: nextPace = currentEntry ? (career?.liveEvent?.eventIndex === currentEntry.index ? 'live' : paceOf(currentEntry.index)) : 'live';
   $: bracketPath = live ? userBracketPath(live) : [];
@@ -839,7 +840,8 @@
           <div><dt>Títulos</dt><dd class:gold={totalTitles > 0}>{totalTitles}</dd></div>
           <div title="Moral alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
           <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
-          <div title="Seguidores: stream, vídeos e entrevistas."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
+          <div title="Seguidores: títulos, MVPs, stream e entrevistas."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
+          <div class="value" title="Treino, bootcamp e campeonatos cansam; descanso recupera. Com 70+ o treino rende metade; com 60+ você perde overall em quadra."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
         </dl>
 
         <ol class="pyramid" aria-label="A pirâmide da cena">
@@ -1179,7 +1181,7 @@
               <section class="week" aria-label="Semana até o próximo campeonato">
                 <div class="section-head">
                   <p class="label">Semana até o próximo campeonato · uma escolha · 3 treinos = +1 overall</p>
-                  <span class="train-line" class:done={Boolean(weekLine)} aria-live="polite">{weekLine ?? (canTrain ? 'Monte um treino ou escolha uma atividade.' : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
+                  <span class="train-line" class:done={Boolean(weekLine)} class:alert={!weekLine && Boolean(career.knock || fatigue >= TIRED_AT)} aria-live="polite">{weekLine ?? career.knock ?? (fatigue >= TIRED_AT ? `Cansaço ${fatigue}: treino rende metade. Descansar ajuda.` : canTrain ? 'Monte um treino ou escolha uma atividade.' : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
                 </div>
                 <div class="week-grid">
                   <div class="free-train">
@@ -1203,7 +1205,7 @@
                       <button class="wcard" disabled={!canTrain} on:click={() => chooseWeek(card.id)} title={card.text} aria-label={`${card.title}: ${card.text}`}>
                         <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}</span>
                         <b>{card.title}</b>
-                        <span class="wchips">{#each agendaChips(card.effects).slice(0, 3) as chip}<i class:neg={chip.value < 0}>{chipText(chip)}</i>{/each}</span>
+                        <span class="wchips">{#each actionChips(card).slice(0, 4) as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>
                       </button>
                     {/each}
                   </div>
@@ -1656,6 +1658,10 @@
   .evolving b.neg { color: var(--accent-2); }
   .evolving em { color: var(--muted); font-style: normal; }
   .facts dd.low { color: var(--accent-2); }
+  .fat-bar { display: block; height: 4px; background: color-mix(in srgb, var(--line) 80%, transparent); }
+  .fat-bar i { display: block; height: 100%; background: var(--muted); }
+  .fat-bar i.hot { background: var(--accent-2); }
+  .train-line.alert { color: var(--accent-2); font-weight: 600; }
   .facts dd.high { color: var(--accent); }
   .facts .value { grid-column: span 2; }
   .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }

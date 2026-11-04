@@ -47,7 +47,8 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     trainCount: state.trainCount ?? 0,
     morale: state.morale ?? 60,
     form: state.form ?? 0,
-    fame: state.fame ?? 0
+    fame: state.fame ?? 0,
+    fatigue: state.fatigue ?? 0
   };
 }
 
@@ -67,7 +68,7 @@ export const moraleBump = (morale: number | undefined): number => clamp(Math.rou
 /** Sua carta fora do servidor: a MESMA que entra em quadra (overall + forma da semana + função + treino + moral). */
 export function myPlayerOf(state: PlayerCareerState): Player {
   const rng = createSeededRng(`${state.seed}:me:${state.seasonNumber}`);
-  const overall = clamp(state.overall + clamp(state.form ?? 0, -3, 3), 40, 99);
+  const overall = clamp(state.overall + clamp(state.form ?? 0, -3, 3) - fatiguePenalty(state.fatigue), 40, 99);
   const card = applyTrained(enginePlayer(`${state.seed}:me`, state.nick, overall, state.role, rng), state.trained ?? {});
   const mental = moraleBump(state.morale);
   return mental ? { ...card, mental: clamp(Number(card.mental ?? 60) + mental, 40, 99) } : card;
@@ -143,8 +144,11 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
   const talked = state.talks[mateId] ?? 0;
   const rng = createSeededRng(`${state.seed}:talk:${mateId}:${talked}`);
   const roll = rng();
-  const kind = roll < 0.62 ? 'good' : roll < 0.92 ? 'neutral' : 'friction';
-  const base = kind === 'good' ? 3 + Math.floor(rng() * 4) : kind === 'neutral' ? 1 : -2;
+  // Conversa nem sempre ajuda: 15% de atrito, e quem já é parceiro (85+) quase não sobe mais.
+  const kind = roll < 0.55 ? 'good' : roll < 0.85 ? 'neutral' : 'friction';
+  const current0 = relationshipOf(state, mateId);
+  const good = current0 >= 85 ? 1 : 3 + Math.floor(rng() * 4);
+  const base = kind === 'good' ? good : kind === 'neutral' ? 1 : -3;
   const delta = talked >= 2 ? 0 : Math.round(base * (talked === 1 ? 0.5 : 1));
   const lines = TALK_LINES[kind];
   const line = delta === 0 && talked >= 2 ? 'Vocês já conversaram bastante esta semana. Foco no servidor.' : lines[Math.floor(rng() * lines.length)];
@@ -162,14 +166,36 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
 }
 
 /** Resultado de campeonato aperta o elenco: título cria laço, eliminação cobra um preço pequeno. */
-export function celebrateResult(state: PlayerCareerState, placement: string): PlayerCareerState {
-  const delta = placement === 'Campeão' ? 5 : placement === 'Vice' ? 3 : placement === 'Semis' ? 1 : -1;
+export function celebrateResult(state: PlayerCareerState, placement: string, level = 4): PlayerCareerState {
+  const delta = placement === 'Campeão' ? 5 : placement === 'Vice' ? 2 : placement === 'Semis' ? 0 : -3;
   const relationships: Record<string, number> = { ...state.relationships };
-  for (const mate of matesOf(state)) relationships[mate.player.id] = clamp(relationshipOf(state, mate.player.id) + delta, 0, 100);
-  // Resultado mexe na moral: título levanta, cair nas quartas pesa.
-  const moraleDelta = placement === 'Campeão' ? 8 : placement === 'Vice' ? 4 : placement === 'Semis' ? 1 : -4;
-  return { ...state, relationships, morale: clamp((state.morale ?? 60) + moraleDelta, 0, 100) };
+  // Laço não fica no teto sozinho: depois do resultado, a relação volta 8% em direção a 60.
+  for (const mate of matesOf(state)) {
+    const after = clamp(relationshipOf(state, mate.player.id) + delta, 0, 100);
+    relationships[mate.player.id] = clamp(Math.round(after - (after - 60) * 0.08), 0, 100);
+  }
+  // Moral: título levanta, cair nas quartas pesa, e tudo volta 15% para o normal (60).
+  const moraleDelta = placement === 'Campeão' ? 8 : placement === 'Vice' ? 3 : placement === 'Semis' ? 0 : -6;
+  const moraleAfter = clamp((state.morale ?? 60) + moraleDelta, 0, 100);
+  // Jogar campeonato cansa (+8); fãs vêm de resultado, mais no tier alto.
+  const tierWeight = Math.max(1, 6 - level);
+  const fameGain = placement === 'Campeão' ? 120 * tierWeight * tierWeight : placement === 'Vice' ? 50 * tierWeight * tierWeight : placement === 'Semis' ? 15 * tierWeight * tierWeight : 0;
+  const fatigue = clamp((state.fatigue ?? 0) + 8, 0, 100);
+  // Corpo no limite (85+): metade das vezes vem uma pancada leve e a forma cai 2 até o próximo campeonato.
+  const rng = createSeededRng(`${state.seed}:knock:${state.seasonNumber}:${(state.calendar ?? []).filter((entry) => entry.result).length}`);
+  const knocked = fatigue >= 85 && rng() < 0.5;
+  return {
+    ...state,
+    relationships,
+    morale: clamp(Math.round(moraleAfter - (moraleAfter - 60) * 0.15), 0, 100),
+    fatigue,
+    fame: (state.fame ?? 0) + fameGain,
+    ...(knocked ? { form: clamp((state.form ?? 0) - 2, -3, 3), knock: 'Dor no punho de tanto treinar: forma −2 no próximo campeonato.' } : {})
+  };
 }
+
+/** Quanto o cansaço tira de overall em quadra: 1 a partir de 60, 2 a partir de 80. */
+export const fatiguePenalty = (fatigue: number | undefined): number => ((fatigue ?? 0) >= 80 ? 2 : (fatigue ?? 0) >= 60 ? 1 : 0);
 
 /** Janela atual de treino: uma por intervalo entre campeonatos (nenhuma se a temporada acabou). */
 export function trainingWindowOf(state: PlayerCareerState): string | null {
