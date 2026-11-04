@@ -188,10 +188,12 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
   // MVP e jogada absurda (ace, quad, clutch) viralizam: rendem fãs mesmo sem título.
   const playFame = ((extras.aces ?? 0) * 25 + (extras.quads ?? 0) * 8 + (extras.clutches ?? 0) * 4) * tierWeight;
   const fameGain = placeFame + (extras.mvp ? 60 * tierWeight * tierWeight : 0) + playFame;
-  const fatigue = clamp((state.fatigue ?? 0) + 8, 0, 100);
-  // Corpo no limite (85+): metade das vezes vem uma pancada leve e a forma cai 2 até o próximo campeonato.
+  // O campeonato cansa (+8 no pico); a semana até o próximo recupera 12 sozinha. Sem treino pesado, o cansaço cai.
+  const peak = clamp((state.fatigue ?? 0) + EVENT_FATIGUE, 0, 100);
+  const fatigue = clamp(peak - WEEK_RECOVERY, 0, 100);
+  // Corpo no limite (85+ no pico): metade das vezes vem uma pancada leve e a forma cai 2 até o próximo campeonato.
   const rng = createSeededRng(`${state.seed}:knock:${state.seasonNumber}:${(state.calendar ?? []).filter((entry) => entry.result).length}`);
-  const knocked = fatigue >= 85 && rng() < 0.5;
+  const knocked = peak >= 85 && rng() < 0.5;
   return {
     ...state,
     relationships,
@@ -201,6 +203,10 @@ export function celebrateResult(state: PlayerCareerState, placement: string, lev
     ...(knocked ? { form: clamp((state.form ?? 0) - 2, -3, 3), knock: 'Dor no punho de tanto treinar: forma −2 no próximo campeonato.' } : {})
   };
 }
+
+/** Cansaço do campeonato e a recuperação natural da semana seguinte. */
+export const EVENT_FATIGUE = 8;
+export const WEEK_RECOVERY = 12;
 
 /** Quanto o cansaço tira de overall em quadra: 1 a partir de 60, 2 a partir de 80. */
 export const fatiguePenalty = (fatigue: number | undefined): number => ((fatigue ?? 0) >= 80 ? 2 : (fatigue ?? 0) >= 60 ? 1 : 0);

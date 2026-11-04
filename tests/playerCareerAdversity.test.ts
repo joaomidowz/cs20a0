@@ -78,3 +78,29 @@ describe('moral, relação e fãs', () => {
     expect(celebrateResult(career, 'Quartas', 1).fame).toBe(0);
   });
 });
+
+describe('recuperação do cansaço', () => {
+  it('sem treinar, cada campeonato deixa o cansaço menor (a semana recupera mais que o jogo cansa)', async () => {
+    const { EVENT_FATIGUE, WEEK_RECOVERY } = await import('../src/lib/game/playerCareer/squad');
+    expect(WEEK_RECOVERY).toBeGreaterThan(EVENT_FATIGUE);
+    const career = { ...seasonAt('rec-1'), fatigue: 60 };
+    expect(celebrateResult(career, 'Quartas').fatigue).toBe(60 + EVENT_FATIGUE - WEEK_RECOVERY);
+    expect(celebrateResult({ ...career, fatigue: 0 }, 'Quartas').fatigue).toBe(0);
+  });
+
+  it('cansado (50+), a semana sempre oferece um descanso de verdade (−20 ou mais)', async () => {
+    const { drawAgenda, fatigueOf } = await import('../src/lib/game/playerCareer/agenda');
+    for (let index = 0; index < 20; index += 1) {
+      const career = { ...seasonAt(`rest-${index}`), fatigue: 75 };
+      expect(drawAgenda(career).some((action) => fatigueOf(action) <= -20), `seed rest-${index}`).toBe(true);
+    }
+  });
+
+  it('férias na virada da temporada: sobra um quinto do cansaço', async () => {
+    const { finishSeason } = await import('../src/lib/game/playerCareer/engine');
+    let career = { ...seasonAt('rec-2'), fatigue: 90 };
+    for (const entry of career.calendar!) career = recordEventResult(career, entry.index, { name: entry.name, placement: 'Quartas', rating: 1, seriesWins: 0, seriesLosses: 1 });
+    expect(finishSeason(career).fatigue).toBe(18);
+  });
+});
+

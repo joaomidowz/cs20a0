@@ -199,6 +199,16 @@ export function drawAgenda(state: PlayerCareerState): AgendaAction[] {
     if (picked.length >= 4) break;
     if (!picked.includes(action)) picked.push(action);
   }
+  // Cansado (50+): sempre há um descanso de verdade na mesa (Folga, Família ou Recuperação), no lugar da carta que
+  // mais cansa.
+  if ((state.fatigue ?? 0) >= 50 && !picked.some((action) => fatigueOf(action) <= -20)) {
+    const rest = pool.filter((action) => fatigueOf(action) <= -20);
+    const pickRest = rest[Math.floor(rng() * rest.length)];
+    if (pickRest) {
+      const heaviest = [...picked].sort((a, b) => fatigueOf(b) - fatigueOf(a))[0];
+      picked.splice(picked.indexOf(heaviest), 1, pickRest);
+    }
+  }
   return picked;
 }
 

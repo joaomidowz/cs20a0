@@ -547,6 +547,8 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
   const next: PlayerCareerState = {
     ...promotedState,
+    // Férias na virada da temporada: sobra só um quinto do cansaço.
+    fatigue: Math.round((state.fatigue ?? 0) * 0.2),
     age: aged.entity.age,
     overall: finalOverall,
     seasonNumber: state.seasonNumber + 1,
