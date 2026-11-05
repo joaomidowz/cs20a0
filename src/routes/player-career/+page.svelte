@@ -1175,6 +1175,8 @@
   $: namedTitles = career?.history.flatMap((log) => log.tournaments.filter((entry) => entry.placement === 'Campeão').map((entry) => `${entry.name}${entry.tier ? ` (${TIER_LABEL[entry.tier]})` : ''}${entry.mvp?.you ? ' · MVP' : ''}`)) ?? [];
   $: trainingWindow = career ? trainingWindowOf(career) : null;
   $: weekLeft = career && trainingWindow ? blocksLeft(career) : 0;
+  /** Blocos que a ação sob o mouse (ou com foco) vai usar: o medidor da semana mostra antes do clique. */
+  let hoverCost = 0;
   $: weekTotal = career ? weekBlocks(career) : 3;
   $: freeDone = career ? pickedThisWeek(career, 'treino-livre') : false;
   $: canTrain = Boolean(career && myPlayer && trainingWindow && weekLeft > 0);
@@ -1191,6 +1193,7 @@
   $: myCardInfo = career ? cardInfoFor(career, career.orgId) : null;
   $: oppCardInfo = career && opponentOrg ? cardInfoFor(career, viewingOwn ? career.orgId : opponentOrg.id) : null;
   $: scoutHits = career && scoutOpen ? scoutPlayers(career, scoutQuery) : [];
+  $: scoutTeams = career && scoutOpen && scoutQuery.trim().length >= 2 ? sceneOrgs.filter((org) => org.name.toLowerCase().includes(scoutQuery.trim().toLowerCase())).sort((a, b) => a.level - b.level || a.name.length - b.name.length).slice(0, 6) : [];
   $: seatMove = career && currentSeat ? seatMovesOf(career.seed).find((move) => move.fromId === currentSeat?.orgId && move.nick.toLowerCase() === currentSeat?.nick.toLowerCase()) ?? null : null;
   $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
@@ -1441,12 +1444,16 @@
             {#if menuOpen}
               <div class="menu-pop" role="menu">
                 <button role="menuitem" on:click={() => { menuOpen = false; openMySheet(); }}>Ver minha carta</button>
-                <button role="menuitem" on:click={() => openScout()}>Buscar jogador</button>
                 <button role="menuitem" class="danger" on:click={askReset}>Apagar e começar outra carreira</button>
               </div>
             {/if}
           </div>
         </div>
+
+        <button class="rail-search" on:click={() => openScout()} aria-label="Buscar jogador ou time">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+          <span>Buscar jogador ou time</span>
+        </button>
 
         <div class="ovr">
           <span class="ovr-num">{career.overall}</span>
@@ -1478,6 +1485,30 @@
           </p>
         {/if}
 
+        {#if coach && career.orgId !== 'lan-house'}
+          <section class="rail-coach" aria-label="Coach">
+            <div class="rc-top">
+              <span class="rc-ovr">{coach.overall}</span>
+              <div class="rc-who">
+                <span class="label">Coach</span>
+                <b>{coach.name}</b>
+                <span class="rc-meta">{#if myCoach}{career.year - myCoach.born} anos{myCoach.formerPlayer ? ' · ex-jogador' : ''}{/if}</span>
+              </div>
+              <button class="secondary-btn small rc-talk" disabled={!talksLeft} on:click={talkCoachCard} title="3 conversas por temporada">Conversar {talksLeft}/3</button>
+            </div>
+            <ul class="rc-attrs">
+              {#each COACH_ATTRS as attribute}
+                <li title={`${attribute.label} ${coach[attribute.key]}`}><span>{attribute.label}</span><i style={`--v:${coach[attribute.key]}%`}></i><b>{coach[attribute.key]}</b></li>
+              {/each}
+            </ul>
+            {#if life}
+              <div class="rc-trust" title="Confiança do coach em você: sobe com as conversas e as respostas que ele gosta.">
+                <span>Confia em você</span><i class:low={life.coachTrust < 35} class:high={life.coachTrust >= 70} style={`--v:${life.coachTrust}%`}></i><b class:low={life.coachTrust < 35} class:high={life.coachTrust >= 70}>{life.coachTrust}</b>
+              </div>
+            {/if}
+          </section>
+        {/if}
+
         <ol class="pyramid" aria-label="A pirâmide da cena">
           {#each PYRAMID as rung}
             <li class:here={rung.level === currentLevel} class:been={rung.level !== currentLevel && visitedLevels.has(rung.level)} aria-current={rung.level === currentLevel ? 'step' : undefined}>
@@ -1490,6 +1521,7 @@
             </li>
           {/each}
         </ol>
+        <p class="rung-here"><span>{PYRAMID.find((rung) => rung.level === currentLevel)?.label ?? ''}</span> {orgOf(career.orgId).name}</p>
 
         {#if currentSeat}
           <p class="seat-line">Você tomou a vaga de <button class="seat-link" on:click={() => currentSeat && openScout(currentSeat.nick)} title="Ver onde ele está">{currentSeat.nick}</button>{#if seatMove}, que foi para a <b>{seatMove.toName}</b>{/if}.</p>
@@ -1862,27 +1894,13 @@
                       <div class="mate-foot">
                         <div class="bond">
                           <div class="bond-bar" role="img" aria-label={`Relação ${mate.relationship} de 100`}><i class:high={mate.relationship >= 70} class:low={mate.relationship < 35} style={`width:${mate.relationship}%`}></i></div>
-                          <span class="bond-num" class:high={mate.relationship >= 70} class:low={mate.relationship < 35}>{mate.relationship}{bump !== 0 ? ` · ${bump > 0 ? '+' : '−'}${Math.abs(bump)}` : ''}</span>
+                          <span class="bond-num" class:high={mate.relationship >= 70} class:low={mate.relationship < 35} title={`Relação ${mate.relationship} de 100${bump !== 0 ? `. Em quadra: ${bump > 0 ? '+' : '−'}${Math.abs(bump)} de overall` : ''}`}>rel {mate.relationship}{bump !== 0 ? ` · ${bump > 0 ? '+' : '−'}${Math.abs(bump)}` : ''}</span>
                         </div>
                         <button class="secondary-btn small" on:click={() => chat(mate.player.id)} aria-label={`Conversar com ${mate.player.nickname}`}>Conversar</button>
                       </div>
                     </CareerCard>
                   {/each}
-                  {#if coach}
-                    <article class="coach-card" aria-label="Coach">
-                      <span class="label">Coach</span>
-                      <span class="coach-ovr">{coach.overall}</span>
-                      <b class="coach-name">{coach.name}</b>
-                      {#if myCoach}<span class="coach-age" title={myCoach.real ? 'Idade estimada pelo primeiro ano como coach.' : ''}>{career.year - myCoach.born} anos{myCoach.formerPlayer ? ' · ex-jogador' : ''}</span>{/if}
-                      {#if life}<span class="coach-trust" class:low={life.coachTrust < 35} class:high={life.coachTrust >= 70} title="Confiança do coach em você: sobe com as conversas e as respostas que ele gosta.">confia {life.coachTrust}</span>{/if}
-                      <ul>
-                        {#each COACH_ATTRS as attribute}
-                          <li><span>{attribute.label}</span><i style={`--v:${coach[attribute.key]}%`}></i><b>{coach[attribute.key]}</b></li>
-                        {/each}
-                      </ul>
-                      <button class="secondary-btn small coach-talk" disabled={!talksLeft} on:click={talkCoachCard} title="3 conversas por temporada">Conversar {talksLeft}/3</button>
-                    </article>
-                  {/if}
+
                 </div>
               </section>
             {/if}
@@ -1890,7 +1908,11 @@
             {#if career.calendar && currentEntry && myPlayer}
               <section class="week" aria-label="Semana até o próximo campeonato">
                 <div class="section-head">
-                  <p class="label">Semana até o próximo campeonato · <span class="blocks" title="Cada ação ocupa blocos da semana. Repetir o mesmo tipo nas últimas 4 semanas rende menos (100%, 65%, 35%). Semana cheia cansa mais.">{#each Array(weekTotal) as _, blockIndex}<i class:used={blockIndex >= weekLeft}></i>{/each} {weekLeft} de {weekTotal} blocos</span> · 3 treinos = +1 overall</p>
+                  <p class="label">Semana até o próximo campeonato · 3 treinos = +1 overall</p>
+                  <div class="week-meter" title="Cada ação ocupa blocos da semana. Repetir o mesmo tipo nas últimas 4 semanas rende menos (100%, 65%, 35%). Semana cheia cansa mais." aria-live="polite">
+                    <span class="wm-pips" aria-hidden="true">{#each Array(weekTotal) as _, blockIndex}{@const usedBlock = blockIndex >= weekLeft}{@const previewBlock = !usedBlock && hoverCost > 0 && blockIndex >= weekLeft - hoverCost && hoverCost <= weekLeft}<i class:used={usedBlock} class:preview={previewBlock} class:over={hoverCost > weekLeft && !usedBlock}></i>{/each}</span>
+                    <span class="wm-text">{#if hoverCost > 0}{hoverCost > weekLeft ? `Não cabe: precisa de ${hoverCost}` : `Usa ${hoverCost} · sobra ${weekLeft - hoverCost}`}{:else}<b>{weekLeft}</b> de {weekTotal} blocos livres{/if}</span>
+                  </div>
                   <span class="train-line" class:done={Boolean(weekLine)} class:alert={!weekLine && Boolean(career.knock || fatigue >= TIRED_AT)} aria-live="polite">{weekLine ?? career.knock ?? (fatigue >= TIRED_AT ? `Cansaço ${fatigue}: treino rende metade. Descansar ajuda.` : canTrain ? (weekLeft < weekTotal ? `Ainda cabe${weekLeft > 1 ? 'm' : ''} ${weekLeft} bloco${weekLeft > 1 ? 's' : ''} nesta semana.` : 'Monte um treino ou escolha até 3 atividades.') : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
                 </div>
                 <div class="week-grid">
@@ -1905,7 +1927,7 @@
                       {/each}
                     </div>
                     <div class="ft-actions">
-                      <button class="secondary-btn" disabled={!canTrain || freeDone || weekLeft < FREE_TRAINING_COST || !pickedSkills.length} on:click={trainFree} title={`Ocupa ${FREE_TRAINING_COST} blocos${career && diminishOf(career, 'treino') < 1 ? `. Muito treino seguido: rende ${Math.round(diminishOf(career, 'treino') * 100)}%` : ''}`}>{freeDone ? 'Treino feito' : pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
+                      <button class="secondary-btn" disabled={!canTrain || freeDone || weekLeft < FREE_TRAINING_COST || !pickedSkills.length} on:click={trainFree} on:mouseenter={() => (hoverCost = freeDone ? 0 : FREE_TRAINING_COST)} on:mouseleave={() => (hoverCost = 0)} on:focus={() => (hoverCost = freeDone ? 0 : FREE_TRAINING_COST)} on:blur={() => (hoverCost = 0)} title={`Ocupa ${FREE_TRAINING_COST} blocos${career && diminishOf(career, 'treino') < 1 ? `. Muito treino seguido: rende ${Math.round(diminishOf(career, 'treino') * 100)}%` : ''}`}>{freeDone ? 'Treino feito' : pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
                       <button class="link-btn" disabled={!talksLeft} on:click={talkCoach} title="3 conversas por temporada">Falar com o coach · {talksLeft}/3</button>
                     </div>
                   </div>
@@ -1916,11 +1938,11 @@
                       {@const done = career ? pickedThisWeek(career, card.id) : false}
                       {@const contact = career ? contactOf(career, card) : null}
                       {@const factor = career ? diminishOf(career, card.category) : 1}
-                      <button class="wcard" class:done disabled={!canTrain || done || cost > weekLeft} on:click={() => chooseWeek(card.id)} title={`${card.text.replace(/\.?$/, '.')}${contact ? ` Com ${contact.nick} (${contact.org}).` : ''}${factor < 1 ? ` Você repetiu esse tipo: rende ${Math.round(factor * 100)}%.` : ''}`} aria-label={`${card.title}: ${card.text.replace(/\.?$/, '.')} Ocupa ${cost} bloco${cost > 1 ? 's' : ''}.`}>
-                        <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}<span class="wcost" aria-hidden="true">{#each Array(cost) as _}<i></i>{/each}</span></span>
+                      <button class="wcard" class:done class:nofit={!done && cost > weekLeft} disabled={!canTrain || done || cost > weekLeft} on:click={() => { chooseWeek(card.id); hoverCost = 0; }} on:mouseenter={() => (hoverCost = done ? 0 : cost)} on:mouseleave={() => (hoverCost = 0)} on:focus={() => (hoverCost = done ? 0 : cost)} on:blur={() => (hoverCost = 0)} title={`${card.text.replace(/\.?$/, '.')}${contact ? ` Com ${contact.nick} (${contact.org}).` : ''}${factor < 1 ? ` Você repetiu esse tipo: rende ${Math.round(factor * 100)}%.` : ''}`} aria-label={`${card.title}: ${card.text.replace(/\.?$/, '.')} Ocupa ${cost} bloco${cost > 1 ? 's' : ''}.`}>
+                        <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}<span class="wcost" title={`Ocupa ${cost} bloco${cost > 1 ? 's' : ''}`}>{#each Array(cost) as _}<i></i>{/each}<em>{cost}</em></span></span>
                         <b>{card.title}</b>
                         {#if contact}<span class="wcontact">com {contact.nick} · {contact.org}</span>{/if}
-                        {#if done}<span class="wdone">Feito</span>{:else if factor < 1}<span class="wdim">rende {Math.round(factor * 100)}%</span>{/if}
+                        {#if done}<span class="wdone">Feito</span>{:else if cost > weekLeft && canTrain}<span class="wdim">não cabe</span>{:else if factor < 1}<span class="wdim">rende {Math.round(factor * 100)}%</span>{/if}
                         <span class="wchips">{#each actionChips(card).slice(0, contact ? 2 : 3) as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>
                       </button>
                     {/each}
@@ -2217,19 +2239,26 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeScout}>
       <div class="modal scout-modal" role="dialog" aria-modal="true" aria-labelledby="scout-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow" id="scout-title">Buscar jogador · {career.year}</span>
+          <span class="eyebrow" id="scout-title">Buscar jogador ou time · {career.year}</span>
           <button class="icon-btn" aria-label="Fechar" on:click={closeScout}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
         <label class="scout-field">
-          <span class="label">Nick do jogador</span>
-          <input type="search" bind:value={scoutQuery} placeholder="ZywOo, FalleN, donk, um coach" autocomplete="off" spellcheck="false" data-autofocus />
+          <span class="label">Nick ou nome do time</span>
+          <input type="search" bind:value={scoutQuery} placeholder="ZywOo, FalleN, Vitality, FURIA" autocomplete="off" spellcheck="false" data-autofocus />
         </label>
+        {#if scoutTeams.length}
+          <ul class="scout-teams" aria-label="Times">
+            {#each scoutTeams as org (org.id)}
+              <li><button on:click={() => scoutTeam(org.id)}><TeamBadge id={org.id} name={org.name} size="sm" highlight={org.id === career.orgId} /><b>{org.name}</b><span>{LEVEL_LABEL[org.level] ?? ''}</span></button></li>
+            {/each}
+          </ul>
+        {/if}
         {#if scoutQuery.trim().length < 2}
-          <p class="modal-note">Digite 2 letras ou mais. A busca cobre o mundo inteiro da carreira: titulares, reservas e aposentados.</p>
-        {:else if !scoutHits.length}
-          <p class="modal-note">Nenhum jogador com "{scoutQuery.trim()}" no mundo de {career.year}.</p>
+          <p class="modal-note">Digite 2 letras ou mais. A busca cobre o mundo inteiro da carreira: times, titulares, reservas e aposentados.</p>
+        {:else if !scoutHits.length && !scoutTeams.length}
+          <p class="modal-note">Nenhum jogador ou time com "{scoutQuery.trim()}" no mundo de {career.year}.</p>
         {:else}
           <ul class="scout-list">
             {#each scoutHits as hit (hit.nick + (hit.orgId ?? hit.orgName ?? ''))}
@@ -2944,11 +2973,6 @@
   .bond { display: grid; gap: 5px; }
   .talk-line { color: var(--muted); font-size: 13px; line-height: 1.4; }
   .talk-line b { color: var(--text); }
-  .coach-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 60%), var(--surface-2); }
-  .coach-card .label { margin: 0; color: var(--accent-2); }
-  .coach-age { margin-top: -6px; color: var(--muted); font-size: 12px; }
-  .coach-card { position: relative; }
-  .coach-talk { position: absolute; top: 8px; right: 8px; min-height: 26px; padding: 0 8px; font-size: 11px; border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); }
   .bench-btn { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); color: var(--gold); }
   .swap-roles { display: grid; gap: 6px; }
   .swap-list { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -2958,12 +2982,6 @@
   .promote-pick:hover { border-color: var(--accent); }
   .promote-pick b { font: 800 17px/1.1 var(--display); text-transform: uppercase; }
   .promote-pick span { color: var(--muted); font-size: 12px; }
-  .coach-ovr { font: 900 40px/.82 var(--display); font-variant-numeric: tabular-nums; }
-  .coach-name { font: 800 20px/1 var(--display); text-transform: uppercase; }
-  .coach-card ul { display: grid; gap: 7px; margin: 4px 0 0; padding: 0; list-style: none; }
-  .coach-card li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 6px; align-items: center; font-size: 12px; color: var(--muted); }
-  .coach-card li i { grid-column: 1 / -1; grid-row: 2; height: 4px; background: linear-gradient(90deg, var(--accent-2) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
-  .coach-card li b { color: var(--text); font-variant-numeric: tabular-nums; }
 
   .train-line { min-width: 0; color: var(--muted); font-size: 13px; }
   .train-line.done { color: var(--accent); font-weight: 600; }
@@ -3027,9 +3045,6 @@
   .facts .value { grid-column: span 1; }
   .life-strip { display: flex; flex-wrap: wrap; gap: 4px 9px; margin: -6px 0 0; color: var(--muted); font: 600 11px/1.2 var(--body); }
   .life-strip b { color: var(--text); font-variant-numeric: tabular-nums; }
-  .coach-trust { color: var(--muted); font: 600 11px/1.2 var(--body); }
-  .coach-trust.low { color: var(--accent-2); }
-  .coach-trust.high { color: var(--accent); }
   .life-strip b.low { color: var(--accent-2); }
   .life-strip b.high { color: var(--accent); }
   .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }
@@ -3072,9 +3087,6 @@
   .wcontact { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .wdone { color: var(--accent); font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; }
   .wdim { color: var(--accent-2); font: 700 11px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; }
-  .blocks { display: inline-flex; align-items: center; gap: 3px; }
-  .blocks i { width: 9px; height: 9px; background: var(--accent); }
-  .blocks i.used { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
   .wcat { display: flex; gap: 6px; color: var(--muted); font: 700 10px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
   .wcat em { color: var(--accent-2); font-style: normal; }
   .wcard b { font: 800 17px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3569,5 +3581,136 @@
     .deal, .delta-to, .clutch, .modal, .modal-backdrop { animation: none; }
     .cta, .card, .offer, .call { transition: none; }
     .cta:hover:not(:disabled), .card:hover, .offer:hover, .call:hover { transform: none; }
+  }
+
+  /* Busca sempre à mão, coach no trilho, pirâmide em faixa e medidor da semana. */
+  .rail-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font: 600 13px/1 var(--body); text-align: left; cursor: pointer; transition: border-color .14s ease, color .14s ease; }
+  .rail-search:hover, .rail-search:focus-visible { border-color: var(--accent); color: var(--text); }
+  .rail-coach { display: grid; gap: 7px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 80% at 0% 0%, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 60%), var(--surface-2); }
+  .rc-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+  .rc-ovr { font: 900 32px/.85 var(--display); font-variant-numeric: tabular-nums; }
+  .rc-who { display: grid; gap: 2px; min-width: 0; }
+  .rc-who .label { margin: 0; color: var(--accent-2); font-size: 10px; }
+  .rc-who b { overflow: hidden; font: 800 16px/1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .rc-meta { color: var(--muted); font-size: 11px; }
+  .rc-talk { min-height: 28px; padding: 0 9px; font-size: 11px; border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); white-space: nowrap; }
+  .rc-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; margin: 0; padding: 0; list-style: none; }
+  .rc-attrs li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 6px; align-items: center; color: var(--muted); font-size: 11px; }
+  .rc-attrs li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rc-attrs li i { grid-column: 1 / -1; grid-row: 2; height: 3px; background: linear-gradient(90deg, var(--accent-2) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
+  .rc-attrs li b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .rc-trust { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; color: var(--muted); font: 600 11px/1 var(--body); }
+  .rc-trust i { height: 5px; background: linear-gradient(90deg, var(--muted) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
+  .rc-trust i.high { background: linear-gradient(90deg, var(--accent) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
+  .rc-trust i.low { background: linear-gradient(90deg, var(--accent-2) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
+  .rc-trust b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .rc-trust b.high { color: var(--accent); }
+  .rc-trust b.low { color: var(--accent-2); }
+  .pyramid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+  .pyramid li { justify-content: center; min-height: 28px; padding: 3px 2px; font-size: 10px; letter-spacing: .03em; text-align: center; }
+  .pyramid li.here { min-height: 28px; flex-wrap: nowrap; }
+  .rung-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rung-short { display: inline; }
+  .rung-org, .rung-mark { display: none; }
+  .rung-here { margin: -4px 0 0; overflow: hidden; color: var(--text); font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .rung-here span { color: var(--accent); font: 700 10px/1 var(--body); letter-spacing: .08em; }
+  .squad-strip { grid-template-columns: minmax(170px, 1.15fr) repeat(4, minmax(140px, 1fr)); }
+  .bond-num { white-space: nowrap; }
+  .week .section-head { align-items: center; }
+  .week-meter { display: inline-flex; align-items: center; gap: 8px; padding: 3px 8px 3px 6px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--surface-2)); }
+  .wm-pips { display: inline-flex; gap: 3px; }
+  .wm-pips i { width: 20px; height: 10px; background: var(--accent); transition: background .12s ease, box-shadow .12s ease; }
+  .wm-pips i.used { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .wm-pips i.preview { background: repeating-linear-gradient(135deg, var(--accent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px var(--accent); animation: pip-pulse .9s ease-in-out infinite alternate; }
+  .wm-pips i.over { background: transparent; box-shadow: inset 0 0 0 1px var(--accent-2); }
+  @keyframes pip-pulse { from { opacity: 1; } to { opacity: .45; } }
+  .wm-text { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+  .wm-text b { color: var(--accent); font: 800 15px/1 var(--display); }
+  .wcost { align-items: center; gap: 2px; padding: 2px 4px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .wcost i { width: 6px; height: 6px; }
+  .wcost em { margin-left: 2px; color: var(--accent); font: 800 10px/1 var(--body); font-style: normal; }
+  .wcard.nofit { opacity: .45; }
+  .scout-teams { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .scout-teams button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px 4px 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 700 13px/1 var(--body); cursor: pointer; }
+  .scout-teams button:hover, .scout-teams button:focus-visible { border-color: var(--accent); }
+  .scout-teams button span { color: var(--muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+  @media (prefers-reduced-motion: reduce) { .wm-pips i.preview { animation: none; } }
+  @media (min-width: 961px) {
+    .rail { gap: 9px; }
+    .ovr-num { font-size: 64px; }
+    .nick { font-size: clamp(38px, 3.6vw, 50px); }
+    .nick.long { font-size: 38px; }
+    .nick.xlong { font-size: 30px; }
+  }
+
+  /* Trilho virando cabeçalho (tablet e celular): overall ao lado do nome, o resto em largura cheia. */
+  @media (max-width: 960px) {
+    .rail > :global(*) { grid-column: 1 / -1; }
+    .rail > .rail-head { grid-column: 1; grid-row: 1; }
+    .rail > .ovr { grid-column: 2; grid-row: 1; flex-direction: column; align-items: flex-end; gap: 2px; padding-top: 18px; }
+    .facts { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
+
+  /* Tela média: a semana desce para baixo do treino livre para as 5 cartas caberem. */
+  @media (min-width: 681px) and (max-width: 1180px) {
+    .week-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (min-width: 681px) and (max-width: 860px) {
+    .week-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  /* Celular: tudo compacto, como jogo de celular na vertical. */
+  @media (max-width: 680px) {
+    .page { padding-inline: 0; }
+    .career { border-inline: 0; }
+    .rail { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px; padding: 12px; }
+    .age-phase { display: none; }
+    .rail-head .eyebrow { font-size: 10px; }
+    .nick, .nick.long, .nick.xlong { font-size: 30px; }
+    .sub { margin-top: 2px; font-size: 12px; }
+    .age-phase { margin: 2px 0 0; font-size: 11px; }
+    .skills-now { gap: 3px; margin-top: 6px; }
+    .skills-now div { padding: 2px 5px; }
+    .skills-now dt { font-size: 9px; }
+    .skills-now dd { font-size: 12px; }
+    .evolving { margin-top: 4px; font-size: 10px; }
+    .evolving span { font-size: 9px; }
+    .rail-head .icon-btn { width: 32px; height: 32px; min-height: 32px; }
+    .ovr { gap: 8px; }
+    .ovr-num { font-size: 46px; }
+    .ovr-label { margin-bottom: 2px; font-size: 10px; }
+    .facts { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+    .facts div { gap: 2px; padding: 4px 5px; }
+    .facts dt { font-size: 8.5px; letter-spacing: 0; }
+    .facts dd { font-size: 14px; }
+    .facts .fat-bar { height: 3px; }
+    .life-strip { margin-top: -2px; font-size: 10px; }
+    .rail-search { min-height: 30px; font-size: 12px; }
+    .rail-coach { gap: 5px; padding: 7px 8px; }
+    .rc-ovr { font-size: 26px; }
+    .rc-who b { font-size: 14px; }
+    .rc-attrs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px 8px; }
+    .rc-attrs li { font-size: 9.5px; }
+    .pyramid li { min-height: 24px; font-size: 9px; }
+    .rung-here { margin-top: -2px; font-size: 13px; }
+    .stage { padding: 10px; gap: 10px; }
+    .section-head .label, .squad .section-head > .label { font-size: 10px; }
+    .next { gap: 6px 10px; padding: 10px 12px; }
+    .next .eyebrow { font-size: 10px; }
+    .next h2 { font-size: 21px; }
+    .next .cta { min-height: 40px; font-size: 16px; }
+    .calendar { zoom: .86; }
+    .squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 128px; gap: 6px; }
+    .squad-strip > :global(*) { zoom: .78; }
+    .squad-actions .squad-btn { min-height: 30px; padding: 0 8px; font-size: 11px; }
+    .week-meter { padding: 2px 6px 2px 4px; }
+    .wm-pips i { width: 16px; height: 8px; }
+    .week-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+    .week-cards .wcard { padding: 6px 7px; }
+    .wcard b { font-size: 13px; }
+    .free-train { padding: 8px; }
+    .skills-pick button { min-height: 32px; font-size: 11px; }
+    .map-train { zoom: .86; }
+    .train-line { font-size: 12px; }
   }
 </style>
