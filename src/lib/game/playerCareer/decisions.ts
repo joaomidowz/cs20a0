@@ -204,9 +204,16 @@ export interface ClutchResolveInput {
   choice: 0 | 1 | 2;
   playerOverall: number;
   matesOverall: number;
+  /** Força do time adversário no motor (escala de time: ~6 acima da média dos jogadores). */
   opponentOverall: number;
   seed: string;
+  /** O momento do mapa (placar, sequência, dinheiro). Sem ele, a leitura usa só o texto e a força. */
+  round?: RoundContext | null;
+  /** Relação média com os parceiros (0-100): pesa no jogo de time. */
+  chemistry?: number | null;
 }
+
+export type ReadQuality = 'good' | 'ok' | 'bad';
 
 export interface ClutchResolve {
   profile: ClutchProfile;
@@ -214,38 +221,137 @@ export interface ClutchResolve {
   edge: number;
   /** Só para a aposta: pra que lado a moeda virou. */
   coin: 'heads' | 'tails' | null;
+  /** A leitura foi a certa (a melhor das 3), razoável ou errada. */
+  quality: ReadQuality;
+  /** A alternativa que era a leitura certa e o porquê, em uma frase. */
+  best: 0 | 1 | 2;
+  reason: string;
+}
+
+/** Força de time no motor fica uns 6 pontos acima da média dos jogadores: compara na mesma régua. */
+const TEAM_SCALE = 6;
+
+const CUE = {
+  advantage: /vantagem|4v|3v2|2v1|na frente|pós-plant|plantad|ganhou|fechar o mapa|controle|primeira kill|domin/,
+  disadvantage: /perd|atrás|1v2|1v3|contra três|contra dois|sozinho|último vivo|sem dinheiro|desvantagem|errou|morreu/,
+  repeat: /repete|mesma|sempre|frequente|padrão|hábito|rush|concentra|lê|ler /,
+  team: /time|trade|dupla|agrup|crossfire|junto|coletiv|flash|utilit|duplas/,
+  clock: /segundos|sem tempo|tempo|relógio/
+};
+
+interface ReadFactors { lead: number; late: boolean; eco: boolean; theirEco: boolean; skill: number; teamFactor: number; chemistry: number | null; cues: Record<keyof typeof CUE, boolean> }
+
+function factorsOf(input: Omit<ClutchResolveInput, 'choice'>): ReadFactors {
+  const round = input.round ?? null;
+  const text = input.situation.text.toLowerCase();
+  return {
+    lead: round ? round.us - round.them : 0,
+    late: round ? Math.max(round.us, round.them) >= 10 : false,
+    eco: round?.money !== null && round?.money !== undefined && round.money < 2400,
+    theirEco: round?.theirMoney !== null && round?.theirMoney !== undefined && round.theirMoney < 2400,
+    skill: clamp((input.playerOverall - (input.opponentOverall - TEAM_SCALE)) / 15, -1, 1),
+    teamFactor: clamp((input.matesOverall - (input.opponentOverall - TEAM_SCALE)) / 15, -1, 1),
+    chemistry: input.chemistry ?? null,
+    cues: Object.fromEntries(Object.entries(CUE).map(([key, pattern]) => [key, pattern.test(text)])) as ReadFactors['cues']
+  };
+}
+
+/** Quanto cada estilo encaixa no momento (quanto maior, mais certo). */
+function profileFit(profile: ClutchProfile, f: ReadFactors): number {
+  const lead = clamp(f.lead, -4, 4);
+  switch (profile) {
+    case 'solid':
+      return 0.1 + 0.08 * lead + (f.cues.advantage ? 0.25 : 0) + (f.theirEco ? 0.15 : 0) - (f.cues.disadvantage ? 0.2 : 0) - (f.late && f.lead <= -3 ? 0.3 : 0);
+    case 'read':
+      return 0.05 + 0.5 * f.skill + (f.cues.repeat ? 0.3 : 0) + (f.theirEco ? 0.1 : 0);
+    case 'gamble':
+      return -0.1 - 0.08 * lead + (f.eco ? 0.3 : 0) + (f.cues.disadvantage ? 0.25 : 0) + (f.cues.clock ? 0.15 : 0) - (f.theirEco ? 0.2 : 0) + 0.15 * f.skill;
+    case 'team':
+      return 0.35 * f.teamFactor + (f.chemistry !== null ? (f.chemistry - 60) / 100 : 0) + (f.cues.team ? 0.25 : 0) + (f.cues.advantage ? 0.1 : 0) - (f.eco ? 0.1 : 0);
+  }
+}
+
+/** Por que aquela era a leitura certa, em uma frase curta. */
+function reasonOf(profile: ClutchProfile, f: ReadFactors): string {
+  if (profile === 'solid') {
+    if (f.lead >= 2) return `Com ${f.lead} rounds de vantagem, segurar era o certo.`;
+    if (f.theirEco) return 'Contra o eco deles, bastava jogar o básico.';
+    if (f.cues.advantage) return 'Com a vantagem no round, o plano seguro era o certo.';
+    return 'O momento pedia calma e disciplina.';
+  }
+  if (profile === 'read') {
+    if (f.skill >= 0.2) return 'Você é melhor que eles no duelo: a leitura era o caminho.';
+    if (f.cues.repeat) return 'Eles vinham repetindo a jogada: dava para ler.';
+    return 'Dava para ler o adversário naquele round.';
+  }
+  if (profile === 'gamble') {
+    if (f.lead <= -2) return `Atrás por ${-f.lead}, era hora de arriscar.`;
+    if (f.eco) return 'Sem dinheiro, só a aposta virava o round.';
+    if (f.cues.disadvantage) return 'Em desvantagem, esperar não salvava o round.';
+    return 'O round pedia uma jogada de coragem.';
+  }
+  if ((f.chemistry ?? 0) >= 75) return 'O time está entrosado: jogar junto era o certo.';
+  return 'O round pedia o time junto, não um herói.';
+}
+
+/** A leitura de cada alternativa no momento: nota, posição (0 = a certa) e o porquê da certa. Um desempate fixo
+ *  por situação evita que a resposta vire fórmula decorada. */
+export function readOf(input: Omit<ClutchResolveInput, 'choice'>): { fits: number[]; ranks: Array<0 | 1 | 2>; best: 0 | 1 | 2; worst: 0 | 1 | 2; reason: string } {
+  const f = factorsOf(input);
+  const fits = input.situation.alternatives.map((alternative, index) => {
+    const noise = (createSeededRng(`${input.situation.id}:${alternative.profile}:${index}:read`)() - 0.5) * 0.3;
+    return profileFit(alternative.profile, f) + noise;
+  });
+  const order = [0, 1, 2].sort((a, b) => fits[b] - fits[a]) as Array<0 | 1 | 2>;
+  const ranks = [0, 0, 0] as Array<0 | 1 | 2>;
+  order.forEach((choice, rank) => { ranks[choice] = rank as 0 | 1 | 2; });
+  return { fits, ranks, best: order[0], worst: order[2], reason: reasonOf(input.situation.alternatives[order[0]].profile, f) };
 }
 
 /**
- * A consequência da leitura: SOLID sempre dá um pequeno empurrão; READ escala com o seu overall contra o do
- * adversário (estrela lê, frango se atravessa); GAMBLE é moeda enviesada pelo seu nível — ou o round do campeonato
- * ou o erro que custa o mapa; TEAM depende da qualidade de quem joga com você. O RNG é seeded: mesma carreira,
- * mesmo round, mesmo resultado.
+ * A consequência da leitura. Cada momento tem uma alternativa certa (placar, sequência, dinheiro, lado, a sua força
+ * contra a deles e a química do time): a certa vale de +0.09 a +0.12 no round, a do meio quase nada e a errada de
+ * −0.06 a −0.08. A aposta ainda vira moeda (acerta mais quem é melhor). O RNG é seeded: mesma carreira, mesmo
+ * round, mesmo resultado. O efeito vale para o round da call.
  */
 export function resolveClutchEdge(input: ClutchResolveInput): ClutchResolve {
   const alternative = input.situation.alternatives[input.choice] ?? input.situation.alternatives[0];
-  const skill = clamp((input.playerOverall - input.opponentOverall) / 30, 0, 1);
-  const teamFactor = clamp((input.matesOverall - input.opponentOverall) / 30, 0, 1);
-  const rng = createSeededRng(`${input.seed}:${input.situation.id}:${input.choice}`);
-  let edge = 0;
+  const read = readOf(input);
+  const rank = read.ranks[input.choice] ?? 1;
+  const [first, second, third] = [...read.fits].sort((a, b) => b - a);
+  let edge = rank === 0 ? 0.1 + 0.04 * clamp((first - second) / 0.5, 0, 1) : rank === 1 ? 0.015 : -0.06 - 0.02 * clamp((second - third) / 0.5, 0, 1);
   let coin: ClutchResolve['coin'] = null;
-  switch (alternative.profile) {
-    case 'solid':
-      edge = 0.03 + 0.02 * skill;
-      break;
-    case 'read':
-      edge = 0.035 + (skill - 0.4) * 0.14;
-      break;
-    case 'gamble': {
-      coin = rng() < 0.45 + skill * 0.25 ? 'heads' : 'tails';
-      edge = (coin === 'heads' ? 1 : -1) * (0.07 + 0.04 * skill);
-      break;
-    }
-    case 'team':
-      edge = 0.02 + 0.06 * teamFactor;
-      break;
+  if (alternative.profile === 'gamble') {
+    const skill = clamp((input.playerOverall - (input.opponentOverall - TEAM_SCALE)) / 15, -1, 1);
+    coin = createSeededRng(`${input.seed}:${input.situation.id}:${input.choice}`)() < 0.5 + 0.2 * skill ? 'heads' : 'tails';
+    edge += coin === 'heads' ? 0.03 : -0.05;
   }
-  return { profile: alternative.profile, edge: clamp(edge, -0.15, 0.15), coin };
+  return { profile: alternative.profile, edge: clamp(edge, -0.15, 0.15), coin, quality: rank === 0 ? 'good' : rank === 1 ? 'ok' : 'bad', best: read.best, reason: read.reason };
+}
+
+/** O histórico das suas calls: quantas, quantas leituras certas e quantos rounds ganhos, por estilo. */
+export interface DecisionLog {
+  calls: number;
+  good: number;
+  ok: number;
+  bad: number;
+  roundsWon: number;
+  byProfile: Partial<Record<ClutchProfile, { calls: number; good: number; won: number }>>;
+}
+
+export const EMPTY_DECISIONS: DecisionLog = { calls: 0, good: 0, ok: 0, bad: 0, roundsWon: 0, byProfile: {} };
+
+export function logDecision(log: DecisionLog | undefined, profile: ClutchProfile, quality: ReadQuality, won: boolean): DecisionLog {
+  const base = log ?? EMPTY_DECISIONS;
+  const mine = base.byProfile[profile] ?? { calls: 0, good: 0, won: 0 };
+  return {
+    calls: base.calls + 1,
+    good: base.good + (quality === 'good' ? 1 : 0),
+    ok: base.ok + (quality === 'ok' ? 1 : 0),
+    bad: base.bad + (quality === 'bad' ? 1 : 0),
+    roundsWon: base.roundsWon + (won ? 1 : 0),
+    byProfile: { ...base.byProfile, [profile]: { calls: mine.calls + 1, good: mine.good + (quality === 'good' ? 1 : 0), won: mine.won + (won ? 1 : 0) } }
+  };
 }
 
 /** A história do round decisivo: o que a SUA escolha causou — não só ganhou/perdeu. */

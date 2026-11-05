@@ -12,6 +12,7 @@ import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import { myFluency, teamLanguage, type Language } from './language';
 import type { Rival } from './rivals';
+import type { DecisionLog } from './decisions';
 import type { MapId } from '../types';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
@@ -294,6 +295,8 @@ export interface PlayerCareerState {
   kickedMates?: Record<string, Array<{ nick: string; replacement: string; delta: number }>>;
   /** Temporada em que você já pediu a saída de alguém (uma vez por temporada). */
   kickRequestedSeason?: number;
+  /** As suas calls no round decisivo: leituras certas, razoáveis e erradas, rounds ganhos, por estilo. */
+  decisions?: DecisionLog;
   /** Temporada em que você já pediu para sair (uma vez por temporada). */
   transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */

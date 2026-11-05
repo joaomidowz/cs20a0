@@ -24,13 +24,13 @@
   import { MAP_NAMES } from '$lib/game/maps';
   import { toSeriesResult } from '$lib/game/online/live-series';
   import { createRunStats } from '$lib/game/runStats';
-  import { clutchStory, situationBomb, type ClutchProfile } from '$lib/game/playerCareer/decisions';
+  import { clutchStory, logDecision, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { seatsWithSeason, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
@@ -63,13 +63,14 @@
     { level: 4, label: 'CCT / GC', short: 'CCT' },
     { level: 5, label: 'Lan House', short: 'Lan' }
   ];
-  /** O risco de cada call, do jeito que resolveClutchEdge (decisions.ts) de fato resolve o round. */
+  /** Quando cada estilo é a leitura certa (decisions.ts, readOf): a certa vale muito, a errada custa o round. */
   const RISK: Record<ClutchProfile, { label: string; hint: string }> = {
-    solid: { label: 'Seguro', hint: 'Empurrão pequeno e garantido a seu favor.' },
-    read: { label: 'Leitura', hint: 'Rende mais quanto maior o seu overall contra o deles.' },
-    gamble: { label: 'All-in', hint: 'Moeda: ou ganha o round no braço, ou custa caro.' },
-    team: { label: 'Coletivo', hint: 'Depende do nível dos parceiros contra o deles.' }
+    solid: { label: 'Seguro', hint: 'Certo com vantagem no placar, no round ou contra eco.' },
+    read: { label: 'Leitura', hint: 'Certo quando você é melhor no duelo ou eles repetem jogada.' },
+    gamble: { label: 'All-in', hint: 'Certo atrás no placar, sem dinheiro ou sem tempo. É moeda.' },
+    team: { label: 'Coletivo', hint: 'Certo com o time entrosado e em vantagem numérica.' }
   };
+  const QUALITY_LABEL: Record<ReadQuality, string> = { good: 'Leitura certa', ok: 'Leitura razoável', bad: 'Leitura errada' };
   const MONTH_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   type PlayMode = NonNullable<PlayerCareerState['playMode']>;
   const PLAY_MODE_OPTIONS = [
@@ -118,15 +119,17 @@
   let liveSetup: EventSetup = { swiss: false, swissOnly: false, opponents: 7, levels: [3, 5], finalBestOf: 3, stage: null };
   let stageBanner: string | null = null;
   let clutch: SceneClutchMoment | null = null;
-  let lastCall: { text: string; won: boolean; story: string } | null = null;
-  let callOutcome: { text: string; won: boolean; story: string } | null = null;
+  /** O que a call deu: o round, a história e se a leitura foi a certa (e qual era). */
+  type CallResult = { text: string; won: boolean; story: string; quality?: ReadQuality; reason?: string; bestText?: string };
+  let lastCall: CallResult | null = null;
+  let callOutcome: CallResult | null = null;
   /** O round decisivo acabou de rodar: o kill feed ainda está contando a história. */
   let resolving = false;
   /** Enquanto o round decisivo roda (e o resultado está na tela), o viewer fica parado no mapa/round da sua
    *  call — senão, quando a call fecha o mapa ou a série, ele pula pro próximo antes do kill feed tocar. */
   let frozenView: { map: number; round: number } | null = null;
   let resolveFallback: number | null = null;
-  let pendingOutcome: { text: string; won: boolean; story: string } | null = null;
+  let pendingOutcome: CallResult | null = null;
   let matesOverall = 70;
   let running = false;
   let speed: keyof typeof SPEED_DELAYS = 'ultra';
@@ -704,15 +707,19 @@
       frozenView = { map: clutch.mapIndex, round: clutch.roundNumber };
     }
     const opponent = clutch.series.config.teamA.id === live.userTeamId ? clutch.series.config.teamB : clutch.series.config.teamA;
+    const relations = squadMates.map((mate) => mate.relationship);
     const outcome = playClutchRound(live, clutch, {
       choice,
       playerOverall: career.overall,
       matesOverall,
       opponentOverall: Math.round(opponent.power),
+      chemistry: relations.length ? relations.reduce((sum, value) => sum + value, 0) / relations.length : null,
       playerId: `${career.seed}:me`
     });
     live = outcome.campaign;
+    career = { ...career, decisions: logDecision(career.decisions, outcome.profile, outcome.quality, outcome.won) };
     const alternative = clutch.situation.alternatives[choice].text;
+    const read = { quality: outcome.quality, reason: outcome.reason, bestText: clutch.situation.alternatives[outcome.best].text };
     const story = clutchStory(outcome.profile, alternative, outcome.won, outcome.kills);
     usedIds = [...usedIds, clutch.situation.id];
     persistUsedIds();
@@ -720,12 +727,12 @@
     persistLive();
     if (auto) {
       // Call no seu estilo: o resultado vira o chip da última call e o campeonato segue sem parar.
-      lastCall = { text: alternative, won: outcome.won, story };
+      lastCall = { text: alternative, won: outcome.won, story, ...read };
       void run();
       return;
     }
     resolving = true;
-    pendingOutcome = { text: alternative, won: outcome.won, story };
+    pendingOutcome = { text: alternative, won: outcome.won, story, ...read };
     // O viewer avisa quando o kill feed do round terminou (onRoundResolved); isto é só a rede de segurança.
     resolveFallback = window.setTimeout(showOutcome, Math.round(SPEED_DELAYS.normal * LAST_ROUND_FEED_FACTOR) + 2500);
   }
@@ -1036,6 +1043,7 @@
   $: outcomeOutside = Boolean(callOutcome && (viewerFinished || !viewerSeries));
   $: totalTitles = career?.history.reduce((sum, logEntry) => sum + logEntry.titles, 0) ?? 0;
   $: langFit = career ? myLanguageFit(career) : null;
+  $: clutchCtx = live && clutch ? roundContextOf(live, clutch.series) : null;
   $: myCardInfo = career ? cardInfoFor(career, career.orgId) : null;
   $: oppCardInfo = career && opponentOrg ? cardInfoFor(career, viewingOwn ? career.orgId : opponentOrg.id) : null;
   $: scoutHits = career && scoutOpen ? scoutPlayers(career, scoutQuery) : [];
@@ -1430,6 +1438,14 @@
                       <div class="clutch-q">
                         <p class="eyebrow">Sua call{#if clutchMoment} · <span class="moment" class:planted={clutchMoment.planted}>{clutchMoment.text}</span>{/if}</p>
                         <h2 class="display">{clutch.situation.text}</h2>
+                        {#if clutchCtx}
+                          <p class="clutch-ctx">
+                            <span>Placar <b>{clutchCtx.us}-{clutchCtx.them}</b></span>
+                            {#if clutchCtx.winStreak >= 2}<span class="up">{clutchCtx.winStreak} rounds seguidos a favor</span>{:else if clutchCtx.lossStreak >= 2}<span class="down">{clutchCtx.lossStreak} rounds seguidos perdidos</span>{/if}
+                            {#if clutchCtx.money !== null && clutchCtx.money < 2400}<span class="down">vocês no eco</span>{/if}
+                            {#if clutchCtx.theirMoney !== null && clutchCtx.theirMoney < 2400}<span class="up">eles no eco</span>{/if}
+                          </p>
+                        {/if}
                       </div>
                       <div class="calls">
                         {#each clutch.situation.alternatives as alternative, index}
@@ -1452,6 +1468,7 @@
                     <section class="outcome" class:lost={!callOutcome.won} use:scrollToPanel aria-label="Resultado da sua call">
                       <span class="eyebrow">Sua call · {callOutcome.text}</span>
                       <p class="outcome-line">{callOutcome.won ? 'Round ganho' : 'Round perdido'}</p>
+                      {#if callOutcome.quality}<p class="read-line read-{callOutcome.quality}"><b>{QUALITY_LABEL[callOutcome.quality]}.</b> {callOutcome.quality !== 'good' && callOutcome.bestText ? `A certa era ${callOutcome.bestText.charAt(0).toLowerCase()}${callOutcome.bestText.slice(1)}. ` : ''}{callOutcome.reason}</p>{/if}
                       <p class="outcome-story">{callOutcome.story}</p>
                       <button class="outcome-btn" on:click={continueAfterCall}>Continuar</button>
                     </section>
@@ -1470,13 +1487,14 @@
             <section class="outcome" class:lost={!callOutcome.won} use:scrollToPanel aria-label="Resultado da sua call">
               <span class="eyebrow">Sua call · {callOutcome.text}</span>
               <p class="outcome-line">{callOutcome.won ? 'Round ganho' : 'Round perdido'}</p>
+              {#if callOutcome.quality}<p class="read-line read-{callOutcome.quality}"><b>{QUALITY_LABEL[callOutcome.quality]}.</b> {callOutcome.quality !== 'good' && callOutcome.bestText ? `A certa era ${callOutcome.bestText.charAt(0).toLowerCase()}${callOutcome.bestText.slice(1)}. ` : ''}{callOutcome.reason}</p>{/if}
               <p class="outcome-story">{callOutcome.story}</p>
               <button class="outcome-btn" on:click={continueAfterCall}>Continuar</button>
             </section>
           {:else if resolving}
             <p class="last-call resolving" role="status">Round decisivo rodando em velocidade normal…</p>
           {:else if lastCall && !callOutcome && !clutch}
-            <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{autoCall ? ' · no seu estilo' : ''}</p>
+            <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{lastCall.quality ? ` · ${QUALITY_LABEL[lastCall.quality].toLowerCase()}` : ''}{autoCall ? ' · no seu estilo' : ''}</p>
           {/if}
 
         {:else}
@@ -1775,7 +1793,7 @@
           <ol class="my-games">
             {#each sheetEntry.result.opponents as game, gameIndex (gameIndex)}
               <li class:won={game.won} class:lost={!game.won}>
-                <span class="mg-phase">{PHASE_LABEL[game.phase ?? ''] ?? 'Série'}</span>
+                <span class="mg-phase">{sheetEntry.format !== 'major' && game.phase === 'stage3' ? 'Suíça' : PHASE_LABEL[game.phase ?? ''] ?? 'Série'}</span>
                 <TeamBadge id={orgIdByName(game.team)} orgId={orgIdByName(game.team)} name={game.team} size="sm" />
                 <b class="mg-team">{game.team}</b>
                 <span class="mg-score">{game.score ?? ''}</span>
@@ -1789,7 +1807,7 @@
           {@const shown = stages.find((entry) => entry.stage === sheetStageTab) ?? stages.find((entry) => entry.standings.some((standing) => standing.you)) ?? stages[stages.length - 1]}
           <div class="stage-tabs" role="tablist" aria-label="Tabela de cada stage">
             {#each stages as entry (entry.stage)}
-              <button role="tab" aria-selected={shown.stage === entry.stage} class:on={shown.stage === entry.stage} on:click={() => (sheetStageTab = entry.stage)}>{PHASE_LABEL[entry.stage]}</button>
+              <button role="tab" aria-selected={shown.stage === entry.stage} class:on={shown.stage === entry.stage} on:click={() => (sheetStageTab = entry.stage)}>{sheetEntry.format !== 'major' && entry.stage === 'stage3' ? 'Suíça' : PHASE_LABEL[entry.stage]}</button>
             {/each}
           </div>
           <ol class="stage-table">
@@ -1813,8 +1831,8 @@
                 <div class="bracket-games">
                 {#each bracket.filter((line) => line.phase === column.phase) as line, lineIndex (`${column.phase}-${lineIndex}`)}
                   <div class="bracket-match" class:mine={Boolean(line.you)}>
-                    <span class:won={line.aWon} class:me={line.you === 'a'}><em>{line.a}</em><b>{line.scoreA}</b></span>
-                    <span class:won={!line.aWon} class:me={line.you === 'b'}><em>{line.b}</em><b>{line.scoreB}</b></span>
+                    <span class:won={line.aWon} class:me={line.you === 'a'}><i class="bm-team"><TeamBadge id={orgIdByName(line.a)} orgId={orgIdByName(line.a)} name={line.a} size="sm" /><em>{line.a}</em></i><b>{line.scoreA}</b></span>
+                    <span class:won={!line.aWon} class:me={line.you === 'b'}><i class="bm-team"><TeamBadge id={orgIdByName(line.b)} orgId={orgIdByName(line.b)} name={line.b} size="sm" /><em>{line.b}</em></i><b>{line.scoreB}</b></span>
                   </div>
                 {/each}
                 </div>
@@ -2322,6 +2340,15 @@
   .rung-short { display: none; }
   .seat-line { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .seat-line b { color: var(--text); }
+  .clutch-ctx { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+  .clutch-ctx b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .clutch-ctx .up { color: var(--accent); }
+  .clutch-ctx .down { color: var(--accent-2); }
+  .read-line { margin: 0; padding: 8px 10px; border-left: 3px solid var(--muted); background: color-mix(in srgb, var(--surface) 70%, transparent); font-size: 14px; line-height: 1.45; }
+  .read-line.read-good { border-left-color: var(--accent); }
+  .read-line.read-good b { color: var(--accent); }
+  .read-line.read-bad { border-left-color: var(--accent-2); }
+  .read-line.read-bad b { color: var(--accent-2); }
   .seat-link { padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; cursor: pointer; }
   .seat-link:hover { color: var(--accent); }
   .scout-modal { width: min(680px, calc(100vw - 32px)); }
@@ -2412,10 +2439,11 @@
   .bracket-col .label { margin: 0 0 2px; }
   .bracket-match { display: grid; border: 1px solid var(--line); background: var(--surface-2); }
   .bracket-match.mine { border-color: var(--accent); }
-  .bracket-match span { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; color: var(--muted); font-size: 13px; }
-  .bracket-match span + span { border-top: 1px solid var(--line); }
-  .bracket-match span.won { color: var(--text); font-weight: 700; }
-  .bracket-match span.me em { color: var(--accent); }
+  .bracket-match > span { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; color: var(--muted); font-size: 13px; }
+  .bracket-match > span + span { border-top: 1px solid var(--line); }
+  .bracket-match > span.won { color: var(--text); font-weight: 700; }
+  .bracket-match > span.me em { color: var(--accent); }
+  .bm-team { display: flex; align-items: center; gap: 8px; min-width: 0; font-style: normal; }
   .bracket-match em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
   .bracket-match b { font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums; }
 

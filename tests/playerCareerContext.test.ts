@@ -110,6 +110,9 @@ describe('o seu time na mesma régua dos rivais', () => {
     const index = state.calendar!.findIndex((entry) => entry.format !== 'major');
     const { campaign, userPlayers } = startSceneEvent(state, index);
     const expected = calculateHistoricalTeamPower(sceneOrgToEngineTeam({ ...furia, id: campaign.userTeamId, name: furia.name }, userPlayers), userPlayers).power;
-    expect(campaign.engine.byId.get(campaign.userTeamId)!.team.power).toBeCloseTo(expected, 5);
+    // Mesma conta dos rivais, mais a forma do campeonato (± EVENT_FORM_SWING, igual para todo mundo).
+    const { EVENT_FORM_SWING } = await import('../src/lib/game/playerCareer/live');
+    expect(Math.abs(campaign.engine.byId.get(campaign.userTeamId)!.team.power - expected)).toBeLessThanOrEqual(EVENT_FORM_SWING);
+    expect(campaign.engine.byId.get(campaign.userTeamId)!.team.style).toBeUndefined();
   });
 });

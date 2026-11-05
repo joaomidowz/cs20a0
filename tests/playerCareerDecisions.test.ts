@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { armClutchCall, MAX_CLUTCH_EDGE, createMapState, isMapFinished, playNextRound } from '../src/lib/game/rounds';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { CombatTeam, TeamSide } from '../src/lib/game/types';
-import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, resolveClutchEdge, situationsFor, type ClutchProfile } from '../src/lib/game/playerCareer/decisions';
+import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, readOf, resolveClutchEdge, situationsFor, type ClutchProfile, type RoundContext } from '../src/lib/game/playerCareer/decisions';
 import { clutchGate, playClutchRound, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
 import { chooseStartingOrg, createPlayerCareer, startSeason } from '../src/lib/game/playerCareer/engine';
 
@@ -60,33 +60,52 @@ describe('matriz de decisões (6 funções × 45 + 60 gerais)', () => {
     for (const situation of used.map((id) => situationsFor('igl').find((candidate) => candidate.id === id)!)) expect(situation).toBeTruthy();
   });
 
-  it('edge fica sempre dentro do teto: solid empurra, read escala com o nível, gamble é moeda, time segue o elenco', () => {
-    const situation = DECISION_MATRIX.awper[0]; // perfis solid / read / gamble nas três alternativas
-    const base = { situation, seed: 'edge-seed', opponentOverall: 80, matesOverall: 80 };
-    const solid = resolveClutchEdge({ ...base, choice: 0, playerOverall: 60 });
-    expect(solid.profile).toBe('solid');
-    expect(solid.edge).toBeGreaterThan(0);
-    expect(solid.edge).toBeLessThanOrEqual(MAX_CLUTCH_EDGE);
-
-    const starRead = resolveClutchEdge({ ...base, choice: 1, playerOverall: 95 });
-    const weakRead = resolveClutchEdge({ ...base, choice: 1, playerOverall: 60 });
-    expect(starRead.edge).toBeGreaterThan(weakRead.edge); // a leitura rende conforme o jogador
-
-    let heads = 0;
-    let tails = 0;
-    for (let roll = 0; roll < 40; roll += 1) {
-      const gamble = resolveClutchEdge({ ...base, choice: 2, playerOverall: 75, seed: `gamble:${roll}` });
-      expect(Math.abs(gamble.edge)).toBeLessThanOrEqual(MAX_CLUTCH_EDGE);
-      if (gamble.coin === 'heads') heads += 1; else tails += 1;
+  it('cada call tem uma leitura certa (+0.09 a +0.12), uma razoável e uma errada (−0.06 a −0.08), sempre no teto', () => {
+    for (const situation of [...DECISION_MATRIX.awper, ...SHARED_SITUATIONS].slice(0, 60)) {
+      const base = { situation, seed: 'edge-seed', opponentOverall: 92, matesOverall: 86, playerOverall: 88, chemistry: 70 };
+      const results = ([0, 1, 2] as const).map((choice) => resolveClutchEdge({ ...base, choice }));
+      expect(new Set(results.map((result) => result.quality))).toEqual(new Set(['good', 'ok', 'bad']));
+      for (const result of results) {
+        expect(Math.abs(result.edge)).toBeLessThanOrEqual(MAX_CLUTCH_EDGE);
+        expect(result.reason.length).toBeGreaterThan(10);
+        expect(result.reason).not.toMatch(/—/);
+        if (result.profile === 'gamble') continue; // a aposta ainda vira moeda
+        if (result.quality === 'good') expect(result.edge).toBeGreaterThanOrEqual(0.09);
+        if (result.quality === 'bad') expect(result.edge).toBeLessThanOrEqual(-0.06);
+      }
+      expect(results[results[0].best].quality).toBe('good');
     }
-    expect(heads).toBeGreaterThan(0);
-    expect(tails).toBeGreaterThan(0); // a aposta vira dos dois lados conforme o seed
+  });
 
-    const teamSituation = DECISION_MATRIX.awper.find((situarion) => situarion.alternatives.some((alt) => alt.profile === 'team'))!;
+  it('a leitura segue o momento: atrás e sem dinheiro a aposta acerta mais; na frente, o seguro', () => {
+    const withBoth = [...DECISION_MATRIX.awper, ...DECISION_MATRIX.entry, ...SHARED_SITUATIONS]
+      .filter((situation) => situation.alternatives.some((alt) => alt.profile === 'gamble') && situation.alternatives.some((alt) => alt.profile === 'solid'));
+    const bestProfile = (round: RoundContext) => withBoth.map((situation) => {
+      const read = readOf({ situation, seed: 's', opponentOverall: 92, matesOverall: 86, playerOverall: 88, chemistry: 60, round });
+      return situation.alternatives[read.best].profile;
+    });
+    const trailing = bestProfile({ round: 20, us: 8, them: 11, winStreak: 0, lossStreak: 3, lastWon: false, money: 1500, theirMoney: 6000 });
+    const leading = bestProfile({ round: 20, us: 11, them: 8, winStreak: 3, lossStreak: 0, lastWon: true, money: 6000, theirMoney: 1500 });
+    const share = (list: string[], profile: string) => list.filter((value) => value === profile).length / list.length;
+    expect(share(trailing, 'gamble')).toBeGreaterThan(share(leading, 'gamble') + 0.2);
+    expect(share(leading, 'solid')).toBeGreaterThan(share(trailing, 'solid') + 0.2);
+  });
+
+  it('craque lê melhor e time forte joga melhor junto; a aposta vira dos dois lados', () => {
+    const situation = DECISION_MATRIX.awper[0];
+    const readChoice = situation.alternatives.findIndex((alt) => alt.profile === 'read') as 0 | 1 | 2;
+    const star = resolveClutchEdge({ situation, choice: readChoice, seed: 'r', opponentOverall: 92, matesOverall: 86, playerOverall: 99 });
+    const weak = resolveClutchEdge({ situation, choice: readChoice, seed: 'r', opponentOverall: 92, matesOverall: 86, playerOverall: 70 });
+    expect(star.edge).toBeGreaterThanOrEqual(weak.edge);
+    const teamSituation = DECISION_MATRIX.awper.find((candidate) => candidate.alternatives.some((alt) => alt.profile === 'team'))!;
     const teamChoice = teamSituation.alternatives.findIndex((alt) => alt.profile === 'team') as 0 | 1 | 2;
-    const teamPlay = resolveClutchEdge({ situation: teamSituation, choice: teamChoice, playerOverall: 80, matesOverall: 95, opponentOverall: 80, seed: 'team' });
-    const weakTeam = resolveClutchEdge({ situation: teamSituation, choice: teamChoice, playerOverall: 80, matesOverall: 60, opponentOverall: 80, seed: 'team' });
-    expect(teamPlay.edge).toBeGreaterThan(weakTeam.edge); // jogar com o time depende do time
+    const strong = resolveClutchEdge({ situation: teamSituation, choice: teamChoice, seed: 't', opponentOverall: 92, matesOverall: 97, playerOverall: 88, chemistry: 95 });
+    const loose = resolveClutchEdge({ situation: teamSituation, choice: teamChoice, seed: 't', opponentOverall: 92, matesOverall: 75, playerOverall: 88, chemistry: 30 });
+    expect(strong.edge).toBeGreaterThanOrEqual(loose.edge);
+    const gambleSituation = DECISION_MATRIX.awper.find((candidate) => candidate.alternatives.some((alt) => alt.profile === 'gamble'))!;
+    const gambleChoice = gambleSituation.alternatives.findIndex((alt) => alt.profile === 'gamble') as 0 | 1 | 2;
+    const coins = new Set(Array.from({ length: 40 }, (_, roll) => resolveClutchEdge({ situation: gambleSituation, choice: gambleChoice, seed: `g:${roll}`, opponentOverall: 92, matesOverall: 86, playerOverall: 88 }).coin));
+    expect(coins).toEqual(new Set(['heads', 'tails']));
   });
 });
 

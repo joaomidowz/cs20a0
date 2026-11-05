@@ -84,7 +84,7 @@ export function myPlayerOf(state: PlayerCareerState): Player {
 export const fanBoost = (fame: number | undefined): number => ((fame ?? 0) >= 100000 ? 2 : (fame ?? 0) >= 20000 ? 1 : 0);
 
 /** Entrosada joga junto: relação alta dá até +3 de overall pro parceiro, baixa tira até 2. */
-export const synergyBump = (relationship: number): number => clamp(Math.round((relationship - 55) / 15), -2, 3);
+export const synergyBump = (relationship: number): number => (relationship >= 85 ? 2 : relationship >= 70 ? 1 : relationship < 25 ? -2 : relationship < 40 ? -1 : 0);
 
 export interface SquadMate {
   player: Player;
@@ -221,7 +221,7 @@ export function talkTo(state: PlayerCareerState, mateId: string): TalkResult {
 export interface ResultExtras { mvp?: boolean; aces?: number; quads?: number; clutches?: number }
 
 export function celebrateResult(state: PlayerCareerState, placement: string, level = 4, extras: ResultExtras = {}): PlayerCareerState {
-  const delta = placement === 'Campeão' ? 5 : placement === 'Vice' ? 2 : placement === 'Semis' ? 0 : -3;
+  const delta = placement === 'Campeão' ? 3 : placement === 'Vice' ? 2 : placement === 'Semis' ? 0 : -3;
   const relationships: Record<string, number> = { ...state.relationships };
   // Laço não fica no teto sozinho: depois do resultado, a relação volta 8% em direção a 60.
   for (const mate of matesOf(state)) {

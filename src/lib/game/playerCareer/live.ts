@@ -19,7 +19,7 @@ import {
 import type { LiveSeriesState } from '../online/live-series';
 import { armClutchCall, getCurrentSideA } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
-import { drawClutchSituation, resolveClutchEdge, type RoundContext } from './decisions';
+import { drawClutchSituation, readOf, resolveClutchEdge, type ReadQuality, type RoundContext } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
@@ -191,6 +191,13 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
     const available = pool.filter((org) => !picked.includes(org));
     while (picked.length < until && available.length) picked.push(available.splice(Math.floor(rng() * available.length), 1)[0]);
   };
+  // Tier S chama os melhores: o ranking decide, com um pouco de sorteio (às vezes um top fica fora pelo calendário).
+  if (entry?.tier === 'S' && share === 0) {
+    const ranked = widen(null, setup.opponents)
+      .map((org) => ({ org, score: (org.power ?? ORG_BASE_POWER[org.level] ?? 80) + rng() * 4 }))
+      .sort((a, b) => b.score - a.score);
+    picked.push(...ranked.slice(0, setup.opponents).map((item) => item.org));
+  }
   if (regional > 0) draw(widen(true, regional), regional);
   // O resto vem de fora da região (ou de qualquer lugar, se a região não fechar a chave).
   if (share < 1) draw(widen(share > 0 ? false : null, setup.opponents - picked.length), setup.opponents);
@@ -306,6 +313,9 @@ function majorFullField(state: PlayerCareerState, entryStage: MajorStageKey, see
   return { picked, rosters, tierAt };
 }
 
+/** Quanto a forma de um campeonato muda a força de cada time (±). */
+export const EVENT_FORM_SWING = 3.5;
+
 export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, stage: MajorStageKey | null = null): SceneEventField {
   const setup = eventSetup(state, eventIndex, stage);
   const entry = state.calendar?.[eventIndex];
@@ -343,16 +353,25 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   // padrão, elenco completo). Antes saía da conta da Dinastia, que deixava o time do jogador 5 a 8 pontos acima de
   // um time do computador com os mesmos jogadores (FURIA com você ganhava 72% dos Tier S; sem você, uns 40%).
   const fair = calculateHistoricalTeamPower(sceneOrgToEngineTeam({ ...(userOrg as SceneOrg), id: campaign.userTeamId, name: userName }, userPlayers), allPlayers);
-  const level = { name: userName, isUser: true, power: fair.power, mental: fair.mental, clutch: fair.clutch, experience: fair.experience, consistency: fair.consistency };
+  // Sem estilo, como os rivais: o 'balanced' da Dinastia dava ao seu time pistol e dia ruim melhores que os deles.
+  const level = { name: userName, isUser: true, power: fair.power, mental: fair.mental, clutch: fair.clutch, experience: fair.experience, consistency: fair.consistency, style: undefined };
   if (organization) {
     organization.name = userName;
     organization.team = { ...organization.team, ...level };
   }
+  // Forma do campeonato: cada time (o seu também) chega um pouco acima ou abaixo, fixo pela seed. Gera zebra e
+  // impede que o mais forte ganhe sempre.
+  const formOf = (teamId: string) => (createSeededRng(`${seed}:form:${teamId}`)() - 0.5) * 2 * EVENT_FORM_SWING;
+  for (const org of campaign.engine.byId.values()) org.team = { ...org.team, power: org.team.power + formOf(org.id) };
   for (const standing of campaign.engine.standings) if (standing.organizationId === campaign.userTeamId) standing.name = userName;
   const openSeries = currentCampaignSeries(campaign);
   if (openSeries) {
-    if (openSeries.config.teamA.id === campaign.userTeamId) openSeries.config.teamA = { ...openSeries.config.teamA, ...level };
-    else openSeries.config.teamB = { ...openSeries.config.teamB, ...level };
+    const synced = (team: typeof openSeries.config.teamA) => {
+      const current = campaign.engine.byId.get(team.id)?.team;
+      return team.id === campaign.userTeamId ? { ...team, ...level, power: current?.power ?? team.power } : current ? { ...team, power: current.power } : team;
+    };
+    openSeries.config.teamA = synced(openSeries.config.teamA);
+    openSeries.config.teamB = synced(openSeries.config.teamB);
   }
   return { campaign, userPlayers };
 }
@@ -497,6 +516,8 @@ export interface SceneClutchPlay {
   playerOverall: number;
   matesOverall: number;
   opponentOverall: number;
+  /** Relação média com os parceiros (0-100). */
+  chemistry?: number | null;
 }
 
 export interface SceneClutchOutcome {
@@ -508,20 +529,31 @@ export interface SceneClutchOutcome {
   coin: 'heads' | 'tails' | null;
   /** Suas eliminações no round decisivo (do kill feed real, só as do SEU jogador). */
   kills: number;
+  /** A leitura foi certa, razoável ou errada; qual era a certa e por quê. */
+  quality: ReadQuality;
+  best: 0 | 1 | 2;
+  reason: string;
 }
+
+/** O embalo da call no round seguinte: leitura certa ajuda, errada atrapalha. */
+export const CALL_CARRY_GOOD = 0.05;
+export const CALL_CARRY_BAD = 0.03;
 
 /** Sua call no round decisivo: arma o edge na probabilidade do round e ele roda no motor — RNG decide. */
 export function playClutchRound(campaign: CampaignMajorState, moment: SceneClutchMoment, play: SceneClutchPlay): SceneClutchOutcome {
   const live = currentCampaignSeries(campaign);
-  if (!live?.current) return { campaign, won: false, profile: 'solid', edge: 0, coin: null, kills: 0 };
+  if (!live?.current) return { campaign, won: false, profile: 'solid', edge: 0, coin: null, kills: 0, quality: 'ok', best: 0, reason: '' };
   const userSide: TeamSide = live.config.teamA.id === campaign.userTeamId ? 'a' : 'b';
-  const resolve = resolveClutchEdge({ ...play, situation: moment.situation, seed: moment.drawSeed });
+  const resolve = resolveClutchEdge({ ...play, situation: moment.situation, seed: moment.drawSeed, round: roundContextOf(campaign, live) });
   armClutchCall(live.current.state, userSide, resolve.edge);
   const stepped = stepCampaignSeries(campaign);
   const after = currentCampaignSeries(stepped) ?? live;
+  // A leitura certa embala o time no round seguinte; a errada abala (sem gastar call: só o round que vem).
+  const carry = resolve.quality === 'good' ? CALL_CARRY_GOOD : resolve.quality === 'bad' ? -CALL_CARRY_BAD : 0;
+  if (carry && after.current && after.current.index === moment.mapIndex && !after.current.state.finished && !after.current.state.pendingClutchCall) after.current.state.pendingClutchCall = { side: userSide, edge: carry };
   const detail = after.current ? after.current.state.details.at(-1) : after.maps.at(-1)?.details?.at(-1) ?? null;
   const kills = detail ? detail.kills.filter((kill) => kill.killerSide === userSide && (!play.playerId || kill.killerId === play.playerId)).length : 0;
-  return { campaign: stepped, won: detail ? detail.winner === userSide : false, profile: resolve.profile, edge: resolve.edge, coin: resolve.coin, kills };
+  return { campaign: stepped, won: detail ? detail.winner === userSide : false, profile: resolve.profile, edge: resolve.edge, coin: resolve.coin, kills, quality: resolve.quality, best: resolve.best, reason: resolve.reason };
 }
 
 export interface SceneRunResult extends SceneStepResult {
@@ -706,22 +738,59 @@ export function sceneEventResult(state: PlayerCareerState, eventIndex: number, c
 }
 
 /** Roda o resto do campeonato sem pausas (o time decide os rounds decisivos sozinho). */
-export function finishSceneEvent(campaign: CampaignMajorState, maxSteps = 8000): CampaignMajorState {
+export function finishSceneEvent(campaign: CampaignMajorState, maxSteps = 8000, calls?: HeadlessCalls): CampaignMajorState {
   let current = campaign;
-  for (let guard = 0; guard < maxSteps && !current.finished; guard += 1) current = stepSceneEvent(current).campaign;
+  if (!calls || calls.policy === 'none') {
+    for (let guard = 0; guard < maxSteps && !current.finished; guard += 1) current = stepSceneEvent(current).campaign;
+    return current;
+  }
+  // Com política: o campeonato para nas suas calls e a política escolhe (medição/calibração, sem tela).
+  const used: string[] = [];
+  for (let guard = 0; guard < maxSteps && !current.finished; guard += 1) {
+    const step = stepSceneEvent(current, { role: calls.role, seed: calls.seed, usedSituationIds: used });
+    if (!step.clutch) { current = step.campaign; continue; }
+    used.push(step.clutch.situation.id);
+    current = playClutchRound(step.campaign, step.clutch, { ...headlessPlay(calls, step.campaign, step.clutch) }).campaign;
+  }
   return current;
 }
 
+/** Como a medição decide as calls: sem call, ao acaso, sempre a certa, sempre a errada ou sempre o mesmo estilo. */
+export type CallPolicy = 'none' | 'random' | 'best' | 'worst' | 'style';
+export interface HeadlessCalls {
+  policy: CallPolicy;
+  role: PlayerRole;
+  seed: string;
+  playerOverall: number;
+  matesOverall: number;
+  chemistry: number | null;
+  /** Para 'style': o perfil que você sempre escolhe. */
+  style?: ClutchSituation['alternatives'][number]['profile'];
+}
+
+function headlessPlay(calls: HeadlessCalls, campaign: CampaignMajorState, moment: SceneClutchMoment): SceneClutchPlay {
+  const opponent = moment.series.config.teamA.id === campaign.userTeamId ? moment.series.config.teamB : moment.series.config.teamA;
+  const base = { playerOverall: calls.playerOverall, matesOverall: calls.matesOverall, opponentOverall: Math.round(opponent.power), chemistry: calls.chemistry };
+  const read = readOf({ ...base, situation: moment.situation, seed: moment.drawSeed, round: roundContextOf(campaign, moment.series) });
+  const alternatives = moment.situation.alternatives;
+  let choice: 0 | 1 | 2 = 0;
+  if (calls.policy === 'best') choice = read.best;
+  else if (calls.policy === 'worst') choice = read.worst;
+  else if (calls.policy === 'style') choice = Math.max(0, alternatives.findIndex((alternative) => alternative.profile === (calls.style ?? 'solid'))) as 0 | 1 | 2;
+  else choice = Math.floor(createSeededRng(`${moment.drawSeed}:policy`)() * 3) as 0 | 1 | 2;
+  return { ...base, choice };
+}
+
 /** Simula um campeonato inteiro (ou o resto dele, a partir de um save) e devolve o fechamento. */
-export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }): SceneEventOutcome & { campaign: CampaignMajorState | null } {
+export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }, calls?: HeadlessCalls): SceneEventOutcome & { campaign: CampaignMajorState | null } {
   const entry = state.calendar?.[eventIndex];
   if (entry?.format === 'major') {
     const stage: MajorStageKey | null = fromStage ?? majorEntryStage(state);
     if (!stage) return { ...notQualified(state, eventIndex), campaign: null };
-    const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, stage).campaign);
+    const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, stage).campaign, 8000, calls);
     return { ...sceneEventResult(state, eventIndex, campaign, stage, carry), campaign };
   }
-  const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played).campaign);
+  const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played).campaign, 8000, calls);
   return { ...sceneEventResult(state, eventIndex, campaign), campaign };
 }
 
