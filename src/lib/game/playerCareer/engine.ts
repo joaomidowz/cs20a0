@@ -13,6 +13,8 @@ import { seasonAwards } from './awards';
 import { myFluency, teamLanguage, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
+import type { CareerLife } from './life';
+import type { Talk, TalkMemory } from './talks';
 import type { MapId } from '../types';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
@@ -314,6 +316,12 @@ export interface PlayerCareerState {
   decisions?: DecisionLog;
   /** Banco e escalação do seu time: o reserva, quem joga no lugar de quem e as funções trocadas pelo IGL. */
   squadPlan?: SquadPlan | null;
+  /** Vida fora do servidor: Mental, saudade, adaptação, pressão, confiança do coach, condição física (saves antigos: padrão). */
+  life?: CareerLife;
+  /** Memória das conversas fora de partida (últimas 30, quem ficou atravessado, cooldown das falas). */
+  talkMemory?: TalkMemory;
+  /** Conversa esperando a sua resposta (clique em Conversar, início da temporada, antes ou depois do campeonato). */
+  pendingTalk?: Talk | null;
   /** Temporada em que você já pediu para sair (uma vez por temporada). */
   transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */

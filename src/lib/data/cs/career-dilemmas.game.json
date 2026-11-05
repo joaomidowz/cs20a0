@@ -1,0 +1,1022 @@
+{
+ "dilemmas": [
+  {
+   "id": "dilema-001",
+   "title": "Férias na Europa",
+   "condition": [
+    "org europeia",
+    "jogador vivendo na Europa",
+    "pausa >= 7 dias"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Voltar ao país de origem",
+     "effects": {
+      "morale": 8,
+      "mind": 5,
+      "fatigue": 8,
+      "team": -1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Ficar e treinar com o elenco",
+     "effects": {
+      "attrs": {
+       "consistency": 3
+      },
+      "team": 3,
+      "morale": -4,
+      "fatigue": 7
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Viajar com dois colegas",
+     "effects": {
+      "morale": 4,
+      "mind": 2,
+      "team": 3,
+      "fatigue": 4
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-002",
+   "title": "Natal longe de casa",
+   "condition": [
+    "morando fora",
+    "dezembro",
+    "sem jogo oficial em 7 dias"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Pedir dispensa e visitar família",
+     "effects": {
+      "mind": 5,
+      "morale": 7,
+      "fatigue": 7
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Celebrar com companheiros no exterior",
+     "effects": {
+      "team": 4,
+      "mind": 2,
+      "morale": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Ficar sozinho e treinar",
+     "effects": {
+      "attrs": {
+       "firepower": 2
+      },
+      "mind": -5,
+      "morale": -5,
+      "fatigue": 6
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-003",
+   "title": "Convocação para bootcamp extra",
+   "condition": [
+    "org europeia",
+    "bootcamp opcional",
+    "família distante"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Participar integralmente",
+     "effects": {
+      "attrs": {
+       "consistency": 3
+      },
+      "team": 3,
+      "fatigue": 8,
+      "morale": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Negociar presença parcial",
+     "effects": {
+      "attrs": {
+       "consistency": 1
+      },
+      "team": 1,
+      "morale": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Priorizar visita planejada",
+     "effects": {
+      "morale": 5,
+      "mind": 3,
+      "team": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-004",
+   "title": "Proposta de transferência internacional",
+   "condition": [
+    "proposta estrangeira",
+    "time atual nacional"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Aceitar de imediato",
+     "effects": {
+      "morale": 3,
+      "fame": 200,
+      "mind": -2,
+      "fatigue": 7
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Pedir período de adaptação e visita à cidade",
+     "effects": {
+      "mind": 3,
+      "morale": 1,
+      "fatigue": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Recusar e continuar no país",
+     "effects": {
+      "mind": 2,
+      "team": 2,
+      "fame": -30
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-005",
+   "title": "Saudade após três meses",
+   "condition": [
+    "morando fora há >= 12 semanas",
+    "saudade alta"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Abrir conversa com psicólogo e manager",
+     "effects": {
+      "mind": 5,
+      "morale": 3,
+      "team": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Reservar viagem para a primeira folga",
+     "effects": {
+      "mind": 3,
+      "morale": 4,
+      "fatigue": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Ignorar para treinar mais",
+     "effects": {
+      "attrs": {
+       "firepower": 2
+      },
+      "mind": -4,
+      "morale": -4,
+      "fatigue": 7
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-006",
+   "title": "Semana de scrims com jogador famoso",
+   "condition": [
+    "tier >= 2",
+    "pro da posição acessível"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Treinar junto com estrela da sua função",
+     "effects": {
+      "attrs": {
+       "consistency": 3
+      },
+      "fame": 90,
+      "fatigue": 7
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Fazer duo e stream da sessão",
+     "effects": {
+      "attrs": {
+       "firepower": 1
+      },
+      "fame": 260,
+      "fatigue": 8
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Ficar com o plano do coach",
+     "effects": {
+      "attrs": {
+       "consistency": 2
+      },
+      "team": 2,
+      "fatigue": 5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-007",
+   "title": "Oferta de collab na véspera da final",
+   "condition": [
+    "final em até 3 dias",
+    "5000+ fãs"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Aceitar live longa",
+     "effects": {
+      "fame": 330,
+      "fatigue": 9,
+      "mind": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Gravar vídeo curto com limite",
+     "effects": {
+      "fame": 140,
+      "fatigue": 3,
+      "mind": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Recusar para descansar",
+     "effects": {
+      "mind": 3,
+      "fatigue": -5,
+      "fame": -40
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-008",
+   "title": "Eliminação por 13 a 0",
+   "condition": [
+    "perda histórica recente"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Rever demo com o time e dar declaração curta",
+     "effects": {
+      "mind": 2,
+      "team": 3,
+      "attrs": {
+       "consistency": 1
+      }
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Pedir alguns dias para processar e voltar",
+     "effects": {
+      "mind": 4,
+      "morale": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Responder críticas em live longa",
+     "effects": {
+      "fame": 180,
+      "mind": -4,
+      "team": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-009",
+   "title": "Titularidade ameaçada",
+   "condition": [
+    "reserva em alta",
+    "forma baixa"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Pedir sessão técnica individual",
+     "effects": {
+      "attrs": {
+       "consistency": 2
+      },
+      "mind": 2,
+      "fatigue": 5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Treinar em dobro sozinho",
+     "effects": {
+      "attrs": {
+       "firepower": 3
+      },
+      "fatigue": 12,
+      "mind": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Pedir conversa sobre função alternativa",
+     "effects": {
+      "mind": 3,
+      "attrs": {
+       "support": 2
+      },
+      "team": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-010",
+   "title": "Treinador cobra treino no dia de folga",
+   "condition": [
+    "time estruturado",
+    "carga alta"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Aceitar treino completo",
+     "effects": {
+      "attrs": {
+       "consistency": 2
+      },
+      "fatigue": 8,
+      "mind": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Negociar uma hora de review",
+     "effects": {
+      "attrs": {
+       "consistency": 1
+      },
+      "fatigue": 2,
+      "mind": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Usar folga contratual",
+     "effects": {
+      "mind": 3,
+      "morale": 2,
+      "team": -1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-011",
+   "title": "Conflito com IGL",
+   "condition": [
+    "tensão interna",
+    "IGL ativo"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Conversar em particular e construir plano",
+     "effects": {
+      "team": 4,
+      "mind": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Solicitar mediação do coach",
+     "effects": {
+      "team": 2,
+      "mind": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Questionar publicamente em live",
+     "effects": {
+      "fame": 100,
+      "team": -5,
+      "mind": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-012",
+   "title": "Pressão de torcida após Major",
+   "condition": [
+    "campanha ruim em Major",
+    "10000+ fãs"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Entrevista objetiva e assumir sua parte",
+     "effects": {
+      "fame": 120,
+      "mind": 1,
+      "fatigue": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Silenciar redes e buscar apoio",
+     "effects": {
+      "mind": 5,
+      "fatigue": -3,
+      "fame": -70
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Tentar responder a todos",
+     "effects": {
+      "fame": 190,
+      "mind": -4,
+      "fatigue": 8
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-013",
+   "title": "Lesão ou dor em semana decisiva",
+   "condition": [
+    "desconforto físico",
+    "jogo decisivo"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Procurar equipe médica e seguir orientação",
+     "effects": {
+      "mind": 2,
+      "fatigue": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Comunicar coach e rever carga de treino",
+     "effects": {
+      "team": 2,
+      "fatigue": -4
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Esconder sintomas e aumentar carga",
+     "effects": {
+      "attrs": {
+       "firepower": 1
+      },
+      "fatigue": 10,
+      "mind": -4
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-014",
+   "title": "Viagem longa entre eventos",
+   "condition": [
+    "dois eventos internacionais próximos"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Fazer planejamento de sono com staff",
+     "effects": {
+      "fatigue": -5,
+      "mind": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Usar folga restante para turismo",
+     "effects": {
+      "morale": 4,
+      "fatigue": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Treinar FACEIT até tarde",
+     "effects": {
+      "attrs": {
+       "firepower": 2
+      },
+      "fatigue": 9,
+      "mind": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-015",
+   "title": "Entrevista sobre colega em má fase",
+   "condition": [
+    "jornalista pergunta sobre colega criticado"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Defender esforço do elenco sem negar problemas",
+     "effects": {
+      "team": 3,
+      "fame": 80
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Pedir foco no seu próprio jogo",
+     "effects": {
+      "mind": 2,
+      "team": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Dizer que colega está atrapalhando",
+     "effects": {
+      "fame": 130,
+      "team": -5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-016",
+   "title": "Patrocínio pede gravação extra",
+   "condition": [
+    "campanha comercial ativa",
+    "semana apertada"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Aceitar toda a gravação",
+     "effects": {
+      "fame": 210,
+      "fatigue": 8,
+      "mind": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Negociar gravação menor",
+     "effects": {
+      "fame": 100,
+      "fatigue": 3,
+      "mind": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Pedir adiamento para pós-evento",
+     "effects": {
+      "mind": 3,
+      "fatigue": -2,
+      "fame": -30
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-017",
+   "title": "Primeiro mês na gaming house",
+   "condition": [
+    "mudança internacional há <= 4 semanas"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Participar de passeios com colegas",
+     "effects": {
+      "team": 4,
+      "morale": 3,
+      "fatigue": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Fazer rotina de idioma e descanso",
+     "effects": {
+      "lang": {
+       "target": "team",
+       "amount": 8
+      },
+      "mind": 2,
+      "fatigue": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Isolar-se e jogar solo",
+     "effects": {
+      "attrs": {
+       "firepower": 2
+      },
+      "team": -3,
+      "morale": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-018",
+   "title": "Semana sem campeonato",
+   "condition": [
+    "sem evento oficial",
+    "cansaço moderado"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Bootcamp técnico equilibrado",
+     "effects": {
+      "attrs": {
+       "consistency": 3
+      },
+      "fatigue": 5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Criar série de conteúdo",
+     "effects": {
+      "fame": 280,
+      "fatigue": 5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Folga e relações pessoais",
+     "effects": {
+      "mind": 4,
+      "morale": 4,
+      "fatigue": -5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-019",
+   "title": "Fim de contrato europeu",
+   "condition": [
+    "org europeia",
+    "contrato expira em 2 meses"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Renovar com calendário de visitas",
+     "effects": {
+      "team": 3,
+      "mind": 3,
+      "morale": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Buscar organização do país de origem",
+     "effects": {
+      "morale": 5,
+      "mind": 2,
+      "fame": 70
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Esperar propostas internacionais",
+     "effects": {
+      "fame": 110,
+      "mind": -2,
+      "team": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-020",
+   "title": "Ano sem evolução no Tier 2",
+   "condition": [
+    "tier 2",
+    "sem promoção há >= 2 temporadas"
+   ],
+   "cooldownWeeks": 26,
+   "options": [
+    {
+     "key": "A",
+     "text": "Mudar rotina com especialista da função",
+     "effects": {
+      "attrs": {
+       "consistency": 3
+      },
+      "fatigue": 5
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Buscar projeto de equipe diferente",
+     "effects": {
+      "mind": 2,
+      "team": -3,
+      "fame": 80
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Focar em estabilidade e saúde mental",
+     "effects": {
+      "mind": 4,
+      "morale": 3,
+      "fatigue": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-021",
+   "title": "Torneio grande e aniversário familiar",
+   "condition": [
+    "LAN coincide com evento familiar"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Competir e ligar antes do jogo",
+     "effects": {
+      "team": 2,
+      "mind": 1,
+      "morale": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Pedir dispensa com antecedência",
+     "effects": {
+      "morale": 5,
+      "team": -3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Convidar familiar se permitido",
+     "effects": {
+      "morale": 4,
+      "mind": 3,
+      "fatigue": 2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-022",
+   "title": "Convite para duo de um rival",
+   "condition": [
+    "rival conhecido",
+    "sem jogo hoje"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Aceitar e construir ponte",
+     "effects": {
+      "mind": 2,
+      "fame": 130,
+      "attrs": {
+       "consistency": 1
+      }
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Recusar sem criar polêmica",
+     "effects": {
+      "mind": 1,
+      "fatigue": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Fazer provocação em live",
+     "effects": {
+      "fame": 200,
+      "mind": -2,
+      "team": -1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-023",
+   "title": "Crise de confiança do elenco",
+   "condition": [
+    "três derrotas seguidas",
+    "mental do time baixo"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Conduzir conversa com staff",
+     "effects": {
+      "team": 4,
+      "mind": 3
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Pedir semana de treino mais curto",
+     "effects": {
+      "mind": 3,
+      "fatigue": -5,
+      "attrs": {
+       "consistency": -1
+      }
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Exigir dobrar scrims",
+     "effects": {
+      "attrs": {
+       "consistency": 2
+      },
+      "fatigue": 10,
+      "team": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  },
+  {
+   "id": "dilema-024",
+   "title": "Oferta de entrevista com repercussão",
+   "condition": [
+    "semana de anúncio",
+    "público elevado"
+   ],
+   "cooldownWeeks": 12,
+   "options": [
+    {
+     "key": "A",
+     "text": "Responder com transparência medida",
+     "effects": {
+      "fame": 130,
+      "mind": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "B",
+     "text": "Deixar manager cuidar do comunicado",
+     "effects": {
+      "mind": 3,
+      "team": 1
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    },
+    {
+     "key": "C",
+     "text": "Insinuar saída do time",
+     "effects": {
+      "fame": 220,
+      "team": -4,
+      "mind": -2
+     },
+     "result": "Conseqüências persistentes devem considerar histórico, adaptação e calendário."
+    }
+   ]
+  }
+ ]
+}

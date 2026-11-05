@@ -26,7 +26,10 @@
   import { MAP_NAMES } from '$lib/game/maps';
   import { toSeriesResult } from '$lib/game/online/live-series';
   import { createRunStats } from '$lib/game/runStats';
-  import { clutchStory, logDecision, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
+  import { clutchStory, logDecision, mapTarget, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
+  import { answerTalk, decisiveLine, dismissTalk, markLineUsed, momentTalk, seasonTalk, speakerOf, startTalk, MOMENT_LABEL, SITUATION_LABEL, type TalkChip, type TalkMoment } from '$lib/game/playerCareer/talks';
+  import { tickLife } from '$lib/game/playerCareer/tick';
+  import { lifeOf, livesAbroad } from '$lib/game/playerCareer/life';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
@@ -123,7 +126,7 @@
   let stageBanner: string | null = null;
   let clutch: SceneClutchMoment | null = null;
   /** O que a call deu: o round, a história e se a leitura foi a certa (e qual era). */
-  type CallResult = { text: string; won: boolean; story: string; quality?: ReadQuality; reason?: string; bestText?: string };
+  type CallResult = { text: string; won: boolean; story: string; quality?: ReadQuality; reason?: string; bestText?: string; quote?: { who: string; text: string } };
   let lastCall: CallResult | null = null;
   let callOutcome: CallResult | null = null;
   /** O round decisivo acabou de rodar: o kill feed ainda está contando a história. */
@@ -299,8 +302,12 @@
     if (!detailsPlayer && eventSheet === null) document.body.classList.remove('modal-open');
   }
 
+  /** Conversar: com situação no ar (atrito, mental, sequência), abre a conversa com 3 respostas; sem, é o papo rápido. */
   function chat(mateId: string) {
     if (!career) return;
+    const speaker = speakerOf(career, 'mate', mateId);
+    const talk = speaker ? startTalk(career, speaker) : null;
+    if (talk) { career = { ...career, pendingTalk: talk }; return; }
     const result = talkTo(career, mateId);
     career = result.state;
     lastTalk = { mateId: result.mateId, line: result.line, delta: result.delta };
@@ -308,6 +315,46 @@
     notify(result.mateId, `${nick}:`, `${result.line}${result.delta ? ` Relação ${result.delta > 0 ? '+' : '−'}${Math.abs(result.delta)}.` : ''}`, result.delta > 0 ? 'good' : result.delta < 0 ? 'bad' : 'neutral');
   }
 
+
+  function chatReserve() {
+    if (!career) return;
+    const speaker = speakerOf(career, 'reserve');
+    if (!speaker) return;
+    promoteOpen = false;
+    const talk = startTalk(career, speaker);
+    if (talk) { career = { ...career, pendingTalk: talk }; return; }
+    const result = talkTo(career, speaker.id);
+    career = result.state;
+    notify(`${career.seed}:me`, `${speaker.name} (banco):`, `${result.line}${result.delta ? ` Relação ${result.delta > 0 ? '+' : '−'}${Math.abs(result.delta)}.` : ''}`, result.delta > 0 ? 'good' : result.delta < 0 ? 'bad' : 'neutral');
+  }
+
+  let talkResult: { who: string; situation: string; moment: TalkMoment; line: string; chips: TalkChip[]; good: boolean; tip?: string } | null = null;
+
+  function answerPendingTalk(key: 'ouvir' | 'propor' | 'firme') {
+    if (!career?.pendingTalk) return;
+    const talk = career.pendingTalk;
+    const answer = answerTalk(career, key);
+    career = answer.state;
+    let tip: string | undefined;
+    // Conversa puxada por você com o coach: depois da resposta ele ainda dá a dica da temporada (conta 1 das 3).
+    if (talk.speaker.kind === 'coach' && talk.moment === 'click') {
+      const coached = coachTalk(career, myPlayerOf(career));
+      career = coached.state;
+      coachLine = coached.line;
+      tip = coached.line;
+    }
+    talkResult = { who: talk.speaker.name, situation: SITUATION_LABEL[talk.situation], moment: talk.moment, line: answer.line, chips: answer.chips, good: answer.good, tip };
+  }
+
+  function closeTalk() {
+    if (career?.pendingTalk) career = dismissTalk(career);
+    talkResult = null;
+    const queued = queuedStart;
+    queuedStart = null;
+    if (!career || !queued || career.pendingMove || career.calendar?.[queued.index]?.status !== 'UPCOMING') return;
+    if ((career.benchedEvents ?? 0) > 0) simulateEvent(queued.index);
+    else launchEntry(queued.index, queued.mode);
+  }
 
   function openEvent(index: number) {
     eventSheet = index;
@@ -354,6 +401,9 @@
       // Sem acontecimento, pode vir a provocação de um rival da chave.
       career = rollRival(career, index);
       if (career.pendingRival) { queuedStart = { index, mode }; return; }
+      // Nem acontecimento nem rival: alguém do time pode puxar conversa antes de viajar.
+      const preTalk = momentTalk(career, 'pre', index);
+      if (preTalk) { career = { ...career, pendingTalk: preTalk }; queuedStart = { index, mode }; return; }
     }
     launchEntry(index, mode);
   }
@@ -583,6 +633,10 @@
 
   /** Conversa pelo card do coach: a mesma do "Falar com o coach", com a resposta num aviso rápido. */
   function talkCoachCard() {
+    if (!career) return;
+    const speaker = talksLeft > 0 ? speakerOf(career, 'coach') : null;
+    const talk = speaker ? startTalk(career, speaker) : null;
+    if (talk) { career = { ...career, pendingTalk: talk }; return; }
     talkCoach();
     if (career && coachLine) notify(`${career.seed}:me`, `${coach?.name ?? 'Coach'}:`, coachLine, 'neutral');
   }
@@ -735,6 +789,10 @@
     }
     const opponent = clutch.series.config.teamA.id === live.userTeamId ? clutch.series.config.teamB : clutch.series.config.teamA;
     const relations = squadMates.map((mate) => mate.relationship);
+    const roundNow = roundContextOf(live, clutch.series);
+    const target = roundNow ? mapTarget(roundNow.us, roundNow.them) : 13;
+    const matchPoint = roundNow ? target - roundNow.us === 1 || target - roundNow.them === 1 : false;
+    const overtime = roundNow ? Math.min(roundNow.us, roundNow.them) >= 12 : false;
     const outcome = playClutchRound(live, clutch, {
       choice,
       playerOverall: career.overall,
@@ -744,9 +802,12 @@
       playerId: `${career.seed}:me`
     });
     live = outcome.campaign;
-    career = { ...career, decisions: logDecision(career.decisions, outcome.profile, outcome.quality, outcome.won) };
+    career = { ...career, decisions: logDecision(career.decisions, outcome.profile, outcome.quality, outcome.won, { key: `${career.seasonNumber}:${liveIndex}`, matchPoint }) };
+    // Alguém do time comenta o round (falas de round decisivo, com cooldown).
+    const said = decisiveLine(career, outcome.won, overtime, `${liveIndex}:${clutch.mapIndex}:${clutch.roundNumber}`);
+    if (said) career = markLineUsed(career, said.key);
     const alternative = clutch.situation.alternatives[choice].text;
-    const read = { quality: outcome.quality, reason: outcome.reason, bestText: clutch.situation.alternatives[outcome.best].text };
+    const read = { quality: outcome.quality, reason: outcome.reason, bestText: clutch.situation.alternatives[outcome.best].text, quote: said ? { who: said.who, text: said.text } : undefined };
     const story = clutchStory(outcome.profile, alternative, outcome.won, outcome.kills);
     usedIds = [...usedIds, clutch.situation.id];
     persistUsedIds();
@@ -836,7 +897,10 @@
         });
     // O rival do campeonato: enfrentou? ganhou ou perdeu dele?
     const settled = settleRival(celebrated, index, result);
-    const recorded = settled.state;
+    // A vida fora do servidor anda com o campeonato: Mental, pressão, saudade e adaptação (morando fora).
+    const lifeTick = tickLife(settled.state, result.benched ? null : result);
+    const recorded = lifeTick.state;
+    if (lifeTick.notes.length) notify(`${recorded.seed}:me`, 'Fora do servidor:', lifeTick.notes.join(' '), 'neutral');
     if (lastEventReport) lastEventReport = { ...lastEventReport, rivalLine: settled.line };
     live = null;
     clutch = null;
@@ -859,6 +923,13 @@
       // Depois do campeonato (ou na semana) pode rolar um acontecimento: chance pelo momento da carreira.
       career = rollHappening(career, 'post', { eventIndex: index, result });
       if (!career.pendingHappening) career = rollHappening(career, 'between', { eventIndex: index + 1 });
+      // Sem acontecimento: alguém do time pode puxar conversa (com match point perdido e Mental baixo, o coach).
+      if (!career.pendingHappening && !result.benched) {
+        const key = `${career.seasonNumber}:${index}`;
+        const lostMatchPoint = result.placement !== 'Campeão' && (career.decisions?.recent ?? []).some((call) => call.key === key && !call.won && call.matchPoint);
+        const postTalk = momentTalk(career, 'post', index, lostMatchPoint);
+        if (postTalk) career = { ...career, pendingTalk: postTalk };
+      }
     }
   }
 
@@ -1015,6 +1086,13 @@
     : [];
   $: evolving = career ? (Object.entries(career.trained ?? {}) as Array<[TrainedAttribute, number]>).filter(([, bonus]) => bonus).map(([key, bonus]) => ({ label: ATTR_LABEL[key], bonus })).sort((a, b) => b.bonus - a.bonus) : [];
   $: morale = career?.morale ?? 60;
+  $: life = career ? lifeOf(career) : null;
+  $: abroad = career && career.orgId !== 'lan-house' ? livesAbroad(career, (orgOf(career.orgId, career) as { region?: string }).region) : false;
+  // O coach abre a temporada: a meta do ano, antes do primeiro campeonato.
+  $: if (career && !live && career.status === 'ACTIVE' && !career.pendingTalk && !career.pendingHappening && !career.pendingRival && !career.pendingMove) {
+    const opening = seasonTalk(career);
+    if (opening) career = { ...career, pendingTalk: opening };
+  }
   $: form = career?.form ?? 0;
   $: fame = career?.fame ?? 0;
   $: fatigue = career?.fatigue ?? 0;
@@ -1362,7 +1440,11 @@
             <dt>Títulos</dt>
             <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
           </div>
-          <div title="Moral alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
+          <div title="Moral é a vontade de jogar. Alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
+          {#if life}<div title="Mental é aguentar pressão, crítica e derrota. Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Mental</dt><dd class:low={life.mind < 40} class:high={life.mind >= 75}>{life.mind}</dd></div>
+          <div title="Pressão de fora: tier, fãs e resultados. Alta (80+) pesa no Mental."><dt>Pressão</dt><dd class:low={life.pressure >= 80} class:high={life.pressure < 35}>{life.pressure}</dd></div>{/if}
+          {#if life && abroad}<div title="Morando fora: a saudade sobe com o tempo longe e cai com visita, amigos no time e idioma. Com 70+ tira moral."><dt>Saudade</dt><dd class:low={life.homesick >= 70} class:high={life.homesick < 30}>{life.homesick}</dd></div>
+          <div title="Adaptação ao país e ao time. Cresce com as semanas, o idioma e os amigos."><dt>Adaptação</dt><dd class:low={life.adaptation < 50} class:high={life.adaptation >= 80}>{life.adaptation}</dd></div>{/if}
           <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
           <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
           <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
@@ -1609,6 +1691,7 @@
                       <p class="outcome-line">{callOutcome.won ? 'Round ganho' : 'Round perdido'}</p>
                       {#if callOutcome.quality}<p class="read-line read-{callOutcome.quality}"><b>{QUALITY_LABEL[callOutcome.quality]}.</b> {callOutcome.quality !== 'good' && callOutcome.bestText ? `A certa era ${callOutcome.bestText.charAt(0).toLowerCase()}${callOutcome.bestText.slice(1)}. ` : ''}{callOutcome.reason}</p>{/if}
                       <p class="outcome-story">{callOutcome.story}</p>
+                      {#if callOutcome.quote}<p class="outcome-quote"><b>{callOutcome.quote.who}:</b> “{callOutcome.quote.text}”</p>{/if}
                       <button class="outcome-btn" on:click={continueAfterCall}>Continuar</button>
                     </section>
                   {/if}
@@ -1628,6 +1711,7 @@
               <p class="outcome-line">{callOutcome.won ? 'Round ganho' : 'Round perdido'}</p>
               {#if callOutcome.quality}<p class="read-line read-{callOutcome.quality}"><b>{QUALITY_LABEL[callOutcome.quality]}.</b> {callOutcome.quality !== 'good' && callOutcome.bestText ? `A certa era ${callOutcome.bestText.charAt(0).toLowerCase()}${callOutcome.bestText.slice(1)}. ` : ''}{callOutcome.reason}</p>{/if}
               <p class="outcome-story">{callOutcome.story}</p>
+              {#if callOutcome.quote}<p class="outcome-quote"><b>{callOutcome.quote.who}:</b> “{callOutcome.quote.text}”</p>{/if}
               <button class="outcome-btn" on:click={continueAfterCall}>Continuar</button>
             </section>
           {:else if resolving}
@@ -2088,6 +2172,7 @@
             </li>
           {/each}
         </ul>
+        <button class="secondary-btn small promote-talk" on:click={chatReserve}>Conversar com {benchReserve.nick}</button>
         <p class="modal-note">Quem sai vai para o banco e não gosta (relação −12). Se o reserva for claramente melhor, o resto do elenco entende. O reserva joga na função da vaga; fora da função dele, rende 2 a menos.</p>
       </div>
     </div>
@@ -2319,6 +2404,38 @@
             {/each}
           </div>
           <p class="happening-odds">Se a {career.pendingRival.orgName} cruzar o seu caminho neste campeonato, o confronto vale moral e fãs.</p>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
+  {#if career && !live && (career.pendingTalk || talkResult) && !career.pendingHappening && !happeningResult && !career.pendingRival && !rivalResult && !career.pendingMove}
+    {@const talk = career.pendingTalk}
+    <div class="modal-backdrop" role="presentation">
+      <div class="modal wide happening talk" role="alertdialog" aria-modal="true" aria-labelledby="talk-title" use:focusInside>
+        {#if talkResult}
+          <span class="eyebrow">{MOMENT_LABEL[talkResult.moment]}{talkResult.moment === 'season' ? '' : ` · ${talkResult.situation}`}</span>
+          <h2 class="display" id="talk-title">{talkResult.who}</h2>
+          <p class="happening-line" class:bad={!talkResult.good}>{talkResult.line}</p>
+          {#if talkResult.tip}<p class="talk-tip"><b>Dica:</b> {talkResult.tip}</p>{/if}
+          {#if talkResult.chips.length}
+            <ul class="happening-chips">
+              {#each talkResult.chips as chip (chip.label)}
+                <li class:up={chip.label === 'Cansaço' || chip.label === 'Pressão' ? chip.value < 0 : chip.value > 0} class:down={chip.label === 'Cansaço' || chip.label === 'Pressão' ? chip.value > 0 : chip.value < 0}>{chip.label} {chip.value > 0 ? '+' : '−'}{Math.abs(chip.value)}</li>
+              {/each}
+            </ul>
+          {/if}
+          <button class="cta" data-autofocus on:click={closeTalk}>{queuedStart && career.calendar?.[queuedStart.index]?.status === 'UPCOMING' ? 'Ir para o campeonato' : 'Continuar'}</button>
+        {:else if talk}
+          <span class="eyebrow">{MOMENT_LABEL[talk.moment]}{talk.moment === 'season' ? '' : ` · ${SITUATION_LABEL[talk.situation]}`}</span>
+          <h2 class="display" id="talk-title">{talk.speaker.name}<small class="talk-who">{talk.speaker.kind === 'coach' ? 'coach' : `${talk.speaker.kind === 'reserve' ? 'reserva · ' : ''}${ROLE_SHORT[talk.speaker.role as PlayerRole] ?? ''}`}</small></h2>
+          <p class="talk-quote">“{talk.line}”</p>
+          <div class="happening-choices">
+            {#each talk.options as option, optionIndex (option.key)}
+              <button class="happening-choice" data-autofocus={optionIndex === 0 ? '' : undefined} on:click={() => answerPendingTalk(option.key)}>{option.text}</button>
+            {/each}
+          </div>
+          <button class="link-btn talk-skip" on:click={closeTalk}>Deixar para depois</button>
         {/if}
       </div>
     </div>
@@ -3204,6 +3321,14 @@
   .happening-odds b { color: var(--text); }
   .happening-line { margin: 0; font-size: 16px; line-height: 1.45; }
   .happening-line.bad { color: var(--accent-2); }
+  .talk-who { margin-left: 10px; color: var(--muted); font: 600 13px/1 var(--body); text-transform: uppercase; letter-spacing: 0.08em; vertical-align: middle; }
+  .talk-quote { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 17px; line-height: 1.45; }
+  .talk-tip { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .talk-tip b { color: var(--text); }
+  .talk-skip { justify-self: start; }
+  .promote-talk { margin: 4px 0 0; }
+  .outcome-quote { margin: 8px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+  .outcome-quote b { color: var(--text); }
   .happening-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .happening-chips li { padding: 4px 8px; border: 1px solid var(--line); font: 700 12px/1 var(--body); color: var(--muted); }
   .happening-chips li.up { border-color: var(--accent); color: var(--accent); }

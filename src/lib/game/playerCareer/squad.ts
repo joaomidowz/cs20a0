@@ -13,6 +13,7 @@ import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
 import { MAP_NAMES } from '../maps';
 import type { MapId } from '../types';
+import { mindBump } from './life';
 import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
@@ -77,7 +78,8 @@ export function myPlayerOf(state: PlayerCareerState): Player {
   const overall = clamp(state.overall + clamp(state.form ?? 0, -3, 3) - fatiguePenalty(state.fatigue), 40, 99);
   const card = applyTrained(enginePlayer(`${state.seed}:me`, state.nick, overall, state.role, rng), state.trained ?? {});
   // Torcida joga junto: com 20 mil fãs +1 de Mental, com 100 mil +2 (a pressão vira combustível).
-  const mental = moraleBump(state.morale) + fanBoost(state.fame);
+  // O Mental de fora do servidor (life.mind) puxa até 3 para cada lado.
+  const mental = moraleBump(state.morale) + fanBoost(state.fame) + mindBump(state.life?.mind);
   return mental ? { ...card, mental: clamp(Number(card.mental ?? 60) + mental, 40, 99) } : card;
 }
 

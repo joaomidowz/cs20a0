@@ -155,7 +155,7 @@ export interface RoundContext {
 const LOW_MONEY = 2400;
 const FULL_BUY = 3600;
 /** Rounds para fechar o mapa: 13 no tempo normal; na prorrogação, 16, 19, 22… */
-const mapTarget = (us: number, them: number) => (Math.min(us, them) >= 12 ? 16 + 3 * Math.floor((Math.min(us, them) - 12) / 3) : 13);
+export const mapTarget = (us: number, them: number) => (Math.min(us, them) >= 12 ? 16 + 3 * Math.floor((Math.min(us, them) - 12) / 3) : 13);
 
 /** A situação só cai quando o que ela diz é verdade no mapa: "perderam três seguidos" só depois de três derrotas,
  *  "último round do half" só no 12, eco só com o dinheiro curto. Sem regra, serve a qualquer momento. */
@@ -350,14 +350,17 @@ export interface DecisionLog {
   bad: number;
   roundsWon: number;
   byProfile: Partial<Record<ClutchProfile, { calls: number; good: number; won: number }>>;
+  /** As últimas 12 calls: campeonato (temporada:índice), se ganhou o round e se era match point de alguém. */
+  recent?: Array<{ key: string; won: boolean; matchPoint: boolean }>;
 }
 
 export const EMPTY_DECISIONS: DecisionLog = { calls: 0, good: 0, ok: 0, bad: 0, roundsWon: 0, byProfile: {} };
 
-export function logDecision(log: DecisionLog | undefined, profile: ClutchProfile, quality: ReadQuality, won: boolean): DecisionLog {
+export function logDecision(log: DecisionLog | undefined, profile: ClutchProfile, quality: ReadQuality, won: boolean, call?: { key: string; matchPoint: boolean }): DecisionLog {
   const base = log ?? EMPTY_DECISIONS;
   const mine = base.byProfile[profile] ?? { calls: 0, good: 0, won: 0 };
   return {
+    ...(call ? { recent: [...(base.recent ?? []), { key: call.key, won, matchPoint: call.matchPoint }].slice(-12) } : base.recent ? { recent: base.recent } : {}),
     calls: base.calls + 1,
     good: base.good + (quality === 'good' ? 1 : 0),
     ok: base.ok + (quality === 'ok' ? 1 : 0),

@@ -1,0 +1,5683 @@
+{
+ "originals": [
+  {
+   "id": "treino-mira",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-util",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-clutch",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-entrada",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-recuperacao",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-awp",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-demos",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-pistol",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-ct",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-maratona",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "amigos-ranked",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "amigos-mix",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "scrim-forte",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "scrim-fraco",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "faceit-noite",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "amigos-retake",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "amigos-1v1",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "bootcamp-europa",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)"
+   ]
+  },
+  {
+   "id": "bootcamp-casa",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)"
+   ]
+  },
+  {
+   "id": "bootcamp-mapa",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)"
+   ]
+  },
+  {
+   "id": "bootcamp-fisico",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)"
+   ]
+  },
+  {
+   "id": "bootcamp-lan",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)"
+   ]
+  },
+  {
+   "id": "stream-ranked",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "stream-tutorial",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "stream-maratona",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "video-jogadas",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "react-final",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "collab-streamer",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "1000+ fãs"
+   ]
+  },
+  {
+   "id": "sair-redes",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-mortes",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-calls",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-funcao",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-cobranca",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-anti",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-papo",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-protagonismo",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "psicologo",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "coach-mira-particular",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "analista",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "preparador",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "nutricionista",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "mentoria-veterano",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "aula-comunicacao",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "empresario",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "jantar-time",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "alinhar-igl",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "resolver-atrito",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "treino-dupla",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "viagem-time",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "cobrar-time",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "folga",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "familia",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "academia",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "ajustar-sono",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "balada",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "outro-jogo",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "ouvir-propostas",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "prometer-lealdade",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  },
+  {
+   "id": "patrocinio",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "300+ fãs"
+   ]
+  },
+  {
+   "id": "aula-ingles",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "ainda há idioma para aprender"
+   ]
+  },
+  {
+   "id": "ranked-gringa",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "ainda há idioma para aprender"
+   ]
+  },
+  {
+   "id": "aula-idioma-time",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "time de verdade (não lan house)",
+    "ainda há idioma para aprender"
+   ]
+  },
+  {
+   "id": "entrevista",
+   "rarity": "comum",
+   "cooldownWeeks": 3,
+   "condition": [
+    "sempre"
+   ]
+  }
+ ],
+ "activities": [
+  {
+   "id": "sem-duo-com-awper-profissional",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "jogador AWPer acessível"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Duo com AWPer profissional",
+   "text": "Jogue FACEIT com um AWPer de outra equipe para entender posicionamento e trade.",
+   "effects": {
+    "attrs": {
+     "awp": 1,
+     "consistency": 1
+    },
+    "morale": 2,
+    "fatigue": 7
+   },
+   "line": "Duo com AWPer profissional: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-duo-com-entry-agressivo",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "jogador entry acessível"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Duo com entry agressivo",
+   "text": "Entre em partidas com um entry conhecido por acelerar o mapa.",
+   "effects": {
+    "attrs": {
+     "entry": 2,
+     "firepower": 1
+    },
+    "fatigue": 9
+   },
+   "line": "Duo com entry agressivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-com-estrela-internacional",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "contato internacional e idioma suficiente"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG com estrela internacional",
+   "text": "Aceite uma PUG com uma estrela fora da sua região.",
+   "effects": {
+    "fame": 110,
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": 8
+   },
+   "line": "PUG com estrela internacional: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-faceit-com-desconhecidos",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "FACEIT com desconhecidos",
+   "text": "Jogue solo em fila competitiva para treinar adaptação.",
+   "effects": {
+    "attrs": {
+     "firepower": 2
+    },
+    "mind": -1,
+    "fatigue": 9
+   },
+   "line": "FACEIT com desconhecidos: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-premade-com-tres-veteranos",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "três veteranos acessíveis"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Premade com três veteranos",
+   "text": "Jogue com veteranos que corrigem suas decisões durante a partida.",
+   "effects": {
+    "attrs": {
+     "consistency": 2,
+     "igl": 1
+    },
+    "fatigue": 7
+   },
+   "line": "Premade com três veteranos: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-com-rival-de-campeonato",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "rivalidade ativa"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG com rival de campeonato",
+   "text": "Jogue com um antigo rival em uma fila pública.",
+   "effects": {
+    "mind": 1,
+    "fame": 90,
+    "fatigue": 7
+   },
+   "line": "PUG com rival de campeonato: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-duo-com-promessa-da-base",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "contato na base"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Duo com promessa da base",
+   "text": "Convide uma promessa da academia para jogar e ensinar fundamentos.",
+   "effects": {
+    "morale": 2,
+    "team": 1,
+    "fatigue": 5
+   },
+   "line": "Duo com promessa da base: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-sem-comunicacao-por-voz",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG sem comunicação por voz",
+   "text": "Jogue partidas usando apenas informações mínimas para treinar leitura.",
+   "effects": {
+    "attrs": {
+     "consistency": 1
+    },
+    "mind": -2,
+    "fatigue": 7
+   },
+   "line": "PUG sem comunicação por voz: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-focada-em-clutches",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG focada em clutches",
+   "text": "Jogue partidas priorizando decisões de fim de round e pós-plant.",
+   "effects": {
+    "attrs": {
+     "clutch": 2,
+     "consistency": 1
+    },
+    "fatigue": 8
+   },
+   "line": "PUG focada em clutches: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-faceit-com-torcida-assistindo",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "500+ fãs"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "FACEIT com torcida assistindo",
+   "text": "Abra uma transmissão curta durante partidas de alto nível.",
+   "effects": {
+    "fame": 160,
+    "mind": -2,
+    "fatigue": 9
+   },
+   "line": "FACEIT com torcida assistindo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-com-ex-companheiro",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "histórico de ex-companheiros"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG com ex-companheiro",
+   "text": "Reencontre um colega de antigo elenco em partidas ranqueadas.",
+   "effects": {
+    "morale": 3,
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": 6
+   },
+   "line": "PUG com ex-companheiro: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-fila-em-servidor-estrangeiro",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "região estrangeira ou mudança planejada"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Fila em servidor estrangeiro",
+   "text": "Treine calls com jogadores da região onde deseja competir.",
+   "effects": {
+    "lang": {
+     "target": "team",
+     "amount": 5
+    },
+    "mind": 1,
+    "fatigue": 7
+   },
+   "line": "Fila em servidor estrangeiro: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-duo-com-jogador-mais-jovem",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "contato jovem acessível"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Duo com jogador mais jovem",
+   "text": "Teste estratégias improvisadas com alguém da nova geração.",
+   "effects": {
+    "attrs": {
+     "entry": 1,
+     "clutch": 1
+    },
+    "morale": 2,
+    "fatigue": 6
+   },
+   "line": "Duo com jogador mais jovem: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-com-igl-adversario",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "contato IGL de outra equipe"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG com IGL adversário",
+   "text": "Aprenda o raciocínio de um IGL de outro elenco na partida.",
+   "effects": {
+    "attrs": {
+     "igl": 2,
+     "consistency": 1
+    },
+    "fatigue": 7
+   },
+   "line": "PUG com IGL adversário: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-fila-em-horario-de-pico",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "servidor competitivo ativo"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "Fila em horário de pico",
+   "text": "Enfrente um pool mais forte em partidas de alto nível.",
+   "effects": {
+    "attrs": {
+     "firepower": 2
+    },
+    "mind": -1,
+    "fatigue": 10
+   },
+   "line": "Fila em horário de pico: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-pug-com-criador-de-conteudo",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "criador acessível"
+   ],
+   "category": "PUG e FACEIT",
+   "title": "PUG com criador de conteúdo",
+   "text": "Participe de uma fila mista com streamer do cenário.",
+   "effects": {
+    "fame": 220,
+    "morale": 1,
+    "fatigue": 7
+   },
+   "line": "PUG com criador de conteúdo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.22,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "Partidas tóxicas ou comunicação ruim deixaram a sessão mais desgastante."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-review-com-lurker-veterano",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função lurker ou rifler",
+    "mentor lurker disponível"
+   ],
+   "category": "Treino de posição",
+   "title": "Review com lurker veterano",
+   "text": "Analise timings, rotações e espaços em demos de um lurker experiente.",
+   "effects": {
+    "attrs": {
+     "consistency": 3,
+     "clutch": 1
+    },
+    "fatigue": 5
+   },
+   "line": "Review com lurker veterano: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-entry-com-especialista",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função entry",
+    "especialista entry acessível"
+   ],
+   "category": "Treino de posição",
+   "title": "Treino de entry com especialista",
+   "text": "Simule primeiras entradas com um jogador reconhecido pela abertura de rounds.",
+   "effects": {
+    "attrs": {
+     "entry": 3,
+     "firepower": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Treino de entry com especialista: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-awp-com-outro-sniper",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função awper",
+    "AWPer acessível"
+   ],
+   "category": "Treino de posição",
+   "title": "AWP com outro sniper",
+   "text": "Compare posicionamentos e timing de repeek com um AWPer profissional.",
+   "effects": {
+    "attrs": {
+     "awp": 3,
+     "consistency": 1
+    },
+    "fatigue": 7
+   },
+   "line": "AWP com outro sniper: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-suporte-com-especialista-em-flashes",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função support ou rifler"
+   ],
+   "category": "Treino de posição",
+   "title": "Suporte com especialista em flashes",
+   "text": "Treine pop flashes e protocolos para habilitar colegas.",
+   "effects": {
+    "attrs": {
+     "support": 3
+    },
+    "team": 1,
+    "fatigue": 6
+   },
+   "line": "Suporte com especialista em flashes: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-sala-de-calls-com-igl-veterano",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função IGL",
+    "mentor IGL disponível"
+   ],
+   "category": "Treino de posição",
+   "title": "Sala de calls com IGL veterano",
+   "text": "Desenhe respostas para execuções, fakes e leituras de economia.",
+   "effects": {
+    "attrs": {
+     "igl": 3
+    },
+    "mind": 1,
+    "fatigue": 7
+   },
+   "line": "Sala de calls com IGL veterano: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-anchor-no-bombsite",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função rifler ou support"
+   ],
+   "category": "Treino de posição",
+   "title": "Treino de anchor no bombsite",
+   "text": "Repita defesas de solo bomb até corrigir rotações e utilitárias.",
+   "effects": {
+    "attrs": {
+     "support": 2,
+     "consistency": 2
+    },
+    "fatigue": 8
+   },
+   "line": "Treino de anchor no bombsite: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-refrag-em-dupla",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "companheiro da mesma área disponível"
+   ],
+   "category": "Treino de posição",
+   "title": "Treino de refrag em dupla",
+   "text": "Faça drills de espaçamento e trade com o companheiro de posição.",
+   "effects": {
+    "attrs": {
+     "entry": 1,
+     "consistency": 2
+    },
+    "team": 2,
+    "fatigue": 7
+   },
+   "line": "Treino de refrag em dupla: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-especialista-em-pistols",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "mentor de pistol acessível"
+   ],
+   "category": "Treino de posição",
+   "title": "Especialista em pistols",
+   "text": "Faça uma sessão com jogador de alto desempenho em rounds pistol.",
+   "effects": {
+    "attrs": {
+     "firepower": 2,
+     "entry": 1
+    },
+    "fatigue": 6
+   },
+   "line": "Especialista em pistols: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-estudar-posicoes-do-mesmo-mapa",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "pro da mesma posição acessível"
+   ],
+   "category": "Treino de posição",
+   "title": "Estudar posições do mesmo mapa",
+   "text": "Compare sua POV à de um profissional da mesma função.",
+   "effects": {
+    "attrs": {
+     "consistency": 3
+    },
+    "fatigue": 5
+   },
+   "line": "Estudar posições do mesmo mapa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treinar-lurk-sem-informacao",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função lurker ou rifler"
+   ],
+   "category": "Treino de posição",
+   "title": "Treinar lurk sem informação",
+   "text": "Pratique decisões quando a equipe perde controle de mapa.",
+   "effects": {
+    "attrs": {
+     "clutch": 2,
+     "consistency": 2
+    },
+    "fatigue": 7
+   },
+   "line": "Treinar lurk sem informação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-awp-defensiva-versus-ofensiva",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função awper"
+   ],
+   "category": "Treino de posição",
+   "title": "AWP defensiva versus ofensiva",
+   "text": "Treine troca de ritmo com um sniper de estilo oposto ao seu.",
+   "effects": {
+    "attrs": {
+     "awp": 2
+    },
+    "mind": 1,
+    "fatigue": 7
+   },
+   "line": "AWP defensiva versus ofensiva: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-rifler-versus-awper-em-servidor",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função rifler ou entry"
+   ],
+   "category": "Treino de posição",
+   "title": "Rifler versus AWPer em servidor",
+   "text": "Jogue duelos repetidos contra AWP para corrigir wide peeks.",
+   "effects": {
+    "attrs": {
+     "firepower": 2,
+     "entry": 1
+    },
+    "fatigue": 9
+   },
+   "line": "Rifler versus AWPer em servidor: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-microposicionamento",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "analista disponível"
+   ],
+   "category": "Treino de posição",
+   "title": "Treino de microposicionamento",
+   "text": "Revise deslocamentos de pixels e ângulos favoráveis com analista.",
+   "effects": {
+    "attrs": {
+     "consistency": 3
+    },
+    "fatigue": 5
+   },
+   "line": "Treino de microposicionamento: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-mentoria-de-capitao",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "função IGL",
+    "veterano disponível"
+   ],
+   "category": "Treino de posição",
+   "title": "Mentoria de capitão",
+   "text": "Peça a um ex-IGL que explique como coordenar jogadores sob pressão.",
+   "effects": {
+    "attrs": {
+     "igl": 2
+    },
+    "mind": 2,
+    "fatigue": 6
+   },
+   "line": "Mentoria de capitão: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.14,
+    "effects": {
+     "fatigue": 4,
+     "mind": -1
+    },
+    "line": "A sessão expôs limitações e consumiu energia além do esperado."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-coach-de-rotina-semanal",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "coach disponível"
+   ],
+   "category": "Coach e análise",
+   "title": "Coach de rotina semanal",
+   "text": "Peça ao treinador plano adaptado aos seus erros recentes.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "mind": 1,
+    "team": 1,
+    "fatigue": 5
+   },
+   "line": "Coach de rotina semanal: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-coach-de-preparacao-para-rival",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "adversário definido"
+   ],
+   "category": "Coach e análise",
+   "title": "Coach de preparação para rival",
+   "text": "Estude tendências de um adversário para uma série importante.",
+   "effects": {
+    "attrs": {
+     "igl": 2,
+     "support": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Coach de preparação para rival: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-coach-particular-de-awp",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "função awper",
+    "dinheiro suficiente"
+   ],
+   "category": "Coach e análise",
+   "title": "Coach particular de AWP",
+   "text": "Contrate especialista em sniper para avaliar seu estilo.",
+   "effects": {
+    "attrs": {
+     "awp": 3
+    },
+    "fatigue": 6,
+    "morale": 1
+   },
+   "line": "Coach particular de AWP: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-coach-particular-de-entry",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "função entry",
+    "dinheiro suficiente"
+   ],
+   "category": "Coach e análise",
+   "title": "Coach particular de entry",
+   "text": "Treine reconhecimento de espaço, flash e entrada coordenada.",
+   "effects": {
+    "attrs": {
+     "entry": 3
+    },
+    "fatigue": 8
+   },
+   "line": "Coach particular de entry: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-comunicacao-tatica",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Coach e análise",
+   "title": "Treino de comunicação tática",
+   "text": "Receba feedback sobre clareza, timing e volume das calls.",
+   "effects": {
+    "attrs": {
+     "igl": 2
+    },
+    "team": 2,
+    "fatigue": 6
+   },
+   "line": "Treino de comunicação tática: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-estudo-de-adversario-surpresa",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "analista disponível"
+   ],
+   "category": "Coach e análise",
+   "title": "Estudo de adversário surpresa",
+   "text": "Peça ao analista uma análise sem saber o nome do rival antes.",
+   "effects": {
+    "attrs": {
+     "consistency": 2,
+     "igl": 1
+    },
+    "fatigue": 6
+   },
+   "line": "Estudo de adversário surpresa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-conversar-sobre-reserva",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "risco de banco ou disputa por titularidade"
+   ],
+   "category": "Coach e análise",
+   "title": "Conversar sobre reserva",
+   "text": "Peça clareza sobre seu lugar na rotação de jogadores.",
+   "effects": {
+    "mind": 2,
+    "team": 1,
+    "morale": -1
+   },
+   "line": "Conversar sobre reserva: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-com-treinador-convidado",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "convidado disponível"
+   ],
+   "category": "Coach e análise",
+   "title": "Treino com treinador convidado",
+   "text": "Participe de sessão com ex-coach de organização internacional.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "fame": 70,
+    "fatigue": 7
+   },
+   "line": "Treino com treinador convidado: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-coach-de-pos-derrota",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "derrota recente"
+   ],
+   "category": "Coach e análise",
+   "title": "Coach de pós-derrota",
+   "text": "Reveja decisões coletivas sem buscar culpados.",
+   "effects": {
+    "mind": 3,
+    "team": 2,
+    "fatigue": 5
+   },
+   "line": "Coach de pós-derrota: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-pressao-de-arena",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "próxima LAN ou tier A+"
+   ],
+   "category": "Coach e análise",
+   "title": "Treino de pressão de arena",
+   "text": "Simule ruído, pausas e torcida durante clutches.",
+   "effects": {
+    "mind": 3,
+    "attrs": {
+     "clutch": 1
+    },
+    "fatigue": 7
+   },
+   "line": "Treino de pressão de arena: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-analise-de-anti-estrategia",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Coach e análise",
+   "title": "Análise de anti-estratégia",
+   "text": "Construa resposta a padrões específicos com analista.",
+   "effects": {
+    "attrs": {
+     "igl": 2,
+     "support": 2
+    },
+    "fatigue": 7
+   },
+   "line": "Análise de anti-estratégia: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-mentoria-de-adaptacao-de-funcao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "mudança de função em discussão"
+   ],
+   "category": "Coach e análise",
+   "title": "Mentoria de adaptação de função",
+   "text": "Planeje transição de entry para support ou de rifle para IGL.",
+   "effects": {
+    "attrs": {
+     "consistency": 1,
+     "support": 1,
+     "igl": 1
+    },
+    "fatigue": 7
+   },
+   "line": "Mentoria de adaptação de função: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-reuniao-individual-com-manager",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "manager disponível"
+   ],
+   "category": "Coach e análise",
+   "title": "Reunião individual com manager",
+   "text": "Alinhe expectativas e papel no projeto esportivo.",
+   "effects": {
+    "mind": 2,
+    "morale": 1,
+    "team": 1
+   },
+   "line": "Reunião individual com manager: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-debater-veto-com-coach",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "próximo campeonato"
+   ],
+   "category": "Coach e análise",
+   "title": "Debater veto com coach",
+   "text": "Estude riscos de escolhas de mapa antes de série decisiva.",
+   "effects": {
+    "attrs": {
+     "igl": 2
+    },
+    "mind": 1,
+    "fatigue": 5
+   },
+   "line": "Debater veto com coach: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.13,
+    "effects": {
+     "morale": -2,
+     "mind": -1
+    },
+    "line": "O feedback foi difícil de ouvir e abalou a confiança por alguns dias."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-contra-academy-forte",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim contra academy forte",
+   "text": "Teste protocolos contra uma equipe de base bem treinada.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "fatigue": 8
+   },
+   "line": "Scrim contra academy forte: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-com-handicap-de-economia",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim com handicap de economia",
+   "text": "Jogue séries com compras limitadas para melhorar adaptação.",
+   "effects": {
+    "attrs": {
+     "igl": 2,
+     "clutch": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Scrim com handicap de economia: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-sem-coach-falando",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim sem coach falando",
+   "text": "Resolva problemas de mapa só com comunicação do quinteto.",
+   "effects": {
+    "attrs": {
+     "igl": 1
+    },
+    "mind": 1,
+    "team": 2,
+    "fatigue": 8
+   },
+   "line": "Scrim sem coach falando: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-contra-estilo-agressivo",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim contra estilo agressivo",
+   "text": "Enfrente adversário que acelera bombsites e pune setups lentos.",
+   "effects": {
+    "attrs": {
+     "support": 2,
+     "consistency": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Scrim contra estilo agressivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-contra-estilo-passivo",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim contra estilo passivo",
+   "text": "Pratique ganhar espaço contra defesas com paciência.",
+   "effects": {
+    "attrs": {
+     "entry": 2,
+     "igl": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Scrim contra estilo passivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-simulacao-de-overtime",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Simulação de overtime",
+   "text": "Jogue apenas rounds de prorrogação em placar apertado.",
+   "effects": {
+    "mind": 2,
+    "attrs": {
+     "clutch": 2
+    },
+    "fatigue": 9
+   },
+   "line": "Simulação de overtime: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-pistols-com-o-time",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Treino de pistols com o time",
+   "text": "Monte protocolos de round inicial e reação a force buys.",
+   "effects": {
+    "attrs": {
+     "support": 1,
+     "entry": 1
+    },
+    "team": 1,
+    "fatigue": 6
+   },
+   "line": "Treino de pistols com o time: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-servidor-vazio-de-prefire",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Servidor vazio de prefire",
+   "text": "Repita dez posições problemáticas antes de dormir.",
+   "effects": {
+    "attrs": {
+     "firepower": 2,
+     "consistency": 1
+    },
+    "fatigue": 6
+   },
+   "line": "Servidor vazio de prefire: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-retake-em-trio",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Treino de retake em trio",
+   "text": "Pratique flashes e contatos em retomadas de bombsite.",
+   "effects": {
+    "attrs": {
+     "clutch": 2,
+     "support": 1
+    },
+    "team": 1,
+    "fatigue": 7
+   },
+   "line": "Treino de retake em trio: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-de-mapa-desfavoravel",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim de mapa desfavorável",
+   "text": "Jogue seu pior mapa mesmo sabendo que pode perder feio.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "mind": -1,
+    "fatigue": 9
+   },
+   "line": "Scrim de mapa desfavorável: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-scrim-fora-do-seu-servidor",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Scrim fora do seu servidor",
+   "text": "Teste comunicação sob ping alto e condições ruins.",
+   "effects": {
+    "mind": 1,
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": 8
+   },
+   "line": "Scrim fora do seu servidor: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-de-clutch-no-placar-11-11",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Scrim e fundamentos",
+   "title": "Treino de clutch no placar 11-11",
+   "text": "Simule decisões em round de alta pressão com time esperando.",
+   "effects": {
+    "attrs": {
+     "clutch": 3
+    },
+    "mind": 1,
+    "fatigue": 8
+   },
+   "line": "Treino de clutch no placar 11-11: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 4
+    },
+    "line": "A equipe sofreu nos testes e saiu irritada do servidor."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-terapia-depois-de-eliminacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "eliminação recente"
+   ],
+   "category": "Mental e pressão",
+   "title": "Terapia depois de eliminação",
+   "text": "Converse com psicólogo sobre cobranças após uma queda importante.",
+   "effects": {
+    "mind": 5,
+    "morale": 2,
+    "fatigue": -2
+   },
+   "line": "Terapia depois de eliminação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.05,
+    "effects": {
+     "morale": -1
+    },
+    "line": "O assunto é sensível e a melhora emocional não foi imediata."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-terapia-antes-do-major",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "classificado para Major"
+   ],
+   "category": "Mental e pressão",
+   "title": "Terapia antes do Major",
+   "text": "Prepare estratégias para lidar com expectativas e público.",
+   "effects": {
+    "mind": 4,
+    "morale": 1
+   },
+   "line": "Terapia antes do Major: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.05,
+    "effects": {
+     "morale": -1
+    },
+    "line": "O assunto é sensível e a melhora emocional não foi imediata."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-sessao-de-respiracao-guiada",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Mental e pressão",
+   "title": "Sessão de respiração guiada",
+   "text": "Pratique recursos rápidos para controlar ansiedade entre mapas.",
+   "effects": {
+    "mind": 3,
+    "fatigue": -2
+   },
+   "line": "Sessão de respiração guiada: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-dia-sem-comentarios-de-fas",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "exposição pública"
+   ],
+   "category": "Mental e pressão",
+   "title": "Dia sem comentários de fãs",
+   "text": "Bloqueie notificações e deixe redes por uma semana.",
+   "effects": {
+    "mind": 4,
+    "fame": -20,
+    "morale": 1
+   },
+   "line": "Dia sem comentários de fãs: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-lidar-com-mensagens-de-odio",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "onda de críticas"
+   ],
+   "category": "Mental e pressão",
+   "title": "Lidar com mensagens de ódio",
+   "text": "Procure apoio de profissionais e moderação após ataques online.",
+   "effects": {
+    "mind": 4,
+    "morale": 2
+   },
+   "line": "Lidar com mensagens de ódio: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-pedir-ajuda-apos-burnout",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "cansaço alto"
+   ],
+   "category": "Mental e pressão",
+   "title": "Pedir ajuda após burnout",
+   "text": "Reconheça exaustão e negocie ajuste de carga com a equipe.",
+   "effects": {
+    "mind": 6,
+    "fatigue": -8,
+    "team": 1
+   },
+   "line": "Pedir ajuda após burnout: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-confrontar-medo-de-ser-substituido",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "disputa por titularidade"
+   ],
+   "category": "Mental e pressão",
+   "title": "Confrontar medo de ser substituído",
+   "text": "Discuta insegurança com o coach e crie metas realistas.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": 2
+   },
+   "line": "Confrontar medo de ser substituído: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-grupo-de-apoio-com-atletas",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "contato com atletas disponível"
+   ],
+   "category": "Mental e pressão",
+   "title": "Grupo de apoio com atletas",
+   "text": "Converse com profissionais que já passaram por crises na carreira.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": -1
+   },
+   "line": "Grupo de apoio com atletas: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-trabalhar-autocritica-excessiva",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "mental baixo ou sequência ruim"
+   ],
+   "category": "Mental e pressão",
+   "title": "Trabalhar autocrítica excessiva",
+   "text": "Reveja rounds sem transformar todo erro em fracasso pessoal.",
+   "effects": {
+    "mind": 4,
+    "attrs": {
+     "consistency": 1
+    }
+   },
+   "line": "Trabalhar autocrítica excessiva: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-sair-do-ciclo-de-derrotas",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "três derrotas recentes"
+   ],
+   "category": "Mental e pressão",
+   "title": "Sair do ciclo de derrotas",
+   "text": "Marque uma folga curta para diminuir ruminação e irritação.",
+   "effects": {
+    "mind": 3,
+    "morale": 3,
+    "fatigue": -4
+   },
+   "line": "Sair do ciclo de derrotas: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-voltar-apos-0-3",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "campanha 0-3 recente"
+   ],
+   "category": "Mental e pressão",
+   "title": "Voltar após 0-3",
+   "text": "Analise a campanha desastrosa e monte objetivos semanais pequenos.",
+   "effects": {
+    "mind": 4,
+    "attrs": {
+     "consistency": 1
+    }
+   },
+   "line": "Voltar após 0-3: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-meditacao-pre-jogo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Mental e pressão",
+   "title": "Meditação pré-jogo",
+   "text": "Treine foco por sessões curtas antes de partidas oficiais.",
+   "effects": {
+    "mind": 2,
+    "attrs": {
+     "clutch": 1
+    },
+    "fatigue": -1
+   },
+   "line": "Meditação pré-jogo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-debrief-emocional-com-quinteto",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Mental e pressão",
+   "title": "Debrief emocional com quinteto",
+   "text": "Cada jogador expõe preocupações sem apontar culpados.",
+   "effects": {
+    "mind": 2,
+    "team": 3
+   },
+   "line": "Debrief emocional com quinteto: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-aceitar-banco-temporario",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "jogador reserva"
+   ],
+   "category": "Mental e pressão",
+   "title": "Aceitar banco temporário",
+   "text": "Converse com psicólogo esportivo para atravessar período de reserva.",
+   "effects": {
+    "mind": 4,
+    "morale": 1
+   },
+   "line": "Aceitar banco temporário: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.05,
+    "effects": {
+     "morale": -1
+    },
+    "line": "O assunto é sensível e a melhora emocional não foi imediata."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-recuperar-confianca-em-clutch",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "clutches perdidos recentemente"
+   ],
+   "category": "Mental e pressão",
+   "title": "Recuperar confiança em clutch",
+   "text": "Reveja decisões boas e ruins para reduzir medo de errar.",
+   "effects": {
+    "attrs": {
+     "clutch": 1
+    },
+    "mind": 4
+   },
+   "line": "Recuperar confiança em clutch: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-pausa-de-redes-depois-de-derrota",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "derrota relevante"
+   ],
+   "category": "Mental e pressão",
+   "title": "Pausa de redes depois de derrota",
+   "text": "Evite timeline tóxica e recupere perspectiva.",
+   "effects": {
+    "mind": 3,
+    "fame": -30,
+    "fatigue": -2
+   },
+   "line": "Pausa de redes depois de derrota: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-separar-vida-e-resultado",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Mental e pressão",
+   "title": "Separar vida e resultado",
+   "text": "Passe uma tarde fora da rotina de estatísticas e ranking.",
+   "effects": {
+    "mind": 4,
+    "morale": 2,
+    "fatigue": -3
+   },
+   "line": "Separar vida e resultado: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-revisar-limites-com-organizacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Mental e pressão",
+   "title": "Revisar limites com organização",
+   "text": "Combine horários de mídia, treino e descanso com o staff.",
+   "effects": {
+    "mind": 3,
+    "team": 1,
+    "fatigue": -2
+   },
+   "line": "Revisar limites com organização: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.12,
+    "effects": {
+     "mind": -1,
+     "morale": -1
+    },
+    "line": "A conversa mexeu com uma lembrança difícil; recuperar estabilidade levará tempo."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-ficar-na-gaming-house-europeia",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org europeia",
+    "jogador vivendo na Europa"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Ficar na gaming house europeia",
+   "text": "Use a folga para convivência e calls com os colegas.",
+   "effects": {
+    "team": 3,
+    "lang": {
+     "target": "team",
+     "amount": 3
+    },
+    "morale": -1,
+    "fatigue": -2
+   },
+   "line": "Ficar na gaming house europeia: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-viajar-ao-brasil-na-pausa",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "jogador vivendo na Europa",
+    "janela de pausa",
+    "recursos para viagem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Viajar ao Brasil na pausa",
+   "text": "Visite família e amigos durante uma janela sem campeonatos.",
+   "effects": {
+    "morale": 8,
+    "mind": 4,
+    "fatigue": 8
+   },
+   "line": "Viajar ao Brasil na pausa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.3,
+    "effects": {
+     "fatigue": 6,
+     "mind": -1
+    },
+    "line": "O deslocamento teve atraso e bagunçou o sono antes do retorno."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-ligar-para-casa-por-video",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Ligar para casa por vídeo",
+   "text": "Reserve uma noite para conversar com pessoas próximas.",
+   "effects": {
+    "morale": 4,
+    "mind": 2,
+    "fatigue": -1
+   },
+   "line": "Ligar para casa por vídeo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-explorar-a-cidade-anfitria",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Explorar a cidade anfitriã",
+   "text": "Conheça a cidade com um colega da organização.",
+   "effects": {
+    "morale": 3,
+    "team": 2,
+    "fatigue": 3
+   },
+   "line": "Explorar a cidade anfitriã: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-estudar-idioma-local",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org estrangeira",
+    "idioma insuficiente"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Estudar idioma local",
+   "text": "Faça aulas práticas para atividades do dia a dia.",
+   "effects": {
+    "lang": {
+     "target": "team",
+     "amount": 9
+    },
+    "mind": 1,
+    "fatigue": 5
+   },
+   "line": "Estudar idioma local: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-pedir-quarto-separado",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "gaming house"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Pedir quarto separado",
+   "text": "Negocie mais privacidade para dormir e recarregar.",
+   "effects": {
+    "mind": 3,
+    "fatigue": -4,
+    "team": -1
+   },
+   "line": "Pedir quarto separado: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-cozinhar-comida-brasileira",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "brasileiro vivendo no exterior"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Cozinhar comida brasileira",
+   "text": "Convide o elenco para conhecer uma refeição da sua casa.",
+   "effects": {
+    "morale": 4,
+    "team": 2,
+    "fatigue": 2
+   },
+   "line": "Cozinhar comida brasileira: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-passear-sozinho-na-folga",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Passear sozinho na folga",
+   "text": "Reserve tempo para interesses próprios sem companhia obrigatória.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": -3
+   },
+   "line": "Passear sozinho na folga: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-conviver-com-torcedores-locais",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org europeia",
+    "500+ fãs"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Conviver com torcedores locais",
+   "text": "Participe de pequeno encontro comunitário na cidade da org.",
+   "effects": {
+    "fame": 130,
+    "morale": 1,
+    "fatigue": 5
+   },
+   "line": "Conviver com torcedores locais: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-pedir-visita-de-familiar",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem",
+    "recursos para viagem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Pedir visita de familiar",
+   "text": "Organize uma visita curta de alguém importante para você.",
+   "effects": {
+    "morale": 7,
+    "mind": 3,
+    "fatigue": 1
+   },
+   "line": "Pedir visita de familiar: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-voltar-ao-pais-de-origem-por-uma-semana",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "morando fora",
+    "sem jogo decisivo",
+    "folga autorizável"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Voltar ao país de origem por uma semana",
+   "text": "Peça folga fora de bootcamp para se reconectar com casa.",
+   "effects": {
+    "morale": 7,
+    "mind": 4,
+    "team": -2,
+    "fatigue": 7
+   },
+   "line": "Voltar ao país de origem por uma semana: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.3,
+    "effects": {
+     "fatigue": 6,
+     "mind": -1
+    },
+    "line": "O deslocamento teve atraso e bagunçou o sono antes do retorno."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-ficar-na-europa-para-treinar",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org europeia",
+    "janela de pausa"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Ficar na Europa para treinar",
+   "text": "Abra mão da viagem à família para jogar scrims fortes.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "team": 2,
+    "morale": -3,
+    "fatigue": 6
+   },
+   "line": "Ficar na Europa para treinar: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.35,
+    "effects": {
+     "morale": -4,
+     "mind": -3
+    },
+    "line": "A saudade aumentou ao ver fotos e mensagens da família durante a pausa."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-consulta-com-apoio-de-relocacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org estrangeira",
+    "adaptação recente"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Consulta com apoio de relocação",
+   "text": "Peça auxílio para documentação, moradia e rotina no exterior.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": -1
+   },
+   "line": "Consulta com apoio de relocação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-fazer-amizades-fora-do-esports",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Fazer amizades fora do esports",
+   "text": "Entre em um grupo local de atividade não competitiva.",
+   "effects": {
+    "mind": 3,
+    "morale": 3,
+    "fatigue": 2
+   },
+   "line": "Fazer amizades fora do esports: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-visitar-outro-brasileiro-no-circuito",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "brasileiro vivendo no exterior",
+    "conterrâneo acessível"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Visitar outro brasileiro no circuito",
+   "text": "Passe um fim de semana com jogador conterrâneo próximo.",
+   "effects": {
+    "morale": 5,
+    "mind": 2,
+    "fatigue": 3
+   },
+   "line": "Visitar outro brasileiro no circuito: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-chamada-em-video-com-parceiro-afetivo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora",
+    "relacionamento existente"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Chamada em vídeo com parceiro afetivo",
+   "text": "Proteja uma noite para conversar sobre a distância.",
+   "effects": {
+    "morale": 4,
+    "mind": 3
+   },
+   "line": "Chamada em vídeo com parceiro afetivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-sair-da-gaming-house",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "gaming house",
+    "dinheiro suficiente"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Sair da gaming house",
+   "text": "Proponha morar sozinho para ter privacidade e rotina própria.",
+   "effects": {
+    "mind": 4,
+    "morale": 2,
+    "team": -2
+   },
+   "line": "Sair da gaming house: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-renovar-permanencia-na-europa",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org europeia",
+    "contrato em renovação"
+   ],
+   "category": "Europa e adaptação",
+   "title": "Renovar permanência na Europa",
+   "text": "Negocie calendário que permita voltar ao país de origem nas pausas.",
+   "effects": {
+    "mind": 3,
+    "team": 1,
+    "morale": 2
+   },
+   "line": "Renovar permanência na Europa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.25,
+    "effects": {
+     "morale": -3,
+     "fatigue": 3
+    },
+    "line": "Logística ou saudade atrapalhou a recuperação emocional desta semana."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-visitar-pais-apos-classificacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jogador no país de origem",
+    "classificação recente"
+   ],
+   "category": "Família e relações",
+   "title": "Visitar pais após classificação",
+   "text": "Use dois dias livres para celebrar com a família.",
+   "effects": {
+    "morale": 5,
+    "mind": 2,
+    "fatigue": 3
+   },
+   "line": "Visitar pais após classificação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-aniversario-de-familiar",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "evento familiar",
+    "compromisso de treino opcional"
+   ],
+   "category": "Família e relações",
+   "title": "Aniversário de familiar",
+   "text": "Vá à comemoração mesmo com treino opcional marcado.",
+   "effects": {
+    "morale": 4,
+    "team": -1,
+    "fatigue": 2
+   },
+   "line": "Aniversário de familiar: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-ligar-para-amigo-antigo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Família e relações",
+   "title": "Ligar para amigo antigo",
+   "text": "Converse com alguém que o conhecia antes do cenário profissional.",
+   "effects": {
+    "mind": 2,
+    "morale": 3
+   },
+   "line": "Ligar para amigo antigo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-conversar-sobre-mudanca-de-pais",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "proposta de org estrangeira"
+   ],
+   "category": "Família e relações",
+   "title": "Conversar sobre mudança de país",
+   "text": "Discuta com pessoas próximas o custo emocional de aceitar proposta estrangeira.",
+   "effects": {
+    "mind": 3,
+    "morale": 1
+   },
+   "line": "Conversar sobre mudança de país: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-acompanhar-familiar-doente",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "evento familiar delicado",
+    "dispensa possível"
+   ],
+   "category": "Família e relações",
+   "title": "Acompanhar familiar doente",
+   "text": "Peça dispensa para uma questão importante de saúde da família.",
+   "effects": {
+    "mind": 2,
+    "morale": 3,
+    "fatigue": 5
+   },
+   "line": "Acompanhar familiar doente: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-passeio-com-companheiro-de-vida",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "relacionamento existente"
+   ],
+   "category": "Família e relações",
+   "title": "Passeio com companheiro de vida",
+   "text": "Reserve um dia sem Counter-Strike para a relação pessoal.",
+   "effects": {
+    "morale": 4,
+    "mind": 3,
+    "fatigue": -2
+   },
+   "line": "Passeio com companheiro de vida: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-cancelar-viagem-de-ultima-hora",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "viagem planejada",
+    "scrim decisiva"
+   ],
+   "category": "Família e relações",
+   "title": "Cancelar viagem de última hora",
+   "text": "Priorize scrim decisiva em vez de compromisso social planejado.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "team": 1,
+    "morale": -4
+   },
+   "line": "Cancelar viagem de última hora: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-reencontro-de-velhos-amigos",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "amigos no mesmo país"
+   ],
+   "category": "Família e relações",
+   "title": "Reencontro de velhos amigos",
+   "text": "Passe algumas horas longe da comunidade competitiva.",
+   "effects": {
+    "morale": 4,
+    "mind": 2,
+    "fatigue": 2
+   },
+   "line": "Reencontro de velhos amigos: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-organizar-chamada-semanal",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Família e relações",
+   "title": "Organizar chamada semanal",
+   "text": "Crie horário fixo para contato com quem ficou distante.",
+   "effects": {
+    "mind": 2,
+    "morale": 2
+   },
+   "line": "Organizar chamada semanal: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-conversar-sobre-saudade",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "morando fora do país de origem"
+   ],
+   "category": "Família e relações",
+   "title": "Conversar sobre saudade",
+   "text": "Conte ao coach que sente dificuldade de viver longe de casa.",
+   "effects": {
+    "mind": 3,
+    "team": 1
+   },
+   "line": "Conversar sobre saudade: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-viajar-com-a-familia-na-folga",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "janela de pausa",
+    "família acessível"
+   ],
+   "category": "Família e relações",
+   "title": "Viajar com a família na folga",
+   "text": "Faça viagem curta de descanso fora da agenda de torneios.",
+   "effects": {
+    "morale": 5,
+    "mind": 3,
+    "fatigue": -3
+   },
+   "line": "Viajar com a família na folga: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-ajudar-amigo-em-crise",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "amigo próximo acessível"
+   ],
+   "category": "Família e relações",
+   "title": "Ajudar amigo em crise",
+   "text": "Reserve parte do descanso para ouvir alguém próximo.",
+   "effects": {
+    "morale": 2,
+    "mind": 1,
+    "fatigue": 3
+   },
+   "line": "Ajudar amigo em crise: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-cuidar-da-vida-domestica",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "moradia independente"
+   ],
+   "category": "Família e relações",
+   "title": "Cuidar da vida doméstica",
+   "text": "Resolva pendências de aluguel, mercado e documentação.",
+   "effects": {
+    "mind": 2,
+    "morale": 1,
+    "fatigue": 2
+   },
+   "line": "Cuidar da vida doméstica: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-comemorar-aniversario-pessoal",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "semana do aniversário"
+   ],
+   "category": "Família e relações",
+   "title": "Comemorar aniversário pessoal",
+   "text": "Escolha uma celebração tranquila depois dos treinos.",
+   "effects": {
+    "morale": 4,
+    "team": 1,
+    "fatigue": 2
+   },
+   "line": "Comemorar aniversário pessoal: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "morale": -2,
+     "fatigue": 3
+    },
+    "line": "A distância, o deslocamento ou uma conversa difícil pesou."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-podcast-com-comentarista",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "1000+ fãs"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Podcast com comentarista",
+   "text": "Participe de conversa longa sobre sua trajetória competitiva.",
+   "effects": {
+    "fame": 260,
+    "morale": 1,
+    "fatigue": 6
+   },
+   "line": "Podcast com comentarista: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-video-de-bastidores",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "500+ fãs",
+    "autorização da org"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Vídeo de bastidores",
+   "text": "Grave a preparação de uma semana para o canal pessoal.",
+   "effects": {
+    "fame": 200,
+    "fatigue": 5
+   },
+   "line": "Vídeo de bastidores: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-tutorial-da-sua-posicao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "300+ fãs"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Tutorial da sua posição",
+   "text": "Ensine duas jogadas úteis sem expor estratégia atual do time.",
+   "effects": {
+    "fame": 190,
+    "attrs": {
+     "support": 1
+    },
+    "fatigue": 5
+   },
+   "line": "Tutorial da sua posição: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-entrevista-pos-derrota",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "derrota recente",
+    "imprensa presente"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Entrevista pós-derrota",
+   "text": "Converse com a imprensa depois de resultado decepcionante.",
+   "effects": {
+    "fame": 90,
+    "mind": -2,
+    "fatigue": 4
+   },
+   "line": "Entrevista pós-derrota: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-participar-de-watch-party",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "1000+ fãs",
+    "fora de competição"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Participar de watch party",
+   "text": "Acompanhe uma final importante com transmissão comentada.",
+   "effects": {
+    "fame": 230,
+    "fatigue": 8
+   },
+   "line": "Participar de watch party: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-encontro-com-torcedores",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "LAN ou feira presencial"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Encontro com torcedores",
+   "text": "Converse e tire fotos após evento presencial.",
+   "effects": {
+    "fame": 160,
+    "morale": 2,
+    "fatigue": 5
+   },
+   "line": "Encontro com torcedores: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-responder-criticas-com-calma",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "críticas recentes"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Responder críticas com calma",
+   "text": "Publique explicação breve sem hostilizar torcedores.",
+   "effects": {
+    "fame": 120,
+    "mind": 1,
+    "fatigue": 3
+   },
+   "line": "Responder críticas com calma: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-clipe-de-clutch-viral",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "clutch recente"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Clipe de clutch viral",
+   "text": "Edite e publique jogada de destaque da última competição.",
+   "effects": {
+    "fame": 280,
+    "morale": 2,
+    "fatigue": 5
+   },
+   "line": "Clipe de clutch viral: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-quadro-com-pro-player",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "pro conhecido acessível"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Quadro com pro player",
+   "text": "Convide jogador reconhecido para vídeo educativo em dupla.",
+   "effects": {
+    "fame": 330,
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": 7
+   },
+   "line": "Quadro com pro player: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-gravar-shorts-em-serie",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Gravar shorts em série",
+   "text": "Produza vídeos curtos ensinando conceitos de economia e mapa.",
+   "effects": {
+    "fame": 170,
+    "fatigue": 7
+   },
+   "line": "Gravar shorts em série: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-gravar-anuncio-de-patrocinador",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "patrocínio ativo"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Gravar anúncio de patrocinador",
+   "text": "Faça conteúdo de campanha dentro do calendário negociado.",
+   "effects": {
+    "fame": 140,
+    "morale": 1,
+    "fatigue": 6
+   },
+   "line": "Gravar anúncio de patrocinador: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-pausa-de-exposicao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "exposição ativa"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Pausa de exposição",
+   "text": "Fique uma semana sem criar conteúdo para preservar foco.",
+   "effects": {
+    "mind": 3,
+    "fame": -70,
+    "fatigue": -4
+   },
+   "line": "Pausa de exposição: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-dar-entrevista-em-idioma-estrangeiro",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org estrangeira",
+    "idioma intermediário"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Dar entrevista em idioma estrangeiro",
+   "text": "Pratique respostas públicas no idioma da organização.",
+   "effects": {
+    "fame": 210,
+    "lang": {
+     "target": "team",
+     "amount": 3
+    },
+    "fatigue": 6
+   },
+   "line": "Dar entrevista em idioma estrangeiro: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-responder-perguntas-dos-fas",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "500+ fãs"
+   ],
+   "category": "Fama e conteúdo",
+   "title": "Responder perguntas dos fãs",
+   "text": "Faça sessão aberta de perguntas sem revelar informações do time.",
+   "effects": {
+    "fame": 180,
+    "morale": 1,
+    "fatigue": 5
+   },
+   "line": "Responder perguntas dos fãs: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.27,
+    "effects": {
+     "mind": -2,
+     "team": -1
+    },
+    "line": "Um recorte descontextualizado gerou críticas e desconforto no elenco."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-negociar-clausula-de-descanso",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "contrato em negociação"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Negociar cláusula de descanso",
+   "text": "Peça folgas protegidas em semanas sem evento.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "team": -1
+   },
+   "line": "Negociar cláusula de descanso: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-conversar-sobre-salario",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "contrato em renovação"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Conversar sobre salário",
+   "text": "Reavalie remuneração após desempenho consistente.",
+   "effects": {
+    "morale": 2,
+    "mind": -1
+   },
+   "line": "Conversar sobre salário: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-contratar-agente",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sem agente",
+    "dinheiro suficiente"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Contratar agente",
+   "text": "Procure representação para filtrar propostas e contratos.",
+   "effects": {
+    "mind": 2,
+    "morale": 1
+   },
+   "line": "Contratar agente: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-pesquisar-proposta-estrangeira",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "proposta internacional recebida"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Pesquisar proposta estrangeira",
+   "text": "Compare moradia, calendário, idioma e duração antes de aceitar.",
+   "effects": {
+    "mind": 2,
+    "morale": 1
+   },
+   "line": "Pesquisar proposta estrangeira: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-pedir-tempo-para-decidir-transferencia",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "proposta de transferência ativa"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Pedir tempo para decidir transferência",
+   "text": "Solicite alguns dias para consultar familiares e staff.",
+   "effects": {
+    "mind": 2,
+    "team": -1
+   },
+   "line": "Pedir tempo para decidir transferência: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-reuniao-com-diretor-esportivo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Reunião com diretor esportivo",
+   "text": "Discuta metas e recursos antes de assinar extensão.",
+   "effects": {
+    "morale": 2,
+    "team": 1
+   },
+   "line": "Reunião com diretor esportivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-workshop-de-marca-pessoal",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "1000+ fãs"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Workshop de marca pessoal",
+   "text": "Organize posicionamento online com profissional.",
+   "effects": {
+    "fame": 160,
+    "fatigue": 4
+   },
+   "line": "Workshop de marca pessoal: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-patrocinio-extra-de-perifericos",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "5000+ fãs",
+    "proposta comercial"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Patrocínio extra de periféricos",
+   "text": "Negocie ação pontual com marca de equipamentos.",
+   "effects": {
+    "fame": 140,
+    "fatigue": 6
+   },
+   "line": "Patrocínio extra de periféricos: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-investir-em-equipamento-de-treino",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "dinheiro suficiente"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Investir em equipamento de treino",
+   "text": "Melhore periféricos e ergonomia sem trocar tudo às pressas.",
+   "effects": {
+    "attrs": {
+     "consistency": 1
+    },
+    "mind": 1
+   },
+   "line": "Investir em equipamento de treino: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-ajudar-a-negociar-bootcamp",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado",
+    "calendário de bootcamp"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Ajudar a negociar bootcamp",
+   "text": "Participe de conversa para garantir estrutura ao elenco.",
+   "effects": {
+    "team": 2,
+    "morale": 2
+   },
+   "line": "Ajudar a negociar bootcamp: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-visitar-nova-organizacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "proposta de transferência ativa"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Visitar nova organização",
+   "text": "Conheça instalações sem assumir compromisso de transferência.",
+   "effects": {
+    "mind": 1,
+    "morale": 2,
+    "fatigue": 5
+   },
+   "line": "Visitar nova organização: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-estudar-contrato-com-especialista",
+   "rarity": "grave",
+   "cooldownWeeks": 22,
+   "condition": [
+    "contrato pendente"
+   ],
+   "category": "Negócios e carreira",
+   "title": "Estudar contrato com especialista",
+   "text": "Peça revisão independente de cláusulas e multas.",
+   "effects": {
+    "mind": 2,
+    "morale": 1
+   },
+   "line": "Estudar contrato com especialista: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.23,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "A negociação ficou mais tensa e exigirá acompanhamento."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-fisioterapia-preventiva",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "acesso à fisioterapia"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Fisioterapia preventiva",
+   "text": "Trabalhe sobrecargas recorrentes com profissional de saúde.",
+   "effects": {
+    "fatigue": -4,
+    "attrs": {
+     "consistency": 1
+    },
+    "mind": 1
+   },
+   "line": "Fisioterapia preventiva: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-avaliar-ergonomia-da-cadeira",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Avaliar ergonomia da cadeira",
+   "text": "Ajuste altura, apoio e postura na estação de treino.",
+   "effects": {
+    "fatigue": -3,
+    "attrs": {
+     "consistency": 1
+    }
+   },
+   "line": "Avaliar ergonomia da cadeira: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-treino-de-forca-moderado",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sem lesão limitante"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Treino de força moderado",
+   "text": "Faça musculação controlada para sustentar rotina de viagens.",
+   "effects": {
+    "morale": 2,
+    "fatigue": 2,
+    "attrs": {
+     "consistency": 1
+    }
+   },
+   "line": "Treino de força moderado: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-cardio-leve-de-recuperacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Cardio leve de recuperação",
+   "text": "Caminhe ou pedale em baixa intensidade na folga.",
+   "effects": {
+    "mind": 2,
+    "morale": 2,
+    "fatigue": -2
+   },
+   "line": "Cardio leve de recuperação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-consulta-de-sono",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jet lag ou sono desregulado"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Consulta de sono",
+   "text": "Ajuste horários e luz após viagens internacionais.",
+   "effects": {
+    "mind": 2,
+    "fatigue": -5
+   },
+   "line": "Consulta de sono: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-alongamento-com-fisioterapeuta",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "fisioterapeuta disponível"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Alongamento com fisioterapeuta",
+   "text": "Cuide de pescoço, ombro, punho e costas.",
+   "effects": {
+    "fatigue": -3,
+    "morale": 1
+   },
+   "line": "Alongamento com fisioterapeuta: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-pausa-ativa-entre-blocos",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Pausa ativa entre blocos",
+   "text": "Troque treino contínuo por intervalos programados.",
+   "effects": {
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": -3,
+    "mind": 1
+   },
+   "line": "Pausa ativa entre blocos: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-plano-alimentar-em-viagem",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "viagem ou campeonato próximo"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Plano alimentar em viagem",
+   "text": "Converse com nutricionista sobre refeições e rotina no evento.",
+   "effects": {
+    "morale": 2,
+    "fatigue": -2
+   },
+   "line": "Plano alimentar em viagem: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-consulta-medica-por-desconforto",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "queixa física presente"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Consulta médica por desconforto",
+   "text": "Procure avaliação antes que dor piore e prejudique desempenho.",
+   "effects": {
+    "mind": 2,
+    "fatigue": -3
+   },
+   "line": "Consulta médica por desconforto: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-semana-de-recuperacao-pos-lan",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "LAN concluída recentemente"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Semana de recuperação pós-LAN",
+   "text": "Diminua carga após deslocamentos e longas séries.",
+   "effects": {
+    "fatigue": -8,
+    "morale": 2,
+    "mind": 2
+   },
+   "line": "Semana de recuperação pós-LAN: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-atividade-ao-ar-livre",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Atividade ao ar livre",
+   "text": "Passe um turno fora de casa em caminhada tranquila.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": -2
+   },
+   "line": "Atividade ao ar livre: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-check-up-anual",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "sem check-up no último ano"
+   ],
+   "category": "Corpo e saúde",
+   "title": "Check-up anual",
+   "text": "Realize avaliação de saúde com equipe especializada.",
+   "effects": {
+    "mind": 1,
+    "morale": 1
+   },
+   "line": "Check-up anual: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 2
+    },
+    "line": "A rotina exigiu adaptação, com benefício menor que o esperado nesta semana."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-dupla-de-treino-nova",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Time e convivência",
+   "title": "Dupla de treino nova",
+   "text": "Treine com companheiro com quem raramente atua junto.",
+   "effects": {
+    "team": 3,
+    "attrs": {
+     "consistency": 1
+    },
+    "fatigue": 6
+   },
+   "line": "Dupla de treino nova: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-resolver-comunicacao-truncada",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "atrito de comunicação"
+   ],
+   "category": "Time e convivência",
+   "title": "Resolver comunicação truncada",
+   "text": "Converse com colega que entende suas calls de forma diferente.",
+   "effects": {
+    "team": 3,
+    "mind": 2
+   },
+   "line": "Resolver comunicação truncada: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-receber-novato-no-elenco",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "novo jogador no elenco"
+   ],
+   "category": "Time e convivência",
+   "title": "Receber novato no elenco",
+   "text": "Ajude reforço recém-chegado a entender protocolos.",
+   "effects": {
+    "team": 3,
+    "morale": 1,
+    "fatigue": 3
+   },
+   "line": "Receber novato no elenco: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-jantar-sem-falar-de-cs",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Time e convivência",
+   "title": "Jantar sem falar de CS",
+   "text": "Convide o time para refeição com assunto livre de campeonato.",
+   "effects": {
+    "team": 3,
+    "morale": 3,
+    "fatigue": 2
+   },
+   "line": "Jantar sem falar de CS: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-debater-mudanca-de-mapa",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Time e convivência",
+   "title": "Debater mudança de mapa",
+   "text": "Discuta qual mapa tirar da pool sem atacar decisões de colegas.",
+   "effects": {
+    "attrs": {
+     "igl": 1
+    },
+    "team": 2,
+    "fatigue": 5
+   },
+   "line": "Debater mudança de mapa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-mediacao-com-jogador-dificil",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "conflito interno"
+   ],
+   "category": "Time e convivência",
+   "title": "Mediação com jogador difícil",
+   "text": "Peça conversa conjunta antes que conflito contamine scrims.",
+   "effects": {
+    "mind": 2,
+    "team": 3,
+    "fatigue": 4
+   },
+   "line": "Mediação com jogador difícil: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-cobrar-disciplina-com-respeito",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "faltas ou atrasos recentes"
+   ],
+   "category": "Time e convivência",
+   "title": "Cobrar disciplina com respeito",
+   "text": "Alinhe atrasos e comunicação num encontro com o grupo.",
+   "effects": {
+    "team": 1,
+    "mind": 1
+   },
+   "line": "Cobrar disciplina com respeito: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-fortalecer-amizade-com-igl",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "IGL acessível"
+   ],
+   "category": "Time e convivência",
+   "title": "Fortalecer amizade com IGL",
+   "text": "Passe uma hora revisando escolhas e entendendo seu plano.",
+   "effects": {
+    "attrs": {
+     "igl": 1
+    },
+    "team": 3,
+    "fatigue": 5
+   },
+   "line": "Fortalecer amizade com IGL: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-acolher-jogador-em-ma-fase",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "colega com má fase"
+   ],
+   "category": "Time e convivência",
+   "title": "Acolher jogador em má fase",
+   "text": "Converse com colega sob críticas e ofereça apoio concreto.",
+   "effects": {
+    "team": 3,
+    "morale": 2
+   },
+   "line": "Acolher jogador em má fase: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-feedback-anonimo-interno",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado"
+   ],
+   "category": "Time e convivência",
+   "title": "Feedback anônimo interno",
+   "text": "Compartilhe pontos de melhoria sem expor alguém publicamente.",
+   "effects": {
+    "mind": 2,
+    "team": 2
+   },
+   "line": "Feedback anônimo interno: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-acompanhar-jogo-da-academy",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "organização com academy"
+   ],
+   "category": "Time e convivência",
+   "title": "Acompanhar jogo da academy",
+   "text": "Assista aos mais novos e ofereça feedback construtivo.",
+   "effects": {
+    "team": 2,
+    "morale": 2,
+    "fatigue": 3
+   },
+   "line": "Acompanhar jogo da academy: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-aceitar-rotacao-de-funcao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "mudança de função proposta"
+   ],
+   "category": "Time e convivência",
+   "title": "Aceitar rotação de função",
+   "text": "Teste novo papel em treino coletivo para ajudar o sistema.",
+   "effects": {
+    "attrs": {
+     "support": 2,
+     "igl": 1
+    },
+    "team": 2,
+    "fatigue": 7
+   },
+   "line": "Aceitar rotação de função: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-confraternizacao-apos-titulo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "título recente"
+   ],
+   "category": "Time e convivência",
+   "title": "Confraternização após título",
+   "text": "Celebre resultado respeitando o calendário de recuperação.",
+   "effects": {
+    "morale": 5,
+    "team": 3,
+    "fatigue": 4
+   },
+   "line": "Confraternização após título: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-reuniao-pos-crise-de-elenco",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "crise interna recente"
+   ],
+   "category": "Time e convivência",
+   "title": "Reunião pós-crise de elenco",
+   "text": "Estabeleça responsabilidades e rotinas depois de conflito grave.",
+   "effects": {
+    "mind": 3,
+    "team": 2,
+    "fatigue": 4
+   },
+   "line": "Reunião pós-crise de elenco: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "team": -2
+    },
+    "line": "Uma divergência antiga reapareceu durante a conversa."
+   },
+   "axis": "misto"
+  },
+  {
+   "id": "sem-cinema-na-folga",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Cinema na folga",
+   "text": "Veja um filme com amigos e deixe a competição para amanhã.",
+   "effects": {
+    "mind": 2,
+    "morale": 3,
+    "fatigue": -3
+   },
+   "line": "Cinema na folga: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-passeio-no-parque",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Passeio no parque",
+   "text": "Faça um passeio leve longe do computador.",
+   "effects": {
+    "mind": 3,
+    "morale": 2,
+    "fatigue": -3
+   },
+   "line": "Passeio no parque: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-descanso-digital",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Descanso digital",
+   "text": "Passe um dia sem redes sociais ou partidas ranqueadas.",
+   "effects": {
+    "mind": 4,
+    "fatigue": -5,
+    "fame": -20
+   },
+   "line": "Descanso digital: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-jogar-cooperativo-casual",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Jogar cooperativo casual",
+   "text": "Jogue um título leve com amigos sem obrigação de vencer.",
+   "effects": {
+    "morale": 3,
+    "mind": 2,
+    "fatigue": -2
+   },
+   "line": "Jogar cooperativo casual: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-visitar-museu-ou-exposicao",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "cidade com lazer disponível"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Visitar museu ou exposição",
+   "text": "Explore algo cultural na cidade de treino.",
+   "effects": {
+    "morale": 3,
+    "mind": 2,
+    "fatigue": -1
+   },
+   "line": "Visitar museu ou exposição: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-dia-de-praia-ou-trilha-leve",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "folga e destino disponível"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Dia de praia ou trilha leve",
+   "text": "Reserve a folga para natureza com logística segura.",
+   "effects": {
+    "mind": 3,
+    "morale": 4,
+    "fatigue": -1
+   },
+   "line": "Dia de praia ou trilha leve: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-dormir-sem-despertador",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "cansaço acima do normal"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Dormir sem despertador",
+   "text": "Priorize uma noite longa após sequência de eventos.",
+   "effects": {
+    "fatigue": -7,
+    "mind": 2
+   },
+   "line": "Dormir sem despertador: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-pausa-de-redes-competitivas",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "exposição pública"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Pausa de redes competitivas",
+   "text": "Silencie fóruns e comentários por alguns dias.",
+   "effects": {
+    "mind": 3,
+    "fame": -25,
+    "fatigue": -2
+   },
+   "line": "Pausa de redes competitivas: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-cozinhar-com-colega",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "colega próximo acessível"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Cozinhar com colega",
+   "text": "Prepare refeição em casa e compartilhe o tempo livre.",
+   "effects": {
+    "team": 2,
+    "morale": 2,
+    "fatigue": -1
+   },
+   "line": "Cozinhar com colega: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-leitura-antes-de-dormir",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "sempre"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Leitura antes de dormir",
+   "text": "Troque ranked noturna por leitura sem tela.",
+   "effects": {
+    "mind": 2,
+    "fatigue": -3
+   },
+   "line": "Leitura antes de dormir: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-fim-de-semana-de-folga-real",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "janela de pausa"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Fim de semana de folga real",
+   "text": "Negocie dois dias sem metas competitivas ou publicidade.",
+   "effects": {
+    "mind": 5,
+    "morale": 4,
+    "fatigue": -8
+   },
+   "line": "Fim de semana de folga real: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "morale": -1
+    },
+    "line": "Mesmo na folga, você teve dificuldade em desligar das cobranças."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-passeio-turistico-na-lan",
+   "rarity": "comum",
+   "cooldownWeeks": 4,
+   "condition": [
+    "viajando para LAN"
+   ],
+   "category": "Lazer e descanso",
+   "title": "Passeio turístico na LAN",
+   "text": "Conheça parte da cidade anfitriã em horário livre.",
+   "effects": {
+    "morale": 3,
+    "mind": 2,
+    "fatigue": 1
+   },
+   "line": "Passeio turístico na LAN: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.1,
+    "effects": {
+     "fatigue": 3
+    },
+    "line": "Imprevistos consumiram parte da folga."
+   },
+   "axis": "mental"
+  },
+  {
+   "id": "sem-simular-entrevista-pos-vitoria",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "campeonato próximo"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Simular entrevista pós-vitória",
+   "text": "Treine respostas para perguntas difíceis e elogios à equipe.",
+   "effects": {
+    "mind": 2,
+    "fame": 50,
+    "fatigue": 3
+   },
+   "line": "Simular entrevista pós-vitória: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-preparar-plano-de-viagem",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "viagem internacional próxima"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Preparar plano de viagem",
+   "text": "Organize sono e horários antes da mudança de fuso.",
+   "effects": {
+    "fatigue": -3,
+    "mind": 2
+   },
+   "line": "Preparar plano de viagem: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-analisar-rival-de-eliminacao",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "playoff marcado"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Analisar rival de eliminação",
+   "text": "Estude duas séries recentes do oponente de playoff.",
+   "effects": {
+    "attrs": {
+     "consistency": 2,
+     "igl": 1
+    },
+    "fatigue": 7
+   },
+   "line": "Analisar rival de eliminação: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-rever-final-perdida",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "vice-campeonato recente"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Rever final perdida",
+   "text": "Assista à derrota e liste melhorias de processo.",
+   "effects": {
+    "mind": 2,
+    "attrs": {
+     "consistency": 2
+    },
+    "fatigue": 5
+   },
+   "line": "Rever final perdida: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-treino-curto-antes-do-jogo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jogo oficial nesta semana"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Treino curto antes do jogo",
+   "text": "Faça aquecimento calibrado sem exaurir a mão.",
+   "effects": {
+    "attrs": {
+     "firepower": 1,
+     "consistency": 1
+    },
+    "fatigue": 3
+   },
+   "line": "Treino curto antes do jogo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-ajustar-expectativas-apos-titulo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "título recente"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Ajustar expectativas após título",
+   "text": "Converse com staff para evitar obrigação de vencer tudo.",
+   "effects": {
+    "mind": 3,
+    "team": 1
+   },
+   "line": "Ajustar expectativas após título: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-preparacao-contra-underdog",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "adversário menos ranqueado"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Preparação contra underdog",
+   "text": "Estude rival menos conhecido sem subestimar sua proposta.",
+   "effects": {
+    "attrs": {
+     "consistency": 2
+    },
+    "mind": 1,
+    "fatigue": 4
+   },
+   "line": "Preparação contra underdog: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-recuperacao-de-viagem-longa",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "viagem longa recente"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Recuperação de viagem longa",
+   "text": "Adapte o sono e reduza treino na semana de chegada.",
+   "effects": {
+    "fatigue": -6,
+    "mind": 2,
+    "attrs": {
+     "consistency": -1
+    }
+   },
+   "line": "Recuperação de viagem longa: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-assinar-material-de-fas-na-lan",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "LAN presencial",
+    "500+ fãs"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Assinar material de fãs na LAN",
+   "text": "Reserve horário para torcida sem prejudicar aquecimento.",
+   "effects": {
+    "fame": 150,
+    "morale": 2,
+    "fatigue": 4
+   },
+   "line": "Assinar material de fãs na LAN: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-revisar-timeout-decisivo",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "time estruturado",
+    "série apertada recente"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Revisar timeout decisivo",
+   "text": "Estude decisões de pausa tática em jogos apertados.",
+   "effects": {
+    "attrs": {
+     "igl": 2,
+     "clutch": 1
+    },
+    "fatigue": 5
+   },
+   "line": "Revisar timeout decisivo: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-preparar-serie-melhor-de-cinco",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "final BO5 próxima"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Preparar série melhor de cinco",
+   "text": "Planeje resistência mental e map pool extensa.",
+   "effects": {
+    "mind": 2,
+    "attrs": {
+     "consistency": 2
+    },
+    "fatigue": 7
+   },
+   "line": "Preparar série melhor de cinco: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-conversar-apos-eliminacao-amarga",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "eliminação traumática"
+   ],
+   "category": "Pré e pós campeonato",
+   "title": "Conversar após eliminação amarga",
+   "text": "Faça debrief respeitoso antes de ir para redes sociais.",
+   "effects": {
+    "mind": 3,
+    "team": 2,
+    "fatigue": 3
+   },
+   "line": "Conversar após eliminação amarga: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.2,
+    "effects": {
+     "mind": -2,
+     "fatigue": 3
+    },
+    "line": "A pressão do resultado atrapalhou a execução da atividade."
+   },
+   "axis": "gameplay"
+  },
+  {
+   "id": "sem-participar-de-projeto-comunitario",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "janela de pausa"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Participar de projeto comunitário",
+   "text": "Doe tempo a iniciativa local ligada a jogos ou inclusão digital.",
+   "effects": {
+    "fame": 120,
+    "morale": 3,
+    "fatigue": 4
+   },
+   "line": "Participar de projeto comunitário: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-conhecer-jogadores-em-jantar-do-evento",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "evento internacional"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Conhecer jogadores em jantar do evento",
+   "text": "Faça networking sem pressionar conversas sobre contratos.",
+   "effects": {
+    "morale": 2,
+    "fame": 55,
+    "fatigue": 4
+   },
+   "line": "Conhecer jogadores em jantar do evento: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-gravar-mensagem-a-torcedor",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org estruturada"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Gravar mensagem a torcedor",
+   "text": "Envie vídeo curto solicitado pela equipe de comunidade.",
+   "effects": {
+    "fame": 90,
+    "morale": 2,
+    "fatigue": 2
+   },
+   "line": "Gravar mensagem a torcedor: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-debate-sobre-etica-competitiva",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "convite para painel"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Debate sobre ética competitiva",
+   "text": "Participe de conversa pública sobre fair play e integridade.",
+   "effects": {
+    "fame": 100,
+    "mind": 1,
+    "fatigue": 4
+   },
+   "line": "Debate sobre ética competitiva: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-evento-com-ex-jogadores",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "convite de evento"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Evento com ex-jogadores",
+   "text": "Compartilhe histórias e aprenda sobre carreiras longas.",
+   "effects": {
+    "mind": 2,
+    "fame": 80,
+    "fatigue": 3
+   },
+   "line": "Evento com ex-jogadores: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-autografos-em-feira-gamer",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "feira presencial",
+    "vínculo com org"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Autógrafos em feira gamer",
+   "text": "Passe uma tarde no estande da organização.",
+   "effects": {
+    "fame": 180,
+    "morale": 1,
+    "fatigue": 7
+   },
+   "line": "Autógrafos em feira gamer: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-encontro-com-patrocinadores",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "patrocinador ativo"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Encontro com patrocinadores",
+   "text": "Participe de jantar institucional com a organização.",
+   "effects": {
+    "fame": 90,
+    "team": 1,
+    "fatigue": 5
+   },
+   "line": "Encontro com patrocinadores: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-bate-papo-com-jornalista",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jornalista acessível"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Bate-papo com jornalista",
+   "text": "Converse de forma controlada sobre seus objetivos futuros.",
+   "effects": {
+    "fame": 130,
+    "mind": -1,
+    "fatigue": 3
+   },
+   "line": "Bate-papo com jornalista: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-colaborar-com-clube-local",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jogador no país de origem"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Colaborar com clube local",
+   "text": "Visite projeto de esports de sua região.",
+   "effects": {
+    "fame": 110,
+    "morale": 3,
+    "fatigue": 4
+   },
+   "line": "Colaborar com clube local: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-mentoria-para-jogador-iniciante",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "jogador da base acessível"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Mentoria para jogador iniciante",
+   "text": "Dê feedback a uma promessa sem comprometer estratégias atuais.",
+   "effects": {
+    "morale": 3,
+    "fame": 100,
+    "fatigue": 4
+   },
+   "line": "Mentoria para jogador iniciante: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-sessao-de-fotos-profissional",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "org estruturada"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Sessão de fotos profissional",
+   "text": "Atualize material promocional e perfis oficiais.",
+   "effects": {
+    "fame": 85,
+    "fatigue": 3
+   },
+   "line": "Sessão de fotos profissional: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  },
+  {
+   "id": "sem-participacao-em-documentario",
+   "rarity": "moderado",
+   "cooldownWeeks": 9,
+   "condition": [
+    "convite de produção"
+   ],
+   "category": "Vida social e reputação",
+   "title": "Participação em documentário",
+   "text": "Conte sua história para produção sobre o cenário competitivo.",
+   "effects": {
+    "fame": 250,
+    "mind": -1,
+    "fatigue": 7
+   },
+   "line": "Participação em documentário: a decisão entrou na sua rotina e terá reflexos nas próximas semanas.",
+   "risk": {
+    "chance": 0.18,
+    "effects": {
+     "mind": -1,
+     "fatigue": 3
+    },
+    "line": "O compromisso passou do horário e tirou tempo de descanso."
+   },
+   "axis": "fama"
+  }
+ ]
+}

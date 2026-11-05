@@ -1,0 +1,385 @@
+{
+ "dialogues": [
+  {
+   "id": "D01",
+   "speaker": "coach",
+   "situation": "erro de rotação",
+   "line": "O coach cobra: você saiu do bombsite antes de confirmar a bomba.",
+   "trigger": [
+    "erro_rotacao=1",
+    "vitoria=0"
+   ],
+   "options": [
+    {
+     "text": "Assumir o erro e rever a demo",
+     "effects": {
+      "mental": -1,
+      "reputacao_interna": 2
+     }
+    },
+    {
+     "text": "Explicar a informação que recebeu",
+     "effects": {
+      "quimica": 1
+     }
+    },
+    {
+     "text": "Culpar o companheiro que chamou a rotação",
+     "effects": {
+      "quimica": -3,
+      "relacao_coach": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "D02",
+   "speaker": "entry",
+   "situation": "entry sem trade",
+   "line": "O entry pergunta por que morreu sozinho na porta do bombsite.",
+   "trigger": [
+    "entry_morte=1",
+    "trade_realizado=0"
+   ],
+   "options": [
+    {
+     "text": "Pedir desculpas e ajustar o espaçamento",
+     "effects": {
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Propor um timing diferente com o support",
+     "effects": {
+      "quimica": 2,
+      "treino": 1
+     }
+    },
+    {
+     "text": "Dizer que ele entrou cedo demais",
+     "effects": {
+      "quimica": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "D03",
+   "speaker": "support",
+   "situation": "flash errada",
+   "line": "O support aceita que sua flash cegou dois aliados.",
+   "trigger": [
+    "flash_aliada=1"
+   ],
+   "options": [
+    {
+     "text": "Rever o alinhamento com ele",
+     "effects": {
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Propor código de voz para a flash",
+     "effects": {
+      "quimica": 2,
+      "consistencia": 1
+     }
+    },
+    {
+     "text": "Humilhar o support na comunicação",
+     "effects": {
+      "quimica": -4,
+      "mental_time": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "D04",
+   "speaker": "awper",
+   "situation": "awp perdida",
+   "line": "O AWPer quer recompra de AWP mesmo após dois rounds ruins.",
+   "trigger": [
+    "awp_perdida=1",
+    "economia_fraca=1"
+   ],
+   "options": [
+    {
+     "text": "Negociar uma compra equilibrada",
+     "effects": {
+      "quimica": 1,
+      "economia": 1
+     }
+    },
+    {
+     "text": "Pedir para ele jogar rifle um round",
+     "effects": {
+      "quimica": 0,
+      "economia": 2
+     }
+    },
+    {
+     "text": "Exigir que ele pare de pegar a arma",
+     "effects": {
+      "relacao_awper": -3
+     }
+    }
+   ]
+  },
+  {
+   "id": "D05",
+   "speaker": "igl",
+   "situation": "call contestada",
+   "line": "O IGL diz que sua discordância durante o round atrapalhou a execução.",
+   "trigger": [
+    "discussao_call=1"
+   ],
+   "options": [
+    {
+     "text": "Reconhecer e discutir no pause",
+     "effects": {
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Pedir para ter voz na próxima leitura",
+     "effects": {
+      "relacao_igl": 1,
+      "pressao": 1
+     }
+    },
+    {
+     "text": "Insistir que suas calls são melhores",
+     "effects": {
+      "relacao_igl": -4,
+      "quimica": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "D06",
+   "speaker": "rifler",
+   "situation": "clutch perdido",
+   "line": "O rifler menciona a troca de arma no seu último clutch perdido.",
+   "trigger": [
+    "clutch=1",
+    "clutch_vencido=0"
+   ],
+   "options": [
+    {
+     "text": "Rever o timing da troca",
+     "effects": {
+      "consistencia": 1
+     }
+    },
+    {
+     "text": "Pedir treino de pós-plant em dupla",
+     "effects": {
+      "quimica": 2,
+      "treino": 1
+     }
+    },
+    {
+     "text": "Responder que ele morreu antes e não pode cobrar",
+     "effects": {
+      "relacao_rifler": -3
+     }
+    }
+   ]
+  },
+  {
+   "id": "D07",
+   "speaker": "lurker",
+   "situation": "flanco tardio",
+   "line": "O lurker chegou atrasado à execução e explica que a call mudou.",
+   "trigger": [
+    "lurker_atrasado=1"
+   ],
+   "options": [
+    {
+     "text": "Definir um sinal de aceleração",
+     "effects": {
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Trocar a função dele temporariamente",
+     "effects": {
+      "quimica": -1,
+      "consistencia": 1
+     }
+    },
+    {
+     "text": "Dizer que ele nunca aparece nos rounds",
+     "effects": {
+      "relacao_lurker": -4
+     }
+    }
+   ]
+  },
+  {
+   "id": "D08",
+   "speaker": "anchor",
+   "situation": "bombsite perdido",
+   "line": "O anchor reclama de segurar sozinho o bombsite em três rounds.",
+   "trigger": [
+    "bombsite_cedido=1",
+    "rounds_cedidos_site>=3"
+   ],
+   "options": [
+    {
+     "text": "Pedir ao IGL uma mudança de setup",
+     "effects": {
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Treinar retake com o anchor",
+     "effects": {
+      "treino": 2,
+      "quimica": 1
+     }
+    },
+    {
+     "text": "Dizer que ele precisa matar mais",
+     "effects": {
+      "relacao_anchor": -3
+     }
+    }
+   ]
+  },
+  {
+   "id": "D09",
+   "speaker": "coach",
+   "situation": "mental baixo",
+   "line": "O coach percebe que você está se cobrando depois de um match point perdido.",
+   "trigger": [
+    "mental<=35",
+    "round_decisivo=1",
+    "vitoria=0"
+   ],
+   "options": [
+    {
+     "text": "Aceitar pausa e conversar",
+     "effects": {
+      "mental": 4,
+      "fadiga": -2
+     }
+    },
+    {
+     "text": "Pedir revisão limitada a dois rounds",
+     "effects": {
+      "consistencia": 1,
+      "mental": 1
+     }
+    },
+    {
+     "text": "Esconder o desgaste e treinar até tarde",
+     "effects": {
+      "fadiga": 4,
+      "mental": -3
+     }
+    }
+   ]
+  },
+  {
+   "id": "D10",
+   "speaker": "entry",
+   "situation": "sequência ruim",
+   "line": "O entry pede uma mudança depois de cinco primeiras mortes seguidas.",
+   "trigger": [
+    "first_deaths_consecutivas>=5"
+   ],
+   "options": [
+    {
+     "text": "Mudar o ritmo de entrada",
+     "effects": {
+      "consistencia": 2
+     }
+    },
+    {
+     "text": "Treinar em dupla com support",
+     "effects": {
+      "quimica": 2,
+      "treino": 1
+     }
+    },
+    {
+     "text": "Mandar que ele continue fazendo o mesmo",
+     "effects": {
+      "mental_time": -2,
+      "relacao_entry": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "D11",
+   "speaker": "coach",
+   "situation": "vitória decisiva",
+   "line": "O coach elogia sua leitura no overtime, mas lembra de duas falhas.",
+   "trigger": [
+    "overtime=1",
+    "vitoria=1"
+   ],
+   "options": [
+    {
+     "text": "Comemorar e revisar depois",
+     "effects": {
+      "moral": 2,
+      "consistencia": 1
+     }
+    },
+    {
+     "text": "Pedir revisão imediata",
+     "effects": {
+      "consistencia": 2,
+      "fadiga": 1
+     }
+    },
+    {
+     "text": "Ignorar os erros e postar provocação",
+     "effects": {
+      "fama": 2,
+      "reputacao": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "D12",
+   "speaker": "igl",
+   "situation": "derrota decisiva",
+   "line": "O IGL está abalado após uma call errada no match point.",
+   "trigger": [
+    "round_decisivo=1",
+    "vitoria=0"
+   ],
+   "options": [
+    {
+     "text": "Apoiar e propor uma revisão conjunta",
+     "effects": {
+      "mental_time": 2,
+      "quimica": 2
+     }
+    },
+    {
+     "text": "Assumir liderança na próxima série",
+     "effects": {
+      "lideranca": 1,
+      "relacao_igl": -1
+     }
+    },
+    {
+     "text": "Criticá-lo em entrevista pública",
+     "effects": {
+      "fama": 1,
+      "quimica": -4,
+      "reputacao": -3
+     }
+    }
+   ]
+  }
+ ]
+}

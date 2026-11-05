@@ -1,0 +1,65 @@
+{
+ "semana": {
+  "linhas": 257,
+  "originais_preservadas": 63,
+  "novas_importadas": 194,
+  "duplicadas_recusadas": [],
+  "tokens_ignorados": []
+ },
+ "dilemas": {
+  "linhas": 72,
+  "dilemas": 24,
+  "recusados_menos_de_2_opcoes": [],
+  "tokens_ignorados": [
+   {
+    "id": "dilema-008/B",
+    "token": "relation_dummy +0",
+    "motivo": "efeito sem equivalente no jogo"
+   }
+  ]
+ },
+ "dialogos": {
+  "linhas": 36,
+  "dialogos": 12
+ },
+ "falas": {
+  "total": 505,
+  "conversas_de_contexto": 160,
+  "falas_de_round_decisivo_na_partida": 48,
+  "nao_usadas": {
+   "já está no jogo (conversa com parceiro)": 9,
+   "já está no jogo (provocação de rival)": 8,
+   "já está no jogo (história da call)": 16,
+   "fala de round (clutch_vitoria): o motor não guarda esse fato do round": 24,
+   "fala de round (clutch_derrota): o motor não guarda esse fato do round": 24,
+   "fala de round (entry_sucesso): o motor não guarda esse fato do round": 24,
+   "fala de round (entry_sem_trade): o motor não guarda esse fato do round": 24,
+   "fala de round (awp_erro): o motor não guarda esse fato do round": 24,
+   "fala de round (awp_acerto): o motor não guarda esse fato do round": 24,
+   "fala de round (eco_vitoria): o motor não guarda esse fato do round": 24,
+   "fala de round (anti_eco_derrota): o motor não guarda esse fato do round": 24,
+   "fala de round (rotacao_errada): o motor não guarda esse fato do round": 24,
+   "fala de round (round_tatico_vitoria): o motor não guarda esse fato do round": 24,
+   "fala de round (round_tatico_derrota): o motor não guarda esse fato do round": 24
+  }
+ },
+ "campeonatos": {
+  "linhas": 172,
+  "originais_ja_no_jogo": 152,
+  "retornos_importados": 20,
+  "recusados": []
+ },
+ "acontecimentos": {
+  "total": 350,
+  "legados_com_metadados": 150,
+  "novos_importados": 200,
+  "duplicados_recusados": [],
+  "efeitos_desconhecidos": [],
+  "avisos_do_arquivo": [
+   "110 novos eventos autorais; 150 preservados do CSV original e marcados como revisão pendente",
+   "Efeitos novos são valores iniciais propostos, não resultados calculados por simulador",
+   "Condições descritivas precisam de mapeamento para variáveis reais do jogo",
+   "90 eventos adicionais entre Challenger e Tier S; gatilhos precisam ser mapeados para estado real da simulação; efeitos são propostas de balanceamento."
+  ]
+ }
+}
