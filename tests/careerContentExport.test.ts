@@ -59,7 +59,9 @@ describe.skipIf(!process.env.CAREER_EXPORT)('exportar conteúdo da carreira (CAR
       action.morale ? `moral ${action.morale > 0 ? '+' : ''}${action.morale}` : null,
       action.form ? `forma ${action.form > 0 ? '+' : ''}${action.form}` : null,
       action.fame ? `fãs ${action.fame > 0 ? '+' : ''}${action.fame}` : null,
-      action.relationship ? `relação ${action.relationship > 0 ? '+' : ''}${action.relationship}` : null,
+      action.team ? `relação com o time ${action.team > 0 ? '+' : ''}${action.team}` : null,
+      action.fatigue ? `cansaço ${action.fatigue > 0 ? '+' : ''}${action.fatigue}` : null,
+      action.lang ? `idioma (${action.lang.target === 'en' ? 'inglês' : 'do time'}) +${action.lang.amount}` : null,
       action.trainStep ? 'conta como treino' : null
     ].filter(Boolean).join('; ');
     writeFileSync(join(dir, 'semana.csv'), csv(

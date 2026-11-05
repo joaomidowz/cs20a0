@@ -10,6 +10,7 @@ import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLan
 import { myLanguageFit, seatedNicks } from './squad';
 import { createSeededRng } from '../simulation';
 import { orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason } from './world';
+import { coachWorld } from './coaches';
 
 export interface CardInfo {
   flag: string | null;
@@ -71,7 +72,7 @@ export function cardInfoFor(state: PlayerCareerState, orgId: string): (player: P
   };
 }
 
-export type ScoutStatus = 'titular' | 'reserva' | 'aposentado' | 'voce';
+export type ScoutStatus = 'titular' | 'reserva' | 'aposentado' | 'voce' | 'coach';
 
 export interface ScoutHit {
   nick: string;
@@ -153,6 +154,35 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
   };
   for (const [orgId, roster] of worldRosters(state.seed, state.seasonNumber)) {
     for (const member of roster) if (norm(memberNick(member)).includes(q)) push(make(member, orgId));
+  }
+  // Coaches: o de cada time agora, com o caminho (assumiu, parou).
+  const coachLines = (name: string) => {
+    const key = name.toLowerCase();
+    const lines: ScoutHit['history'] = [];
+    for (let season = 2; season <= state.seasonNumber; season += 1) {
+      for (const change of coachWorld(state.seed, season).changes) {
+        if (change.in.toLowerCase() === key) lines.push({ year: yearOfSeason(season), text: `Assumiu como coach da ${change.orgName}${change.formerPlayer ? ', logo depois de parar de jogar' : ''}.` });
+        if (change.out.toLowerCase() === key) lines.push({ year: yearOfSeason(season), text: `Parou de treinar aos ${change.outAge} anos, na ${change.orgName}.` });
+      }
+    }
+    return lines.sort((a, b) => b.year - a.year);
+  };
+  for (const [orgId, coach] of coachWorld(state.seed, state.seasonNumber).coaches) {
+    if (!norm(coach.name).includes(q)) continue;
+    const org = sceneOrgById.get(orgId);
+    push({
+      nick: coach.name, orgId, orgName: org?.name ?? null, level: org?.level ?? null, role: null, age: year - coach.born, overall: coach.overall,
+      flag: null, spoken: '', status: 'coach', note: `Coach da ${org?.name}${coach.formerPlayer ? ' (ex-jogador)' : coach.real ? '' : ''}.`, history: [...coachLines(coach.name), ...historyOf(state, coach.name)]
+    });
+  }
+  for (let season = state.seasonNumber; season >= 2; season -= 1) {
+    for (const change of coachWorld(state.seed, season).changes) {
+      if (!norm(change.out).includes(q)) continue;
+      push({
+        nick: change.out, orgId: null, orgName: change.orgName, level: null, role: null, age: change.outAge + (state.seasonNumber - season), overall: null,
+        flag: null, spoken: '', status: 'aposentado', note: `Coach aposentado desde ${yearOfSeason(season)} (último time: ${change.orgName}).`, history: coachLines(change.out)
+      });
+    }
   }
   // Quem pendurou: estava na cena e não está em nenhum elenco agora.
   for (let season = state.seasonNumber; season >= 2; season -= 1) {

@@ -8,6 +8,7 @@ import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
 import { memberRoles, ORG_BASE_POWER, resolvedRoster, sceneOrgById } from './data';
 import { orgIn, seatMovesOf } from './world';
+import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
 import { MAP_NAMES } from '../maps';
@@ -354,8 +355,21 @@ export function trainingWindowOf(state: PlayerCareerState): string | null {
  * O treinador da sua org: atributos derivados do nível (mecânica declarada, como o poder dos rivais) —
  * identidade de coach não foi coletada, então é placeholder no padrão de honestidade do jogo.
  */
+/** O coach do seu time no mundo da carreira (real do catálogo, gerado ou ex-jogador); null na lan house. */
+export const careerCoachOf = (state: PlayerCareerState): CareerCoach | null =>
+  state.orgId === 'lan-house' ? null : coachOfOrg(state.seed, state.seasonNumber, state.orgId);
+
 export function coachOf(state: PlayerCareerState): Coach {
   const org = orgOf(state.orgId, state);
+  const world = careerCoachOf(state);
+  if (world) {
+    return {
+      id: world.id, baseId: world.id, name: world.name, teamId: org.id, year: state.year, game: null,
+      tactics: world.tactics, discipline: world.discipline, aggression: world.aggression, development: world.development, overall: world.overall,
+      rarity: 'rare', confidence: world.real ? 'high' : 'placeholder', needsReview: false,
+      source: { page: null, url: null, year: null, note: world.real ? 'Coach real do catálogo; idade estimada.' : 'Coach do mundo da carreira (gerado ou ex-jogador).' }
+    };
+  }
   const rng = createSeededRng(`${state.seed}:coach:${org.id}`);
   const band = ORG_BASE_POWER[org.level] ?? 60;
   const attr = () => Math.max(40, Math.min(99, band + Math.round((rng() - 0.5) * 14)));

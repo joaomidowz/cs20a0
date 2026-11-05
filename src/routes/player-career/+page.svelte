@@ -31,7 +31,8 @@
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
-  import { seatsWithSeason, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { coachOfOrg } from '$lib/game/playerCareer/coaches';
+  import { seatsWithSeason, careerCoachOf, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -482,7 +483,7 @@
     });
   }
 
-  const SCOUT_STATUS: Record<ScoutHit['status'], string> = { titular: 'Titular', reserva: 'Reserva', aposentado: 'Aposentado', voce: 'Você' };
+  const SCOUT_STATUS: Record<ScoutHit['status'], string> = { titular: 'Titular', reserva: 'Reserva', aposentado: 'Aposentado', voce: 'Você', coach: 'Coach' };
   function openScout(query = '') {
     menuOpen = false;
     scoutQuery = query;
@@ -972,6 +973,8 @@
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
+  $: myCoach = career ? careerCoachOf(career) : null;
+  $: oppCoach = career && opponentOrg ? coachOfOrg(career.seed, career.seasonNumber, opponentOrg.id) : null;
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
   $: sceneRetired = career && !career.calendar && career.seasonNumber > 1 ? headlineRetirements(career.seed, career.seasonNumber, 3) : [];
@@ -1390,6 +1393,11 @@
                 <button class="cta inline" on:click={() => void run()}>{lastCall ? 'Continuar' : 'Jogar'}</button>
               {/if}
               <button class="secondary-btn" on:click={simulateRest}>Simular o resto</button>
+              {#if autoCall}
+                <button class="secondary-btn auto-off" on:click={() => (autoCall = false)} title="As próximas calls voltam a parar para você escolher">
+                  Calls no seu estilo ({RISK[autoProfile].label}) · voltar a escolher
+                </button>
+              {/if}
             </div>
           {/if}
           {#if stageBanner}<p class="stage-banner" role="status">{stageBanner}</p>{/if}
@@ -1494,7 +1502,7 @@
           {:else if resolving}
             <p class="last-call resolving" role="status">Round decisivo rodando em velocidade normal…</p>
           {:else if lastCall && !callOutcome && !clutch}
-            <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{lastCall.quality ? ` · ${QUALITY_LABEL[lastCall.quality].toLowerCase()}` : ''}{autoCall ? ' · no seu estilo' : ''}</p>
+            <p class="last-call chip-note" class:won={lastCall.won}>Sua call: {lastCall.text} · round {lastCall.won ? 'ganho' : 'perdido'}{lastCall.quality ? ` · ${QUALITY_LABEL[lastCall.quality].toLowerCase()}` : ''}{autoCall ? ' · no seu estilo' : ''}{#if autoCall} <button class="link-btn inline-off" on:click={() => (autoCall = false)}>Voltar a escolher</button>{/if}</p>
           {/if}
 
         {:else}
@@ -1622,6 +1630,7 @@
                       <span class="label">Coach</span>
                       <span class="coach-ovr">{coach.overall}</span>
                       <b class="coach-name">{coach.name}</b>
+                      {#if myCoach}<span class="coach-age" title={myCoach.real ? 'Idade estimada pelo primeiro ano como coach.' : ''}>{career.year - myCoach.born} anos{myCoach.formerPlayer ? ' · ex-jogador' : ''}</span>{/if}
                       <ul>
                         {#each COACH_ATTRS as attribute}
                           <li><span>{attribute.label}</span><i style={`--v:${coach[attribute.key]}%`}></i><b>{coach[attribute.key]}</b></li>
@@ -1892,6 +1901,7 @@
             {#if oppAverage}<div><dt>Média</dt><dd>{oppAverage}</dd></div>{/if}
             <div><dt>Região</dt><dd>{REGION_LABEL[opponentOrg.region ?? 'eu'] ?? '—'}</dd></div>
             <div><dt>Call</dt><dd>{LANGUAGE_LABEL[oppLanguage]}</dd></div>
+            {#if oppCoach}<div title={oppCoach.real ? 'Coach real; idade estimada pelo primeiro ano como coach.' : oppCoach.formerPlayer ? 'Ex-jogador que virou coach.' : 'Coach do mundo da carreira.'}><dt>Coach</dt><dd>{oppCoach.name} · {career.year - oppCoach.born}</dd></div>{/if}
           </dl>
         </div>
         <div class="opp-maps" aria-label="Os 3 mapas mais fortes do time">
@@ -1923,7 +1933,7 @@
         </header>
         <label class="scout-field">
           <span class="label">Nick do jogador</span>
-          <input type="search" bind:value={scoutQuery} placeholder="ZywOo, FalleN, donk" autocomplete="off" spellcheck="false" data-autofocus />
+          <input type="search" bind:value={scoutQuery} placeholder="ZywOo, FalleN, donk, um coach" autocomplete="off" spellcheck="false" data-autofocus />
         </label>
         {#if scoutQuery.trim().length < 2}
           <p class="modal-note">Digite 2 letras ou mais. A busca cobre o mundo inteiro da carreira: titulares, reservas e aposentados.</p>
@@ -2340,6 +2350,8 @@
   .rung-short { display: none; }
   .seat-line { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .seat-line b { color: var(--text); }
+  .auto-off { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
+  .inline-off { min-height: 0; margin-left: 6px; padding: 0; font-size: 11px; }
   .clutch-ctx { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
   .clutch-ctx b { color: var(--text); font-variant-numeric: tabular-nums; }
   .clutch-ctx .up { color: var(--accent); }
@@ -2359,6 +2371,8 @@
   .scout-hit { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-left-width: 3px; background: var(--surface-2); }
   .scout-hit.status-titular { border-left-color: var(--accent); }
   .scout-hit.status-reserva { border-left-color: var(--accent-2); }
+  .scout-hit.status-coach { border-left-color: var(--gold); }
+  .status-coach .scout-status { border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
   .scout-hit.status-voce { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
   .scout-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .scout-who { display: grid; flex: 1; gap: 4px; min-width: 0; }
@@ -2535,6 +2549,7 @@
   .talk-line b { color: var(--text); }
   .coach-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 60%), var(--surface-2); }
   .coach-card .label { margin: 0; color: var(--accent-2); }
+  .coach-age { margin-top: -6px; color: var(--muted); font-size: 12px; }
   .coach-ovr { font: 900 40px/.82 var(--display); font-variant-numeric: tabular-nums; }
   .coach-name { font: 800 20px/1 var(--display); text-transform: uppercase; }
   .coach-card ul { display: grid; gap: 7px; margin: 4px 0 0; padding: 0; list-style: none; }

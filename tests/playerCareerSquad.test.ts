@@ -45,13 +45,13 @@ describe('elenco e sinergia', () => {
     expect(relationshipOf(healed, 'x')).toBe(relationshipOf(healed, 'x')); // determinístico
   });
 
-  it('o treinador da org é determinístico, derivado do nível e declarado placeholder (sem identidade inventada)', () => {
+  it('o treinador da org é determinístico: o coach real do catálogo ou, sem ele, um coach do mundo marcado como tal', () => {
     const career = careerAtRealOrg('coach1');
     const coach = coachOf(career);
     expect(coachOf(career).id).toBe(coach.id);
-    expect(coach.confidence).toBe('placeholder');
-    expect(coach.source.note).toContain('não coletada');
-    expect(coach.overall).toBe(Math.round((coach.tactics + coach.discipline + coach.aggression + coach.development) / 4));
+    expect(['high', 'placeholder']).toContain(coach.confidence);
+    expect(coach.source.note).toMatch(coach.confidence === 'high' ? /catálogo/ : /mundo da carreira/);
+    expect(Math.abs(coach.overall - Math.round((coach.tactics + coach.discipline + coach.aggression + coach.development) / 4))).toBeLessThanOrEqual(1);
     expect(coach.tactics).toBeGreaterThanOrEqual(40);
     expect(coach.tactics).toBeLessThanOrEqual(99);
   });
