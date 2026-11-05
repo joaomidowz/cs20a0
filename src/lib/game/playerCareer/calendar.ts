@@ -4,6 +4,7 @@
 // catálogo de eventos (circuit-events.game.json: organizador, premiação, local). Cada nível joga o seu circuito,
 // com mês, tier do evento e formato (mata-mata de 8, suíça de 16 ou Major com stages).
 import circuitEventsJson from '$lib/data/cs/circuit-events.game.json';
+import revivalsJson from '$lib/data/cs/career-revivals.game.json';
 import { createSeededRng } from '../simulation';
 
 export type EventTier = 'Major' | 'S' | 'A' | 'B' | 'C';
@@ -18,6 +19,8 @@ export interface EventTemplate {
   organizer?: string;
   location?: string;
   prizePool?: number;
+  /** Retorno de campeonato histórico: o formato original e o que o jogo usa no lugar. */
+  note?: string;
 }
 
 interface RealCircuitEvent { year: number; name: string; organizer: string; tier: 'elite' | 'open'; teams: number; prizePool: number; location: string }
@@ -155,6 +158,46 @@ export function circuitCatalog(year = 2027): Array<EventTemplate & { circuit: st
 /** Finais MD5 dos regionais grandes (os que o guia mostra decididos em 3-x). */
 const REGIONAL_BO5 = ['CBCS Masters', 'Asian Champions League', 'ESL Challenger Europe', 'ESL Challenger NA', 'ESL Challenger Asia-Pacific'];
 
+// ---------------------------------------------------------------------------------------------------------------
+// Campeonatos históricos que voltam (planilha de campeonatos com retornos): cada um a cada N anos (com um deslocamento
+// fixo pelo nome, igual em todo save, como um calendário de verdade), no máximo um por grupo de rotação no ano, no
+// circuito e na região certos. O formato que o jogo não tem vira o mais próximo, com o original dito na tela.
+interface Revival { name: string; circuit: string; region: string; tier: EventTier; month: number; formatOriginal: string; format: EventFormat; finalBestOf: 3 | 5; organizer: string; location: string; prizePool: number; teams: number; periodYears: number; rotationGroup: string; note: string }
+const REVIVALS = (revivalsJson as unknown as { revivals: Revival[] }).revivals;
+const FORMAT_LABEL: Record<EventFormat, string> = { bracket8: 'mata-mata de 8', swiss16: 'suíça de 16 + mata-mata', major: 'Major' };
+const PLACE_REGION: Record<string, GuideRegion | 'world'> = { Mundo: 'world', 'América do Sul': 'sa', Europa: 'eu', 'América do Norte': 'na', 'Ásia e Oceania': 'apac' };
+const CIRCUIT_LEVEL: Record<string, number[]> = { 'Elite mundial (Tier S e 1)': [0, 1], 'Tier 2 do jogo (topo regional)': [2], 'Challenger (ligas regionais)': [3] };
+const nameOffset = (name: string, period: number) => Math.floor(createSeededRng(`revival:${name}`)() * period);
+
+/** Os retornos que acontecem no ano para o nível e a região (um por grupo de rotação). */
+export function revivalsOf(year: number, level: number, region: Region): EventTemplate[] {
+  const guide = guideRegion(region);
+  const due = REVIVALS.filter((revival) => (CIRCUIT_LEVEL[revival.circuit] ?? []).includes(level)
+    && (PLACE_REGION[revival.region] === 'world' || PLACE_REGION[revival.region] === guide)
+    && (year + nameOffset(revival.name, revival.periodYears)) % revival.periodYears === 0);
+  const byGroup = new Map<string, Revival>();
+  for (const revival of due) {
+    const current = byGroup.get(revival.rotationGroup);
+    // Dois do mesmo grupo no mesmo ano: fica um (sorteio fixo pelo ano).
+    if (!current || createSeededRng(`revival-group:${revival.rotationGroup}:${year}:${revival.name}`)() > 0.5) byGroup.set(revival.rotationGroup, revival);
+  }
+  // Premiação anda um pouco por ano (até 10% para cada lado), sem sair do patamar.
+  return [...byGroup.values()].map((revival) => {
+    const drift = 1 + (createSeededRng(`revival-prize:${revival.name}:${year}`)() - 0.5) * 0.2;
+    // O jogo tem mata-mata de 8 e suíça de 16: só a suíça original fica igual.
+    const changed = !(revival.format === 'swiss16' && /suíço/i.test(revival.formatOriginal));
+    return {
+      name: revival.name, tier: revival.tier, month: Math.min(11, revival.month), format: revival.format, finalBestOf: revival.finalBestOf,
+      organizer: revival.organizer, location: revival.location, prizePool: Math.round((revival.prizePool * drift) / 1000) * 1000,
+      note: `Retorno fictício de um campeonato histórico. Formato original: ${revival.formatOriginal}${changed ? `; aqui: ${FORMAT_LABEL[revival.format]}` : ''}.`
+    };
+  });
+}
+
+/** No máximo 6 Tier S (fora os Majors) e 2 campeonatos no mesmo mês. */
+export const S_TIER_CAP = 6;
+const MONTH_CAP = 2;
+
 const lanPool = (): EventTemplate[] => Array.from({ length: 12 }, (_, index) => E(`Circuito amador da lan house · Etapa ${index + 1}`, 'C', index + 1));
 
 /** Quantos campeonatos cada nível joga por temporada (sorteado pela seed): Tier S e 1 8-12, Tier 2 8-10,
@@ -173,21 +216,28 @@ export function eventCount(level: number, seed: string): number {
  */
 export function seasonEvents(level: number, region: Region, count: number, seed: string, year = 2026): EventTemplate[] {
   const rng = createSeededRng(`${seed}:events`);
-  const pick = (pool: EventTemplate[], amount: number) => {
+  const majors = majorsOf(year);
+  // Sorteio sem repetir, respeitando o teto de Tier S e o de campeonatos no mesmo mês (contando o que já está dentro).
+  const pick = (pool: EventTemplate[], amount: number, already: EventTemplate[] = []) => {
     const copy = [...pool];
     const chosen: EventTemplate[] = [];
-    while (chosen.length < amount && copy.length) chosen.push(copy.splice(Math.floor(rng() * copy.length), 1)[0]);
+    const fits = (event: EventTemplate) => [...already, ...chosen].filter((other) => other.month === event.month).length < MONTH_CAP
+      && (event.tier !== 'S' || [...already, ...chosen].filter((other) => other.tier === 'S').length < S_TIER_CAP);
+    while (chosen.length < amount && copy.length) {
+      const candidate = copy.splice(Math.floor(rng() * copy.length), 1)[0];
+      if (fits(candidate)) chosen.push(candidate);
+    }
     return chosen;
   };
   const guide = guideRegion(region);
-  const majors = majorsOf(year);
+  const revivals = revivalsOf(year, level, region);
   let events: EventTemplate[];
   // Pedido de poucos eventos (troca no fim do ano): nunca enfia os 2 Majors à força.
-  if (level <= 1) events = count >= 3 ? [...majors, ...pick(elitePool(year), count - 2)] : pick(elitePool(year), count);
+  if (level <= 1) events = count >= 3 ? [...majors, ...pick([...elitePool(year), ...revivals], count - 2, majors)] : pick([...elitePool(year), ...revivals], count);
   // Regional não é tier A do mundo: o topo regional (CBCS Masters, ESL Challenger SA…) é tier B, e as ligas e
   // temporadas regionais (CBCS Season, Gamers Club Série S…) são tier C, como no guia (CBCS = Tier 3/B/C).
-  else if (level === 2) events = [...pick(spread(REGIONAL[guide].A, 'B', guide, REGIONAL_BO5), count - 1), majors[0]];
-  else if (level === 3) events = [...pick(spread(REGIONAL[guide].B, 'C', guide), count - 1), majors[0]];
+  else if (level === 2) events = [...pick([...spread(REGIONAL[guide].A, 'B', guide, REGIONAL_BO5), ...revivals], count - 1, [majors[0]]), majors[0]];
+  else if (level === 3) events = [...pick([...spread(REGIONAL[guide].B, 'C', guide), ...revivals], count - 1, [majors[0]]), majors[0]];
   else if (level === 4) events = pick(spread(REGIONAL[guide].C, 'C', guide), count);
   else events = lanPool().slice(0, count);
   return events.sort((a, b) => a.month - b.month);

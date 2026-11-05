@@ -401,7 +401,7 @@ export interface AgendaResult {
 const OVERALL_EVERY = 3;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: AgendaChip[]): PlayerCareerState {
+export function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: AgendaChip[]): PlayerCareerState {
   const trained: TrainedBonus = { ...(state.trained ?? {}) };
   for (const [attribute, value] of Object.entries(effects.attrs ?? {}) as Array<[TrainedAttribute, number]>) {
     const before = trained[attribute] ?? 0;

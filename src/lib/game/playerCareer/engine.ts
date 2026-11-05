@@ -145,6 +145,8 @@ export interface CalendarEntry {
   organizer?: string;
   location?: string;
   prizePool?: number;
+  /** Retorno de campeonato histórico: o formato original e o que o jogo usa no lugar. */
+  note?: string;
 }
 
 /** O que o save guarda de um evento em andamento: a chave e as séries já fechadas (rebuild determinístico). */
@@ -330,6 +332,8 @@ export interface PlayerCareerState {
   talkMemory?: TalkMemory;
   /** Conversa esperando a sua resposta (clique em Conversar, início da temporada, antes ou depois do campeonato). */
   pendingTalk?: Talk | null;
+  /** Dilema da semana esperando a sua escolha (career-dilemmas). */
+  pendingDilemma?: { id: string; eventIndex: number } | null;
   /** Temporada em que você já pediu para sair (uma vez por temporada). */
   transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */
@@ -387,7 +391,8 @@ function calendarFor(state: PlayerCareerState, orgId: string, seed: string, coun
     finalBestOf: event.finalBestOf,
     ...(event.organizer ? { organizer: event.organizer } : {}),
     ...(event.location ? { location: event.location } : {}),
-    ...(event.prizePool ? { prizePool: event.prizePool } : {})
+    ...(event.prizePool ? { prizePool: event.prizePool } : {}),
+    ...(event.note ? { note: event.note } : {})
   }));
 }
 

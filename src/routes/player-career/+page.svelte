@@ -29,6 +29,7 @@
   import { clutchStory, logDecision, mapTarget, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
   import { answerTalk, decisiveLine, dismissTalk, markLineUsed, momentTalk, seasonTalk, speakerOf, startTalk, MOMENT_LABEL, SITUATION_LABEL, type TalkChip, type TalkMoment } from '$lib/game/playerCareer/talks';
   import { tickLife } from '$lib/game/playerCareer/tick';
+  import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
   import { lifeOf, livesAbroad } from '$lib/game/playerCareer/life';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
@@ -344,6 +345,21 @@
       tip = coached.line;
     }
     talkResult = { who: talk.speaker.name, situation: SITUATION_LABEL[talk.situation], moment: talk.moment, line: answer.line, chips: answer.chips, good: answer.good, tip };
+  }
+
+  let dilemmaResult: { title: string; line: string; chips: AgendaChip[] } | null = null;
+
+  function chooseDilemma(key: 'A' | 'B' | 'C') {
+    if (!career?.pendingDilemma) return;
+    const dilemma = DILEMMA_BY_ID.get(career.pendingDilemma.id);
+    const outcome = resolveDilemma(career, key);
+    career = outcome.state;
+    dilemmaResult = { title: dilemma?.title ?? '', line: outcome.line, chips: outcome.chips };
+  }
+
+  function closeDilemma() {
+    dilemmaResult = null;
+    if (career?.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) career = finishSeason(career);
   }
 
   function closeTalk() {
@@ -930,6 +946,8 @@
         const postTalk = momentTalk(career, 'post', index, lostMatchPoint);
         if (postTalk) career = { ...career, pendingTalk: postTalk };
       }
+      // Nada esperando resposta: pode vir um dilema da semana (conflito real, no máximo 3 por temporada).
+      if (!result.benched) career = rollDilemma(career, index + 1);
     }
   }
 
@@ -1089,7 +1107,7 @@
   $: life = career ? lifeOf(career) : null;
   $: abroad = career && career.orgId !== 'lan-house' ? livesAbroad(career, (orgOf(career.orgId, career) as { region?: string }).region) : false;
   // O coach abre a temporada: a meta do ano, antes do primeiro campeonato.
-  $: if (career && !live && career.status === 'ACTIVE' && !career.pendingTalk && !career.pendingHappening && !career.pendingRival && !career.pendingMove) {
+  $: if (career && !live && career.status === 'ACTIVE' && !career.pendingTalk && !career.pendingHappening && !career.pendingDilemma && !career.pendingRival && !career.pendingMove) {
     const opening = seasonTalk(career);
     if (opening) career = { ...career, pendingTalk: opening };
   }
@@ -2029,6 +2047,7 @@
           <div><dt>Formato</dt><dd>{FORMAT_TEXT(sheetEntry)}</dd></div>
           <div><dt>Quando e onde</dt><dd>{sheetEntry.month ? MONTH_FULL[sheetEntry.month - 1] : '—'}{sheetEntry.location ? ` · ${sheetEntry.location}` : ''}{sheetEntry.organizer ? ` · ${sheetEntry.organizer}` : ''}</dd></div>
           {#if sheetEntry.prizePool}<div><dt>Premiação</dt><dd>US$ {sheetEntry.prizePool.toLocaleString('pt-BR')}</dd></div>{/if}
+          {#if sheetEntry.note}<div class="event-note"><dt>Retorno</dt><dd>{sheetEntry.note}</dd></div>{/if}
           {#if sheetEntry.result}
             <div class="place-{placeKey(sheetEntry.result.placement)}"><dt>Sua colocação</dt><dd class="placed">{sheetEntry.result.placement}</dd></div>
             <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}W–{sheetEntry.result.seriesLosses}L</dd></div>
@@ -2450,6 +2469,36 @@
             {/each}
           </div>
           <button class="link-btn talk-skip" on:click={closeTalk}>Deixar para depois</button>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
+  {#if career && !live && (career.pendingDilemma || dilemmaResult) && !career.pendingHappening && !happeningResult && !career.pendingTalk && !talkResult && !career.pendingMove}
+    {@const dilemma = career.pendingDilemma ? DILEMMA_BY_ID.get(career.pendingDilemma.id) : null}
+    <div class="modal-backdrop" role="presentation">
+      <div class="modal wide happening" role="alertdialog" aria-modal="true" aria-labelledby="dilemma-title" use:focusInside>
+        {#if dilemmaResult}
+          <span class="eyebrow">Dilema da semana</span>
+          <h2 class="display" id="dilemma-title">{dilemmaResult.title}</h2>
+          <p class="happening-line">{dilemmaResult.line}</p>
+          {#if dilemmaResult.chips.length}
+            <ul class="happening-chips">
+              {#each dilemmaResult.chips as chip (chip.label)}
+                <li class:up={chip.kind === 'fatigue' || chip.label === 'Saudade' ? chip.value < 0 : chip.value > 0} class:down={chip.kind === 'fatigue' || chip.label === 'Saudade' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</li>
+              {/each}
+            </ul>
+          {/if}
+          <button class="cta" data-autofocus on:click={closeDilemma}>Continuar</button>
+        {:else if dilemma}
+          <span class="eyebrow">Dilema da semana · uma escolha, sem volta</span>
+          <h2 class="display" id="dilemma-title">{dilemma.title}</h2>
+          <div class="happening-choices">
+            {#each dilemma.options as option, optionIndex (option.key)}
+              <button class="happening-choice" data-autofocus={optionIndex === 0 ? '' : undefined} on:click={() => chooseDilemma(option.key)}>{option.text}</button>
+            {/each}
+          </div>
+          <p class="happening-odds">Cada caminho tem um custo. O efeito depende do seu momento (saudade, corpo, cansaço).</p>
         {/if}
       </div>
     </div>
@@ -3356,6 +3405,8 @@
   .sev { margin-left: 10px; padding: 2px 6px; border: 1px solid currentColor; font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; }
   .sev-grave { color: var(--accent-2); opacity: 0.8; }
   .sev-critico { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
+  .event-note { grid-column: 1 / -1; }
+  .event-note dd { font-size: 14px; line-height: 1.4; }
   .talk-who { margin-left: 10px; color: var(--muted); font: 600 13px/1 var(--body); text-transform: uppercase; letter-spacing: 0.08em; vertical-align: middle; }
   .talk-quote { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 17px; line-height: 1.45; }
   .talk-tip { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
