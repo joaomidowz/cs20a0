@@ -6,7 +6,7 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { memberRoles, ORG_BASE_POWER, resolvedRoster, sceneOrgById } from './data';
+import { memberBirthYear, memberRoles, ORG_BASE_POWER, resolvedRoster, sceneOrgById } from './data';
 import { orgIn, seatMovesOf } from './world';
 import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
@@ -16,7 +16,7 @@ import type { MapId } from '../types';
 import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, teamLanguage, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
-import { orgOf, seatToTake, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, seatToTake, type BenchPlayer, type PlayerCareerState, type PlayerRole, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -135,6 +135,9 @@ export function myLanguageFit(state: PlayerCareerState): { language: Language; f
   return { language, fluency, penalty: languagePenalty(fluency) };
 }
 
+/** Quanto um parceiro perde jogando fora da função natural dele. */
+export const OFF_ROLE_PENALTY = 2;
+
 /** Os 4 parceiros da temporada — exatamente quem entra em quadra com você, com o bônus de sinergia no overall. */
 export function matesOf(state: PlayerCareerState): SquadMate[] {
   const org = orgOf(state.orgId, state);
@@ -149,18 +152,36 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
   const { penalty } = myLanguageFit(state);
   // Quem saiu a seu pedido dá lugar ao substituto (mesma função, um pouco melhor ou pior).
   const kicked = state.kickedMates?.[state.orgId] ?? [];
-  // A função que ficou vaga no elenco (a de quem cedeu a vaga). Se você joga em outra, o parceiro dela vai para a vaga.
-  const covered = new Set(roster.map((player) => player.role));
-  const vacant = SLOTS.find((role) => !covered.has(role)) ?? null;
-  const adjusted = roster.map((player) => {
-    const gone = kicked.find((entry) => entry.nick.toLowerCase() === (player.nickname ?? '').toLowerCase());
-    if (gone) {
-      const rng = createSeededRng(`${state.seed}:replacement:${gone.replacement}`);
-      return enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, clamp((player.overall ?? 70) + gone.delta, 40, 99), (player.role ?? 'support') as PlayerRole, rng);
+  const plan = state.squadPlan && state.squadPlan.orgId === state.orgId ? state.squadPlan : null;
+  // Cada titular com a função natural dele (a da vaga; quem veio do banco traz a dele).
+  let lineup = roster.map((player) => {
+    const key = (player.nickname ?? '').toLowerCase();
+    const gone = kicked.find((entry) => entry.nick.toLowerCase() === key);
+    const slotRole = (player.role ?? 'support') as PlayerRole;
+    let current: Player = gone
+      ? enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, clamp((player.overall ?? 70) + gone.delta, 40, 99), slotRole, createSeededRng(`${state.seed}:replacement:${gone.replacement}`))
+      : player;
+    let natural = slotRole;
+    // Banco: quem entrou no lugar dele (promovido por você ou por um acontecimento).
+    const sub = plan?.lineup[key];
+    if (sub) {
+      current = enginePlayer(`${state.orgId}:bench:${sub.nick.toLowerCase()}`, sub.nick, sub.overall, slotRole, createSeededRng(`${state.seed}:bench:${sub.nick}`));
+      natural = sub.role;
     }
-    // Trocou de função: o parceiro da sua nova função assume a vaga (vale para quantas trocas houver).
-    if (vacant && vacant !== state.role && player.role === state.role) return { ...player, role: vacant, eligibleSlotRoles: [vacant] };
-    return player;
+    // O IGL trocou a função dele.
+    const assigned = plan?.roles[(current.nickname ?? '').toLowerCase()];
+    return { player: current, natural, role: assigned ?? slotRole };
+  });
+  // A função que ficou vaga (a de quem cedeu a vaga). Se você joga em outra, o parceiro dela vai para a vaga.
+  const taken = lineup.map((item) => item.role);
+  const vacant = SLOTS.find((role) => role !== state.role && !taken.includes(role)) ?? null;
+  if (vacant) lineup = lineup.map((item) => (item.role === state.role ? { ...item, role: vacant } : item));
+  // Fora da função natural ele rende menos.
+  const adjusted = lineup.map(({ player, natural, role }) => {
+    if (role === player.role && role === natural) return player;
+    const overall = clamp((player.overall ?? 70) - (role === natural ? 0 : OFF_ROLE_PENALTY), 40, 99);
+    const reshaped = enginePlayer(player.id, player.nickname ?? player.id, overall, role, createSeededRng(`${state.seed}:role:${player.id}:${role}`));
+    return { ...reshaped, baseId: player.baseId ?? reshaped.baseId };
   });
   return adjusted.map((player) => {
     const relationship = relationshipOf(state, player.id);
@@ -468,4 +489,120 @@ export function trainMe(state: PlayerCareerState, meBase: Player, focus: Trainin
     overallUp,
     line: anyGain ? TRAIN_LINES[focus] + (overallUp ? ' Treino em dia: overall +1.' : '') : 'Esse atributo já está no teto do treino. O resto vem jogando.'
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Banco e escalação: um reserva por time (jovem da base, alguém dos pugs, stand-in), promover a titular (quem sai
+// vai para o banco e não gosta) e, sendo IGL, trocar a função de dois parceiros (cada um aceita ou não).
+
+/** O plano do time atual (vazio se você mudou de time). */
+export function planOf(state: PlayerCareerState): SquadPlan {
+  return state.squadPlan && state.squadPlan.orgId === state.orgId ? state.squadPlan : { orgId: state.orgId, lineup: {}, reserve: null, roles: {} };
+}
+
+export type ReserveKind = 'jovem' | 'pugs' | 'stand-in';
+
+/** Um reserva novo no banco: o jovem chega bem abaixo e com teto alto; o dos pugs um pouco abaixo; o stand-in
+ *  quase no nível, sem crescer. Substitui o reserva anterior (que sai do time). */
+export function addReserve(state: PlayerCareerState, kind: ReserveKind, role?: PlayerRole): { state: PlayerCareerState; reserve: BenchPlayer; line: string } {
+  const plan = planOf(state);
+  const mates = matesOf(state);
+  const average = mates.reduce((sum, mate) => sum + (mate.player.overall ?? 70) - synergyBump(mate.relationship), 0) / Math.max(1, mates.length);
+  const rng = createSeededRng(`${state.seed}:reserve:${state.seasonNumber}:${kind}:${state.calendar?.filter((entry) => entry.status === 'PLAYED').length ?? 0}`);
+  const year = state.year;
+  const age = kind === 'jovem' ? 17 + Math.floor(rng() * 3) : kind === 'pugs' ? 18 + Math.floor(rng() * 5) : 22 + Math.floor(rng() * 6);
+  const overall = Math.round(clamp(average - (kind === 'jovem' ? 9 : kind === 'pugs' ? 5 : 3) + (rng() - 0.5) * 4, 40, 95));
+  const potential = kind === 'stand-in' ? overall : clamp(overall + (kind === 'jovem' ? 12 + Math.floor(rng() * 10) : 5 + Math.floor(rng() * 6)), overall, 97);
+  const org = orgIn(state.seed, state.seasonNumber, state.orgId);
+  const counts = new Map<string, number>();
+  for (const member of org?.roster ?? []) if (member.country) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
+  const country = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? state.country;
+  const reserve: BenchPlayer = {
+    nick: randomNick(`${state.seed}:reserve-nick:${state.seasonNumber}:${kind}:${Math.floor(rng() * 1e6)}`),
+    role: role ?? SLOTS[Math.floor(rng() * SLOTS.length)], overall, potential, born: year - age, country
+  };
+  const label = kind === 'jovem' ? 'jovem da base' : kind === 'pugs' ? 'veio dos pugs' : 'stand-in';
+  return { state: { ...state, squadPlan: { ...plan, reserve } }, reserve, line: `${reserve.nick} (${label}, ${age} anos, ${reserve.overall}) está no banco.` };
+}
+
+/** O reserva entra no lugar do parceiro; o parceiro vai para o banco. Ele não gosta (relação −12); se o reserva é
+ *  claramente melhor, o resto do elenco entende (+1). */
+export function promoteReserve(state: PlayerCareerState, mateId: string): { state: PlayerCareerState; line: string } {
+  const plan = planOf(state);
+  const reserve = plan.reserve;
+  const mates = matesOf(state);
+  const mate = mates.find((candidate) => candidate.player.id === mateId);
+  if (!reserve || !mate) return { state, line: '' };
+  const nick = mate.player.nickname ?? 'parceiro';
+  const occupant = nick.toLowerCase();
+  // A vaga: o titular original daquele lugar (quem está nela pode já ser alguém do banco).
+  const slotKey = Object.entries(plan.lineup).find(([, sub]) => sub.nick.toLowerCase() === occupant)?.[0] ?? occupant;
+  const lineup = { ...plan.lineup };
+  if (reserve.nick.toLowerCase() === slotKey) delete lineup[slotKey];
+  else lineup[slotKey] = reserve;
+  const raw = (mate.player.overall ?? 70) - synergyBump(mate.relationship);
+  const benched: BenchPlayer = plan.lineup[slotKey] && plan.lineup[slotKey].nick.toLowerCase() === occupant
+    ? plan.lineup[slotKey]
+    : (() => {
+      const member = orgIn(state.seed, state.seasonNumber, state.orgId)?.roster.find((candidate) => candidate.nick.toLowerCase() === occupant);
+      const born = member ? memberBirthYear(member) : null;
+      return { nick, role: naturalRoleOf(state, mate), overall: Math.round(raw), potential: Math.round(raw), born: born ?? state.year - 26, country: member?.country ?? null };
+    })();
+  const better = reserve.overall >= raw + 3;
+  const relationships: Record<string, number> = { ...state.relationships, [mateId]: clamp(mate.relationship - 12, 0, 100) };
+  if (better) for (const other of mates) if (other.player.id !== mateId) relationships[other.player.id] = clamp(other.relationship + 1, 0, 100);
+  return {
+    state: { ...state, relationships, squadPlan: { ...plan, lineup, reserve: benched } },
+    line: `${reserve.nick} entra no lugar de ${nick}, que vai para o banco${better ? '. O elenco entendeu a troca.' : ' e não gostou nada.'}`
+  };
+}
+
+/** Sendo IGL, uma vez por semana você pede para dois parceiros trocarem de função. Cada um aceita mais fácil se
+ *  gosta de você e se a função nova é a dele; quem recusa fica chateado. */
+export function canSwapRoles(state: PlayerCareerState): boolean {
+  const window = trainingWindowOf(state);
+  return state.role === 'igl' && state.orgId !== 'lan-house' && Boolean(window) && planOf(state).swapWindow !== window;
+}
+
+export function swapMateRoles(state: PlayerCareerState, mateIdA: string, mateIdB: string): { state: PlayerCareerState; done: boolean; line: string } {
+  if (!canSwapRoles(state) || mateIdA === mateIdB) return { state, done: false, line: '' };
+  const plan = planOf(state);
+  const mates = matesOf(state);
+  const a = mates.find((mate) => mate.player.id === mateIdA);
+  const b = mates.find((mate) => mate.player.id === mateIdB);
+  if (!a || !b) return { state, done: false, line: '' };
+  const roleA = (a.player.role ?? 'support') as PlayerRole;
+  const roleB = (b.player.role ?? 'support') as PlayerRole;
+  const rng = createSeededRng(`${state.seed}:swap:${state.seasonNumber}:${trainingWindowOf(state)}:${mateIdA}:${mateIdB}`);
+  const accepts = (mate: SquadMate, role: PlayerRole) => rng() < clamp(0.35 + mate.relationship / 150 + (naturalRoleOf(state, mate) === role ? 0.25 : 0), 0.1, 0.95);
+  const okA = accepts(a, roleB);
+  const okB = accepts(b, roleA);
+  const nickA = a.player.nickname ?? 'parceiro';
+  const nickB = b.player.nickname ?? 'parceiro';
+  const base = { ...plan, swapWindow: trainingWindowOf(state) };
+  if (okA && okB) {
+    const relationships = { ...state.relationships, [mateIdA]: clamp(a.relationship + 2, 0, 100), [mateIdB]: clamp(b.relationship + 2, 0, 100) };
+    return {
+      state: { ...state, relationships, squadPlan: { ...base, roles: { ...plan.roles, [nickA.toLowerCase()]: roleB, [nickB.toLowerCase()]: roleA } } },
+      done: true,
+      line: `${nickA} vai de ${ROLE_NAME[roleB]} e ${nickB} de ${ROLE_NAME[roleA]}. Os dois toparam.`
+    };
+  }
+  const relationships = { ...state.relationships };
+  if (!okA) relationships[mateIdA] = clamp(a.relationship - 8, 0, 100);
+  if (!okB) relationships[mateIdB] = clamp(b.relationship - 8, 0, 100);
+  const refused = [!okA ? nickA : null, !okB ? nickB : null].filter(Boolean).join(' e ');
+  return { state: { ...state, relationships, squadPlan: base }, done: false, line: `${refused} não ${!okA && !okB ? 'toparam' : 'topou'} a troca. Ficou um clima.` };
+}
+
+/** A função natural do parceiro: a da vaga dele no elenco (ou a de quem veio do banco). */
+export function naturalRoleOf(state: PlayerCareerState, mate: SquadMate): PlayerRole {
+  const plan = planOf(state);
+  const nick = (mate.player.nickname ?? '').toLowerCase();
+  const fromBench = Object.values(plan.lineup).find((sub) => sub.nick.toLowerCase() === nick);
+  if (fromBench) return fromBench.role;
+  const org = orgIn(state.seed, state.seasonNumber, state.orgId);
+  const member = org?.roster.find((candidate) => candidate.nick.toLowerCase() === nick);
+  const role = member ? memberRoles(member)[0] : null;
+  return (role && (SLOTS as string[]).includes(role) ? role : mate.player.role ?? 'support') as PlayerRole;
 }

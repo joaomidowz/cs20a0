@@ -32,7 +32,7 @@
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
-  import { seatsWithSeason, careerCoachOf, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { seatsWithSeason, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -192,6 +192,23 @@
     career = result.state;
     notify(`${result.state.seed}:me`, result.good ? 'Encaixou.' : 'Não encaixou.', result.line.replace(/^(Encaixou|Ainda não encaixou): /, ''), result.good ? 'good' : 'bad');
     roleSheetOpen = false;
+  }
+  /** Banco: escolher quem sai para o reserva entrar; IGL troca a função de dois parceiros. */
+  let promoteOpen = false;
+  function benchMate(mateId: string) {
+    if (!career) return;
+    const result = promoteReserve(career, mateId);
+    career = result.state;
+    promoteOpen = false;
+    closeSheet();
+    notify(`${career.seed}:me`, 'Banco:', result.line, 'neutral');
+  }
+  function swapRoles(mateA: string, mateB: string) {
+    if (!career) return;
+    const result = swapMateRoles(career, mateA, mateB);
+    career = result.state;
+    closeSheet();
+    notify(mateA, 'IGL:', result.line, result.done ? 'good' : 'bad');
   }
   function askKick(mateId: string, nick: string) {
     if (!career || !canKickMate(career)) return;
@@ -511,6 +528,7 @@
     else if (trophiesOpen) closeTrophies();
     else if (overviewOpen) overviewOpen = false;
     else if (scoutOpen) closeScout();
+    else if (promoteOpen) promoteOpen = false;
     else if (opponentOrgId) closeOpponent();
     else if (eventSheet !== null) closeEventSheet();
     else if (detailsPlayer) closeSheet();
@@ -974,6 +992,7 @@
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
   $: myCoach = career ? careerCoachOf(career) : null;
+  $: benchReserve = career && career.orgId !== 'lan-house' ? planOf(career).reserve : null;
   $: oppCoach = career && opponentOrg ? coachOfOrg(career.seed, career.seasonNumber, opponentOrg.id) : null;
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
@@ -1607,6 +1626,7 @@
                 <div class="section-head">
                   <p class="label" title="Relação acima de 70 dá +1 de overall em quadra; abaixo de 35 tira 1.">Elenco · {orgOf(career.orgId).name}{#if langFit}{' · '}<span class="lang-chip" class:warn={langFit.penalty > 0} title={langFit.penalty ? `Call em ${LANGUAGE_LABEL[langFit.language]}: os parceiros perdem ${langFit.penalty} de overall em quadra e as conversas rendem menos até você aprender. Cada campeonato ensina um pouco; a semana tem aulas.` : 'Você fala o idioma da call.'}>call em {LANGUAGE_LABEL[langFit.language]} · você {fluencyLabel(langFit.fluency)}{langFit.penalty ? ` · −${langFit.penalty} sinergia` : ''}</span>{/if}</p>
                   <span class="squad-actions">
+                    {#if benchReserve}<button class="secondary-btn small squad-btn bench-btn" on:click={() => (promoteOpen = true)} title="Quem está no banco. Clique para pôr no time.">Banco: {benchReserve.nick} · {ROLE_SHORT[benchReserve.role]} {benchReserve.overall}</button>{/if}
                     {#if canChangeRole(career)}<button class="secondary-btn small squad-btn" on:click={() => (roleSheetOpen = true)} title="Uma vez por temporada. Pode subir ou derrubar o seu overall.">Trocar de função</button>{/if}
                     {#if canRequestTransfer(career)}<button class="secondary-btn small squad-btn transfer-btn" on:click={askTransfer} title="Uma vez por temporada. O elenco não gosta de saber.">Procurar outro time</button>{/if}
                   </span>
@@ -1757,6 +1777,20 @@
               <div class="bond-bar"><i class:high={sheetMate.relationship >= 70} class:low={sheetMate.relationship < 35} style={`width:${sheetMate.relationship}%`}></i></div>
               <button class="cta sheet-talk" on:click={() => { if (!career || !sheetMate) return; const mateId = sheetMate.player.id; chat(mateId); sheetMate = matesOf(career).find((mate) => mate.player.id === mateId) ?? sheetMate; }}>Conversar com {detailsPlayer.nickname}</button>
               {#if lastTalk && lastTalk.mateId === sheetMate.player.id}<p class="sheet-talk-line">{lastTalk.line}</p>{/if}
+              {#if career && benchReserve && sheetMate}<button class="secondary-btn small" on:click={() => sheetMate && benchMate(sheetMate.player.id)}>Mandar para o banco · entra {benchReserve.nick}</button>{/if}
+              {#if career && sheetMate && canSwapRoles(career)}
+                <div class="swap-roles">
+                  <span class="label">Como IGL · trocar a função de {detailsPlayer.nickname} com</span>
+                  <div class="swap-list">
+                    {#each squadMates.filter((mate) => mate.player.id !== sheetMate?.player.id) as other (other.player.id)}
+                      <button class="secondary-btn small" on:click={() => sheetMate && swapRoles(sheetMate.player.id, other.player.id)}>{other.player.nickname} · {ROLE_SHORT[other.player.role as PlayerRole] ?? other.player.role}</button>
+                    {/each}
+                  </div>
+                </div>
+              {:else if career && sheetMate && career.role === 'igl'}
+                <p class="sheet-talk-line">Você já mexeu nas funções nesta semana.</p>
+              {/if}
+              {#if career && sheetMate && naturalRoleOf(career, sheetMate) !== sheetMate.player.role}<p class="sheet-talk-line">Jogando fora da função dele ({ROLE_META[naturalRoleOf(career, sheetMate)]?.label}): −2 de overall.</p>{/if}
               {#if career && canKickMate(career)}<button class="link-btn kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')}>Pedir a saída de {detailsPlayer.nickname}</button>{/if}
             </div>
           </CareerCard>
@@ -1918,6 +1952,30 @@
             <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if promoteOpen && career && benchReserve}
+    <div class="modal-backdrop" role="presentation" on:click|self={() => (promoteOpen = false)}>
+      <div class="modal promote-modal" role="dialog" aria-modal="true" aria-labelledby="promote-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="promote-title">Banco · {benchReserve.nick} ({ROLE_SHORT[benchReserve.role]} · {benchReserve.overall} · {career.year - benchReserve.born} anos{benchReserve.potential > benchReserve.overall && career.year - benchReserve.born < 24 ? ' · ainda cresce' : ''}) entra no lugar de</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={() => (promoteOpen = false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <ul class="promote-list">
+          {#each squadMates as mate (mate.player.id)}
+            <li>
+              <button class="promote-pick" on:click={() => benchMate(mate.player.id)}>
+                <b>{mate.player.nickname}</b>
+                <span>{ROLE_SHORT[mate.player.role as PlayerRole] ?? mate.player.role} · {mate.player.overall} · relação {mate.relationship}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+        <p class="modal-note">Quem sai vai para o banco e não gosta (relação −12). Se o reserva for claramente melhor, o resto do elenco entende. O reserva joga na função da vaga; fora da função dele, rende 2 a menos.</p>
       </div>
     </div>
   {/if}
@@ -2550,6 +2608,15 @@
   .coach-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 60%), var(--surface-2); }
   .coach-card .label { margin: 0; color: var(--accent-2); }
   .coach-age { margin-top: -6px; color: var(--muted); font-size: 12px; }
+  .bench-btn { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); color: var(--gold); }
+  .swap-roles { display: grid; gap: 6px; }
+  .swap-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .promote-modal { width: min(520px, calc(100vw - 32px)); }
+  .promote-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .promote-pick { display: grid; gap: 2px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; }
+  .promote-pick:hover { border-color: var(--accent); }
+  .promote-pick b { font: 800 17px/1.1 var(--display); text-transform: uppercase; }
+  .promote-pick span { color: var(--muted); font-size: 12px; }
   .coach-ovr { font: 900 40px/.82 var(--display); font-variant-numeric: tabular-nums; }
   .coach-name { font: 800 20px/1 var(--display); text-transform: uppercase; }
   .coach-card ul { display: grid; gap: 7px; margin: 4px 0 0; padding: 0; list-style: none; }

@@ -6,7 +6,7 @@
 import rawEvents from '$lib/data/cs/career-events.game.json';
 import { createSeededRng } from '../simulation';
 import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
-import { bestOtherRole, matesOf, myPlayerOf, takeRole } from './squad';
+import { addReserve, bestOtherRole, matesOf, myPlayerOf, planOf, promoteReserve, synergyBump, takeRole, type ReserveKind } from './squad';
 
 const ROLE_LABEL_PT: Record<PlayerRole, string> = { igl: 'IGL', awper: 'AWPer', entry: 'Entry', lurker: 'Lurker', support: 'Suporte', rifler: 'Rifler' };
 
@@ -224,6 +224,19 @@ const ROLE_CHOICES: Record<string, Record<number, PlayerRole | 'melhor'>> = {
 };
 export const roleMoveOf = (eventId: string, choiceIndex: number): PlayerRole | 'melhor' | null => ROLE_CHOICES[eventId]?.[choiceIndex] ?? null;
 
+/** Escolhas que mexem no banco: o jovem/o dos pugs chega como reserva, ou já entra no lugar do mais fraco; o entry
+ *  em má fase vai para o banco (entra o reserva, ou um stand-in). */
+const BENCH_MOVES: Record<string, Record<number, { kind: ReserveKind; promote?: 'fraco' | 'entry' }>> = {
+  EV134: { 0: { kind: 'jovem' }, 2: { kind: 'jovem', promote: 'fraco' } },
+  EV011: { 0: { kind: 'pugs' }, 1: { kind: 'pugs', promote: 'fraco' } },
+  EV041: { 1: { kind: 'stand-in', promote: 'entry' } }
+};
+export const benchMoveOf = (eventId: string, choiceIndex: number) => BENCH_MOVES[eventId]?.[choiceIndex] ?? null;
+export const BENCH_MOVE_LABEL = (move: { kind: ReserveKind; promote?: 'fraco' | 'entry' }) =>
+  move.promote === 'entry' ? 'o entry vai para o banco (entra o reserva ou um stand-in)'
+    : move.promote ? `o ${move.kind === 'jovem' ? 'jovem' : 'jogador dos pugs'} entra no lugar do titular mais fraco`
+      : `o ${move.kind === 'jovem' ? 'jovem' : 'jogador dos pugs'} fica no banco do time`;
+
 /** Chance de a escolha sair como você planejou: mental da carta e moral (25% a 90%). */
 export function happeningSuccessChance(state: PlayerCareerState): number {
   const mental = Number(myPlayerOf(state).mental ?? 60);
@@ -301,6 +314,25 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
       moved = taken.state;
       extraLine += ` ${taken.line}`;
       chips.push({ label: 'Função', value: taken.good ? 1 : -1, display: `Agora: ${ROLE_LABEL_PT[role]}` });
+    }
+  }
+  const benchMove = benchMoveOf(event.id, choiceIndex);
+  if (benchMove && moved.orgId !== 'lan-house') {
+    const mates = matesOf(moved);
+    const target = benchMove.promote === 'entry'
+      ? mates.find((mate) => mate.player.role === 'entry')
+      : [...mates].sort((a, b) => ((a.player.overall ?? 70) - synergyBump(a.relationship)) - ((b.player.overall ?? 70) - synergyBump(b.relationship)))[0];
+    // O entry vai para o banco: entra o reserva que já existe; sem reserva, chega um stand-in da função.
+    if (!(benchMove.promote === 'entry' && planOf(moved).reserve)) {
+      const added = addReserve(moved, benchMove.kind, benchMove.promote === 'entry' ? 'entry' : undefined);
+      moved = added.state;
+      extraLine += ` ${added.line}`;
+      chips.push({ label: 'Banco', value: 1, display: `Reserva: ${added.reserve.nick}` });
+    }
+    if (benchMove.promote && target) {
+      const promoted = promoteReserve(moved, target.player.id);
+      moved = promoted.state;
+      extraLine += ` ${promoted.line}`;
     }
   }
   if (calendarMove === 'up' || calendarMove === 'region') {

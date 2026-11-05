@@ -219,6 +219,21 @@ export interface CareerVerdict {
   becameCoach?: boolean;
 }
 
+/** Um jogador do banco (ou que entrou no lugar de um titular): jovem evolui a cada temporada até o teto. */
+export interface BenchPlayer { nick: string; role: PlayerRole; overall: number; potential: number; born: number; country: string | null }
+
+export interface SquadPlan {
+  orgId: string;
+  /** Quem joga no lugar de quem: nick do titular original (minúsculo) → quem entrou. */
+  lineup: Record<string, BenchPlayer>;
+  /** O reserva no banco (um por time). */
+  reserve: BenchPlayer | null;
+  /** Funções trocadas a pedido do IGL: nick de quem joga (minúsculo) → função. */
+  roles: Record<string, PlayerRole>;
+  /** Janela em que o IGL já mexeu nas funções (uma vez por semana). */
+  swapWindow?: string | null;
+}
+
 export interface SeatTaken { orgId: string; orgName: string; nick: string; viaRole: boolean; /** Temporada em que você tomou a vaga (saves antigos: sem). */ season?: number }
 
 export interface StartingOption {
@@ -297,6 +312,8 @@ export interface PlayerCareerState {
   kickRequestedSeason?: number;
   /** As suas calls no round decisivo: leituras certas, razoáveis e erradas, rounds ganhos, por estilo. */
   decisions?: DecisionLog;
+  /** Banco e escalação do seu time: o reserva, quem joga no lugar de quem e as funções trocadas pelo IGL. */
+  squadPlan?: SquadPlan | null;
   /** Temporada em que você já pediu para sair (uma vez por temporada). */
   transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */
@@ -573,6 +590,15 @@ export function agePhase(age: number): { label: string; detail: string } {
 const INJURIES_YOUNG = ['Tendinite no punho', 'Lombalgia'];
 const INJURIES_OLD = ['Tendinite crônica no punho', 'Hérnia de disco', 'Lesão no ombro', 'Dor nas costas'];
 
+/** Na virada da temporada o jovem do banco (ou que entrou no time) cresce até o teto; quem passou dos 24 fica como está. */
+function growBench(plan: SquadPlan | null | undefined, year: number, rng: () => number): SquadPlan | null | undefined {
+  if (!plan) return plan;
+  const grow = (player: BenchPlayer): BenchPlayer => (year - player.born < 24 && player.overall < player.potential
+    ? { ...player, overall: Math.min(player.potential, player.overall + 2 + Math.floor(rng() * 2)) }
+    : player);
+  return { ...plan, reserve: plan.reserve ? grow(plan.reserve) : null, lineup: Object.fromEntries(Object.entries(plan.lineup).map(([key, player]) => [key, grow(player)])) };
+}
+
 export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
@@ -640,6 +666,7 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     ...promotedState,
     // Férias na virada da temporada: sobra só um quinto do cansaço.
     fatigue: Math.round((state.fatigue ?? 0) * 0.2),
+    squadPlan: growBench(state.squadPlan, state.year + 1, rng),
     age: aged.entity.age,
     overall: finalOverall,
     seasonNumber: state.seasonNumber + 1,

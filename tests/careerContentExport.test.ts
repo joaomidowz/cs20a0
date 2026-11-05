@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { circuitCatalog, MONTH_LABEL, TIER_LABEL } from '../src/lib/game/playerCareer/calendar';
 import { DECISION_MATRIX, SHARED_SITUATIONS, STORIES, situationWhen, type ClutchProfile, type ClutchSituation } from '../src/lib/game/playerCareer/decisions';
-import { HAPPENINGS, CALENDAR_MOVE_LABEL, NEED_LABEL, benchOf, calendarMoveOf, roleMoveOf, triggerOf, TRIGGER_LABEL, type HappeningEffect } from '../src/lib/game/playerCareer/happenings';
+import { HAPPENINGS, BENCH_MOVE_LABEL, CALENDAR_MOVE_LABEL, NEED_LABEL, benchMoveOf, benchOf, calendarMoveOf, roleMoveOf, triggerOf, TRIGGER_LABEL, type HappeningEffect } from '../src/lib/game/playerCareer/happenings';
 import { AGENDA, CATEGORY_LABEL } from '../src/lib/game/playerCareer/agenda';
 import { TALK_LINES } from '../src/lib/game/playerCareer/squad';
 import { TRASH_TALK } from '../src/lib/game/playerCareer/rivals';
@@ -51,7 +51,8 @@ describe.skipIf(!process.env.CAREER_EXPORT)('exportar conteúdo da carreira (CAR
           const move = calendarMoveOf(event.id, index);
           const role = roleMoveOf(event.id, index);
           const changes = [move ? CALENDAR_MOVE_LABEL[move] : null, benchOf(event.id, index) ? 'você fica no banco no próximo campeonato' : null,
-            role ? (role === 'melhor' ? 'você troca para a função em que rende mais' : `você vira ${ROLE_PT[role] ?? role}`) : null].filter(Boolean).join('; ');
+            role ? (role === 'melhor' ? 'você troca para a função em que rende mais' : `você vira ${ROLE_PT[role] ?? role}`) : null,
+            benchMoveOf(event.id, index) ? BENCH_MOVE_LABEL(benchMoveOf(event.id, index)!) : null].filter(Boolean).join('; ');
           return [choice.text, effects(choice.effects), choice.consequence, changes];
         })])
     ));
