@@ -8,7 +8,7 @@ import rawLines from '$lib/data/cs/career-lines.game.json';
 import { createSeededRng } from '../simulation';
 import { orgOf, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
 import { lifeOf, type CareerLife } from './life';
-import { coachOf, matesOf, myLanguageFit, planOf, relationshipOf } from './squad';
+import { coachOf, matesOf, myLanguageFit, planOf, relationshipOf, talkTo, trainingWindowOf } from './squad';
 import { sceneOrgEnginePlayers } from './live';
 import { orgIn } from './world';
 
@@ -25,7 +25,7 @@ export interface TalkSpeaker { kind: 'mate' | 'coach' | 'reserve'; id: string; n
 export interface TalkOption { key: TalkAnswerKey; text: string }
 export interface Talk { speaker: TalkSpeaker; situation: TalkSituation; moment: TalkMoment; line: string; lineKey: string; options: TalkOption[]; eventIndex?: number }
 
-export interface TalkMemoryEntry { season: number; who: string; name: string; situation: TalkSituation; answer: TalkAnswerKey; delta: number }
+export interface TalkMemoryEntry { season: number; who: string; name: string; situation: TalkSituation; answer: TalkAnswerKey; delta: number; /** A frase que você escolheu. */ text?: string }
 export interface TalkMemory {
   /** Relógio das conversas (cada conversa soma 1): é a unidade do cooldown das falas. */
   n: number;
@@ -37,6 +37,8 @@ export interface TalkMemory {
   grudges: Record<string, number>;
   /** Temporada em que o coach já abriu o ano. */
   seasonOpened?: number;
+  /** Semana (janela) em que já abriu uma conversa com escolha pelo botão Conversar: no máximo uma por semana. */
+  dialogWindow?: string;
 }
 
 export const EMPTY_MEMORY: TalkMemory = { n: 0, used: {}, log: [], grudges: {} };
@@ -77,14 +79,39 @@ export function situationsNow(state: PlayerCareerState, rel: number): TalkSituat
 }
 
 /** As respostas de cada situação. O texto é seu; o efeito depende do momento (ver answerEffects). */
-const ANSWERS: Record<TalkSituation, Record<TalkAnswerKey, string>> = {
-  conflito: { ouvir: 'Ouvir até o fim e ajustar', propor: 'Propor um treino só vocês dois', firme: 'Bater de frente' },
-  mental_baixo: { ouvir: 'Aceitar a ajuda e baixar a carga', propor: 'Pedir uma revisão curta de demo', firme: 'Dizer que está tudo bem' },
-  mental_alto: { ouvir: 'Agradecer e manter a rotina', propor: 'Pedir mais responsabilidade', firme: 'Dizer que ainda dá para mais' },
-  sequencia_derrotas: { ouvir: 'Concordar e rever a rotina', propor: 'Propor uma mudança no treino', firme: 'Dizer que é fase e manter tudo' },
-  sequencia_vitorias: { ouvir: 'Concordar: os erros ainda estão lá', propor: 'Pedir uma folga curta', firme: 'Curtir o momento' },
-  inicio_temporada: { ouvir: 'Topar a meta', propor: 'Pedir uma meta menor', firme: 'Pedir mais protagonismo' },
-  match_point_perdido: { ouvir: 'Aceitar a pausa e conversar', propor: 'Rever só os dois rounds finais', firme: 'Esconder o desgaste e treinar até tarde' }
+/** As respostas de cada situação, com variações (o efeito é o da intenção: ouvir, propor ou bater de frente). */
+const ANSWERS: Record<TalkSituation, Record<TalkAnswerKey, string[]>> = {
+  conflito: {
+    ouvir: ['Ouvir até o fim e ajustar', 'Pedir para ele explicar com calma', 'Reconhecer a sua parte'],
+    propor: ['Propor um treino só vocês dois', 'Combinar um sinal na comunicação', 'Rever a demo juntos depois'],
+    firme: ['Bater de frente', 'Dizer que a culpa não foi sua', 'Pedir para ele cuidar da parte dele']
+  },
+  mental_baixo: {
+    ouvir: ['Aceitar a ajuda e baixar a carga', 'Admitir que está pesado', 'Pedir um dia mais leve'],
+    propor: ['Pedir uma revisão curta de demo', 'Focar em um detalhe só no treino', 'Pedir um duelo de aquecimento junto'],
+    firme: ['Dizer que está tudo bem', 'Mudar de assunto', 'Prometer resolver sozinho']
+  },
+  mental_alto: {
+    ouvir: ['Agradecer e manter a rotina', 'Dizer que o time ajudou', 'Manter os pés no chão'],
+    propor: ['Pedir mais responsabilidade', 'Pedir para puxar mais rounds', 'Propor treinar o que ainda falta'],
+    firme: ['Dizer que ainda dá para mais', 'Cobrar o mesmo nível do time', 'Dizer que agora é a sua vez']
+  },
+  sequencia_derrotas: {
+    ouvir: ['Concordar e rever a rotina', 'Ouvir o que ele mudaria', 'Admitir que você também caiu'],
+    propor: ['Propor uma mudança no treino', 'Sugerir rever as derrotas juntos', 'Propor um mapa novo na rotina'],
+    firme: ['Dizer que é fase e manter tudo', 'Dizer que o problema não é você', 'Pedir calma e confiança no plano']
+  },
+  sequencia_vitorias: {
+    ouvir: ['Concordar: os erros ainda estão lá', 'Pedir para ele apontar o que falta', 'Lembrar que nada está ganho'],
+    propor: ['Pedir uma folga curta', 'Propor descansar antes da próxima', 'Sugerir um treino mais leve'],
+    firme: ['Curtir o momento', 'Dizer que o time é favorito agora', 'Postar sobre a fase boa']
+  },
+  inicio_temporada: {
+    ouvir: ['Topar a meta', 'Dizer que dá para cumprir'],
+    propor: ['Pedir uma meta menor', 'Pedir para ir passo a passo'],
+    firme: ['Pedir mais protagonismo', 'Pedir o time jogando por você']
+  },
+  match_point_perdido: { ouvir: ['Aceitar a pausa e conversar'], propor: ['Rever só os dois rounds finais'], firme: ['Esconder o desgaste e treinar até tarde'] }
 };
 
 export const SITUATION_LABEL: Record<TalkSituation, string> = {
@@ -128,7 +155,8 @@ function shuffled(state: PlayerCareerState, situation: TalkSituation, salt: stri
   const rng = createSeededRng(`${state.seed}:talk-order:${salt}`);
   const keys: TalkAnswerKey[] = ['ouvir', 'propor', 'firme'];
   for (let i = keys.length - 1; i > 0; i -= 1) { const j = Math.floor(rng() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
-  return keys.map((key) => ({ key, text: ANSWERS[situation][key] }));
+  // Cada conversa sorteia uma das variações de cada intenção: duas pessoas raramente trazem as mesmas 3 frases.
+  return keys.map((key) => { const list = ANSWERS[situation][key]; return { key, text: list[Math.floor(rng() * list.length)] }; });
 }
 
 function pickLine(state: PlayerCareerState, speaker: TalkSpeaker, situations: TalkSituation[], rel: number, salt: string): { situation: TalkSituation; text: string; key: string } | null {
@@ -313,7 +341,7 @@ export function answerTalk(state: PlayerCareerState, key: TalkAnswerKey): TalkAn
   const grudges = { ...memory.grudges };
   if (!coachTalk && effects.rel <= -3) grudges[talk.speaker.id] = state.seasonNumber;
   else if (!coachTalk && effects.rel >= 3) delete grudges[talk.speaker.id];
-  const entry: TalkMemoryEntry = { season: state.seasonNumber, who: talk.speaker.id, name: talk.speaker.name, situation: talk.situation, answer: key, delta: effects.rel };
+  const entry: TalkMemoryEntry = { season: state.seasonNumber, who: talk.speaker.id, name: talk.speaker.name, situation: talk.situation, answer: key, delta: effects.rel, text: talk.options.find((option) => option.key === key)?.text };
   const nextMemory: TalkMemory = {
     ...memory,
     n: memory.n + 1,
@@ -386,4 +414,40 @@ export const markLineUsed = (state: PlayerCareerState, key: string): PlayerCaree
 };
 
 /** O texto da resposta que você deu (para o histórico). */
-export const answerText = (situation: TalkSituation, key: TalkAnswerKey) => ANSWERS[situation]?.[key] ?? key;
+export const answerText = (situation: TalkSituation, key: TalkAnswerKey) => ANSWERS[situation]?.[key]?.[0] ?? key;
+
+/**
+ * Pelo botão Conversar, a conversa com escolha é a exceção: atrito com aquela pessoa abre sempre (é pessoal); o resto
+ * (Cabeça boa ou pesada, sequência) abre no máximo uma vez por semana e só às vezes (35%). Nas outras vezes a fala
+ * aparece no aviso rápido, sem escolha.
+ */
+export const DIALOG_CHANCE = 0.35;
+export function opensDialogue(state: PlayerCareerState, talk: Talk): boolean {
+  if (talk.moment !== 'click') return true;
+  const window = trainingWindowOf(state) ?? `${state.seasonNumber}`;
+  if (talk.situation === 'conflito') return true;
+  if (memoryOf(state).dialogWindow === window) return false;
+  return createSeededRng(`${state.seed}:dialog-chance:${window}:${talk.speaker.id}:${memoryOf(state).n}`)() < DIALOG_CHANCE;
+}
+
+/** Abre a conversa com escolha e marca a semana (para não abrir de novo com outro parceiro). */
+export function openDialogue(state: PlayerCareerState, talk: Talk): PlayerCareerState {
+  const window = trainingWindowOf(state) ?? `${state.seasonNumber}`;
+  return { ...state, pendingTalk: talk, talkMemory: { ...memoryOf(state), dialogWindow: talk.moment === 'click' ? window : memoryOf(state).dialogWindow } };
+}
+
+/** A fala sem escolha: entra no aviso rápido, conta como papo (relação pelo papo de sempre) e a fala entra no cooldown. */
+export function quickTalk(state: PlayerCareerState, talk: Talk): { state: PlayerCareerState; delta: number; line: string } {
+  const memory = memoryOf(state);
+  const base = talk.speaker.kind === 'coach' ? { state, delta: 0 } : talkTo(state, talk.speaker.id);
+  const extra = lineEffect(talk);
+  let next = base.state;
+  let delta = base.delta;
+  if (talk.speaker.kind !== 'coach' && extra.rel && (state.talks?.[talk.speaker.id] ?? 0) < 2) {
+    next = { ...next, relationships: { ...next.relationships, [talk.speaker.id]: clamp(relationshipOf(next, talk.speaker.id) + extra.rel) } };
+    delta += extra.rel;
+  }
+  if (extra.mind) { const life = lifeOf(next); next = { ...next, life: { ...life, mind: clamp(life.mind + extra.mind) } }; }
+  next = { ...next, talkMemory: { ...memoryOf(next), n: memory.n + 1, used: { ...memory.used, [talk.lineKey]: memory.n } } };
+  return { state: next, delta, line: talk.line };
+}

@@ -27,7 +27,7 @@
   import { toSeriesResult } from '$lib/game/online/live-series';
   import { createRunStats } from '$lib/game/runStats';
   import { clutchStory, logDecision, mapTarget, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
-  import { answerTalk, decisiveLine, dismissTalk, markLineUsed, momentTalk, seasonTalk, speakerOf, startTalk, MOMENT_LABEL, SITUATION_LABEL, type TalkChip, type TalkMoment } from '$lib/game/playerCareer/talks';
+  import { answerTalk, decisiveLine, dismissTalk, markLineUsed, momentTalk, openDialogue, opensDialogue, quickTalk, seasonTalk, speakerOf, startTalk, MOMENT_LABEL, SITUATION_LABEL, type TalkChip, type TalkMoment } from '$lib/game/playerCareer/talks';
   import { tickLife } from '$lib/game/playerCareer/tick';
   import { careerLog } from '$lib/game/playerCareer/careerLog';
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
@@ -309,7 +309,14 @@
     if (!career) return;
     const speaker = speakerOf(career, 'mate', mateId);
     const talk = speaker ? startTalk(career, speaker) : null;
-    if (talk) { career = { ...career, pendingTalk: talk }; return; }
+    if (talk && opensDialogue(career, talk)) { career = openDialogue(career, talk); return; }
+    if (talk) {
+      // A fala do momento sem escolha: vai para o aviso rápido.
+      const quick = quickTalk(career, talk);
+      career = quick.state;
+      notify(mateId, `${talk.speaker.name}:`, `“${quick.line}”${quick.delta ? ` Relação ${quick.delta > 0 ? '+' : '−'}${Math.abs(quick.delta)}.` : ''}`, quick.delta > 0 ? 'good' : quick.delta < 0 ? 'bad' : 'neutral');
+      return;
+    }
     const result = talkTo(career, mateId);
     career = result.state;
     lastTalk = { mateId: result.mateId, line: result.line, delta: result.delta };
@@ -324,7 +331,13 @@
     if (!speaker) return;
     promoteOpen = false;
     const talk = startTalk(career, speaker);
-    if (talk) { career = { ...career, pendingTalk: talk }; return; }
+    if (talk && opensDialogue(career, talk)) { career = openDialogue(career, talk); return; }
+    if (talk) {
+      const quick = quickTalk(career, talk);
+      career = quick.state;
+      notify(`${career.seed}:me`, `${speaker.name} (banco):`, `“${quick.line}”${quick.delta ? ` Relação ${quick.delta > 0 ? '+' : '−'}${Math.abs(quick.delta)}.` : ''}`, quick.delta > 0 ? 'good' : quick.delta < 0 ? 'bad' : 'neutral');
+      return;
+    }
     const result = talkTo(career, speaker.id);
     career = result.state;
     notify(`${career.seed}:me`, `${speaker.name} (banco):`, `${result.line}${result.delta ? ` Relação ${result.delta > 0 ? '+' : '−'}${Math.abs(result.delta)}.` : ''}`, result.delta > 0 ? 'good' : result.delta < 0 ? 'bad' : 'neutral');
@@ -653,8 +666,10 @@
     if (!career) return;
     const speaker = talksLeft > 0 ? speakerOf(career, 'coach') : null;
     const talk = speaker ? startTalk(career, speaker) : null;
-    if (talk) { career = { ...career, pendingTalk: talk }; return; }
+    if (talk && opensDialogue(career, talk)) { career = openDialogue(career, talk); return; }
+    if (talk) career = quickTalk(career, talk).state;
     talkCoach();
+    if (talk && coachLine) coachLine = `“${talk.line}” ${coachLine}`;
     if (career && coachLine) notify(`${career.seed}:me`, `${coach?.name ?? 'Coach'}:`, coachLine, 'neutral');
   }
 

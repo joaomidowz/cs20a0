@@ -58,7 +58,7 @@ export function careerLog(state: PlayerCareerState): CareerLog {
     when: `${state.year - (state.seasonNumber - entry.season)}`,
     who: entry.name,
     situation: SITUATION_LABEL[entry.situation],
-    answer: answerText(entry.situation, entry.answer),
+    answer: entry.text ?? answerText(entry.situation, entry.answer),
     delta: entry.delta
   }));
   // As marcas de dilema já aparecem na lista de decisões; aqui ficam os arcos e as marcas com nome.

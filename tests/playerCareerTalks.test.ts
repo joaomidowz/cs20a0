@@ -7,7 +7,7 @@ import { createPlayerCareer, startSeason, type PlayerCareerState } from '../src/
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { addReserve, matesOf } from '../src/lib/game/playerCareer/squad';
 import { DEFAULT_LIFE } from '../src/lib/game/playerCareer/life';
-import { CONTEXT_LINES, answerEffects, answerTalk, decisiveLine, dismissTalk, momentTalk, seasonTalk, speakerOf, startTalk, type Talk } from '../src/lib/game/playerCareer/talks';
+import { CONTEXT_LINES, answerEffects, answerTalk, decisiveLine, dismissTalk, momentTalk, openDialogue, opensDialogue, quickTalk, seasonTalk, speakerOf, startTalk, type Talk } from '../src/lib/game/playerCareer/talks';
 import { tickLife } from '../src/lib/game/playerCareer/tick';
 
 const at = (seed: string, orgName = 'FURIA'): PlayerCareerState => {
@@ -137,5 +137,36 @@ describe('conversas', () => {
     expect(seasonTalk(old)).not.toBeNull();
     const { state } = tickLife(old, { name: 'x', placement: 'Campeão', rating: 1.1, seriesWins: 4, seriesLosses: 0 });
     expect(state.life!.mind).toBeGreaterThan(DEFAULT_LIFE.mind);
+  });
+
+  it('pelo Conversar, conversa com escolha é exceção: no máximo uma por semana; o resto vira fala rápida', () => {
+    let state = withMind(warm(at('talk-rare')), 85);
+    let opened = 0;
+    for (const mate of matesOf(state)) {
+      const talk = startTalk(state, speakerOf(state, 'mate', mate.player.id)!);
+      if (!talk) continue;
+      if (opensDialogue(state, talk)) { opened += 1; state = { ...openDialogue(state, talk), pendingTalk: null }; }
+      else {
+        const quick = quickTalk(state, talk);
+        expect(quick.line).toBe(talk.line);
+        state = quick.state;
+      }
+    }
+    expect(opened).toBeLessThanOrEqual(1);
+  });
+
+  it('atrito com aquela pessoa sempre abre a conversa', () => {
+    const base = warm(at('talk-feud'));
+    const mate = matesOf(base)[0];
+    const state = { ...base, relationships: { ...base.relationships, [mate.player.id]: 20 }, talkMemory: { n: 0, used: {}, log: [], grudges: {}, dialogWindow: 'x' } };
+    const talk = startTalk(state, speakerOf(state, 'mate', mate.player.id)!)!;
+    expect(talk.situation).toBe('conflito');
+    expect(opensDialogue({ ...state, talkMemory: { ...state.talkMemory, dialogWindow: '1:0' } }, talk)).toBe(true);
+  });
+
+  it('as respostas variam entre pessoas na mesma situação', () => {
+    const state = withMind(warm(at('talk-variety')), 85);
+    const sets = new Set(matesOf(state).map((mate) => startTalk(state, speakerOf(state, 'mate', mate.player.id)!)!.options.map((option) => option.text).sort().join('|')));
+    expect(sets.size).toBeGreaterThan(1);
   });
 });
