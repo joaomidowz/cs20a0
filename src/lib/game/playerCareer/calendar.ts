@@ -187,7 +187,8 @@ export function revivalsOf(year: number, level: number, region: Region): EventTe
     // O jogo tem mata-mata de 8 e suíça de 16: só a suíça original fica igual.
     const changed = !(revival.format === 'swiss16' && /suíço/i.test(revival.formatOriginal));
     return {
-      name: revival.name, tier: revival.tier, month: Math.min(11, revival.month), format: revival.format, finalBestOf: revival.finalBestOf,
+      // "Revival" sai do nome: a ficha mostra o selo Retorno e a nota de que é um retorno fictício.
+      name: revival.name.replace(/\s+Revival$/i, ''), tier: revival.tier, month: Math.min(11, revival.month), format: revival.format, finalBestOf: revival.finalBestOf,
       organizer: revival.organizer, location: revival.location, prizePool: Math.round((revival.prizePool * drift) / 1000) * 1000,
       note: `Retorno fictício de um campeonato histórico. Formato original: ${revival.formatOriginal}${changed ? `; aqui: ${FORMAT_LABEL[revival.format]}` : ''}.`
     };

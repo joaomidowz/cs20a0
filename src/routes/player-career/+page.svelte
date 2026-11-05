@@ -43,7 +43,7 @@
   import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
-  import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
+  import { mapProfile } from '$lib/game/playerCareer/careerMaps';
   import type { MapId } from '$lib/game/types';
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
@@ -94,10 +94,12 @@
   const REGION_LABEL: Record<string, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
   const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
-  const FORMAT_TEXT = (entry: { format?: string; finalBestOf?: number } | null | undefined) =>
-    entry?.format === 'major' ? 'Major: Stage 1 e 2 em suíça de 16 (3 vitórias avança); Stage 3 suíça + playoffs, final MD5'
-      : entry?.format === 'swiss16' ? `16 times: suíça MD3 e mata-mata de 8, final MD${entry.finalBestOf ?? 5}`
-      : `8 times: quartas e semis MD3, final MD${entry?.finalBestOf ?? 3}`;
+  /** "DreamHack Open South America Revival 2028" → "DreamHack Open South America 2028" (o selo "Retorno" diz o resto). */
+  const eventName = (name: string) => name.replace(/\s+Revival(?=\s+\d{4}$|$)/i, '');
+  const FORMAT_SHORT = (entry: { format?: string } | null | undefined) => (entry?.format === 'major' ? 'Major' : entry?.format === 'swiss16' ? 'Suíça de 16' : 'Mata-mata de 8');
+  const SERIES_SHORT = (entry: { format?: string; finalBestOf?: number } | null | undefined) =>
+    entry?.format === 'major' ? '3 stages · final MD5' : entry?.format === 'swiss16' ? `Suíça MD3 · final MD${entry.finalBestOf ?? 5}` : `MD3 · final MD${entry?.finalBestOf ?? 3}`;
+  const prizeLabel = (value: number) => (value >= 1000000 ? `US$ ${(value / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi` : value >= 1000 ? `US$ ${Math.round(value / 1000).toLocaleString('pt-BR')} mil` : `US$ ${value}`);
   /** Função curta pra caber na carta. */
   const ROLE_SHORT: Record<PlayerRole, string> = { awper: 'AWPer', rifler: 'Rifler', entry: 'Entry', igl: 'IGL', lurker: 'Lurker', support: 'Suporte' };
   const COACH_ATTRS = [
@@ -1214,8 +1216,6 @@
   $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
   $: canTrainMap = Boolean(career && trainingWindow && career.mapTrainedWindow !== trainingWindow);
-  const AFFINITY_LABEL: Record<string, string> = { '+++': '+++', '++': '++', '+': '+', EVEN: '' };
-  const mapsLine = (maps: MapRating[]) => maps.slice(0, 3).map((map) => `${map.name}${AFFINITY_LABEL[map.affinity] ? ` ${AFFINITY_LABEL[map.affinity]}` : ''}`).join(' · ');
   $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, majorMvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: lifeLog = career && trophiesOpen && roomTab === 'historia' ? careerLog(career) : null;
@@ -1875,7 +1875,7 @@
               <div class="next-copy">
                 {#if currentEntry}
                   <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {currentEntry.tier ? TIER_LABEL[currentEntry.tier] : LEVEL_LABEL[currentLevel]}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
-                  <h2 class="display">{currentEntry.name}</h2>
+                  <h2 class="display">{eventName(currentEntry.name)}</h2>
                 {:else if !career.calendar}
                   <p class="eyebrow">Entre temporadas · {career.year}</p>
                   <h2 class="display">Temporada {career.seasonNumber}</h2>
@@ -2019,7 +2019,7 @@
                 </div>
                 <ol class="events-row">
                   {#each career.calendar as entry, index}
-                    {@const parts = eventParts(entry.name)}
+                    {@const parts = eventParts(eventName(entry.name))}
                     <li>
                       <button class="ev place-{placeKey(entry.result?.placement)}" class:now={currentEntry?.index === index} class:played={Boolean(entry.result)} on:click={() => openEvent(index)} aria-label={`${entry.name}: ver detalhes`}>
                         <span class="ev-top">
@@ -2105,23 +2105,28 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
-        <h2 class="display event-title" id="event-title">{sheetEntry.name}</h2>
+        <h2 class="display event-title" id="event-title">{eventName(sheetEntry.name)}</h2>
+        <p class="event-where">
+          {[sheetEntry.month ? MONTH_FULL[sheetEntry.month - 1] : null, sheetEntry.location, sheetEntry.organizer].filter(Boolean).join(' · ')}
+          {#if sheetEntry.note}<span class="event-tag">Retorno</span>{/if}
+          {#if !sheetEntry.result}<span class="event-tag soft">{currentEntry?.index === eventSheet ? 'Próximo a jogar' : 'Ainda vai acontecer'}</span>{/if}
+        </p>
+        {#if sheetEntry.note}<p class="event-note-line">{sheetEntry.note}</p>{/if}
         <dl class="event-facts">
-          <div><dt>Formato</dt><dd>{FORMAT_TEXT(sheetEntry)}</dd></div>
-          <div><dt>Quando e onde</dt><dd>{sheetEntry.month ? MONTH_FULL[sheetEntry.month - 1] : '—'}{sheetEntry.location ? ` · ${sheetEntry.location}` : ''}{sheetEntry.organizer ? ` · ${sheetEntry.organizer}` : ''}</dd></div>
-          {#if sheetEntry.prizePool}<div><dt>Premiação</dt><dd>US$ {sheetEntry.prizePool.toLocaleString('pt-BR')}</dd></div>{/if}
-          {#if sheetEntry.note}<div class="event-note"><dt>Retorno</dt><dd>{sheetEntry.note}</dd></div>{/if}
           {#if sheetEntry.result}
             <div class="place-{placeKey(sheetEntry.result.placement)}"><dt>Sua colocação</dt><dd class="placed">{sheetEntry.result.placement}</dd></div>
-            <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}W–{sheetEntry.result.seriesLosses}L</dd></div>
+            <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}V · {sheetEntry.result.seriesLosses}D</dd></div>
             <div><dt>Seu rating</dt><dd class:hot={sheetEntry.result.rating >= 1.1}>{sheetEntry.result.rating.toFixed(2)}</dd></div>
+            {#if sheetEntry.prizePool}<div><dt>Premiação</dt><dd>{prizeLabel(sheetEntry.prizePool)}</dd></div>{/if}
             {#if sheetEntry.result.champion}<div><dt>Campeão</dt><dd>{sheetEntry.result.champion}</dd></div>{/if}
-            {#if sheetEntry.result.mvp}<div><dt>MVP</dt><dd class:mvp-you={sheetEntry.result.mvp.you}>{sheetEntry.result.mvp.you ? 'Você' : sheetEntry.result.mvp.nick} · {sheetEntry.result.mvp.team} · {sheetEntry.result.mvp.rating.toFixed(2)}</dd></div>{/if}
-            {#if sheetEntry.result.plays}<div><dt>Suas jogadas</dt><dd>{[sheetEntry.result.plays.aces ? `${sheetEntry.result.plays.aces} ace` : '', sheetEntry.result.plays.quads ? `${sheetEntry.result.plays.quads} quad` : '', sheetEntry.result.plays.clutches ? `${sheetEntry.result.plays.clutches} clutch` : ''].filter(Boolean).join(' · ')}</dd></div>{/if}
+            {#if sheetEntry.result.mvp}<div><dt>MVP</dt><dd class:mvp-you={sheetEntry.result.mvp.you}>{sheetEntry.result.mvp.you ? 'Você' : sheetEntry.result.mvp.nick} <small>{sheetEntry.result.mvp.rating.toFixed(2)}</small></dd></div>{/if}
+            {#if sheetEntry.result.plays && (sheetEntry.result.plays.aces || sheetEntry.result.plays.quads || sheetEntry.result.plays.clutches)}<div><dt>Suas jogadas</dt><dd>{[sheetEntry.result.plays.aces ? `${sheetEntry.result.plays.aces} ace` : '', sheetEntry.result.plays.quads ? `${sheetEntry.result.plays.quads} quad` : '', sheetEntry.result.plays.clutches ? `${sheetEntry.result.plays.clutches} clutch` : ''].filter(Boolean).join(' · ')}</dd></div>{/if}
+            <div><dt>Formato</dt><dd>{FORMAT_SHORT(sheetEntry)}</dd></div>
           {:else}
-            <div><dt>Status</dt><dd>{currentEntry?.index === eventSheet ? 'Próximo a jogar' : 'Ainda vai acontecer'}</dd></div>
-            <div><dt>Sua força</dt><dd>{sheetMyRank}º de {sheetField.length} na chave</dd></div>
-            <div><dt>Seus mapas</dt><dd>{mapsLine(myMaps)}</dd></div>
+            <div><dt>Formato</dt><dd>{FORMAT_SHORT(sheetEntry)}</dd></div>
+            <div><dt>Séries</dt><dd>{SERIES_SHORT(sheetEntry)}</dd></div>
+            <div><dt>Premiação</dt><dd>{sheetEntry.prizePool ? prizeLabel(sheetEntry.prizePool) : '—'}</dd></div>
+            <div title="O seu time pela força, contra os times da chave."><dt>Sua força</dt><dd>{sheetMyRank}º de {sheetField.length}</dd></div>
           {/if}
         </dl>
         {#if sheetEntry.result?.opponents?.length}
@@ -3429,11 +3434,17 @@
   .modal.confirm p { margin: 0; color: var(--muted); line-height: 1.5; }
   .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .event-sheet { gap: 16px; }
-  .event-title { font-size: clamp(34px, 4vw, 52px); }
-  .event-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin: 0; }
-  .event-facts div { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
-  .event-facts dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
-  .event-facts dd { margin: 0; font: 600 15px/1.3 var(--body); }
+  .event-title { margin-bottom: -6px; font-size: clamp(28px, 3vw, 40px); line-height: 1; }
+  .event-where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; color: var(--muted); font-size: 14px; }
+  .event-tag { padding: 3px 7px; border: 1px solid var(--accent); color: var(--accent); font: 700 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+  .event-tag.soft { border-color: var(--line); color: var(--muted); }
+  .event-note-line { margin: -4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .event-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; }
+  .event-facts div { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
+  .event-facts dt { color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
+  .event-facts dd { margin: 0; overflow-wrap: anywhere; font: 800 19px/1.1 var(--display); text-transform: uppercase; }
+  .event-facts dd small { color: var(--muted); font: 700 12px/1 var(--body); }
+  @media (max-width: 680px) { .event-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .event-facts dd.placed { color: var(--place); font: 900 24px/1 var(--display); text-transform: uppercase; }
   .event-facts dd.hot { color: var(--accent); }
   .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
@@ -3495,7 +3506,6 @@
   .sev { margin-left: 10px; padding: 2px 6px; border: 1px solid currentColor; font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; }
   .sev-grave { color: var(--accent-2); opacity: 0.8; }
   .sev-critico { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
-  .event-note { grid-column: 1 / -1; }
   .log-marks { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
   .log-marks b { color: var(--text); }
   .log-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -3507,7 +3517,6 @@
   .log-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
   .log-body .sev { margin: 0; font-style: normal; }
   @media (max-width: 720px) { .log-cols { grid-template-columns: minmax(0, 1fr); } }
-  .event-note dd { font-size: 14px; line-height: 1.4; }
   .talk-who { margin-left: 10px; color: var(--muted); font: 600 13px/1 var(--body); text-transform: uppercase; letter-spacing: 0.08em; vertical-align: middle; }
   .talk-quote { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 17px; line-height: 1.45; }
   .talk-tip { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
