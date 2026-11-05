@@ -159,26 +159,39 @@ const mapTarget = (us: number, them: number) => (Math.min(us, them) >= 12 ? 16 +
 
 /** A situação só cai quando o que ela diz é verdade no mapa: "perderam três seguidos" só depois de três derrotas,
  *  "último round do half" só no 12, eco só com o dinheiro curto. Sem regra, serve a qualquer momento. */
-const CONTEXT_RULES: Array<[RegExp, (ctx: RoundContext) => boolean]> = [
-  [/perde(ram|u) (três|3) rounds/, (ctx) => ctx.lossStreak >= 3],
-  [/ganhou dois rounds seguidos/, (ctx) => ctx.winStreak >= 2],
-  [/perdeu o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === false],
-  [/ganhou o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === true],
-  [/depois do pistol/, (ctx) => ctx.round === 2 || ctx.round === 14],
-  [/pistol round|pistola no round 1/, (ctx) => ctx.round === 1 || ctx.round === 13],
-  [/último round do half|decisivo para o half/, (ctx) => ctx.round === 12],
-  [/empatado em 12 a 12/, (ctx) => ctx.us === 12 && ctx.them === 12],
-  [/primeiro round da prorrogação/, (ctx) => ctx.round >= 25 && (ctx.round - 25) % 6 === 0],
-  [/(último round|última entrada) para (fechar|ganhar) o mapa|último round do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - ctx.us === 1],
-  [/fim do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - Math.max(ctx.us, ctx.them) <= 2],
-  [/cinco rounds atrás/, (ctx) => ctx.them - ctx.us >= 5],
-  [/perdendo e sem energia/, (ctx) => ctx.them - ctx.us >= 3],
-  [/placar apertado/, (ctx) => Math.abs(ctx.us - ctx.them) <= 2 && ctx.us + ctx.them >= 12],
-  [/eco round|está no eco|economia do time|economia apertada|dinheiro curto|sem dinheiro|pouco dinheiro/, (ctx) => ctx.money !== null && ctx.money < LOW_MONEY],
-  [/round de força/, (ctx) => ctx.money !== null && ctx.money < FULL_BUY],
-  [/anti-eco|contra eco|economia quebrada/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < LOW_MONEY],
-  [/contra força|fez força/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < FULL_BUY]
+const CONTEXT_RULES: Array<[RegExp, (ctx: RoundContext) => boolean, string]> = [
+  [/perde(ram|u) (três|3) rounds/, (ctx) => ctx.lossStreak >= 3, 'depois de perder 3 rounds seguidos'],
+  [/ganhou dois rounds seguidos/, (ctx) => ctx.winStreak >= 2, 'depois de ganhar 2 rounds seguidos'],
+  [/perdeu o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === false, 'round 2 ou 14, depois de perder o pistol'],
+  [/ganhou o pistol/, (ctx) => (ctx.round === 2 || ctx.round === 14) && ctx.lastWon === true, 'round 2 ou 14, depois de ganhar o pistol'],
+  [/depois do pistol/, (ctx) => ctx.round === 2 || ctx.round === 14, 'round 2 ou 14'],
+  [/pistol round|pistola no round 1/, (ctx) => ctx.round === 1 || ctx.round === 13, 'round de pistol (1 ou 13)'],
+  [/último round do half|decisivo para o half/, (ctx) => ctx.round === 12, 'round 12 (último do half)'],
+  [/empatado em 12 a 12/, (ctx) => ctx.us === 12 && ctx.them === 12, 'placar 12 a 12'],
+  [/primeiro round da prorrogação/, (ctx) => ctx.round >= 25 && (ctx.round - 25) % 6 === 0, 'primeiro round de cada prorrogação'],
+  [/(último round|última entrada) para (fechar|ganhar) o mapa|último round do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - ctx.us === 1, 'match point a favor'],
+  [/fim do mapa/, (ctx) => mapTarget(ctx.us, ctx.them) - Math.max(ctx.us, ctx.them) <= 2, 'fim do mapa (alguém a 2 rounds de fechar)'],
+  [/cinco rounds atrás/, (ctx) => ctx.them - ctx.us >= 5, '5 ou mais rounds atrás'],
+  [/perdendo e sem energia/, (ctx) => ctx.them - ctx.us >= 3, '3 ou mais rounds atrás'],
+  [/placar apertado/, (ctx) => Math.abs(ctx.us - ctx.them) <= 2 && ctx.us + ctx.them >= 12, 'placar com até 2 de diferença depois do round 12'],
+  [/eco round|está no eco|economia do time|economia apertada|dinheiro curto|sem dinheiro|pouco dinheiro/, (ctx) => ctx.money !== null && ctx.money < LOW_MONEY, 'seu time com menos de US$ 2.400 por jogador'],
+  [/round de força/, (ctx) => ctx.money !== null && ctx.money < FULL_BUY, 'seu time abaixo da compra cheia (US$ 3.600)'],
+  [/anti-eco|contra eco|economia quebrada/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < LOW_MONEY, 'adversário com menos de US$ 2.400 por jogador'],
+  [/contra força|fez força/, (ctx) => ctx.theirMoney !== null && ctx.theirMoney < FULL_BUY, 'adversário abaixo da compra cheia (US$ 3.600)']
 ];
+
+/** Quando a situação pode cair, em português: lado, bomba e o momento do mapa. Para a planilha de conteúdo. */
+export function situationWhen(situation: Pick<ClutchSituation, 'text' | 'alternatives'>): { side: string; bomb: string; moment: string } {
+  const side = situationSide(situation);
+  const bomb = situationBomb(situation);
+  const text = situation.text.toLowerCase();
+  const moments = CONTEXT_RULES.filter(([pattern]) => pattern.test(text)).map(([, , label]) => label);
+  return {
+    side: side === 't' ? 'TR' : side === 'ct' ? 'CT' : 'qualquer',
+    bomb: bomb === 'planted' ? 'plantada' : bomb === 'unplanted' ? 'não plantada' : 'qualquer',
+    moment: moments.length ? moments.join(' e ') : 'qualquer round decisivo'
+  };
+}
 
 export function situationFits(situation: Pick<ClutchSituation, 'text'>, ctx: RoundContext | null): boolean {
   const text = situation.text.toLowerCase();
@@ -355,7 +368,7 @@ export function logDecision(log: DecisionLog | undefined, profile: ClutchProfile
 }
 
 /** A história do round decisivo: o que a SUA escolha causou — não só ganhou/perdeu. */
-const STORIES: Record<ClutchProfile, { won: string[]; lost: string[] }> = {
+export const STORIES: Record<ClutchProfile, { won: string[]; lost: string[] }> = {
   // A alternativa chega no infinitivo ("Cobrir o entry"): os moldes a encaixam depois de um verbo conjugado.
   solid: {
     won: [

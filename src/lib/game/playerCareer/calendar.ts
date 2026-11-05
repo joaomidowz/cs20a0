@@ -138,6 +138,20 @@ const REGIONAL: Record<GuideRegion, Record<'A' | 'B' | 'C', string[]>> = {
   }
 };
 
+/** Todo o circuito do ano, para a planilha de conteúdo: elite mundial, Majors e as tabelas regionais por tier. */
+export function circuitCatalog(year = 2027): Array<EventTemplate & { circuit: string; region: string }> {
+  const regional = (Object.entries(REGIONAL) as Array<[GuideRegion, Record<'A' | 'B' | 'C', string[]>]>).flatMap(([region, tiers]) => [
+    ...spread(tiers.A, 'B', region, REGIONAL_BO5).map((event) => ({ ...event, circuit: 'Tier 2 do jogo (topo regional)', region: REGION_PLACE[region] })),
+    ...spread(tiers.B, 'C', region).map((event) => ({ ...event, circuit: 'Challenger (ligas regionais)', region: REGION_PLACE[region] })),
+    ...spread(tiers.C, 'C', region).map((event) => ({ ...event, circuit: 'CCT/GC (base regional)', region: REGION_PLACE[region] }))
+  ]);
+  return [
+    ...majorsOf(year).map((event) => ({ ...event, circuit: 'Major', region: 'Mundo' })),
+    ...elitePool(year).map((event) => ({ ...event, circuit: 'Elite mundial (Tier S e 1)', region: 'Mundo' })),
+    ...regional
+  ];
+}
+
 /** Finais MD5 dos regionais grandes (os que o guia mostra decididos em 3-x). */
 const REGIONAL_BO5 = ['CBCS Masters', 'Asian Champions League', 'ESL Challenger Europe', 'ESL Challenger NA', 'ESL Challenger Asia-Pacific'];
 

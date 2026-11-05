@@ -172,7 +172,7 @@ export interface TalkResult {
   line: string;
 }
 
-const TALK_LINES = {
+export const TALK_LINES = {
   good: [
     'Papo reto: ele te mostrou a demo do próximo adversário.',
     'Ficou até tarde treinando mira com você.',

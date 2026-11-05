@@ -127,6 +127,27 @@ const NEEDS: Record<string, Need> = {
   EV150: ({ result }) => reachedFinal(result) && bigEvent(result)
 };
 
+/** As condições acima em português, para a planilha de conteúdo. */
+export const NEED_LABEL: Record<string, string> = {
+  EV008: 'chegou à final', EV010: 'perdeu uma série no último campeonato', EV012: 'ganhou série de playoff',
+  EV014: 'não foi campeão', EV015: 'primeira final da carreira', EV019: 'perdeu uma série no último campeonato',
+  EV020: 'dois campeonatos seguidos sem semifinal', EV023: 'chegou à final', EV025: 'perdeu uma série no último campeonato',
+  EV036: 'não foi campeão', EV041: 'não chegou à final', EV045: 'perdeu uma série no último campeonato',
+  EV050: 'perdeu uma série no campeonato', EV054: 'chegou à semifinal ou mais', EV058: 'perdeu uma série no último campeonato',
+  EV060: 'final de campeonato que não é Tier S nem Major', EV068: 'não foi campeão e perdeu uma série', EV071: 'chegou à final',
+  EV072: 'perdeu uma série no último campeonato', EV078: 'dois campeonatos seguidos sem semifinal', EV079: 'rating 1.25+ no último campeonato',
+  EV085: 'caiu na semifinal do último campeonato', EV090: 'desligado (o jogo não tem tiebreak)', EV094: 'perdeu uma série no último campeonato',
+  EV100: 'perdeu uma série no último campeonato', EV103: 'ganhou série de playoff no último campeonato', EV106: 'o próximo é Major e você nunca jogou um',
+  EV107: 'não foi campeão', EV108: 'caiu num stage do Major', EV109: 'ganhou série de playoff no último campeonato',
+  EV113: 'playoffs de Tier S ou Major', EV115: 'perdeu uma série no último campeonato', EV116: 'caiu na semifinal',
+  EV120: 'chegou à final de Major', EV122: 'chegou à final', EV123: '6 títulos ou mais na carreira', EV125: 'foi campeão',
+  EV129: 'chegou à final', EV135: 'já foi top 3 da HLTV', EV136: 'ganhou um Major no último campeonato', EV140: 'foi vice',
+  EV141: 'final de Tier S ou Major', EV146: 'campeão de Tier S ou Major', EV147: 'foi campeão', EV150: 'final de Tier S ou Major'
+};
+
+/** O que cada escolha muda no calendário/time, em português. */
+export const CALENDAR_MOVE_LABEL: Record<CalendarMove, string> = { skip: 'tira um campeonato (folga)', add: 'põe mais um campeonato', up: 'abre proposta de time maior', region: 'abre proposta de time de outra região' };
+
 /** Os que o documento põe antes do jogo, mas contam o que aconteceu NO campeonato: saem depois dele. */
 const AFTER_THE_GAME = new Set(['EV012', 'EV015', 'EV036', 'EV054', 'EV060', 'EV108', 'EV120', 'EV129', 'EV141', 'EV147', 'EV150']);
 export const triggerOf = (event: Happening): HappeningTrigger => (AFTER_THE_GAME.has(event.id) ? 'post' : event.trigger);
@@ -177,7 +198,7 @@ export const benchOf = (eventId: string, choiceIndex: number): number => BENCH_C
 
 /** Escolhas que mexem de verdade no calendário ou no time: folga tira um campeonato, "aceitar todos" põe mais um,
  *  aceitar proposta abre a tela de mercado. */
-type CalendarMove = 'skip' | 'add' | 'up' | 'region';
+export type CalendarMove = 'skip' | 'add' | 'up' | 'region';
 const CALENDAR_CHOICES: Record<string, Record<number, CalendarMove>> = {
   EV018: { 1: 'skip' },
   EV123: { 0: 'skip' },

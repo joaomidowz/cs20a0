@@ -12,7 +12,7 @@ export interface Rival { nick: string; role: string; orgId: string; orgName: str
 
 const ROLE_NAME: Record<string, string> = { igl: 'IGL', entry: 'entry', awper: 'AWPer', lurker: 'lurker', support: 'suporte', rifler: 'rifler' };
 
-const TRASH_TALK = [
+export const TRASH_TALK = [
   (rival: string, me: string) => `"${me}? Só joga bem em servidor de treino. No palco a gente resolve."`,
   (rival: string, me: string) => `"Time do ${me} é marketing. Quero ver segurar o nosso execute."`,
   (rival: string, me: string) => `"Vou fazer o ${me} pedir pause no primeiro mapa."`,
