@@ -384,3 +384,6 @@ export const markLineUsed = (state: PlayerCareerState, key: string): PlayerCaree
   const memory = memoryOf(state);
   return { ...state, talkMemory: { ...memory, n: memory.n + 1, used: { ...memory.used, [key]: memory.n } } };
 };
+
+/** O texto da resposta que você deu (para o histórico). */
+export const answerText = (situation: TalkSituation, key: TalkAnswerKey) => ANSWERS[situation]?.[key] ?? key;

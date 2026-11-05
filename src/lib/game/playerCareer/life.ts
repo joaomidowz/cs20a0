@@ -65,8 +65,8 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
     if (abroadWeeks === 0) { adaptation = Math.min(adaptation, 40); notes.push('Mudança de país: começa a adaptação.'); }
     abroadWeeks += weeks;
     weeksSinceVisit += weeks;
-    adaptation = clamp(adaptation + 3 + (ctx.teamFluency >= 70 ? 2 : 0) + (ctx.avgRelationship >= 70 ? 2 : 0));
-    homesick = clamp(homesick + 2 + (weeksSinceVisit > 16 ? 2 : 0) + (ctx.avgRelationship < 45 ? 2 : 0) - (adaptation >= 75 ? 2 : 0));
+    adaptation = Math.round(clamp(adaptation + 3 + (ctx.teamFluency >= 70 ? 2 : 0) + (ctx.avgRelationship >= 70 ? 2 : 0)));
+    homesick = Math.round(clamp(homesick + 2 + (weeksSinceVisit > 16 ? 2 : 0) + (ctx.avgRelationship < 45 ? 2 : 0) - (adaptation >= 75 ? 2 : 0)));
   } else {
     abroadWeeks = 0;
     weeksSinceVisit = 0;
@@ -77,11 +77,13 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
   const base = 20 + (5 - Math.min(5, ctx.level)) * 8 + (ctx.fame >= 100000 ? 10 : ctx.fame >= 20000 ? 5 : 0);
   const placement = ctx.result?.placement;
   const shock = placement === 'Campeão' ? -8 : placement === 'Vice' ? 0 : placement === 'Semis' ? 2 : placement ? 6 : 0;
-  pressure = clamp(pressure + (base - pressure) * 0.3 + shock);
-  // Mental: volta para 60 aos poucos; título dá confiança, queda cedo com pressão alta pesa; saudade alta tira um pouco.
-  const resultMind = placement === 'Campeão' ? 4 : placement && !['Vice', 'Semis'].includes(placement) && pressure >= 60 ? -3 : 0;
-  mind = clamp(mind + (60 - mind) * 0.12 + resultMind - (homesick >= 70 ? 2 : 0) - (pressure >= 80 ? 1 : 0));
-  condition = clamp(condition + ((state.fatigue ?? 0) >= 70 ? -6 : (state.fatigue ?? 0) >= 45 ? -2 : 4));
+  pressure = Math.round(clamp(pressure + (base - pressure) * 0.3 + shock));
+  // Mental: volta para 60 (mais rápido quando está muito alto, para não virar bônus fixo); título dá confiança,
+  // queda cedo com pressão alta pesa; saudade alta tira um pouco.
+  const resultMind = placement === 'Campeão' ? 3 : placement && !['Vice', 'Semis'].includes(placement) && pressure >= 60 ? -3 : 0;
+  const pull = mind > 70 ? 0.3 : 0.15;
+  mind = Math.round(clamp(mind + (60 - mind) * pull + resultMind - (homesick >= 70 ? 2 : 0) - (pressure >= 80 ? 1 : 0)));
+  condition = Math.round(clamp(condition + ((state.fatigue ?? 0) >= 70 ? -6 : (state.fatigue ?? 0) >= 45 ? -2 : 4)));
   if (homesick >= 70 && life.homesick < 70) notes.push('A saudade de casa apertou.');
   if (adaptation >= 80 && life.adaptation < 80 && ctx.abroad) notes.push('Você já se sente em casa no país novo.');
   const moraleDelta = homesick >= 70 ? -2 : 0;

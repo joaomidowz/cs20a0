@@ -29,6 +29,7 @@
   import { clutchStory, logDecision, mapTarget, situationBomb, type ClutchProfile, type ReadQuality } from '$lib/game/playerCareer/decisions';
   import { answerTalk, decisiveLine, dismissTalk, markLineUsed, momentTalk, seasonTalk, speakerOf, startTalk, MOMENT_LABEL, SITUATION_LABEL, type TalkChip, type TalkMoment } from '$lib/game/playerCareer/talks';
   import { tickLife } from '$lib/game/playerCareer/tick';
+  import { careerLog } from '$lib/game/playerCareer/careerLog';
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
   import { lifeOf, livesAbroad } from '$lib/game/playerCareer/life';
   import {
@@ -483,7 +484,7 @@
     { phase: 'quarterfinal', label: 'Quartas' }, { phase: 'semifinal', label: 'Semis' }, { phase: 'final', label: 'Final' }
   ];
   const TROPHY_TIERS: EventTier[] = ['Major', 'S', 'A', 'B', 'C'];
-  const ROOM_TABS = [{ key: 'titulos', label: 'Títulos' }, { key: 'premios', label: 'Prêmios e HLTV' }, { key: 'jogadas', label: 'Jogadas' }] as const;
+  const ROOM_TABS = [{ key: 'titulos', label: 'Títulos' }, { key: 'premios', label: 'Prêmios e HLTV' }, { key: 'jogadas', label: 'Jogadas' }, { key: 'historia', label: 'Histórico' }] as const;
   let roomTab: (typeof ROOM_TABS)[number]['key'] = 'titulos';
   const PLAY_LABEL = (play: PlayHighlight) =>
     play.kind === 'ace' ? 'Ace' : play.kind === 'quad' ? '4K' : play.kind === 'clutch' ? `Clutch 1v${play.against ?? 1}` : `${play.kills}K`;
@@ -1198,6 +1199,7 @@
   const mapsLine = (maps: MapRating[]) => maps.slice(0, 3).map((map) => `${map.name}${AFFINITY_LABEL[map.affinity] ? ` ${AFFINITY_LABEL[map.affinity]}` : ''}`).join(' · ');
   $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, majorMvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
+  $: lifeLog = career && trophiesOpen && roomTab === 'historia' ? careerLog(career) : null;
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
   $: lastLog = career?.history[career.history.length - 1] ?? null;
   $: currentSeat = career?.seatsTaken[career.seatsTaken.length - 1] ?? null;
@@ -2381,6 +2383,50 @@
             <p class="muted-line">O Top 20 HLTV e o Rookie of the Year saem no fim de cada temporada. Rookie só vale no ano da sua estreia em Major.</p>
           {/if}
 
+        {:else if roomTab === 'historia'}
+          {#if lifeLog}
+            <dl class="trophy-tiers">
+              <div class:has={lifeLog.decisions.length > 0}><dt>Decisões</dt><dd>{lifeLog.decisions.length}</dd></div>
+              <div class:has={lifeLog.talks.length > 0}><dt>Conversas</dt><dd>{lifeLog.talks.length}</dd></div>
+              <div class:has={lifeLog.grudges.length > 0} class:major={lifeLog.grudges.length > 0}><dt>Atravessados</dt><dd>{lifeLog.grudges.length}</dd></div>
+            </dl>
+            {#if lifeLog.marks.length || lifeLog.grudges.length}
+              <p class="log-marks">{#if lifeLog.marks.length}<b>Marcas que voltam:</b> {lifeLog.marks.join(' · ')}.{/if}{#if lifeLog.grudges.length} <b>Atravessado com você:</b> {lifeLog.grudges.join(', ')}.{/if}</p>
+            {/if}
+            <div class="log-cols">
+              <section aria-label="Decisões fora do servidor">
+                <p class="label">Acontecimentos e dilemas</p>
+                {#if lifeLog.decisions.length}
+                  <ol class="log-list">
+                    {#each lifeLog.decisions as row (row.key)}
+                      <li>
+                        <span class="log-when">{row.when}</span>
+                        <span class="log-body"><span class="log-head"><b>{row.title}</b>{#if row.severity}<i class="sev sev-{row.severity}">{row.severity === 'critico' ? 'Crítico' : 'Grave'}</i>{/if}</span>{#if row.choice}<small>{row.kind === 'Dilema' ? 'Dilema' : 'Você'}: {row.choice}{row.success === true ? ' · saiu como queria' : row.success === false ? ' · não saiu como queria' : ''}</small>{/if}</span>
+                      </li>
+                    {/each}
+                  </ol>
+                {:else}
+                  <p class="muted-line">Acontecimentos e dilemas aparecem aqui com a sua escolha.</p>
+                {/if}
+              </section>
+              <section aria-label="Conversas">
+                <p class="label">Conversas (últimas 30)</p>
+                {#if lifeLog.talks.length}
+                  <ol class="log-list">
+                    {#each lifeLog.talks as row (row.key)}
+                      <li>
+                        <span class="log-when">{row.when}</span>
+                        <span class="log-body"><span class="log-head"><b>{row.who}</b> · {row.situation}</span><small>Você: {row.answer}{row.delta ? ` · relação ${row.delta > 0 ? '+' : '−'}${Math.abs(row.delta)}` : ''}</small></span>
+                      </li>
+                    {/each}
+                  </ol>
+                {:else}
+                  <p class="muted-line">Converse com titulares, reserva e coach: o que você responde fica guardado.</p>
+                {/if}
+              </section>
+            </div>
+          {/if}
+
         {:else}
           <dl class="trophy-tiers">
             <div class:has={trophies.aces > 0} class:major={trophies.aces > 0}><dt>Aces</dt><dd>{trophies.aces}</dd></div>
@@ -3406,6 +3452,17 @@
   .sev-grave { color: var(--accent-2); opacity: 0.8; }
   .sev-critico { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
   .event-note { grid-column: 1 / -1; }
+  .log-marks { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .log-marks b { color: var(--text); }
+  .log-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .log-list { display: grid; gap: 6px; max-height: 46vh; margin: 6px 0 0; padding: 0; overflow-y: auto; list-style: none; }
+  .log-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border: 1px solid var(--line); background: var(--surface-2); }
+  .log-when { color: var(--muted); font: 700 12px/1.3 var(--body); font-variant-numeric: tabular-nums; }
+  .log-body { display: grid; gap: 3px; min-width: 0; font-size: 14px; line-height: 1.35; }
+  .log-body small { color: var(--muted); font-size: 12px; }
+  .log-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+  .log-body .sev { margin: 0; font-style: normal; }
+  @media (max-width: 720px) { .log-cols { grid-template-columns: minmax(0, 1fr); } }
   .event-note dd { font-size: 14px; line-height: 1.4; }
   .talk-who { margin-left: 10px; color: var(--muted); font: 600 13px/1 var(--body); text-transform: uppercase; letter-spacing: 0.08em; vertical-align: middle; }
   .talk-quote { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 17px; line-height: 1.45; }
