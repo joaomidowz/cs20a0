@@ -5,8 +5,10 @@
 // do seu mental e da sua moral: a mesma decisão pode sair melhor ou pior.
 import rawEvents from '$lib/data/cs/career-events.game.json';
 import { createSeededRng } from '../simulation';
-import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type TournamentResult } from './engine';
-import { matesOf, myPlayerOf } from './squad';
+import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
+import { bestOtherRole, matesOf, myPlayerOf, takeRole } from './squad';
+
+const ROLE_LABEL_PT: Record<PlayerRole, string> = { igl: 'IGL', awper: 'AWPer', entry: 'Entry', lurker: 'Lurker', support: 'Suporte', rifler: 'Rifler' };
 
 export type HappeningTrigger = 'pre' | 'post' | 'between';
 export type HappeningEffect = 'performance' | 'fatigue' | 'mental' | 'reputation' | 'money' | 'chemistry' | 'fame';
@@ -213,6 +215,15 @@ const CALENDAR_CHOICES: Record<string, Record<number, CalendarMove>> = {
 };
 export const calendarMoveOf = (eventId: string, choiceIndex: number): CalendarMove | null => CALENDAR_CHOICES[eventId]?.[choiceIndex] ?? null;
 
+/** Escolhas que mudam a sua função de verdade: virar IGL e capitão, assumir as calls, trocar de função a pedido
+ *  do coach ('melhor' = a função em que a sua carta rende mais, fora a atual). */
+const ROLE_CHOICES: Record<string, Record<number, PlayerRole | 'melhor'>> = {
+  EV144: { 0: 'igl', 1: 'igl' },
+  EV007: { 0: 'igl' },
+  EV111: { 2: 'melhor' }
+};
+export const roleMoveOf = (eventId: string, choiceIndex: number): PlayerRole | 'melhor' | null => ROLE_CHOICES[eventId]?.[choiceIndex] ?? null;
+
 /** Chance de a escolha sair como você planejou: mental da carta e moral (25% a 90%). */
 export function happeningSuccessChance(state: PlayerCareerState): number {
   const mental = Number(myPlayerOf(state).mental ?? 60);
@@ -281,7 +292,18 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
       extraLine = ` Entrou no calendário: ${added.name}.`;
       chips.push({ label: 'Calendário', value: -1, display: 'Um campeonato a mais' });
     }
-  } else if (calendarMove) {
+  }
+  const roleMove = roleMoveOf(event.id, choiceIndex);
+  if (roleMove) {
+    const role = roleMove === 'melhor' ? bestOtherRole(moved) : roleMove;
+    if (role !== moved.role) {
+      const taken = takeRole(moved, role);
+      moved = taken.state;
+      extraLine += ` ${taken.line}`;
+      chips.push({ label: 'Função', value: taken.good ? 1 : -1, display: `Agora: ${ROLE_LABEL_PT[role]}` });
+    }
+  }
+  if (calendarMove === 'up' || calendarMove === 'region') {
     const reason = calendarMove === 'up' ? `${event.situation}. A proposta virou oferta de verdade.` : `${event.situation}. O time de fora quer você.`;
     const offered = happeningOffers(moved, calendarMove, reason);
     if (offered.pendingMove) extraLine = ' A proposta chegou: decida na tela de mercado.';

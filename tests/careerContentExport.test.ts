@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { circuitCatalog, MONTH_LABEL, TIER_LABEL } from '../src/lib/game/playerCareer/calendar';
 import { DECISION_MATRIX, SHARED_SITUATIONS, STORIES, situationWhen, type ClutchProfile, type ClutchSituation } from '../src/lib/game/playerCareer/decisions';
-import { HAPPENINGS, CALENDAR_MOVE_LABEL, NEED_LABEL, benchOf, calendarMoveOf, triggerOf, TRIGGER_LABEL, type HappeningEffect } from '../src/lib/game/playerCareer/happenings';
+import { HAPPENINGS, CALENDAR_MOVE_LABEL, NEED_LABEL, benchOf, calendarMoveOf, roleMoveOf, triggerOf, TRIGGER_LABEL, type HappeningEffect } from '../src/lib/game/playerCareer/happenings';
 import { AGENDA, CATEGORY_LABEL } from '../src/lib/game/playerCareer/agenda';
 import { TALK_LINES } from '../src/lib/game/playerCareer/squad';
 import { TRASH_TALK } from '../src/lib/game/playerCareer/rivals';
@@ -49,7 +49,9 @@ describe.skipIf(!process.env.CAREER_EXPORT)('exportar conteúdo da carreira (CAR
       HAPPENINGS.map((event) => [event.id, event.phase, event.tierMin, TRIGGER_LABEL[triggerOf(event)], event.weight, Math.max(event.cooldown, 8), event.situation, NEED_LABEL[event.id] ?? 'sempre',
         ...event.choices.flatMap((choice, index) => {
           const move = calendarMoveOf(event.id, index);
-          const changes = [move ? CALENDAR_MOVE_LABEL[move] : null, benchOf(event.id, index) ? 'você fica no banco no próximo campeonato' : null].filter(Boolean).join('; ');
+          const role = roleMoveOf(event.id, index);
+          const changes = [move ? CALENDAR_MOVE_LABEL[move] : null, benchOf(event.id, index) ? 'você fica no banco no próximo campeonato' : null,
+            role ? (role === 'melhor' ? 'você troca para a função em que rende mais' : `você vira ${ROLE_PT[role] ?? role}`) : null].filter(Boolean).join('; ');
           return [choice.text, effects(choice.effects), choice.consequence, changes];
         })])
     ));

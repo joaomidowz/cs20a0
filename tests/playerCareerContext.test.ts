@@ -116,3 +116,23 @@ describe('o seu time na mesma régua dos rivais', () => {
     expect(campaign.engine.byId.get(campaign.userTeamId)!.team.style).toBeUndefined();
   });
 });
+
+describe('escolha que muda a sua função', () => {
+  it('aceitar virar IGL e capitão te põe de IGL, e o elenco segue com as 5 funções sem repetir (mesmo com 2 trocas)', async () => {
+    const { matesOf } = await import('../src/lib/game/playerCareer/squad');
+    const base = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: 'role-1' });
+    const org = sceneOrgs.find((candidate) => candidate.name === 'FURIA')!;
+    const state = startSeason({ ...base, orgId: org.id, pendingDraw: null, drawDone: true, seatsTaken: [] });
+    const roles = (career: PlayerCareerState) => [career.role, ...matesOf(career).map((mate) => mate.player.role)].sort();
+    const five = ['awper', 'entry', 'igl', 'lurker', 'support'];
+    expect(roles(state)).toEqual(five);
+    const { state: captain, chips } = resolveHappening({ ...state, pendingHappening: { id: 'EV144', trigger: 'pre', eventIndex: 0 } }, 1);
+    expect(captain.role).toBe('igl');
+    expect(chips.some((chip) => chip.label === 'Função')).toBe(true);
+    expect(roles(captain)).toEqual(five);
+    // A troca pedida pelo time não gasta a sua: ainda dá para trocar de novo, e o elenco continua fechado.
+    const { state: again } = resolveHappening({ ...captain, pendingHappening: { id: 'EV111', trigger: 'pre', eventIndex: 0 } }, 2);
+    expect(again.role).not.toBe('igl');
+    expect(roles(again)).toEqual(five);
+  });
+});

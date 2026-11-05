@@ -149,14 +149,17 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
   const { penalty } = myLanguageFit(state);
   // Quem saiu a seu pedido dá lugar ao substituto (mesma função, um pouco melhor ou pior).
   const kicked = state.kickedMates?.[state.orgId] ?? [];
+  // A função que ficou vaga no elenco (a de quem cedeu a vaga). Se você joga em outra, o parceiro dela vai para a vaga.
+  const covered = new Set(roster.map((player) => player.role));
+  const vacant = SLOTS.find((role) => !covered.has(role)) ?? null;
   const adjusted = roster.map((player) => {
     const gone = kicked.find((entry) => entry.nick.toLowerCase() === (player.nickname ?? '').toLowerCase());
     if (gone) {
       const rng = createSeededRng(`${state.seed}:replacement:${gone.replacement}`);
       return enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, clamp((player.overall ?? 70) + gone.delta, 40, 99), (player.role ?? 'support') as PlayerRole, rng);
     }
-    // Trocou de função: o parceiro da sua nova função assume a sua antiga.
-    if (state.roleChange && player.role === state.role) return { ...player, role: state.roleChange.from, eligibleSlotRoles: [state.roleChange.from] };
+    // Trocou de função: o parceiro da sua nova função assume a vaga (vale para quantas trocas houver).
+    if (vacant && vacant !== state.role && player.role === state.role) return { ...player, role: vacant, eligibleSlotRoles: [vacant] };
     return player;
   });
   return adjusted.map((player) => {
@@ -281,6 +284,20 @@ export const canChangeRole = (state: PlayerCareerState): boolean =>
  */
 export function changeRole(state: PlayerCareerState, role: PlayerRole): { state: PlayerCareerState; good: boolean; line: string } {
   if (!canChangeRole(state) || role === state.role) return { state, good: false, line: '' };
+  return takeRole(state, role, false);
+}
+
+/** A função que você joga melhor fora a atual (pelo atributo da função na sua carta). */
+export function bestOtherRole(state: PlayerCareerState): PlayerRole {
+  const me = myPlayerOf(state);
+  const skillOf = (role: PlayerRole) => Number((role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower) ?? 60);
+  return SLOTS.filter((role) => role !== state.role).sort((a, b) => skillOf(b) - skillOf(a))[0];
+}
+
+/** Assume uma função (pedido seu, do coach ou do time): encaixa ou não pela sua carta na função nova. Vale mesmo
+ *  que você já tenha trocado nesta temporada (a troca pedida pelo time não conta como o seu pedido). */
+export function takeRole(state: PlayerCareerState, role: PlayerRole, byTeam = true): { state: PlayerCareerState; good: boolean; line: string } {
+  if (role === state.role) return { state, good: true, line: '' };
   const me = myPlayerOf(state);
   const skill = role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower;
   const chance = clamp(0.45 + ((Number(skill ?? 60) - Number(me.overall ?? 70)) / 40) + ((state.morale ?? 60) - 60) / 200, 0.2, 0.85);
@@ -290,7 +307,8 @@ export function changeRole(state: PlayerCareerState, role: PlayerRole): { state:
     ...state,
     role,
     overall: clamp(state.overall + (good ? 1 : -2), 40, 99),
-    roleChange: { from, season: state.seasonNumber, outcome: good ? 'good' : 'bad' },
+    // A troca pedida pelo time não gasta a sua troca da temporada.
+    roleChange: byTeam ? state.roleChange : { from, season: state.seasonNumber, outcome: good ? 'good' : 'bad' },
     morale: clamp((state.morale ?? 60) + (good ? 3 : -4), 0, 100)
   };
   const line = good
