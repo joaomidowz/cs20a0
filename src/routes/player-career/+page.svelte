@@ -14,6 +14,8 @@
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
   import TeamBadge from '$lib/components/TeamBadge.svelte';
+  import CareerWrapped from '$lib/components/CareerWrapped.svelte';
+  import { buildRetrospective } from '$lib/game/playerCareer/retrospective';
   import CareerHltvTop from '$lib/components/CareerHltvTop.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
   import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
@@ -1056,6 +1058,20 @@
   $: currentLevel = career ? orgOf(career.orgId, career).level : 5;
   $: visitedLevels = new Set([...(career?.history.map((log) => log.orgLevel) ?? []), currentLevel]);
   $: board = clutch && liveUserSeries && live && career ? boardOf(liveUserSeries, live.userTeamId) : null;
+  $: retro = career?.status === 'RETIRED' ? buildRetrospective(career) : null;
+  // Na primeira vez que a tela de aposentadoria abre, a retrospectiva começa sozinha.
+  let retroOpen = false;
+  let retroChecked: string | null = null;
+  $: if (career?.status === 'RETIRED' && retroChecked !== career.seed) {
+    retroChecked = career.seed;
+    try { retroOpen = !localStorage.getItem(`${STORAGE_KEY}:retro:${career.seed}`); } catch { retroOpen = false; }
+  }
+  function openRetro() { retroOpen = true; }
+  function closeRetro() {
+    retroOpen = false;
+    document.body.classList.remove('modal-open');
+    try { if (career) localStorage.setItem(`${STORAGE_KEY}:retro:${career.seed}`, '1'); } catch { /* sem armazenamento: abre de novo na próxima */ }
+  }
   $: seasonSpan = career?.history.length ? `${career.history[0].year}–${career.history.at(-1)!.year}` : career ? `${career.year}` : '';
   $: trajectory = career ? trajectoryOf(career) : [];
   $: overallCurve = career ? curveOf(career) : null;
@@ -1170,12 +1186,31 @@
       </div>
     </section>
   {:else if career.status === 'RETIRED' && career.verdict}
+    {#if retroOpen && retro}<CareerWrapped {retro} levelLabel={LEVEL_LABEL} onClose={closeRetro} onNewCareer={() => { closeRetro(); askReset(); }} />{/if}
     <section class="retired">
-      <div class="retired-head">
-        <p class="eyebrow">{career.verdict.becameCoach ? `Virou coach aos ${career.age}` : 'Pendurou o mouse'} · {seasonSpan}</p>
-        <h1 class="display">{career.nick}</h1>
-        <p class="verdict">“{career.verdict.line}”</p>
+      <div class="retired-hero">
+        <div class="retired-head">
+          <p class="eyebrow">{career.verdict.becameCoach ? `Virou coach aos ${career.age}` : 'Pendurou o mouse'} · {seasonSpan}</p>
+          <h1 class="display">{career.nick}</h1>
+          <p class="verdict">“{career.verdict.line}”</p>
+        </div>
+        <button class="cta inline retro-btn" on:click={openRetro}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z" /></svg>
+          Ver a retrospectiva
+        </button>
       </div>
+      {#if retro}
+        <dl class="retired-stats">
+          <div><dt>Temporadas</dt><dd>{retro.seasons}</dd></div>
+          <div class="gold"><dt>Títulos</dt><dd>{retro.totals.titles}</dd><small>{retro.totals.events ? Math.round((retro.totals.titles / retro.totals.events) * 100) : 0}% dos campeonatos</small></div>
+          <div class:gold={retro.totals.majors > 0}><dt>Majors</dt><dd>{retro.totals.majors}</dd></div>
+          <div><dt>MVPs</dt><dd>{retro.totals.mvps}</dd>{#if retro.totals.majorMvps}<small>{retro.totals.majorMvps} de Major</small>{/if}</div>
+          <div><dt>Finais</dt><dd>{retro.totals.finalsWon}<span>/{retro.totals.finals}</span></dd></div>
+          <div class:gold={retro.totals.hltvTop1 > 0}><dt>Top 1 HLTV</dt><dd>{retro.totals.hltvTop1}</dd>{#if retro.totals.bestHltv && !retro.totals.hltvTop1}<small>melhor #{retro.totals.bestHltv}</small>{/if}</div>
+          <div><dt>Melhor overall</dt><dd>{retro.totals.bestOverall}</dd><small>em {retro.totals.peakYear}</small></div>
+          <div><dt>Melhor rating</dt><dd>{retro.totals.bestRating.toFixed(2)}</dd><small>em {retro.totals.bestRatingYear}</small></div>
+        </dl>
+      {/if}
       <div class="retired-grid">
         {#if overallCurve}
           <figure class="curve">
@@ -1184,29 +1219,100 @@
               <polyline points={overallCurve.line} fill="none" stroke="var(--accent)" stroke-width="3" vector-effect="non-scaling-stroke" />
               <circle cx={overallCurve.peak.x} cy={overallCurve.peak.y} r="4" fill="var(--accent)" />
             </svg>
+            {#if retro}<div class="curve-years"><span>{retro.from}</span><span>{retro.to}</span></div>{/if}
           </figure>
         {/if}
         <div class="trajectory">
           <p class="label">Trajetória</p>
           <ol>
-            {#each trajectory as stop}
-              <li class:top={stop.level === career.verdict.topOrgLevel}>
-                <i aria-hidden="true"></i>
-                <span><b>{stop.orgName}</b> · {LEVEL_LABEL[stop.level] ?? `Nível ${stop.level}`}{stop.titles ? ` · ${stop.titles} título${stop.titles > 1 ? 's' : ''}` : ''}</span>
-                <span class="num">{stop.from === stop.to ? stop.from : `${stop.from}–${stop.to}`}</span>
+            {#each retro?.eras ?? [] as era (era.orgId + era.from)}
+              <li class:top={era.level <= 1}>
+                <span class="tr-badge"><TeamBadge id={era.orgId} name={era.orgName} size="sm" /></span>
+                <span class="tr-name"><b>{era.orgName}</b><small>{LEVEL_LABEL[era.level] ?? `Nível ${era.level}`}{era.majors.length ? ` · ${era.majors.length} Major${era.majors.length > 1 ? 's' : ''}` : ''}</small></span>
+                <span class="tr-titles" class:has={era.titles > 0}>{era.titles ? `${era.titles} título${era.titles > 1 ? 's' : ''}` : 'sem título'}</span>
+                <span class="num">{era.from === era.to ? era.from : `${era.from}–${era.to}`}</span>
               </li>
             {/each}
           </ol>
         </div>
       </div>
-      <div class="boxes">
-        <div class="box"><span>Temporadas</span><b>{career.verdict.seasons}</b></div>
-        <div class="box"><span>Títulos</span><b class:gold={career.verdict.titles > 0}>{career.verdict.titles}</b></div>
-        <div class="box"><span>Melhor overall</span><b>{career.verdict.bestOverall}</b></div>
-        <div class="box"><span>Melhor rating</span><b>{career.verdict.bestSeasonRating.toFixed(2)}</b></div>
-      </div>
-      {#if namedTitles.length}
-        <p class="titles-list"><span class="label">Títulos</span>{namedTitles.join(' · ')}</p>
+      {#if retro?.majorTitles.length}
+        <section class="major-shelf" aria-label="Majors">
+          <p class="label">Majors</p>
+          <ul>
+            {#each retro.majorTitles as major (major.name + major.year)}
+              <li><b>{major.name.replace(/\s\d{4}$/, '')}</b><span>{major.year}{major.mvp ? ' · MVP' : ''}</span></li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+      {#if retro?.titlesByYear.length}
+        <section class="titles-years" aria-label="Títulos ano a ano">
+          <p class="label">Títulos ano a ano</p>
+          <div class="ty-list">
+            {#each [...retro.titlesByYear].reverse() as year (year.year)}
+              <details class="ty-year" class:major={year.titles.some((title) => title.tier === 'Major')}>
+                <summary>
+                  <span class="ty-y">{year.year}</span>
+                  <span class="ty-team">{year.orgName}</span>
+                  <span class="ty-count">{year.titles.length} título{year.titles.length > 1 ? 's' : ''}</span>
+                  <span class="ty-chips">
+                    {#each Object.entries(year.titles.reduce((acc, title) => ({ ...acc, [title.tier ?? 'C']: (acc[title.tier ?? 'C'] ?? 0) + 1 }), {} as Record<string, number>)) as [tier, count] (tier)}
+                      <i class="tier-{tier}">{count}× {TIER_LABEL[tier as EventTier] ?? tier}</i>
+                    {/each}
+                  </span>
+                </summary>
+                <ul>
+                  {#each year.titles as title (title.name)}
+                    <li class:major={title.tier === 'Major'}><span>{title.name}</span>{#if title.mvp}<b>MVP</b>{/if}</li>
+                  {/each}
+                </ul>
+              </details>
+            {/each}
+          </div>
+        </section>
+      {/if}
+      {#if career.history.length}
+        <section class="retired-seasons" aria-label="Temporada a temporada">
+          <p class="label">Temporada a temporada</p>
+          <div class="season-table" role="table" aria-label="Temporada a temporada">
+            <div class="st-row st-head" role="row">
+              <span role="columnheader">Ano</span><span role="columnheader">Time</span><span role="columnheader">Rating</span><span role="columnheader">HLTV</span><span role="columnheader">Títulos</span><span role="columnheader">MVPs</span><span role="columnheader">Destaque</span>
+            </div>
+            {#each career.history as log (log.seasonNumber)}
+              {@const majorTitles = log.tournaments.filter((result) => result.placement === 'Campeão' && result.tier === 'Major').length}
+              {@const mvpAll = log.tournaments.filter((result) => result.mvp?.you).length}
+              {@const mvpMajor = log.tournaments.filter((result) => result.mvp?.you && result.tier === 'Major').length}
+              <div class="st-row" role="row" class:st-gold={log.hltvRank === 1 || majorTitles > 0}>
+                <span class="st-year" role="cell">{log.year}</span>
+                <span class="st-team" role="cell"><TeamBadge id={log.orgId} name={log.orgName} size="sm" /><b>{log.orgName}</b></span>
+                <span class="st-rating" role="cell" class:hot={log.seasonRating >= 1.2} class:good={log.seasonRating >= 1.08 && log.seasonRating < 1.2} class:low={log.seasonRating < 0.98}>{log.seasonRating.toFixed(2)}</span>
+                <span class="st-hltv" role="cell">{#if log.hltvRank}<span class="st-rank" class:top1={log.hltvRank === 1} class:top20={log.hltvRank > 1 && log.hltvRank <= 20}>#{log.hltvRank}</span>{:else}<span class="st-dim">fora</span>{/if}</span>
+                <span class="st-num" role="cell">{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                <span class="st-num" role="cell">{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                <span class="st-badges" role="cell">
+                  {#if log.hltvRank === 1}<span class="award award-major small">Melhor do mundo</span>{/if}
+                  {#if log.rookie?.you}<span class="award small">Rookie of the Year</span>{/if}
+                  {#if log.hltvRank !== 1 && !log.rookie?.you}<span class="st-dim">·</span>{/if}
+                </span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+      {#if retro?.topPlays.length}
+        <section class="retired-plays" aria-label="Melhores jogadas">
+          <p class="label">Melhores jogadas</p>
+          <ol class="play-reel">
+            {#each retro.topPlays as play, playIndex (playIndex)}
+              <li>
+                <span class="tag" class:gold={play.kind === 'ace'} class:major={play.kind === 'clutch' && (play.against ?? 1) >= 3}>{PLAY_LABEL(play)}</span>
+                <span class="pr-where"><b>{play.map}</b> · round {play.round} · vs {play.opponent}</span>
+                <span class="pr-event">{play.event} · {play.year}</span>
+              </li>
+            {/each}
+          </ol>
+        </section>
       {/if}
       <button class="cta" on:click={askReset}>Começar nova carreira</button>
     </section>
@@ -2974,6 +3080,46 @@
   /* Aposentadoria */
   .retired { display: grid; gap: 22px; padding: clamp(20px, 4vw, 44px); border: 1px solid var(--line); background: var(--surface); }
   .retired-head h1 { font-size: clamp(64px, 12vw, 140px); line-height: .8; overflow-wrap: break-word; }
+  .retired-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; }
+  .retro-btn { width: auto; flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 24px; font-size: 18px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 10px 40px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .retired-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
+  .retired-stats div { display: grid; align-content: start; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-top: 2px solid color-mix(in srgb, var(--muted) 50%, var(--line)); background: var(--surface-2); }
+  .retired-stats div.gold { border-top-color: var(--gold); }
+  .retired-stats dt { color: var(--muted); font: 800 11px/1.2 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+  .retired-stats dd { margin: 0; font: 900 clamp(30px, 3.4vw, 44px)/1 var(--display); font-variant-numeric: tabular-nums; }
+  .retired-stats dd span { color: var(--muted); font-size: .55em; }
+  .retired-stats div.gold dd { color: var(--gold); }
+  .retired-stats small { color: var(--muted); font-size: 12px; }
+  .curve-years { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tr-badge { display: inline-flex; }
+  .tr-name { display: grid; gap: 2px; min-width: 0; }
+  .tr-name b { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .tr-name small { color: var(--muted); font-size: 12px; }
+  .tr-titles { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .tr-titles.has { color: var(--text); font-weight: 700; }
+  .major-shelf ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .major-shelf li { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--gold); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 22%, transparent), color-mix(in srgb, var(--gold) 4%, transparent)); }
+  .major-shelf b { font: 800 16px/1.15 var(--display); text-transform: uppercase; }
+  .major-shelf span { color: var(--gold); font-size: 12px; font-weight: 800; }
+  .ty-list { display: grid; gap: 4px; margin-top: 8px; }
+  .ty-year { border: 1px solid var(--line); border-left: 3px solid color-mix(in srgb, var(--muted) 50%, var(--line)); background: var(--surface-2); }
+  .ty-year.major { border-left-color: var(--gold); }
+  .ty-year summary { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: 'y team count' 'y chips chips'; align-items: center; gap: 4px 12px; padding: 10px 14px; cursor: pointer; list-style: none; }
+  .ty-year summary::-webkit-details-marker { display: none; }
+  .ty-year summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .ty-y { grid-area: y; font: 900 22px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .ty-year.major .ty-y { color: var(--gold); }
+  .ty-team { grid-area: team; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .ty-count { grid-area: count; font: 800 15px/1 var(--display); text-transform: uppercase; }
+  .ty-chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 4px; }
+  .ty-chips i { padding: 2px 6px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-style: normal; font-weight: 700; }
+  .ty-chips i.tier-Major { border-color: var(--gold); background: var(--gold); color: #17130a; }
+  .ty-chips i.tier-S { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
+  .ty-year ul { display: grid; gap: 2px; margin: 0; padding: 0 14px 12px 82px; list-style: none; }
+  .ty-year li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  .ty-year li.major span { color: var(--gold); font-weight: 700; }
+  .ty-year li b { color: var(--accent); font-size: 11px; letter-spacing: .08em; }
+  @media (max-width: 640px) { .ty-year ul { padding-left: 14px; } }
   .verdict { margin: 12px 0 0; color: var(--accent); font: 600 clamp(17px, 2.4vw, 22px)/1.4 var(--body); }
   .retired-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
   .curve { display: grid; grid-template-rows: auto minmax(120px, 1fr); gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--line); background: var(--surface-2); }
@@ -2982,17 +3128,9 @@
   .curve .label { margin: 0; }
   .curve svg { width: 100%; height: 100%; min-height: 120px; }
   .trajectory ol { display: grid; margin: 0; padding: 0; list-style: none; }
-  .trajectory li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 40px; border-bottom: 1px solid var(--line); font-size: 14px; }
-  .trajectory li i { width: 10px; height: 10px; background: var(--muted); }
-  .trajectory li.top i { background: var(--gold); }
+  .trajectory li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; min-height: 48px; padding: 4px 8px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; font-size: 14px; }
+  .trajectory li.top { border-left-color: var(--gold); }
   .trajectory li .num { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .boxes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .box { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); background: var(--surface-2); }
-  .box span { color: var(--muted); font: 700 12px/1.2 var(--body); text-transform: uppercase; letter-spacing: .1em; }
-  .box b { font: 900 38px/1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
-  .box b.gold { color: var(--gold); }
-  .titles-list { margin: 0; color: var(--text); font-size: 15px; line-height: 1.6; }
-  .titles-list .label { display: block; }
 
   /* Modais */
   .modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 70%); animation: fade-in 160ms ease; }
