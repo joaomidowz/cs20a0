@@ -8,12 +8,12 @@
   import Navbar from '$lib/components/Navbar.svelte';
   import { game } from '$lib/game/store';
   import CareerCard from '$lib/components/CareerCard.svelte';
-  import RunStatsGrid from '$lib/components/RunStatsGrid.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import SeriesViewer from '$lib/components/SeriesViewer.svelte';
   import MajorOverview from '$lib/components/MajorOverview.svelte';
   import MajorAwardsPanel from '$lib/components/MajorAwardsPanel.svelte';
   import TeamBadge from '$lib/components/TeamBadge.svelte';
+  import CareerEventReport from '$lib/components/CareerEventReport.svelte';
   import CareerWrapped from '$lib/components/CareerWrapped.svelte';
   import { buildRetrospective } from '$lib/game/playerCareer/retrospective';
   import CareerHltvTop from '$lib/components/CareerHltvTop.svelte';
@@ -2528,12 +2528,14 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeStats}>
       <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="stats-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow" id="stats-title">{lastEventReport.name} · {lastEventReport.placement}</span>
+          <span class="eyebrow" id="stats-title">{eventName(lastEventReport.name)} · {lastEventReport.placement}</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeStats}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
-        <RunStatsGrid stats={lastEventReport.stats} players={lastEventReport.players} language="pt-BR" compact={true} />
+        <div class="event-report">
+          <CareerEventReport stats={lastEventReport.stats} players={lastEventReport.players} meId={`${career?.seed ?? ''}:me`} roleLabel={(role) => ROLE_META[role as PlayerRole]?.label ?? role} />
+        </div>
       </div>
     </div>
   {/if}
@@ -3436,6 +3438,7 @@
   .event-sheet { gap: 16px; }
   .event-title { margin-bottom: -6px; font-size: clamp(28px, 3vw, 40px); line-height: 1; }
   .event-where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; color: var(--muted); font-size: 14px; }
+  .event-report { display: grid; gap: 10px; }
   .event-tag { padding: 3px 7px; border: 1px solid var(--accent); color: var(--accent); font: 700 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
   .event-tag.soft { border-color: var(--line); color: var(--muted); }
   .event-note-line { margin: -4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.45; }
