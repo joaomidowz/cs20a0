@@ -306,6 +306,12 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** A semana em curso: blocos usados, o que você fez e se a sessão de treino já contou. */
+  week?: { window: string; used: number; picks: string[]; trainStepped: boolean; /** As cartas da mesa desta semana. */ cards?: string[] };
+  /** As últimas 24 atividades (campeonato em que foi feita e o tipo): retorno decrescente. */
+  weekLog?: Array<{ at: number; group: string }>;
+  /** Carta → campeonato em que foi usada (cooldown da carta; não zera no ano novo). */
+  agendaUsed?: Record<string, number>;
   /** Cada acontecimento vivido (temporada, mês, gravidade, escolha): limite por ano, cooldown em meses e histórico. */
   happeningHistory?: import('./happenings').HappeningRecord[];
   /** Troca de função: a de antes (o parceiro dela assume a sua antiga), a temporada e como foi a adaptação. */

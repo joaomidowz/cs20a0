@@ -18,7 +18,7 @@
   import { buildRetrospective } from '$lib/game/playerCareer/retrospective';
   import CareerHltvTop from '$lib/components/CareerHltvTop.svelte';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
-  import { ATTR_LABEL, CATEGORY_LABEL, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, type AgendaChip } from '$lib/game/playerCareer/agenda';
+  import { ATTR_LABEL, CATEGORY_LABEL, FREE_TRAINING_COST, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, blocksLeft, coachTalk, coachTalksLeft, coachTipsOf, contactOf, costOf, customTrainingSplit, diminishOf, drawAgenda, pickedThisWeek, weekBlocks, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
   import type { CampaignMajorState } from '$lib/game/campaign-major';
   import type { LiveSeriesState } from '$lib/game/online/live-series';
@@ -1155,7 +1155,10 @@
   $: overallCurve = career ? curveOf(career) : null;
   $: namedTitles = career?.history.flatMap((log) => log.tournaments.filter((entry) => entry.placement === 'Campeão').map((entry) => `${entry.name}${entry.tier ? ` (${TIER_LABEL[entry.tier]})` : ''}${entry.mvp?.you ? ' · MVP' : ''}`)) ?? [];
   $: trainingWindow = career ? trainingWindowOf(career) : null;
-  $: canTrain = Boolean(career && myPlayer && trainingWindow && career.trainedWindow !== trainingWindow);
+  $: weekLeft = career && trainingWindow ? blocksLeft(career) : 0;
+  $: weekTotal = career ? weekBlocks(career) : 3;
+  $: freeDone = career ? pickedThisWeek(career, 'treino-livre') : false;
+  $: canTrain = Boolean(career && myPlayer && trainingWindow && weekLeft > 0);
   $: liveUserSeries = live ? liveUserSeriesOf(live) : null;
   $: viewerSeries = liveUserSeries ? toSeriesResult(liveUserSeries) : null;
   $: viewerActiveMap = frozenView ? frozenView.map : liveUserSeries ? (liveUserSeries.current ? liveUserSeries.current.index : Math.max(0, liveUserSeries.maps.length - 1)) : 0;
@@ -1441,15 +1444,19 @@
             <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
           </div>
           <div title="Moral é a vontade de jogar. Alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
-          {#if life}<div title="Mental é aguentar pressão, crítica e derrota. Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Mental</dt><dd class:low={life.mind < 40} class:high={life.mind >= 75}>{life.mind}</dd></div>
-          <div title="Pressão de fora: tier, fãs e resultados. Alta (80+) pesa no Mental."><dt>Pressão</dt><dd class:low={life.pressure >= 80} class:high={life.pressure < 35}>{life.pressure}</dd></div>{/if}
-          {#if life && abroad}<div title="Morando fora: a saudade sobe com o tempo longe e cai com visita, amigos no time e idioma. Com 70+ tira moral."><dt>Saudade</dt><dd class:low={life.homesick >= 70} class:high={life.homesick < 30}>{life.homesick}</dd></div>
-          <div title="Adaptação ao país e ao time. Cresce com as semanas, o idioma e os amigos."><dt>Adaptação</dt><dd class:low={life.adaptation < 50} class:high={life.adaptation >= 80}>{life.adaptation}</dd></div>{/if}
+          {#if life}<div title="Cabeça: o seu mental fora do servidor (aguentar pressão, crítica e derrota). Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={life.mind < 40} class:high={life.mind >= 75}>{life.mind}</dd></div>{/if}
           <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
           <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
           <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
           <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
         </dl>
+        {#if life}
+          <p class="life-strip" aria-label="Vida fora do servidor">
+            <span title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais pesa na Cabeça.">Pressão <b class:low={life.pressure >= 80} class:high={life.pressure < 35}>{life.pressure}</b></span>
+            {#if abroad}<span title="Morando fora: sobe com o tempo longe e cai com visita, amigos no time e idioma. Com 70 ou mais tira moral.">Saudade <b class:low={life.homesick >= 70} class:high={life.homesick < 30}>{life.homesick}</b></span>
+            <span title="Adaptação ao país e ao time: cresce com as semanas, o idioma e os amigos.">Adaptação <b class:low={life.adaptation < 50} class:high={life.adaptation >= 80}>{life.adaptation}</b></span>{/if}
+          </p>
+        {/if}
 
         <ol class="pyramid" aria-label="A pirâmide da cena">
           {#each PYRAMID as rung}
@@ -1847,6 +1854,7 @@
                       <span class="coach-ovr">{coach.overall}</span>
                       <b class="coach-name">{coach.name}</b>
                       {#if myCoach}<span class="coach-age" title={myCoach.real ? 'Idade estimada pelo primeiro ano como coach.' : ''}>{career.year - myCoach.born} anos{myCoach.formerPlayer ? ' · ex-jogador' : ''}</span>{/if}
+                      {#if life}<span class="coach-trust" class:low={life.coachTrust < 35} class:high={life.coachTrust >= 70} title="Confiança do coach em você: sobe com as conversas e as respostas que ele gosta.">confia {life.coachTrust}</span>{/if}
                       <ul>
                         {#each COACH_ATTRS as attribute}
                           <li><span>{attribute.label}</span><i style={`--v:${coach[attribute.key]}%`}></i><b>{coach[attribute.key]}</b></li>
@@ -1862,12 +1870,12 @@
             {#if career.calendar && currentEntry && myPlayer}
               <section class="week" aria-label="Semana até o próximo campeonato">
                 <div class="section-head">
-                  <p class="label">Semana até o próximo campeonato · uma escolha · 3 treinos = +1 overall</p>
-                  <span class="train-line" class:done={Boolean(weekLine)} class:alert={!weekLine && Boolean(career.knock || fatigue >= TIRED_AT)} aria-live="polite">{weekLine ?? career.knock ?? (fatigue >= TIRED_AT ? `Cansaço ${fatigue}: treino rende metade. Descansar ajuda.` : canTrain ? 'Monte um treino ou escolha uma atividade.' : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
+                  <p class="label">Semana até o próximo campeonato · <span class="blocks" title="Cada ação ocupa blocos da semana. Repetir o mesmo tipo nas últimas 4 semanas rende menos (100%, 65%, 35%). Semana cheia cansa mais.">{#each Array(weekTotal) as _, blockIndex}<i class:used={blockIndex >= weekLeft}></i>{/each} {weekLeft} de {weekTotal} blocos</span> · 3 treinos = +1 overall</p>
+                  <span class="train-line" class:done={Boolean(weekLine)} class:alert={!weekLine && Boolean(career.knock || fatigue >= TIRED_AT)} aria-live="polite">{weekLine ?? career.knock ?? (fatigue >= TIRED_AT ? `Cansaço ${fatigue}: treino rende metade. Descansar ajuda.` : canTrain ? (weekLeft < weekTotal ? `Ainda cabe${weekLeft > 1 ? 'm' : ''} ${weekLeft} bloco${weekLeft > 1 ? 's' : ''} nesta semana.` : 'Monte um treino ou escolha até 3 atividades.') : 'Semana decidida. A próxima abre depois do campeonato.')}{#if weekChips.length}<span class="week-chips">{#each weekChips as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>{/if}</span>
                 </div>
                 <div class="week-grid">
                   <div class="free-train">
-                    <div class="ft-head"><b>Treino livre</b><span>escolha até 4</span></div>
+                    <div class="ft-head"><b>Treino livre</b><span>{FREE_TRAINING_COST} blocos · até 4</span></div>
                     <div class="skills-pick" role="group" aria-label="Habilidades para treinar">
                       {#each TRAINABLE as attribute}
                         <button type="button" aria-pressed={pickedSkills.includes(attribute)} class:on={pickedSkills.includes(attribute)} class:tip={coachTips.includes(attribute)} disabled={!canTrain} on:click={() => toggleSkill(attribute)} title={coachTips.includes(attribute) ? 'O coach indicou treinar' : undefined}>
@@ -1877,17 +1885,23 @@
                       {/each}
                     </div>
                     <div class="ft-actions">
-                      <button class="secondary-btn" disabled={!canTrain || !pickedSkills.length} on:click={trainFree}>{pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
+                      <button class="secondary-btn" disabled={!canTrain || freeDone || weekLeft < FREE_TRAINING_COST || !pickedSkills.length} on:click={trainFree} title={`Ocupa ${FREE_TRAINING_COST} blocos${career && diminishOf(career, 'treino') < 1 ? `. Muito treino seguido: rende ${Math.round(diminishOf(career, 'treino') * 100)}%` : ''}`}>{freeDone ? 'Treino feito' : pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
                       <button class="link-btn" disabled={!talksLeft} on:click={talkCoach} title="3 conversas por temporada">Falar com o coach · {talksLeft}/3</button>
                     </div>
                   </div>
                   <div class="week-right">
                   <div class="week-cards">
                     {#each weekCards as card (card.id)}
-                      <button class="wcard" disabled={!canTrain} on:click={() => chooseWeek(card.id)} title={card.text} aria-label={`${card.title}: ${card.text}`}>
-                        <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}</span>
+                      {@const cost = costOf(card)}
+                      {@const done = career ? pickedThisWeek(career, card.id) : false}
+                      {@const contact = career ? contactOf(career, card) : null}
+                      {@const factor = career ? diminishOf(career, card.category) : 1}
+                      <button class="wcard" class:done disabled={!canTrain || done || cost > weekLeft} on:click={() => chooseWeek(card.id)} title={`${card.text.replace(/\.?$/, '.')}${contact ? ` Com ${contact.nick} (${contact.org}).` : ''}${factor < 1 ? ` Você repetiu esse tipo: rende ${Math.round(factor * 100)}%.` : ''}`} aria-label={`${card.title}: ${card.text.replace(/\.?$/, '.')} Ocupa ${cost} bloco${cost > 1 ? 's' : ''}.`}>
+                        <span class="wcat">{CATEGORY_LABEL[card.category]}{#if card.risk}<em>risco</em>{/if}<span class="wcost" aria-hidden="true">{#each Array(cost) as _}<i></i>{/each}</span></span>
                         <b>{card.title}</b>
-                        <span class="wchips">{#each actionChips(card).slice(0, 4) as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>
+                        {#if contact}<span class="wcontact">com {contact.nick} · {contact.org}</span>{/if}
+                        {#if done}<span class="wdone">Feito</span>{:else if factor < 1}<span class="wdim">rende {Math.round(factor * 100)}%</span>{/if}
+                        <span class="wchips">{#each actionChips(card).slice(0, contact ? 2 : 3) as chip}<i class:neg={chip.kind === 'fatigue' ? chip.value > 0 : chip.value < 0}>{chipText(chip)}</i>{/each}</span>
                       </button>
                     {/each}
                   </div>
@@ -2915,7 +2929,14 @@
   .fat-bar i.hot { background: var(--accent-2); }
   .train-line.alert { color: var(--accent-2); font-weight: 600; }
   .facts dd.high { color: var(--accent); }
-  .facts .value { grid-column: span 2; }
+  .facts .value { grid-column: span 1; }
+  .life-strip { display: flex; flex-wrap: wrap; gap: 4px 9px; margin: -6px 0 0; color: var(--muted); font: 600 11px/1.2 var(--body); }
+  .life-strip b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .coach-trust { color: var(--muted); font: 600 11px/1.2 var(--body); }
+  .coach-trust.low { color: var(--accent-2); }
+  .coach-trust.high { color: var(--accent); }
+  .life-strip b.low { color: var(--accent-2); }
+  .life-strip b.high { color: var(--accent); }
   .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }
   .week .section-head { margin-bottom: 0; }
   .week-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; }
@@ -2935,19 +2956,30 @@
   .ft-actions .secondary-btn { min-height: 36px; }
   .ft-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
   .ft-actions .link-btn { white-space: nowrap; }
-  .week-right { display: grid; gap: 6px; min-width: 0; }
+  .week-right { display: grid; gap: 3px; min-width: 0; }
   .coach-hint, .coach-line { min-height: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; }
   .coach-hint { margin: 0; padding: 4px 8px; border-left: 2px solid var(--line); color: var(--muted); font-size: 12px; }
   .coach-line { margin: 0; padding: 4px 8px; border-left: 2px solid var(--accent-2); background: color-mix(in srgb, var(--accent-2) 7%, transparent); font-size: 13px; line-height: 1.4; }
   .coach-line b { color: var(--accent-2); }
   .week-chips, .wchips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 0 0 0 8px; vertical-align: middle; }
-  .wchips { margin: 0; }
+  .wchips { margin: 0; gap: 3px; }
+  .wchips i { padding: 2px 4px; font-size: 10px; }
+  .week-cards .wcard { padding: 6px 9px; gap: 3px; }
   .week-chips i, .wchips i { padding: 3px 5px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); color: var(--accent); font: 700 11px/1 var(--body); font-style: normal; white-space: nowrap; }
   .week-chips i.neg, .wchips i.neg { border-color: color-mix(in srgb, var(--accent-2) 40%, var(--line)); color: var(--accent-2); }
-  .week-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .week-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
   .wcard { display: grid; align-content: start; gap: 5px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; transition: border-color .14s ease, transform .14s ease; }
   .wcard:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); }
   .wcard:disabled { opacity: .5; cursor: not-allowed; }
+  .wcard.done { opacity: .75; border-color: var(--accent); }
+  .wcost { display: inline-flex; gap: 3px; margin-left: auto; padding-left: 8px; }
+  .wcost i { width: 7px; height: 7px; background: var(--accent); }
+  .wcontact { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .wdone { color: var(--accent); font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; }
+  .wdim { color: var(--accent-2); font: 700 11px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; }
+  .blocks { display: inline-flex; align-items: center; gap: 3px; }
+  .blocks i { width: 9px; height: 9px; background: var(--accent); }
+  .blocks i.used { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
   .wcat { display: flex; gap: 6px; color: var(--muted); font: 700 10px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; }
   .wcat em { color: var(--accent-2); font-style: normal; }
   .wcard b { font: 800 17px/1.05 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

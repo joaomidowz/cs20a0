@@ -88,7 +88,7 @@ const ANSWERS: Record<TalkSituation, Record<TalkAnswerKey, string>> = {
 };
 
 export const SITUATION_LABEL: Record<TalkSituation, string> = {
-  conflito: 'Atrito', mental_baixo: 'Mental baixo', mental_alto: 'Mental em alta', sequencia_derrotas: 'Sequência de derrotas',
+  conflito: 'Atrito', mental_baixo: 'Cabeça pesada', mental_alto: 'Cabeça boa', sequencia_derrotas: 'Sequência de derrotas',
   sequencia_vitorias: 'Sequência de vitórias', inicio_temporada: 'Início da temporada', match_point_perdido: 'Match point perdido'
 };
 export const MOMENT_LABEL: Record<TalkMoment, string> = { click: 'Conversa', season: 'Início da temporada', pre: 'Antes do campeonato', post: 'Depois do campeonato' };
@@ -326,7 +326,7 @@ export function answerTalk(state: PlayerCareerState, key: TalkAnswerKey): TalkAn
   if (!coachTalk && effects.rel) chips.push({ label: `Relação com ${talk.speaker.name}`, value: effects.rel });
   const trust = effects.coachTrust + (coachTalk ? effects.rel : 0);
   if (trust) chips.push({ label: 'Confiança do coach', value: trust });
-  if (effects.mind) chips.push({ label: 'Mental', value: effects.mind });
+  if (effects.mind) chips.push({ label: 'Cabeça', value: effects.mind });
   if (effects.morale) chips.push({ label: 'Moral', value: effects.morale });
   if (effects.form) chips.push({ label: 'Forma', value: effects.form });
   if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue });

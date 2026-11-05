@@ -4,13 +4,20 @@
 // sorteadas pelo seed da janela) e vale UMA escolha, a mesma vaga do treino. Os efeitos são reais: atributos
 // entram no bônus de treino (mesmo teto), moral puxa o Mental, forma vale no próximo campeonato, seguidores
 // contam a fama e "elenco" mexe na relação com os 4 parceiros.
+import rawWeek from '$lib/data/cs/career-week.game.json';
 import { createSeededRng } from '../simulation';
 import type { Player, TrainingFocus } from '../types';
-import type { PlayerCareerState, PlayerRole, TrainedAttribute, TrainedBonus } from './engine';
-import { matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
+import { orgOf, playedCount, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
+import { coachOf, matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
 import { LANGUAGE_LABEL, learn, myFluency, NON_NATIVE_MAX } from './language';
+import { careerCtx, conditionsHold, isUnsupported } from './conditions';
+import { lifeOf, orgRegionOf } from './life';
+import { memberBirthYear, memberNick, memberRoles, sceneOrgs } from './data';
+import { orgIn } from './world';
 
-export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado';
+/** As 9 categorias originais e as 14 da planilha nova da semana. */
+export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado'
+  | 'pug' | 'posicao' | 'scrim' | 'analise' | 'mente' | 'adaptacao' | 'familia' | 'conteudo' | 'convivencia' | 'negocios' | 'corpo' | 'lazer' | 'campeonato' | 'social';
 
 export interface AgendaEffects {
   attrs?: Partial<Record<TrainedAttribute, number>>;
@@ -25,6 +32,8 @@ export interface AgendaEffects {
   fatigue?: number;
   /** Fluência de idioma: inglês ou o idioma da call do time. */
   lang?: { target: 'en' | 'team'; amount: number };
+  /** Cabeça (o Mental fora do servidor, 0-100). */
+  mind?: number;
 }
 
 export interface AgendaAction {
@@ -37,11 +46,18 @@ export interface AgendaAction {
   line: string;
   risk?: { chance: number; effects: AgendaEffects; line: string };
   needs?: { realOrg?: boolean; fame?: number; roles?: PlayerRole[]; /** Só aparece se ainda há o que aprender no idioma. */ language?: 'en' | 'team' };
+  /** Planilha nova: condições conferidas no estado real, raridade, cooldown (semanas) e de quem é o contato. */
+  conditions?: string[];
+  rarity?: 'comum' | 'moderado' | 'grave';
+  cooldownWeeks?: number;
 }
 
 export const CATEGORY_LABEL: Record<AgendaCategory, string> = {
   treino: 'Treino', amigos: 'Amigos', bootcamp: 'Bootcamp', stream: 'Stream', coach: 'Coach',
-  externo: 'Profissional', time: 'Time', descanso: 'Descanso', mercado: 'Mercado'
+  externo: 'Profissional', time: 'Time', descanso: 'Descanso', mercado: 'Mercado',
+  pug: 'PUG', posicao: 'Posição', scrim: 'Scrim', analise: 'Análise', mente: 'Cabeça', adaptacao: 'Adaptação',
+  familia: 'Família', conteudo: 'Conteúdo', convivencia: 'Convivência', negocios: 'Carreira', corpo: 'Corpo', lazer: 'Lazer',
+  campeonato: 'Campeonato', social: 'Vida social'
 };
 
 export const ATTR_LABEL: Record<TrainedAttribute, string> = {
@@ -159,10 +175,118 @@ export const AGENDA: AgendaAction[] = [
   })
 ];
 
-export const AGENDA_BY_ID = new Map(AGENDA.map((action) => [action.id, action]));
+// ---------------------------------------------------------------------------------------------------------------
+// A planilha nova da semana (194 atividades): cada uma com condição real, raridade e cooldown. As originais
+// ganham as mesmas regras (condição e cooldown da planilha) sem mudar texto nem efeito.
+interface WeekRow { id: string; rarity: 'comum' | 'moderado' | 'grave'; cooldownWeeks: number; condition: string[]; category?: string; title?: string; text?: string; effects?: AgendaEffects; line?: string; risk?: AgendaAction['risk'] }
+const WEEK = rawWeek as unknown as { originals: WeekRow[]; activities: WeekRow[] };
+const WEEK_CATEGORY: Record<string, AgendaCategory> = {
+  'PUG e FACEIT': 'pug', 'Treino de posição': 'posicao', 'Scrim e fundamentos': 'scrim', 'Coach e análise': 'analise', 'Mental e pressão': 'mente',
+  'Europa e adaptação': 'adaptacao', 'Família e relações': 'familia', 'Fama e conteúdo': 'conteudo', 'Time e convivência': 'convivencia',
+  'Negócios e carreira': 'negocios', 'Corpo e saúde': 'corpo', 'Lazer e descanso': 'lazer', 'Pré e pós campeonato': 'campeonato', 'Vida social e reputação': 'social'
+};
+const ORIGINAL_META = new Map(WEEK.originals.map((row) => [row.id, row]));
+for (const action of AGENDA) {
+  const meta = ORIGINAL_META.get(action.id);
+  if (meta) Object.assign(action, { conditions: meta.condition, rarity: meta.rarity, cooldownWeeks: meta.cooldownWeeks });
+}
+
+/** As 194 novas (as que dependem de fato que o motor não guarda ficam de fora, como "relacionamento existente"). */
+export const WEEK_ACTIONS: AgendaAction[] = WEEK.activities.filter((row) => !isUnsupported(row.condition) && WEEK_CATEGORY[row.category ?? '']).map((row) => ({
+  id: row.id, category: WEEK_CATEGORY[row.category!], title: row.title!, text: row.text!, effects: row.effects ?? {}, line: row.line!,
+  ...(row.risk ? { risk: row.risk } : {}), conditions: row.condition, rarity: row.rarity, cooldownWeeks: row.cooldownWeeks
+}));
+export const WEEK_UNSUPPORTED = WEEK.activities.filter((row) => isUnsupported(row.condition)).map((row) => row.id);
+export const ALL_ACTIONS: AgendaAction[] = [...AGENDA, ...WEEK_ACTIONS];
+
+export const AGENDA_BY_ID = new Map(ALL_ACTIONS.map((action) => [action.id, action]));
+
+/** Blocos da semana: 3 (2 quando o próximo é Major: a semana tem compromisso oficial). */
+export function weekBlocks(state: PlayerCareerState): number {
+  const next = (state.calendar ?? []).find((entry) => entry.status === 'UPCOMING');
+  return next?.format === 'major' || next?.tier === 'Major' ? 2 : 3;
+}
+
+/** O treino livre ocupa 2 blocos. */
+export const FREE_TRAINING_COST = 2;
+const COST_OVERRIDE: Record<string, number> = { 'bootcamp-europa': 3, 'treino-maratona': 2, 'stream-maratona': 2, folga: 2, familia: 2 };
+
+/** Quanto tempo a ação ocupa: 1 bloco; scrim, viagem curta e visita 2; viagem longa e bootcamp 3. */
+export function costOf(action: AgendaAction): number {
+  if (COST_OVERRIDE[action.id]) return COST_OVERRIDE[action.id];
+  if (action.category === 'bootcamp') return 3;
+  if (/voltar ao país de origem|viajar com a família|visitar pais/i.test(action.title)) return 3;
+  if (action.category === 'scrim' || /^visitar (outro|nova)/i.test(action.title)) return 2;
+  return 1;
+}
+
+/** Retorno decrescente: repetir o mesmo tipo nas últimas 4 semanas rende 100%, 65%, 35%. Treino, PUG, posição e
+ *  scrim contam como o mesmo tipo (para não dar para só treinar). */
+const GROUP: Partial<Record<AgendaCategory, string>> = { treino: 'treino', pug: 'treino', posicao: 'treino', scrim: 'treino' };
+export const groupOf = (category: AgendaCategory) => GROUP[category] ?? category;
+const DIMINISH = [1, 0.65, 0.35];
+
+export function diminishOf(state: PlayerCareerState, category: AgendaCategory): number {
+  const now = playedCount(state);
+  const group = groupOf(category);
+  const repeats = (state.weekLog ?? []).filter((entry) => entry.group === group && now - entry.at <= 3).length;
+  return DIMINISH[Math.min(repeats, DIMINISH.length - 1)];
+}
+
+/** Você já fez esta carta nesta semana? */
+export const pickedThisWeek = (state: PlayerCareerState, id: string) => {
+  const window = trainingWindowOf(state);
+  return Boolean(window && state.week?.window === window && state.week.picks.includes(id));
+};
+
+/** Blocos que sobram na semana (save antigo com a semana já decidida: zero). */
+export function blocksLeft(state: PlayerCareerState): number {
+  const window = trainingWindowOf(state);
+  if (!window) return 0;
+  const week = state.week?.window === window ? state.week : null;
+  if (!week && state.trainedWindow === window) return 0;
+  return Math.max(0, weekBlocks(state) - (week?.used ?? 0));
+}
+
+/** Cooldown em semanas vira campeonatos (cada janela entre campeonatos é um mês, ~4 semanas). Nunca zera no ano novo. */
+function onCooldown(state: PlayerCareerState, action: AgendaAction): boolean {
+  const used = state.agendaUsed?.[action.id];
+  if (used === undefined) return false;
+  return playedCount(state) - used < Math.max(1, Math.ceil((action.cooldownWeeks ?? 3) / 4));
+}
+
+/** De quem é o contato da carta: um jogador de verdade, de outro time da sua região e de um tier perto do seu. */
+export interface AgendaContact { nick: string; org: string }
+const CONTACT_ROLE: Array<[RegExp, PlayerRole | 'mesma' | 'veterano' | 'jovem']> = [
+  [/AWPer/i, 'awper'], [/\bentry\b/i, 'entry'], [/\bIGL\b/, 'igl'], [/lurker/i, 'lurker'], [/support/i, 'support'], [/pistol/i, 'rifler'],
+  [/mesma posição|mesma área/i, 'mesma'], [/veterano/i, 'veterano'], [/jovem|da base/i, 'jovem']
+];
+
+export function contactOf(state: PlayerCareerState, action: AgendaAction): AgendaContact | null {
+  const clause = (action.conditions ?? []).find((text) => /acessível|disponível|contato/i.test(text) && CONTACT_ROLE.some(([pattern]) => pattern.test(text)));
+  if (!clause) {
+    if ((action.conditions ?? []).includes('coach disponível') && state.orgId !== 'lan-house') return { nick: coachOf(state).name, org: orgOf(state.orgId, state).name };
+    return null;
+  }
+  const want = CONTACT_ROLE.find(([pattern]) => pattern.test(clause))![1];
+  const role: PlayerRole | null = want === 'mesma' ? state.role : want === 'veterano' || want === 'jovem' ? null : want;
+  const level = orgOf(state.orgId, state).level;
+  const region = orgRegionOf(state, (orgOf(state.orgId, state) as { region?: string }).region);
+  // Amador não tem acesso a estrela: só times até um degrau acima do seu.
+  const orgs = sceneOrgs.filter((org) => org.id !== state.orgId && org.region === region && org.level >= Math.max(1, level - 1) && org.level <= Math.min(4, level + 1));
+  const people = orgs.flatMap((org) => (orgIn(state.seed, state.seasonNumber, org.id)?.roster ?? []).map((member) => ({ member, org })))
+    .filter(({ member }) => !role || memberRoles(member).includes(role));
+  if (!people.length) return null;
+  const aged = people.map((entry) => ({ ...entry, age: state.year - (memberBirthYear(entry.member) ?? state.year - 25) }));
+  const pool = want === 'veterano' ? aged.filter((entry) => entry.age >= 28) : want === 'jovem' ? aged.filter((entry) => entry.age <= 21) : aged;
+  if (!pool.length) return null;
+  const rng = createSeededRng(`${state.seed}:contact:${trainingWindowOf(state) ?? ''}:${action.id}`);
+  const pick = pool[Math.floor(rng() * pool.length)];
+  return { nick: memberNick(pick.member), org: pick.org.name };
+}
 
 /** Cansaço padrão de cada categoria: treinar e viajar cansam, descansar recupera. */
-const CATEGORY_FATIGUE: Record<AgendaCategory, number> = {
+const CATEGORY_FATIGUE: Partial<Record<AgendaCategory, number>> = {
   treino: 15, amigos: 8, bootcamp: 20, stream: 6, coach: 4, externo: -6, time: 0, descanso: -25, mercado: 0
 };
 
@@ -172,12 +296,15 @@ const FATIGUE_OVERRIDE: Record<string, number> = {
   balada: 12, academia: -5, 'outro-jogo': -12, familia: -30, folga: -35, 'viagem-time': -15, 'ajustar-sono': -15, 'sair-redes': -10
 };
 
-export const fatigueOf = (action: AgendaAction): number => action.effects.fatigue ?? FATIGUE_OVERRIDE[action.id] ?? CATEGORY_FATIGUE[action.category];
+export const fatigueOf = (action: AgendaAction): number => action.effects.fatigue ?? FATIGUE_OVERRIDE[action.id] ?? CATEGORY_FATIGUE[action.category] ?? 0;
 
 /** Cansado (70+) o treino rende metade e não conta para o +1 de overall. */
 export const TIRED_AT = 70;
 
 export function agendaAvailable(state: PlayerCareerState, action: AgendaAction): boolean {
+  if (action.conditions && !conditionsHold(action.conditions, careerCtx(state, 'between'))) return false;
+  // Carta que pede um contato de verdade só aparece se existe alguém de verdade para ser o contato.
+  if (action.conditions?.some((text) => /acessível/i.test(text) && CONTACT_ROLE.some(([pattern]) => pattern.test(text))) && !contactOf(state, action)) return false;
   const needs = action.needs;
   if (!needs) return true;
   if (needs.realOrg && state.orgId === 'lan-house') return false;
@@ -194,21 +321,29 @@ export function agendaAvailable(state: PlayerCareerState, action: AgendaAction):
 /** Os 5 treinos básicos viram o "treino livre" (você escolhe as habilidades); o sorteio pega o resto. */
 const BASIC_TRAINING = new Set(Object.values(TRAINING_BY_FOCUS));
 
-/** As 4 cartas da semana, sorteadas pelo seed da janela, uma por categoria sempre que der. */
+/** Cartas da semana: 5 (mais o treino livre, 6 opções), uma por categoria sempre que der. */
+export const WEEK_CARDS = 5;
+const RARITY_WEIGHT = { comum: 1, moderado: 0.7, grave: 0.3 } as const;
+
+/** As cartas da semana, sorteadas pelo seed da janela: condição real, sem as que estão em cooldown, raras com menos
+ *  chance. Uma por categoria sempre que der. */
 export function drawAgenda(state: PlayerCareerState): AgendaAction[] {
   const window = trainingWindowOf(state);
   if (!window) return [];
+  // Depois da primeira ação a mesa da semana fica parada (as cartas não trocam enquanto você faz as outras).
+  if (state.week?.window === window && state.week.cards?.length) return state.week.cards.flatMap((id) => AGENDA_BY_ID.get(id) ?? []);
   const rng = createSeededRng(`${state.seed}:agenda:${window}`);
-  const pool = AGENDA.filter((action) => !BASIC_TRAINING.has(action.id) && agendaAvailable(state, action));
-  const shuffled = [...pool].sort(() => rng() - 0.5);
+  const pool = ALL_ACTIONS.filter((action) => !BASIC_TRAINING.has(action.id) && !onCooldown(state, action) && agendaAvailable(state, action));
+  // Sorteio com peso (raro aparece menos): chave = sorteio^(1/peso), maior primeiro.
+  const shuffled = pool.map((action) => ({ action, key: rng() ** (1 / RARITY_WEIGHT[action.rarity ?? 'comum']) })).sort((a, b) => b.key - a.key).map((entry) => entry.action);
   const picked: AgendaAction[] = [];
   const usedCategories = new Set<AgendaCategory>();
   for (const action of shuffled) {
-    if (picked.length >= 4) break;
+    if (picked.length >= WEEK_CARDS) break;
     if (!usedCategories.has(action.category)) { picked.push(action); usedCategories.add(action.category); }
   }
   for (const action of shuffled) {
-    if (picked.length >= 4) break;
+    if (picked.length >= WEEK_CARDS) break;
     if (!picked.includes(action)) picked.push(action);
   }
   // Idioma fraco (inglês ou a call do time abaixo de 70): na maioria das semanas vem uma aula na mesa.
@@ -245,6 +380,7 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.team) chips.push({ label: 'Elenco', value: effects.team, kind: 'team' });
   if (effects.fame) chips.push({ label: 'Fãs', value: effects.fame, kind: 'fame' });
   if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue, kind: 'fatigue' });
+  if (effects.mind) chips.push({ label: 'Cabeça', value: effects.mind, kind: 'morale' });
   if (effects.lang) chips.push({ label: effects.lang.target === 'en' ? 'Inglês' : 'Idioma do time', value: effects.lang.amount, kind: 'train' });
   return chips;
 }
@@ -289,6 +425,13 @@ function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: A
   if (morale !== (state.morale ?? 60)) chips.push({ label: 'Moral', value: morale - (state.morale ?? 60), kind: 'morale' });
   if (form !== (state.form ?? 0)) chips.push({ label: 'Forma', value: form - (state.form ?? 0), kind: 'form' });
   if (fame !== (state.fame ?? 0)) chips.push({ label: 'Fãs', value: fame - (state.fame ?? 0), kind: 'fame' });
+  let life = state.life;
+  if (effects.mind) {
+    const current = lifeOf(state);
+    const mind = clamp(current.mind + effects.mind, 0, 100);
+    if (mind !== current.mind) chips.push({ label: 'Cabeça', value: mind - current.mind, kind: 'morale' });
+    life = { ...current, mind };
+  }
   let languages = state.languages;
   if (effects.lang) {
     const language = effects.lang.target === 'en' ? 'en' : myLanguageFit(state).language;
@@ -297,34 +440,94 @@ function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: A
     const after = myFluency({ ...state, languages }, language);
     if (after !== before) chips.push({ label: LANGUAGE_LABEL[language], value: after - before, kind: 'train' });
   }
-  return { ...state, trained, relationships, morale, form, fame, fatigue, ...(languages ? { languages } : {}) };
+  return { ...state, trained, relationships, morale, form, fame, fatigue, ...(languages ? { languages } : {}), ...(life ? { life } : {}) };
 }
 
-/** Escolhe a ação da semana: vale uma por janela (a mesma vaga do treino). */
+/** Escala o que é ganho (o que custa, como cansaço, vale inteiro). */
+function scaleGains(effects: AgendaEffects, factor: number): AgendaEffects {
+  if (factor >= 1) return effects;
+  const up = (value: number | undefined) => (value && value > 0 ? Math.round(value * factor) : value);
+  return {
+    ...effects,
+    attrs: effects.attrs ? Object.fromEntries(Object.entries(effects.attrs).map(([key, value]) => [key, value > 0 ? Math.max(0, Math.round(value * factor)) : value])) : undefined,
+    morale: up(effects.morale), form: up(effects.form), fame: up(effects.fame), team: up(effects.team), mind: up(effects.mind),
+    lang: effects.lang ? { ...effects.lang, amount: Math.round(effects.lang.amount * factor) } : undefined
+  };
+}
+
+/** Morando fora: voltar para casa mata a saudade; atividade de adaptação ajuda a se sentir em casa. */
+function lifeOfAction(state: PlayerCareerState, action: AgendaAction): PlayerCareerState {
+  const life = lifeOf(state);
+  if (/voltar ao país de origem|visitar pais|viajar com a família|^Família$/i.test(action.title) || action.id === 'familia') {
+    return { ...state, life: { ...life, homesick: Math.max(0, life.homesick - 25), weeksSinceVisit: 0 } };
+  }
+  if (action.category === 'adaptacao') return { ...state, life: { ...life, adaptation: Math.min(100, life.adaptation + 5), homesick: Math.max(0, life.homesick - 3) } };
+  if (action.category === 'familia') return { ...state, life: { ...life, homesick: Math.max(0, life.homesick - 6) } };
+  return state;
+}
+
+/** Marca o tempo usado: blocos da semana, o tipo (para o retorno decrescente) e o cooldown da carta. */
+function spend(state: PlayerCareerState, window: string, id: string, category: AgendaCategory, cost: number, trainStep: boolean, cards: string[]): PlayerCareerState {
+  const week = state.week?.window === window ? state.week : { window, used: 0, picks: [], trainStepped: false, cards };
+  const used = week.used + cost;
+  const now = playedCount(state);
+  return {
+    ...state,
+    week: { window, used, picks: [...week.picks, id], trainStepped: week.trainStepped || trainStep, cards: week.cards ?? cards },
+    weekLog: [...(state.weekLog ?? []), { at: now, group: groupOf(category) }].slice(-24),
+    agendaUsed: { ...(state.agendaUsed ?? {}), [id]: now },
+    ...(used >= weekBlocks(state) ? { trainedWindow: window } : {})
+  };
+}
+
+/**
+ * Faz uma ação da semana. A semana tem 3 blocos (2 antes de Major): dá para fazer de 1 a 3 coisas. Repetir o mesmo
+ * tipo nas últimas 4 semanas rende menos (100%, 65%, 35%), e semana cheia cansa mais e arrisca mais.
+ */
 export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaResult {
   const action = AGENDA_BY_ID.get(actionId) ?? null;
   const window = trainingWindowOf(state);
-  if (!action || !window || state.trainedWindow === window || !agendaAvailable(state, action)) {
-    return { state, action, line: 'A semana já está decidida. A próxima abre depois do campeonato.', chips: [], riskHit: false, overallUp: false };
+  const cost = action ? costOf(action) : 0;
+  const already = Boolean(window && state.week?.window === window && action && state.week.picks.includes(action.id));
+  if (!action || !window || already || cost > blocksLeft(state) || !agendaAvailable(state, action) || onCooldown(state, action)) {
+    const line = !window || blocksLeft(state) === 0 ? 'A semana já está decidida. A próxima abre depois do campeonato.' : action && cost > blocksLeft(state) ? `Não cabe na semana: precisa de ${cost} blocos.` : 'Essa não dá agora.';
+    return { state, action, line, chips: [], riskHit: false, overallUp: false };
   }
   const chips: AgendaChip[] = [];
   const tired = (state.fatigue ?? 0) >= TIRED_AT;
-  const attrs = tired && action.effects.attrs
-    ? Object.fromEntries(Object.entries(action.effects.attrs).map(([key, value]) => [key, value > 0 ? Math.floor(value / 2) : value]))
-    : action.effects.attrs;
-  let next = applyEffects(state, { ...action.effects, attrs, fatigue: fatigueOf(action) }, chips);
+  const factor = diminishOf(state, action.category);
+  const busy = state.week?.window === window ? state.week.used : 0;
+  const base = scaleGains(action.effects, factor);
+  const attrs = tired && base.attrs
+    ? Object.fromEntries(Object.entries(base.attrs).map(([key, value]) => [key, value > 0 ? Math.floor(value / 2) : value]))
+    : base.attrs;
+  // Semana cheia: cada bloco já usado soma 2 de cansaço em quem cansa.
+  const fatigue = fatigueOf(action) + (fatigueOf(action) > 0 ? busy * 2 : 0);
+  let next = applyEffects(state, { ...base, attrs, fatigue }, chips);
+  next = lifeOfAction(next, action);
   const rng = createSeededRng(`${state.seed}:agenda:${window}:${action.id}`);
-  const riskHit = Boolean(action.risk && rng() < action.risk.chance);
+  const riskHit = Boolean(action.risk && rng() < action.risk.chance + busy * 0.05);
   if (riskHit && action.risk) next = applyEffects(next, action.risk.effects, chips);
   let overallUp = false;
   let trainCount = next.trainCount ?? 0;
-  if (action.effects.trainStep && !tired) {
+  // A sessão de treino (a cada 3, +1 de overall) conta uma vez por semana.
+  const stepped = state.week?.window === window && state.week.trainStepped;
+  const trainStep = Boolean(action.effects.trainStep && !tired && !stepped);
+  if (trainStep) {
     trainCount += 1;
     overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
   }
-  next = { ...next, trainedWindow: window, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) };
+  next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, action.id, action.category, cost, trainStep, drawAgenda(state).map((card) => card.id));
   const merged = mergeChips(chips);
-  const line = [tired && action.effects.attrs ? 'Cansado: rendeu metade.' : null, action.line, riskHit && action.risk ? action.risk.line : null, overallUp ? 'Treino em dia: overall +1.' : null].filter(Boolean).join(' ');
+  const contact = contactOf(state, action);
+  const line = [
+    tired && action.effects.attrs ? 'Cansado: rendeu metade.' : null,
+    contact ? `Com ${contact.nick} (${contact.org}).` : null,
+    action.line,
+    factor < 1 ? `Repetiu o mesmo tipo de semana: rendeu ${Math.round(factor * 100)}%.` : null,
+    riskHit && action.risk ? action.risk.line : null,
+    overallUp ? 'Treino em dia: overall +1.' : null
+  ].filter(Boolean).join(' ');
   return { state: next, action, line, chips: merged, riskHit, overallUp };
 }
 
@@ -352,20 +555,28 @@ export function applyCustomTraining(state: PlayerCareerState, attributes: Traine
   const window = trainingWindowOf(state);
   const split = customTrainingSplit(attributes);
   const names = Object.keys(split).map((attribute) => ATTR_LABEL[attribute as TrainedAttribute]);
-  if (!window || state.trainedWindow === window || !names.length) {
-    return { state, action: null, line: names.length ? 'A semana já está decidida. A próxima abre depois do campeonato.' : 'Escolha pelo menos uma habilidade.', chips: [], riskHit: false, overallUp: false };
+  const doneThisWeek = Boolean(window && state.week?.window === window && state.week.picks.includes('treino-livre'));
+  if (!window || blocksLeft(state) < FREE_TRAINING_COST || doneThisWeek || !names.length) {
+    const line = !names.length ? 'Escolha pelo menos uma habilidade.' : doneThisWeek ? 'Treino livre já feito nesta semana.' : blocksLeft(state) > 0 ? `O treino livre precisa de ${FREE_TRAINING_COST} blocos.` : 'A semana já está decidida. A próxima abre depois do campeonato.';
+    return { state, action: null, line, chips: [], riskHit: false, overallUp: false };
   }
   const chips: AgendaChip[] = [];
   const tired = (state.fatigue ?? 0) >= TIRED_AT;
-  const attrs = tired ? Object.fromEntries(Object.entries(split).map(([key, value]) => [key, Math.floor((value ?? 0) / 2)])) : split;
-  let next = applyEffects(state, { attrs, fatigue: 12 + Object.keys(split).length * 2 }, chips);
-  const trainCount = (next.trainCount ?? 0) + (tired ? 0 : 1);
-  const overallUp = !tired && trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
-  next = { ...next, trainedWindow: window, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) };
+  const factor = diminishOf(state, 'treino');
+  const scaled = Object.fromEntries(Object.entries(split).map(([key, value]) => [key, Math.max(factor < 1 ? 0 : 1, Math.round((value ?? 0) * factor))]));
+  const attrs = tired ? Object.fromEntries(Object.entries(scaled).map(([key, value]) => [key, Math.floor((value ?? 0) / 2)])) : scaled;
+  const busy = state.week?.window === window ? state.week.used : 0;
+  let next = applyEffects(state, { attrs, fatigue: 12 + Object.keys(split).length * 2 + busy * 2 }, chips);
+  const stepped = state.week?.window === window && state.week.trainStepped;
+  const trainStep = !tired && !stepped;
+  const trainCount = (next.trainCount ?? 0) + (trainStep ? 1 : 0);
+  const overallUp = trainStep && trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
+  next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, 'treino-livre', 'treino', FREE_TRAINING_COST, trainStep, drawAgenda(state).map((card) => card.id));
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names.at(-1)}` : names[0];
   const capped = !chips.some((chip) => chip.kind === 'attr') ? ' Essas habilidades já estão no teto do treino.' : '';
   const tiredLine = tired ? ' Cansado: rendeu metade e não contou para o overall.' : '';
-  return { state: next, action: null, line: `Semana de treino: ${list}.${tiredLine}${capped}${overallUp ? ' Treino em dia: overall +1.' : ''}`, chips: mergeChips(chips), riskHit: false, overallUp };
+  const repeatLine = factor < 1 ? ` Muito treino seguido: rendeu ${Math.round(factor * 100)}%.` : '';
+  return { state: next, action: null, line: `Treino: ${list}.${tiredLine}${repeatLine}${capped}${overallUp ? ' Treino em dia: overall +1.' : ''}`, chips: mergeChips(chips), riskHit: false, overallUp };
 }
 
 /** O que importa em cada função: o coach olha estas habilidades para achar o seu ponto fraco. */

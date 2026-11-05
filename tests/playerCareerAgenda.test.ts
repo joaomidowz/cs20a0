@@ -1,8 +1,8 @@
 // tests/playerCareerAgenda.test.ts
-// A semana entre campeonatos: catálogo grande, cartas sorteadas por janela, uma escolha por semana e efeitos reais.
+// A semana entre campeonatos: catálogo grande, cartas sorteadas por janela, 3 blocos por semana (1 a 3 ações) e efeitos reais.
 import { describe, expect, it } from 'vitest';
 import { chooseStartingOrg, createPlayerCareer, recordEventResult, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
-import { AGENDA, AGENDA_BY_ID, agendaAvailable, agendaChips, applyAgenda, applyCustomTraining, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, ROLE_SKILLS, TRAINING_BY_FOCUS } from '../src/lib/game/playerCareer/agenda';
+import { AGENDA, AGENDA_BY_ID, agendaAvailable, agendaChips, applyAgenda, applyCustomTraining, blocksLeft, coachTalk, coachTalksLeft, coachTipsOf, customTrainingSplit, drawAgenda, ROLE_SKILLS, TRAINING_BY_FOCUS, WEEK_CARDS } from '../src/lib/game/playerCareer/agenda';
 import { matesOf, myPlayerOf, relationshipOf, TRAIN_CAP } from '../src/lib/game/playerCareer/squad';
 
 function seasonAt(seed: string, real = true): PlayerCareerState {
@@ -31,13 +31,13 @@ describe('catálogo da semana', () => {
 });
 
 describe('cartas da janela', () => {
-  it('4 cartas sorteadas, sem os treinos básicos (esses viram o treino livre), iguais na mesma janela', () => {
+  it('5 cartas sorteadas (com o treino livre, 6 opções), sem os treinos básicos, iguais na mesma janela', () => {
     const career = seasonAt('agenda-draw');
     const cards = drawAgenda(career);
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(WEEK_CARDS);
     const basic = new Set(Object.values(TRAINING_BY_FOCUS));
     for (const card of cards) expect(basic.has(card.id)).toBe(false);
-    expect(new Set(cards.map((card) => card.category)).size).toBe(4);
+    expect(new Set(cards.map((card) => card.category)).size).toBe(WEEK_CARDS);
     expect(drawAgenda(career).map((card) => card.id)).toEqual(cards.map((card) => card.id));
   });
 
@@ -55,15 +55,23 @@ describe('cartas da janela', () => {
 });
 
 describe('escolher a ação da semana', () => {
-  it('aplica os efeitos uma vez por janela', () => {
+  it('aplica os efeitos; a mesma carta uma vez por semana; 3 blocos e a semana fecha', () => {
     const career = seasonAt('agenda-apply');
     const result = applyAgenda(career, 'treino-mira');
     expect(result.state.trained.firepower).toBe(2);
     expect(result.state.trainCount).toBe(1);
     expect(result.chips.find((chip) => chip.label === 'Mira')?.value).toBe(2);
-    const again = applyAgenda(result.state, 'psicologo');
-    expect(again.state).toBe(result.state);
-    expect(again.chips).toHaveLength(0);
+    expect(blocksLeft(result.state)).toBe(2);
+    expect(applyAgenda(result.state, 'treino-mira').state).toBe(result.state);
+    // Segunda e terceira ações cabem; a sessão de treino só conta uma vez na semana.
+    const second = applyAgenda(result.state, 'psicologo');
+    expect(second.state).not.toBe(result.state);
+    expect(second.state.trainCount).toBe(1);
+    const third = applyAgenda(second.state, 'entrevista');
+    expect(blocksLeft(third.state)).toBe(0);
+    const closed = applyAgenda(third.state, 'folga');
+    expect(closed.state).toBe(third.state);
+    expect(closed.chips).toHaveLength(0);
   });
 
   it('elenco mexe na relação dos 4 parceiros; moral e forma ficam nos limites', () => {
@@ -107,14 +115,17 @@ describe('treino livre', () => {
     expect(customTrainingSplit(['clutch', 'awp', 'mental', 'igl', 'entry'])).toEqual({ clutch: 1, awp: 1, mental: 1, igl: 1 });
   });
 
-  it('treina 3 habilidades de uma vez e ocupa a semana', () => {
+  it('treina 3 habilidades de uma vez: ocupa 2 blocos, sobra 1 para outra coisa', () => {
     const career = seasonAt('free-train');
     const result = applyCustomTraining(career, ['firepower', 'clutch', 'mental']);
     expect(result.state.trained).toMatchObject({ firepower: 2, clutch: 1, mental: 1 });
     expect(result.state.trainCount).toBe(1);
     expect(result.line).toContain('Mira, Clutch e Mental');
     expect(applyCustomTraining(result.state, ['igl']).state).toBe(result.state);
-    expect(applyAgenda(result.state, 'psicologo').state).toBe(result.state);
+    expect(blocksLeft(result.state)).toBe(1);
+    const rest = applyAgenda(result.state, 'psicologo');
+    expect(rest.state).not.toBe(result.state);
+    expect(blocksLeft(rest.state)).toBe(0);
   });
 });
 
