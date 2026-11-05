@@ -1428,14 +1428,14 @@
           <div class="who">
             <p class="eyebrow">Carreira · T{career.seasonNumber} · {career.year}</p>
             <h1 class="display nick" class:long={career.nick.length > 7} class:xlong={career.nick.length > 10}>{career.nick}</h1>
-            <p class="sub">{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
+            <p class="sub" title={`${agePhase(career.age).label}: ${agePhase(career.age).detail}`}>{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
             <p class="age-phase" class:old={career.age >= 29}><b>{agePhase(career.age).label}</b> {agePhase(career.age).detail}</p>
             {#if myPlayer}
               <dl class="skills-now">
                 <div class="mental"><dt>Mental</dt><dd>{myPlayer.mental}</dd></div>
                 {#each mainSkills as skill (skill.key)}<div><dt>{skill.label}</dt><dd>{skill.value}</dd></div>{/each}
               </dl>
-              <p class="evolving"><span>Evoluindo</span>{#if evolving.length}{#each evolving as item}<b class:neg={item.bonus < 0}>{item.label} {item.bonus > 0 ? '+' : '−'}{Math.abs(item.bonus)}</b>{/each}{:else}<em>nada ainda</em>{/if}</p>
+              <p class="evolving" title={evolving.length ? `Evoluindo no treino: ${evolving.map((item) => `${item.label} ${item.bonus > 0 ? '+' : '−'}${Math.abs(item.bonus)}`).join(', ')}` : 'Treine para evoluir habilidades.'}><span>Evoluindo</span>{#if evolving.length}{evolving.slice(0, 2).map((item) => `${item.label} ${item.bonus > 0 ? '+' : '−'}${Math.abs(item.bonus)}`).join(' · ')}{#if evolving.length > 2}<em> · +{evolving.length - 2}</em>{/if}{:else}<em>nada ainda</em>{/if}</p>
             {/if}
           </div>
           <div class="menu">
@@ -1953,7 +1953,6 @@
                     </div>
                     <div class="ft-actions">
                       <button class="secondary-btn" disabled={!canTrain || freeDone || weekLeft < FREE_TRAINING_COST || !pickedSkills.length} on:click={trainFree} on:mouseenter={() => (hoverCost = freeDone ? 0 : FREE_TRAINING_COST)} on:mouseleave={() => (hoverCost = 0)} on:focus={() => (hoverCost = freeDone ? 0 : FREE_TRAINING_COST)} on:blur={() => (hoverCost = 0)} title={`Ocupa ${FREE_TRAINING_COST} blocos${career && diminishOf(career, 'treino') < 1 ? `. Muito treino seguido: rende ${Math.round(diminishOf(career, 'treino') * 100)}%` : ''}`}>{freeDone ? 'Treino feito' : pickedSkills.length ? `Treinar (${pickedSkills.length})` : 'Treinar'}</button>
-                      <button class="link-btn" disabled={!talksLeft} on:click={talkCoach} title="3 conversas por temporada">Falar com o coach · {talksLeft}/3</button>
                     </div>
                   </div>
                   <div class="week-right">
@@ -3058,8 +3057,6 @@
   .skills-now .mental dd { color: var(--accent-2); }
   .evolving { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 8px 0 0; font-size: 12px; }
   .evolving span { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
-  .evolving b { color: var(--accent); font-weight: 700; }
-  .evolving b.neg { color: var(--accent-2); }
   .evolving em { color: var(--muted); font-style: normal; }
   .facts dd.low { color: var(--accent-2); }
   .fat-bar { display: block; height: 4px; background: color-mix(in srgb, var(--line) 80%, transparent); }
@@ -3086,7 +3083,6 @@
   .skills-pick button:disabled { opacity: .5; cursor: not-allowed; }
   .ft-actions .secondary-btn { min-height: 36px; }
   .ft-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
-  .ft-actions .link-btn { white-space: nowrap; }
   .week-right { display: grid; gap: 3px; min-width: 0; }
   .coach-hint, .coach-line { min-height: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; }
   .coach-hint { margin: 0; padding: 4px 8px; border-left: 2px solid var(--line); color: var(--muted); font-size: 12px; }
@@ -3612,7 +3608,7 @@
   .rc-ovr { font: 900 32px/.85 var(--display); font-variant-numeric: tabular-nums; }
   .rc-who { display: grid; gap: 2px; min-width: 0; }
   .rc-who .label { margin: 0; color: var(--accent-2); font-size: 10px; }
-  .rc-who b { overflow: hidden; font: 800 16px/1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .rc-who b { font: 800 15px/1 var(--display); text-transform: uppercase; overflow-wrap: anywhere; }
   .rc-meta { color: var(--muted); font-size: 11px; }
   .rc-talk { min-height: 28px; padding: 0 9px; font-size: 11px; border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); white-space: nowrap; }
   .rc-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; margin: 0; padding: 0; list-style: none; }
@@ -3750,5 +3746,49 @@
     .skills-pick button { min-height: 32px; font-size: 11px; }
     .map-train { zoom: .86; }
     .train-line { font-size: 12px; }
+  }
+
+  /* Rodada 3: semana em faixas (treino livre numa linha, cartas largas, mapas embaixo) e trilho sem amassar. */
+  .week-grid { grid-template-columns: minmax(0, 1fr); }
+  .free-train { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px; }
+  .ft-head { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .ft-head b { font-size: 16px; }
+  .ft-head span { font-size: 11px; white-space: nowrap; }
+  .skills-pick { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .ft-actions .secondary-btn { min-width: 116px; }
+  .wcat { flex-wrap: wrap; row-gap: 3px; }
+  .wcard b { overflow: visible; font-size: 15px; line-height: 1.08; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .wcontact { white-space: normal; }
+  .evolving { display: block; overflow: hidden; margin: 6px 0 0; color: var(--accent); font: 700 10px/1.3 var(--body); letter-spacing: .08em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .evolving span { margin-right: 6px; color: var(--muted); font-size: 10px; }
+  .evolving em { color: var(--muted); font-style: normal; }
+  .age-phase { display: none; }
+  .sub { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  @media (min-width: 961px) {
+    .hub { gap: 6px; }
+    .stage { padding-block: 12px; }
+    .next { padding: 8px 16px; }
+    .next h2 { font-size: clamp(24px, 2vw, 30px); }
+    .next .cta { min-height: 40px; font-size: 18px; }
+    .calendar { gap: 6px; }
+    .events-row { zoom: .95; }
+    .squad-strip > :global(*) { zoom: .92; }
+    .week { gap: 6px; }
+    .free-train { padding: 5px 10px; }
+    .skills-pick button { min-height: 30px; }
+    .rail { gap: 7px; }
+    .rail-coach { gap: 5px; padding: 7px 9px; }
+    .seat-line { font-size: 12px; line-height: 1.4; }
+    .rail > * { flex-shrink: 0; }
+    .rail > .rail-seasons { flex-shrink: 1; }
+    .nick { font-size: clamp(30px, 2.8vw, 40px); }
+    .nick.long { font-size: 32px; }
+    .nick.xlong { font-size: 26px; }
+  }
+  @media (max-width: 680px) {
+    .free-train { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
+    .free-train .skills-pick { grid-column: 1 / -1; grid-row: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .evolving { white-space: normal; }
+    .wcard b { font-size: 13px; }
   }
 </style>
