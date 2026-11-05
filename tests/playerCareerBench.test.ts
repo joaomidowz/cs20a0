@@ -67,3 +67,16 @@ describe('IGL troca funções', () => {
     expect(done).toBe(true);
   });
 });
+
+describe('Rookie of the Year', () => {
+  it('quem já apareceu num Top 20 anterior não é mais estreante (nada de rookie com 31 anos)', async () => {
+    const { seasonAwards } = await import('../src/lib/game/playerCareer/awards');
+    const { rosterIn } = await import('../src/lib/game/playerCareer/world');
+    const { memberNick } = await import('../src/lib/game/playerCareer/data');
+    const state = at('awper', 'rookie-1');
+    const everyone = sceneOrgs.filter((org) => org.level <= 2).flatMap((org) => rosterIn(state.seed, state.seasonNumber, org.id).map((member) => ({ nick: memberNick(member), team: org.name, score: 1 })));
+    const veteranWorld = { ...state, history: [{ ...({} as PlayerCareerState['history'][number]), seasonNumber: 0, year: 2025, tournaments: [], hltvTop: everyone }] } as PlayerCareerState;
+    const awards = seasonAwards(veteranWorld, 0, 'FURIA');
+    expect(awards.rookie === null || awards.rookie.you).toBe(true);
+  });
+});

@@ -49,6 +49,8 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
   }
   const replaced = new Set(state.seatsTaken.filter((seat) => seat.orgId === state.orgId).flatMap((seat) => seatedNicks(state, seat)));
   const best = new Map<string, RankedPlayer & { age: number | null; elite: boolean; debut: boolean }>();
+  // Quem já apareceu num Top 20 ou já levou o Rookie não é mais estreante (a promessa de 31 anos não concorre).
+  const veterans = new Set(state.history.flatMap((log) => [...(log.hltvTop ?? []).map((player) => player.nick.toLowerCase()), ...(log.rookie ? [log.rookie.nick.toLowerCase()] : [])]));
   const myRating = (() => {
     const played = results.filter((result) => !result.skipped);
     return played.length ? Number((played.reduce((sum, result) => sum + result.rating, 0) / played.length).toFixed(2)) : undefined;
@@ -64,8 +66,9 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
       const score = 0.95 + (overall - 60) * 0.006 + (LEVEL_BONUS[org.level] ?? 0) + noise
         + (mvpOf.get(key) ?? 0) * 0.015 + Math.min(0.05, (titlesOf.get(org.name) ?? 0) * 0.01);
       const born = memberBirthYear(member);
-      // Estreante: promessa que subiu (da base real ou da base do time) ou quem entrou no topo neste ano.
-      const debut = Boolean(member.prospect) || memberDebutYear(member) === year;
+      // Estreante: quem entrou no topo neste ano, ou a promessa até 22 anos que ainda não apareceu num Top 20.
+      const age = born === null ? null : year - born;
+      const debut = !veterans.has(key) && (memberDebutYear(member) === year || (Boolean(member.prospect) && age !== null && age <= 22));
       const entry = { nick, team: org.name, teamId: org.id, rating, score: Number(score.toFixed(3)), age: born === null ? null : year - born, elite: org.level <= 1, debut };
       if (!best.has(key) || best.get(key)!.score < entry.score) best.set(key, entry);
     }

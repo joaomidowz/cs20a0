@@ -579,6 +579,12 @@
     coachLine = result.line;
   }
 
+  /** Conversa pelo card do coach: a mesma do "Falar com o coach", com a resposta num aviso rápido. */
+  function talkCoachCard() {
+    talkCoach();
+    if (career && coachLine) notify(`${career.seed}:me`, `${coach?.name ?? 'Coach'}:`, coachLine, 'neutral');
+  }
+
   const chipText = (chip: AgendaChip) => `${chip.value > 0 ? '+' : '−'}${Math.abs(chip.value).toLocaleString('pt-BR')} ${chip.label}`;
 
   function start() { career = createPlayerCareer({ nick, country, role, archetype }); }
@@ -1656,6 +1662,7 @@
                           <li><span>{attribute.label}</span><i style={`--v:${coach[attribute.key]}%`}></i><b>{coach[attribute.key]}</b></li>
                         {/each}
                       </ul>
+                      <button class="secondary-btn small coach-talk" disabled={!talksLeft} on:click={talkCoachCard} title="3 conversas por temporada">Conversar {talksLeft}/3</button>
                     </article>
                   {/if}
                 </div>
@@ -2608,6 +2615,8 @@
   .coach-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 60%), var(--surface-2); }
   .coach-card .label { margin: 0; color: var(--accent-2); }
   .coach-age { margin-top: -6px; color: var(--muted); font-size: 12px; }
+  .coach-card { position: relative; }
+  .coach-talk { position: absolute; top: 8px; right: 8px; min-height: 26px; padding: 0 8px; font-size: 11px; border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); }
   .bench-btn { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); color: var(--gold); }
   .swap-roles { display: grid; gap: 6px; }
   .swap-list { display: flex; flex-wrap: wrap; gap: 6px; }

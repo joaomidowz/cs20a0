@@ -315,6 +315,9 @@ function majorFullField(state: PlayerCareerState, entryStage: MajorStageKey, see
 
 /** Quanto a forma de um campeonato muda a força de cada time (±). */
 export const EVENT_FORM_SWING = 3.5;
+/** Até quanto o mais forte do campeonato abre do segundo sem desconto, e quanto vale o que passar disso. */
+export const SUPERTEAM_EDGE = 1.5;
+export const SUPERTEAM_DAMPING = 0.35;
 
 export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, stage: MajorStageKey | null = null): SceneEventField {
   const setup = eventSetup(state, eventIndex, stage);
@@ -363,6 +366,11 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   // impede que o mais forte ganhe sempre.
   const formOf = (teamId: string) => (createSeededRng(`${seed}:form:${teamId}`)() - 0.5) * 2 * EVENT_FORM_SWING;
   for (const org of campaign.engine.byId.values()) org.team = { ...org.team, power: org.team.power + formOf(org.id) };
+  // Supertime não ganha tudo: o que o mais forte abre acima de 2 pontos sobre o segundo conta pela metade
+  // (vale para qualquer time, o seu ou um da cena).
+  const ranked = [...campaign.engine.byId.values()].sort((a, b) => b.team.power - a.team.power);
+  const ceiling = (ranked[1]?.team.power ?? 0) + SUPERTEAM_EDGE;
+  if (ranked[0] && ranked[1] && ranked[0].team.power > ceiling) ranked[0].team = { ...ranked[0].team, power: ceiling + (ranked[0].team.power - ceiling) * SUPERTEAM_DAMPING };
   for (const standing of campaign.engine.standings) if (standing.organizationId === campaign.userTeamId) standing.name = userName;
   const openSeries = currentCampaignSeries(campaign);
   if (openSeries) {
