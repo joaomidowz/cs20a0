@@ -44,7 +44,7 @@
   import { mapProfile, type MapRating } from '$lib/game/playerCareer/careerMaps';
   import type { MapId } from '$lib/game/types';
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
-  import { HAPPENING_BY_ID, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
+  import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, registerSeats, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
@@ -2458,7 +2458,7 @@
           {/if}
           <button class="cta" data-autofocus on:click={closeHappening}>{queuedStart && career?.calendar?.[queuedStart.index]?.status === 'UPCOMING' && !career?.pendingMove ? ((career?.benchedEvents ?? 0) > 0 ? 'Ver o time jogar sem você' : 'Ir para o campeonato') : 'Continuar'}</button>
         {:else if pendingEvent && career.pendingHappening}
-          <span class="eyebrow">Acontecimento · {TRIGGER_LABEL[career.pendingHappening.trigger]} · {pendingEvent.phase}</span>
+          <span class="eyebrow">Acontecimento · {TRIGGER_LABEL[career.pendingHappening.trigger]} · {pendingEvent.phase}{#if pendingEvent.severity === 'grave' || pendingEvent.severity === 'critico'}<b class="sev sev-{pendingEvent.severity}">{SEVERITY_LABEL[pendingEvent.severity]}</b>{/if}</span>
           <h2 class="display" id="happening-title">{pendingEvent.situation}</h2>
           <div class="happening-choices">
             {#each pendingEvent.choices as choice, choiceIndex (choiceIndex)}
@@ -3321,6 +3321,9 @@
   .happening-odds b { color: var(--text); }
   .happening-line { margin: 0; font-size: 16px; line-height: 1.45; }
   .happening-line.bad { color: var(--accent-2); }
+  .sev { margin-left: 10px; padding: 2px 6px; border: 1px solid currentColor; font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; }
+  .sev-grave { color: var(--accent-2); opacity: 0.8; }
+  .sev-critico { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, transparent); }
   .talk-who { margin-left: 10px; color: var(--muted); font: 600 13px/1 var(--body); text-transform: uppercase; letter-spacing: 0.08em; vertical-align: middle; }
   .talk-quote { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 17px; line-height: 1.45; }
   .talk-tip { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }

@@ -4,6 +4,9 @@
 // momento (título, queda feia, fama, moral baixa, cansaço, Major). A escolha tem 3 caminhos e o resultado depende
 // do seu mental e da sua moral: a mesma decisão pode sair melhor ou pior.
 import rawEvents from '$lib/data/cs/career-events.game.json';
+import rawEventsV3 from '$lib/data/cs/career-events-v3.game.json';
+import { careerCtx, conditionsHold, isUnsupported } from './conditions';
+import { lifeOf, withFlags } from './life';
 import { createSeededRng } from '../simulation';
 import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
 import { addReserve, bestOtherRole, matesOf, myPlayerOf, planOf, promoteReserve, synergyBump, takeRole, type ReserveKind } from './squad';
@@ -11,9 +14,18 @@ import { addReserve, bestOtherRole, matesOf, myPlayerOf, planOf, promoteReserve,
 const ROLE_LABEL_PT: Record<PlayerRole, string> = { igl: 'IGL', awper: 'AWPer', entry: 'Entry', lurker: 'Lurker', support: 'Suporte', rifler: 'Rifler' };
 
 export type HappeningTrigger = 'pre' | 'post' | 'between';
-export type HappeningEffect = 'performance' | 'fatigue' | 'mental' | 'reputation' | 'money' | 'chemistry' | 'fame';
+export type HappeningEffect = 'performance' | 'fatigue' | 'mental' | 'mind' | 'reputation' | 'money' | 'chemistry' | 'fame';
 
-export interface HappeningChoice { text: string; effects: Partial<Record<HappeningEffect, number>>; consequence: string }
+export interface HappeningChoice {
+  text: string;
+  effects: Partial<Record<HappeningEffect, number>>;
+  consequence: string;
+  /** Marcas que voltam depois (arco do acontecimento): "racha_interno:risco". */
+  flags?: string[];
+  /** Quanto a marca aumenta a chance do arco voltar (%). */
+  futureWeight?: number;
+}
+export type Severity = 'comum' | 'moderado' | 'grave' | 'critico';
 export interface Happening {
   id: string;
   phase: string;
@@ -25,10 +37,57 @@ export interface Happening {
   /** Campeonatos até poder aparecer de novo. */
   cooldown: number;
   choices: HappeningChoice[];
+  severity?: Severity;
+  /** Meses até poder voltar (999: uma vez na carreira). */
+  cooldownMonths?: number;
+  /** Quantas vezes por temporada, no máximo. */
+  yearLimit?: number;
+  unique?: boolean;
+  arc?: string;
+  /** Acontecimentos novos (planilha de 350): condições conferidas no estado e nos resultados reais. */
+  conditions?: string[];
 }
 
-export const HAPPENINGS = (rawEvents as unknown as { events: Happening[] }).events;
-export const HAPPENING_BY_ID = new Map(HAPPENINGS.map((event) => [event.id, event]));
+interface LegacyMeta { severity: Severity; cooldownMonths: number; yearLimit: number; unique: boolean; arc: string }
+interface V3Choice { text: string; effects: Record<string, number>; result: string; flags?: string[]; futureWeight?: number }
+interface V3Event { id: string; phase: string; tierMin: number; situation: string; conditions: string[]; weight: number; severity: Severity; cooldownMonths: number; yearLimit: number; unique: boolean; arc: string; choices: V3Choice[] }
+const V3 = rawEventsV3 as unknown as { legacy: Record<string, LegacyMeta>; events: V3Event[] };
+
+/** Os 150 originais, com gravidade, limite por ano e cooldown em meses da planilha nova. */
+export const HAPPENINGS: Happening[] = (rawEvents as unknown as { events: Happening[] }).events.map((event) => ({ ...event, ...(V3.legacy[event.id] ?? {}) }));
+
+/** Efeito da planilha nova → efeito do jogo (forma, Mental, reputação, química, cansaço, fãs, caixa). */
+const V3_EFFECT: Record<string, HappeningEffect> = { form: 'performance', mind: 'mind', reputation: 'reputation', chemistry: 'chemistry', fatigue: 'fatigue', fame: 'fame', money: 'money' };
+
+/** Os 200 novos. Quem depende de fato de round que o motor não guarda fica de fora (e aparece no relatório). */
+export const HAPPENINGS_V3: Happening[] = V3.events.filter((event) => !isUnsupported(event.conditions)).map((event) => ({
+  id: event.id, phase: event.phase, tierMin: event.tierMin, situation: event.situation, weight: event.weight, cooldown: 8,
+  // O momento da planilha (em série/antes da partida, pós-partida); sem momento, vale depois do jogo ou na semana.
+  trigger: event.conditions.some((clause) => clause === 'em_serie' || clause === 'antes_da_partida') ? 'pre' as const : event.conditions.includes('pos_partida') ? 'post' as const : 'between' as const,
+  severity: event.severity, cooldownMonths: event.cooldownMonths, yearLimit: event.yearLimit, unique: event.unique, arc: event.arc, conditions: event.conditions,
+  choices: event.choices.map((choice) => ({
+    text: choice.text,
+    consequence: choice.result,
+    flags: choice.flags,
+    futureWeight: choice.futureWeight,
+    effects: Object.fromEntries(Object.entries(choice.effects).flatMap(([key, value]) => (V3_EFFECT[key] ? [[V3_EFFECT[key], value]] : [])))
+  }))
+}));
+export const UNSUPPORTED_V3 = V3.events.filter((event) => isUnsupported(event.conditions)).map((event) => event.id);
+
+export const ALL_HAPPENINGS: Happening[] = [...HAPPENINGS, ...HAPPENINGS_V3];
+export const HAPPENING_BY_ID = new Map(ALL_HAPPENINGS.map((event) => [event.id, event]));
+
+/** Quanto cada marca de escolha aumenta a chance do arco voltar (da própria planilha). */
+const FUTURE_WEIGHT = new Map<string, number>(HAPPENINGS_V3.flatMap((event) => event.choices.flatMap((choice) => (choice.flags ?? []).map((flag) => [flag, choice.futureWeight ?? 0] as [string, number]))));
+
+export const SEVERITY_LABEL: Record<Severity, string> = { comum: 'Comum', moderado: 'Moderado', grave: 'Grave', critico: 'Crítico' };
+/** Teto por temporada: no máximo 10 acontecimentos, 3 graves e 1 crítico. */
+export const SEASON_CAP = { total: 10, grave: 3, critico: 1 };
+
+/** Registro de cada acontecimento (para limite por ano, cooldown em meses, único e o histórico da carreira). */
+export interface HappeningRecord { id: string; season: number; year: number; month: number; severity: Severity; choice?: number; success?: boolean; line?: string }
+const HISTORY_CAP = 160;
 
 /** As fases do documento que cada degrau da pirâmide vive (com uma abaixo, para o passado ainda aparecer). */
 const PHASES_BY_LEVEL: Record<number, [number, number]> = { 5: [1, 2], 4: [2, 4], 3: [4, 5], 2: [5, 7], 1: [7, 8], 0: [8, 10] };
@@ -159,9 +218,38 @@ function fits(event: Happening, context: NeedContext): boolean {
   return !need || need(context);
 }
 
+/** Mês absoluto (ano × 12 + mês) do momento do acontecimento: o mês do campeonato em jogo, ou dezembro. */
+function monthOf(state: PlayerCareerState, eventIndex: number): number {
+  const entry = state.calendar?.find((candidate) => candidate.index === eventIndex) ?? state.calendar?.[eventIndex];
+  return state.year * 12 + Math.max(0, Math.min(11, (entry?.month ?? 12) - 1));
+}
+
+/** Pode aparecer agora? Único (uma vez na carreira), limite por temporada, cooldown em meses e o teto de gravidade. */
+function allowedBySchedule(event: Happening, state: PlayerCareerState, now: number): boolean {
+  const history = state.happeningHistory ?? [];
+  const mine = history.filter((record) => record.id === event.id);
+  if (event.unique && (mine.length || state.happeningLog?.[event.id] !== undefined)) return false;
+  const season = history.filter((record) => record.season === state.seasonNumber);
+  if (event.yearLimit !== undefined && season.filter((record) => record.id === event.id).length >= event.yearLimit) return false;
+  const last = mine[mine.length - 1];
+  if (last && event.cooldownMonths !== undefined && now - (last.year * 12 + last.month) < event.cooldownMonths) return false;
+  if (event.severity === 'critico' && season.filter((record) => record.severity === 'critico').length >= SEASON_CAP.critico) return false;
+  if (event.severity === 'grave' && season.filter((record) => record.severity === 'grave').length >= SEASON_CAP.grave) return false;
+  return true;
+}
+
+/** O arco volta com mais chance se uma escolha sua deixou marca nele (até +70%). */
+function arcBoost(event: Happening, flags: string[]): number {
+  if (!event.arc) return 1;
+  const marks = flags.filter((flag) => flag.startsWith(`${event.arc}:`));
+  return marks.length ? 1 + Math.max(...marks.map((flag) => FUTURE_WEIGHT.get(flag) ?? 30)) / 100 : 1;
+}
+
 /** Sorteia (ou não) um acontecimento para o gatilho e deixa esperando a sua escolha. */
 export function rollHappening(state: PlayerCareerState, trigger: HappeningTrigger, context: HappeningContext): PlayerCareerState {
   if (state.status !== 'ACTIVE' || state.pendingHappening || state.pendingMove) return state;
+  // Teto da temporada: quem já viveu 10 acontecimentos no ano só volta a ter no próximo.
+  if ((state.happeningHistory ?? []).filter((record) => record.season === state.seasonNumber).length >= SEASON_CAP.total) return state;
   const played = playedCount(state);
   const rng = createSeededRng(`${state.seed}:happening:${state.seasonNumber}:${played}:${trigger}:${context.eventIndex}`);
   if (rng() >= happeningChance(state, trigger, context)) return state;
@@ -171,13 +259,28 @@ export function rollHappening(state: PlayerCareerState, trigger: HappeningTrigge
     state, trigger, result: trigger === 'post' ? context.result : undefined,
     last: context.result ?? playedResults(state)[0], next: state.calendar?.[context.eventIndex]
   };
-  const pool = HAPPENINGS.filter((event) => triggerOf(event) === trigger && event.tierMin >= low && event.tierMin <= high
+  const now = monthOf(state, context.eventIndex);
+  const inBand = (event: Happening) => event.tierMin >= low && event.tierMin <= high;
+  const legacy = HAPPENINGS.filter((event) => triggerOf(event) === trigger && inBand(event)
     && (log[event.id] === undefined || played - log[event.id] >= Math.max(event.cooldown, 8)) && fits(event, needContext));
-  const total = pool.reduce((sum, event) => sum + event.weight, 0);
+  // Os novos: as condições da planilha conferidas no estado real (momento, resultados, vida, elenco, calendário).
+  // Sem momento marcado, eles acontecem depois do jogo ou na semana (nunca "antes" sem a planilha dizer).
+  const ctx = careerCtx(state, trigger, trigger === 'post' ? context.result ?? null : null);
+  const fresh = HAPPENINGS_V3.filter((event) => inBand(event) && conditionsHold(event.conditions ?? [], ctx)
+    && (trigger !== 'pre' || (event.conditions ?? []).some((clause) => ['em_serie', 'antes_da_partida'].includes(clause))));
+  const flags = lifeOf(state).flags;
+  const pool = [...legacy, ...fresh].filter((event) => allowedBySchedule(event, state, now)).map((event) => ({ event, weight: event.weight * arcBoost(event, flags) }));
+  const total = pool.reduce((sum, item) => sum + item.weight, 0);
   if (!total) return state;
   let ticket = rng() * total;
-  const picked = pool.find((event) => (ticket -= event.weight) < 0) ?? pool[pool.length - 1];
-  return { ...state, pendingHappening: { id: picked.id, trigger, eventIndex: context.eventIndex }, happeningLog: { ...log, [picked.id]: played } };
+  const picked = (pool.find((item) => (ticket -= item.weight) < 0) ?? pool[pool.length - 1]).event;
+  const record: HappeningRecord = { id: picked.id, season: state.seasonNumber, year: Math.floor(now / 12), month: now % 12, severity: picked.severity ?? 'comum' };
+  return {
+    ...state,
+    pendingHappening: { id: picked.id, trigger, eventIndex: context.eventIndex },
+    happeningLog: { ...log, [picked.id]: played },
+    happeningHistory: [...(state.happeningHistory ?? []), record].slice(-HISTORY_CAP)
+  };
 }
 
 /** Unidades de cada efeito por degrau: fama e dinheiro valem mais lá em cima. */
@@ -258,7 +361,10 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
 
   const formDelta = Math.round(effect('performance') / 2);
   const fatigueDelta = effect('fatigue') * 2;
-  const moraleDelta = effect('mental') * 2;
+  // Mental (aguentar pressão) e Moral (vontade) são coisas diferentes: o "mental" dos 150 originais pesa nos dois,
+  // o "mind" dos novos só no Mental.
+  const mindDelta = (effect('mental') + effect('mind')) * 2;
+  const moraleDelta = effect('mental');
   const reputationDelta = effect('reputation') * 2;
   const chemistryDelta = effect('chemistry') * 2;
   const fameDelta = effect('fame') * (FAME_UNIT[level] ?? 100);
@@ -266,9 +372,12 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
 
   const relationships = { ...state.relationships };
   if (chemistryDelta) for (const mate of matesOf(state)) relationships[mate.player.id] = clamp((relationships[mate.player.id] ?? mate.relationship) + chemistryDelta, 0, 100);
+  const life = lifeOf(state);
+  const flagged = choice.flags?.length ? withFlags(life, choice.flags) : life;
   const next: PlayerCareerState = {
     ...state,
     pendingHappening: null,
+    life: { ...flagged, mind: clamp(life.mind + mindDelta, 0, 100) },
     form: clamp((state.form ?? 0) + formDelta, -3, 3),
     fatigue: clamp((state.fatigue ?? 0) + fatigueDelta, 0, 100),
     morale: clamp((state.morale ?? 60) + moraleDelta, 0, 100),
@@ -279,6 +388,7 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
     ...(benchOf(event.id, choiceIndex) ? { benchedEvents: (state.benchedEvents ?? 0) + benchOf(event.id, choiceIndex) } : {})
   };
   if (formDelta) chips.push({ label: 'Forma', value: formDelta });
+  if (mindDelta) chips.push({ label: 'Mental', value: mindDelta });
   if (moraleDelta) chips.push({ label: 'Moral', value: moraleDelta });
   if (chemistryDelta) chips.push({ label: 'Química', value: chemistryDelta });
   if (reputationDelta) chips.push({ label: 'Reputação', value: reputationDelta });
@@ -342,5 +452,9 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
     moved = offered;
   }
   const line = `${choice.consequence} ${success ? 'Saiu como você queria.' : 'Não saiu como você queria.'}${bench ? ' Você fica de fora do próximo campeonato.' : ''}${extraLine}`;
-  return { state: moved, success, line, chips };
+  // O histórico guarda a escolha e como saiu (a última entrada é a deste acontecimento).
+  const history = [...(moved.happeningHistory ?? [])];
+  const at = history.map((record) => record.id).lastIndexOf(event.id);
+  if (at >= 0) history[at] = { ...history[at], choice: choiceIndex, success, line: choice.text };
+  return { state: { ...moved, happeningHistory: history }, success, line, chips };
 }

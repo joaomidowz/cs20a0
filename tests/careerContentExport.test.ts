@@ -21,7 +21,7 @@ const csv = (header: string[], rows: unknown[][]) => [header, ...rows].map((row)
 const PROFILE_PT: Record<ClutchProfile, string> = { solid: 'seguro', read: 'leitura', gamble: 'aposta', team: 'coletivo' };
 const ROLE_PT: Record<string, string> = { awper: 'AWPer', rifler: 'Rifler', entry: 'Entry', igl: 'IGL', lurker: 'Lurker', support: 'Suporte', any: 'todas' };
 const FORMAT_PT: Record<string, string> = { bracket8: 'mata-mata de 8', swiss16: 'suíça de 16 + mata-mata', major: 'Major (3 stages + playoffs)' };
-const EFFECT_PT: Record<HappeningEffect, string> = { performance: 'Forma', fatigue: 'Cansaço', mental: 'Moral', reputation: 'Reputação', money: 'Caixa', chemistry: 'Química', fame: 'Fãs' };
+const EFFECT_PT: Record<HappeningEffect, string> = { performance: 'Forma', fatigue: 'Cansaço', mental: 'Mental e moral', mind: 'Mental', reputation: 'Reputação', money: 'Caixa', chemistry: 'Química', fame: 'Fãs' };
 
 describe.skipIf(!process.env.CAREER_EXPORT)('exportar conteúdo da carreira (CAREER_EXPORT=<pasta>)', () => {
   it('grava as planilhas', () => {

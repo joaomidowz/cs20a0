@@ -306,6 +306,8 @@ export interface PlayerCareerState {
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
+  /** Cada acontecimento vivido (temporada, mês, gravidade, escolha): limite por ano, cooldown em meses e histórico. */
+  happeningHistory?: import('./happenings').HappeningRecord[];
   /** Troca de função: a de antes (o parceiro dela assume a sua antiga), a temporada e como foi a adaptação. */
   roleChange?: { from: PlayerRole; season: number; outcome: 'adapting' | 'good' | 'bad' } | null;
   /** Parceiros que saíram a seu pedido (por org): nick que saiu e o substituto que entrou. */

@@ -43,7 +43,10 @@ describe('chance e sorteio', () => {
         const rolled = rollHappening(at(level, `phase-${level}-${index}`), 'post', { eventIndex: 0 });
         if (!rolled.pendingHappening) continue;
         const event = HAPPENING_BY_ID.get(rolled.pendingHappening.id)!;
-        expect(event.trigger).toBe('post');
+        expect(rolled.pendingHappening.trigger).toBe('post');
+        // Os originais têm gatilho fixo; os novos sem momento marcado valem depois do jogo ou na semana.
+        if (!event.conditions) expect(event.trigger).toBe('post');
+        else expect(['post', 'between']).toContain(event.trigger);
         expect(event.tierMin).toBeGreaterThanOrEqual(low);
         expect(event.tierMin).toBeLessThanOrEqual(high);
         // Mesmo id com o relógio parado: está em cooldown, não pode ser sorteado de novo.
