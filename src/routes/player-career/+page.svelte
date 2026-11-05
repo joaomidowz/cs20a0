@@ -1106,6 +1106,7 @@
   $: evolving = career ? (Object.entries(career.trained ?? {}) as Array<[TrainedAttribute, number]>).filter(([, bonus]) => bonus).map(([key, bonus]) => ({ label: ATTR_LABEL[key], bonus })).sort((a, b) => b.bonus - a.bonus) : [];
   $: morale = career?.morale ?? 60;
   $: life = career ? lifeOf(career) : null;
+  $: teamBond = squadMates.length ? Math.round(squadMates.reduce((sum, mate) => sum + mate.relationship, 0) / squadMates.length) : null;
   $: abroad = career && career.orgId !== 'lan-house' ? livesAbroad(career, (orgOf(career.orgId, career) as { region?: string }).region) : false;
   // O coach abre a temporada: a meta do ano, antes do primeiro campeonato.
   $: if (career && !live && career.status === 'ACTIVE' && !career.pendingTalk && !career.pendingHappening && !career.pendingDilemma && !career.pendingRival && !career.pendingMove) {
@@ -1459,31 +1460,55 @@
           <span class="ovr-num">{career.overall}</span>
           <span class="label ovr-label">Overall</span>
         </div>
-        <dl class="facts">
-          <div class="money" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
-            <dt>Valor</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
+        <div class="fact-rows">
+          <div class="frow">
+            <span class="frow-label">Carreira</span>
+            <dl class="facts">
+              <div class="money" title="Quanto uma org pagaria pelo seu passe hoje. Sobe com o overall; não é salário nem prêmio.">
+                <dt>Valor</dt><dd>US$ {(marketValueUsd(career.overall) / 1000).toFixed(0)}k</dd>
+              </div>
+              <div class="money" title="Sua parte das premiações e o que os acontecimentos deram ou custaram.">
+                <dt>Caixa</dt><dd>US$ {moneyLabel(career.money ?? 0)}</dd>
+              </div>
+              <div class="trophy-fact">
+                <dt>Títulos</dt>
+                <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
+              </div>
+            </dl>
           </div>
-          <div class="money" title="Sua parte das premiações e o que os acontecimentos deram ou custaram.">
-            <dt>Caixa</dt><dd>US$ {moneyLabel(career.money ?? 0)}</dd>
+          <div class="frow">
+            <span class="frow-label">Time</span>
+            <dl class="facts">
+              <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
+              <div title="Moral é a vontade de jogar. Alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
+              <div title="Relação média com os parceiros. Com 70 ou mais o parceiro rende +1 em quadra; abaixo de 35, −1."><dt>Elenco</dt><dd class:low={teamBond !== null && teamBond < 40} class:high={teamBond !== null && teamBond >= 70}>{teamBond ?? '—'}</dd></div>
+            </dl>
           </div>
-          <div class="trophy-fact">
-            <dt>Títulos</dt>
-            <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
+          <div class="frow">
+            <span class="frow-label">Jogador</span>
+            <dl class="facts">
+              <div title="Cabeça: o seu mental fora do servidor (aguentar pressão, crítica e derrota). Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={(life?.mind ?? 60) < 40} class:high={(life?.mind ?? 60) >= 75}>{life?.mind ?? 60}</dd></div>
+              <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
+              <div title="Condição física: cai com cansaço alto, volta com descanso. Baixa deixa o corpo reclamar (dor, lesão)."><dt>Corpo</dt><dd class:low={(life?.condition ?? 80) < 50} class:high={(life?.condition ?? 80) >= 80}>{life?.condition ?? 80}</dd></div>
+            </dl>
           </div>
-          <div title="Moral é a vontade de jogar. Alta sobe o Mental da sua carta; baixa derruba."><dt>Moral</dt><dd class:low={morale < 45} class:high={morale >= 75}>{morale}</dd></div>
-          {#if life}<div title="Cabeça: o seu mental fora do servidor (aguentar pressão, crítica e derrota). Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={life.mind < 40} class:high={life.mind >= 75}>{life.mind}</dd></div>{/if}
-          <div title="Vale só no próximo campeonato."><dt>Forma</dt><dd class:low={form < 0} class:high={form > 0}>{form > 0 ? '+' : form < 0 ? '−' : ''}{Math.abs(form)}</dd></div>
-          <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
-          <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
-          <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
-        </dl>
-        {#if life}
-          <p class="life-strip" aria-label="Vida fora do servidor">
-            <span title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais pesa na Cabeça.">Pressão <b class:low={life.pressure >= 80} class:high={life.pressure < 35}>{life.pressure}</b></span>
-            {#if abroad}<span title="Morando fora: sobe com o tempo longe e cai com visita, amigos no time e idioma. Com 70 ou mais tira moral.">Saudade <b class:low={life.homesick >= 70} class:high={life.homesick < 30}>{life.homesick}</b></span>
-            <span title="Adaptação ao país e ao time: cresce com as semanas, o idioma e os amigos.">Adaptação <b class:low={life.adaptation < 50} class:high={life.adaptation >= 80}>{life.adaptation}</b></span>{/if}
-          </p>
-        {/if}
+          <div class="frow">
+            <span class="frow-label">Imagem</span>
+            <dl class="facts">
+              <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
+              <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
+              <div title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais pesa na Cabeça."><dt>Pressão</dt><dd class:low={(life?.pressure ?? 30) >= 80} class:high={(life?.pressure ?? 30) < 35}>{life?.pressure ?? 30}</dd></div>
+            </dl>
+          </div>
+          <div class="frow" class:home={!abroad}>
+            <span class="frow-label">Casa</span>
+            <dl class="facts">
+              <div title="Saudade de casa: só sobe morando fora, com o tempo longe e o isolamento. Cai com visita, amigos no time e idioma. Com 70 ou mais tira moral."><dt>Saudade</dt><dd class:low={(life?.homesick ?? 0) >= 70} class:high={abroad && (life?.homesick ?? 0) < 30}>{life?.homesick ?? 0}</dd></div>
+              <div title="Adaptação ao país e ao time: em casa é 100; fora, cresce com as semanas, o idioma e os amigos."><dt>Adaptação</dt><dd class:low={(life?.adaptation ?? 100) < 50} class:high={abroad && (life?.adaptation ?? 100) >= 80}>{life?.adaptation ?? 100}</dd></div>
+              <div title={abroad ? 'Semanas sem visitar a família. Visita (semana ou dilema) zera.' : 'Você joga no seu país.'}><dt>{abroad ? 'Sem visita' : 'Onde'}</dt><dd class="small-dd">{abroad ? `${life?.weeksSinceVisit ?? 0} sem.` : 'Em casa'}</dd></div>
+            </dl>
+          </div>
+        </div>
 
         {#if coach && career.orgId !== 'lan-house'}
           <section class="rail-coach" aria-label="Coach">
@@ -3043,10 +3068,6 @@
   .train-line.alert { color: var(--accent-2); font-weight: 600; }
   .facts dd.high { color: var(--accent); }
   .facts .value { grid-column: span 1; }
-  .life-strip { display: flex; flex-wrap: wrap; gap: 4px 9px; margin: -6px 0 0; color: var(--muted); font: 600 11px/1.2 var(--body); }
-  .life-strip b { color: var(--text); font-variant-numeric: tabular-nums; }
-  .life-strip b.low { color: var(--accent-2); }
-  .life-strip b.high { color: var(--accent); }
   .week { grid-area: week; display: grid; gap: 10px; min-width: 0; }
   .week .section-head { margin-bottom: 0; }
   .week-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; align-items: start; }
@@ -3630,13 +3651,29 @@
   .wcost i { width: 6px; height: 6px; }
   .wcost em { margin-left: 2px; color: var(--accent); font: 800 10px/1 var(--body); font-style: normal; }
   .wcard.nofit { opacity: .45; }
+  /* Números do trilho em linhas com sentido: carreira, time, jogador, imagem e casa. */
+  .fact-rows { display: grid; gap: 4px; }
+  .frow { display: grid; grid-template-columns: 49px minmax(0, 1fr); gap: 4px; align-items: stretch; }
+  .frow-label { display: flex; align-items: center; padding-left: 4px; border-left: 2px solid var(--line); color: var(--muted); font: 700 8px/1.1 var(--body); letter-spacing: .02em; text-transform: uppercase; }
+  .frow:first-child .frow-label { border-left-color: var(--gold); }
+  .frow:nth-child(2) .frow-label { border-left-color: var(--accent); }
+  .frow:nth-child(3) .frow-label { border-left-color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
+  .frow:nth-child(4) .frow-label { border-left-color: var(--muted); }
+  .frow:nth-child(5) .frow-label { border-left-color: var(--accent-2); }
+  .frow.home .facts dd { color: var(--muted); }
+  .fact-rows .facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .fact-rows .facts div { gap: 2px; padding: 4px 5px; }
+  .fact-rows .facts dt { font-size: 8.5px; letter-spacing: 0; }
+  .fact-rows .facts dd { font-size: 18px; }
+  .fact-rows .facts .money dd, .fact-rows .facts dd.small-dd { font-size: 14px; }
+  .fact-rows .fat-bar { height: 3px; }
   .scout-teams { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .scout-teams button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px 4px 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 700 13px/1 var(--body); cursor: pointer; }
   .scout-teams button:hover, .scout-teams button:focus-visible { border-color: var(--accent); }
   .scout-teams button span { color: var(--muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
   @media (prefers-reduced-motion: reduce) { .wm-pips i.preview { animation: none; } }
   @media (min-width: 961px) {
-    .rail { gap: 9px; }
+    .rail { gap: 9px; padding-inline: 16px; }
     .ovr-num { font-size: 64px; }
     .nick { font-size: clamp(38px, 3.6vw, 50px); }
     .nick.long { font-size: 38px; }
@@ -3648,7 +3685,6 @@
     .rail > :global(*) { grid-column: 1 / -1; }
     .rail > .rail-head { grid-column: 1; grid-row: 1; }
     .rail > .ovr { grid-column: 2; grid-row: 1; flex-direction: column; align-items: flex-end; gap: 2px; padding-top: 18px; }
-    .facts { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   }
 
   /* Tela média: a semana desce para baixo do treino livre para as 5 cartas caberem. */
@@ -3679,12 +3715,14 @@
     .ovr { gap: 8px; }
     .ovr-num { font-size: 46px; }
     .ovr-label { margin-bottom: 2px; font-size: 10px; }
-    .facts { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
-    .facts div { gap: 2px; padding: 4px 5px; }
+    .fact-rows { gap: 3px; }
+    .frow { grid-template-columns: 52px minmax(0, 1fr); }
+    .frow-label { font-size: 8px; }
+    .facts { gap: 3px; }
+    .facts div { gap: 1px; padding: 3px 6px; }
     .facts dt { font-size: 8.5px; letter-spacing: 0; }
-    .facts dd { font-size: 14px; }
-    .facts .fat-bar { height: 3px; }
-    .life-strip { margin-top: -2px; font-size: 10px; }
+    .facts dd { font-size: 15px; }
+    .facts .money dd, .facts dd.small-dd { font-size: 13px; }
     .rail-search { min-height: 30px; font-size: 12px; }
     .rail-coach { gap: 5px; padding: 7px 8px; }
     .rc-ovr { font-size: 26px; }
