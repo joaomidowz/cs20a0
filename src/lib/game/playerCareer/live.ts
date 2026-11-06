@@ -26,14 +26,14 @@ import { createRunStats } from '../runStats';
 import { computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
-import { orgIn } from './world';
+import { orgIn, orgPowerIn } from './world';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
 import { randomNick } from './extraTeams';
 import { applyCareerMapProfiles } from './careerMaps';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
-import { levelIn, orgOf } from './engine';
+import { levelIn, orgOf, playedCount } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -221,8 +221,11 @@ export function majorRanking(state: PlayerCareerState): SceneOrg[] {
   return sceneOrgs
     .filter((org) => org.id !== state.orgId && levelIn(state, org) <= 3)
     .map((org) => {
-      const power = (orgOf(org.id, state) as SceneOrg).power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 66;
-      return { org, score: power + createSeededRng(`${state.seed}:vrs:${state.seasonNumber}:${org.id}`)() * 1.5 };
+      // A força do elenco de hoje (o time que envelheceu cai, o que contratou bem sobe) e um pouco de sorte da temporada
+      // no ranking: a ordem do Major e dos convidados muda de um ano para o outro.
+      const power = orgPowerIn(state.seed, state.seasonNumber, org.id) ?? (orgOf(org.id, state) as SceneOrg).power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 66;
+      // O ranking anda a cada campeonato jogado (como o VRS): os dois Majors do ano não repetem a mesma ordem.
+      return { org, score: power + createSeededRng(`${state.seed}:vrs:${state.seasonNumber}:${playedCount(state)}:${org.id}`)() * 3 };
     })
     .sort((a, b) => b.score - a.score || a.org.name.localeCompare(b.org.name))
     .map((entry) => entry.org);

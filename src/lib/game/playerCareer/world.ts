@@ -403,10 +403,32 @@ export const worldHistory = (seed: string, season: number) => {
   return { transfers: world.transfers, retirements: world.retirements, debuts: world.debuts };
 };
 
-/** O time como ele está na temporada N (mesmo time, elenco atualizado pelas trocas). */
+/** Média dos 5 melhores do elenco (a força que entra em quadra). */
+function topFive(roster: SceneRosterMember[], org: SceneOrg): number | null {
+  const values = roster.map((member) => strength(member, org)).sort((a, b) => b - a).slice(0, 5);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+/**
+ * A força do time na temporada N: a da coleta (2026, que já carrega o ranking real) mais o quanto o elenco de hoje
+ * mudou em relação ao de 2026. Quem envelheceu ou perdeu estrela cai no ranking; quem contratou bem ou viu a base
+ * crescer sobe. Na temporada 1 é exatamente a da coleta.
+ */
+export function orgPowerIn(seed: string, season: number, orgId: string): number | undefined {
+  const org = sceneOrgById.get(orgId);
+  if (!org || org.power === undefined || season <= 1) return org?.power;
+  const start = topFive(org.roster, org);
+  const now = topFive(rosterIn(seed, season, org.id), org);
+  if (start === null || now === null) return org.power;
+  return Math.round((org.power + (now - start)) * 10) / 10;
+}
+
+/** O time como ele está na temporada N (mesmo time, elenco atualizado pelas trocas e força pelo elenco de hoje). */
 export function orgIn(seed: string, season: number, orgId: string): SceneOrg | undefined {
   const org = sceneOrgById.get(orgId);
-  return org ? { ...org, roster: rosterIn(seed, season, org.id) } : undefined;
+  if (!org) return undefined;
+  const power = orgPowerIn(seed, season, org.id);
+  return { ...org, roster: rosterIn(seed, season, org.id), ...(power !== undefined ? { power } : {}) };
 }
 
 /** As trocas mais chamativas da temporada: times de tier mais alto primeiro. */
