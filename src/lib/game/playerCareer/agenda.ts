@@ -385,8 +385,8 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   return chips;
 }
 
-/** O que a semana faz pela Cabeça rende 50% a mais (cuidar da cabeça precisa valer a vaga na semana). */
-export const MIND_WEEK_FACTOR = 1.5;
+/** O que a semana faz pela Cabeça rende 25% a mais (cuidar da cabeça precisa valer a vaga na semana). */
+export const MIND_WEEK_FACTOR = 1.25;
 const weekMind = (effects: AgendaEffects): AgendaEffects => (effects.mind && effects.mind > 0 ? { ...effects, mind: Math.round(effects.mind * MIND_WEEK_FACTOR) } : effects);
 
 /** Chips da carta da semana, já com o cansaço da ação. */

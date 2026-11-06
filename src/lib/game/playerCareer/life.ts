@@ -50,7 +50,14 @@ export function withFlags(life: CareerLife, flags: string[]): CareerLife {
   return { ...life, flags: next.slice(-40) };
 }
 
-export interface LifeContext { abroad: boolean; teamFluency: number; avgRelationship: number; level: number; fame: number; result?: TournamentResult | null }
+export interface LifeContext {
+  abroad: boolean; teamFluency: number; avgRelationship: number; level: number; fame: number; result?: TournamentResult | null;
+  /** O Mental da sua carta (sem o empurrão da própria Cabeça): quem tem Mental forte segura a Cabeça mais alta. */
+  mentalSkill?: number;
+}
+
+/** O patamar natural da Cabeça pelo Mental da carta: 80 → 60, 96 → 66, 70 → 56 (de 48 a 72). */
+export const mindHome = (mentalSkill: number | undefined) => clamp(60 + ((mentalSkill ?? 80) - 80) * 0.4, 48, 72);
 
 /**
  * Passa o tempo de um campeonato (~4 semanas). Em casa: saudade some, adaptação volta a 100. Fora: adaptação sobe
@@ -78,13 +85,18 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
   const placement = ctx.result?.placement;
   const shock = placement === 'Campeão' ? -8 : placement === 'Vice' ? 0 : placement === 'Semis' ? 2 : placement ? 6 : 0;
   pressure = Math.round(clamp(pressure + (base - pressure) * 0.3 + shock));
-  // Mental: volta para 60 (mais rápido quando está muito alto, para não virar bônus fixo); título dá confiança,
-  // queda cedo com pressão alta pesa; saudade alta tira um pouco.
-  // Chegar longe também dá confiança (final +2, semi +1); cair cedo com pressão alta pesa.
-  const resultMind = placement === 'Campeão' ? 4 : placement === 'Vice' ? 2 : placement === 'Semis' ? 1 : placement && pressure >= 60 ? -2 : 0;
-  // Volta ao normal devagar: o que você investe (semana, conversas, resultado) segura a Cabeça alta por um tempo.
-  const pull = mind > 80 ? 0.15 : 0.1;
-  mind = Math.round(clamp(mind + (60 - mind) * pull + resultMind - (homesick >= 70 ? 2 : 0) - (pressure >= 80 ? 1 : 0)));
+  // Cabeça: anda para o patamar do seu Mental de carta (forte segura mais alto), devagar.
+  // Ganhar dá confiança (título +5, final +3, semi +2); cair cedo com pressão alta pesa (−2).
+  // Descansado ela sobe (+2), esgotado ela cai (−2); semana tranquila (pressão e cansaço baixos) soma +1 com o tempo.
+  // Saudade alta e pressão altíssima tiram um pouco. Nada só piora e nada só melhora.
+  const resultMind = placement === 'Campeão' ? 5 : placement === 'Vice' ? 3 : placement === 'Semis' ? 2 : placement && pressure >= 60 ? -2 : 0;
+  const fatigue = state.fatigue ?? 0;
+  const restMind = fatigue < 30 ? 2 : fatigue >= 70 ? -2 : 0;
+  const calmMind = pressure < 60 && fatigue < 50 ? 1 : 0;
+  const home = mindHome(ctx.mentalSkill);
+  // Quanto mais acima do patamar, mais difícil segurar (assim 100 não vira estado permanente).
+  const pull = 0.1 + 0.006 * Math.max(0, mind - home);
+  mind = Math.round(clamp(mind + (home - mind) * pull + resultMind + restMind + calmMind - (homesick >= 70 ? 2 : 0) - (pressure >= 80 ? 1 : 0)));
   condition = Math.round(clamp(condition + ((state.fatigue ?? 0) >= 70 ? -6 : (state.fatigue ?? 0) >= 45 ? -2 : 4)));
   if (homesick >= 70 && life.homesick < 70) notes.push('A saudade de casa apertou.');
   if (adaptation >= 80 && life.adaptation < 80 && ctx.abroad) notes.push('Você já se sente em casa no país novo.');

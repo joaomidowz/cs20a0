@@ -1502,7 +1502,7 @@
           <div class="frow">
             <span class="frow-label">Jogador</span>
             <dl class="facts">
-              <div title="Cabeça: o seu mental fora do servidor (aguentar pressão, crítica e derrota). Diferente da moral. Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={(life?.mind ?? 60) < 40} class:high={(life?.mind ?? 60) >= 75}>{life?.mind ?? 60}</dd></div>
+              <div title="Cabeça: o seu mental no dia a dia (aguentar pressão, crítica e derrota). Sobe com vitória, descanso e semana tranquila; cai com cansaço alto, pressão e saudade. Volta devagar para o patamar do seu Mental de carta (Mental forte segura a Cabeça mais alta). Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={(life?.mind ?? 60) < 40} class:high={(life?.mind ?? 60) >= 75}>{life?.mind ?? 60}</dd></div>
               <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
               <div title="Condição física: cai com cansaço alto, volta com descanso. Baixa deixa o corpo reclamar (dor, lesão)."><dt>Corpo</dt><dd class:low={(life?.condition ?? 80) < 50} class:high={(life?.condition ?? 80) >= 80}>{life?.condition ?? 80}</dd></div>
             </dl>
