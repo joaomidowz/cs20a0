@@ -161,7 +161,7 @@ export function matesOf(state: PlayerCareerState): SquadMate[] {
     const gone = kicked.find((entry) => entry.nick.toLowerCase() === key);
     const slotRole = (player.role ?? 'support') as PlayerRole;
     let current: Player = gone
-      ? enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, clamp((player.overall ?? 70) + gone.delta, 40, 99), slotRole, createSeededRng(`${state.seed}:replacement:${gone.replacement}`))
+      ? enginePlayer(`${state.orgId}:sub:${gone.replacement}`, gone.replacement, replacementOverall(Number(player.overall ?? 70), teamFloor(roster, player), gone.delta), slotRole, createSeededRng(`${state.seed}:replacement:${gone.replacement}`))
       : player;
     let natural = slotRole;
     // Banco: quem entrou no lugar dele (promovido por você ou por um acontecimento).
@@ -351,6 +351,15 @@ export const canKickMate = (state: PlayerCareerState): boolean =>
  * ele. Aceitou: entra um substituto (às vezes melhor, às vezes pior) e o elenco sente (−3 com todos). Recusou: a
  * relação com ele despenca (−25), moral −5.
  */
+/** O nível do time sem um jogador: a média dos outros, 2 abaixo (quem a diretoria consegue contratar para a vaga). */
+export function teamFloor(roster: Player[], leaving: Player): number {
+  const others = roster.filter((other) => other !== leaving);
+  return others.length ? Math.round(others.reduce((sum, other) => sum + Number(other.overall ?? 70), 0) / others.length - 2) : Number(leaving.overall ?? 70);
+}
+
+/** Quem entra no lugar de quem saiu a seu pedido: no nível do time (não no de quem saiu), com uma variação. */
+export const replacementOverall = (leavingOverall: number, floor: number, delta: number) => clamp(Math.max(leavingOverall, floor) + delta, 40, 99);
+
 export function kickMate(state: PlayerCareerState, mateId: string): { state: PlayerCareerState; accepted: boolean; line: string } {
   if (!canKickMate(state)) return { state, accepted: false, line: '' };
   const mates = matesOf(state);
@@ -370,12 +379,17 @@ export function kickMate(state: PlayerCareerState, mateId: string): { state: Pla
   }
   const replacement = randomNick(`${state.seed}:replacement:${state.seasonNumber}:${mateId}`);
   const delta = Math.round((rng() - 0.45) * 8);
+  // O substituto vem no nível do time (média dos outros, 2 abaixo), não no de quem saiu.
+  const raw = Number(mate.player.overall ?? 70) - synergyBump(mate.relationship);
+  const others = mates.filter((other) => other.player.id !== mateId);
+  const floor = others.length ? Math.round(others.reduce((sum, other) => sum + Number(other.player.overall ?? 70) - synergyBump(other.relationship), 0) / others.length - 2) : raw;
+  const arriving = replacementOverall(raw, floor, delta);
   const relationships = Object.fromEntries(mates.filter((other) => other.player.id !== mateId).map((other) => [other.player.id, clamp(other.relationship - 3, 0, 100)]));
   const kicked = { ...(state.kickedMates ?? {}) };
   kicked[state.orgId] = [...(kicked[state.orgId] ?? []), { nick, replacement, delta }];
   return {
     state: { ...base, kickedMates: kicked, relationships: { ...state.relationships, ...relationships } },
-    accepted, line: `${nick} saiu. Entra ${replacement} (${delta >= 0 ? '+' : '−'}${Math.abs(delta)} de overall em relação a ele). O vestiário sentiu.`
+    accepted, line: `${nick} saiu. Entra ${replacement}, overall ${arriving}, no nível do time. O vestiário sentiu.`
   };
 }
 

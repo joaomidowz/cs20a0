@@ -175,4 +175,13 @@ describe('troca de função e saída de parceiro', () => {
     expect(accepted + refused).toBe(16);
     expect(accepted).toBeGreaterThan(0);
   });
+
+  it('quem entra no lugar de quem saiu vem no nível do time, não no de quem saiu', async () => {
+    const { replacementOverall } = await import('../src/lib/game/playerCareer/squad');
+    // Fybru 69 num time de ~91: o substituto chega perto de 89 (média dos outros, 2 abaixo) com a variação.
+    expect(replacementOverall(69, 89, 2)).toBe(91);
+    expect(replacementOverall(69, 89, -3)).toBe(86);
+    // Quem saiu já era melhor que o time: não piora por isso.
+    expect(replacementOverall(92, 85, -2)).toBe(90);
+  });
 });
