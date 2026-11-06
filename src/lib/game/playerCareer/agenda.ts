@@ -119,7 +119,7 @@ export const AGENDA: AgendaAction[] = [
   A('video-jogadas', 'stream', 'Vídeo de jogadas', 'Editar um vídeo com seus melhores rounds.', { fame: 350, morale: 3 }, 'O vídeo rodou e o pessoal gostou.'),
   A('react-final', 'stream', 'React da final', 'Comentar uma final ao vivo com o chat.', { fame: 500, attrs: { igl: 1 } }, 'Você leu o jogo como um analista.'),
   A('collab-streamer', 'stream', 'Collab com streamer grande', 'Jogar na live de um streamer famoso.', { fame: 800, morale: 4 }, 'Muita gente nova conheceu o seu nick.', { needs: { fame: 1000 } }),
-  A('sair-redes', 'stream', 'Sair das redes', 'Uma semana sem Twitter e sem live.', { attrs: { mental: 2 }, morale: 3, fame: -200 }, 'Paz na cabeça. Alguns seguidores foram embora.'),
+  A('sair-redes', 'stream', 'Sair das redes', 'Uma semana sem Twitter e sem live.', { attrs: { mental: 2 }, morale: 3, mind: 4, fame: -200 }, 'Paz na cabeça. Alguns seguidores foram embora.'),
 
   // Coach
   A('coach-mortes', 'coach', 'Coach: rever suas mortes', 'Ver com o coach onde você morre de graça.', { attrs: { consistency: 2 }, form: 1, trainStep: true }, 'Você parou de dar pick de graça.'),
@@ -133,7 +133,7 @@ export const AGENDA: AgendaAction[] = [
   }),
 
   // Profissionais de fora
-  A('psicologo', 'externo', 'Psicólogo esportivo', 'Trabalhar pressão e respiração.', { attrs: { mental: 3, consistency: 1 }, morale: 4 }, 'Respirar antes do round virou hábito.'),
+  A('psicologo', 'externo', 'Psicólogo esportivo', 'Trabalhar pressão e respiração.', { attrs: { mental: 3, consistency: 1 }, morale: 4, mind: 6 }, 'Respirar antes do round virou hábito.'),
   A('coach-mira-particular', 'externo', 'Coach de mira particular', 'Aulas com um especialista em mira.', { attrs: { firepower: 3 }, morale: -1 }, 'Mira nova. Cansativo, mas valeu.'),
   A('analista', 'externo', 'Analista de dados', 'Números das suas últimas partidas.', { attrs: { consistency: 2, igl: 1 } }, 'Os números mostraram onde você perde round.'),
   A('preparador', 'externo', 'Preparador físico', 'Postura, punho e resistência.', { attrs: { consistency: 2, mental: 1 }, morale: 2 }, 'Sem dor no punho no fim do dia.'),
@@ -153,14 +153,14 @@ export const AGENDA: AgendaAction[] = [
   }),
 
   // Descanso e vida
-  A('folga', 'descanso', 'Folga total', 'Desligar o PC por três dias.', { morale: 8, attrs: { mental: 1 }, form: -1 }, 'Voltou com vontade de jogar.'),
-  A('familia', 'descanso', 'Visitar a família', 'Voltar para casa por uns dias.', { morale: 10, attrs: { mental: 1 } }, 'Comida de casa e apoio de quem importa.'),
-  A('academia', 'descanso', 'Academia', 'Treino físico todo dia.', { attrs: { consistency: 1, mental: 1 }, morale: 2 }, 'Corpo forte, cabeça também.'),
+  A('folga', 'descanso', 'Folga total', 'Desligar o PC por três dias.', { morale: 8, mind: 3, attrs: { mental: 1 }, form: -1 }, 'Voltou com vontade de jogar.'),
+  A('familia', 'descanso', 'Visitar a família', 'Voltar para casa por uns dias.', { morale: 10, mind: 4, attrs: { mental: 1 } }, 'Comida de casa e apoio de quem importa.'),
+  A('academia', 'descanso', 'Academia', 'Treino físico todo dia.', { attrs: { consistency: 1, mental: 1 }, morale: 2, mind: 2 }, 'Corpo forte, cabeça também.'),
   A('ajustar-sono', 'descanso', 'Ajustar o sono', 'Dormir no horário do campeonato.', { attrs: { consistency: 2 }, form: 1 }, 'Acordado e afiado na hora do jogo.'),
   A('balada', 'descanso', 'Sair para a balada', 'Comemorar com os amigos.', { morale: 7, form: -2 }, 'Noite boa. A ressaca nem tanto.', {
     risk: { chance: 0.25, effects: { team: -2, fame: 300 }, line: 'Uma foto sua na balada rodou o Twitter.' }
   }),
-  A('outro-jogo', 'descanso', 'Jogar outro jogo', 'Descansar a cabeça em outro game.', { morale: 6, attrs: { firepower: -1 } }, 'Cabeça leve. A mira enferrujou um pouco.'),
+  A('outro-jogo', 'descanso', 'Jogar outro jogo', 'Descansar a cabeça em outro game.', { morale: 6, mind: 2, attrs: { firepower: -1 } }, 'Cabeça leve. A mira enferrujou um pouco.'),
 
   // Mercado
   A('ouvir-propostas', 'mercado', 'Ouvir propostas', 'Seu empresário sonda outros times.', { fame: 150, morale: 2, team: -3 }, 'Tem time de olho em você.'),
@@ -385,8 +385,12 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   return chips;
 }
 
+/** O que a semana faz pela Cabeça rende 50% a mais (cuidar da cabeça precisa valer a vaga na semana). */
+export const MIND_WEEK_FACTOR = 1.5;
+const weekMind = (effects: AgendaEffects): AgendaEffects => (effects.mind && effects.mind > 0 ? { ...effects, mind: Math.round(effects.mind * MIND_WEEK_FACTOR) } : effects);
+
 /** Chips da carta da semana, já com o cansaço da ação. */
-export const actionChips = (action: AgendaAction): AgendaChip[] => agendaChips({ ...action.effects, fatigue: fatigueOf(action) });
+export const actionChips = (action: AgendaAction): AgendaChip[] => agendaChips({ ...weekMind(action.effects), fatigue: fatigueOf(action) });
 
 export interface AgendaResult {
   state: PlayerCareerState;
@@ -497,7 +501,7 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
   const tired = (state.fatigue ?? 0) >= TIRED_AT;
   const factor = diminishOf(state, action.category);
   const busy = state.week?.window === window ? state.week.used : 0;
-  const base = scaleGains(action.effects, factor);
+  const base = scaleGains(weekMind(action.effects), factor);
   const attrs = tired && base.attrs
     ? Object.fromEntries(Object.entries(base.attrs).map(([key, value]) => [key, value > 0 ? Math.floor(value / 2) : value]))
     : base.attrs;

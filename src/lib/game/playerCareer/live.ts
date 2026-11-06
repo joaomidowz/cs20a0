@@ -313,6 +313,14 @@ function majorFullField(state: PlayerCareerState, entryStage: MajorStageKey, see
   return { picked, rosters, tierAt };
 }
 
+/** Força de time que vem da relação média com os parceiros: (média − 60) × 0.04, de −1.5 a +1.2. */
+export function chemistryEdge(state: PlayerCareerState): number {
+  const mates = matesOf(state);
+  if (!mates.length) return 0;
+  const average = mates.reduce((sum, mate) => sum + mate.relationship, 0) / mates.length;
+  return Math.max(-1.5, Math.min(1.2, (average - 60) * 0.04));
+}
+
 /** Quanto a forma de um campeonato muda a força de cada time (±). */
 export const EVENT_FORM_SWING = 3.5;
 /** Até quanto o mais forte do campeonato abre do segundo sem desconto, e quanto vale o que passar disso. */
@@ -357,7 +365,9 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   // um time do computador com os mesmos jogadores (FURIA com você ganhava 72% dos Tier S; sem você, uns 40%).
   const fair = calculateHistoricalTeamPower(sceneOrgToEngineTeam({ ...(userOrg as SceneOrg), id: campaign.userTeamId, name: userName }, userPlayers), allPlayers);
   // Sem estilo, como os rivais: o 'balanced' da Dinastia dava ao seu time pistol e dia ruim melhores que os deles.
-  const level = { name: userName, isUser: true, power: fair.power, mental: fair.mental, clutch: fair.clutch, experience: fair.experience, consistency: fair.consistency, style: undefined };
+  // Química do elenco: o que você constrói com os parceiros vale força de time (relação média 60 é neutra; 90 dá
+  // +1.2; abaixo de 40 tira). É a alavanca que fica na sua mão, junto com as calls e o próprio overall.
+  const level = { name: userName, isUser: true, power: fair.power + chemistryEdge(state), mental: fair.mental, clutch: fair.clutch, experience: fair.experience, consistency: fair.consistency, style: undefined };
   if (organization) {
     organization.name = userName;
     organization.team = { ...organization.team, ...level };

@@ -80,8 +80,10 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
   pressure = Math.round(clamp(pressure + (base - pressure) * 0.3 + shock));
   // Mental: volta para 60 (mais rápido quando está muito alto, para não virar bônus fixo); título dá confiança,
   // queda cedo com pressão alta pesa; saudade alta tira um pouco.
-  const resultMind = placement === 'Campeão' ? 3 : placement && !['Vice', 'Semis'].includes(placement) && pressure >= 60 ? -3 : 0;
-  const pull = mind > 70 ? 0.3 : 0.15;
+  // Chegar longe também dá confiança (final +2, semi +1); cair cedo com pressão alta pesa.
+  const resultMind = placement === 'Campeão' ? 4 : placement === 'Vice' ? 2 : placement === 'Semis' ? 1 : placement && pressure >= 60 ? -2 : 0;
+  // Volta ao normal devagar: o que você investe (semana, conversas, resultado) segura a Cabeça alta por um tempo.
+  const pull = mind > 80 ? 0.15 : 0.1;
   mind = Math.round(clamp(mind + (60 - mind) * pull + resultMind - (homesick >= 70 ? 2 : 0) - (pressure >= 80 ? 1 : 0)));
   condition = Math.round(clamp(condition + ((state.fatigue ?? 0) >= 70 ? -6 : (state.fatigue ?? 0) >= 45 ? -2 : 4)));
   if (homesick >= 70 && life.homesick < 70) notes.push('A saudade de casa apertou.');
