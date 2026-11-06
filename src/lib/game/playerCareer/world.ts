@@ -73,6 +73,35 @@ function headroom(age: number | null, rng: () => number): number {
 /** Quanto um veterano do mundo perde por ano, no mínimo (a mesma régua da sua carreira). */
 export const veteranDecline = (age: number): number => (age >= 38 ? 3 : age >= 35 ? 2 : age >= 29 ? 1 : 0);
 
+/**
+ * O que a curva do mundo não tira do veterano e a régua da carreira tira, somado até a idade: a curva calibrada fica
+ * em ~0 aos 29-30 e −1 dos 31 em diante, e a régua pede −1 dos 29 aos 34, −2 dos 35 aos 37 e −3 dos 38 em diante.
+ * Aplicado só na leitura do elenco (a história do mundo continua a mesma).
+ */
+export function veteranGap(age: number): number {
+  let gap = 0;
+  for (let at = 29; at <= age; at += 1) gap += at <= 30 ? 1 : at <= 34 ? 0 : at <= 37 ? 1 : 2;
+  return gap;
+}
+
+const agedRead = new Map<string, Map<string, SceneRosterMember[]>>();
+/** Os elencos com o desgaste de veterano no número (cache por seed e temporada). */
+function withVeteranGap(seed: string, season: number, rosters: Map<string, SceneRosterMember[]>): Map<string, SceneRosterMember[]> {
+  const key = `${seed}:${season}:${rosters === sceneWorld(seed, season).rosters ? 'base' : 'seats'}`;
+  const cached = agedRead.get(key);
+  if (cached) return cached;
+  const year = yearOfSeason(season);
+  const adjusted = new Map([...rosters].map(([id, roster]) => [id, roster.map((member) => {
+    const born = memberBirthYear(member);
+    if (born === null || member.overall === undefined) return member;
+    const gap = veteranGap(year - born);
+    return gap > 0 ? { ...member, overall: Math.max(40, member.overall - gap) } : member;
+  })]));
+  agedRead.set(key, adjusted);
+  if (agedRead.size > CACHE_LIMIT) agedRead.delete(agedRead.keys().next().value!);
+  return adjusted;
+}
+
 /** Ano real da temporada N da carreira (a 1 é 2026). */
 export const yearOfSeason = (season: number) => 2025 + season;
 
@@ -146,13 +175,10 @@ function ageWorld(seed: string, season: number, rosters: Map<string, SceneRoster
         calibration,
         seasonKey: `${seed}:world:${season}`
       });
-      // Veterano cai na mesma régua da sua carreira (29-34: −1, 35-37: −2, 38+: −3 por ano, no mínimo). A curva do
-      // catálogo nessa idade só tem quem continuou bom (quem caiu já tinha parado), então sozinha quase não derruba
-      // ninguém. Um em cada quatro segura melhor (cai um a menos) naquele ano.
-      const age = year - born;
-      const decline = veteranDecline(age) - (rng() < 0.25 ? 1 : 0);
-      const overall = decline > 0 ? Math.min(aged.entity.overall, current.overall - decline) : aged.entity.overall;
-      dev.set(key, { ...current, overall: Math.max(40, overall) });
+      // A história do mundo (quem envelhece, troca, aposenta, estreia) NÃO muda com ajustes de balanço: ela é
+      // recalculada da seed a cada vez, então mexer aqui reescreveria o elenco de saves que já existem. O desgaste de
+      // veterano entra só na leitura (rostersOf), no número que vai para a carta e para o motor.
+      dev.set(key, { ...current, overall: aged.entity.overall });
     }
   }
   return dev;
@@ -376,6 +402,11 @@ export const seatMovesOf = (seed: string): SeatMove[] => seatRegistry.get(seed)?
 
 /** Os elencos da temporada com as trocas das suas vagas por cima (quem saiu está no time novo). */
 function rostersOf(seed: string, season: number): Map<string, SceneRosterMember[]> {
+  return withVeteranGap(seed, season, seatRostersOf(seed, season));
+}
+
+/** Os elencos da temporada com as trocas das suas vagas (sem o desgaste de leitura). */
+function seatRostersOf(seed: string, season: number): Map<string, SceneRosterMember[]> {
   const base = sceneWorld(seed, season).rosters;
   const moves = seatMovesOf(seed).filter((move) => move.season <= season);
   if (!moves.length) return base;
