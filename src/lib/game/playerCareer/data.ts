@@ -47,6 +47,8 @@ export interface SceneOrg {
   power?: number;
   /** Região do circuito (pelo país; sem país, pelo circuito que o time jogou). */
   region?: Region;
+  /** Temporada da carreira em que o elenco está (orgIn): o peso da força do time na carta cai com o tempo. */
+  season?: number;
 }
 interface SceneFile {
   referenceYear: number;

@@ -88,7 +88,11 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
     // Quem está no catálogo joga perto do overall real dele (60% real, 40% a base do time); no mundo da carreira o
     // overall é o da temporada (o jovem cresce, o veterano cai).
     const real = member ? member.overall ?? memberCatalogOverall(member) : null;
-    const overall = clamp((real !== null ? Math.round(real * 0.6 + base * 0.4) : Math.round(base) + noise) - commsPenalty, 40, 99);
+    // Na temporada 1 a força do time (ranking real) puxa 40% da carta; com o mundo andando, o que vale é o jogador de
+    // hoje (o peso do time cai até 15%): veterano de time forte não fica inflado pela força dos colegas.
+    const season = org.season ?? 1;
+    const teamWeight = Math.max(0.15, 0.4 - (season - 1) * 0.05);
+    const overall = clamp((real !== null ? Math.round(real * (1 - teamWeight) + base * teamWeight) : Math.round(base) + noise) - commsPenalty, 40, 99);
     const player = enginePlayer(`${org.id}:${role}`, nick, overall, role, rng);
     // baseId do catálogo (ou o nick) para a foto licenciada aparecer na carta.
     return member && !member.generated ? { ...player, baseId: member.catalogBaseId ?? nick.toLowerCase() } : player;

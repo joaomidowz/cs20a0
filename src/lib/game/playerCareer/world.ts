@@ -70,6 +70,9 @@ function headroom(age: number | null, rng: () => number): number {
   return 0;
 }
 
+/** Quanto um veterano do mundo perde por ano (a mesma régua de ageDecline da sua carreira). */
+export const veteranDecline = (age: number): number => (age >= 34 ? 3 : age >= 31 ? 2 : age >= 29 ? 1 : 0);
+
 /** Ano real da temporada N da carreira (a 1 é 2026). */
 export const yearOfSeason = (season: number) => 2025 + season;
 
@@ -143,7 +146,13 @@ function ageWorld(seed: string, season: number, rosters: Map<string, SceneRoster
         calibration,
         seasonKey: `${seed}:world:${season}`
       });
-      dev.set(key, { ...current, overall: aged.entity.overall });
+      // Veterano cai na mesma régua da sua carreira (29-30: −1, 31-33: −2, 34+: −3 por ano). A curva do catálogo
+      // nessa idade só tem quem continuou bom (quem caiu já tinha parado), então sozinha ela quase não derruba ninguém.
+      // Um em cada quatro segura melhor (cai um a menos) naquele ano.
+      const age = year - born;
+      const decline = veteranDecline(age) - (rng() < 0.25 ? 1 : 0);
+      const overall = decline > 0 ? Math.min(aged.entity.overall, current.overall - decline) : aged.entity.overall;
+      dev.set(key, { ...current, overall: Math.max(40, overall) });
     }
   }
   return dev;
@@ -428,7 +437,7 @@ export function orgIn(seed: string, season: number, orgId: string): SceneOrg | u
   const org = sceneOrgById.get(orgId);
   if (!org) return undefined;
   const power = orgPowerIn(seed, season, org.id);
-  return { ...org, roster: rosterIn(seed, season, org.id), ...(power !== undefined ? { power } : {}) };
+  return { ...org, roster: rosterIn(seed, season, org.id), season, ...(power !== undefined ? { power } : {}) };
 }
 
 /** As trocas mais chamativas da temporada: times de tier mais alto primeiro. */
