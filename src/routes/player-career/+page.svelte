@@ -31,7 +31,7 @@
   import { tickLife } from '$lib/game/playerCareer/tick';
   import { careerLog } from '$lib/game/playerCareer/careerLog';
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
-  import { lifeOf, livesAbroad } from '$lib/game/playerCareer/life';
+  import { lifeOf, livesAbroad, mindBump } from '$lib/game/playerCareer/life';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
@@ -39,7 +39,7 @@
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
-  import { seatsWithSeason, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { TRAIN_CAP, seatsWithSeason, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -204,6 +204,8 @@
   }
   /** Banco: escolher quem sai para o reserva entrar; IGL troca a função de dois parceiros. */
   let promoteOpen = false;
+  /** Janela da evolução: fase da carreira, treino e se o overall ainda sobe. */
+  let evoOpen = false;
   function benchMate(mateId: string) {
     if (!career) return;
     const result = promoteReserve(career, mateId);
@@ -613,6 +615,7 @@
     else if (overviewOpen) overviewOpen = false;
     else if (scoutOpen) closeScout();
     else if (promoteOpen) promoteOpen = false;
+    else if (evoOpen) evoOpen = false;
     else if (opponentOrgId) closeOpponent();
     else if (eventSheet !== null) closeEventSheet();
     else if (detailsPlayer) closeSheet();
@@ -1123,6 +1126,8 @@
   $: evolving = career ? (Object.entries(career.trained ?? {}) as Array<[TrainedAttribute, number]>).filter(([, bonus]) => bonus).map(([key, bonus]) => ({ label: ATTR_LABEL[key], bonus })).sort((a, b) => b.bonus - a.bonus) : [];
   $: morale = career?.morale ?? 60;
   $: life = career ? lifeOf(career) : null;
+  /** Quanto a fase do momento soma ao Mental da carta (−3 a +3). */
+  $: mentalPhase = mindBump(life?.mind);
   $: teamBond = squadMates.length ? Math.round(squadMates.reduce((sum, mate) => sum + mate.relationship, 0) / squadMates.length) : null;
   $: abroad = career && career.orgId !== 'lan-house' ? livesAbroad(career, (orgOf(career.orgId, career) as { region?: string }).region) : false;
   // O coach abre a temporada: a meta do ano, antes do primeiro campeonato.
@@ -1450,7 +1455,9 @@
                 <div class="mental"><dt>Mental</dt><dd>{myPlayer.mental}</dd></div>
                 {#each mainSkills as skill (skill.key)}<div><dt>{skill.label}</dt><dd>{skill.value}</dd></div>{/each}
               </dl>
-              <p class="evolving" title={evolving.length ? `Evoluindo no treino: ${evolving.map((item) => `${item.label} ${item.bonus > 0 ? '+' : '−'}${Math.abs(item.bonus)}`).join(', ')}` : 'Treine para evoluir habilidades.'}><span>Evoluindo</span>{#if evolving.length}{evolving.slice(0, 2).map((item) => `${item.label} ${item.bonus > 0 ? '+' : '−'}${Math.abs(item.bonus)}`).join(' · ')}{#if evolving.length > 2}<em> · +{evolving.length - 2}</em>{/if}{:else}<em>nada ainda</em>{/if}</p>
+              <button class="evolving" on:click={() => (evoOpen = true)} title="Ver a sua evolução: fase da carreira, treino e se ainda cresce">
+                <span>Evolução</span>{agePhase(career.age).label}{#if evolving.length} · {evolving.slice(0, 2).map((item) => `${item.label} ${item.bonus > 0 ? '+' : '−'}${Math.abs(item.bonus)}`).join(' · ')}{#if evolving.length > 2}<em> · +{evolving.length - 2}</em>{/if}{/if}<i aria-hidden="true">›</i>
+              </button>
             {/if}
           </div>
           <div class="menu">
@@ -1502,7 +1509,7 @@
           <div class="frow">
             <span class="frow-label">Jogador</span>
             <dl class="facts">
-              <div title="Cabeça: o seu mental no dia a dia (aguentar pressão, crítica e derrota). Sobe com vitória, descanso e semana tranquila; cai com cansaço alto, pressão e saudade. Volta devagar para o patamar do seu Mental de carta (Mental forte segura a Cabeça mais alta). Puxa o Mental da carta até 3 para cada lado."><dt>Cabeça</dt><dd class:low={(life?.mind ?? 60) < 40} class:high={(life?.mind ?? 60) >= 75}>{life?.mind ?? 60}</dd></div>
+              <div title={`Mental: o atributo da sua carta (treina como os outros) mais a fase do momento, até 3 para cada lado. A fase sobe com descanso, vitória e semana tranquila; cai com cansaço alto, pressão e saudade. Mental de carta forte segura a fase alta. Fase agora: ${life?.mind ?? 60} de 100.`}><dt>Mental</dt><dd class:low={mentalPhase < 0} class:high={mentalPhase > 0}>{myPlayer?.mental ?? '—'}{#if mentalPhase}<small class="phase">{mentalPhase > 0 ? '+' : '−'}{Math.abs(mentalPhase)}</small>{/if}</dd><span class="fat-bar" aria-hidden="true"><i class="phase-bar" class:low={(life?.mind ?? 60) < 40} style={`width:${life?.mind ?? 60}%`}></i></span></div>
               <div class="value" title="Campeonato e treino cansam; cada semana recupera 12 sozinha e descanso recupera mais. Com 70+ o treino rende metade; com 60+ você perde overall em quadra. Férias na virada da temporada."><dt>Cansaço</dt><dd class:low={fatigue >= TIRED_AT} class:high={fatigue < 30}>{fatigue}</dd><span class="fat-bar" aria-hidden="true"><i style={`width:${fatigue}%`} class:hot={fatigue >= TIRED_AT}></i></span></div>
               <div title="Condição física: cai com cansaço alto, volta com descanso. Baixa deixa o corpo reclamar (dor, lesão)."><dt>Corpo</dt><dd class:low={(life?.condition ?? 80) < 50} class:high={(life?.condition ?? 80) >= 80}>{life?.condition ?? 80}</dd></div>
             </dl>
@@ -1512,7 +1519,7 @@
             <dl class="facts">
               <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
               <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
-              <div title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais pesa na Cabeça."><dt>Pressão</dt><dd class:low={(life?.pressure ?? 30) >= 80} class:high={(life?.pressure ?? 30) < 35}>{life?.pressure ?? 30}</dd></div>
+              <div title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais derruba a fase do Mental."><dt>Pressão</dt><dd class:low={(life?.pressure ?? 30) >= 80} class:high={(life?.pressure ?? 30) < 35}>{life?.pressure ?? 30}</dd></div>
             </dl>
           </div>
           <div class="frow" class:home={!abroad}>
@@ -2083,7 +2090,7 @@
                 <p class="sheet-talk-line">Você já mexeu nas funções nesta semana.</p>
               {/if}
               {#if career && sheetMate && naturalRoleOf(career, sheetMate) !== sheetMate.player.role}<p class="sheet-talk-line">Jogando fora da função dele ({ROLE_META[naturalRoleOf(career, sheetMate)]?.label}): −2 de overall.</p>{/if}
-              {#if career && canKickMate(career)}<button class="link-btn kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')}>Pedir a saída de {detailsPlayer.nickname}</button>{/if}
+              {#if career && canKickMate(career)}<button class="secondary-btn small kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')}>Pedir a saída de {detailsPlayer.nickname}</button>{/if}
             </div>
           </CareerCard>
         {:else}
@@ -2250,6 +2257,46 @@
             <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if evoOpen && career}
+    {@const phase = agePhase(career.age)}
+    {@const stages = [{ label: 'Em formação', ages: 'até 21' }, { label: 'Auge', ages: '22 a 26' }, { label: 'Experiente', ages: '27 e 28' }, { label: 'Veterano', ages: '29 a 33' }, { label: 'Fim de carreira', ages: '34+' }]}
+    {@const capped = career.overall >= career.truePotential}
+    {@const sessions = (career.trainCount ?? 0) % 3}
+    <div class="modal-backdrop" role="presentation" on:click|self={() => (evoOpen = false)}>
+      <div class="modal evo-modal" role="dialog" aria-modal="true" aria-labelledby="evo-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="evo-title">Evolução · {career.age} anos · overall {career.overall}</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={() => (evoOpen = false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <ol class="evo-stages" aria-label="Fases da carreira">
+          {#each stages as stage (stage.label)}
+            <li class:here={stage.label === phase.label}><b>{stage.label}</b><span>{stage.ages}</span></li>
+          {/each}
+        </ol>
+        <p class="evo-phase"><b>{phase.label}.</b> {phase.detail}</p>
+        <div class="evo-growth" class:stopped={capped}>
+          {#if capped}
+            <b>O treino não sobe mais o seu overall.</b> Você chegou no seu teto; agora o treino mexe nas habilidades (até +{TRAIN_CAP} em cada) e a idade decide o resto.
+          {:else}
+            <b>Ainda cresce com treino.</b> A cada 3 semanas de treino, +1 de overall: faltam {3 - sessions} {3 - sessions === 1 ? 'treino' : 'treinos'} para o próximo.
+          {/if}
+        </div>
+        <p class="label">Treino nas habilidades (teto +{TRAIN_CAP})</p>
+        {#if evolving.length}
+          <ul class="evo-skills">
+            {#each evolving as item (item.label)}
+              <li class:neg={item.bonus < 0} class:full={item.bonus >= TRAIN_CAP}><span>{item.label}</span><i style={`--v:${Math.max(0, Math.min(100, (item.bonus / TRAIN_CAP) * 100))}%`}></i><b>{item.bonus > 0 ? '+' : '−'}{Math.abs(item.bonus)}{item.bonus >= TRAIN_CAP ? ' · no teto' : ''}</b></li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="modal-note">Nada em treino ainda. O treino livre da semana escolhe até 4 habilidades.</p>
+        {/if}
       </div>
     </div>
   {/if}
@@ -3215,9 +3262,19 @@
   @media (min-width: 960px) and (hover: hover) and (pointer: fine) { .squad .squad-actions .squad-btn { min-height: 26px; } }
   .squad-actions .squad-btn { white-space: nowrap; }
   .squad-actions { gap: 6px 8px; align-items: center; }
+  /* Os dois botões do elenco sempre lado a lado (nunca um em cima do outro). */
+  .squad-actions { flex-wrap: nowrap; flex: none; }
+  /* Tela média: o título do elenco fica em cima e os botões numa linha embaixo, à direita; o treino livre vira 4 por linha. */
+  @media (max-width: 1180px) {
+    .squad .section-head { flex-wrap: wrap; row-gap: 6px; }
+    .squad .section-head > .label { flex: 1 1 100%; }
+    .squad .squad-actions { margin-left: auto; }
+    .week .free-train .skills-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
   .transfer-btn { border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line)); color: var(--accent-2); }
   .transfer-btn:hover:not(:disabled) { border-color: var(--accent-2); color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 10%, var(--surface-2)); }
-  .kick-btn { justify-self: start; color: var(--accent-2); }
+  .kick-btn { justify-self: start; border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line)); color: var(--accent-2); }
+  .kick-btn:hover:not(:disabled) { border-color: var(--accent-2); color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 10%, var(--surface-2)); }
   .role-sheet { width: min(520px, calc(100vw - 32px)); display: grid; gap: 12px; }
   .bench-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--accent-2); font-size: 13px; font-weight: 700; }
   .lang-chip { color: var(--muted); letter-spacing: .04em; }
@@ -3690,6 +3747,12 @@
   .fact-rows .facts dd { font-size: 18px; }
   .fact-rows .facts .money dd, .fact-rows .facts dd.small-dd { font-size: 14px; }
   .fact-rows .fat-bar { height: 3px; }
+  .fact-rows dd .phase { margin-left: 3px; font: 700 11px/1 var(--body); }
+  .fact-rows dd.high .phase { color: var(--accent); }
+  .fact-rows dd.low .phase { color: var(--accent-2); }
+  .fact-rows dd.low, .fact-rows dd.high { color: var(--text); }
+  .fat-bar i.phase-bar { background: var(--accent); }
+  .fat-bar i.phase-bar.low { background: var(--accent-2); }
   .scout-teams { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .scout-teams button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px 4px 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 700 13px/1 var(--body); cursor: pointer; }
   .scout-teams button:hover, .scout-teams button:focus-visible { border-color: var(--accent); }
@@ -3786,7 +3849,27 @@
   .wcat { flex-wrap: wrap; row-gap: 3px; }
   .wcard b { overflow: visible; font-size: 15px; line-height: 1.08; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .wcontact { white-space: normal; }
-  .evolving { display: block; overflow: hidden; margin: 6px 0 0; color: var(--accent); font: 700 10px/1.3 var(--body); letter-spacing: .08em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .evolving { all: unset; box-sizing: border-box; display: block; width: 100%; overflow: hidden; margin: 6px 0 0; color: var(--accent); font: 700 10px/1.3 var(--body); letter-spacing: .08em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+  .evolving:hover, .evolving:focus-visible { color: var(--text); }
+  .evolving:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .evolving i { margin-left: 6px; font-style: normal; }
+  .evo-modal { width: min(560px, calc(100vw - 32px)); display: grid; gap: 12px; }
+  .evo-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .evo-stages li { display: grid; gap: 3px; padding: 7px 6px; border: 1px solid var(--line); color: var(--muted); text-align: center; }
+  .evo-stages li b { font: 800 12px/1.1 var(--display); text-transform: uppercase; }
+  .evo-stages li span { font-size: 10px; }
+  .evo-stages li.here { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--accent); }
+  .evo-phase { margin: 0; font-size: 14px; line-height: 1.45; }
+  .evo-growth { padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 14px; line-height: 1.45; }
+  .evo-growth.stopped { border-left-color: var(--accent-2); }
+  .evo-growth b { color: var(--text); }
+  .evo-skills { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .evo-skills li { display: grid; grid-template-columns: 110px minmax(0, 1fr) 90px; align-items: center; gap: 10px; font-size: 13px; }
+  .evo-skills li i { height: 6px; background: linear-gradient(90deg, var(--accent) var(--v), color-mix(in srgb, var(--line) 80%, transparent) var(--v)); }
+  .evo-skills li.full i { background: var(--gold); }
+  .evo-skills li.neg i { background: var(--accent-2); }
+  .evo-skills li b { font-variant-numeric: tabular-nums; text-align: right; }
+  @media (max-width: 520px) { .evo-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); } .evo-skills li { grid-template-columns: 80px minmax(0, 1fr) 70px; } }
   .evolving span { margin-right: 6px; color: var(--muted); font-size: 10px; }
   .evolving em { color: var(--muted); font-style: normal; }
   .age-phase { display: none; }

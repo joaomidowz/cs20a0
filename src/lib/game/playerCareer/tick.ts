@@ -19,7 +19,7 @@ export function tickLife(state: PlayerCareerState, result: TournamentResult | nu
     level: org.level,
     fame: state.fame ?? 0,
     result: result && !result.skipped && !result.benched ? result : null,
-    // O Mental da carta sem o empurrão que a própria Cabeça dá (senão ela se puxaria para cima sozinha).
+    // O Mental da carta sem o empurrão que a própria fase dá (senão ela se puxaria para cima sozinha).
     mentalSkill: Number(myPlayerOf(state).mental ?? 80) - mindBump(lifeOf(state).mind)
   });
   const morale = Math.max(0, Math.min(100, (state.morale ?? 60) + advanced.moraleDelta));

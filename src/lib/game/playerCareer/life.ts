@@ -52,11 +52,11 @@ export function withFlags(life: CareerLife, flags: string[]): CareerLife {
 
 export interface LifeContext {
   abroad: boolean; teamFluency: number; avgRelationship: number; level: number; fame: number; result?: TournamentResult | null;
-  /** O Mental da sua carta (sem o empurrão da própria Cabeça): quem tem Mental forte segura a Cabeça mais alta. */
+  /** O Mental da sua carta (sem o empurrão da própria fase): quem tem Mental forte segura a fase mais alta. */
   mentalSkill?: number;
 }
 
-/** O patamar natural da Cabeça pelo Mental da carta: 80 → 60, 96 → 66, 70 → 56 (de 48 a 72). */
+/** O patamar natural da fase do Mental pela carta: 80 → 60, 96 → 66, 70 → 56 (de 48 a 72). */
 export const mindHome = (mentalSkill: number | undefined) => clamp(60 + ((mentalSkill ?? 80) - 80) * 0.4, 48, 72);
 
 /**
@@ -85,7 +85,7 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
   const placement = ctx.result?.placement;
   const shock = placement === 'Campeão' ? -8 : placement === 'Vice' ? 0 : placement === 'Semis' ? 2 : placement ? 6 : 0;
   pressure = Math.round(clamp(pressure + (base - pressure) * 0.3 + shock));
-  // Cabeça: anda para o patamar do seu Mental de carta (forte segura mais alto), devagar.
+  // Fase do Mental: anda para o patamar do seu Mental de carta (forte segura mais alto), devagar.
   // Ganhar dá confiança (título +5, final +3, semi +2); cair cedo com pressão alta pesa (−2).
   // Descansado ela sobe (+2), esgotado ela cai (−2); semana tranquila (pressão e cansaço baixos) soma +1 com o tempo.
   // Saudade alta e pressão altíssima tiram um pouco. Nada só piora e nada só melhora.

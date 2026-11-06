@@ -388,7 +388,7 @@ export function resolveHappening(state: PlayerCareerState, choiceIndex: number):
     ...(benchOf(event.id, choiceIndex) ? { benchedEvents: (state.benchedEvents ?? 0) + benchOf(event.id, choiceIndex) } : {})
   };
   if (formDelta) chips.push({ label: 'Forma', value: formDelta });
-  if (mindDelta) chips.push({ label: 'Cabeça', value: mindDelta });
+  if (mindDelta) chips.push({ label: 'Fase mental', value: mindDelta });
   if (moraleDelta) chips.push({ label: 'Moral', value: moraleDelta });
   if (chemistryDelta) chips.push({ label: 'Química', value: chemistryDelta });
   if (reputationDelta) chips.push({ label: 'Reputação', value: reputationDelta });

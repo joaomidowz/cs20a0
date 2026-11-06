@@ -32,7 +32,7 @@ export interface AgendaEffects {
   fatigue?: number;
   /** Fluência de idioma: inglês ou o idioma da call do time. */
   lang?: { target: 'en' | 'team'; amount: number };
-  /** Cabeça (o Mental fora do servidor, 0-100). */
+  /** Fase do Mental (0-100): o dia a dia que puxa o Mental da carta até 3 para cada lado. */
   mind?: number;
 }
 
@@ -55,7 +55,7 @@ export interface AgendaAction {
 export const CATEGORY_LABEL: Record<AgendaCategory, string> = {
   treino: 'Treino', amigos: 'Amigos', bootcamp: 'Bootcamp', stream: 'Stream', coach: 'Coach',
   externo: 'Profissional', time: 'Time', descanso: 'Descanso', mercado: 'Mercado',
-  pug: 'PUG', posicao: 'Posição', scrim: 'Scrim', analise: 'Análise', mente: 'Cabeça', adaptacao: 'Adaptação',
+  pug: 'PUG', posicao: 'Posição', scrim: 'Scrim', analise: 'Análise', mente: 'Mental', adaptacao: 'Adaptação',
   familia: 'Família', conteudo: 'Conteúdo', convivencia: 'Convivência', negocios: 'Carreira', corpo: 'Corpo', lazer: 'Lazer',
   campeonato: 'Campeonato', social: 'Vida social'
 };
@@ -380,12 +380,12 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.team) chips.push({ label: 'Elenco', value: effects.team, kind: 'team' });
   if (effects.fame) chips.push({ label: 'Fãs', value: effects.fame, kind: 'fame' });
   if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue, kind: 'fatigue' });
-  if (effects.mind) chips.push({ label: 'Cabeça', value: effects.mind, kind: 'morale' });
+  if (effects.mind) chips.push({ label: 'Fase mental', value: effects.mind, kind: 'morale' });
   if (effects.lang) chips.push({ label: effects.lang.target === 'en' ? 'Inglês' : 'Idioma do time', value: effects.lang.amount, kind: 'train' });
   return chips;
 }
 
-/** O que a semana faz pela Cabeça rende 25% a mais (cuidar da cabeça precisa valer a vaga na semana). */
+/** O que a semana faz pela fase do Mental rende 25% a mais (cuidar da cabeça precisa valer a vaga na semana). */
 export const MIND_WEEK_FACTOR = 1.25;
 const weekMind = (effects: AgendaEffects): AgendaEffects => (effects.mind && effects.mind > 0 ? { ...effects, mind: Math.round(effects.mind * MIND_WEEK_FACTOR) } : effects);
 
@@ -433,7 +433,7 @@ export function applyEffects(state: PlayerCareerState, effects: AgendaEffects, c
   if (effects.mind) {
     const current = lifeOf(state);
     const mind = clamp(current.mind + effects.mind, 0, 100);
-    if (mind !== current.mind) chips.push({ label: 'Cabeça', value: mind - current.mind, kind: 'morale' });
+    if (mind !== current.mind) chips.push({ label: 'Fase mental', value: mind - current.mind, kind: 'morale' });
     life = { ...current, mind };
   }
   let languages = state.languages;
