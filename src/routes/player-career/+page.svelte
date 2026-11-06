@@ -1519,7 +1519,7 @@
             <dl class="facts">
               <div title="Seguidores: títulos, MVPs, jogadas e acontecimentos. Com 20 mil fãs, +1 de Mental em quadra; com 100 mil, +2."><dt>Fãs</dt><dd>{fame.toLocaleString('pt-BR')}</dd></div>
               <div title="Imagem com times, imprensa e torcida. Sobe e desce com as suas escolhas nos acontecimentos."><dt>Reputação</dt><dd class:low={(career.reputation ?? 50) < 35} class:high={(career.reputation ?? 50) >= 70}>{career.reputation ?? 50}</dd></div>
-              <div title="Pressão de fora: tier, fãs e resultados. Com 80 ou mais derruba a fase do Mental."><dt>Pressão</dt><dd class:low={(life?.pressure ?? 30) >= 80} class:high={(life?.pressure ?? 30) < 35}>{life?.pressure ?? 30}</dd></div>
+              <div title="Pressão de fora: sobe com o tier, os fãs e cair cedo; volta sozinha para o normal do seu tier a cada campeonato. Alivia com título, final, psicólogo, sair das redes, folga, família e atividades de Mental na semana. Com 80 ou mais derruba a fase do Mental."><dt>Pressão</dt><dd class:low={(life?.pressure ?? 30) >= 80} class:high={(life?.pressure ?? 30) < 35}>{life?.pressure ?? 30}</dd></div>
             </dl>
           </div>
           <div class="frow" class:home={!abroad}>

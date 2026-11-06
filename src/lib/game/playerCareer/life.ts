@@ -83,7 +83,9 @@ export function advanceLife(state: PlayerCareerState, ctx: LifeContext, weeks = 
   // Pressão: o tier e a fama empurram, o resultado mexe, e ela volta devagar para o patamar do tier.
   const base = 20 + (5 - Math.min(5, ctx.level)) * 8 + (ctx.fame >= 100000 ? 10 : ctx.fame >= 20000 ? 5 : 0);
   const placement = ctx.result?.placement;
-  const shock = placement === 'Campeão' ? -8 : placement === 'Vice' ? 0 : placement === 'Semis' ? 2 : placement ? 6 : 0;
+  // Título alivia muito, final alivia um pouco, semi quase não mexe, cair cedo pesa (menos que antes, para a derrota
+  // não virar bola de neve sozinha).
+  const shock = placement === 'Campeão' ? -8 : placement === 'Vice' ? -3 : placement === 'Semis' ? 1 : placement ? 4 : 0;
   pressure = Math.round(clamp(pressure + (base - pressure) * 0.3 + shock));
   // Fase do Mental: anda para o patamar do seu Mental de carta (forte segura mais alto), devagar.
   // Ganhar dá confiança (título +5, final +3, semi +2); cair cedo com pressão alta pesa (−2).

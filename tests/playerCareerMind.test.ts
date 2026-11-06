@@ -6,6 +6,7 @@ import { createPlayerCareer, startSeason, type PlayerCareerState, type Tournamen
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { advanceLife, DEFAULT_LIFE, mindHome } from '../src/lib/game/playerCareer/life';
 import { tickLife } from '../src/lib/game/playerCareer/tick';
+import { applyAgenda } from '../src/lib/game/playerCareer/agenda';
 
 const at = (seed: string): PlayerCareerState => {
   const base = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'igl', seed });
@@ -37,5 +38,16 @@ describe('Cabeça', () => {
     let state: PlayerCareerState = { ...at('mind-2'), fatigue: 20, life: { ...DEFAULT_LIFE, mind: 40, pressure: 30 } };
     for (let index = 0; index < 6; index += 1) state = tickLife(state, null).state;
     expect(state.life!.mind).toBeGreaterThan(50);
+  });
+
+  it('pressão: psicólogo e sair das redes aliviam na semana; final alivia, cair cedo pesa menos que antes', () => {
+    const state = { ...at('mind-3'), life: { ...DEFAULT_LIFE, pressure: 90 } };
+    const after = applyAgenda(state, 'psicologo');
+    expect(after.state.life!.pressure).toBe(80);
+    expect(after.chips.find((chip) => chip.label === 'Pressão')?.value).toBe(-10);
+    const vice = advanceLife({ ...state, fatigue: 40 }, { ...ctx, level: 0, result: result('Vice') }).life.pressure;
+    const out = advanceLife({ ...state, fatigue: 40 }, { ...ctx, level: 0, result: result('Quartas') }).life.pressure;
+    expect(vice).toBeLessThan(out);
+    expect(out - vice).toBe(7);
   });
 });

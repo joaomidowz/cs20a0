@@ -34,6 +34,8 @@ export interface AgendaEffects {
   lang?: { target: 'en' | 'team'; amount: number };
   /** Fase do Mental (0-100): o dia a dia que puxa o Mental da carta até 3 para cada lado. */
   mind?: number;
+  /** Pressão de fora (negativo alivia). */
+  pressure?: number;
 }
 
 export interface AgendaAction {
@@ -119,7 +121,7 @@ export const AGENDA: AgendaAction[] = [
   A('video-jogadas', 'stream', 'Vídeo de jogadas', 'Editar um vídeo com seus melhores rounds.', { fame: 350, morale: 3 }, 'O vídeo rodou e o pessoal gostou.'),
   A('react-final', 'stream', 'React da final', 'Comentar uma final ao vivo com o chat.', { fame: 500, attrs: { igl: 1 } }, 'Você leu o jogo como um analista.'),
   A('collab-streamer', 'stream', 'Collab com streamer grande', 'Jogar na live de um streamer famoso.', { fame: 800, morale: 4 }, 'Muita gente nova conheceu o seu nick.', { needs: { fame: 1000 } }),
-  A('sair-redes', 'stream', 'Sair das redes', 'Uma semana sem Twitter e sem live.', { attrs: { mental: 2 }, morale: 3, mind: 4, fame: -200 }, 'Paz na cabeça. Alguns seguidores foram embora.'),
+  A('sair-redes', 'stream', 'Sair das redes', 'Uma semana sem Twitter e sem live.', { attrs: { mental: 2 }, morale: 3, mind: 4, pressure: -8, fame: -200 }, 'Paz na cabeça. Alguns seguidores foram embora.'),
 
   // Coach
   A('coach-mortes', 'coach', 'Coach: rever suas mortes', 'Ver com o coach onde você morre de graça.', { attrs: { consistency: 2 }, form: 1, trainStep: true }, 'Você parou de dar pick de graça.'),
@@ -133,7 +135,7 @@ export const AGENDA: AgendaAction[] = [
   }),
 
   // Profissionais de fora
-  A('psicologo', 'externo', 'Psicólogo esportivo', 'Trabalhar pressão e respiração.', { attrs: { mental: 3, consistency: 1 }, morale: 4, mind: 6 }, 'Respirar antes do round virou hábito.'),
+  A('psicologo', 'externo', 'Psicólogo esportivo', 'Trabalhar pressão e respiração.', { attrs: { mental: 3, consistency: 1 }, morale: 4, mind: 6, pressure: -10 }, 'Respirar antes do round virou hábito.'),
   A('coach-mira-particular', 'externo', 'Coach de mira particular', 'Aulas com um especialista em mira.', { attrs: { firepower: 3 }, morale: -1 }, 'Mira nova. Cansativo, mas valeu.'),
   A('analista', 'externo', 'Analista de dados', 'Números das suas últimas partidas.', { attrs: { consistency: 2, igl: 1 } }, 'Os números mostraram onde você perde round.'),
   A('preparador', 'externo', 'Preparador físico', 'Postura, punho e resistência.', { attrs: { consistency: 2, mental: 1 }, morale: 2 }, 'Sem dor no punho no fim do dia.'),
@@ -153,14 +155,14 @@ export const AGENDA: AgendaAction[] = [
   }),
 
   // Descanso e vida
-  A('folga', 'descanso', 'Folga total', 'Desligar o PC por três dias.', { morale: 8, mind: 3, attrs: { mental: 1 }, form: -1 }, 'Voltou com vontade de jogar.'),
-  A('familia', 'descanso', 'Visitar a família', 'Voltar para casa por uns dias.', { morale: 10, mind: 4, attrs: { mental: 1 } }, 'Comida de casa e apoio de quem importa.'),
-  A('academia', 'descanso', 'Academia', 'Treino físico todo dia.', { attrs: { consistency: 1, mental: 1 }, morale: 2, mind: 2 }, 'Corpo forte, cabeça também.'),
+  A('folga', 'descanso', 'Folga total', 'Desligar o PC por três dias.', { morale: 8, mind: 3, pressure: -6, attrs: { mental: 1 }, form: -1 }, 'Voltou com vontade de jogar.'),
+  A('familia', 'descanso', 'Visitar a família', 'Voltar para casa por uns dias.', { morale: 10, mind: 4, pressure: -6, attrs: { mental: 1 } }, 'Comida de casa e apoio de quem importa.'),
+  A('academia', 'descanso', 'Academia', 'Treino físico todo dia.', { attrs: { consistency: 1, mental: 1 }, morale: 2, mind: 2, pressure: -3 }, 'Corpo forte, cabeça também.'),
   A('ajustar-sono', 'descanso', 'Ajustar o sono', 'Dormir no horário do campeonato.', { attrs: { consistency: 2 }, form: 1 }, 'Acordado e afiado na hora do jogo.'),
   A('balada', 'descanso', 'Sair para a balada', 'Comemorar com os amigos.', { morale: 7, form: -2 }, 'Noite boa. A ressaca nem tanto.', {
     risk: { chance: 0.25, effects: { team: -2, fame: 300 }, line: 'Uma foto sua na balada rodou o Twitter.' }
   }),
-  A('outro-jogo', 'descanso', 'Jogar outro jogo', 'Descansar a cabeça em outro game.', { morale: 6, mind: 2, attrs: { firepower: -1 } }, 'Cabeça leve. A mira enferrujou um pouco.'),
+  A('outro-jogo', 'descanso', 'Jogar outro jogo', 'Descansar a cabeça em outro game.', { morale: 6, mind: 2, pressure: -4, attrs: { firepower: -1 } }, 'Cabeça leve. A mira enferrujou um pouco.'),
 
   // Mercado
   A('ouvir-propostas', 'mercado', 'Ouvir propostas', 'Seu empresário sonda outros times.', { fame: 150, morale: 2, team: -3 }, 'Tem time de olho em você.'),
@@ -193,7 +195,9 @@ for (const action of AGENDA) {
 
 /** As 194 novas (as que dependem de fato que o motor não guarda ficam de fora, como "relacionamento existente"). */
 export const WEEK_ACTIONS: AgendaAction[] = WEEK.activities.filter((row) => !isUnsupported(row.condition) && WEEK_CATEGORY[row.category ?? '']).map((row) => ({
-  id: row.id, category: WEEK_CATEGORY[row.category!], title: row.title!, text: row.text!, effects: row.effects ?? {}, line: row.line!,
+  id: row.id, category: WEEK_CATEGORY[row.category!], title: row.title!, text: row.text!,
+  // Atividades de cabeça (categoria Mental) também aliviam um pouco a pressão de fora.
+  effects: WEEK_CATEGORY[row.category!] === 'mente' && (row.effects?.mind ?? 0) > 0 ? { ...(row.effects ?? {}), pressure: -4 } : row.effects ?? {}, line: row.line!,
   ...(row.risk ? { risk: row.risk } : {}), conditions: row.condition, rarity: row.rarity, cooldownWeeks: row.cooldownWeeks
 }));
 export const WEEK_UNSUPPORTED = WEEK.activities.filter((row) => isUnsupported(row.condition)).map((row) => row.id);
@@ -381,6 +385,7 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.fame) chips.push({ label: 'Fãs', value: effects.fame, kind: 'fame' });
   if (effects.fatigue) chips.push({ label: 'Cansaço', value: effects.fatigue, kind: 'fatigue' });
   if (effects.mind) chips.push({ label: 'Fase mental', value: effects.mind, kind: 'morale' });
+  if (effects.pressure) chips.push({ label: 'Pressão', value: effects.pressure, kind: 'fatigue' });
   if (effects.lang) chips.push({ label: effects.lang.target === 'en' ? 'Inglês' : 'Idioma do time', value: effects.lang.amount, kind: 'train' });
   return chips;
 }
@@ -436,6 +441,12 @@ export function applyEffects(state: PlayerCareerState, effects: AgendaEffects, c
     if (mind !== current.mind) chips.push({ label: 'Fase mental', value: mind - current.mind, kind: 'morale' });
     life = { ...current, mind };
   }
+  if (effects.pressure) {
+    const current = life ? { ...lifeOf(state), ...life } : lifeOf(state);
+    const pressure = clamp(current.pressure + effects.pressure, 0, 100);
+    if (pressure !== current.pressure) chips.push({ label: 'Pressão', value: pressure - current.pressure, kind: 'fatigue' });
+    life = { ...current, pressure };
+  }
   let languages = state.languages;
   if (effects.lang) {
     const language = effects.lang.target === 'en' ? 'en' : myLanguageFit(state).language;
@@ -455,6 +466,7 @@ function scaleGains(effects: AgendaEffects, factor: number): AgendaEffects {
     ...effects,
     attrs: effects.attrs ? Object.fromEntries(Object.entries(effects.attrs).map(([key, value]) => [key, value > 0 ? Math.max(0, Math.round(value * factor)) : value])) : undefined,
     morale: up(effects.morale), form: up(effects.form), fame: up(effects.fame), team: up(effects.team), mind: up(effects.mind),
+    pressure: effects.pressure && effects.pressure < 0 ? Math.round(effects.pressure * factor) : effects.pressure,
     lang: effects.lang ? { ...effects.lang, amount: Math.round(effects.lang.amount * factor) } : undefined
   };
 }
