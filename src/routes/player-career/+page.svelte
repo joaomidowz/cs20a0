@@ -2076,6 +2076,13 @@
               <div class="bond-bar"><i class:high={sheetMate.relationship >= 70} class:low={sheetMate.relationship < 35} style={`width:${sheetMate.relationship}%`}></i></div>
               <button class="cta sheet-talk" on:click={() => { if (!career || !sheetMate) return; const mateId = sheetMate.player.id; chat(mateId); sheetMate = matesOf(career).find((mate) => mate.player.id === mateId) ?? sheetMate; }}>Conversar com {detailsPlayer.nickname}</button>
               {#if lastTalk && lastTalk.mateId === sheetMate.player.id}<p class="sheet-talk-line">{lastTalk.line}</p>{/if}
+              {#if career && career.orgId !== 'lan-house' && career.status === 'ACTIVE'}
+                {#if canKickMate(career)}
+                  <button class="secondary-btn small kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')} title="A diretoria decide. Se aceitar, entra alguém no nível do time.">Pedir a saída de {detailsPlayer.nickname}</button>
+                {:else}
+                  <button class="secondary-btn small kick-btn" disabled title="Uma vez por temporada.">Pedir a saída · você já pediu nesta temporada</button>
+                {/if}
+              {/if}
               {#if career && benchReserve && sheetMate}<button class="secondary-btn small" on:click={() => sheetMate && benchMate(sheetMate.player.id)}>Mandar para o banco · entra {benchReserve.nick}</button>{/if}
               {#if career && sheetMate && canSwapRoles(career)}
                 <div class="swap-roles">
@@ -2090,7 +2097,6 @@
                 <p class="sheet-talk-line">Você já mexeu nas funções nesta semana.</p>
               {/if}
               {#if career && sheetMate && naturalRoleOf(career, sheetMate) !== sheetMate.player.role}<p class="sheet-talk-line">Jogando fora da função dele ({ROLE_META[naturalRoleOf(career, sheetMate)]?.label}): −2 de overall.</p>{/if}
-              {#if career && canKickMate(career)}<button class="secondary-btn small kick-btn" on:click={() => sheetMate && askKick(sheetMate.player.id, sheetMate.player.nickname ?? 'parceiro')}>Pedir a saída de {detailsPlayer.nickname}</button>{/if}
             </div>
           </CareerCard>
         {:else}
