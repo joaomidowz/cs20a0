@@ -3,7 +3,7 @@
 // encerra sozinho e aos 40 o jogador pendura o mouse e vira coach.
 import { describe, expect, it } from 'vitest';
 import {
-  ageDecline, agePhase, chooseStartingOrg, createPlayerCareer, finishSeason, injuryChance, MAX_CAREER_AGE,
+  ageDecline, agePhase, trainingCeiling, chooseStartingOrg, createPlayerCareer, finishSeason, injuryChance, MAX_CAREER_AGE,
   recordEventResult, startSeason, type PlayerCareerState
 } from '../src/lib/game/playerCareer/engine';
 
@@ -21,7 +21,7 @@ const playSeason = (state: PlayerCareerState, rating: number) => {
 
 describe('idade', () => {
   it('declínio de veterano cresce com a idade e lesão fica mais provável', () => {
-    expect([24, 29, 31, 34].map(ageDecline)).toEqual([0, 1, 2, 3]);
+    expect([24, 29, 31, 34, 35, 38].map(ageDecline)).toEqual([0, 1, 0, 0, 1, 2]);
     expect(injuryChance(22)).toBeLessThan(injuryChance(30));
     expect(injuryChance(30)).toBeLessThan(injuryChance(36));
     expect(injuryChance(60)).toBeLessThanOrEqual(0.45);
@@ -30,17 +30,30 @@ describe('idade', () => {
     expect(agePhase(32).detail).toContain('Perde');
   });
 
-  it('aos 32, a temporada registra quanto a idade tirou e o overall cai', () => {
+  it('aos 32 o veterano cai devagar (cerca de 1); aos 36 a idade pesa mais e a temporada registra', () => {
     let drops = 0;
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 8; index += 1) {
       const before = seasonAt(`old-${index}`, 32, 82);
       const after = playSeason(before, 1.0);
-      const log = after.history.at(-1)!;
-      expect(log.ageDecline).toBeGreaterThanOrEqual(2);
-      expect(log.age).toBe(33);
+      expect(after.history.at(-1)!.age).toBe(33);
+      expect(before.overall - after.overall).toBeLessThanOrEqual(2);
+      expect(after.overall).toBeLessThanOrEqual(before.overall);
       if (after.overall < before.overall) drops += 1;
     }
-    expect(drops).toBeGreaterThanOrEqual(5);
+    expect(drops).toBeGreaterThanOrEqual(2);
+    for (let index = 0; index < 4; index += 1) {
+      const before = seasonAt(`older-${index}`, 36, 82);
+      const after = playSeason(before, 1.0);
+      expect(after.history.at(-1)!.ageDecline).toBeGreaterThanOrEqual(1);
+      expect(after.overall).toBeLessThan(before.overall);
+    }
+  });
+
+  it('treino de veterano passa do teto natural em até 4', () => {
+    const base = seasonAt('vet-train', 30, 84);
+    const state = { ...base, truePotential: 84 };
+    expect(trainingCeiling(state)).toBe(88);
+    expect(trainingCeiling({ ...state, age: 24 })).toBe(84);
   });
 
   it('aviso de aposentadoria pela idade não encerra a carreira antes dos 40', () => {

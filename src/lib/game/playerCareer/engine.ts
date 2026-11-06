@@ -592,9 +592,21 @@ export const MAX_CAREER_AGE = 40;
 
 /**
  * Declínio de veterano por temporada. A curva real do catálogo tem amostra boa até ~29 anos; depois quase não há
- * jogador para medir e a média oscila. Aqui o desgaste é explícito: −1 aos 29-30, −2 aos 31-33, −3 dos 34 em diante.
+ * jogador para medir e a média oscila. Aqui o desgaste é explícito, somado à curva (que já tira 1 por ano dos 31 em
+ * diante): no total, cerca de −1 por temporada dos 29 aos 34, −2 dos 35 aos 37 e −3 dos 38 em diante. Temporada boa
+ * (rating alto) ainda segura, e o treino de veterano pode passar do teto em até 4 (VETERAN_TRAIN_ROOM).
  */
-export const ageDecline = (age: number): number => (age >= 34 ? 3 : age >= 31 ? 2 : age >= 29 ? 1 : 0);
+export const ageDecline = (age: number): number => (age >= 38 ? 2 : age >= 35 ? 1 : age >= 29 && age <= 30 ? 1 : 0);
+
+/** Quanto o veterano perde por temporada, no total (para a tela). */
+export const veteranLoss = (age: number): number => (age >= 38 ? 3 : age >= 35 ? 2 : age >= 30 ? 1 : 0);
+
+/** A partir dos 27, o treino pode levar o overall até 4 acima do teto natural (o FalleN e o apEX seguram assim). */
+export const VETERAN_TRAIN_ROOM = 4;
+export const VETERAN_TRAIN_AGE = 27;
+/** Até onde o treino leva o overall: o teto natural; dos 27 em diante, até 4 acima dele. */
+export const trainingCeiling = (state: Pick<PlayerCareerState, 'truePotential' | 'age'>): number =>
+  Math.min(99, state.truePotential + (state.age >= VETERAN_TRAIN_AGE ? VETERAN_TRAIN_ROOM : 0));
 
 /** Quanto mais velho, mais lesão: 6% até os 24, +2,5 pontos por ano depois, até 45%. */
 export const injuryChance = (age: number): number => Math.min(0.45, 0.06 + Math.max(0, age - 24) * 0.025);
@@ -604,8 +616,8 @@ export function agePhase(age: number): { label: string; detail: string } {
   if (age <= 21) return { label: 'Em formação', detail: 'Sobe rápido se jogar bem.' };
   if (age <= 26) return { label: 'Auge', detail: 'Melhor fase da carreira.' };
   if (age <= 28) return { label: 'Experiente', detail: 'Parou de crescer. Segura o nível.' };
-  const next = ageDecline(age + 1);
-  return { label: age <= 33 ? 'Veterano' : 'Fim de carreira', detail: `Perde ${next} de overall por temporada. Limite: ${MAX_CAREER_AGE}.` };
+  const next = veteranLoss(age + 1);
+  return { label: age <= 33 ? 'Veterano' : 'Fim de carreira', detail: `Perde cerca de ${next} de overall por temporada; treino segura e pode passar do teto em até ${VETERAN_TRAIN_ROOM}. Limite: ${MAX_CAREER_AGE}.` };
 }
 
 const INJURIES_YOUNG = ['Tendinite no punho', 'Lombalgia'];

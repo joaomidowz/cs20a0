@@ -7,7 +7,7 @@
 import rawWeek from '$lib/data/cs/career-week.game.json';
 import { createSeededRng } from '../simulation';
 import type { Player, TrainingFocus } from '../types';
-import { orgOf, playedCount, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, playedCount, trainingCeiling, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
 import { coachOf, matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
 import { LANGUAGE_LABEL, learn, myFluency, NON_NATIVE_MAX } from './language';
 import { careerCtx, conditionsHold, isUnsupported } from './conditions';
@@ -531,7 +531,7 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
   const trainStep = Boolean(action.effects.trainStep && !tired && !stepped);
   if (trainStep) {
     trainCount += 1;
-    overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
+    overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < trainingCeiling(next);
   }
   next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, action.id, action.category, cost, trainStep, drawAgenda(state).map((card) => card.id));
   const merged = mergeChips(chips);
@@ -586,7 +586,7 @@ export function applyCustomTraining(state: PlayerCareerState, attributes: Traine
   const stepped = state.week?.window === window && state.week.trainStepped;
   const trainStep = !tired && !stepped;
   const trainCount = (next.trainCount ?? 0) + (trainStep ? 1 : 0);
-  const overallUp = trainStep && trainCount % OVERALL_EVERY === 0 && next.overall < next.truePotential;
+  const overallUp = trainStep && trainCount % OVERALL_EVERY === 0 && next.overall < trainingCeiling(next);
   next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, 'treino-livre', 'treino', FREE_TRAINING_COST, trainStep, drawAgenda(state).map((card) => card.id));
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names.at(-1)}` : names[0];
   const capped = !chips.some((chip) => chip.kind === 'attr') ? ' Essas habilidades já estão no teto do treino.' : '';

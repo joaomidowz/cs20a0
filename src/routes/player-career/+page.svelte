@@ -33,7 +33,7 @@
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
   import { lifeOf, livesAbroad, mindBump } from '$lib/game/playerCareer/life';
   import {
-    ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, agePhase, trainingCeiling, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
@@ -2264,7 +2264,7 @@
   {#if evoOpen && career}
     {@const phase = agePhase(career.age)}
     {@const stages = [{ label: 'Em formação', ages: 'até 21' }, { label: 'Auge', ages: '22 a 26' }, { label: 'Experiente', ages: '27 e 28' }, { label: 'Veterano', ages: '29 a 33' }, { label: 'Fim de carreira', ages: '34+' }]}
-    {@const capped = career.overall >= career.truePotential}
+    {@const capped = career.overall >= trainingCeiling(career)}
     {@const sessions = (career.trainCount ?? 0) % 3}
     <div class="modal-backdrop" role="presentation" on:click|self={() => (evoOpen = false)}>
       <div class="modal evo-modal" role="dialog" aria-modal="true" aria-labelledby="evo-title" use:focusInside>
@@ -2282,9 +2282,9 @@
         <p class="evo-phase"><b>{phase.label}.</b> {phase.detail}</p>
         <div class="evo-growth" class:stopped={capped}>
           {#if capped}
-            <b>O treino não sobe mais o seu overall.</b> Você chegou no seu teto; agora o treino mexe nas habilidades (até +{TRAIN_CAP} em cada) e a idade decide o resto.
+            <b>O treino não sobe mais o seu overall.</b> Você chegou no máximo que o treino alcança{career.age >= 27 ? ` (o seu teto mais ${4})` : ''}; agora o treino mexe nas habilidades (até +{TRAIN_CAP} em cada) e segura o que a idade tira.
           {:else}
-            <b>Ainda cresce com treino.</b> A cada 3 semanas de treino, +1 de overall: faltam {3 - sessions} {3 - sessions === 1 ? 'treino' : 'treinos'} para o próximo.
+            <b>Ainda cresce com treino.</b> A cada 3 semanas de treino, +1 de overall: faltam {3 - sessions} {3 - sessions === 1 ? 'treino' : 'treinos'} para o próximo.{#if career.age >= 27 && career.overall >= career.truePotential} Você já passou do seu teto natural: dos 27 em diante o treino leva até 4 acima dele.{/if}
           {/if}
         </div>
         <p class="label">Treino nas habilidades (teto +{TRAIN_CAP})</p>
