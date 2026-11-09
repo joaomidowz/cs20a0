@@ -50,6 +50,7 @@
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
+  import { currentLevelOf, teamTierLabel } from '$lib/game/playerCareer/tiers';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
@@ -1114,7 +1115,9 @@
   $: benchReserve = career && career.orgId !== 'lan-house' ? planOf(career).reserve : null;
   $: oppCoach = career && opponentOrg ? coachOfOrg(career.seed, career.seasonNumber, opponentOrg.id) : null;
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
-  $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? headlineTransfers(career.seed, career.seasonNumber, 4) : [];
+  /** As trocas da virada, as de times de tier mais alto hoje (currentLevelOf) primeiro. */
+  const sceneMarketOf = (state: PlayerCareerState) => headlineTransfers(state.seed, state.seasonNumber, 4, (orgId) => currentLevelOf(state, orgId));
+  $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? sceneMarketOf(career) : [];
   $: sceneRetired = career && !career.calendar && career.seasonNumber > 1 ? headlineRetirements(career.seed, career.seasonNumber, 3) : [];
   $: sceneProspects = career && !career.calendar && career.seasonNumber > 1 ? risingProspects(career.seed, career.seasonNumber, 4) : [];
   $: weekCards = career && currentEntry ? drawAgenda(career) : [];
@@ -1858,7 +1861,7 @@
                   <p class="label">Promessas da cena · até 21 anos</p>
                   <ul>
                     {#each sceneProspects as kid (kid.nick)}
-                      <li><b>{kid.nick}</b> {kid.age} anos · {kid.orgName} ({LEVEL_LABEL[kid.level]}) <span>· overall {kid.overall}{kid.delta > 0 ? ` (+${kid.delta})` : kid.delta < 0 ? ` (−${Math.abs(kid.delta)})` : ''}{kid.curated ? ' · base real' : ''}</span></li>
+                      <li><b>{kid.nick}</b> {kid.age} anos · {kid.orgName} ({teamTierLabel(currentLevelOf(career, kid.orgId))}) <span>· overall {kid.overall}{kid.delta > 0 ? ` (+${kid.delta})` : kid.delta < 0 ? ` (−${Math.abs(kid.delta)})` : ''}{kid.curated ? ' · base real' : ''}</span></li>
                     {/each}
                   </ul>
                 </div>

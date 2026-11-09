@@ -206,7 +206,10 @@ const withOverall = (rosters: Map<string, SceneRosterMember[]>, dev: Map<string,
     return overall === undefined || overall === member.overall ? member : { ...member, overall };
   })]));
 
-/** O mundo na temporada N da carreira (a 1 é a cena coletada, sem trocas). */
+/** O mundo na temporada N da carreira (a 1 é a cena coletada, sem trocas). Evolui pelo nível BASE do catálogo
+ *  (`org.level`), nunca pelo nível desta carreira (a fonte única de tiers.ts): aposentadoria, trocas entre níveis
+ *  vizinhos, olheiros e a vaga de quem cede o lugar a você dependem só da seed, então uma temporada não depende do
+ *  resultado da outra (D6). Quem mostra o mundo na tela é que passa o nível de hoje (headlineTransfers). */
 export function sceneWorld(seed: string, season: number): WorldSeason {
   const key = `${seed}:${season}`;
   const cached = cache.get(key);
@@ -573,9 +576,9 @@ export function orgIn(seed: string, season: number, orgId: string): SceneOrg | u
   return { ...org, roster: rosterIn(seed, season, org.id), season, ...(power !== undefined ? { power } : {}) };
 }
 
-/** As trocas mais chamativas da temporada: times de tier mais alto primeiro. */
-export function headlineTransfers(seed: string, season: number, limit = 6): SceneTransfer[] {
-  const levelOf = (id: string) => sceneOrgById.get(id)?.level ?? 9;
+/** As trocas mais chamativas da temporada: times de tier mais alto primeiro. `levelOf` é o nível que a tela mostra
+ *  (a página passa o nível de hoje, de tiers.ts); sem ele, o nível base do catálogo. */
+export function headlineTransfers(seed: string, season: number, limit = 6, levelOf: (orgId: string) => number = (id) => sceneOrgById.get(id)?.level ?? 9): SceneTransfer[] {
   return [...sceneWorld(seed, season).transfers]
     .sort((a, b) => Math.min(levelOf(a.fromId), levelOf(a.toId)) - Math.min(levelOf(b.fromId), levelOf(b.toId)))
     .slice(0, limit);
@@ -592,8 +595,8 @@ export interface RisingProspect {
   overall: number;
   /** Quanto subiu desde a temporada anterior. */
   delta: number;
+  orgId: string;
   orgName: string;
-  level: number;
   /** Promessa da base real (identidade curada, link HLTV). */
   curated: boolean;
 }
@@ -615,7 +618,7 @@ export function risingProspects(seed: string, season: number, limit = 4): Rising
       if (born === null || year - born > 21 || seen.has(key) || member.overall === undefined) continue;
       seen.add(key);
       const before = world.previousOverall.get(key);
-      list.push({ nick: memberNick(member), age: year - born, overall: member.overall, delta: before === undefined ? 0 : member.overall - before, orgName: org.name, level: org.level, curated: Boolean(member.hltv) });
+      list.push({ nick: memberNick(member), age: year - born, overall: member.overall, delta: before === undefined ? 0 : member.overall - before, orgId: org.id, orgName: org.name, curated: Boolean(member.hltv) });
     }
   }
   return list.sort((a, b) => Number(b.curated) - Number(a.curated) || b.overall - a.overall || b.delta - a.delta).slice(0, limit);
