@@ -156,6 +156,10 @@ export interface CalendarEntry {
   prizePool?: number;
   /** Retorno de campeonato histórico: o formato original e o que o jogo usa no lugar. */
   note?: string;
+  /** Campeonato ou qualificatória (saves antigos: sem, é campeonato). A qualificatória vale vaga no campeonato do mundo
+   *  `qualifiesFor` (a `key` do WorldEvent, circuit.ts). */
+  kind?: 'event' | 'qualifier';
+  qualifiesFor?: string;
 }
 
 /** O que o save guarda de um evento em andamento: a chave e as séries já fechadas (rebuild determinístico). */

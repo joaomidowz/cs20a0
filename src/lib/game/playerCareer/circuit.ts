@@ -18,6 +18,7 @@ import type { CalendarEntry, PlayerCareerState, TournamentResult } from './engin
 import { careerMapPool, ENGINE_PLACE, EVENT_FORM_SWING, pickEventMvp, SCENE_EVENT_FORMAT, sceneOrgEnginePlayers, sceneOrgToEngineTeam, SUPERTEAM_DAMPING, SUPERTEAM_EDGE } from './live';
 import { rankOrderAt } from './ranking';
 import { homeLevelOf, levelFromRank } from './tiers';
+import { qualifierWinners } from './qualifiers';
 import { worldOrgIn, yearOfSeason } from './world';
 
 /** Sobe quando a simulação do circuito muda: o cache antigo deixa de valer e o circuito é jogado de novo. */
@@ -293,23 +294,9 @@ export function worldInvites(state: PlayerCareerState, event: WorldEvent, withUs
   return { order, invited, userOrg };
 }
 
-/** As vagas de qualificatória: os melhores do ranking que não foram convidados e não pularam. Fora do Major, o seu time
- *  não disputa essa vaga (a vaga do calendário é dele). O plano 04 troca isto pelas qualificatórias por região. */
-function qualifierSlotsOf(state: PlayerCareerState, event: WorldEvent, invites: WorldInvites): string[] {
-  const taken = new Set(invites.invited);
-  const picked: string[] = [];
-  for (const [rank, orgId] of invites.order.entries()) {
-    if (picked.length >= event.qualifierSlots) break;
-    if (taken.has(orgId)) continue;
-    if (orgId === invites.userOrg ? event.format !== 'major' : skipsEvent(state, event, orgId, rank)) continue;
-    picked.push(orgId);
-  }
-  return picked;
-}
-
-/** A chave do campeonato, na ordem do ranking. O seu time entra se o campeonato está no seu calendário: convidado pelo
- *  ranking ou pela vaga do calendário ('user'); no Major, só pelo ranking (top 24 convidado, 25º a 32º na vaga de
- *  qualificatória). */
+/** A chave do campeonato, na ordem do ranking: os convidados e quem passou nas qualificatórias regionais
+ *  (qualifiers.ts). O seu time entra se o campeonato está no seu calendário: convidado, pela qualificatória ou, no
+ *  campeonato que o seu nível joga direto, pela vaga do calendário ('user'). No Major, só por convite ou qualificatória. */
 export function worldFieldOf(state: PlayerCareerState, event: WorldEvent): WorldEventSlot[] {
   return buildField(state, event, Boolean(userEntryOf(state, event)));
 }
@@ -318,10 +305,12 @@ function buildField(state: PlayerCareerState, event: WorldEvent, withUser: boole
   const invites = worldInvites(state, event, withUser);
   const slots: WorldEventSlot[] = [
     ...invites.invited.map((orgId) => ({ orgId, via: 'invite' as const })),
-    ...qualifierSlotsOf(state, event, invites).map((orgId) => ({ orgId, via: 'qualifier' as const }))
+    ...qualifierWinners(state, event, invites).map((orgId) => ({ orgId, via: 'qualifier' as const }))
   ];
-  // Fora do Major, o seu campeonato do calendário tem vaga garantida: ela fica com a última vaga de qualificatória.
-  if (withUser && event.format !== 'major' && !slots.some((slot) => slot.orgId === invites.userOrg)) slots.splice(slots.length - 1, 1, { orgId: invites.userOrg, via: 'user' });
+  // Fora do Major, o campeonato do seu calendário sem qualificatória tem vaga garantida: ela fica com o último convite.
+  if (withUser && event.format !== 'major' && !slots.some((slot) => slot.orgId === invites.userOrg)) {
+    slots.splice(slots.map((slot) => slot.via).lastIndexOf('invite'), 1, { orgId: invites.userOrg, via: 'user' });
+  }
   const position = new Map(invites.order.map((orgId, index) => [orgId, index]));
   return slots.sort((a, b) => (position.get(a.orgId) ?? invites.order.length) - (position.get(b.orgId) ?? invites.order.length));
 }
