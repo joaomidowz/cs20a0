@@ -152,3 +152,28 @@ describe('round decisivo cabe na tela do celular', () => {
     expect(page).toContain("node.scrollIntoView({ behavior: 'smooth', block: phone ? 'end' : 'center' });");
   });
 });
+
+describe('semana cabe na tela do celular', () => {
+  it('cartas em 2 colunas mais baixas: efeitos numa linha, contato com reticências e a carta que sobra na linha inteira', () => {
+    const block = lastPhoneBlock(source(PAGE));
+    expect(block).toContain('.week-cards { gap: 4px; }');
+    expect(block).toContain('.week-cards .wcard { gap: 3px; padding: 5px 6px; }');
+    expect(block).toContain('.week-cards .wcard:last-child:nth-child(odd) { grid-column: 1 / -1; }');
+    expect(block).toContain('.wcard b { font-size: 12.5px; line-height: 1.05; }');
+    expect(block).toContain('.wcontact { font-size: 10.5px; white-space: nowrap; }');
+    expect(block).toContain('.wchips i { padding: 1px 3px; font-size: 9.5px; letter-spacing: -.01em; }');
+  });
+
+  it('cabeçalho e treino livre mais compactos, sem botão de toque abaixo de 34px', () => {
+    const block = lastPhoneBlock(source(PAGE));
+    expect(block).toContain('.week .section-head .label { font-size: 9.5px; letter-spacing: .06em; }');
+    expect(block).toContain('.week .train-line { flex: 1 1 100%; font-size: 11.5px; line-height: 1.3; }');
+    expect(block).toContain('.free-train { gap: 5px 8px; padding: 6px; }');
+    expect(block).toContain('.skills-pick button { min-height: 34px; }');
+    expect(block).toContain('.ft-actions .secondary-btn { min-width: 104px; min-height: 34px; }');
+  });
+
+  it('o contato inteiro continua no title da carta', () => {
+    expect(source(PAGE)).toContain("${contact ? ` Com ${contact.nick} (${contact.org}).` : ''}");
+  });
+});

@@ -4170,5 +4170,32 @@
     .clutch-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
     .clutch-foot .auto { gap: 8px; font-size: 12px; line-height: 1.25; }
     .clutch-foot .link-btn { max-width: 10em; padding: 0; font-size: 11px; letter-spacing: .06em; line-height: 1.25; text-align: right; }
+    /* Semana no celular: cabeçalho menor, treino livre em 2 linhas de 4, cartas em 2 colunas mais baixas (efeitos numa
+       linha, contato numa linha com reticências; o nome inteiro segue no title da carta) e a carta que sobra sozinha
+       ocupa a linha inteira. A semana inteira cabe numa tela de 375x667. */
+    .week { gap: 6px; }
+    .week .section-head { gap: 4px 8px; }
+    .week .section-head .label { font-size: 9.5px; letter-spacing: .06em; }
+    .week .train-line { flex: 1 1 100%; font-size: 11.5px; line-height: 1.3; }
+    .week-chips { margin-left: 6px; }
+    .week-chips i { padding: 2px 4px; font-size: 10px; }
+    .free-train { gap: 5px 8px; padding: 6px; }
+    .free-train .skills-pick { gap: 3px; }
+    .skills-pick button { min-height: 34px; }
+    .ft-head b { font-size: 14px; }
+    .ft-head span { font-size: 10px; }
+    .ft-actions .secondary-btn { min-width: 104px; min-height: 34px; }
+    .week-right { gap: 4px; }
+    .week-cards { gap: 4px; }
+    .week-cards .wcard { gap: 3px; padding: 5px 6px; }
+    .week-cards .wcard:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .wcat { gap: 4px; font-size: 9px; letter-spacing: .06em; }
+    .wcost { padding: 1px 3px; }
+    .wcard b { font-size: 12.5px; line-height: 1.05; }
+    .wcontact { font-size: 10.5px; white-space: nowrap; }
+    .wdone, .wdim { font-size: 9.5px; }
+    .wchips { gap: 2px; }
+    .wchips i { padding: 1px 3px; font-size: 9.5px; letter-spacing: -.01em; }
+    .coach-line { min-height: 0; padding: 3px 6px; font-size: 12px; line-height: 1.3; }
   }
 </style>
