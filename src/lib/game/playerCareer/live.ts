@@ -829,7 +829,9 @@ export function finishSceneEvent(campaign: CampaignMajorState, maxSteps = 8000, 
     const step = stepSceneEvent(current, { role: calls.role, seed: calls.seed, usedSituationIds: used });
     if (!step.clutch) { current = step.campaign; continue; }
     used.push(step.clutch.situation.id);
-    current = playClutchRound(step.campaign, step.clutch, { ...headlessPlay(calls, step.campaign, step.clutch) }).campaign;
+    const outcome = playClutchRound(step.campaign, step.clutch, { ...headlessPlay(calls, step.campaign, step.clutch) });
+    calls.onCall?.({ seriesId: step.clutch.series.config.id, won: outcome.won });
+    current = outcome.campaign;
   }
   return current;
 }
@@ -845,6 +847,8 @@ export interface HeadlessCalls {
   chemistry: number | null;
   /** Para 'style': o perfil que você sempre escolhe. */
   style?: ClutchSituation['alternatives'][number]['profile'];
+  /** Medição: avisa cada call jogada (a série e se o round foi seu). */
+  onCall?: (call: { seriesId: string; won: boolean }) => void;
 }
 
 function headlessPlay(calls: HeadlessCalls, campaign: CampaignMajorState, moment: SceneClutchMoment): SceneClutchPlay {
