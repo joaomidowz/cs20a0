@@ -71,7 +71,7 @@ export const circuitFromOf = (state: PlayerCareerState): number => state.circuit
  * jogado, o fim do ano; entre temporadas, o fim da anterior; antes da primeira, o mês 0. Enquanto um campeonato seu
  * está em andamento o relógio não anda: ele só passa quando o resultado é gravado.
  */
-export function circuitClock(state: PlayerCareerState): CircuitClock {
+export function circuitClock(state: Pick<PlayerCareerState, 'seasonNumber' | 'calendar' | 'history'>): CircuitClock {
   const upcoming = (state.calendar ?? []).filter((entry) => entry.status === 'UPCOMING');
   if (upcoming.length) return { season: state.seasonNumber, month: Math.max(0, Math.min(...upcoming.map((entry) => entry.month ?? 12)) - 1) };
   if (state.calendar?.length) return { season: state.seasonNumber, month: 12 };
