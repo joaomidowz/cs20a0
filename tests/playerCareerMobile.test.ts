@@ -119,3 +119,36 @@ describe('tela inicial em 320px', () => {
     expect(source(PAGE)).toContain('.nick-row { display: flex; align-items: center; gap: 12px; min-width: 0; }');
   });
 });
+
+describe('round decisivo cabe na tela do celular', () => {
+  it('a dica de cada call fica atrás de um toque no celular (e no title da call); no computador o botão some', () => {
+    const page = source(PAGE);
+    expect(page).toContain('let callHints = false;');
+    expect(page).toContain('<p class="clutch-ctx" class:hints-only={!clutchCtx}>');
+    expect(page).toContain('<button type="button" class="hints-btn" aria-expanded={callHints} aria-controls="clutch-calls" on:click={() => (callHints = !callHints)}>');
+    expect(page).toContain('<div class="calls" class:hints-open={callHints} id="clutch-calls">');
+    expect(page).toContain('title={RISK[alternative.profile].hint}');
+    expect(page).toContain('.hints-btn, .clutch-ctx.hints-only { display: none; }');
+    const block = lastPhoneBlock(page);
+    expect(block).toContain('.call .risk-hint { display: none; font-size: 12px; line-height: 1.3; }');
+    expect(block).toContain('.calls.hints-open .call .risk-hint { display: block; }');
+    expect(block).toContain('.clutch-ctx.hints-only { display: flex; }');
+    expect(block).toMatch(/\.hints-btn \{ display: inline-flex;[^}]*min-height: 44px;/);
+  });
+
+  it('calls com 52px de toque, situação menor e lados com dinheiro numa linha só', () => {
+    const block = lastPhoneBlock(source(PAGE));
+    expect(block).toContain('.call { grid-template-columns: 72px minmax(0, 1fr); align-content: center; gap: 4px 10px; min-height: 52px; padding: 8px 10px; }');
+    expect(block).toContain('.call b { font-size: 18px; line-height: 1; }');
+    expect(block).toContain('.clutch-q h2 { font-size: 25px; }');
+    expect(block).toContain('.board { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding-bottom: 8px; }');
+    expect(block).toContain('.board .label { grid-column: auto; grid-row: auto;');
+    expect(block).toContain('.clutch-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }');
+  });
+
+  it('no celular o painel encosta embaixo da tela para o placar do mapa ficar à vista', () => {
+    const page = source(PAGE);
+    expect(page).toContain("const phone = window.matchMedia('(max-width: 680px)').matches && node.offsetHeight < window.innerHeight - 80;");
+    expect(page).toContain("node.scrollIntoView({ behavior: 'smooth', block: phone ? 'end' : 'center' });");
+  });
+});

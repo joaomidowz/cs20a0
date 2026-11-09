@@ -162,6 +162,8 @@
   /** Nas próximas calls o jogo decide no seu estilo (o perfil da última call que você fez). */
   let autoCall = false;
   let autoProfile: ClutchProfile = 'solid';
+  /** Celular: quando cada call é certa fica atrás de um toque (no computador aparece sempre embaixo de cada call). */
+  let callHints = false;
   let menuOpen = false;
   let statsOpen = false;
   let trophiesOpen = false;
@@ -993,7 +995,9 @@
 
   /** Em ULTRA a página voa — o painel de decisão precisa vir até você, não o contrário. */
   function scrollToPanel(node: HTMLElement) {
-    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Celular: o painel encosta embaixo da tela, e o placar do mapa e a faixa de rounds ficam à vista em cima dele.
+    const phone = window.matchMedia('(max-width: 680px)').matches && node.offsetHeight < window.innerHeight - 80;
+    node.scrollIntoView({ behavior: 'smooth', block: phone ? 'end' : 'center' });
   }
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1909,18 +1913,19 @@
                       <div class="clutch-q">
                         <p class="eyebrow">Sua call{#if clutchMoment} · <span class="moment" class:planted={clutchMoment.planted}>{clutchMoment.text}</span>{/if}</p>
                         <h2 class="display">{clutch.situation.text}</h2>
-                        {#if clutchCtx}
-                          <p class="clutch-ctx">
+                        <p class="clutch-ctx" class:hints-only={!clutchCtx}>
+                          {#if clutchCtx}
                             <span>Placar <b>{clutchCtx.us}-{clutchCtx.them}</b></span>
                             {#if clutchCtx.winStreak >= 2}<span class="up">{clutchCtx.winStreak} rounds seguidos a favor</span>{:else if clutchCtx.lossStreak >= 2}<span class="down">{clutchCtx.lossStreak} rounds seguidos perdidos</span>{/if}
                             {#if clutchCtx.money !== null && clutchCtx.money < 2400}<span class="down">vocês no eco</span>{/if}
                             {#if clutchCtx.theirMoney !== null && clutchCtx.theirMoney < 2400}<span class="up">eles no eco</span>{/if}
-                          </p>
-                        {/if}
+                          {/if}
+                          <button type="button" class="hints-btn" aria-expanded={callHints} aria-controls="clutch-calls" on:click={() => (callHints = !callHints)}>{callHints ? 'Esconder dicas' : 'Quando cada uma é certa'}</button>
+                        </p>
                       </div>
-                      <div class="calls">
+                      <div class="calls" class:hints-open={callHints} id="clutch-calls">
                         {#each clutch.situation.alternatives as alternative, index}
-                          <button class="call" on:click={() => pick(index as 0 | 1 | 2)}>
+                          <button class="call" on:click={() => pick(index as 0 | 1 | 2)} title={RISK[alternative.profile].hint}>
                             <span class="risk risk-{alternative.profile}">{RISK[alternative.profile].label}</span>
                             <b>{alternative.text}</b>
                             <span class="risk-hint">{RISK[alternative.profile].hint}</span>
@@ -3070,6 +3075,8 @@
   .clutch-ctx b { color: var(--text); font-variant-numeric: tabular-nums; }
   .clutch-ctx .up { color: var(--accent); }
   .clutch-ctx .down { color: var(--accent-2); }
+  /* O botão das dicas das calls só existe no celular (no computador a dica fica sempre embaixo de cada call). */
+  .hints-btn, .clutch-ctx.hints-only { display: none; }
   .read-line { margin: 0; padding: 8px 10px; border-left: 3px solid var(--muted); background: color-mix(in srgb, var(--surface) 70%, transparent); font-size: 14px; line-height: 1.45; }
   .read-line.read-good { border-left-color: var(--accent); }
   .read-line.read-good b { color: var(--accent); }
@@ -4140,5 +4147,28 @@
     /* Sala de troféus: abas com 44px de toque (quebram em duas linhas). */
     .room-tabs button { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 0 10px; }
     .modal.confirm h2 { font-size: 28px; }
+    /* Round decisivo no celular: lados e dinheiro numa linha só, a situação e as 3 calls na mesma tela (cada call com
+       52px de toque). Quando cada call é certa fica atrás de "Quando cada uma é certa" (e no title da call). */
+    .clutch { gap: 8px; margin: 8px -6px 0; padding: 10px; }
+    .board { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding-bottom: 8px; }
+    .board .label { grid-column: auto; grid-row: auto; font-size: 10px; letter-spacing: .06em; line-height: 1.25; }
+    .side-cell { flex-direction: column; align-items: flex-start; gap: 3px; }
+    .side-cell.right { flex-direction: column-reverse; align-items: flex-end; }
+    .side { font-size: 12px; }
+    .money { font-size: 11px; }
+    .clutch-q .eyebrow { margin-bottom: 4px; font-size: 10px; letter-spacing: .08em; }
+    .clutch-q h2 { font-size: 25px; }
+    .clutch-ctx { align-items: center; gap: 2px 10px; margin-top: 6px; font-size: 12px; }
+    .clutch-ctx.hints-only { display: flex; }
+    .hints-btn { display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -10px auto; padding: 0 2px; border: 0; background: none; color: var(--accent); font: 700 11px/1 var(--body); letter-spacing: .04em; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .calls { gap: 6px; }
+    .call { grid-template-columns: 72px minmax(0, 1fr); align-content: center; gap: 4px 10px; min-height: 52px; padding: 8px 10px; }
+    .call .risk { justify-self: stretch; padding: 5px 4px; font-size: 10px; letter-spacing: .06em; text-align: center; }
+    .call b { font-size: 18px; line-height: 1; }
+    .call .risk-hint { display: none; font-size: 12px; line-height: 1.3; }
+    .calls.hints-open .call .risk-hint { display: block; }
+    .clutch-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .clutch-foot .auto { gap: 8px; font-size: 12px; line-height: 1.25; }
+    .clutch-foot .link-btn { max-width: 10em; padding: 0; font-size: 11px; letter-spacing: .06em; line-height: 1.25; text-align: right; }
   }
 </style>
