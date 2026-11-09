@@ -33,11 +33,11 @@
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
   import { lifeOf, livesAbroad, mindBump } from '$lib/game/playerCareer/life';
   import {
-    ARCHETYPES, ROLE_META, acceptMove, agePhase, trainingCeiling, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, agePhase, trainingCeiling, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureCircuitFrom, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
-  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
+  import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
   import { TRAIN_CAP, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
@@ -48,6 +48,9 @@
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
+  import { circuitReady } from '$lib/game/playerCareer/circuit';
+  import { freezeRanking, teamRankOf, teamRanking } from '$lib/game/playerCareer/ranking';
+  import { circuitProgress, scheduleCircuit, stopCircuit } from '$lib/game/playerCareer/circuitRunner';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
   import { currentLevelOf, eventTierLabel, seasonLevelOf, TEAM_TIER_ABOUT, TEAM_TIER_LABEL, teamTierAbout, teamTierLabel, teamTierTitle, type TeamTier } from '$lib/game/playerCareer/tiers';
@@ -245,6 +248,8 @@
   // deles (antes de qualquer leitura de elenco).
   $: if (career) registerCareerWorld(career);
   $: if (career) persist(career);
+  // O circuito do mundo joga em segundo plano o que já aconteceu até o mês do seu próximo campeonato.
+  $: if (career) scheduleCircuit(career);
 
   function persist(state: PlayerCareerState) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* modo anônimo: só na memória */ }
@@ -265,7 +270,9 @@
     if (!nick) rollNick();
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) career = ensureSquad(ensureDraw(JSON.parse(saved) as PlayerCareerState));
+      if (saved) career = ensureCircuitFrom(ensureSquad(ensureDraw(JSON.parse(saved) as PlayerCareerState)));
+      // Recarregou enquanto a temporada fechava: ela fecha quando o mundo terminar o ano.
+      if (career?.status === 'ACTIVE' && career.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED') && !career.pendingDilemma && !career.pendingHappening && !career.pendingMove) seasonClosing = true;
     } catch { /* save corrompido: começa do zero */ }
   });
 
@@ -375,7 +382,7 @@
 
   function closeDilemma() {
     dilemmaResult = null;
-    if (career?.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) career = finishSeason(career);
+    if (career?.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) closeSeason(career);
   }
 
   function closeTalk() {
@@ -421,9 +428,32 @@
     if (!detailsPlayer && !opponentOrgId && !confirming) document.body.classList.remove('modal-open');
   }
 
+  /** O que espera o circuito do mundo fechar os campeonatos de antes do mês (a chave sai do ranking do mês anterior). */
+  let waitingCircuit: (() => void) | null = null;
+  function circuitGate(retry: () => void): boolean {
+    if (!career || circuitReady(career)) return true;
+    waitingCircuit = retry;
+    return false;
+  }
+  $: if (waitingCircuit && career && $circuitProgress.tick >= 0 && circuitReady(career)) {
+    const retry = waitingCircuit;
+    waitingCircuit = null;
+    retry();
+  }
+
+  /** Fecha a temporada quando o circuito do mundo terminou o ano: o ranking final entra no acesso do seu time. */
+  let seasonClosing = false;
+  function closeSeason(state: PlayerCareerState) {
+    career = state;
+    seasonClosing = !circuitReady(state);
+    if (!seasonClosing) career = finishSeason(state, teamRankOf(state, state.orgId));
+  }
+  $: if (seasonClosing && career && $circuitProgress.tick >= 0 && circuitReady(career)) closeSeason(career);
+
   /** Antes de cada campeonato pode rolar um acontecimento; ele espera a sua escolha e o campeonato segue depois. */
   function begin(index: number, mode: 'pace' | 'live' | 'sim') {
     if (!career) return;
+    if (!circuitGate(() => begin(index, mode))) return;
     // No banco: o time joga sem você; o campeonato roda direto (sem call, sem provocação).
     if ((career.benchedEvents ?? 0) > 0) { simulateEvent(index); return; }
     const key = `${career.seasonNumber}:${index}`;
@@ -478,7 +508,7 @@
     queuedStart = null;
     if (!career) return;
     // A escolha pode ter tirado o campeonato (folga), te posto no banco ou aberto uma proposta.
-    if (career.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) { career = finishSeason(career); return; }
+    if (career.calendar?.length && career.calendar.every((entry) => entry.status === 'PLAYED')) { closeSeason(career); return; }
     if (!queued || career.pendingMove || career.calendar?.[queued.index]?.status !== 'UPCOMING') return;
     if ((career.benchedEvents ?? 0) > 0) simulateEvent(queued.index);
     else launchEntry(queued.index, queued.mode);
@@ -687,13 +717,17 @@
     if (!career) return;
     const moved = acceptMove(career, orgId);
     // Troca no fim do ano (nenhum campeonato pela frente): a temporada fecha na hora.
-    career = moved.calendar?.length && moved.calendar.every((entry) => entry.status === 'PLAYED') ? finishSeason(moved) : moved;
+    if (moved.calendar?.length && moved.calendar.every((entry) => entry.status === 'PLAYED')) closeSeason(moved);
+    else career = moved;
   }
   function refuseMove() { if (career) career = declineMove(career); }
   function hangTheMouse() { if (career) career = retire(career); }
   function reset() {
     runToken += 1;
     running = false;
+    stopCircuit();
+    waitingCircuit = null;
+    seasonClosing = false;
     try {
       localStorage.removeItem(STORAGE_KEY);
       if (career) localStorage.removeItem(`${STORAGE_KEY}:situations:${career.seed}`);
@@ -704,8 +738,11 @@
   function openSeason() { if (career) career = startSeason(career); }
 
   function enterEvent(index: number, toFinal = false) {
+    if (!career) return;
+    if (!circuitGate(() => enterEvent(index, toFinal))) return;
+    // O ranking congela até o resultado ser gravado: a chave do save é sempre a mesma.
+    career = freezeRanking(career, index);
     const me = career;
-    if (!me) return;
     eventError = null;
     stageBanner = null;
     const entry = me.calendar?.[index];
@@ -713,7 +750,7 @@
     let stage: MajorStageKey | null = null;
     let carry: StageCarry = saved?.carry ?? { wins: 0, losses: 0 };
     if (entry?.format === 'major') {
-      stage = saved?.stage ?? majorEntryStage(me);
+      stage = saved?.stage ?? majorEntryStage(me, index);
       if (!stage) {
         // O ranking da temporada não bateu: o Major fica como "Não classificado" e a temporada segue.
         finalizeEvent(index, notQualified(me, index));
@@ -905,7 +942,8 @@
 
   function persistLive() {
     if (!career || !live) return;
-    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live), stage: liveStage, carry: stageCarry } };
+    const ranking = career.liveEvent?.eventIndex === liveIndex ? career.liveEvent.ranking : undefined;
+    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live), stage: liveStage, carry: stageCarry, ...(ranking ? { ranking } : {}) } };
   }
 
   /** Fecha o campeonato (jogado ou simulado): relatório, resultado no calendário, elenco e fim de temporada. */
@@ -949,7 +987,7 @@
     pickedSkills = [];
     lastTalk = null;
     if (recorded.calendar?.every((entry) => entry.status === 'PLAYED')) {
-      career = finishSeason(recorded);
+      closeSeason(recorded);
     } else {
       // Entre campeonatos o time pode cortar (fase ruim + clima pesado) ou um time de cima pode chamar.
       const mates = matesOf(recorded);
@@ -979,8 +1017,10 @@
 
   /** Simula o campeonato inteiro sem tela (ou o resto, se havia um save no meio dele). */
   function simulateEvent(index: number) {
+    if (!career) return;
+    if (!circuitGate(() => simulateEvent(index))) return;
+    career = freezeRanking(career, index);
     const me = career;
-    if (!me) return;
     eventError = null;
     try {
       const saved = me.liveEvent?.eventIndex === index ? me.liveEvent : null;
@@ -1029,7 +1069,7 @@
     if (career) career = { ...career, playMode: value as PlayMode };
   }
 
-  onDestroy(() => { runToken += 1; if (resolveFallback !== null) window.clearTimeout(resolveFallback); });
+  onDestroy(() => { runToken += 1; stopCircuit(); if (resolveFallback !== null) window.clearTimeout(resolveFallback); });
 
   /** O placar do round decisivo: o que um caster diria antes da call. */
   function boardOf(series: LiveSeriesState, userTeamId: string) {
@@ -1101,7 +1141,8 @@
   $: opponentRoster = career && opponentOrg
     ? viewingOwn ? userEnginePlayers(career) : sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
     : [];
-  $: oppRank = career && opponentOrg ? worldRankOf(career, opponentOrg.id) : null;
+  $: oppRank = career && opponentOrg ? teamRankOf(career, opponentOrg.id) : null;
+  $: oppDelta = career && opponentOrg ? teamRanking(career).find((team) => team.orgId === opponentOrg?.id)?.delta ?? 0 : 0;
   $: oppLevel = career && opponentOrg ? currentLevelOf(career, opponentOrg.id) : 5;
   $: oppAverage = opponentRoster.length ? Math.round(opponentRoster.reduce((sum, player) => sum + (player.overall ?? 60), 0) / opponentRoster.length) : null;
   $: oppLanguage = career && opponentOrg ? orgLanguage(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg) : 'en';
@@ -1111,7 +1152,7 @@
   $: myCoach = career ? careerCoachOf(career) : null;
   $: benchReserve = career && career.orgId !== 'lan-house' ? planOf(career).reserve : null;
   $: oppCoach = career && opponentOrg ? coachOfOrg(career.seed, career.seasonNumber, opponentOrg.id) : null;
-  $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career) : null;
+  $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career, currentEntry.index) : null;
   /** As trocas da virada, as de times de tier mais alto hoje (currentLevelOf) primeiro. */
   const sceneMarketOf = (state: PlayerCareerState) => headlineTransfers(state.seed, state.seasonNumber, 4, (orgId) => currentLevelOf(state, orgId));
   $: sceneMarket = career && !career.calendar && career.seasonNumber > 1 ? sceneMarketOf(career) : [];
@@ -1163,9 +1204,9 @@
   $: liveAwards = overviewOpen && live ? awardsSoFar(live) : null;
   $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
-  $: sheetStage = career && sheetEntry?.format === 'major' ? majorEntryStage(career) : null;
+  $: sheetStage = career && sheetEntry?.format === 'major' && eventSheet !== null ? majorEntryStage(career, eventSheet) : null;
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? sheetStage ?? 'stage1' : null) : [];
-  $: sheetInvites = career && sheetEntry?.format === 'major' && sheetStage !== 'stage3' ? majorInvites(career) : [];
+  $: sheetInvites = career && sheetEntry?.format === 'major' && sheetStage !== 'stage3' && eventSheet !== null ? majorInvites(career, eventSheet) : [];
   $: sheetTeams = career && sheetEntry && eventSheet !== null ? eventTeams(career, eventSheet) : [];
   /** Idioma da call e o melhor mapa de um time da cena (para o detalhe do campeonato). */
   function teamInfo(orgId: string): { language: ReturnType<typeof teamLanguage>; map: string | null } | null {
@@ -1932,6 +1973,9 @@
                     <button class="link-btn" on:click={() => currentEntry && begin(currentEntry.index, 'live')}>Jogar ao vivo</button>
                   {/if}
                 </div>
+                {#if waitingCircuit}<p class="circuit-wait" role="status">O mundo ainda joga os campeonatos de antes deste ({$circuitProgress.pending}). O seu começa sozinho em seguida.</p>{/if}
+              {:else if seasonClosing}
+                <p class="circuit-wait" role="status">Fechando a temporada: o mundo termina os últimos campeonatos do ano ({$circuitProgress.pending}).</p>
               {:else if !career.calendar}
                 <button class="cta" on:click={openSeason}>Abrir temporada · {eventsFor(career.orgId, career)} camps</button>
               {/if}
@@ -2255,7 +2299,7 @@
         <div class="opp-head">
           <TeamBadge id={opponentOrg.id} name={opponentOrg.name} size="lg" highlight={viewingOwn} />
           <dl class="opp-facts">
-            {#if oppRank}<div><dt>Ranking</dt><dd>#{oppRank}</dd></div>{/if}
+            {#if oppRank}<div><dt>Ranking</dt><dd>#{oppRank}{#if oppDelta > 0} <span class="rank-move up" title="Subiu {oppDelta} no último mês com resultado">▲{oppDelta}</span>{:else if oppDelta < 0} <span class="rank-move down" title="Caiu {-oppDelta} no último mês com resultado">▼{-oppDelta}</span>{/if}</dd></div>{/if}
             <div title={teamTierAbout(oppLevel)}><dt>Tier</dt><dd>{teamTierTitle(oppLevel)}</dd></div>
             {#if oppAverage}<div><dt>Média</dt><dd>{oppAverage}</dd></div>{/if}
             <div><dt>Região</dt><dd>{REGION_LABEL[opponentOrg.region ?? 'eu'] ?? '—'}</dd></div>
@@ -3622,6 +3666,10 @@
   .happening-chips li.down { border-color: var(--accent-2); color: var(--accent-2); }
   .facts .money dd { font-size: 15px; }
   .invites { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .circuit-wait { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+  .rank-move { font-size: 12px; font-weight: 700; }
+  .rank-move.up { color: var(--accent); }
+  .rank-move.down { color: var(--danger); }
   .invites b { color: var(--text); }
   .field li { display: grid; grid-template-columns: 28px minmax(0, 1.3fr) auto minmax(80px, 1fr) 36px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .field li.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2)); }
