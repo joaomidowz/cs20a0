@@ -54,3 +54,21 @@ describe('tela Mundo', () => {
     expect(world).toContain('live={true}');
   });
 });
+
+describe('botão Mundo e cartas da página', () => {
+  it('o trilho abre o Mundo e o Esc fecha', () => {
+    const page = source('src/routes/player-career/+page.svelte');
+    expect(page).toContain("import CareerWorld from '$lib/components/CareerWorld.svelte';");
+    expect(page).toContain('<div class="rail-tools">');
+    expect(page).toContain('class="rail-world"');
+    expect(page).toContain('<CareerWorld state={career} onTeam={worldTeam} />');
+    expect(page).toContain('else if (worldOpen) closeWorld();');
+  });
+
+  it('títulos e MVPs nas cartas do elenco, nas fichas, no elenco do time e na busca', () => {
+    const page = source('src/routes/player-career/+page.svelte');
+    expect(page.match(/honors=\{honorsFor\(honorIndex, /g)?.length ?? 0).toBeGreaterThanOrEqual(6);
+    expect(page).toContain('<CareerHonors honors={honorsFor(honorIndex, hit.nick)} />');
+    expect(page).toContain("$: honorIndex = career?.status === 'ACTIVE' ? honorsIndex(career) : null;");
+  });
+});

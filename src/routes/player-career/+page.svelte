@@ -17,6 +17,9 @@
   import CareerWrapped from '$lib/components/CareerWrapped.svelte';
   import { buildRetrospective } from '$lib/game/playerCareer/retrospective';
   import CareerHltvTop from '$lib/components/CareerHltvTop.svelte';
+  import CareerWorld from '$lib/components/CareerWorld.svelte';
+  import CareerHonors from '$lib/components/CareerHonors.svelte';
+  import { honorsIndex, type PlayerHonors } from '$lib/game/playerCareer/honors';
   import { LAST_ROUND_FEED_FACTOR } from '$lib/game/seriesPresentation';
   import { ATTR_LABEL, CATEGORY_LABEL, FREE_TRAINING_COST, ROLE_SKILLS, TRAINABLE, TIRED_AT, actionChips, applyAgenda, applyCustomTraining, blocksLeft, coachTalk, coachTalksLeft, coachTipsOf, contactOf, costOf, customTrainingSplit, diminishOf, drawAgenda, pickedThisWeek, weekBlocks, type AgendaChip } from '$lib/game/playerCareer/agenda';
   import type { Player, PlayerRunStats } from '$lib/game/types';
@@ -156,6 +159,8 @@
   let menuOpen = false;
   let statsOpen = false;
   let trophiesOpen = false;
+  /** Tela Mundo: ranking de times, top jogadores, trocas e campeonatos do mundo (abre a qualquer momento). */
+  let worldOpen = false;
   /** Visão do campeonato ao vivo (suíça, tabela com Buchholz e chave), a mesma do Major offline e do online. */
   let overviewOpen = false;
   /** Busca de jogador (onde foi parar o ZywOo). */
@@ -537,6 +542,28 @@
     if (!detailsPlayer && !opponentOrgId && !confirming && !statsOpen && eventSheet === null) document.body.classList.remove('modal-open');
   }
 
+  function openWorld() {
+    menuOpen = false;
+    worldOpen = true;
+    document.body.classList.add('modal-open');
+  }
+
+  function closeWorld() {
+    worldOpen = false;
+    if (!detailsPlayer && !opponentOrgId && !confirming && !statsOpen && eventSheet === null) document.body.classList.remove('modal-open');
+  }
+
+  /** Do ranking do Mundo para a ficha do time (a mesma do adversário). */
+  function worldTeam(orgId: string) {
+    if (!sceneOrgById.has(orgId)) return;
+    worldOpen = false;
+    openOpponent(orgId);
+  }
+
+  /** Títulos e MVPs de um jogador para os símbolos das cartas (o índice é montado uma vez por estado). */
+  const honorsFor = (index: Map<string, PlayerHonors> | null, nick: string | null | undefined): PlayerHonors | null =>
+    index && nick ? index.get(nick.toLowerCase()) ?? null : null;
+
   /** O mata-mata de um evento, fase a fase (quartas, semis, final). */
   const BRACKET_PHASES: Array<{ phase: BracketLine['phase']; label: string }> = [
     { phase: 'quarterfinal', label: 'Quartas' }, { phase: 'semifinal', label: 'Semis' }, { phase: 'final', label: 'Final' }
@@ -653,6 +680,7 @@
     if (confirming) closeConfirm();
     else if (statsOpen) closeStats();
     else if (trophiesOpen) closeTrophies();
+    else if (worldOpen) closeWorld();
     else if (overviewOpen) overviewOpen = false;
     else if (scoutOpen) closeScout();
     else if (promoteOpen) promoteOpen = false;
@@ -1286,6 +1314,8 @@
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
   $: canTrainMap = Boolean(career && trainingWindow && career.mapTrainedWindow !== trainingWindow);
   $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, majorMvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
+  // Índice das honras (títulos, MVPs e Majors) de todo mundo: remonta só quando o mundo visível muda.
+  $: honorIndex = career?.status === 'ACTIVE' ? honorsIndex(career) : null;
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
   $: lifeLog = career && trophiesOpen && roomTab === 'historia' ? careerLog(career) : null;
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
@@ -1537,10 +1567,16 @@
           </div>
         </div>
 
-        <button class="rail-search" on:click={() => openScout()} aria-label="Buscar jogador ou time">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
-          <span>Buscar jogador ou time</span>
-        </button>
+        <div class="rail-tools">
+          <button class="rail-search" on:click={() => openScout()} aria-label="Buscar jogador ou time">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+            <span>Buscar jogador ou time</span>
+          </button>
+          <button class="rail-world" on:click={openWorld} title="Ranking de times, top jogadores, trocas e campeonatos do mundo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18" /></svg>
+            <span>Mundo</span>
+          </button>
+        </div>
 
         <div class="ovr">
           <span class="ovr-num">{career.overall}</span>
@@ -2009,10 +2045,10 @@
                   </span>
                 </div>
                 <div class="squad-strip">
-                  <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} profile={myCardInfo?.(myPlayer) ?? null} caption={myCardInfo ? '' : `Você · ${career.age} anos`} trained={career.trained ?? null} onOpen={openMySheet} notice={cardNotice?.id === myPlayer.id ? cardNotice : null} onNoticeClose={dismissNotice} />
+                  <CareerCard player={myPlayer} me={true} roleLabel={ROLE_SHORT[career.role]} profile={myCardInfo?.(myPlayer) ?? null} caption={myCardInfo ? '' : `Você · ${career.age} anos`} trained={career.trained ?? null} honors={honorsFor(honorIndex, career.nick)} onOpen={openMySheet} notice={cardNotice?.id === myPlayer.id ? cardNotice : null} onNoticeClose={dismissNotice} />
                   {#each squadMates as mate (mate.player.id)}
                     {@const bump = synergyBump(mate.relationship)}
-                    <CareerCard player={mate.player} roleLabel={ROLE_SHORT[mate.player.role as PlayerRole] ?? ''} profile={myCardInfo?.(mate.player) ?? null} caption={myCardInfo ? '' : orgOf(career.orgId).name} onOpen={() => openMateSheet(mate)} notice={cardNotice?.id === mate.player.id ? cardNotice : null} onNoticeClose={dismissNotice}>
+                    <CareerCard player={mate.player} roleLabel={ROLE_SHORT[mate.player.role as PlayerRole] ?? ''} profile={myCardInfo?.(mate.player) ?? null} caption={myCardInfo ? '' : orgOf(career.orgId).name} honors={honorsFor(honorIndex, mate.player.nickname)} onOpen={() => openMateSheet(mate)} notice={cardNotice?.id === mate.player.id ? cardNotice : null} onNoticeClose={dismissNotice}>
                       <div class="mate-foot">
                         <div class="bond">
                           <div class="bond-bar" role="img" aria-label={`Relação ${mate.relationship} de 100`}><i class:high={mate.relationship >= 70} class:low={mate.relationship < 35} style={`width:${mate.relationship}%`}></i></div>
@@ -2141,7 +2177,7 @@
           </button>
         </header>
         {#if sheetMate}
-          <CareerCard size="sheet" player={detailsPlayer} roleLabel={ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={orgOf(career?.orgId ?? '').name} profile={myCardInfo?.(detailsPlayer) ?? null}>
+          <CareerCard size="sheet" player={detailsPlayer} roleLabel={ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={orgOf(career?.orgId ?? '').name} profile={myCardInfo?.(detailsPlayer) ?? null} honors={honorsFor(honorIndex, detailsPlayer.nickname)}>
             <div class="sheet-bond">
               <div class="sheet-bond-copy">
                 <span class="label">Relação</span>
@@ -2175,7 +2211,7 @@
             </div>
           </CareerCard>
         {:else}
-          <CareerCard size="sheet" player={detailsPlayer} me={sheetIsMe} roleLabel={sheetIsMe && career ? ROLE_META[career.role].label : ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={sheetIsMe ? `Você · ${orgOf(career?.orgId ?? '').name}` : orgOf(career?.orgId ?? '').name} trained={sheetIsMe ? career?.trained ?? null : null} profile={myCardInfo?.(detailsPlayer) ?? null} />
+          <CareerCard size="sheet" player={detailsPlayer} me={sheetIsMe} roleLabel={sheetIsMe && career ? ROLE_META[career.role].label : ROLE_META[detailsPlayer.role as PlayerRole]?.label ?? ''} caption={sheetIsMe ? `Você · ${orgOf(career?.orgId ?? '').name}` : orgOf(career?.orgId ?? '').name} trained={sheetIsMe ? career?.trained ?? null : null} profile={myCardInfo?.(detailsPlayer) ?? null} honors={honorsFor(honorIndex, detailsPlayer.nickname)} />
           {#if sheetIsMe && career}
             <p class="modal-note">Os números verdes ao lado dos atributos são o que o treino já somou.</p>
           {/if}
@@ -2336,7 +2372,7 @@
         <p class="opp-maps-note">{#if oppMaps.length}Costuma banir <b>{oppMaps.at(-1)?.name}</b>.{/if}{#if !viewingOwn && myMaps.length} O seu melhor: <b>{myMaps[0].name} ({myMaps[0].score})</b>.{/if}</p>
         <div class="opp-strip">
           {#each opponentRoster as player (player.id)}
-            <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
+            <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} honors={honorsFor(honorIndex, player.nickname)} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
       </div>
@@ -2445,6 +2481,7 @@
                       {[hit.spoken, hit.age !== null ? `${hit.age} anos` : null, hit.role ? ROLE_META[hit.role as PlayerRole]?.label ?? hit.role : null].filter(Boolean).join(' · ')}
                     </span>
                   </div>
+                  <CareerHonors honors={honorsFor(honorIndex, hit.nick)} />
                   {#if hit.overall}<span class="scout-ovr" title="Overall nesta temporada">{hit.overall}</span>{/if}
                 </div>
                 <p class="scout-note"><span class="scout-status">{SCOUT_STATUS[hit.status]}</span>{hit.note}</p>
@@ -2499,6 +2536,20 @@
             <button class="happening-choice" on:click={() => pickRole(role)}><span>{ROLE_META[role].label}</span><small>Chance de encaixar: {roleChance(career, role)}%</small></button>
           {/each}
         </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if worldOpen && career}
+    <div class="modal-backdrop" role="presentation" on:click|self={closeWorld}>
+      <div class="modal wide world-modal" role="dialog" aria-modal="true" aria-labelledby="world-title" use:focusInside>
+        <header class="modal-head">
+          <span class="eyebrow" id="world-title">Mundo · {career.year}</span>
+          <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeWorld}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </header>
+        <CareerWorld state={career} onTeam={worldTeam} />
       </div>
     </div>
   {/if}
@@ -3783,6 +3834,17 @@
   /* Busca sempre à mão, coach no trilho, pirâmide em faixa e medidor da semana. */
   .rail-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font: 600 13px/1 var(--body); text-align: left; cursor: pointer; transition: border-color .14s ease, color .14s ease; }
   .rail-search:hover, .rail-search:focus-visible { border-color: var(--accent); color: var(--text); }
+  /* Mundo ao lado da busca: as duas portas para o resto da cena. A linha estica os dois botões na mesma altura. */
+  .rail-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+  .rail-world { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); color: var(--text); font: 800 12px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: border-color .14s ease, color .14s ease; }
+  .rail-world svg { flex: none; color: var(--accent); }
+  .rail-world:hover, .rail-world:focus-visible { border-color: var(--accent); color: var(--accent); }
+  /* Altura fixa: trocar de aba não faz o modal pular no meio da tela. */
+  .world-modal { align-content: start; min-height: min(640px, calc(100dvh - 32px)); }
+  @media (max-width: 680px) {
+    .rail-world { min-height: 40px; }
+    .world-modal { padding: 14px 12px; }
+  }
   .rail-coach { display: grid; gap: 7px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); background: radial-gradient(130% 80% at 0% 0%, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 60%), var(--surface-2); }
   .rc-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; }
   .rc-ovr { font: 900 32px/.85 var(--display); font-variant-numeric: tabular-nums; }
