@@ -8,7 +8,8 @@ import { orgOf, playedCount, type CalendarEntry, type PlayerCareerState, type To
 import { lifeOf, livesAbroad, type CareerLife } from './life';
 import { myFluency } from './language';
 import { matesOf, membersAt, myLanguageFit, planOf, type SquadMate } from './squad';
-import { majorEntryStage, worldRankOf } from './live';
+import { majorEntryStage } from './live';
+import { teamRankOf } from './ranking';
 import { sceneOrgs } from './data';
 
 export type Moment = 'pre' | 'post' | 'between';
@@ -62,9 +63,9 @@ const gapMonths = (ctx: CareerCtx) => {
 const lostByScore = (ctx: CareerCtx, scores: string[]) => (ctx.last?.opponents ?? []).some((game) => !game.won && scores.includes(game.score ?? ''));
 const rankOfName = (ctx: CareerCtx, name: string) => {
   const org = sceneOrgs.find((candidate) => candidate.name === name);
-  return org ? worldRankOf(ctx.state, org.id) ?? 99 : 99;
+  return org ? teamRankOf(ctx.state, org.id) ?? 99 : 99;
 };
-const myRank = (ctx: CareerCtx) => worldRankOf(ctx.state, ctx.state.orgId) ?? 99;
+const myRank = (ctx: CareerCtx) => teamRankOf(ctx.state, ctx.state.orgId) ?? 99;
 const beatBetter = (ctx: CareerCtx) => (ctx.last?.opponents ?? []).some((game) => game.won && rankOfName(ctx, game.team) < myRank(ctx));
 const lostToWorse = (ctx: CareerCtx) => (ctx.last?.opponents ?? []).some((game) => !game.won && rankOfName(ctx, game.team) > myRank(ctx) + 5);
 const seriesWinStreak = (ctx: CareerCtx) => {

@@ -26,14 +26,16 @@ import { createRunStats } from '../runStats';
 import { computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
-import { orgIn, orgPowerIn } from './world';
+import { orgIn } from './world';
+import { canonicalOrgId, circuitClock, worldEventOfEntry, worldFieldOf } from './circuit';
+import { rankOrderAt } from './ranking';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
 import { randomNick } from './extraTeams';
 import { applyCareerMapProfiles } from './careerMaps';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, orgLanguage, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
-import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
-import { levelIn, orgOf, playedCount } from './engine';
+import type { BracketLine, CalendarEntry, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
+import { levelIn, orgOf } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -187,30 +189,33 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
     return pool;
   };
   const picked: SceneOrg[] = [];
+  const rostersOf = () => new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
   // Major: cada stage pelo ranking, como no real (o top 8 só entra no Stage 3).
   if (entry?.format === 'major' && setup.stage) {
-    picked.push(...majorStageField(state, setup.stage, rng));
-    const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
-    return { seed, picked, rosters };
+    picked.push(...majorStageField(state, setup.stage, rng, eventIndex));
+    return { seed, picked, rosters: rostersOf() };
+  }
+  // Campeonato do circuito mundial (Tier S e Tier A): a chave é a do mundo (convites pelo ranking do mês anterior e as
+  // vagas de qualificatória), o mesmo campeonato que o circuito joga quando você não está nele.
+  const world = entry ? worldEventOfEntry(state, entry) : null;
+  if (world) {
+    const me = canonicalOrgId(state.orgId);
+    for (const slot of worldFieldOf(state, world)) {
+      const org = slot.orgId === me ? undefined : sceneOrgById.get(slot.orgId);
+      if (org) picked.push(org);
+    }
+    return { seed, picked, rosters: rostersOf() };
   }
   const draw = (pool: SceneOrg[], until: number) => {
     const available = pool.filter((org) => !picked.includes(org));
     while (picked.length < until && available.length) picked.push(available.splice(Math.floor(rng() * available.length), 1)[0]);
   };
-  // Tier S chama os melhores: o ranking decide, com um pouco de sorteio (às vezes um top fica fora pelo calendário).
-  if (entry?.tier === 'S' && share === 0) {
-    const ranked = widen(null, setup.opponents)
-      .map((org) => ({ org, score: (org.power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 80) + rng() * 4 }))
-      .sort((a, b) => b.score - a.score);
-    picked.push(...ranked.slice(0, setup.opponents).map((item) => item.org));
-  }
   if (regional > 0) draw(widen(true, regional), regional);
   // O resto vem de fora da região (ou de qualquer lugar, se a região não fechar a chave).
   if (share < 1) draw(widen(share > 0 ? false : null, setup.opponents - picked.length), setup.opponents);
   draw(widen(null, setup.opponents), setup.opponents);
   // Elencos da temporada (o mundo troca jogadores entre temporadas).
-  const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
-  return { seed, picked, rosters };
+  return { seed, picked, rosters: rostersOf() };
 }
 
 export interface SceneFieldTeam {
@@ -222,19 +227,35 @@ export interface SceneFieldTeam {
   isUser: boolean;
 }
 
-/** Ranking do mundo para os convites do Major (VRS simulado: a força do time, com a oscilação da temporada). */
-export function majorRanking(state: PlayerCareerState): SceneOrg[] {
-  return sceneOrgs
-    .filter((org) => org.id !== state.orgId && levelIn(state, org) <= 3)
-    .map((org) => {
-      // A força do elenco de hoje (o time que envelheceu cai, o que contratou bem sobe) e um pouco de sorte da temporada
-      // no ranking: a ordem do Major e dos convidados muda de um ano para o outro.
-      const power = orgPowerIn(state.seed, state.seasonNumber, org.id) ?? (orgOf(org.id, state) as SceneOrg).power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 66;
-      // O ranking anda a cada campeonato jogado (como o VRS): os dois Majors do ano não repetem a mesma ordem.
-      return { org, score: power + createSeededRng(`${state.seed}:vrs:${state.seasonNumber}:${playedCount(state)}:${org.id}`)() * 3 };
-    })
-    .sort((a, b) => b.score - a.score || a.org.name.localeCompare(b.org.name))
-    .map((entry) => entry.org);
+/** O Major do seu calendário em questão: o do índice pedido, o que está em andamento ou o próximo. */
+function userMajorEntry(state: PlayerCareerState, eventIndex?: number): CalendarEntry | null {
+  const calendar = state.calendar ?? [];
+  if (eventIndex !== undefined) return calendar[eventIndex]?.format === 'major' ? calendar[eventIndex] : null;
+  const current = state.liveEvent ? calendar[state.liveEvent.eventIndex] : undefined;
+  if (current?.format === 'major') return current;
+  return calendar.find((entry) => entry.format === 'major' && entry.status === 'UPCOMING') ?? null;
+}
+
+const orgsOf = (ids: string[], userOrg: string): SceneOrg[] => ids.flatMap((orgId) => {
+  const org = orgId === userOrg ? undefined : sceneOrgById.get(orgId);
+  return org ? [org] : [];
+});
+
+/** A chave do Major mundial do seu calendário, na ordem do ranking e sem o seu time (os convites e o stage de cada um
+ *  saem dela). Sem Major no calendário, o ranking inteiro. */
+export function majorRanking(state: PlayerCareerState, eventIndex?: number): SceneOrg[] {
+  const entry = userMajorEntry(state, eventIndex);
+  const event = entry ? worldEventOfEntry(state, entry) : null;
+  const ids = event ? worldFieldOf(state, event).map((slot) => slot.orgId) : rankOrderAt(state, circuitClock(state));
+  return orgsOf(ids, canonicalOrgId(state.orgId));
+}
+
+/** A sua posição na chave do Major mundial (0 = primeiro do ranking), ou -1 fora dela. */
+function majorWorldPosition(state: PlayerCareerState, eventIndex?: number): number {
+  const entry = userMajorEntry(state, eventIndex);
+  const event = entry ? worldEventOfEntry(state, entry) : null;
+  const me = canonicalOrgId(state.orgId);
+  return event ? worldFieldOf(state, event).findIndex((slot) => slot.orgId === me) : -1;
 }
 
 /**
@@ -248,8 +269,8 @@ const MAJOR_FIELD: Record<MajorStageKey, { direct: [number, number]; rest: [numb
   stage1: { direct: [16, 26], rest: [26, 64] }
 };
 
-export function majorStageField(state: PlayerCareerState, stage: MajorStageKey, rng: () => number): SceneOrg[] {
-  const ranking = majorRanking(state);
+export function majorStageField(state: PlayerCareerState, stage: MajorStageKey, rng: () => number, eventIndex?: number): SceneOrg[] {
+  const ranking = majorRanking(state, eventIndex);
   const { direct, rest } = MAJOR_FIELD[stage];
   const picked = ranking.slice(direct[0], direct[1]);
   const pool = ranking.slice(rest[0], rest[1]);
@@ -261,8 +282,8 @@ export function majorStageField(state: PlayerCareerState, stage: MajorStageKey, 
 export function eventTeams(state: PlayerCareerState, eventIndex: number): Array<{ label: string; teams: SceneFieldTeam[] }> {
   const entry = state.calendar?.[eventIndex];
   if (entry?.format !== 'major') return [{ label: 'A chave', teams: sceneEventField(state, eventIndex) }];
-  const entryStage = majorEntryStage(state);
-  const ranking = majorRanking(state);
+  const entryStage = majorEntryStage(state, eventIndex);
+  const ranking = majorRanking(state, eventIndex);
   const seed = `${state.seed}:event:${state.seasonNumber}:${eventIndex}:major`;
   const average = (org: SceneOrg) => {
     const players = sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed);
@@ -281,15 +302,8 @@ export function eventTeams(state: PlayerCareerState, eventIndex: number): Array<
   });
 }
 
-/** Posição do time no ranking mundial da carreira (força da temporada, sem a oscilação do VRS). */
-export function worldRankOf(state: PlayerCareerState, orgId: string): number {
-  const powerOf = (id: string) => (orgOf(id, state) as SceneOrg).power ?? ORG_BASE_POWER[orgOf(id, state).level] ?? 60;
-  const mine = powerOf(orgId);
-  return 1 + sceneOrgs.filter((org) => org.id !== orgId && powerOf(org.id) > mine).length;
-}
-
 /** Quem espera direto no Stage 3 (o top 8 do ranking). */
-export const majorInvites = (state: PlayerCareerState): SceneOrg[] => majorRanking(state).slice(0, 8);
+export const majorInvites = (state: PlayerCareerState, eventIndex?: number): SceneOrg[] => majorRanking(state, eventIndex).slice(0, 8);
 
 /** A região do seu time (lan house: a do seu país). */
 export function userRegion(state: PlayerCareerState): Region {
@@ -311,14 +325,23 @@ export function sceneEventField(state: PlayerCareerState, eventIndex: number, st
 
 /** Um campeonato da temporada no motor de Major: chave de 8 com rivais reais do nível ±1. */
 /** O Major inteiro pelo ranking: quantos times entram em cada stage (o seu lugar sai da conta do seu stage). */
-function majorFullField(state: PlayerCareerState, entryStage: MajorStageKey, seed: string) {
-  // Folga: o motor às vezes derruba um gigante um stage abaixo (até 2 por stage) e repõe com o de baixo; 2 times a
-  // mais no Stage 2 e 3 no Stage 1 cobrem qualquer sorteio.
-  const counts = { stage3: 8 - (entryStage === 'stage3' ? 1 : 0), stage2: 8 - (entryStage === 'stage2' ? 1 : 0) + 2, stage1: 16 - (entryStage === 'stage1' ? 1 : 0) + 3 };
-  const picked = majorRanking(state).slice(0, counts.stage3 + counts.stage2 + counts.stage1);
+function majorFullField(state: PlayerCareerState, eventIndex: number, seed: string) {
+  const field = majorRanking(state, eventIndex);
+  const inField = new Set(field.map((org) => org.id));
+  const me = canonicalOrgId(state.orgId);
+  // Folga: o motor às vezes derruba um gigante um stage abaixo (até 2 por stage) e repõe com o de baixo; os 5 seguintes
+  // do ranking (2 no Stage 2 e 3 no Stage 1) cobrem qualquer sorteio.
+  const spare = orgsOf(rankOrderAt(state, circuitClock(state)).filter((orgId) => !inField.has(orgId)), me).slice(0, 5);
+  const picked = [...field, ...spare];
   const rosters = new Map(picked.map((org) => [org.id, sceneOrgEnginePlayers(orgIn(state.seed, state.seasonNumber, org.id) ?? org, seed)]));
-  // O stage de cada um sai do ranking: top 8 no Stage 3, do 9º ao 16º no Stage 2, o resto abre no Stage 1.
-  const tierAt = (rank: number) => (rank < counts.stage3 ? 'S' : rank < counts.stage3 + counts.stage2 ? 'contender' : 'underdog');
+  // O stage de cada um sai da posição na chave do Major mundial: 1º ao 8º no Stage 3, 9º ao 16º no Stage 2, o resto
+  // abre no Stage 1 (a sua vaga ocupa uma posição).
+  const userPosition = majorWorldPosition(state, eventIndex);
+  const tierAt = (rank: number) => {
+    if (rank >= field.length) return rank - field.length < 2 ? 'contender' : 'underdog';
+    const position = userPosition >= 0 && rank >= userPosition ? rank + 1 : rank;
+    return position < 8 ? 'S' : position < 16 ? 'contender' : 'underdog';
+  };
   return { picked, rosters, tierAt };
 }
 
@@ -342,7 +365,7 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   const isMajor = entry?.format === 'major' && Boolean(setup.stage);
   const regular = isMajor ? null : sceneEventOpponents(state, eventIndex, stage);
   const seed = regular?.seed ?? `${state.seed}:event:${state.seasonNumber}:${eventIndex}:major`;
-  const major = isMajor ? majorFullField(state, setup.stage!, seed) : null;
+  const major = isMajor ? majorFullField(state, eventIndex, seed) : null;
   const picked = major?.picked ?? regular!.picked;
   const rosters = major?.rosters ?? regular!.rosters;
   const userPlayers = userEnginePlayers(state);
@@ -829,7 +852,7 @@ function headlessPlay(calls: HeadlessCalls, campaign: CampaignMajorState, moment
 export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }, calls?: HeadlessCalls): SceneEventOutcome & { campaign: CampaignMajorState | null } {
   const entry = state.calendar?.[eventIndex];
   if (entry?.format === 'major') {
-    const stage: MajorStageKey | null = fromStage ?? majorEntryStage(state);
+    const stage: MajorStageKey | null = fromStage ?? majorEntryStage(state, eventIndex);
     if (!stage) return { ...notQualified(state, eventIndex), campaign: null };
     const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, stage).campaign, 8000, calls);
     return { ...sceneEventResult(state, eventIndex, campaign, stage, carry), campaign };
@@ -994,18 +1017,12 @@ export function finishSceneStage(campaign: CampaignMajorState, setup: EventSetup
 }
 
 /**
- * Entrada no Major por um ranking simulado (VRS): a força do time pelo ranking real mais o que ele fez na
- * temporada (títulos, finais, rating). Top 8 entra no Stage 3, até o 16º no Stage 2, até o 32º no Stage 1.
+ * Entrada no Major pela chave do Major mundial (o ranking do mês anterior): 1º ao 8º entra no Stage 3, 9º ao 16º no
+ * Stage 2, o resto da chave no Stage 1; fora da chave, sem vaga. `eventIndex`: o Major do calendário (padrão: o que está
+ * em andamento ou o próximo).
  */
-export function majorEntryStage(state: PlayerCareerState): MajorStageKey | null {
+export function majorEntryStage(state: PlayerCareerState, eventIndex?: number): MajorStageKey | null {
   if (!sceneOrgById.get(state.orgId)) return null;
-  const org = orgOf(state.orgId, state) as SceneOrg;
-  const results = (state.calendar ?? []).flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
-  const titles = results.filter((result) => result.placement === 'Campeão').length;
-  const finals = results.filter((result) => result.placement === 'Vice').length;
-  const rating = results.length ? results.reduce((sum, result) => sum + result.rating, 0) / results.length : 1;
-  const base = org.power ?? ORG_BASE_POWER[org.level] ?? 60;
-  const score = base + titles * 2.5 + finals + (rating - 1) * 15;
-  const rank = 1 + sceneOrgs.filter((other) => other.id !== org.id && (other.power ?? ORG_BASE_POWER[levelIn(state, other)] ?? 60) > score).length;
-  return rank <= 8 ? 'stage3' : rank <= 16 ? 'stage2' : rank <= 32 ? 'stage1' : null;
+  const position = majorWorldPosition(state, eventIndex);
+  return position < 0 ? null : position < 8 ? 'stage3' : position < 16 ? 'stage2' : 'stage1';
 }
