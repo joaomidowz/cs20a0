@@ -3,7 +3,8 @@
 // nível de hoje; o sorteio tem peso, não repete org e lembra quem já chamou.
 import { describe, expect, it } from 'vitest';
 import { createSeededRng } from '../src/lib/game/simulation';
-import { createPlayerCareer, ENGLISH_REQUIRED, levelIn, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, ENGLISH_REQUIRED, levelIn, midSeasonCheck, recordEventResult, requestTransfer, starRatingFor, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { orgIn } from '../src/lib/game/playerCareer/world';
 import { orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from '../src/lib/game/playerCareer/data';
 import { RECENT_OFFER_WEIGHT, languageGate, offerWeight, pickOffers, rememberOffers, seatKeepsIdentity } from '../src/lib/game/playerCareer/offers';
 
@@ -78,5 +79,49 @@ describe('sorteio das propostas', () => {
     const state = { ...career('Brazil', 'memoria-1'), seasonNumber: 5, recentOffers: [{ orgId: 'velha', season: 3 }, { orgId: 'anterior', season: 4 }] };
     const kept = rememberOffers(state, [{ orgId: 'nova', orgName: 'Nova', orgLevel: 3, salaryUsd: 1000 }]);
     expect(kept).toEqual([{ orgId: 'anterior', season: 4 }, { orgId: 'nova', season: 5 }]);
+  });
+});
+
+describe('propostas no meio da temporada (D11)', () => {
+  const seasonAt = (country: string, seed: string, orgName: string): PlayerCareerState =>
+    startSeason({ ...career(country, seed, 85), orgId: byName(orgName).id, overall: 80 });
+  const playN = (state: PlayerCareerState, count: number, rating: number) => {
+    let next = state;
+    for (let index = 0; index < count; index += 1) next = recordEventResult(next, index, { name: next.calendar![index].name, placement: 'Quartas', rating, seriesWins: 1, seriesLosses: 1 });
+    return next;
+  };
+
+  it('pedir para sair: o agente acha orgs de toda a faixa, respeita identidade e idioma e lembra quem chamou', () => {
+    const seen = new Set<string>();
+    for (let index = 0; index < 30; index += 1) {
+      const base = playN(seasonAt('Denmark', `pedido-${index}`, 'HEROIC'), 2, 1.15);
+      const asked = requestTransfer(base, {});
+      const offers = asked.pendingMove?.offers ?? [];
+      for (const offer of offers) {
+        seen.add(offer.orgId);
+        const org = orgIn(asked.seed, asked.seasonNumber, offer.orgId)!;
+        expect(seatKeepsIdentity(asked, org), offer.orgName).toBe(true);
+        expect(languageGate(asked, org), offer.orgName).toBeNull();
+        expect(asked.recentOffers).toContainEqual({ orgId: offer.orgId, season: asked.seasonNumber });
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(25);
+  });
+
+  it('proposta de time de cima no meio do ano: o nível de cima, de várias orgs', () => {
+    const seen = new Set<string>();
+    for (let index = 0; index < 40; index += 1) {
+      // Time do Tier C (a Fnatic era o exemplo, mas subiu para o Tier A pelo ranking real).
+      const base = seasonAt('Denmark', `meio-${index}`, 'ENCE');
+      const level = levelIn(base, byName('ENCE'));
+      const state = midSeasonCheck(playN(base, 3, starRatingFor('rifler', level - 1) + 0.05));
+      if (state.pendingMove?.kind !== 'poach') continue;
+      for (const offer of state.pendingMove.offers) {
+        seen.add(offer.orgId);
+        expect(offer.orgLevel).toBe(level - 1);
+        expect(state.recentOffers).toContainEqual({ orgId: offer.orgId, season: state.seasonNumber });
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(8);
   });
 });

@@ -892,27 +892,16 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   if (!recent || recent.played < 2) return state;
   const rng = createSeededRng(`${state.seed}:move:${state.seasonNumber}:${recent.played}`);
   const decent = decentRatingFor(state.role, org.level);
-  const pickFrom = (all: SceneOrg[], count: number, bump: number): CareerOffer[] => {
-    // Time nacional de outro país não contrata você (MongolZ joga com mongóis). O mundo preserva o país nas trocas.
-    const pool = all.filter((candidate) => nationFits(candidate.roster, state.country));
-    const offers: CareerOffer[] = [];
-    for (let tries = 0; tries < count * 3 && offers.length < count; tries += 1) {
-      const candidate = pool[Math.floor(rng() * pool.length)];
-      if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
-      if (englishGate(state, candidate)) continue;
-      offers.push(offerFrom(candidate, state, bump));
-    }
-    return offers;
-  };
   const morale = state.morale ?? 60;
   const struggling = recent.average < decent - 0.10;
   const tense = morale < 50 || relationshipAverage < 45 || recent.average < decent - 0.18;
   if (struggling && tense && rng() < 0.55) {
-    const laterals = sceneOrgs.filter((candidate) => levelIn(state, candidate) === org.level && candidate.id !== org.id);
-    const lower = sceneOrgs.filter((candidate) => levelIn(state, candidate) > org.level && levelIn(state, candidate) <= 4);
-    const offers = [...pickFrom(laterals, 1, -0.05), ...pickFrom(lower.length ? lower : laterals, 2, 0)];
+    // Cortado: uma do mesmo nível (salário menor) e até duas de um ou dois degraus abaixo (no Tier C, do mesmo nível).
+    const lower = org.level >= 4 ? [org.level] : [org.level + 1, org.level + 2];
+    const offers = pickOffers(state, rng, [{ levels: [org.level], count: 1, bump: -0.05 }, { levels: lower, count: 2, bump: 0 }], { season: state.seasonNumber });
     return {
       ...state,
+      recentOffers: rememberOffers(state, offers),
       pendingMove: {
         kind: 'cut',
         average: recent.average,
@@ -923,10 +912,11 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
   }
   const target = org.level - 1;
   if (target >= 0 && recent.average >= starRatingFor(state.role, target) && rng() < 0.4) {
-    const offers = pickFrom(sceneOrgs.filter((candidate) => levelIn(state, candidate) === target), 1, 0.06);
+    const offers = pickOffers(state, rng, [{ levels: [target], count: 1, bump: 0.06 }], { season: state.seasonNumber });
     if (offers.length) {
       return {
         ...state,
+        recentOffers: rememberOffers(state, offers),
         pendingMove: {
           kind: 'poach',
           average: recent.average,
@@ -1006,25 +996,19 @@ export function requestTransfer(state: PlayerCareerState, relationships: Record<
   const rng = createSeededRng(`${state.seed}:request:${state.seasonNumber}:${playedCount(state)}`);
   const recent = recentRating(state);
   const good = (recent?.average ?? 1) >= decentRatingFor(state.role, org.level) + 0.05 || state.overall >= 80;
-  const pool = (level: number) => sceneOrgs.filter((candidate) => candidate.id !== org.id && levelIn(state, candidate) === level && nationFits(candidate.roster, state.country) && !englishGate(state, candidate));
-  const offers: CareerOffer[] = [];
-  const take = (candidates: SceneOrg[], count: number, bump: number) => {
-    for (let tries = 0; tries < count * 4 && offers.length < 3; tries += 1) {
-      const candidate = candidates[Math.floor(rng() * candidates.length)];
-      if (!candidate || offers.some((offer) => offer.orgId === candidate.id)) continue;
-      offers.push(offerFrom(candidate, state, bump));
-      if (offers.length >= count) break;
-    }
-  };
-  if (good && org.level > 0) take(pool(org.level - 1), 1, 0.04);
-  take(pool(org.level), good ? 2 : 1, 0);
+  // O agente procura no mesmo nível e no de baixo; se você está bem, também um degrau acima.
+  const groups: OfferGroup[] = [];
+  if (good && org.level > 0) groups.push({ levels: [org.level - 1], count: 1, bump: 0.04 });
+  groups.push({ levels: [org.level, org.level + 1], count: good ? 2 : 1, bump: 0 });
+  const offers = pickOffers(state, rng, groups, { season: state.seasonNumber });
   const cooled = Object.fromEntries(Object.entries(relationships).map(([id, value]) => [id, Math.max(0, value - 6)]));
   const base: PlayerCareerState = {
     ...state,
     transferRequestedSeason: state.seasonNumber,
     morale: Math.max(0, (state.morale ?? 60) - 4),
     reputation: Math.max(0, (state.reputation ?? 50) - 2),
-    relationships: cooled
+    relationships: cooled,
+    recentOffers: rememberOffers(state, offers)
   };
   const reason = offers.length
     ? `Você pediu para sair do ${org.name}. O agente achou ${offers.length} interessado${offers.length > 1 ? 's' : ''}.`
@@ -1068,15 +1052,12 @@ export function happeningOffers(state: PlayerCareerState, kind: 'up' | 'region',
   const region = 'region' in org ? (org as SceneOrg).region : undefined;
   const rng = createSeededRng(`${state.seed}:happening-offer:${state.seasonNumber}:${playedCount(state)}:${kind}`);
   const target = kind === 'up' ? Math.max(0, org.level - 1) : org.level;
-  const pool = sceneOrgs.filter((candidate) => candidate.id !== org.id && levelIn(state, candidate) === target && nationFits(candidate.roster, state.country)
-    && !englishGate(state, candidate) && (kind === 'region' ? candidate.region !== region : true));
-  const offers: CareerOffer[] = [];
-  for (let tries = 0; tries < 12 && offers.length < 2; tries += 1) {
-    const candidate = pool[Math.floor(rng() * pool.length)];
-    if (candidate && !offers.some((offer) => offer.orgId === candidate.id)) offers.push(offerFrom(candidate, state, kind === 'up' ? 0.04 : 0.02));
-  }
+  const offers = pickOffers(state, rng, [{ levels: [target], count: 2, bump: kind === 'up' ? 0.04 : 0.02 }], {
+    season: state.seasonNumber,
+    ...(kind === 'region' ? { exclude: (candidate: SceneOrg) => candidate.region === region } : {})
+  });
   if (!offers.length) return state;
-  return { ...state, pendingMove: { kind: 'poach', average: recentRating(state)?.average ?? 0, reason, offers } };
+  return { ...state, recentOffers: rememberOffers(state, offers), pendingMove: { kind: 'poach', average: recentRating(state)?.average ?? 0, reason, offers } };
 }
 
 export function retire(state: PlayerCareerState, options: { coach?: boolean } = {}): PlayerCareerState {
