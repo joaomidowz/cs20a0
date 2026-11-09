@@ -9,6 +9,7 @@ import { sceneOrgs } from './data';
 import { createPlayerCareer, orgOf, recordEventResult, startSeason, type PlayerCareerState, type PlayerRole, type SeasonLog } from './engine';
 import { simulateSceneEvent, type CallPolicy, type HeadlessCalls } from './live';
 import { matesOf, myPlayerOf } from './squad';
+import { ARC_TUNING, eventArcOf, type ArcTuning, type FormPhase } from './form';
 
 export interface TitleScenario {
   orgName: string;
@@ -155,4 +156,120 @@ export function measureUnderdog(input: { scenarios: Array<{ orgName: string; ove
     }
   }
   return { series, winRate: series ? wins / series : 0, seriesTwoCalls: seriesTwo, winRateTwoCalls: seriesTwo ? winsTwo / seriesTwo : 0 };
+}
+
+/** Uma carreira medida temporada a temporada: o mesmo time e o mesmo overall, com o arco ligado (com os números pedidos). */
+export interface ArcScenario {
+  orgName: string;
+  overall: number;
+  relationship: number;
+  seasons: number;
+  seeds: number;
+  policy: CallPolicy;
+  role?: PlayerRole;
+  seedPrefix?: string;
+  /** Números do arco a testar (o que faltar vem de ARC_TUNING). */
+  tuning?: Partial<ArcTuning>;
+}
+
+export interface ArcMeasure {
+  careers: number;
+  events: number;
+  titleRate: number;
+  finalRate: number;
+  /** Média, por carreira, da melhor temporada (taxa de títulos): o ano de auge. */
+  peakRate: number;
+  /** Taxa média de títulos na temporada seguinte a uma de auge (ARC_PEAK ou mais) e quantas houve. */
+  afterPeakRate: number;
+  afterPeakCount: number;
+  /** Fração das temporadas de seca (ARC_DROUGHT ou menos). */
+  droughtShare: number;
+  /** Auges que vieram depois de uma seca na mesma carreira (a volta). */
+  comebacks: number;
+  /** Temporadas seguidas de auge: a média das sequências e a maior. */
+  peakRunMean: number;
+  peakRunMax: number;
+  /** Fração dos campeonatos jogados em cada fase e o estudo médio dos rivais por campeonato. */
+  phaseShare: Record<FormPhase, number>;
+  studyMean: number;
+  /** Taxa média de títulos da 1ª, 2ª, ... temporada. */
+  bySeason: number[];
+}
+
+/** Temporada de auge: metade dos campeonatos ou mais. Seca: 15% ou menos. */
+export const ARC_PEAK = 0.5;
+export const ARC_DROUGHT = 0.15;
+
+export function measureArc(scenario: ArcScenario): ArcMeasure {
+  const tuning: ArcTuning = { ...ARC_TUNING, ...(scenario.tuning ?? {}) };
+  const rates: number[][] = [];
+  const phases: Record<FormPhase, number> = { alta: 0, normal: 0, baixa: 0 };
+  let events = 0;
+  let titles = 0;
+  let finals = 0;
+  let study = 0;
+  for (let index = 0; index < scenario.seeds; index += 1) {
+    let state = scenarioState({ orgName: scenario.orgName, overall: scenario.overall, relationship: scenario.relationship, tier: 'S', seeds: 1, policy: scenario.policy, role: scenario.role, seedPrefix: scenario.seedPrefix ?? 'arc' }, index);
+    if (!state?.calendar) continue;
+    const career: number[] = [];
+    for (let season = 0; season < scenario.seasons; season += 1) {
+      const calls = callsFor(state, scenario.policy, scenario.relationship, `${state.seed}:calls:${season}`);
+      let played = 0;
+      let won = 0;
+      for (const entry of state.calendar ?? []) {
+        const arc = eventArcOf(state, entry.index, tuning);
+        const outcome = simulateSceneEvent(state, entry.index, undefined, null, { wins: 0, losses: 0 }, calls, arc);
+        state = recordEventResult(state, entry.index, outcome.result);
+        if (outcome.result.skipped) continue;
+        played += 1;
+        phases[arc.phase] += 1;
+        study += arc.study;
+        if (outcome.result.placement === 'Campeão') won += 1;
+        if (outcome.result.placement === 'Campeão' || outcome.result.placement === 'Vice') finals += 1;
+      }
+      events += played;
+      titles += won;
+      career.push(played ? won / played : 0);
+      state = rollCalibrationSeason(state);
+    }
+    rates.push(career);
+  }
+  const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
+  const afterPeak: number[] = [];
+  const runs: number[] = [];
+  let comebacks = 0;
+  for (const career of rates) {
+    let run = 0;
+    let dry = false;
+    career.forEach((rate, season) => {
+      if (rate >= ARC_PEAK) {
+        run += 1;
+        if (dry) comebacks += 1;
+        dry = false;
+        if (season + 1 < career.length) afterPeak.push(career[season + 1]);
+      } else {
+        if (run) runs.push(run);
+        run = 0;
+      }
+      if (rate <= ARC_DROUGHT) dry = true;
+    });
+    if (run) runs.push(run);
+  }
+  const all = rates.flat();
+  return {
+    careers: rates.length,
+    events,
+    titleRate: events ? titles / events : 0,
+    finalRate: events ? finals / events : 0,
+    peakRate: mean(rates.map((career) => Math.max(...career))),
+    afterPeakRate: mean(afterPeak),
+    afterPeakCount: afterPeak.length,
+    droughtShare: all.length ? all.filter((rate) => rate <= ARC_DROUGHT).length / all.length : 0,
+    comebacks,
+    peakRunMean: mean(runs),
+    peakRunMax: runs.length ? Math.max(...runs) : 0,
+    phaseShare: { alta: events ? phases.alta / events : 0, normal: events ? phases.normal / events : 0, baixa: events ? phases.baixa / events : 0 },
+    studyMean: events ? study / events : 0,
+    bySeason: Array.from({ length: scenario.seasons }, (_, season) => mean(rates.map((career) => career[season] ?? 0)))
+  };
 }

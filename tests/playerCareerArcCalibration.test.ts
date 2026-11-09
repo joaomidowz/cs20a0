@@ -3,8 +3,9 @@
 // ou CAREER_ARC=1 (levam minutos); os testes rápidos garantem que medir é determinístico.
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { measureUnderdog } from '../src/lib/game/playerCareer/calibration';
+import { measureArc, measureUnderdog } from '../src/lib/game/playerCareer/calibration';
 import type { CallPolicy } from '../src/lib/game/playerCareer/live';
+import type { ArcTuning } from '../src/lib/game/playerCareer/form';
 
 /** Times de Tier S com você abaixo do resto da elite: a chave tem muito rival 3 a 6 pontos acima. */
 const UNDERDOG_SCENARIOS = [
@@ -28,6 +29,14 @@ describe('medição do embalo e do arco', () => {
     const first = measureUnderdog(input);
     expect(first).toEqual(measureUnderdog(input));
   }, 120000);
+
+  it('a carreira medida duas vezes dá a mesma tabela', () => {
+    const scenario = { orgName: 'Vitality', overall: 91, relationship: 80, seasons: 2, seeds: 1, policy: 'best' as const };
+    const first = measureArc(scenario);
+    expect(first.events).toBeGreaterThan(10);
+    expect(first.bySeason).toHaveLength(2);
+    expect(first).toEqual(measureArc(scenario));
+  }, 120000);
 });
 
 describe.skipIf(!process.env.CAREER_UNDERDOG)('azarão com calls (CAREER_UNDERDOG=1)', () => {
@@ -37,6 +46,26 @@ describe.skipIf(!process.env.CAREER_UNDERDOG)('azarão com calls (CAREER_UNDERDO
     const rows = (process.env.CAREER_POLICIES ?? 'none,random,best,worst').split(',').map((policy) => {
       const measure = measureUnderdog({ scenarios: UNDERDOG_SCENARIOS, seeds, seasons, policy: policy as CallPolicy });
       return `azarão 3-6 | ${policy.padEnd(6)} | séries ${measure.series} | vitória ${pct(measure.winRate)} | com 2+ calls ganhas ${pct(measure.winRateTwoCalls)} (n=${measure.seriesTwoCalls})`;
+    });
+    report(rows);
+    expect(rows.length).toBeGreaterThan(0);
+  }, 7200000);
+});
+
+describe.skipIf(!process.env.CAREER_ARC)('arco da carreira (CAREER_ARC=1)', () => {
+  it('temporadas seguidas por overall e política', () => {
+    const seeds = Number(process.env.CAREER_SEEDS ?? 24);
+    const seasons = Number(process.env.CAREER_SEASONS ?? 5);
+    const tuning = JSON.parse(process.env.CAREER_ARC_TUNING ?? '{}') as Partial<ArcTuning>;
+    const scenarios = (process.env.CAREER_ARC_SCENARIOS ?? 'Vitality:91:best,Vitality:95:best,Vitality:91:random').split(',').map((item) => item.split(':'));
+    const rows = scenarios.map(([orgName, overall, policy]) => {
+      const m = measureArc({ orgName, overall: Number(overall), relationship: 80, seasons, seeds, policy: policy as CallPolicy, tuning });
+      return [
+        `${orgName} ${overall} ${policy}`, JSON.stringify(tuning), `títulos ${pct(m.titleRate)}`, `finais ${pct(m.finalRate)}`, `auge ${pct(m.peakRate)}`,
+        `pós-auge ${pct(m.afterPeakRate)} (n=${m.afterPeakCount})`, `seca ${pct(m.droughtShare)}`, `voltas ${m.comebacks}`,
+        `auge seguido ${m.peakRunMean.toFixed(1)}/${m.peakRunMax}`, `fases ${pct(m.phaseShare.alta)}/${pct(m.phaseShare.normal)}/${pct(m.phaseShare.baixa)}`,
+        `estudo ${m.studyMean.toFixed(2)}`, `por temporada ${m.bySeason.map(pct).join(' ')}`
+      ].join(' | ');
     });
     report(rows);
     expect(rows.length).toBeGreaterThan(0);
