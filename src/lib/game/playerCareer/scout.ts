@@ -10,6 +10,7 @@ import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLan
 import { fallbackBorn, myLanguageFit, seatedNicks, teamOrgOf } from './squad';
 import { orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason } from './world';
 import { coachWorld } from './coaches';
+import { currentLevelOf } from './tiers';
 
 export interface CardInfo {
   flag: string | null;
@@ -131,7 +132,7 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
   if (norm(state.nick).includes(q)) {
     const org = sceneOrgById.get(state.orgId);
     push({
-      nick: state.nick, orgId: state.orgId, orgName: org?.name ?? 'Lan house', level: org?.level ?? 5, role: state.role, age: state.age, overall: state.overall,
+      nick: state.nick, orgId: state.orgId, orgName: org?.name ?? 'Lan house', level: currentLevelOf(state, state.orgId), role: state.role, age: state.age, overall: state.overall,
       flag: flagOf(state.country), spoken: spokenLabel(state.country), status: 'voce', note: `Você, no ${org?.name ?? 'time da lan house'}.`, history: []
     });
   }
@@ -141,7 +142,7 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
     const born = memberBirthYear(member) ?? (member.generated ? fallbackBorn(state.seed, nick) : null);
     const onBench = orgId === state.orgId && benched.has(nick.toLowerCase());
     return {
-      nick, orgId, orgName: org?.name ?? null, level: org?.level ?? null, role: memberRoles(member)[0] ?? null,
+      nick, orgId, orgName: org?.name ?? null, level: org ? currentLevelOf(state, orgId) : null, role: memberRoles(member)[0] ?? null,
       age: born === null ? null : year - born, overall: member.overall ?? memberCatalogOverall(member) ?? null,
       flag: flagOf(memberCountryIn(member, org)), spoken: spokenLabel(memberCountryIn(member, org)),
       status: onBench ? 'reserva' : 'titular',
@@ -168,7 +169,7 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
     if (!norm(coach.name).includes(q)) continue;
     const org = sceneOrgById.get(orgId);
     push({
-      nick: coach.name, orgId, orgName: org?.name ?? null, level: org?.level ?? null, role: null, age: year - coach.born, overall: coach.overall,
+      nick: coach.name, orgId, orgName: org?.name ?? null, level: org ? currentLevelOf(state, orgId) : null, role: null, age: year - coach.born, overall: coach.overall,
       flag: null, spoken: '', status: 'coach', note: `Coach da ${org?.name}${coach.formerPlayer ? ' (ex-jogador)' : coach.real ? '' : ''}.`, history: [...coachLines(coach.name), ...historyOf(state, coach.name)]
     });
   }

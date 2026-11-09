@@ -14,6 +14,7 @@ import { careerCtx, conditionsHold, isUnsupported } from './conditions';
 import { lifeOf, orgRegionOf } from './life';
 import { memberBirthYear, memberNick, memberRoles, sceneOrgs } from './data';
 import { orgIn } from './world';
+import { currentLevelOf } from './tiers';
 
 /** As 9 categorias originais e as 14 da planilha nova da semana. */
 export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado'
@@ -274,10 +275,13 @@ export function contactOf(state: PlayerCareerState, action: AgendaAction): Agend
   }
   const want = CONTACT_ROLE.find(([pattern]) => pattern.test(clause))![1];
   const role: PlayerRole | null = want === 'mesma' ? state.role : want === 'veterano' || want === 'jovem' ? null : want;
-  const level = orgOf(state.orgId, state).level;
+  const level = currentLevelOf(state, state.orgId);
   const region = orgRegionOf(state, (orgOf(state.orgId, state) as { region?: string }).region);
-  // Amador não tem acesso a estrela: só times até um degrau acima do seu.
-  const orgs = sceneOrgs.filter((org) => org.id !== state.orgId && org.region === region && org.level >= Math.max(1, level - 1) && org.level <= Math.min(4, level + 1));
+  // Amador não tem acesso a estrela: só times até um degrau acima do seu (no nível de hoje de cada um).
+  const orgs = sceneOrgs.filter((org) => {
+    const orgLevel = currentLevelOf(state, org.id);
+    return org.id !== state.orgId && org.region === region && orgLevel >= Math.max(1, level - 1) && orgLevel <= Math.min(4, level + 1);
+  });
   const people = orgs.flatMap((org) => (orgIn(state.seed, state.seasonNumber, org.id)?.roster ?? []).map((member) => ({ member, org })))
     .filter(({ member }) => !role || memberRoles(member).includes(role));
   if (!people.length) return null;

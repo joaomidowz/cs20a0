@@ -45,7 +45,8 @@ export const careerMapPool = (year: number) => getActiveDutyMapsForYear(Math.min
 
 /** Mesmo formato de evento da carreira manager: 8 times, tudo BO3. */
 export const SCENE_EVENT_FORMAT = { quarterfinal: 3, semifinal: 3, final: 3 } as const;
-const ENGINE_TIER: Record<number, string> = { 1: 'contender', 2: 'contender', 3: 'playoff-team', 4: 'dangerous-underdog', 5: 'underdog' };
+/** Faixa do motor por nível de time. A Elite do Tier S (0) entra como 'S'; sem a chave, caía em 'underdog' fora do Major. */
+const ENGINE_TIER: Record<number, string> = { 0: 'S', 1: 'contender', 2: 'contender', 3: 'playoff-team', 4: 'dangerous-underdog', 5: 'underdog' };
 export const SLOTS: PlayerRole[] = ['igl', 'awper', 'entry', 'lurker', 'support'];
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -99,9 +100,10 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
   });
 }
 
-export function sceneOrgToEngineTeam(org: SceneOrg, players: Player[]): HistoricalTeam {
+/** O time da cena no formato do motor; `level` é o nível de hoje (currentLevelOf). Sem ele, o do objeto. */
+export function sceneOrgToEngineTeam(org: SceneOrg, players: Player[], level: number = org.level): HistoricalTeam {
   const preview = Math.round(players.reduce((sum, player) => sum + (player.overall ?? 60), 0) / Math.max(1, players.length));
-  return { id: org.id, name: org.name, year: null, players: players.map((player) => player.id), tier: ENGINE_TIER[org.level] ?? 'underdog', teamPowerPreview: preview, style: null };
+  return { id: org.id, name: org.name, year: null, players: players.map((player) => player.id), tier: ENGINE_TIER[level] ?? 'underdog', teamPowerPreview: preview, style: null };
 }
 
 /** O time do jogador criado: sua carta (com bônus de treino) + os 4 parceiros com sinergia aplicada. */
@@ -198,7 +200,7 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
   // Tier S chama os melhores: o ranking decide, com um pouco de sorteio (às vezes um top fica fora pelo calendário).
   if (entry?.tier === 'S' && share === 0) {
     const ranked = widen(null, setup.opponents)
-      .map((org) => ({ org, score: (org.power ?? ORG_BASE_POWER[org.level] ?? 80) + rng() * 4 }))
+      .map((org) => ({ org, score: (org.power ?? ORG_BASE_POWER[levelIn(state, org)] ?? 80) + rng() * 4 }))
       .sort((a, b) => b.score - a.score);
     picked.push(...ranked.slice(0, setup.opponents).map((item) => item.org));
   }
@@ -345,7 +347,7 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   const rosters = major?.rosters ?? regular!.rosters;
   const userPlayers = userEnginePlayers(state);
   const opponents = picked.map((org, rank) => {
-    const team = sceneOrgToEngineTeam(org, rosters.get(org.id)!);
+    const team = sceneOrgToEngineTeam(org, rosters.get(org.id)!, levelIn(state, org));
     return major ? { ...team, tier: major.tierAt(rank) } : team;
   });
   const allPlayers = [...userPlayers, ...picked.flatMap((org) => rosters.get(org.id) ?? [])];
@@ -987,6 +989,6 @@ export function majorEntryStage(state: PlayerCareerState): MajorStageKey | null 
   const rating = results.length ? results.reduce((sum, result) => sum + result.rating, 0) / results.length : 1;
   const base = org.power ?? ORG_BASE_POWER[org.level] ?? 60;
   const score = base + titles * 2.5 + finals + (rating - 1) * 15;
-  const rank = 1 + sceneOrgs.filter((other) => other.id !== org.id && (other.power ?? ORG_BASE_POWER[other.level] ?? 60) > score).length;
+  const rank = 1 + sceneOrgs.filter((other) => other.id !== org.id && (other.power ?? ORG_BASE_POWER[levelIn(state, other)] ?? 60) > score).length;
   return rank <= 8 ? 'stage3' : rank <= 16 ? 'stage2' : rank <= 32 ? 'stage1' : null;
 }

@@ -8,6 +8,7 @@ import { memberBirthYear, memberCatalogOverall, memberDebutYear, memberNick, sce
 import type { PlayerCareerState, RankedPlayer, TournamentResult } from './engine';
 import { rosterIn, yearOfSeason } from './world';
 import { seatedNicks } from './squad';
+import { currentLevelOf } from './tiers';
 
 /** Peso do campeonato no ranking: Major e Tier S valem mais; Tier A internacional mais que o regional; tier B e C
  *  quase não pesam (ninguém entra no Top 20 da HLTV ganhando Challenger). */
@@ -55,7 +56,10 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
     const played = results.filter((result) => !result.skipped);
     return played.length ? Number((played.reduce((sum, result) => sum + result.rating, 0) / played.length).toFixed(2)) : undefined;
   })();
-  for (const org of sceneOrgs.filter((candidate) => candidate.level <= 2)) {
+  for (const org of sceneOrgs) {
+    // O nível de hoje (tiers.ts): o time que você levou à Elite pesa como Elite no Top 20.
+    const level = currentLevelOf(state, org.id);
+    if (level > 2) continue;
     for (const member of rosterIn(state.seed, state.seasonNumber, org.id)) {
       const nick = memberNick(member);
       const key = nick.toLowerCase();
@@ -63,13 +67,13 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
       const overall = member.overall ?? memberCatalogOverall(member) ?? org.power ?? 80;
       const noise = (createSeededRng(`${state.seed}:hltv:${state.seasonNumber}:${key}`)() - 0.5) * 0.1;
       const rating = Number((0.95 + (overall - 60) * 0.006 + noise * 0.6).toFixed(2));
-      const score = 0.95 + (overall - 60) * 0.006 + (LEVEL_BONUS[org.level] ?? 0) + noise
+      const score = 0.95 + (overall - 60) * 0.006 + (LEVEL_BONUS[level] ?? 0) + noise
         + (mvpOf.get(key) ?? 0) * 0.015 + Math.min(0.05, (titlesOf.get(org.name) ?? 0) * 0.01);
       const born = memberBirthYear(member);
       // Estreante: quem entrou no topo neste ano, ou a promessa até 22 anos que ainda não apareceu num Top 20.
       const age = born === null ? null : year - born;
       const debut = !veterans.has(key) && (memberDebutYear(member) === year || (Boolean(member.prospect) && age !== null && age <= 22));
-      const entry = { nick, team: org.name, teamId: org.id, rating, score: Number(score.toFixed(3)), age: born === null ? null : year - born, elite: org.level <= 1, debut };
+      const entry = { nick, team: org.name, teamId: org.id, rating, score: Number(score.toFixed(3)), age: born === null ? null : year - born, elite: level <= 1, debut };
       if (!best.has(key) || best.get(key)!.score < entry.score) best.set(key, entry);
     }
   }
