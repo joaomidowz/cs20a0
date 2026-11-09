@@ -58,6 +58,7 @@
   import { circuitProgress, scheduleCircuit, stopCircuit } from '$lib/game/playerCareer/circuitRunner';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
+  import { eventArcOf, type EventArc, type FormPhase } from '$lib/game/playerCareer/form';
   import { currentLevelOf, eventTierLabel, seasonLevelOf, TEAM_TIER_ABOUT, TEAM_TIER_LABEL, teamTierAbout, teamTierLabel, teamTierTitle, type TeamTier } from '$lib/game/playerCareer/tiers';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
@@ -131,6 +132,10 @@
   /** Major: stage em andamento, séries dos stages anteriores e o formato do campeonato ao vivo. */
   let liveStage: MajorStageKey | null = null;
   let stageCarry: StageCarry = { wins: 0, losses: 0 };
+  /** Fase do time e estudo dos rivais do campeonato ao vivo, congelados quando ele começou (form.ts). */
+  let liveArc: EventArc | null = null;
+  /** A explicação do indicador de fase e estudo aberta (no celular não há dica ao passar o mouse). */
+  let arcHelp = false;
   let liveSetup: EventSetup = { swiss: false, swissOnly: false, opponents: 7, levels: [3, 5], finalBestOf: 3, stage: null };
   let stageBanner: string | null = null;
   let clutch: SceneClutchMoment | null = null;
@@ -751,6 +756,15 @@
     if (career && coachLine) notify(`${career.seed}:me`, `${coach?.name ?? 'Coach'}:`, coachLine, 'neutral');
   }
 
+  /** O que a fase do bloco faz, em uma frase (indicador do próximo campeonato). */
+  const PHASE_TIP: Record<FormPhase, string> = {
+    alta: 'Fase alta do time neste bloco de 3 ou 4 campeonatos',
+    normal: 'Fase normal do time neste bloco de 3 ou 4 campeonatos',
+    baixa: 'Fase baixa do time neste bloco de 3 ou 4 campeonatos'
+  };
+  const signed = (value: number) => `${value > 0 ? '+' : '−'}${Math.abs(value).toLocaleString('pt-BR')}`;
+  const phaseTip = (arc: EventArc) => `${PHASE_TIP[arc.phase]}${arc.phasePower ? `: ${signed(arc.phasePower)} de força em cada jogo` : ': sem bônus nem desconto'}. A fase pode continuar no bloco seguinte ou mudar; bloco bom ajuda a subir.`;
+  const studyTip = (study: number) => `Depois de uma fase dominante, os rivais estudaram as demos de vocês: ${signed(study)} de força para eles em cada série contra vocês. Some quando vocês param de ganhar. Na semana, Mudar o playbook ou Estudar as demos deles cortam o estudo deste bloco.`;
   const chipText = (chip: AgendaChip) => `${chip.value > 0 ? '+' : '−'}${Math.abs(chip.value).toLocaleString('pt-BR')} ${chip.label}`;
 
   function start() { career = createPlayerCareer({ nick, country, role, archetype }); }
@@ -777,7 +791,7 @@
       localStorage.removeItem(STORAGE_KEY);
       if (career) localStorage.removeItem(`${STORAGE_KEY}:situations:${career.seed}`);
     } catch { /* noop */ }
-    career = null; live = null; clutch = null; lastCall = null; callOutcome = null; resolving = false; frozenView = null; pendingOutcome = null; usedIds = [];
+    career = null; live = null; clutch = null; lastCall = null; callOutcome = null; resolving = false; frozenView = null; pendingOutcome = null; usedIds = []; liveArc = null;
   }
 
   function openSeason() { if (career) career = startSeason(career); }
@@ -804,8 +818,10 @@
       }
     }
     let field: ReturnType<typeof startSceneEvent>;
+    // O arco do campeonato vale do começo ao fim: quem retoma um save usa o que foi congelado na largada.
+    const arc = saved?.arc ?? eventArcOf(me, index);
     try {
-      field = startSceneEvent(me, index, saved?.played, stage);
+      field = startSceneEvent(me, index, saved?.played, stage, arc);
       // "Só as finais" num Major: os stages de suíça rodam sozinhos até o Stage 3.
       if (toFinal && stage) {
         for (;;) {
@@ -820,7 +836,7 @@
           const record = swissRecord(done);
           carry = { wins: carry.wins + record.wins, losses: carry.losses + record.losses };
           stage = next;
-          field = startSceneEvent(me, index, undefined, stage);
+          field = startSceneEvent(me, index, undefined, stage, arc);
         }
       }
     } catch (error) {
@@ -831,6 +847,7 @@
     liveIndex = index;
     liveStage = stage;
     stageCarry = carry;
+    liveArc = arc;
     liveSetup = eventSetup(me, index, stage);
     live = toFinal ? advanceToFinal(field.campaign) : field.campaign;
     clutch = null;
@@ -890,7 +907,7 @@
     stageBanner = `Classificado ${record.wins}-${record.losses} no ${STAGE_NAME[liveStage]}. Agora é o ${STAGE_NAME[next]}.`;
     liveStage = next;
     liveSetup = eventSetup(career, liveIndex, next);
-    live = startSceneEvent(career, liveIndex, undefined, next).campaign;
+    live = startSceneEvent(career, liveIndex, undefined, next, liveArc ?? undefined).campaign;
     clutch = null;
     lastCall = null;
     persistLive();
@@ -988,7 +1005,7 @@
   function persistLive() {
     if (!career || !live) return;
     const ranking = career.liveEvent?.eventIndex === liveIndex ? career.liveEvent.ranking : undefined;
-    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live), stage: liveStage, carry: stageCarry, ...(ranking ? { ranking } : {}) } };
+    career = { ...career, liveEvent: { eventIndex: liveIndex, played: serializeSceneEvent(live), stage: liveStage, carry: stageCarry, ...(ranking ? { ranking } : {}), ...(liveArc ? { arc: liveArc } : {}) } };
   }
 
   /** Fecha o campeonato (jogado ou simulado): relatório, resultado no calendário, elenco e fim de temporada. */
@@ -1025,6 +1042,7 @@
     if (lifeTick.notes.length) notify(`${recorded.seed}:me`, 'Fora do servidor:', lifeTick.notes.join(' '), 'neutral');
     if (lastEventReport) lastEventReport = { ...lastEventReport, rivalLine: settled.line };
     live = null;
+    liveArc = null;
     clutch = null;
     callOutcome = null;
     resolving = false;
@@ -1073,7 +1091,7 @@
     eventError = null;
     try {
       const saved = me.liveEvent?.eventIndex === index ? me.liveEvent : null;
-      finalizeEvent(index, simulateSceneEvent(me, index, saved?.played, saved?.stage ?? null, saved?.carry));
+      finalizeEvent(index, simulateSceneEvent(me, index, saved?.played, saved?.stage ?? null, saved?.carry, undefined, saved?.arc ?? eventArcOf(me, index)));
     } catch (error) {
       console.error('[carreira] não simulou o campeonato', error);
       eventError = 'Não deu para simular este campeonato. Tente de novo.';
@@ -1180,6 +1198,10 @@
   }
 
   $: currentEntry = career?.calendar?.find((entry) => entry.status === 'UPCOMING') ?? null;
+  /** Fase do time e estudo dos rivais para o próximo campeonato (o do save, se ele já começou). */
+  $: arcNow = career && currentEntry
+    ? (career.liveEvent?.eventIndex === currentEntry.index && career.liveEvent.arc ? career.liveEvent.arc : eventArcOf(career, currentEntry.index))
+    : null;
   /** O adversário da série ao vivo (clicável no viewer). */
   $: liveOpponent = liveUserSeries && live
     ? (liveUserSeries.config.teamA.id === live.userTeamId ? liveUserSeries.config.teamB : liveUserSeries.config.teamA)
@@ -2008,6 +2030,15 @@
                 {#if currentEntry}
                   <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {entryKind(currentEntry) === 'qualifier' ? 'Qualificatória' : eventTierLabel(currentEntry.tier, currentLevel)}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
                   <h2 class="display">{eventName(currentEntry.name)}</h2>
+                  {#if arcNow}
+                    <button type="button" class="arc-line" aria-expanded={arcHelp} on:click={() => (arcHelp = !arcHelp)} title={`${phaseTip(arcNow)}${arcNow.study > 0 ? ` ${studyTip(arcNow.study)}` : ''}`}>
+                      <span class="arc-chip phase-{arcNow.phase}">Fase: {arcNow.phase}</span>
+                      {#if arcNow.study > 0}<span class="arc-chip study">Rivais estudando vocês: +{arcNow.study.toLocaleString('pt-BR')}</span>{/if}
+                    </button>
+                    {#if arcHelp}
+                      <p class="arc-help">{phaseTip(arcNow)}{#if arcNow.study > 0}{' '}{studyTip(arcNow.study)}{/if}</p>
+                    {/if}
+                  {/if}
                 {:else if !career.calendar}
                   <p class="eyebrow">Entre temporadas · {career.year}</p>
                   <h2 class="display">Temporada {career.seasonNumber}</h2>
@@ -3112,6 +3143,11 @@
   .next { grid-area: next; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(220px, 260px); gap: 10px 20px; align-items: center; padding: 12px 18px; border: 1px solid color-mix(in srgb, var(--muted) 40%, var(--line)); background: var(--surface-2); }
   .next-copy { min-width: 0; }
   .next-copy .eyebrow { margin-bottom: 6px; }
+  .arc-line { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; border: 0; background: none; cursor: help; text-align: left; }
+  .arc-chip { padding: 3px 7px; border: 1px solid var(--line); color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; }
+  .arc-chip.phase-alta { border-color: var(--accent); color: var(--accent); }
+  .arc-chip.phase-baixa, .arc-chip.study { border-color: var(--accent-2); color: var(--accent-2); }
+  .arc-help { margin: 6px 0 0; max-width: 46ch; color: var(--muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
   .next h2 { font-size: clamp(26px, 2.3vw, 36px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .next .cta { margin-top: 0; min-height: 48px; font-size: 20px; }
   .next-actions .link-btn { min-height: 28px; }
