@@ -7,7 +7,7 @@ import {
   CEILING_BONUS_CAP, CEILING_SEASON_ROOM, GROWTH_LAST_AGE, ageDecline, careerCeiling, careerGrowth, ceilingBonusOf, countTrainingSession,
   growthDefaults, seasonSwing, seasonTrainOf, sessionsPerOverall, trainingCeiling, trainingOutlook, type CareerGrowthInput
 } from '../src/lib/game/playerCareer/growth';
-import { createPlayerCareer, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { chooseStartingOrg, createPlayerCareer, finishSeason, recordEventResult, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 
 const grow = (patch: Partial<CareerGrowthInput>) => careerGrowth({
   seed: 'growth', seasonNumber: 1, age: 24, overall: 80, truePotential: 80, ceilingBonus: 0, developmentRate: 1, seasonRating: 1, injured: false, ...patch
@@ -130,5 +130,26 @@ describe('tela', () => {
     expect(trainingOutlook(player({ age: 25, overall: 91, truePotential: 90, ceilingBonus: 0 })).stage).toBe('espera');
     expect(trainingOutlook(player({ age: 25, overall: 94, truePotential: 90, ceilingBonus: 4 })).stage).toBe('maximo');
     expect(trainingOutlook(player({ age: 36, overall: 90, truePotential: 90, ceilingBonus: 0 })).stage).toBe('segura');
+  });
+});
+
+describe('fechamento no motor', () => {
+  it('o que o treino passou do teto não é cortado; sem lesão vira teto novo e o SeasonLog mostra o treino', () => {
+    for (let index = 0; index < 6; index += 1) {
+      const career = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'rifler', seed: `snap-${index}` });
+      const signed = chooseStartingOrg(career, career.pendingDraw!.find((option) => option.kind === 'real')!.orgId);
+      let state = startSeason({ ...signed, age: 25, overall: 85, truePotential: 85, ceilingBonus: 0, trainProgress: 5 });
+      state = countTrainingSession(state).state; // 6ª sessão no teto: fura para 86
+      expect(state.overall).toBe(86);
+      for (const entry of state.calendar!) state = recordEventResult(state, entry.index, { name: entry.name, placement: 'Quartas', rating: 1.0, seriesWins: 0, seriesLosses: 1 });
+      const after = finishSeason(state);
+      const log = after.history.at(-1)!;
+      expect(after.overall).toBe(86);
+      expect(log.trainingGain).toBe(1);
+      expect(seasonSwing(log)).toEqual({ start: 85, end: 86, training: 1, close: 0 });
+      expect(after.ceilingBonus).toBe(log.injury ? 0 : 1);
+      expect(Boolean(log.ceilingBlocked)).toBe(Boolean(log.injury));
+      expect(after.seasonTrain).toBeNull();
+    }
   });
 });

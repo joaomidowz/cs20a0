@@ -10,6 +10,7 @@ import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
+import { ageDecline, careerGrowth, ceilingBonusOf, GROWTH_LAST_AGE, seasonTrainOf, sessionsPerOverall } from './growth';
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
 import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
 import { myFluency, type Language } from './language';
@@ -539,6 +540,8 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     trained: {},
     trainedWindow: null,
     trainCount: 0,
+    ceilingBonus: 0,
+    trainProgress: 0,
     morale: 60,
     form: 0,
     fame: 0,
@@ -663,34 +666,20 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
 /** Idade limite de jogador: aos 40, pendura o mouse e vira coach. */
 export const MAX_CAREER_AGE = 40;
 
-/**
- * Declínio de veterano por temporada. A curva real do catálogo tem amostra boa até ~29 anos; depois quase não há
- * jogador para medir e a média oscila. Aqui o desgaste é explícito, somado à curva (que já tira 1 por ano dos 31 em
- * diante): no total, cerca de −1 por temporada dos 29 aos 34, −2 dos 35 aos 37 e −3 dos 38 em diante. Temporada boa
- * (rating alto) ainda segura, e o treino de veterano pode passar do teto em até 4 (VETERAN_TRAIN_ROOM).
- */
-export const ageDecline = (age: number): number => (age >= 38 ? 2 : age >= 35 ? 1 : age >= 29 && age <= 30 ? 1 : 0);
-
-/** Quanto o veterano perde por temporada, no total (para a tela). */
-export const veteranLoss = (age: number): number => (age >= 38 ? 3 : age >= 35 ? 2 : age >= 30 ? 1 : 0);
-
-/** A partir dos 27, o treino pode levar o overall até 4 acima do teto natural (o FalleN e o apEX seguram assim). */
-export const VETERAN_TRAIN_ROOM = 4;
-export const VETERAN_TRAIN_AGE = 27;
-/** Até onde o treino leva o overall: o teto natural; dos 27 em diante, até 4 acima dele. */
-export const trainingCeiling = (state: Pick<PlayerCareerState, 'truePotential' | 'age'>): number =>
-  Math.min(99, state.truePotential + (state.age >= VETERAN_TRAIN_AGE ? VETERAN_TRAIN_ROOM : 0));
+// A progressão do seu jogador (crescimento até os 34, teto conquistado pelo treino, declínio depois dos 34) mora em
+// growth.ts. Estes nomes continuam saindo daqui para a tela e os testes.
+export { ageDecline, trainingCeiling } from './growth';
 
 /** Quanto mais velho, mais lesão: 6% até os 24, +2,5 pontos por ano depois, até 45%. */
 export const injuryChance = (age: number): number => Math.min(0.45, 0.06 + Math.max(0, age - 24) * 0.025);
 
-/** Fase da carreira pela idade (pico real do catálogo: mediana 23, p90 27). */
+/** Fase da carreira pela idade: sobe rápido até os 21 e devagar até os 34; dali em diante a temporada decide. */
 export function agePhase(age: number): { label: string; detail: string } {
-  if (age <= 21) return { label: 'Em formação', detail: 'Sobe rápido se jogar bem.' };
-  if (age <= 26) return { label: 'Auge', detail: 'Melhor fase da carreira.' };
-  if (age <= 28) return { label: 'Experiente', detail: 'Parou de crescer. Segura o nível.' };
-  const next = veteranLoss(age + 1);
-  return { label: age <= 33 ? 'Veterano' : 'Fim de carreira', detail: `Perde cerca de ${next} de overall por temporada; treino segura e pode passar do teto em até ${VETERAN_TRAIN_ROOM}. Limite: ${MAX_CAREER_AGE}.` };
+  if (age <= 21) return { label: 'Em formação', detail: `Sobe rápido. Treino rende mais: ${sessionsPerOverall(age, false)} semanas = +1.` };
+  if (age <= 26) return { label: 'Auge', detail: 'Ainda sobe com treino e temporada boa.' };
+  if (age <= 30) return { label: 'Experiente', detail: 'Sobe devagar. Rating e treino seguram o nível.' };
+  if (age < GROWTH_LAST_AGE) return { label: 'Veterano', detail: `Ainda sobe até os ${GROWTH_LAST_AGE}, devagar. Temporada ruim tira overall.` };
+  return { label: 'Fim de carreira', detail: `Temporada boa segura (rating 1,09+). Abaixo disso perde ${ageDecline(age + 1)} ou mais por ano. Limite: ${MAX_CAREER_AGE}.` };
 }
 
 const INJURIES_YOUNG = ['Tendinite no punho', 'Lombalgia'];
@@ -720,18 +709,19 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   const injured = rng() < Math.min(0.6, injuryChance(state.age) + (state.fatigue ?? 0) / 250);
   const injuryPool = state.age >= 30 ? INJURIES_OLD : INJURIES_YOUNG;
   const injury = injured ? injuryPool[Math.floor(rng() * injuryPool.length)] : null;
-  const injuryWeight = injured ? 0.03 + 0.012 * Math.max(0, state.age - 27) : 0;
 
+  // Progressão do seu jogador (growth.ts): teto conquistado pelo treino, crescimento até os 34, desempenho e idade.
+  // Nada do que o treino somou na temporada é cortado aqui; só o desempenho, a idade e a lesão tiram.
   const before = state.overall;
-  const aged = applyAging({
-    entity: { id: `${state.seed}:me`, age: state.age, overall: state.overall, truePotential: state.truePotential, developmentRate: state.developmentRate, runRating: seasonRating - injuryWeight },
-    calibration,
-    seasonKey: `${state.seed}:season:${state.seasonNumber}`
+  const grown = careerGrowth({
+    seed: state.seed, seasonNumber: state.seasonNumber, age: state.age, overall: state.overall, truePotential: state.truePotential,
+    ceilingBonus: ceilingBonusOf(state), developmentRate: state.developmentRate, seasonRating, injured
   });
-  // O sorteio de aposentadoria do motor de idade vira AVISO (o corpo pede para parar); quem decide é você.
-  const retireHint = aged.retired;
-  const decline = ageDecline(aged.entity.age) + (injured && state.age >= 30 ? 1 : 0);
-  const finalOverall = Math.max(40, Math.min(99, aged.entity.overall - decline));
+  // O risco de aposentadoria pela idade vira AVISO (o corpo pede para parar); quem decide é você.
+  const retireHint = grown.retireHint;
+  const decline = grown.ageDecline;
+  const finalOverall = grown.overall;
+  const training = seasonTrainOf(state);
   const agingNote = finalOverall > before ? `Evoluiu para ${finalOverall} de overall`
     : finalOverall < before ? `Caiu para ${finalOverall} de overall`
     : 'Manteve o nível';
@@ -749,9 +739,13 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     titles,
     injury,
     agingNote,
-    age: aged.entity.age,
+    age: grown.age,
     ageDecline: decline,
     retireHint,
+    ...(training.gained ? { trainingGain: training.gained } : {}),
+    ...(training.sessions ? { trainingSessions: training.sessions } : {}),
+    ...(grown.ceilingGain ? { ceilingGain: grown.ceilingGain } : {}),
+    ...(grown.ceilingBlocked ? { ceilingBlocked: true } : {}),
     ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
   // Prêmios da temporada: Top 20 HLTV e Rookie of the Year (estreia em Major).
@@ -781,8 +775,10 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     squadPlan: growBench(state.squadPlan, state.year + 1, rng),
     // Os membros criados na sua carreira crescem também, em qualquer time em que estejam.
     ...(state.careerMembers ? { careerMembers: state.careerMembers.map((member) => growPlayer(member, state.year + 1, rng)) } : {}),
-    age: aged.entity.age,
+    age: grown.age,
     overall: finalOverall,
+    ceilingBonus: grown.ceilingBonus,
+    seasonTrain: null,
     seasonNumber: state.seasonNumber + 1,
     year: state.year + 1,
     history: [...state.history, log],
