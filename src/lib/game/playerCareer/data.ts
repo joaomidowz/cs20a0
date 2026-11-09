@@ -216,6 +216,19 @@ function rebalanceTiers(orgs: SceneOrg[]): SceneOrg[] {
   });
 }
 
+const IDENTITY_COUNTRY = (rawIdentities as unknown as { players: Record<string, { country?: string | null }> }).players;
+
+/** País pelo arquivo de identidades do jogo (yuurih, KSCERATO e FalleN vieram sem país na coleta). */
+const identityCountry = (member: SceneRosterMember): string | null =>
+  countryOfFlag(IDENTITY_COUNTRY[(member.catalogBaseId ?? member.nick).toLowerCase()]?.country);
+
+/** Quem veio sem país na coleta ganha o do arquivo de identidades, quando ele tem; o resto continua null. */
+const withKnownCountry = (member: SceneRosterMember): SceneRosterMember => {
+  if (member.country) return member;
+  const country = identityCountry(member);
+  return country ? { ...member, country } : member;
+};
+
 const normalized = (() => {
   const byKey = new Map<string, SceneOrg>();
   const alias = new Map<string, string>();
@@ -264,22 +277,19 @@ const normalized = (() => {
     const elite = rank !== null && rank <= ELITE_RANK;
     const level = elite ? (rank! <= TIER_S_RANK ? 0 : 1) : org.level === 1 ? 2 : org.level;
     const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? Math.max(78, 84 - (rank - ELITE_RANK) * 0.4) : ORG_BASE_POWER[level];
-    return { ...org, level, worldRank: rank, power: Math.round(power * 10) / 10, region: regionOfOrg(org) };
+    return { ...org, roster: org.roster.map(withKnownCountry), level, worldRank: rank, power: Math.round(power * 10) / 10, region: regionOfOrg(org) };
   });
   return { orgs: rebalanceTiers(orgs), alias };
 })();
 
 export const sceneOrgs = normalized.orgs;
 
-const IDENTITY_COUNTRY = (rawIdentities as unknown as { players: Record<string, { country?: string | null }> }).players;
-
 /** País do jogador para a call e para a carta: o da coleta; sem ele, o do catálogo do jogo (ZywOo, apEX e ropz
  *  vieram sem país) e, por fim, o do time (BORRACHEIROS sem nenhum país é brasileiro). O mundo (trocas e times
- *  nacionais) continua lendo só o da coleta. */
+ *  nacionais) lê o da coleta completado pelo arquivo de identidades (withKnownCountry), nunca o do time. */
 export function memberCountryIn(member: SceneRosterMember, org?: { country: string | null } | null): string | null {
   if (member.country) return member.country;
-  const code = IDENTITY_COUNTRY[(member.catalogBaseId ?? member.nick).toLowerCase()]?.country;
-  return countryOfFlag(code) ?? org?.country ?? null;
+  return identityCountry(member) ?? org?.country ?? null;
 }
 
 /** O elenco com o país de todos resolvido (para o idioma da call). */
