@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { realRanking, sceneOrgById } from '../src/lib/game/playerCareer/data';
 import { LICENSED_IMAGES, orgLogoFor } from '../src/lib/game/visuals/licensed';
 
-const PACK = LICENSED_IMAGES.entries.filter((entry) => entry.attribution.includes('pacote do dono, ranking mundial 2026-11'));
+const PACK = LICENSED_IMAGES.entries.filter((entry) => entry.kind === 'org' && entry.attribution.includes('pacote do dono, ranking mundial 2026-11'));
 
 describe('logos dos times do ranking de novembro de 2026', () => {
   it('cada logo do pacote existe em static/, tem o nome pelo id da org e fica abaixo de 100 KB', () => {

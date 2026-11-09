@@ -22,7 +22,7 @@ const TARGET = path.join(ROOT, 'static/licensed/orgs');
 const SOURCE = 'pacote do dono, ranking mundial 2026-11';
 
 const file = JSON.parse(readFileSync(LICENSED, 'utf8')) as LicensedImagesFile;
-const ours = (entry: LicensedImageEntry) => entry.attribution.includes(SOURCE);
+const ours = (entry: LicensedImageEntry) => entry.kind === 'org' && entry.attribution.includes(SOURCE);
 const kept = file.entries.filter((entry) => !ours(entry));
 const taken = new Set(kept.map((entry) => `${entry.kind}:${entry.key}`));
 
