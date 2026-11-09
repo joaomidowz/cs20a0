@@ -19071,6 +19071,19 @@
         "evidence": "fair-use-basis.md"
       },
       "attribution": "Logo da organização, uso nominativo sem afiliação · pacote do dono, ranking mundial 2026-11"
+    },
+    {
+      "kind": "player",
+      "key": "me:midowz",
+      "file": "licensed/players/me-midowz.webp",
+      "license": {
+        "holder": "midowz, dono do jogo e retratado na foto",
+        "type": "consentimento do próprio retratado",
+        "scope": "Foto da sua carta na Carreira quando o nick escolhido é midowz",
+        "grantedAt": "2026-11-09",
+        "evidence": "midowz-owner-photo.md"
+      },
+      "attribution": "Foto enviada pelo próprio dono do jogo para a carta de quem joga como midowz"
     }
   ]
 }

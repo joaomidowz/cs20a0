@@ -41,11 +41,14 @@
   $: values = ATTRIBUTES.map((attribute) => ({ ...attribute, value: Number(player[attribute.key] ?? 0), gain: trained?.[attribute.key] ?? 0 }));
   $: best = new Set([...values].sort((a, b) => b.value - a.value).slice(0, 2).map((attribute) => attribute.key));
   $: initials = (player.nickname ?? '?').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
-  // Foto licenciada do jogador real (registro em licensed-images.json), nunca na sua carta.
+  // Foto licenciada do jogador real (registro em licensed-images.json).
   // Bandeira que não está no pacote do jogo: some sem quebrar a linha.
   let flagMissing = false;
   $: profile?.flag, (flagMissing = false);
-  $: photo = me ? null : licensedImageFor('player', player.baseId ?? null) ?? licensedImageFor('player', (player.nickname ?? '').toLowerCase());
+  // A sua carta só tem foto quando o nick tem uma registrada com consentimento (player:me:<nick>, ex.: midowz).
+  $: photo = me
+    ? licensedImageFor('player', `me:${(player.nickname ?? '').toLowerCase()}`)
+    : licensedImageFor('player', player.baseId ?? null) ?? licensedImageFor('player', (player.nickname ?? '').toLowerCase());
 </script>
 
 <article class="ccard r-{info.rarity} size-{size}" class:me>
