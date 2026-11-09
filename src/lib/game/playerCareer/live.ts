@@ -37,6 +37,7 @@ import { applyCareerMapProfiles } from './careerMaps';
 import { memberCatalogOverall, memberNick, ORG_BASE_POWER, orgLanguage, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, CalendarEntry, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
+import { arcPowerOf, eventArcOf, type EventArc } from './form';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -370,7 +371,7 @@ export const EVENT_FORM_SWING = 3.5;
 export const SUPERTEAM_EDGE = 1.5;
 export const SUPERTEAM_DAMPING = 0.35;
 
-export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, stage: MajorStageKey | null = null): SceneEventField {
+export function startSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, stage: MajorStageKey | null = null, arc: EventArc = eventArcOf(state, eventIndex)): SceneEventField {
   const setup = eventSetup(state, eventIndex, stage);
   const entry = state.calendar?.[eventIndex];
   const isMajor = entry?.format === 'major' && Boolean(setup.stage);
@@ -425,6 +426,12 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   const ranked = [...campaign.engine.byId.values()].sort((a, b) => b.team.power - a.team.power);
   const ceiling = (ranked[1]?.team.power ?? 0) + SUPERTEAM_EDGE;
   if (ranked[0] && ranked[1] && ranked[0].team.power > ceiling) ranked[0].team = { ...ranked[0].team, power: ceiling + (ranked[0].team.power - ceiling) * SUPERTEAM_DAMPING };
+  // O arco da carreira (form.ts): a fase do bloco soma ou tira força do seu time; o estudo dos rivais vale nas séries
+  // contra você e, como o seu time só joga as próprias séries, entra como desconto na sua força. Os dois depois do teto
+  // do supertime, para o time dominante sentir o arco inteiro. O arco vem congelado do save no evento em andamento.
+  const arcPower = arcPowerOf(arc);
+  const userEngineOrg = campaign.engine.byId.get(campaign.userTeamId);
+  if (arcPower && userEngineOrg) userEngineOrg.team = { ...userEngineOrg.team, power: userEngineOrg.team.power + arcPower };
   for (const standing of campaign.engine.standings) if (standing.organizationId === campaign.userTeamId) standing.name = userName;
   const openSeries = currentCampaignSeries(campaign);
   if (openSeries) {
@@ -865,15 +872,15 @@ function headlessPlay(calls: HeadlessCalls, campaign: CampaignMajorState, moment
 }
 
 /** Simula um campeonato inteiro (ou o resto dele, a partir de um save) e devolve o fechamento. */
-export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }, calls?: HeadlessCalls): SceneEventOutcome & { campaign: CampaignMajorState | null } {
+export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number, played?: Record<string, unknown>, fromStage: MajorStageKey | null = null, carry: StageCarry = { wins: 0, losses: 0 }, calls?: HeadlessCalls, arc: EventArc = eventArcOf(state, eventIndex)): SceneEventOutcome & { campaign: CampaignMajorState | null } {
   const entry = state.calendar?.[eventIndex];
   if (entry?.format === 'major') {
     const stage: MajorStageKey | null = fromStage ?? majorEntryStage(state, eventIndex);
     if (!stage) return { ...notQualified(state, eventIndex), campaign: null };
-    const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, stage).campaign, 8000, calls);
+    const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, stage, arc).campaign, 8000, calls);
     return { ...sceneEventResult(state, eventIndex, campaign, stage, carry), campaign };
   }
-  const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played).campaign, 8000, calls);
+  const campaign = finishSceneEvent(startSceneEvent(state, eventIndex, played, null, arc).campaign, 8000, calls);
   return { ...sceneEventResult(state, eventIndex, campaign), campaign };
 }
 

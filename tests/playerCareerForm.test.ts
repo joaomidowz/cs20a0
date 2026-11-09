@@ -9,6 +9,7 @@ import {
   ARC_TUNING, FORM_PHASES, blockKeyOf, blockRange, blockSizes, eventArcOf, formBlockOf, formPhaseOf, formTransition, rivalStudyOf, type FormPhase
 } from '../src/lib/game/playerCareer/form';
 import { ensureSquad } from '../src/lib/game/playerCareer/squad';
+import { serializeSceneEvent, startSceneEvent, stepSceneEvent } from '../src/lib/game/playerCareer/live';
 
 const orgNamed = (name: string) => sceneOrgs.find((candidate) => candidate.name === name)!;
 const result = (placement: string): TournamentResult => ({ name: 'Etapa', placement, rating: 1.1, seriesWins: 2, seriesLosses: 1, tier: 'S' });
@@ -180,4 +181,29 @@ describe('save', () => {
     expect(rivalStudyOf(old, end0)).toBeGreaterThan(rivalStudyOf(restored, end0));
     expect(eventArcOf(old, end0).phase).toBe(arc.phase);
   });
+});
+
+describe('arco congelado no campeonato em andamento', () => {
+  it('o campeonato refeito das séries salvas usa o arco do começo, mesmo que o save mude no meio', () => {
+    const base = withCalendar(careerAt(VITALITY, 'frozen'), 12);
+    const [, end0] = blockRange(base, 0);
+    const state = play(base, Array.from({ length: end0 }, () => 'Campeão'));
+    const arc = eventArcOf(state, end0);
+    expect(arc.study).toBeGreaterThan(0);
+    const userPower = (campaign: ReturnType<typeof startSceneEvent>['campaign']) => campaign.engine.byId.get(campaign.userTeamId)!.team.power;
+    const plain = startSceneEvent(state, end0, undefined, null, { phase: 'normal', phasePower: 0, study: 0 }).campaign;
+    let campaign = startSceneEvent(state, end0, undefined, null, arc).campaign;
+    const atStart = userPower(campaign);
+    expect(atStart).toBeCloseTo(userPower(plain) + arc.phasePower - arc.study, 6);
+    for (let guard = 0; guard < 6000 && Object.keys(serializeSceneEvent(campaign)).length < 1; guard += 1) campaign = stepSceneEvent(campaign).campaign;
+    const played = serializeSceneEvent(campaign);
+    expect(Object.keys(played).length).toBeGreaterThan(0);
+    const changed: PlayerCareerState = { ...state, studyCut: { key: blockKeyOf(state, end0), factor: 0.2, cards: ['mudar-playbook'] } };
+    expect(eventArcOf(changed, end0)).not.toEqual(arc);
+    const rebuilt = startSceneEvent(changed, end0, played, null, arc).campaign;
+    expect(userPower(rebuilt)).toBe(atStart);
+    const scores = (series: Record<string, unknown>) => Object.values(series as Record<string, { id: string; winnerId: string; scoreA: number; scoreB: number }>).map((item) => [item.id, item.winnerId, item.scoreA, item.scoreB]);
+    expect(scores(serializeSceneEvent(rebuilt))).toEqual(scores(played));
+    expect(userPower(startSceneEvent(changed, end0, played).campaign)).not.toBe(atStart);
+  }, 30000);
 });
