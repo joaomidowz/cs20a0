@@ -2,6 +2,7 @@ import { botEcoCall, botShouldTimeout, botSidePick, styleSidePreference } from '
 import { MAP_SIDE_BIAS } from './maps';
 import { getEligibleSlotRoles } from './roleRules';
 import { RAW_WIN_DIVISOR, getWinProbability, type SeededRng } from './simulation';
+import { CLUTCH_CARRY_RIVAL_SHARE, CLUTCH_CARRY_SERIES_SHARE, CLUTCH_CARRY_STEP, CLUTCH_CARRY_UNDERDOG_STEP, MAX_CLUTCH_CARRY } from './playerCareer/tuning';
 import type {
   BuyType,
   CombatTeam,
@@ -487,27 +488,9 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
 /** Hard cap of a clutch call's one-round edge: it swings the round, never owns it. */
 export const MAX_CLUTCH_EDGE = 0.15;
 
-// ---------------------------------------------------------------------------------------------------------------------
-// EMBALO DAS CALLS (Carreira): tabela de ajuste. Todos os números do embalo ficam aqui; os do arco da carreira (fase do
-// time e estudo dos rivais) ficam em ARC_TUNING, em src/lib/game/playerCareer/form.ts.
-//   CLUTCH_CARRY_STEP           0.02  embalo de quem ganha o round da call sendo favorito ou no confronto parelho
-//   CLUTCH_CARRY_UNDERDOG_STEP  0.1   embalo do azarão cheio (rival bem mais forte); entre os dois, proporcional
-//   CLUTCH_CARRY_RIVAL_SHARE    0.7   fração do passo que o rival leva quando a sua call falha
-//   MAX_CLUTCH_CARRY            0.15  teto do embalo acumulado num mapa
-//   CLUTCH_CARRY_SERIES_SHARE   0.5   fração do embalo do mapa que passa para o mapa seguinte da série
-// Valores do protótipo do plano 07 (passou em C1 a C8 lá); a calibração com o jogo final ainda não rodou: ajuste depois
-// de jogar. Para medir: tests/playerCareerArcCalibration.test.ts com CAREER_UNDERDOG=1.
-// ---------------------------------------------------------------------------------------------------------------------
-/** Embalo de quem ganha o round da call sendo favorito ou no confronto parelho: um empurrão discreto. */
-export const CLUTCH_CARRY_STEP = 0.02;
-/** Embalo do azarão: quanto mais forte o adversário, mais o round da call compra a virada (até este passo). */
-export const CLUTCH_CARRY_UNDERDOG_STEP = 0.1;
-/** Quanto do passo o rival leva quando a sua call falha: ele leu você, mas o round não era dele. */
-export const CLUTCH_CARRY_RIVAL_SHARE = 0.7;
-/** Teto do embalo acumulado num mapa. */
-export const MAX_CLUTCH_CARRY = 0.15;
-/** Quanto do embalo atravessa o intervalo: quem leu certo chega aquecido no mapa seguinte da série. */
-export const CLUTCH_CARRY_SERIES_SHARE = 0.5;
+// Embalo das calls (Carreira): os números moram na tabela de ajuste em playerCareer/tuning.ts e saem daqui com os mesmos
+// nomes (o motor usa; os testes e live-series importam de rounds).
+export { CLUTCH_CARRY_RIVAL_SHARE, CLUTCH_CARRY_SERIES_SHARE, CLUTCH_CARRY_STEP, CLUTCH_CARRY_UNDERDOG_STEP, MAX_CLUTCH_CARRY };
 
 const clutchCarryOf = (state: MapState, side: TeamSide) => state.clutchCarry?.[side] ?? 0;
 

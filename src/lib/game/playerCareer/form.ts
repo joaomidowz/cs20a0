@@ -8,31 +8,13 @@
 import { createSeededRng } from '../simulation';
 import type { PlayerCareerState, TournamentResult } from './engine';
 import { currentLevelOf } from './tiers';
+import { ARC_TUNING, type ArcTuning } from './tuning';
 
 export type FormPhase = 'alta' | 'normal' | 'baixa';
 export const FORM_PHASES: FormPhase[] = ['alta', 'normal', 'baixa'];
 
-/** Os números do arco, num lugar só: a calibração (calibration.ts) mede variações deles sem mexer no jogo. */
-export interface ArcTuning {
-  /** Força que a fase alta soma (e a baixa tira) do seu time em cada campeonato. */
-  phasePower: number;
-  /** Chance de a fase alta (ou a baixa) continuar no bloco seguinte, sem contar o resultado. */
-  stay: number;
-  /** Probabilidade que um bloco dominante leva para a fase alta (e um bloco sem final, para a baixa). */
-  tilt: number;
-  /** Teto do estudo dos rivais, em pontos de força contra o seu time. */
-  studyMax: number;
-  /** Quanto o domínio do bloco anterior acima do piso vira estudo. */
-  studyBlock: number;
-  blockFloor: number;
-  /** Quanto o domínio dos últimos campeonatos (o ano dominante) acima do piso vira estudo. */
-  studySeason: number;
-  seasonFloor: number;
-}
-
-/** Valores de partida, medidos num protótipo sobre 67fa6bf (antes dos planos 02 a 06); a Task 10 do plano 07 mede de novo
- *  com o jogo final e grava aqui os calibrados. */
-export const ARC_TUNING: ArcTuning = { phasePower: 1.5, stay: 0.5, tilt: 0.1, studyMax: 3, studyBlock: 4, blockFloor: 0.5, studySeason: 6, seasonFloor: 0.4 };
+// Os números do arco (ARC_TUNING) moram na tabela de ajuste em tuning.ts, junto com os do embalo das calls.
+export { ARC_TUNING, type ArcTuning };
 
 /** Cadeia entre blocos (linha: a fase do bloco anterior). A fase tende a continuar; normal é a mais comum. */
 export function formTransition(stay: number = ARC_TUNING.stay): Record<FormPhase, Record<FormPhase, number>> {
