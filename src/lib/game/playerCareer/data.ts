@@ -29,6 +29,8 @@ export interface SceneRosterMember {
   overall?: number;
   /** Identidade curada de promessa (link HLTV), quando o jogador veio da base real. */
   hltv?: string;
+  /** Promessa da base real curada (career-prospects.game.json), com ou sem link HLTV. */
+  curated?: boolean;
   /** Vaga sem jogador real conhecido: nick gerado (placeholder). */
   generated?: boolean;
   /** Criado na sua carreira (reserva promovido, substituto): membro do time no lugar de quem estava na posição. */

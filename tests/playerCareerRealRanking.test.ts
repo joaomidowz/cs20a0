@@ -154,3 +154,28 @@ describe('ranking no começo da carreira pelos pontos reais', () => {
     expect(points(1) - points(5)).toBeGreaterThan(points(5) - points(6));
   });
 });
+
+describe('nocries, promessa curada (D12)', () => {
+  it('estreia na virada para 2027 num time de Tier B ou C da América do Norte, com a identidade do dono', async () => {
+    const { sceneDebuts, sceneWorld, risingProspects } = await import('../src/lib/game/playerCareer/world');
+    for (const seed of ['nocries-1', 'nocries-2', 'nocries-3']) {
+      const debut = sceneDebuts(seed, 2).find((entry) => entry.nick === 'nocries')!;
+      expect(debut, seed).toBeDefined();
+      expect(debut.age).toBe(20);
+      const org = sceneOrgById.get(debut.orgId)!;
+      expect(org.level, seed).toBeGreaterThanOrEqual(3);
+      expect(org.region, seed).toBe('na');
+      const member = sceneWorld(seed, 2).rosters.get(debut.orgId)!.find((entry) => entry.nick === 'nocries')!;
+      expect(member).toMatchObject({ country: 'Russia', birthDate: '2007-01-03', roles: ['entry'], prospect: true, curated: true });
+      expect(risingProspects(seed, 2, 40).find((kid) => kid.nick === 'nocries')?.curated, seed).toBe(true);
+    }
+  });
+
+  it('tem o teto de prodígio: a faixa mais alta das promessas curadas', async () => {
+    const { prospects } = (await import('../src/lib/data/cs/career-prospects.game.json')).default as unknown as { prospects: Array<{ nick: string; potentialRange: [number, number] }> };
+    const top = Math.max(...prospects.map((kid) => kid.potentialRange[1]));
+    const nocries = prospects.find((kid) => kid.nick === 'nocries')!;
+    expect(nocries.potentialRange[1]).toBe(top);
+    expect(nocries.potentialRange[0]).toBe(Math.max(...prospects.map((kid) => kid.potentialRange[0])));
+  });
+});

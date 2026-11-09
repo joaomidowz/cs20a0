@@ -1,5 +1,5 @@
 {
-  "source": "Identidades curadas do mundo do modo Manager (Studio, youth-profiles-batch-01-2026-09-15). Só nick, link HLTV, país e time de referência são reais; idade, função, overall e potencial são gerados.",
+  "source": "Identidades curadas do mundo do modo Manager (Studio, youth-profiles-batch-01-2026-09-15). Só nick, link HLTV, país e time de referência são reais; idade, função, overall e potencial são gerados. nocries (pedido do dono, 2026-11-09, D12): nick, nome, nascimento, país e função vêm do dono; overall e potencial na faixa mais alta das curadas; sem link HLTV no arquivo.",
   "referenceYear": 2026,
   "prospects": [
     {
@@ -305,6 +305,24 @@
       "region": "South America",
       "country": "Brazil",
       "referenceTeam": "RED Canids Academy"
+    },
+    {
+      "nick": "nocries",
+      "hltvPlayerId": null,
+      "hltv": null,
+      "age": 19,
+      "birthDate": "2007-01-03",
+      "role": "entry",
+      "overall": 69,
+      "potentialRange": [
+        75,
+        88
+      ],
+      "developmentRate": 1.22,
+      "region": "North America",
+      "country": "Russia",
+      "referenceTeam": null,
+      "note": "Maidar Baldanov. Origem mongol, cresceu na Buriátia (Rússia) e mora nos Estados Unidos; ficou famoso no topo da FACEIT na América do Norte. Rifler/entry. País no jogo: Rússia (fala russo; times de NA são mistos e o aceitam)."
     }
   ]
 }

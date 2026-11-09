@@ -57,10 +57,11 @@ interface WorldSeason {
 
 interface CuratedProspect {
   nick: string;
-  hltv: string;
+  /** Link HLTV da promessa; null quando o arquivo não tem (nocries). */
+  hltv: string | null;
   /** Idade em 2026. */
   age: number;
-  /** Nascimento real, quando a promessa tem; sem ele, 1º de março do ano que a idade dá. */
+  /** Nascimento real, quando a promessa tem (nocries); sem ele, 1º de março do ano que a idade dá. */
   birthDate?: string;
   role: string;
   overall: number;
@@ -69,8 +70,12 @@ interface CuratedProspect {
   region: string;
   country: string | null;
   referenceTeam: string | null;
+  /** Nota do dono sobre a origem do jogador (só texto, não muda nada no jogo). */
+  note?: string;
 }
 const PROSPECTS = (rawProspects as unknown as { prospects: CuratedProspect[] }).prospects;
+/** Promessa da base real (curada), com ou sem link HLTV. */
+const isCurated = (member: SceneRosterMember): boolean => Boolean(member.curated || member.hltv);
 /** Nascimento da promessa: o real quando o arquivo tem; senão, pela idade de 2026. */
 const curatedBirthDate = (kid: CuratedProspect, year: number): string => kid.birthDate ?? `${year - (kid.age + (year - 2026))}-03-01`;
 const PROSPECT_REGION: Record<string, ReturnType<typeof regionOf>[]> = { Europe: ['eu'], 'North America': ['na'], 'South America': ['sa'], Asia: ['asia'], Oceania: ['oce'] };
@@ -333,7 +338,8 @@ function placeProspects(seed: string, season: number, rosters: Map<string, Scene
           birthDate: member.birthDate ?? curatedBirthDate(kid, year),
           roles: member.roles.length ? member.roles : [kid.role],
           prospect: true,
-          hltv: kid.hltv
+          curated: true,
+          ...(kid.hltv ? { hltv: kid.hltv } : {})
         };
         dev.set(memberKey(curated), { overall: current?.overall ?? kid.overall, potential: Math.max(current?.overall ?? kid.overall, low + Math.round(rng() * (high - low))), rate: kid.developmentRate });
         return curated;
@@ -341,12 +347,12 @@ function placeProspects(seed: string, season: number, rosters: Map<string, Scene
       continue;
     }
     const age = kid.age + (year - 2026);
-    const member: SceneRosterMember = { nick: kid.nick, country: kid.country, birthDate: curatedBirthDate(kid, year), roles: [kid.role], catalogBaseId: null, prospect: true, hltv: kid.hltv };
+    const member: SceneRosterMember = { nick: kid.nick, country: kid.country, birthDate: curatedBirthDate(kid, year), roles: [kid.role], catalogBaseId: null, prospect: true, curated: true, ...(kid.hltv ? { hltv: kid.hltv } : {}) };
     // Sai o mais fraco da função cujo lugar a promessa pode ocupar sem o time perder a identidade.
     const outIn = (org: SceneOrg): SceneRosterMember | undefined => {
       const roster = rosters.get(org.id) ?? [];
       const sameRole = roster.filter((other) => memberRoles(other)[0] === kid.role);
-      const options = (sameRole.length ? sameRole : roster).filter((other) => !other.hltv);
+      const options = (sameRole.length ? sameRole : roster).filter((other) => !isCurated(other));
       return [...options]
         .sort((a, b) => (a.overall ?? memberCatalogOverall(a) ?? 0) - (b.overall ?? memberCatalogOverall(b) ?? 0))
         .find((other) => keepsIdentity(org.id, roster, swapIn(roster, other, member)));
@@ -658,7 +664,7 @@ export function risingProspects(seed: string, season: number, limit = 4): Rising
       if (born === null || year - born > 21 || seen.has(key) || member.overall === undefined) continue;
       seen.add(key);
       const before = world.previousOverall.get(key);
-      list.push({ nick: memberNick(member), age: year - born, overall: member.overall, delta: before === undefined ? 0 : member.overall - before, orgId: org.id, orgName: org.name, curated: Boolean(member.hltv) });
+      list.push({ nick: memberNick(member), age: year - born, overall: member.overall, delta: before === undefined ? 0 : member.overall - before, orgId: org.id, orgName: org.name, curated: isCurated(member) });
     }
   }
   return list.sort((a, b) => Number(b.curated) - Number(a.curated) || b.overall - a.overall || b.delta - a.delta).slice(0, limit);
