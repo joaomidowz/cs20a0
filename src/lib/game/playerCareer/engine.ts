@@ -225,7 +225,22 @@ export interface SeasonLog {
   rookieEligible?: boolean;
 }
 
-export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean; /** Rating da temporada (o seu é o real; o da cena, pela força). */ rating?: number; teamId?: string; age?: number | null }
+/** Por que um jogador tem os pontos do ranking de jogadores (D7b): contagens e pontos de cada parte. */
+export interface RankingReasons {
+  titles: number;
+  mvps: number;
+  evps: number;
+  /** Pontos de colocação do time (título, final, semifinal e quartas), já com o peso do tempo. */
+  placements: number;
+  mvpPoints: number;
+  evpPoints: number;
+  /** Força de quem joga (overall acima de 70). */
+  strength: number;
+  /** O que ainda sobra do ranking real de partida (some no começo da segunda temporada). */
+  base: number;
+}
+
+export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean; /** Rating da temporada (o seu é o real; o da cena, pela força). */ rating?: number; teamId?: string; age?: number | null; /** Ranking de jogadores (D7b): os pontos e o motivo deles. */ points?: number; reasons?: RankingReasons }
 
 export interface CareerVerdict {
   seasons: number;
