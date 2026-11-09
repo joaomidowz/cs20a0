@@ -5,6 +5,8 @@
   import type { Player } from '$lib/game/types';
   import type { CardInfo } from '$lib/game/playerCareer/scout';
   import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
+  import CareerHonors from './CareerHonors.svelte';
+  import type { PlayerHonors } from '$lib/game/playerCareer/honors';
 
   export let player: Player;
   /** Rótulo da função ("Entry fragger"). */
@@ -22,6 +24,8 @@
   export let onNoticeClose: (() => void) | null = null;
   /** 'sheet' é a versão grande da modal. */
   export let size: 'mate' | 'sheet' = 'mate';
+  /** Títulos e MVPs da carreira do jogador: símbolos discretos sob a raridade (somem quando são zero). */
+  export let honors: PlayerHonors | null = null;
 
   const ATTRIBUTES = [
     { key: 'firepower', short: 'MIR', label: 'Mira' },
@@ -63,7 +67,10 @@
         <span class="ovr">{overall}</span>
         {#if roleLabel}<span class="pos">{roleLabel}</span>{/if}
       </span>
-      <span class="rar">{CAREER_RARITY_LABEL[info.rarity]}</span>
+      <span class="top-side">
+        <span class="rar">{CAREER_RARITY_LABEL[info.rarity]}</span>
+        <CareerHonors {honors} size={size === 'sheet' ? 'md' : 'sm'} />
+      </span>
     </span>
     <span class="id">
       <b class="nick">{player.nickname ?? player.id}</b>
@@ -199,6 +206,8 @@
   .pos { color: var(--muted); font: 800 11px/1 Archivo, Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 11ch; }
   .rar { padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--r) 60%, transparent); color: var(--r-ink); font: 800 10px/1 Archivo, Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
   .r-common .rar { color: var(--muted); border-color: var(--line); }
+  /* Raridade e, embaixo dela, os símbolos de títulos e MVPs: ficam no canto, longe do overall, da função e do nick. */
+  .top-side { display: grid; justify-items: end; gap: 5px; min-width: 0; }
   .id { display: grid; gap: 2px; min-width: 0; margin-top: 2px; }
   .nick { font: 800 21px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cap { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,8 +1,12 @@
 <script lang="ts">
-  // Top 20 HLTV da temporada da Carreira: posição, escudo, jogador, time, idade e rating; você destacado e o
-  // Rookie of the Year ao lado.
+  // Top 20 HLTV da Carreira: posição, escudo, jogador, time, idade e rating; você destacado e o Rookie of the Year ao
+  // lado. Na tela Mundo é o ranking de jogadores dos últimos 12 meses: pontos no lugar do rating, o motivo de cada um e
+  // os símbolos de títulos e MVPs.
   import TeamBadge from './TeamBadge.svelte';
+  import CareerHonors from './CareerHonors.svelte';
   import type { RankedPlayer } from '$lib/game/playerCareer/engine';
+  import type { PlayerHonors } from '$lib/game/playerCareer/honors';
+  import { reasonsLabel } from '$lib/game/playerCareer/playerRanking';
 
   export let year: number;
   export let top: RankedPlayer[] = [];
@@ -11,15 +15,20 @@
   export let myRank: number | null = null;
   export let myRating: number | null = null;
   export let compact = false;
+  /** Ranking ao vivo da tela Mundo (últimos 12 meses), não o prêmio do fim da temporada. */
+  export let live = false;
+  /** Títulos e MVPs por nick (símbolos ao lado do nome); sem ele, nada aparece. */
+  export let honorsOf: ((nick: string) => PlayerHonors | null) | null = null;
 
   $: best = Math.max(1.0, ...top.map((player) => player.rating ?? 1));
+  $: bestPoints = Math.max(1, ...top.map((player) => player.points ?? 0));
   const ratingClass = (rating: number | undefined) => (rating === undefined ? '' : rating >= 1.2 ? 'hot' : rating >= 1.08 ? 'good' : rating < 0.98 ? 'low' : '');
 </script>
 
-<section class="hltv" class:compact aria-label={`Top 20 HLTV de ${year}`}>
+<section class="hltv" class:compact aria-label={live ? `Ranking de jogadores de ${year}` : `Top 20 HLTV de ${year}`}>
   <header class="hltv-head">
     <div>
-      <p class="hltv-kicker">Ranking da temporada</p>
+      <p class="hltv-kicker">{live ? 'Ranking dos últimos 12 meses' : 'Ranking da temporada'}</p>
       <h3>Top 20 HLTV · {year}</h3>
     </div>
     {#if rookie}
@@ -40,21 +49,33 @@
         <span class="rank">{index + 1}</span>
         {#if player.teamId}<TeamBadge id={player.teamId} name={player.team} size="sm" highlight={player.you} />{/if}
         <span class="who">
-          <b>{player.nick}{player.you ? ' · você' : ''}</b>
+          <span class="who-top">
+            <b>{player.nick}{player.you ? ' · você' : ''}</b>
+            {#if honorsOf}<CareerHonors honors={honorsOf(player.nick)} />{/if}
+          </span>
           <small>{player.team}{player.age ? ` · ${player.age} anos` : ''}</small>
+          {#if player.reasons}<small class="why">{reasonsLabel(player.reasons)}</small>{/if}
         </span>
-        <span class="hl-rating {ratingClass(player.rating)}">
-          {player.rating !== undefined ? player.rating.toFixed(2) : '—'}
-          {#if player.rating !== undefined}<i style={`width:${Math.max(10, Math.round((player.rating - 0.9) / Math.max(0.05, best - 0.9) * 100))}%`}></i>{/if}
-        </span>
+        {#if player.points !== undefined}
+          <span class="hl-rating hl-points" class:hot={index === 0}>
+            {player.points.toLocaleString('pt-BR')}
+            <small>pts</small>
+            <i style={`width:${Math.max(10, Math.round((player.points / bestPoints) * 100))}%`}></i>
+          </span>
+        {:else}
+          <span class="hl-rating {ratingClass(player.rating)}">
+            {player.rating !== undefined ? player.rating.toFixed(2) : '—'}
+            {#if player.rating !== undefined}<i style={`width:${Math.max(10, Math.round((player.rating - 0.9) / Math.max(0.05, best - 0.9) * 100))}%`}></i>{/if}
+          </span>
+        {/if}
       </li>
     {/each}
   </ol>
 
   {#if myRank && myRank > 20}
-    <p class="me-out">Você ficou em <b>#{myRank}</b>{myRating ? ` com rating ${myRating.toFixed(2)}` : ''}. Para entrar no Top 20, rating alto em Major e Tier S pesa mais.</p>
+    <p class="me-out">{live ? 'Você está em' : 'Você ficou em'} <b>#{myRank}</b>{myRating ? ` com rating ${myRating.toFixed(2)}` : ''}. {live ? 'Título, MVP e EVP em Major e Tier S valem mais pontos.' : 'Para entrar no Top 20, rating alto em Major e Tier S pesa mais.'}</p>
   {:else if myRank === null}
-    <p class="me-out">Você jogou menos de 4 campeonatos e ficou fora do ranking.</p>
+    <p class="me-out">{live ? 'Você entra no ranking com 4 campeonatos contados nos últimos 12 meses.' : 'Você jogou menos de 4 campeonatos e ficou fora do ranking.'}</p>
   {/if}
 </section>
 
@@ -76,9 +97,13 @@
   .podium .rank { color: var(--text); }
   .first .rank { color: var(--gold, #d9a441); font-size: 22px; }
   .who { display: grid; gap: 2px; min-width: 0; }
+  .who-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .who-top b { min-width: 0; }
   .who b { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .you .who b { color: var(--accent); }
   .who small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  /* O motivo dos pontos quebra linha: nada cortado no celular. */
+  .who small.why { overflow: visible; color: color-mix(in srgb, var(--muted) 80%, var(--text)); line-height: 1.3; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .hl-rating { display: grid; gap: 3px; justify-items: end; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
   .hl-rating i { display: block; width: 100%; height: 3px; background: var(--muted); justify-self: stretch; }
   .hl-rating.hot { color: var(--gold, #d9a441); }
@@ -86,6 +111,7 @@
   .hl-rating.good { color: var(--accent); }
   .hl-rating.good i { background: var(--accent); }
   .hl-rating.low { color: var(--muted); }
+  .hl-points small { color: var(--muted); font: 700 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; }
   .me-out { margin: 0; color: var(--muted); font-size: 13px; }
   .me-out b { color: var(--text); }
   .compact .hltv-head h3 { font-size: 22px; }
