@@ -75,3 +75,26 @@ describe('sala de troféus e tabela de temporadas no celular', () => {
     expect(page).toContain('    .st-cap { display: inline; color: var(--muted); font: 800 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }');
   });
 });
+
+describe('nick longo, modais e grades em 320px', () => {
+  it('nick longo quebra no sorteio e na aposentadoria; o título do confirmar cabe', () => {
+    const page = source(PAGE);
+    expect(page).toContain('.intro h1 { font-size: clamp(48px, 9vw, 96px); margin-bottom: 6px; overflow-wrap: anywhere; }');
+    expect(page).toContain('.retired-head { min-width: 0; }');
+    expect(page).toContain('.retired-head h1 { font-size: clamp(64px, 12vw, 140px); line-height: .8; overflow-wrap: anywhere; }');
+    expect(page).toContain('.modal.confirm h2 { font-size: 36px; overflow-wrap: anywhere; }');
+    expect(lastPhoneBlock(page)).toContain('.modal.confirm h2 { font-size: 28px; }');
+  });
+
+  it('grades com coluna mínima nunca passam da largura da tela', () => {
+    const page = source(PAGE);
+    for (const column of ['minmax(min(260px, 100%), 1fr)', 'minmax(min(220px, 100%), 1fr)', 'minmax(min(210px, 100%), 1fr)']) expect(page).toContain(column);
+    expect(page).not.toMatch(/minmax\((?:260|220|210)px, 1fr\)/);
+  });
+
+  it('os números do parceiro no relatório viram linhas até 520px', () => {
+    const report = source('src/lib/components/CareerEventReport.svelte');
+    expect(report).toContain('.er-mini div { display: grid; gap: 2px; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); background: var(--surface); }');
+    expect(report).toContain('    .er-mini { grid-template-columns: minmax(0, 1fr); gap: 2px; }');
+  });
+});

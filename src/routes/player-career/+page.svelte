@@ -2967,7 +2967,7 @@
 
   /* Criação e sorteio */
   .intro { display: grid; gap: 10px; padding: clamp(20px, 4vw, 40px); border: 1px solid var(--line); background: var(--surface); }
-  .intro h1 { font-size: clamp(48px, 9vw, 96px); margin-bottom: 6px; }
+  .intro h1 { font-size: clamp(48px, 9vw, 96px); margin-bottom: 6px; overflow-wrap: anywhere; }
   fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   label { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
   input, select { min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 0; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 500 15px/1.2 var(--body); }
@@ -3376,7 +3376,7 @@
   .ss-notes { display: grid; gap: 4px; }
   .ss-market { grid-column: 1 / -1; display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
   .ss-market .label { margin: 0; }
-  .ss-market ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+  .ss-market ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 2px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
   .ss-market b { color: var(--text); }
   .ss-market li span { font-size: 12px; }
   .ss-notes p { margin: 0; font-size: 14px; color: var(--muted); }
@@ -3606,7 +3606,8 @@
 
   /* Aposentadoria */
   .retired { display: grid; gap: 22px; padding: clamp(20px, 4vw, 44px); border: 1px solid var(--line); background: var(--surface); }
-  .retired-head h1 { font-size: clamp(64px, 12vw, 140px); line-height: .8; overflow-wrap: break-word; }
+  .retired-head { min-width: 0; }
+  .retired-head h1 { font-size: clamp(64px, 12vw, 140px); line-height: .8; overflow-wrap: anywhere; }
   .retired-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; }
   .retro-btn { width: auto; flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 24px; font-size: 18px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 10px 40px color-mix(in srgb, var(--accent) 25%, transparent); }
   .retired-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
@@ -3624,7 +3625,7 @@
   .tr-name small { color: var(--muted); font-size: 12px; }
   .tr-titles { color: var(--muted); font-size: 13px; white-space: nowrap; }
   .tr-titles.has { color: var(--text); font-weight: 700; }
-  .major-shelf ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .major-shelf ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
   .major-shelf li { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--gold); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 22%, transparent), color-mix(in srgb, var(--gold) 4%, transparent)); }
   .major-shelf b { font: 800 16px/1.15 var(--display); text-transform: uppercase; }
   .major-shelf span { color: var(--gold); font-size: 12px; font-weight: 800; }
@@ -3664,7 +3665,7 @@
   .modal { display: grid; gap: 14px; width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); animation: modal-in 260ms cubic-bezier(.16, 1, .3, 1); }
   .modal.wide { width: min(900px, 100%); }
   .modal.confirm { width: min(460px, 100%); gap: 12px; padding: 24px; }
-  .modal.confirm h2 { font-size: 36px; }
+  .modal.confirm h2 { font-size: 36px; overflow-wrap: anywhere; }
   .modal.confirm p { margin: 0; color: var(--muted); line-height: 1.5; }
   .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .event-sheet { gap: 16px; }
@@ -3686,7 +3687,7 @@
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   /* Os times do campeonato: escudo, tier, idioma, melhor mapa e força; clica para ver o elenco. */
   .field .label { margin: 10px 0 6px; }
-  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
   .field .team-grid > li { display: block; min-width: 0; padding: 0; border: 0; background: none; }
   .team-tile { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 12px 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
   .team-tile:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); transform: translateY(-1px); }
@@ -4102,5 +4103,6 @@
     .rival-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     /* Sala de troféus: abas com 44px de toque (quebram em duas linhas). */
     .room-tabs button { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 0 10px; }
+    .modal.confirm h2 { font-size: 28px; }
   }
 </style>

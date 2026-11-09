@@ -150,7 +150,7 @@
   .er-mate-rating.hot { color: var(--accent); }
   .er-mate-rating.cold { color: var(--accent-2); }
   .er-mini { grid-area: mini; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 6px 0 0; }
-  .er-mini div { display: grid; gap: 2px; padding: 4px 6px; border: 1px solid var(--line); background: var(--surface); }
+  .er-mini div { display: grid; gap: 2px; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); background: var(--surface); }
   .er-mini dt { color: var(--muted); font: 700 9px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; }
   .er-mini dd { margin: 0; font: 800 14px/1 var(--display); font-variant-numeric: tabular-nums; }
   @media (max-width: 860px) {
@@ -162,5 +162,9 @@
     .er-rating { justify-items: start; }
     .er-rating b { font-size: 44px; }
     .er-me-name b { font-size: 26px; }
+    /* Dois parceiros por linha deixam ~30px por número: no celular, cada número vira uma linha (rótulo e valor). */
+    .er-mini { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .er-mini div { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 6px; padding: 3px 6px; }
+    .er-mini dd { text-align: right; }
   }
 </style>
