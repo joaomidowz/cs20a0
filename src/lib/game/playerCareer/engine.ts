@@ -640,13 +640,15 @@ export function agePhase(age: number): { label: string; detail: string } {
 const INJURIES_YOUNG = ['Tendinite no punho', 'Lombalgia'];
 const INJURIES_OLD = ['Tendinite crônica no punho', 'Hérnia de disco', 'Lesão no ombro', 'Dor nas costas'];
 
-/** Na virada da temporada o jovem do banco (ou que entrou no time) cresce até o teto; quem passou dos 24 fica como está. */
+/** Na virada da temporada o jovem (até 23) cresce até o teto; quem passou dos 24 fica como está. */
+const growPlayer = <T extends BenchPlayer>(player: T, year: number, rng: () => number): T => (year - player.born < 24 && player.overall < player.potential
+  ? { ...player, overall: Math.min(player.potential, player.overall + 2 + Math.floor(rng() * 2)) }
+  : player);
+
+/** O jovem do banco (ou que entrou no time) cresce na virada. */
 function growBench(plan: SquadPlan | null | undefined, year: number, rng: () => number): SquadPlan | null | undefined {
   if (!plan) return plan;
-  const grow = (player: BenchPlayer): BenchPlayer => (year - player.born < 24 && player.overall < player.potential
-    ? { ...player, overall: Math.min(player.potential, player.overall + 2 + Math.floor(rng() * 2)) }
-    : player);
-  return { ...plan, reserve: plan.reserve ? grow(plan.reserve) : null, lineup: Object.fromEntries(Object.entries(plan.lineup).map(([key, player]) => [key, grow(player)])) };
+  return { ...plan, reserve: plan.reserve ? growPlayer(plan.reserve, year, rng) : null, lineup: Object.fromEntries(Object.entries(plan.lineup).map(([key, player]) => [key, growPlayer(player, year, rng)])) };
 }
 
 export function finishSeason(state: PlayerCareerState): PlayerCareerState {
@@ -717,6 +719,8 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
     // Férias na virada da temporada: sobra só um quinto do cansaço.
     fatigue: Math.round((state.fatigue ?? 0) * 0.2),
     squadPlan: growBench(state.squadPlan, state.year + 1, rng),
+    // Os membros criados na sua carreira crescem também, em qualquer time em que estejam.
+    ...(state.careerMembers ? { careerMembers: state.careerMembers.map((member) => growPlayer(member, state.year + 1, rng)) } : {}),
     age: aged.entity.age,
     overall: finalOverall,
     seasonNumber: state.seasonNumber + 1,

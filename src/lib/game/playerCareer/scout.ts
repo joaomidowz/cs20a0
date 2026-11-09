@@ -7,8 +7,7 @@ import type { Player } from '../types';
 import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, orgLanguage, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
 import type { PlayerCareerState } from './engine';
 import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, type Language } from './language';
-import { myLanguageFit, seatedNicks } from './squad';
-import { createSeededRng } from '../simulation';
+import { fallbackBorn, myLanguageFit, seatedNicks, teamOrgOf } from './squad';
 import { orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason } from './world';
 import { coachWorld } from './coaches';
 
@@ -45,13 +44,11 @@ function infoFrom(country: string | null, age: number | null, call: Language, fl
   };
 }
 
-/** Idade de quem não tem data (lan house, substituto, vaga gerada): fixa pelo nick, envelhece com as temporadas. */
-const fallbackBorn = (seed: string, nick: string) => 2026 - (17 + Math.floor(createSeededRng(`${seed}:born:${nick.toLowerCase()}`)() * 8));
-
 /** Monta a ficha de cada carta de um time (o seu ou um adversário) na temporada atual. */
 export function cardInfoFor(state: PlayerCareerState, orgId: string): (player: Player) => CardInfo {
   const year = yearOfSeason(state.seasonNumber);
-  const org = orgId === 'lan-house' ? undefined : orgIn(state.seed, state.seasonNumber, orgId);
+  // O seu time vem do save (com os membros da sua carreira); o dos outros, do mundo.
+  const org = orgId === 'lan-house' ? undefined : orgId === state.orgId ? teamOrgOf(state) : orgIn(state.seed, state.seasonNumber, orgId);
   const roster = org ? resolvedRoster(org) : [];
   const byNick = new Map(roster.map((member) => [memberNick(member).toLowerCase(), member]));
   const call: Language = orgId === state.orgId ? myLanguageFit(state).language : org ? orgLanguage(org) : nativeLanguage(state.country);

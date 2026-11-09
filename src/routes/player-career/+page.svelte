@@ -39,7 +39,7 @@
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
-  import { TRAIN_CAP, seatsWithSeason, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { TRAIN_CAP, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -47,7 +47,7 @@
   import type { MapId } from '$lib/game/types';
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
-  import { headlineRetirements, headlineTransfers, orgIn, registerSeats, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
+  import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
 
@@ -244,8 +244,9 @@
   let coachLine: string | null = null;
   let lastEventReport: { index: number; name: string; placement: string; rating: number; wins: number; losses: number; stats: PlayerRunStats[]; players: Player[]; result: TournamentResult; rivalLine?: string | null } | null = null;
 
-  // Quem cedeu a vaga para você vai para outro time no mundo (antes de qualquer leitura de elenco).
-  $: if (career) registerSeats(career.seed, seatsWithSeason(career));
+  // Quem cedeu a vaga para você vai para outro time no mundo e os jogadores criados na sua carreira ficam nos times
+  // deles (antes de qualquer leitura de elenco).
+  $: if (career) registerCareerWorld(career);
   $: if (career) persist(career);
 
   function persist(state: PlayerCareerState) {

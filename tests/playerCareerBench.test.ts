@@ -40,7 +40,7 @@ describe('banco', () => {
     const { state: developing } = resolveHappening({ ...state, pendingHappening: { id: 'EV134', trigger: 'post', eventIndex: 0 } }, 0);
     expect(planOf(developing).reserve).not.toBeNull();
     const { state: starting } = resolveHappening({ ...state, pendingHappening: { id: 'EV134', trigger: 'post', eventIndex: 0 } }, 2);
-    expect(Object.keys(planOf(starting).lineup)).toHaveLength(1);
+    expect(starting.careerMembers ?? []).toHaveLength(1);
     expect(roles(starting)).toEqual(five);
   });
 });

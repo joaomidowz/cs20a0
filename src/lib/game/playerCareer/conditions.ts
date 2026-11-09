@@ -7,7 +7,7 @@ import { regionOf } from './calendar';
 import { orgOf, playedCount, type CalendarEntry, type PlayerCareerState, type TournamentResult } from './engine';
 import { lifeOf, livesAbroad, type CareerLife } from './life';
 import { myFluency } from './language';
-import { matesOf, myLanguageFit, planOf, type SquadMate } from './squad';
+import { matesOf, membersAt, myLanguageFit, planOf, type SquadMate } from './squad';
 import { majorEntryStage, worldRankOf } from './live';
 import { sceneOrgs } from './data';
 
@@ -74,7 +74,7 @@ const seriesWinStreak = (ctx: CareerCtx) => {
   }
   return streak;
 };
-const changedLineup = (ctx: CareerCtx) => Object.keys(planOf(ctx.state).lineup).length > 0 || (ctx.state.kickedMates?.[ctx.state.orgId]?.length ?? 0) > 0;
+const changedLineup = (ctx: CareerCtx) => membersAt(ctx.state).length > 0;
 const reserveHot = (ctx: CareerCtx) => {
   const reserve = planOf(ctx.state).reserve;
   return Boolean(reserve && reserve.overall >= ctx.state.overall - 4);
