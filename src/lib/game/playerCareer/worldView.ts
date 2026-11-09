@@ -2,11 +2,13 @@
 // A tela Mundo em dados puros: até onde a sua temporada já andou (o relógio), os resultados do circuito do mundo sem
 // spoiler, os campeonatos de Major, Tier S e Tier A, o ranking de times, as trocas da temporada e o top de jogadores
 // parcial. O componente CareerWorld.svelte só desenha o que sai daqui. Nada aqui simula: só lê o cache do circuito.
-import { MONTH_LABEL, TIER_LABEL, type EventTier } from './calendar';
+import { MONTH_LABEL, TIER_LABEL, type EventTier, type Region } from './calendar';
 import { circuitClock, worldEventsOf, worldResult, type CircuitClock, type WorldEvent, type WorldEventResult } from './circuit';
 import { sceneOrgById, sceneOrgs } from './data';
 import { orgOf, type PlayerCareerState, type TournamentResult } from './engine';
-import { yearOfSeason } from './world';
+import { teamRanking, type RankedTeam } from './ranking';
+import { teamTierTitle, type TeamTier } from './tiers';
+import { seatMovesOf, worldHistory, yearOfSeason } from './world';
 
 export type CareerClock = CircuitClock;
 
@@ -211,4 +213,109 @@ export function worldEventsView(state: PlayerCareerState, source: WorldSource = 
   done.sort((a, b) => b.month - a.month || a.name.localeCompare(b.name));
   upcoming.sort((a, b) => a.month - b.month || a.name.localeCompare(b.name));
   return { season: clock.season, year: yearOfSeason(clock.season), month: clock.month, done, upcoming, computing: done.filter((row) => row.status === 'computing').length };
+}
+
+export type RankTrend = 'up' | 'down' | 'same';
+
+export interface WorldRankingRow {
+  orgId: string;
+  name: string;
+  rank: number;
+  points: number;
+  pointsLabel: string;
+  delta: number;
+  trend: RankTrend;
+  deltaLabel: string;
+  tier: TeamTier;
+  tierLabel: string;
+  region: Region;
+  regionLabel: string;
+  regionName: string;
+  mine: boolean;
+  /** A linha do seu time fora do top, depois de um respiro. */
+  gap: boolean;
+}
+
+export interface RankingView { rows: WorldRankingRow[]; total: number; mineRank: number | null }
+
+export const REGION_SHORT: Record<Region, string> = { sa: 'SA', na: 'NA', eu: 'EU', asia: 'Ásia', oce: 'OCE' };
+export const REGION_NAME: Record<Region, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
+
+/** `RankedTeam.delta` do ranking.ts: posições ganhas desde a leitura anterior (positivo subiu). */
+export const trendOf = (delta: number): RankTrend => (delta > 0 ? 'up' : delta < 0 ? 'down' : 'same');
+const deltaLabelOf = (delta: number) => (delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : '=');
+
+/** O ranking de times na tela: o top (30 por padrão) e, se o seu time está fora, ele no fim depois de um respiro. */
+export function rankingView(ranked: RankedTeam[], userOrgId: string, limit = 30): RankingView {
+  const row = (team: RankedTeam, gap: boolean): WorldRankingRow => ({
+    orgId: team.orgId,
+    name: team.name,
+    rank: team.rank,
+    points: team.points,
+    pointsLabel: Math.round(team.points).toLocaleString('pt-BR'),
+    delta: team.delta,
+    trend: trendOf(team.delta),
+    deltaLabel: deltaLabelOf(team.delta),
+    tier: team.tier,
+    tierLabel: teamTierTitle(team.level),
+    region: team.region,
+    regionLabel: REGION_SHORT[team.region],
+    regionName: REGION_NAME[team.region],
+    mine: team.orgId === userOrgId,
+    gap
+  });
+  const sorted = [...ranked].sort((a, b) => a.rank - b.rank);
+  const rows = sorted.slice(0, limit).map((team) => row(team, false));
+  const mine = sorted.find((team) => team.orgId === userOrgId) ?? null;
+  if (mine && !rows.some((item) => item.mine)) rows.push(row(mine, true));
+  return { rows, total: sorted.length, mineRank: mine?.rank ?? null };
+}
+
+export type WorldMoveKind = 'vaga' | 'troca' | 'aposentadoria' | 'estreia';
+export interface WorldMoveLine {
+  key: string;
+  nick: string;
+  /** O time que aparece no escudo da linha (para onde ele foi, ou onde estava). */
+  orgId: string | null;
+  orgName: string;
+  detail: string;
+  note: string;
+  /** Melhor posição no ranking entre os times da linha: o topo vem primeiro. */
+  rank: number;
+}
+export interface WorldMoveGroup { kind: WorldMoveKind; label: string; lines: WorldMoveLine[] }
+
+const MOVE_LABEL: Record<WorldMoveKind, string> = { vaga: 'Sua vaga', troca: 'Trocas', aposentadoria: 'Aposentadorias', estreia: 'Estreias da base' };
+const UNRANKED = 999;
+
+/** O mercado da temporada: quem abriu a vaga para você, as trocas, as aposentadorias e as estreias da base. */
+export function worldMovesView(state: PlayerCareerState): WorldMoveGroup[] {
+  const season = state.seasonNumber;
+  const rankOf = new Map(teamRanking(state, careerClock(state)).map((team) => [team.orgId, team.rank] as const));
+  const best = (...ids: Array<string | null>) => Math.min(...ids.map((id) => (id ? rankOf.get(id) ?? UNRANKED : UNRANKED)));
+  const history = worldHistory(state.seed, season);
+  const groups: Array<[WorldMoveKind, WorldMoveLine[]]> = [
+    ['vaga', seatMovesOf(state.seed).filter((move) => move.season === season).map((move) => ({
+      key: `vaga:${move.nick}`, nick: move.nick, orgId: move.toId, orgName: move.toName,
+      detail: `${move.fromName} → ${move.toName}`, note: `Abriu a vaga para você. Troca com ${move.standIn}.`, rank: best(move.fromId, move.toId)
+    }))],
+    ['troca', history.transfers.map((move) => ({
+      key: `troca:${move.nick}:${move.fromId}`, nick: move.nick, orgId: move.toId, orgName: move.toName,
+      detail: `${move.fromName} → ${move.toName}`, note: `Troca com ${move.swappedNick}.`, rank: best(move.fromId, move.toId)
+    }))],
+    ['aposentadoria', history.retirements.map((move) => {
+      const orgId = orgIdOfName(move.orgName);
+      return {
+        key: `aposentadoria:${move.nick}:${move.orgName}`, nick: move.nick, orgId, orgName: move.orgName,
+        detail: `${move.orgName} · ${move.age} anos`, note: `Pendurou o mouse. Entra ${move.replacement}.`, rank: best(orgId)
+      };
+    })],
+    ['estreia', history.debuts.map((move) => ({
+      key: `estreia:${move.nick}:${move.orgId}`, nick: move.nick, orgId: move.orgId, orgName: move.orgName,
+      detail: `${move.orgName} · ${move.age} anos`, note: `Veio da base com overall ${move.overall}.`, rank: best(move.orgId)
+    }))]
+  ];
+  return groups
+    .filter(([, lines]) => lines.length)
+    .map(([kind, lines]) => ({ kind, label: MOVE_LABEL[kind], lines: lines.sort((a, b) => a.rank - b.rank || a.nick.localeCompare(b.nick)) }));
 }

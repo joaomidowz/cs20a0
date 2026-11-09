@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, orgOf, startSeason, type CalendarEntry, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { careerClock, careerResults, eventKey, fieldLabel, orgIdOfName, seenWorldResults, worldEventsView, type WorldSource } from '../src/lib/game/playerCareer/worldView';
+import { registerSeats, sceneWorld, seatMovesOf } from '../src/lib/game/playerCareer/world';
+import { careerClock, careerResults, eventKey, fieldLabel, orgIdOfName, rankingView, seenWorldResults, worldEventsView, worldMovesView, type WorldSource } from '../src/lib/game/playerCareer/worldView';
+import type { RankedTeam } from '../src/lib/game/playerCareer/ranking';
 import type { WorldEvent, WorldEventResult } from '../src/lib/game/playerCareer/circuit';
 
 const SEED = 'mundo-1';
@@ -179,5 +181,70 @@ describe('campeonatos do mundo', () => {
   it('a frase da chave diz convidados e vagas de qualificatória', () => {
     expect(fieldLabel({ invites: 6, qualifierSlots: 2 })).toBe('8 times: 6 convidados pelo ranking e 2 da qualificatória');
     expect(fieldLabel({ invites: 8, qualifierSlots: 0 })).toBe('8 times convidados pelo ranking');
+  });
+});
+
+const team = (rank: number, extra: Partial<RankedTeam> = {}): RankedTeam => ({
+  orgId: `time-${rank}`,
+  name: `Time ${rank}`,
+  rank,
+  points: 2000 - rank * 37.4,
+  delta: 0,
+  tier: rank <= 8 ? 'S' : rank <= 16 ? 'A' : 'B',
+  level: rank <= 8 ? 0 : rank <= 16 ? 2 : 3,
+  region: 'eu',
+  ...extra
+});
+
+describe('ranking de times', () => {
+  it('top 30 em ordem, o seu time no fim quando está fora, seta pela variação', () => {
+    const ranked = Array.from({ length: 40 }, (_, index) => team(index + 1, index === 1 ? { delta: 3 } : index === 4 ? { delta: -2 } : {})).reverse();
+    const view = rankingView(ranked, 'time-35');
+    expect(view.rows).toHaveLength(31);
+    expect(view.rows.slice(0, 30).map((row) => row.rank)).toEqual(Array.from({ length: 30 }, (_, index) => index + 1));
+    expect(view.rows[30]).toMatchObject({ orgId: 'time-35', rank: 35, mine: true, gap: true });
+    expect(view.rows[0]).toMatchObject({ tierLabel: 'Tier S · Elite', regionLabel: 'EU', regionName: 'Europa', pointsLabel: '1.963', trend: 'same', deltaLabel: '=' });
+    expect(view.rows[1]).toMatchObject({ trend: 'up', deltaLabel: '+3' });
+    expect(view.rows[4]).toMatchObject({ trend: 'down', deltaLabel: '−2' });
+    expect(view.rows[20].tierLabel).toBe('Tier B');
+    expect(view.rows[8].tierLabel).toBe('Tier A');
+    expect(view).toMatchObject({ total: 40, mineRank: 35 });
+  });
+
+  it('no top, o seu time fica no lugar dele; sem limite vêm todos; lan house não aparece', () => {
+    const ranked = Array.from({ length: 40 }, (_, index) => team(index + 1));
+    const top = rankingView(ranked, 'time-3');
+    expect(top.rows).toHaveLength(30);
+    expect(top.rows[2]).toMatchObject({ mine: true, gap: false });
+    expect(rankingView(ranked, 'time-3', Number.POSITIVE_INFINITY).rows).toHaveLength(40);
+    expect(rankingView(ranked, 'lan-house').mineRank).toBeNull();
+    expect(rankingView(ranked, 'lan-house').rows.some((row) => row.mine)).toBe(false);
+  });
+});
+
+describe('trocas da temporada', () => {
+  it('na primeira temporada só aparece quem abriu a vaga para você', () => {
+    registerSeats('mundo-vaga', [{ orgId: 'vitality-2026', nick: 'ZywOo', season: 1 }]);
+    const moves = seatMovesOf('mundo-vaga').filter((move) => move.season === 1);
+    expect(moves).toHaveLength(1);
+    const groups = worldMovesView(seasonAt('vitality-2026', 'mundo-vaga'));
+    expect(groups.map((group) => group.kind)).toEqual(['vaga']);
+    expect(groups[0].label).toBe('Sua vaga');
+    expect(groups[0].lines[0]).toMatchObject({ nick: 'ZywOo', orgId: moves[0].toId, detail: `Vitality → ${moves[0].toName}` });
+  });
+
+  it('na virada: trocas, aposentadorias e estreias, os times do topo do ranking primeiro, sem travessão', () => {
+    const state: PlayerCareerState = { ...seasonAt(TIER_C), seasonNumber: 2, year: 2027, calendar: null };
+    const world = sceneWorld(SEED, 2);
+    const groups = worldMovesView(state);
+    const byKind = new Map(groups.map((group) => [group.kind, group.lines] as const));
+    expect(byKind.get('troca')).toHaveLength(world.transfers.length);
+    expect(byKind.get('aposentadoria')).toHaveLength(world.retirements.length);
+    expect(byKind.get('estreia')).toHaveLength(world.debuts.length);
+    for (const lines of byKind.values()) {
+      const ranks = lines.map((line) => line.rank);
+      expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+      for (const line of lines) expect(`${line.detail} ${line.note}`).not.toMatch(/—|--/);
+    }
   });
 });

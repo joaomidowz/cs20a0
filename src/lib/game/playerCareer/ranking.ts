@@ -12,7 +12,8 @@ import { TEAM_TIER_BY_LEVEL, homeLevelOf, levelFromRank, type TeamTier } from '.
 import { canonicalOrgId, circuitClock, circuitFromOf, circuitGeneration, clockValue, placementsOf, worldEventByName, worldResultsUntil, type CircuitClock } from './circuit';
 import { worldOrgIn } from './world';
 
-export interface RankedTeam { orgId: string; name: string; rank: number; points: number; delta: number; tier: TeamTier; region: Region }
+/** `level`: o nível do time agora (0 = Tier S com o selo Elite; tiers.ts), de onde sai `tier`. */
+export interface RankedTeam { orgId: string; name: string; rank: number; points: number; delta: number; tier: TeamTier; level: number; region: Region }
 
 /** Pontos do campeão por tier de campeonato; as outras colocações levam uma fração (PLACE_SHARE). */
 export const TIER_POINTS: Record<EventTier, number> = { Major: 1000, S: 600, A: 300, B: 100, C: 30 };
@@ -154,7 +155,7 @@ export function teamRanking(state: PlayerCareerState, at?: { season: number; mon
     return {
       orgId, name: org.name, rank, points: Math.round(current.points.get(orgId) ?? 0),
       delta: before ? (before.index.get(orgId) ?? position) - position : 0,
-      tier: TEAM_TIER_BY_LEVEL[level] ?? 'LAN', region: org.region ?? 'eu'
+      tier: TEAM_TIER_BY_LEVEL[level] ?? 'LAN', level, region: org.region ?? 'eu'
     };
   });
 }
