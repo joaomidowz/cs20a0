@@ -24,6 +24,10 @@ export function setStayRule(rule: StayRule) {
   stayRule = rule;
 }
 
+/** Nick de vaga da planilha ("cpc_igl", "pela_rif"): não é jogador real, a vaga ganha um nick gerado. */
+const PLACEHOLDER_NICK = /^[a-z0-9]+_(igl|awp|ent|rif|lur|sup)$/i;
+export const isPlaceholderNick = (nick: string | null | undefined) => Boolean(nick && PLACEHOLDER_NICK.test(nick));
+
 /** O elenco da planilha (nicks reais, função, país e nascimento); quem fica em outro time abre vaga com nome gerado. */
 function sheetRoster(team: SheetTeam): SceneRosterMember[] {
   return sheetRosterOrNull(team) ?? generatedRoster(team.name, null);
@@ -33,6 +37,7 @@ function sheetRoster(team: SheetTeam): SceneRosterMember[] {
 function sheetRosterOrNull(team: SheetTeam): SceneRosterMember[] | null {
   const members: SceneRosterMember[] = [];
   for (const entry of team.roster) {
+    if (isPlaceholderNick(entry.nick)) continue; // vaga sem jogador: entra nick gerado com a função dela
     const rule = entry.nick ? stayRule(entry.nick, team.name) : false;
     // Sem regra, a coleta vence; com regra, vale a escolha do usuário (a cópia do outro time sai depois).
     if (!entry.nick || rule === false || (rule !== true && usedNicks.has(entry.nick.toLowerCase()))) {
@@ -43,8 +48,10 @@ function sheetRosterOrNull(team: SheetTeam): SceneRosterMember[] | null {
     reserveLookalikes([entry.nick]);
     members.push({ nick: entry.nick, country: countryOf(entry.country), birthDate: entry.birthYear ? `${entry.birthYear}-07-01` : null, roles: [entry.role], catalogBaseId: null, prospect: null });
   }
-  if (team.roster.length - members.length >= 4) return null;
-  const national = orgNationOf(members);
+  const placeholders = team.roster.filter((entry) => isPlaceholderNick(entry.nick)).length;
+  if (team.roster.length - placeholders - members.length >= 4) return null;
+  // Vagas da planilha herdam o país do time (o CPC é brasileiro mesmo sem nenhum nick real).
+  const national = orgNationOf(members) ?? (placeholders ? countryOf(team.country) : null);
   const missing = team.roster.map((entry) => entry.role).filter((role, index) => !members.some((member) => member.nick === team.roster[index].nick));
   return members.length >= 5 ? members.slice(0, 5) : generatedRoster(team.name, national, [], members, missing);
 }

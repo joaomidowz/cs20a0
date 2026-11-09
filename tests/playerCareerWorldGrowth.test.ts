@@ -146,7 +146,7 @@ describe('elencos da planilha do usuário', () => {
       const org = sceneOrgs.find((candidate) => candidate.id === team.orgId)!;
       expect(org.roster.filter((member) => member.generated).length, org.name).toBe(5 - team.roster.length);
     }
-    expect(sceneOrgs.flatMap((org) => org.roster.filter((member) => member.generated)).length).toBeLessThan(300);
+    expect(sceneOrgs.flatMap((org) => org.roster.filter((member) => member.generated)).length).toBeLessThan(400); // +77 vagas da planilha ("cpc_igl") que agora ganham nick gerado
   });
 
   it('nome gerado nunca é sósia de jogador real (sem "k3_sasha", "Nitr0", "Taz")', async () => {
