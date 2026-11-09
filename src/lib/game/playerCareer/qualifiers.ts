@@ -209,3 +209,23 @@ export function resolveInvitedQualifier(state: PlayerCareerState): PlayerCareerS
   const calendar = (state.calendar ?? []).map((entry) => (entry.index === next.index ? { ...entry, status: 'PLAYED' as const, result } : entry));
   return applyQualifierResult({ ...state, calendar }, next.index);
 }
+
+/** O resultado de uma qualificatória jogada: passou (Classificado) ou não (Eliminado), pela sua colocação contra as vagas
+ *  da sua região. Fica a chave (para o circuito e a tela); sai o que conta como campeonato (MVP, jogadas, destaques). */
+export function asQualifierResult(state: PlayerCareerState, entry: CalendarEntry, result: TournamentResult): TournamentResult {
+  const event = entry.qualifiesFor ? worldEventByKey(state, entry.qualifiesFor) : null;
+  const slots = event ? qualifierRegions(event)[userQualifierRegion(state)] ?? 1 : 1;
+  const mine = result.placements?.find((place) => place.orgId === state.orgId)?.place ?? 9;
+  return {
+    name: result.name, placement: mine <= slots ? 'Classificado' : 'Eliminado', rating: result.rating, seriesWins: result.seriesWins, seriesLosses: result.seriesLosses,
+    skipped: true,
+    ...(result.benched ? { benched: true } : {}),
+    ...(result.tier ? { tier: result.tier } : {}),
+    ...(result.orgId ? { orgId: result.orgId } : {}),
+    ...(result.month ? { month: result.month } : {}),
+    ...(result.champion ? { champion: result.champion } : {}),
+    ...(result.bracket ? { bracket: result.bracket } : {}),
+    ...(result.opponents ? { opponents: result.opponents } : {}),
+    ...(result.placements ? { placements: result.placements } : {})
+  };
+}

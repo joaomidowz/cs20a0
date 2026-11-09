@@ -27,7 +27,8 @@ import { computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
 import { orgIn } from './world';
-import { canonicalOrgId, circuitClock, worldEventOfEntry, worldFieldOf } from './circuit';
+import { canonicalOrgId, circuitClock, worldEventByKey, worldEventOfEntry, worldFieldOf } from './circuit';
+import { QUALIFIER_FORMAT, asQualifierResult, entryKind, qualifierField, userQualifierRegion } from './qualifiers';
 import { rankOrderAt } from './ranking';
 import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
@@ -193,6 +194,16 @@ export function sceneEventOpponents(state: PlayerCareerState, eventIndex: number
   // Major: cada stage pelo ranking, como no real (o top 8 só entra no Stage 3).
   if (entry?.format === 'major' && setup.stage) {
     picked.push(...majorStageField(state, setup.stage, rng, eventIndex));
+    return { seed, picked, rosters: rostersOf() };
+  }
+  // Qualificatória: você e os 7 melhores da sua região que não foram convidados para o campeonato grande.
+  const qualifierOf = entry && entryKind(entry) === 'qualifier' && entry.qualifiesFor ? worldEventByKey(state, entry.qualifiesFor) : null;
+  if (qualifierOf) {
+    const me = canonicalOrgId(state.orgId);
+    for (const orgId of qualifierField(state, qualifierOf, userQualifierRegion(state), true)) {
+      const org = orgId === me ? undefined : sceneOrgById.get(orgId);
+      if (org) picked.push(org);
+    }
     return { seed, picked, rosters: rostersOf() };
   }
   // Campeonato do circuito mundial (Tier S e Tier A): a chave é a do mundo (convites pelo ranking do mês anterior e as
@@ -376,7 +387,8 @@ export function startSceneEvent(state: PlayerCareerState, eventIndex: number, pl
   const allPlayers = [...userPlayers, ...picked.flatMap((org) => rosters.get(org.id) ?? [])];
   const campaign = createCampaignMajor(userPlayers, 'balanced', opponents, allPlayers, seed, lineupOf(userPlayers), {
     // Suíça de 16 (mata-mata depois, final MD5) ou direto no mata-mata de 8 com a final do evento.
-    ...(setup.swiss ? {} : { playoffEntry: { ...SCENE_EVENT_FORMAT, final: setup.finalBestOf } }),
+    // Qualificatória: quartas em MD1, semi e final em MD3.
+    ...(setup.swiss ? {} : { playoffEntry: entry && entryKind(entry) === 'qualifier' ? { ...QUALIFIER_FORMAT } : { ...SCENE_EVENT_FORMAT, final: setup.finalBestOf } }),
     ...(isMajor ? { dynastyEntryStage: setup.stage! } : {}),
     dynastyRules: 2,
     dynastyPlan: { style: 'balanced', tactic: 'standard', study: false },
@@ -785,23 +797,22 @@ export function sceneEventResult(state: PlayerCareerState, eventIndex: number, c
   const wins = decided.filter((series) => isUserTeam(campaign, series.winnerId)).length;
   // Stage 1/2 do Major acabam na suíça: a colocação é o stage em que você caiu.
   const placement = placementLabel(campaign.run.placement);
-  return {
-    result: {
-      name: state.calendar?.[eventIndex]?.name ?? `Campeonato ${eventIndex + 1}`,
-      placement,
-      rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
-      seriesWins: wins + carry.wins,
-      seriesLosses: decided.length - wins + carry.losses,
-      ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {}),
-      orgId: state.orgId,
-      ...(state.calendar?.[eventIndex]?.month ? { month: state.calendar[eventIndex].month } : {}),
-      ...eventAwards(state, campaign),
-      // No banco: o time jogou sem você; não conta no seu rating, no HLTV nem no prêmio.
-      ...((state.benchedEvents ?? 0) > 0 ? { benched: true, skipped: true } : {})
-    },
-    stats,
-    players
+  const entry = state.calendar?.[eventIndex];
+  const full: TournamentResult = {
+    name: entry?.name ?? `Campeonato ${eventIndex + 1}`,
+    placement,
+    rating: Number((mine?.runRating ?? 0.95).toFixed(2)),
+    seriesWins: wins + carry.wins,
+    seriesLosses: decided.length - wins + carry.losses,
+    ...(entry?.tier ? { tier: entry.tier } : {}),
+    orgId: state.orgId,
+    ...(entry?.month ? { month: entry.month } : {}),
+    ...eventAwards(state, campaign),
+    // No banco: o time jogou sem você; não conta no seu rating, no HLTV nem no prêmio.
+    ...((state.benchedEvents ?? 0) > 0 ? { benched: true, skipped: true } : {})
   };
+  // Qualificatória: passou ou não; não é título nem MVP (qualifiers.ts).
+  return { result: entry && entryKind(entry) === 'qualifier' ? asQualifierResult(state, entry, full) : full, stats, players };
 }
 
 /** Roda o resto do campeonato sem pausas (o time decide os rounds decisivos sozinho). */

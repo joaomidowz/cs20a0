@@ -11,7 +11,7 @@ import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLa
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
-import { needsQualifierFor, withQualifiers } from './qualifiers';
+import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
 import { myFluency, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
@@ -126,7 +126,7 @@ export function trophyCase(state: PlayerCareerState): TrophyCase {
   for (const log of state.history) for (const result of log.tournaments) { count(result, log.orgLevel); clutches += result.plays?.clutches ?? 0; }
   // A temporada em curso é jogada no nível de hoje (a promoção só vale na virada).
   const level = currentLevelOf(state, state.orgId);
-  for (const entry of state.calendar ?? []) if (entry.result) { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
+  for (const entry of state.calendar ?? []) if (entry.result && entryKind(entry) === 'event') { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
   const ranks = state.history.flatMap((log) => (log.hltvRank ? [log.hltvRank] : []));
   return {
     byTier, mvps, majorMvps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
@@ -683,7 +683,8 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
   const org = orgOf(state.orgId, state);
-  const results = state.calendar.flatMap((entry) => (entry.result && !entry.result.skipped ? [entry.result] : []));
+  // Qualificatória não é campeonato: fora do título, da média, do acesso e do histórico.
+  const results = state.calendar.flatMap((entry) => (entry.result && !entry.result.skipped && entryKind(entry) === 'event' ? [entry.result] : []));
   const titles = results.filter((result) => result.placement === 'Campeão').length;
   const seasonRating = results.length ? Number((results.reduce((sum, result) => sum + result.rating, 0) / results.length).toFixed(2)) : 0.9;
 
@@ -862,7 +863,7 @@ export function goToLanHouse(state: PlayerCareerState): PlayerCareerState {
 
 /** Média dos últimos campeonatos jogados na temporada (os mais recentes pesam a decisão do time). */
 export function recentRating(state: PlayerCareerState, last = 3): { average: number; played: number } | null {
-  const played = (state.calendar ?? []).filter((entry) => entry.result && !entry.result.skipped);
+  const played = (state.calendar ?? []).filter((entry) => entry.result && !entry.result.skipped && entryKind(entry) === 'event');
   if (!played.length) return null;
   const recent = played.slice(-last);
   return { average: Number((recent.reduce((sum, entry) => sum + (entry.result?.rating ?? 0), 0) / recent.length).toFixed(2)), played: played.length };

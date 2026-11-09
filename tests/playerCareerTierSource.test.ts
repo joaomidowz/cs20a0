@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, levelIn, orgOf, recordEventResult, startSeason, trophyCase, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { currentLevelOf, eventTierLabel, legacyEventTier } from '../src/lib/game/playerCareer/tiers';
+import { entryKind } from '../src/lib/game/playerCareer/qualifiers';
 
 /** Você carregou um time do Tier B (nível 3) para o Tier A (nível 2) nesta carreira. */
 function carriedUp(seed: string): PlayerCareerState {
@@ -26,7 +27,8 @@ describe('fonte única de nível no motor', () => {
 
   it('título da temporada em curso sem tier salvo conta pelo nível de hoje do time, não pelo do catálogo', () => {
     const state = carriedUp('src-2');
-    const entry = state.calendar![0];
+    // Qualificatória (plano 04) não conta título: o primeiro campeonato do calendário.
+    const entry = state.calendar!.find((candidate) => entryKind(candidate) === 'event')!;
     const played = recordEventResult(state, entry.index, { name: entry.name, placement: 'Campeão', rating: 1.2, seriesWins: 3, seriesLosses: 0 });
     expect(trophyCase(played).byTier.B).toBe(1);
     expect(trophyCase(played).byTier.C).toBe(0);
