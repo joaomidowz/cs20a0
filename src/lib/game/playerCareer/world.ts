@@ -84,11 +84,12 @@ export function veteranGap(age: number): number {
   return gap;
 }
 
-const agedRead = new Map<string, Map<string, SceneRosterMember[]>>();
-/** Os elencos com o desgaste de veterano no número (cache por seed e temporada). */
-function withVeteranGap(seed: string, season: number, rosters: Map<string, SceneRosterMember[]>): Map<string, SceneRosterMember[]> {
-  const key = `${seed}:${season}:${rosters === sceneWorld(seed, season).rosters ? 'base' : 'seats'}`;
-  const cached = agedRead.get(key);
+/** Cache pelo próprio mapa de elencos: o mundo da seed e cada registro de vagas têm o seu mapa, então registrar
+ *  vagas novas nunca devolve o desgaste calculado para as vagas antigas (a sessão fica igual ao recarregar). */
+const agedRead = new WeakMap<Map<string, SceneRosterMember[]>, Map<string, SceneRosterMember[]>>();
+/** Os elencos com o desgaste de veterano no número. */
+function withVeteranGap(season: number, rosters: Map<string, SceneRosterMember[]>): Map<string, SceneRosterMember[]> {
+  const cached = agedRead.get(rosters);
   if (cached) return cached;
   const year = yearOfSeason(season);
   const adjusted = new Map([...rosters].map(([id, roster]) => [id, roster.map((member) => {
@@ -97,8 +98,7 @@ function withVeteranGap(seed: string, season: number, rosters: Map<string, Scene
     const gap = veteranGap(year - born);
     return gap > 0 ? { ...member, overall: Math.max(40, member.overall - gap) } : member;
   })]));
-  agedRead.set(key, adjusted);
-  if (agedRead.size > CACHE_LIMIT) agedRead.delete(agedRead.keys().next().value!);
+  agedRead.set(rosters, adjusted);
   return adjusted;
 }
 
@@ -437,7 +437,7 @@ export const seatMovesOf = (seed: string): SeatMove[] => seatRegistry.get(seed)?
 
 /** Os elencos da temporada com as trocas das suas vagas por cima (quem saiu está no time novo). */
 function rostersOf(seed: string, season: number): Map<string, SceneRosterMember[]> {
-  return withVeteranGap(seed, season, seatRostersOf(seed, season));
+  return withVeteranGap(season, seatRostersOf(seed, season));
 }
 
 /** Os elencos da temporada com as trocas das suas vagas (sem o desgaste de leitura). */
