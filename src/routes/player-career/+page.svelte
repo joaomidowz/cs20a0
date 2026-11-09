@@ -4094,5 +4094,9 @@
     .report-copy .label { max-width: 100%; }
     .squad-actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
     .squad-actions .bench-btn { flex: 1 1 100%; white-space: normal; }
+    /* Ao vivo no celular: AO VIVO e o nome do campeonato na primeira linha; o rival e o botão da tabela embaixo. */
+    .live-strip { flex-wrap: wrap; gap: 8px 10px; }
+    .live-strip strong { flex: 1 1 140px; }
+    .rival-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   }
 </style>

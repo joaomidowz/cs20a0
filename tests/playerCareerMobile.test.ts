@@ -46,3 +46,16 @@ describe('hub sem corte no celular', () => {
     expect(page).toContain('.squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 128px; gap: 6px; margin-inline: -10px; padding: 0 10px 8px; scroll-padding-inline: 10px; }');
   });
 });
+
+describe('ao vivo sem corte no celular', () => {
+  it('a faixa ao vivo quebra linha e o chip do rival encolhe com reticências', () => {
+    const block = lastPhoneBlock(source(PAGE));
+    expect(block).toContain('.live-strip { flex-wrap: wrap; gap: 8px 10px; }');
+    expect(block).toContain('.live-strip strong { flex: 1 1 140px; }');
+    expect(block).toContain('.rival-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }');
+  });
+
+  it('o cartão de mapa deixa o texto encolher (as reticências do "Pick · time" funcionam)', () => {
+    expect(source('src/lib/components/SeriesViewer.svelte')).toContain('.decided-map-list article>div{min-width:0}');
+  });
+});
