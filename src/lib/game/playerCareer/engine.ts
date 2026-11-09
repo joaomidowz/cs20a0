@@ -10,7 +10,7 @@ import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
-import { currentLevelOf, legacyEventTier } from './tiers';
+import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
 import { myFluency, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
@@ -673,7 +673,7 @@ function growBench(plan: SquadPlan | null | undefined, year: number, rng: () => 
   return { ...plan, reserve: plan.reserve ? growPlayer(plan.reserve, year, rng) : null, lineup: Object.fromEntries(Object.entries(plan.lineup).map(([key, player]) => [key, growPlayer(player, year, rng)])) };
 }
 
-export function finishSeason(state: PlayerCareerState): PlayerCareerState {
+export function finishSeason(state: PlayerCareerState, worldRank: number | null = null): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
   const org = orgOf(state.orgId, state);
@@ -726,7 +726,10 @@ export function finishSeason(state: PlayerCareerState): PlayerCareerState {
   log.rookie = awards.rookie;
   log.rookieEligible = awards.rookieEligible;
   // Acesso e rebaixamento do seu time pela temporada (quem acabou de chegar por troca também conta).
-  const newLevel = org.id === LAN_HOUSE.id ? org.level : orgLevelChange(org.level, results);
+  const byResults = org.id === LAN_HOUSE.id ? org.level : orgLevelChange(org.level, results);
+  // O ranking do fim do ano (a página passa quando o circuito do mundo fechou a temporada) também promove: top 8 vira
+  // Elite (nível 0) e top 16 pelo menos Tier S (nível 1). Ele só promove; a queda continua sendo a temporada sem semifinal.
+  const newLevel = org.id !== LAN_HOUSE.id && worldRank !== null && worldRank <= 16 ? Math.min(byResults, worldRank <= 8 ? 0 : 1) : byResults;
   if (newLevel !== org.level) log.orgChange = { from: org.level, to: newLevel };
   const orgLevels = newLevel !== org.level ? { ...(state.orgLevels ?? {}), [org.id]: newLevel } : state.orgLevels;
   const promotedState = orgLevels === state.orgLevels ? state : { ...state, orgLevels };
@@ -825,13 +828,19 @@ function buildOffers(state: PlayerCareerState, seasonRating: number, titles: num
   if (seasonRating < decentFor(org.level) - 0.08) takeFrom(downgrades, 0, 2); // ano ruim: porta de saída pra não travar.
   return offers;}
 
+/** Assinar leva o nível de hoje do time (o da proposta, que vem do ranking): é o circuito que você joga com ele. */
+function joinedLevels(state: PlayerCareerState, offer: CareerOffer): PlayerCareerState['orgLevels'] {
+  return offer.orgLevel === homeLevelOf(state, offer.orgId) ? state.orgLevels : { ...(state.orgLevels ?? {}), [offer.orgId]: offer.orgLevel };
+}
+
 export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCareerState {
   const offer = state.pendingOffers?.find((candidate) => candidate.orgId === orgId);
   if (!offer) return state;
   // A vaga é de quem está no time NESTA temporada (o mundo também troca jogadores).
   const org = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = org ? { ...seatToTake(org, state.role), season: state.seasonNumber } : null;
-  return { ...state, orgId, pendingOffers: null, ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
+  const orgLevels = joinedLevels(state, offer);
+  return { ...state, orgId, pendingOffers: null, ...(orgLevels ? { orgLevels } : {}), ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
 }
 
 export function stayAtOrg(state: PlayerCareerState): PlayerCareerState {
@@ -949,7 +958,8 @@ export function acceptMove(state: PlayerCareerState, orgId: string): PlayerCaree
   }
   const offer = move.offers.find((candidate) => candidate.orgId === orgId);
   if (!offer) return state;
-  return moveMidSeason(state, orgId, `${move.kind === 'cut' ? 'Cortado do' : 'Saiu do'} ${from} → ${offer.orgName}`);
+  const orgLevels = joinedLevels(state, offer);
+  return moveMidSeason({ ...state, ...(orgLevels ? { orgLevels } : {}) }, orgId, `${move.kind === 'cut' ? 'Cortado do' : 'Saiu do'} ${from} → ${offer.orgName}`);
 }
 
 /** Recusa a proposta de um time de cima: o elenco atual gosta (moral +4). Corte não dá pra recusar. */

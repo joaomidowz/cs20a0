@@ -2,12 +2,13 @@
 // A régua única de tiers da Carreira (D5): times e campeonatos falam a mesma língua (Tier S, A, B, C e Lan House) e
 // um lugar só decide o nível de um time hoje. Tela, chave, convites e ofertas leem `currentLevelOf`; a evolução do
 // mundo (world.ts, sceneWorld) continua no nível base do catálogo, para uma temporada não depender da outra (D6).
-// Hoje a regra é a de sempre: o nível que o seu time ganhou ou perdeu nesta carreira (orgLevels), senão o do
-// catálogo. O plano 3 troca o miolo de `currentLevelOf` pelo tier do ranking, sem mudar a assinatura.
+// Os times da cena seguem o ranking de times (ranking.ts, D7); o seu time segue o nível de temporada (orgLevels ou o
+// catálogo), que só muda na virada.
 // Os níveis 0 e 1 são os dois o Tier S (top 16); o nível 0 (top 8) leva o selo "Elite" dentro dele.
 import { TIER_LABEL, type EventTier } from './calendar';
 import { sceneOrgById } from './data';
 import type { PlayerCareerState, SeasonLog } from './engine';
+import { teamRankOf } from './ranking';
 
 export type TeamTier = 'S' | 'A' | 'B' | 'C' | 'LAN';
 
@@ -62,9 +63,26 @@ export function levelFromRank(rank: number | null, homeLevel: number): number {
   return Math.max(2, homeLevel);
 }
 
-/** Nível atual de um time: a fonte única para tela, chave, convites e ofertas (nunca para sceneWorld). */
+const sameOrg = (a: string, b: string) => (sceneOrgById.get(a)?.id ?? a) === (sceneOrgById.get(b)?.id ?? b);
+let resolving = false;
+
+/**
+ * Nível atual de um time: a fonte única para tela, chave, convites e ofertas (nunca para sceneWorld). Os times da cena
+ * seguem o ranking (ranking.ts): 1 a 16 Tier S (1 a 8 com o selo Elite), abaixo o nível de casa. O seu time segue o
+ * nível de temporada (homeLevelOf): o circuito que você joga só muda na virada (engine.ts finishSeason, com o acesso
+ * pelos títulos e a promoção pelo ranking do fim do ano).
+ */
 export function currentLevelOf(state: PlayerCareerState, orgId: string): number {
-  return homeLevelOf(state, orgId);
+  const home = homeLevelOf(state, orgId);
+  if (!state?.seed || !Array.isArray(state.history) || !sceneOrgById.get(orgId) || sameOrg(orgId, state.orgId)) return home;
+  // O ranking é a fonte do nível: se ele perguntar o nível de alguém, é recursão, e o erro aparece aqui, na hora.
+  if (resolving) throw new Error('currentLevelOf chamado de dentro do ranking');
+  resolving = true;
+  try {
+    return levelFromRank(teamRankOf(state, orgId), home);
+  } finally {
+    resolving = false;
+  }
 }
 
 /** O tier de campeonato que o nível jogava antes de o calendário guardar `tier` (saves anteriores a 10202f2). */

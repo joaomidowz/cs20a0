@@ -10,6 +10,7 @@ import { AGENDA_BY_ID, contactOf } from '../src/lib/game/playerCareer/agenda';
 import { scoutPlayers } from '../src/lib/game/playerCareer/scout';
 import { orgIn } from '../src/lib/game/playerCareer/world';
 import { currentLevelOf } from '../src/lib/game/playerCareer/tiers';
+import { teamRankOf } from '../src/lib/game/playerCareer/ranking';
 
 describe('leitores de nível fora do motor', () => {
   it('time da Elite (nível 0) fora do Major entra no motor como S, não como underdog', () => {
@@ -22,9 +23,10 @@ describe('leitores de nível fora do motor', () => {
   it('o Top 20 lê o nível de hoje: time do nível 1 levado à Elite ganha o peso da Elite', () => {
     const state: PlayerCareerState = { ...createPlayerCareer({ nick: 'Probe', country: 'Brazil', role: 'rifler', seed: 'probe-1' }), pendingDraw: null, drawDone: true };
     const base = seasonAwards(state, 5, 'Lan House').hltvTop;
-    const levelOne = base.find((player) => sceneOrgById.get(player.teamId ?? '')?.level === 1)!;
+    const levelOne = base.find((player) => sceneOrgById.get(player.teamId ?? '') && currentLevelOf(state, player.teamId!) === 1)!;
     expect(levelOne).toBeDefined();
-    const promoted = seasonAwards({ ...state, orgLevels: { [levelOne.teamId!]: 0 } }, 5, 'Lan House').hltvTop.find((player) => player.nick === levelOne.nick)!;
+    // Os times da cena seguem o ranking (plano 03); o nível que a carreira dá vale para o seu time: você levou o time à Elite.
+    const promoted = seasonAwards({ ...state, orgId: levelOne.teamId!, orgLevels: { [levelOne.teamId!]: 0 } }, 5, 'Lan House').hltvTop.find((player) => player.nick === levelOne.nick)!;
     expect(promoted.score).toBeCloseTo(levelOne.score + 0.03, 2);
   });
 
@@ -32,11 +34,14 @@ describe('leitores de nível fora do motor', () => {
     const duo = AGENDA_BY_ID.get('sem-duo-com-awper-profissional')!;
     const mibr = sceneOrgs.find((org) => org.name === 'MIBR')!;
     const base = startSeason({ ...createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: 'week-contact-tier' }), orgId: mibr.id, pendingDraw: null, drawDone: true, seatsTaken: [] });
-    const level = currentLevelOf(base, mibr.id);
+    // O seu time no Tier C hoje: o top 16 do ranking (Tier S) fica longe do seu degrau.
+    const level = 4;
     const others = sceneOrgs.filter((org) => org.region === 'sa' && org.id !== mibr.id);
-    // Um time longe do seu degrau no catálogo (diferença de mais de 1) e com AWPer: pelo catálogo, nunca seria o contato.
-    const target = others.find((org) => Math.abs(org.level - level) > 1 && orgIn(base.seed, base.seasonNumber, org.id)!.roster.some((member) => memberRoles(member).includes('awper')))!;
-    const orgLevels = Object.fromEntries(others.map((org) => [org.id, org.id === target.id ? level : 5]));
+    // Um time fora do top 16, longe do seu degrau no catálogo (diferença de mais de 1) e com AWPer: pelo catálogo, nunca
+    // seria o contato. Fora do top 16, o nível de hoje é o nível de casa (plano 03).
+    const target = others.find((org) => (teamRankOf(base, org.id) ?? 0) > 16 && Math.abs(org.level - level) > 1 && orgIn(base.seed, base.seasonNumber, org.id)!.roster.some((member) => memberRoles(member).includes('awper')))!;
+    const orgLevels = { ...Object.fromEntries(others.map((org) => [org.id, org.id === target.id ? level : 5])), [mibr.id]: level };
+    expect(currentLevelOf({ ...base, orgLevels }, mibr.id)).toBe(level);
     expect(contactOf({ ...base, orgLevels }, duo)?.org).toBe(target.name);
   });
 
