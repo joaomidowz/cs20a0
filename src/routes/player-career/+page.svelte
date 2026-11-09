@@ -1514,8 +1514,8 @@
                 <span class="st-team" role="cell"><TeamBadge id={log.orgId} name={log.orgName} size="sm" /><b>{log.orgName}</b></span>
                 <span class="st-rating" role="cell" class:hot={log.seasonRating >= 1.2} class:good={log.seasonRating >= 1.08 && log.seasonRating < 1.2} class:low={log.seasonRating < 0.98}>{log.seasonRating.toFixed(2)}</span>
                 <span class="st-hltv" role="cell">{#if log.hltvRank}<span class="st-rank" class:top1={log.hltvRank === 1} class:top20={log.hltvRank > 1 && log.hltvRank <= 20}>#{log.hltvRank}</span>{:else}<span class="st-dim">fora</span>{/if}</span>
-                <span class="st-num" role="cell">{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
-                <span class="st-num" role="cell">{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                <span class="st-num" role="cell"><span class="st-cap">Títulos</span>{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                <span class="st-num" role="cell"><span class="st-cap">MVPs</span>{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
                 <span class="st-badges" role="cell">
                   {#if log.hltvRank === 1}<span class="award award-major small">Melhor do mundo</span>{/if}
                   {#if log.rookie?.you}<span class="award small">Rookie of the Year</span>{/if}
@@ -2641,8 +2641,8 @@
                   <span class="st-team" role="cell"><TeamBadge id={log.orgId} name={log.orgName} size="sm" /><b>{log.orgName}</b></span>
                   <span class="st-rating" role="cell" class:hot={log.seasonRating >= 1.2} class:good={log.seasonRating >= 1.08 && log.seasonRating < 1.2} class:low={log.seasonRating < 0.98}>{log.seasonRating.toFixed(2)}</span>
                   <span class="st-hltv" role="cell">{#if log.hltvRank}<span class="st-rank" class:top1={log.hltvRank === 1} class:top20={log.hltvRank > 1 && log.hltvRank <= 20}>#{log.hltvRank}</span>{:else}<span class="st-dim">fora</span>{/if}</span>
-                  <span class="st-num" role="cell">{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
-                  <span class="st-num" role="cell">{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                  <span class="st-num" role="cell"><span class="st-cap">Títulos</span>{#if log.titles}<b>{log.titles}</b>{#if majorTitles}<span class="award award-major small">{majorTitles} Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
+                  <span class="st-num" role="cell"><span class="st-cap">MVPs</span>{#if mvpAll}<b>{mvpAll}</b>{#if mvpMajor}<span class="award award-major small">{mvpMajor} de Major</span>{/if}{:else}<span class="st-dim">0</span>{/if}</span>
                   <span class="st-badges" role="cell">
                     {#if log.hltvRank === 1}<span class="award award-major small">Melhor do mundo</span>{/if}
                     {#if log.rookie?.you}<span class="award small">Rookie of the Year</span>{/if}
@@ -3190,10 +3190,12 @@
   .st-num b { font: 900 20px/1 var(--display); font-variant-numeric: tabular-nums; }
   .st-badges { display: flex; flex-wrap: wrap; gap: 4px; }
   .st-dim { color: var(--muted); }
+  .st-cap { display: none; }
   @media (max-width: 760px) {
     .st-head { display: none !important; }
     .st-row { grid-template-columns: 52px minmax(0, 1fr) auto auto; row-gap: 6px; }
     .st-num, .st-badges { grid-column: 2 / -1; }
+    .st-cap { display: inline; color: var(--muted); font: 800 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }
   }
   .moments li.title .moment-name { font-weight: 700; }
   .moment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3202,7 +3204,7 @@
   .tag.major { border-color: var(--gold); color: var(--text); }
   .muted-line { margin: 0; color: var(--muted); font-size: 14px; }
   .trophy-room { display: grid; gap: 12px; }
-  .room-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+  .room-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
   .room-tabs button { all: unset; cursor: pointer; padding: 8px 12px; color: var(--muted); font: 800 12px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; border-bottom: 2px solid transparent; }
   .room-tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
   .room-tabs button:focus-visible { outline: 2px solid var(--accent); }
@@ -4098,5 +4100,7 @@
     .live-strip { flex-wrap: wrap; gap: 8px 10px; }
     .live-strip strong { flex: 1 1 140px; }
     .rival-chip { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    /* Sala de troféus: abas com 44px de toque (quebram em duas linhas). */
+    .room-tabs button { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 0 10px; }
   }
 </style>

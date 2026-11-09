@@ -59,3 +59,19 @@ describe('ao vivo sem corte no celular', () => {
     expect(source('src/lib/components/SeriesViewer.svelte')).toContain('.decided-map-list article>div{min-width:0}');
   });
 });
+
+describe('sala de troféus e tabela de temporadas no celular', () => {
+  it('as abas da sala quebram linha e têm 44px de toque no celular', () => {
+    const page = source(PAGE);
+    expect(page).toContain('.room-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }');
+    expect(lastPhoneBlock(page)).toContain('.room-tabs button { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 0 10px; }');
+  });
+
+  it('sem o cabeçalho da tabela (até 760px), Títulos e MVPs ganham rótulo na própria célula', () => {
+    const page = source(PAGE);
+    expect(page.match(/<span class="st-num" role="cell"><span class="st-cap">Títulos<\/span>/g)).toHaveLength(2);
+    expect(page.match(/<span class="st-num" role="cell"><span class="st-cap">MVPs<\/span>/g)).toHaveLength(2);
+    expect(page).toContain('  .st-cap { display: none; }');
+    expect(page).toContain('    .st-cap { display: inline; color: var(--muted); font: 800 10px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; }');
+  });
+});
