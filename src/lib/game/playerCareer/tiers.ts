@@ -5,6 +5,7 @@
 // Hoje a regra é a de sempre: o nível que o seu time ganhou ou perdeu nesta carreira (orgLevels), senão o do
 // catálogo. O plano 3 troca o miolo de `currentLevelOf` pelo tier do ranking, sem mudar a assinatura.
 // Os níveis 0 e 1 são os dois o Tier S (top 16); o nível 0 (top 8) leva o selo "Elite" dentro dele.
+import { TIER_LABEL, type EventTier } from './calendar';
 import { sceneOrgById } from './data';
 import type { PlayerCareerState } from './engine';
 
@@ -51,3 +52,9 @@ export function baseLevelOf(orgId: string): number {
 export function currentLevelOf(state: PlayerCareerState, orgId: string): number {
   return state.orgLevels?.[orgId] ?? baseLevelOf(orgId);
 }
+
+/** O tier de campeonato que o nível jogava antes de o calendário guardar `tier` (saves anteriores a 10202f2). */
+export const legacyEventTier = (level: number): EventTier => (level <= 1 ? 'A' : level === 2 ? 'B' : 'C');
+
+/** Rótulo do tier de um campeonato; sem tier salvo, o tier de campeonato que o nível do time joga. */
+export const eventTierLabel = (tier: EventTier | undefined, teamLevel: number): string => TIER_LABEL[tier ?? legacyEventTier(teamLevel)];

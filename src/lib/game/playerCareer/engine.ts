@@ -10,6 +10,7 @@ import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type
 import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
+import { currentLevelOf, legacyEventTier } from './tiers';
 import { myFluency, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
@@ -97,25 +98,25 @@ export interface TournamentResult {
 export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kills: number; against?: number; map: string; round: number; opponent: string }
 
 /** Tier de um resultado antigo (antes do calendário real): pelo nível do time na temporada. */
-const legacyTier = (orgLevel: number): EventTier => (orgLevel <= 1 ? 'A' : orgLevel === 2 ? 'B' : 'C');
 
 export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; /** MVPs de Major (já contados em `mvps`). */ majorMvps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
 
 /** Sala de troféus: títulos por tier (Major, S, A, B, C), MVPs de evento e aces da carreira (inclui a temporada em curso). */
-export function trophyCase(state: Pick<PlayerCareerState, 'history' | 'calendar' | 'orgId'>): TrophyCase {
+export function trophyCase(state: PlayerCareerState): TrophyCase {
   const byTier: Record<EventTier, number> = { Major: 0, S: 0, A: 0, B: 0, C: 0 };
   let mvps = 0;
   let majorMvps = 0;
   let aces = 0;
   const count = (result: TournamentResult, orgLevel: number) => {
-    if (result.placement === 'Campeão') byTier[result.tier ?? legacyTier(orgLevel)] += 1;
+    if (result.placement === 'Campeão') byTier[result.tier ?? legacyEventTier(orgLevel)] += 1;
     if (result.mvp?.you) mvps += 1;
     if (result.mvp?.you && result.tier === 'Major') majorMvps += 1;
     aces += result.plays?.aces ?? 0;
   };
   let clutches = 0;
   for (const log of state.history) for (const result of log.tournaments) { count(result, log.orgLevel); clutches += result.plays?.clutches ?? 0; }
-  const level = orgOf(state.orgId).level;
+  // A temporada em curso é jogada no nível de hoje (a promoção só vale na virada).
+  const level = currentLevelOf(state, state.orgId);
   for (const entry of state.calendar ?? []) if (entry.result) { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
   const ranks = state.history.flatMap((log) => (log.hltvRank ? [log.hltvRank] : []));
   return {
@@ -380,13 +381,13 @@ const LAN_HOUSE = { id: 'lan-house', name: 'Lan House do Bairro', level: 5 };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /** Campeonatos por temporada do nível (o meio da faixa; a temporada sorteia dentro dela). */
-export const eventsFor = (orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null): number => {
+export const eventsFor = (orgId: string, state?: PlayerCareerState | null): number => {
   const [min, max] = EVENT_RANGE[orgOf(orgId, state).level] ?? [8, 10];
   return Math.round((min + max) / 2);
 };
 
 /** A faixa "9-12" para mostrar nas ofertas. */
-export const eventsRangeFor = (orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null): string => {
+export const eventsRangeFor = (orgId: string, state?: PlayerCareerState | null): string => {
   const [min, max] = EVENT_RANGE[orgOf(orgId, state).level] ?? [8, 10];
   return min === max ? `${min}` : `${min}-${max}`;
 };
@@ -529,19 +530,20 @@ export function ensureDraw(state: PlayerCareerState): PlayerCareerState {
 
 const baseOrgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
 
-/** A org com o nível desta carreira: quem foi promovido (ou rebaixado) joga o circuito do nível novo. */
-export function orgOf(orgId: string, state?: Pick<PlayerCareerState, 'orgLevels'> | null) {
+/** A org no nível de hoje (currentLevelOf, tiers.ts): quem está num degrau diferente do catálogo joga o circuito do
+ *  degrau novo. Sem estado, o catálogo. */
+export function orgOf(orgId: string, state?: PlayerCareerState | null) {
   const base = baseOrgOf(orgId);
-  const level = state?.orgLevels?.[orgId];
-  if (level === undefined || level === base.level) return base;
+  const level = state ? currentLevelOf(state, orgId) : base.level;
+  if (level === base.level) return base;
   // A força acompanha o degrau: subiu, pelo menos o piso do nível novo; caiu, no máximo o teto do de baixo.
   const power = 'power' in base && typeof base.power === 'number' ? base.power : ORG_BASE_POWER[base.level] ?? 60;
   const floor = ORG_BASE_POWER[level] ?? power;
   return { ...base, level, power: level < base.level ? Math.max(power, floor) : Math.min(power, floor + 3) };
 }
 
-/** O nível de um time da cena nesta carreira (para filtrar ofertas e rivais). */
-export const levelIn = (state: Pick<PlayerCareerState, 'orgLevels'> | null | undefined, org: { id: string; level: number }) => state?.orgLevels?.[org.id] ?? org.level;
+/** O nível de um time da cena nesta carreira (ofertas, rivais, convites): sempre currentLevelOf; sem estado, o catálogo. */
+export const levelIn = (state: PlayerCareerState | null | undefined, org: { id: string; level: number }) => (state ? currentLevelOf(state, org.id) : org.level);
 
 /**
  * O time sobe ou cai de tier pela temporada que fez (a Carreira do EA FC com acesso e rebaixamento):
