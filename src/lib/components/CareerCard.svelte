@@ -184,24 +184,25 @@
     color: color-mix(in srgb, var(--r) 14%, transparent);
     pointer-events: none;
   }
-  /* Rosto à direita, sob a etiqueta de raridade, sumindo para a esquerda e para baixo: os status ficam por cima. */
+  /* Rosto à direita, do topo da carta, sumindo para a esquerda, para cima e para baixo: sem faixa escura em cima nem
+     embaixo, e os status ficam por cima. */
   .photo {
     position: absolute;
     right: 0;
-    top: 26px;
+    top: 0;
     z-index: 0;
-    width: 62%;
-    height: 72%;
+    width: 68%;
+    height: 86%;
     object-fit: cover;
     object-position: center top;
-    opacity: .5;
+    opacity: .55;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(to left, #000 35%, transparent 95%), linear-gradient(to bottom, #000 45%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to left, #000 40%, transparent 96%), linear-gradient(to bottom, transparent 0, #000 14%, #000 55%, transparent 100%);
     -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to left, #000 35%, transparent 95%), linear-gradient(to bottom, #000 45%, transparent 100%);
+    mask-image: linear-gradient(to left, #000 40%, transparent 96%), linear-gradient(to bottom, transparent 0, #000 14%, #000 55%, transparent 100%);
     mask-composite: intersect;
   }
-  .size-sheet .photo { top: 40px; width: 58%; height: 70%; }
+  .size-sheet .photo { width: 64%; height: 84%; }
   /* min-width: 0: a linha não alarga a carta de 128px do celular; quem não cabe quebra dentro do próprio canto. */
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; min-width: 0; }
   .ovr-block { display: grid; gap: 3px; }
