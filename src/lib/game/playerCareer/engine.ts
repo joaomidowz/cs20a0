@@ -14,6 +14,7 @@ import { ageDecline, careerGrowth, ceilingBonusOf, GROWTH_LAST_AGE, seasonTrainO
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
 import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
 import { myFluency, type Language } from './language';
+import type { RecentOffer } from './offers';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
 import type { CareerLife } from './life';
@@ -397,6 +398,8 @@ export interface PlayerCareerState {
   transferRequestedSeason?: number;
   /** Times de call em inglês que te queriam no fim da temporada, mas o seu inglês ficou abaixo do exigido. */
   blockedOffers?: Array<{ orgName: string; need: number }>;
+  /** Quem te fez proposta nesta temporada e na anterior (o sorteio das próximas dá a vez a outras orgs). */
+  recentOffers?: RecentOffer[];
   /** Campeonatos que você passa no banco (aceitou perder a vaga num acontecimento): o substituto joga. */
   benchedEvents?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
@@ -793,7 +796,7 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   return next.age >= MAX_CAREER_AGE ? retire(next, { coach: true }) : next;
 }
 
-function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
+export function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
   const level = levelIn(state, candidate);
   return {
     orgId: candidate.id,
