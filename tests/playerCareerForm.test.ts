@@ -6,9 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, ensureCircuitFrom, ensureDraw, recordEventResult, startSeason, type CalendarEntry, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import {
-  ARC_TUNING, FORM_PHASES, blockKeyOf, blockRange, blockSizes, eventArcOf, formBlockOf, formPhaseOf, formTransition, rivalStudyOf, type FormPhase
+  ARC_TUNING, FORM_PHASES, blockKeyOf, blockRange, blockSizes, eventArcOf, formBlockOf, formPhaseOf, formTransition, rivalStudyOf, studyCardOpen, type FormPhase
 } from '../src/lib/game/playerCareer/form';
 import { ensureSquad } from '../src/lib/game/playerCareer/squad';
+import { AGENDA_BY_ID, agendaAvailable, applyAgenda, blocksLeft, drawAgenda } from '../src/lib/game/playerCareer/agenda';
 import { serializeSceneEvent, startSceneEvent, stepSceneEvent } from '../src/lib/game/playerCareer/live';
 
 const orgNamed = (name: string) => sceneOrgs.find((candidate) => candidate.name === name)!;
@@ -206,4 +207,29 @@ describe('arco congelado no campeonato em andamento', () => {
     expect(scores(serializeSceneEvent(rebuilt))).toEqual(scores(played));
     expect(userPower(startSceneEvent(changed, end0, played).campaign)).not.toBe(atStart);
   }, 30000);
+});
+
+describe('cartas da semana contra o estudo', () => {
+  it('só aparecem com estudo, vêm na mesa, cortam o estudo do bloco, custam blocos e cansaço e não repetem no bloco', () => {
+    const base = withCalendar(careerAt(VITALITY, 'cards'), 12);
+    expect(agendaAvailable(base, AGENDA_BY_ID.get('mudar-playbook')!)).toBe(false);
+    expect(agendaAvailable(base, AGENDA_BY_ID.get('demos-rivais')!)).toBe(false);
+    const [, end0] = blockRange(base, 0);
+    const studied = play(base, Array.from({ length: end0 }, () => 'Campeão'));
+    const before = rivalStudyOf(studied, end0);
+    expect(before).toBeGreaterThan(0);
+    expect(drawAgenda(studied).some((card) => card.id === 'mudar-playbook' || card.id === 'demos-rivais')).toBe(true);
+    const playbook = applyAgenda(studied, 'mudar-playbook');
+    expect(playbook.chips.some((chip) => chip.label === 'Estudo dos rivais' && chip.value < 0)).toBe(true);
+    const after = rivalStudyOf(playbook.state, end0);
+    expect(after).toBeCloseTo(Math.round(before * 0.4 * 10) / 10, 5);
+    expect(blocksLeft(playbook.state)).toBe(blocksLeft(studied) - 2);
+    expect(playbook.state.fatigue ?? 0).toBeGreaterThan(studied.fatigue ?? 0);
+    expect(studyCardOpen(playbook.state, 'mudar-playbook')).toBe(false);
+    expect(studyCardOpen(playbook.state, 'demos-rivais')).toBe(true);
+    const both = applyAgenda(playbook.state, 'demos-rivais');
+    expect(rivalStudyOf(both.state, end0)).toBeLessThan(after);
+    // O corte é do bloco do próximo campeonato.
+    expect(both.state.studyCut?.key).toBe(blockKeyOf(studied, end0));
+  });
 });

@@ -16,6 +16,7 @@ import { lifeOf, orgRegionOf } from './life';
 import { memberBirthYear, memberNick, memberRoles, sceneOrgs } from './data';
 import { orgIn } from './world';
 import { currentLevelOf } from './tiers';
+import { cutRivalStudy, rivalStudyOf, studyCardOpen } from './form';
 
 /** As 9 categorias originais e as 14 da planilha nova da semana. */
 export type AgendaCategory = 'treino' | 'amigos' | 'bootcamp' | 'stream' | 'coach' | 'externo' | 'time' | 'descanso' | 'mercado'
@@ -38,6 +39,8 @@ export interface AgendaEffects {
   mind?: number;
   /** Pressão de fora (negativo alivia). */
   pressure?: number;
+  /** Corta esta fração (0 a 1) do estudo dos rivais no bloco do próximo campeonato (form.ts). */
+  study?: number;
 }
 
 export interface AgendaAction {
@@ -49,7 +52,7 @@ export interface AgendaAction {
   /** O que você ouve depois de escolher. */
   line: string;
   risk?: { chance: number; effects: AgendaEffects; line: string };
-  needs?: { realOrg?: boolean; fame?: number; roles?: PlayerRole[]; /** Só aparece se ainda há o que aprender no idioma. */ language?: 'en' | 'team' };
+  needs?: { realOrg?: boolean; fame?: number; roles?: PlayerRole[]; /** Só aparece se ainda há o que aprender no idioma. */ language?: 'en' | 'team'; /** Só aparece quando os rivais estudam vocês para o próximo campeonato. */ rivalStudy?: boolean };
   /** Planilha nova: condições conferidas no estado real, raridade, cooldown (semanas) e de quem é o contato. */
   conditions?: string[];
   rarity?: 'comum' | 'moderado' | 'grave';
@@ -155,6 +158,9 @@ export const AGENDA: AgendaAction[] = [
   A('cobrar-time', 'time', 'Cobrar o time', 'Dizer o que está errado no treino.', { team: -4, form: 1, attrs: { consistency: 1 } }, 'Treino mais sério depois da cobrança.', {
     risk: { chance: 0.3, effects: { team: -5 }, line: 'Pegou mal. Dois parceiros ficaram calados.' }
   }),
+  // Contra o estudo dos rivais (form.ts): só entram na mesa quando os rivais estudam vocês para o próximo campeonato.
+  A('mudar-playbook', 'time', 'Mudar o playbook', 'Jogadas novas para quem decorou vocês.', { study: 0.6 }, 'Playbook novo. Quem estudou vocês vai ter que começar de novo.', { needs: { rivalStudy: true } }),
+  A('demos-rivais', 'coach', 'Estudar as demos deles', 'Ver o que os rivais preparam contra vocês.', { study: 0.35 }, 'Vocês viram o que eles prepararam. Menos surpresa no servidor.', { needs: { rivalStudy: true } }),
 
   // Descanso e vida
   A('folga', 'descanso', 'Folga total', 'Desligar o PC por três dias.', { morale: 8, mind: 3, pressure: -6, attrs: { mental: 1 }, form: -1 }, 'Voltou com vontade de jogar.'),
@@ -215,7 +221,7 @@ export function weekBlocks(state: PlayerCareerState): number {
 
 /** O treino livre ocupa 2 blocos. */
 export const FREE_TRAINING_COST = 2;
-const COST_OVERRIDE: Record<string, number> = { 'bootcamp-europa': 3, 'treino-maratona': 2, 'stream-maratona': 2, folga: 2, familia: 2 };
+const COST_OVERRIDE: Record<string, number> = { 'bootcamp-europa': 3, 'treino-maratona': 2, 'stream-maratona': 2, folga: 2, familia: 2, 'mudar-playbook': 2 };
 
 /** Quanto tempo a ação ocupa: 1 bloco; scrim, viagem curta e visita 2; viagem longa e bootcamp 3. */
 export function costOf(action: AgendaAction): number {
@@ -304,7 +310,8 @@ const CATEGORY_FATIGUE: Partial<Record<AgendaCategory, number>> = {
 /** Ajustes do cansaço por ação (o resto segue a categoria). */
 const FATIGUE_OVERRIDE: Record<string, number> = {
   'treino-recuperacao': -25, 'treino-maratona': 30, 'stream-maratona': 22, 'faceit-noite': 15, 'coach-mira-particular': 10,
-  balada: 12, academia: -5, 'outro-jogo': -12, familia: -30, folga: -35, 'viagem-time': -15, 'ajustar-sono': -15, 'sair-redes': -10
+  balada: 12, academia: -5, 'outro-jogo': -12, familia: -30, folga: -35, 'viagem-time': -15, 'ajustar-sono': -15, 'sair-redes': -10,
+  'mudar-playbook': 12, 'demos-rivais': 6
 };
 
 export const fatigueOf = (action: AgendaAction): number => action.effects.fatigue ?? FATIGUE_OVERRIDE[action.id] ?? CATEGORY_FATIGUE[action.category] ?? 0;
@@ -326,6 +333,7 @@ export function agendaAvailable(state: PlayerCareerState, action: AgendaAction):
     const fit = myLanguageFit(state);
     if (fit.language === 'en' || fit.fluency >= NON_NATIVE_MAX) return false;
   }
+  if (needs.rivalStudy && !studyCardOpen(state, action.id)) return false;
   return true;
 }
 
@@ -375,6 +383,13 @@ export function drawAgenda(state: PlayerCareerState): AgendaAction[] {
       picked.splice(picked.indexOf(heaviest), 1, pickRest);
     }
   }
+  // Rivais estudando vocês: uma das cartas de contra-jogo sempre vem na mesa, no lugar da última que não é aula nem descanso.
+  const counters = pool.filter((action) => action.effects.study);
+  if (counters.length && !picked.some((action) => action.effects.study)) {
+    const counter = counters[Math.floor(rng() * counters.length)];
+    const slots = picked.map((action, index) => ({ action, index })).filter(({ action }) => !action.effects.lang && fatigueOf(action) > -20);
+    picked.splice(slots.at(-1)?.index ?? picked.length - 1, 1, counter);
+  }
   return picked;
 }
 
@@ -394,6 +409,7 @@ export function agendaChips(effects: AgendaEffects): AgendaChip[] {
   if (effects.mind) chips.push({ label: 'Fase mental', value: effects.mind, kind: 'morale' });
   if (effects.pressure) chips.push({ label: 'Pressão', value: effects.pressure, kind: 'fatigue' });
   if (effects.lang) chips.push({ label: effects.lang.target === 'en' ? 'Inglês' : 'Idioma do time', value: effects.lang.amount, kind: 'train' });
+  if (effects.study) chips.push({ label: '% do estudo dos rivais', value: -Math.round(effects.study * 100), kind: 'team' });
   return chips;
 }
 
@@ -473,7 +489,8 @@ function scaleGains(effects: AgendaEffects, factor: number): AgendaEffects {
     attrs: effects.attrs ? Object.fromEntries(Object.entries(effects.attrs).map(([key, value]) => [key, value > 0 ? Math.max(0, Math.round(value * factor)) : value])) : undefined,
     morale: up(effects.morale), form: up(effects.form), fame: up(effects.fame), team: up(effects.team), mind: up(effects.mind),
     pressure: effects.pressure && effects.pressure < 0 ? Math.round(effects.pressure * factor) : effects.pressure,
-    lang: effects.lang ? { ...effects.lang, amount: Math.round(effects.lang.amount * factor) } : undefined
+    lang: effects.lang ? { ...effects.lang, amount: Math.round(effects.lang.amount * factor) } : undefined,
+    study: effects.study ? effects.study * factor : effects.study
   };
 }
 
@@ -528,6 +545,14 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
   const fatigue = fatigueOf(action) + (fatigueOf(action) > 0 ? busy * 2 : 0);
   let next = applyEffects(state, { ...base, attrs, fatigue }, chips);
   next = lifeOfAction(next, action);
+  // Contra o estudo dos rivais: o corte vale no bloco do próximo campeonato (form.ts).
+  if (base.study) {
+    const upcoming = next.calendar?.find((entry) => entry.status === 'UPCOMING')?.index;
+    const before = upcoming === undefined ? 0 : rivalStudyOf(next, upcoming);
+    next = cutRivalStudy(next, action.id, base.study);
+    const after = upcoming === undefined ? 0 : rivalStudyOf(next, upcoming);
+    if (after !== before) chips.push({ label: 'Estudo dos rivais', value: Math.round((after - before) * 10) / 10, kind: 'team' });
+  }
   const rng = createSeededRng(`${state.seed}:agenda:${window}:${action.id}`);
   const riskHit = Boolean(action.risk && rng() < action.risk.chance + busy * 0.05);
   if (riskHit && action.risk) next = applyEffects(next, action.risk.effects, chips);
