@@ -72,3 +72,13 @@ describe('botão Mundo e cartas da página', () => {
     expect(page).toContain("$: honorIndex = career?.status === 'ACTIVE' ? honorsIndex(career) : null;");
   });
 });
+
+describe('ranking de jogadores por bloco na tela', () => {
+  it('a aba diz os blocos fechados, o peso do ranking real e o que ainda calcula, e relê o cache', () => {
+    const world = source('src/lib/components/CareerWorld.svelte');
+    expect(world).toContain('blocos fechados');
+    expect(world).toContain('ainda calculando: o ranking muda quando terminarem');
+    expect(world).toContain('(top && top.pending > 0)');
+    expect(world).not.toMatch(DASH);
+  });
+});

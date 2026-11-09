@@ -58,7 +58,7 @@
 
   onMount(() => {
     const timer = setInterval(() => {
-      if (events && events.computing > 0) tick += 1;
+      if ((events && events.computing > 0) || (top && top.pending > 0)) tick += 1;
     }, 2000);
     return () => clearInterval(timer);
   });
@@ -107,7 +107,7 @@
         <button type="button" class="world-more" on:click={() => (showAll = !showAll)}>{showAll ? `Mostrar só o top ${RANKING_TOP}` : `Ver os ${ranking.total} times`}</button>
       {/if}
     {:else if tab === 'top' && top}
-      <p class="world-note">{until}. Ranking de jogadores de {top.year}: o ranking real da HLTV pesa {Math.round(top.baseWeight * 100)}%.</p>
+      <p class="world-note">{until}. Ranking dos últimos 12 meses: anda no fim de cada bloco de campeonatos{top.blocksTotal ? ` (${top.blocksClosed} de ${top.blocksTotal} blocos fechados)` : ''}{top.baseWeight > 0 ? `; o ranking real da HLTV ainda pesa ${Math.round(top.baseWeight * 100)}%` : ''}.{top.pending ? ` ${top.pending} campeonato${top.pending === 1 ? '' : 's'} do mundo ainda calculando: o ranking muda quando terminarem.` : ''}</p>
       <CareerHltvTop year={top.year} top={top.rows} myRank={top.myRank} live={true} compact={true} {honorsOf} />
     {:else if tab === 'trocas'}
       {#if !moves.length}
