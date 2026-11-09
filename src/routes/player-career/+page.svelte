@@ -35,8 +35,9 @@
   import { careerLog } from '$lib/game/playerCareer/careerLog';
   import { DILEMMA_BY_ID, resolveDilemma, rollDilemma } from '$lib/game/playerCareer/dilemmas';
   import { lifeOf, livesAbroad, mindBump } from '$lib/game/playerCareer/life';
+  import { CEILING_BONUS_CAP, seasonSwing, trainingOutlook } from '$lib/game/playerCareer/growth';
   import {
-    ARCHETYPES, ROLE_META, acceptMove, agePhase, trainingCeiling, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureCircuitFrom, ensureDraw, eventsFor, finishSeason,
+    ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureCircuitFrom, ensureDraw, eventsFor, finishSeason,
     marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
@@ -1162,7 +1163,8 @@
   /** Curva de overall: o início e o fim de cada temporada, em coordenadas de um SVG 340×80. */
   function curveOf(state: PlayerCareerState) {
     if (!state.history.length) return null;
-    const values = [state.history[0].overallBefore, ...state.history.map((log) => log.overallAfter)];
+    // O 1º ponto é o overall de antes do treino da 1ª temporada (o overallBefore já traz o treino).
+    const values = [seasonSwing(state.history[0]).start, ...state.history.map((log) => log.overallAfter)];
     const min = Math.min(...values) - 2;
     const max = Math.max(...values) + 2;
     const points = values.map((value, index) => ({
@@ -1211,6 +1213,8 @@
     ? [...ROLE_SKILLS[career.role]].filter((key) => key !== 'mental').map((key) => ({ key, label: ATTR_LABEL[key], value: Number(myPlayer?.[key] ?? 0) })).sort((a, b) => b.value - a.value).slice(0, 3)
     : [];
   $: evolving = career ? (Object.entries(career.trained ?? {}) as Array<[TrainedAttribute, number]>).filter(([, bonus]) => bonus).map(([key, bonus]) => ({ label: ATTR_LABEL[key], bonus })).sort((a, b) => b.bonus - a.bonus) : [];
+  /** O que o treino faz pelo overall agora (semana e Evolução). */
+  $: outlook = career ? trainingOutlook(career) : null;
   $: morale = career?.morale ?? 60;
   $: life = career ? lifeOf(career) : null;
   /** Quanto a fase do momento soma ao Mental da carta (−3 a +3). */
@@ -1543,7 +1547,7 @@
             <p class="eyebrow">Carreira · Temporada {career.seasonNumber} · {career.year}</p>
             <h1 class="display nick" class:long={career.nick.length > 7} class:xlong={career.nick.length > 10}>{career.nick}</h1>
             <p class="sub" title={`${agePhase(career.age).label}: ${agePhase(career.age).detail}`}>{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
-            <p class="age-phase" class:old={career.age >= 29}><b>{agePhase(career.age).label}</b> {agePhase(career.age).detail}</p>
+            <p class="age-phase" class:old={career.age >= 31}><b>{agePhase(career.age).label}</b> {agePhase(career.age).detail}</p>
             {#if myPlayer}
               <dl class="skills-now">
                 <div class="mental"><dt>Mental</dt><dd>{myPlayer.mental}</dd></div>
@@ -1687,7 +1691,7 @@
             <p class="label">Temporadas</p>
             <ol>
               {#each career.history.slice(-4) as log (log.seasonNumber)}
-                <li><span>T{log.seasonNumber} · {log.orgName}</span><b>{log.seasonRating.toFixed(2)}</b><span class="num">{log.overallBefore}→{log.overallAfter}</span></li>
+                <li><span>T{log.seasonNumber} · {log.orgName}</span><b>{log.seasonRating.toFixed(2)}</b><span class="num">{seasonSwing(log).start}→{log.overallAfter}</span></li>
               {/each}
             </ol>
           </div>
@@ -1705,14 +1709,16 @@
 
         {#if career.pendingOffers}
           {#if lastLog}
+            {@const swing = seasonSwing(lastLog)}
             <section class="season-close" aria-label="Fechamento da temporada">
               <p class="eyebrow">Temporada {lastLog.seasonNumber} · {lastLog.year} · fechada</p>
               <div class="delta">
-                <span class="delta-from">{lastLog.overallBefore}</span>
+                <span class="delta-from">{swing.start}</span>
                 <svg width="44" height="30" viewBox="0 0 56 40" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M2 20h46M34 6l14 14-14 14" /></svg>
-                <span class="delta-to" class:down={lastLog.overallAfter < lastLog.overallBefore}>{lastLog.overallAfter}</span>
+                <span class="delta-to" class:down={swing.end < swing.start}>{swing.end}</span>
                 <div class="delta-meta">
-                  <b>{lastLog.overallAfter >= lastLog.overallBefore ? '+' : ''}{lastLog.overallAfter - lastLog.overallBefore} de overall</b>
+                  <b>{swing.end >= swing.start ? '+' : ''}{swing.end - swing.start} de overall</b>
+                  {#if swing.training}<span>treino +{swing.training} · fim da temporada {swing.close >= 0 ? '+' : '−'}{Math.abs(swing.close)}</span>{/if}
                   <span>rating da temporada {lastLog.seasonRating.toFixed(2)}{lastLog.titles ? ` · ${lastLog.titles} título${lastLog.titles > 1 ? 's' : ''}` : ''}</span>
                 </div>
               </div>
@@ -1721,8 +1727,13 @@
                   <li class="place-{placeKey(entry.placement)}" title={`${entry.name} · ${entry.placement} · ${entry.rating.toFixed(2)}`}>{entry.placement}</li>
                 {/each}
               </ol>
+              {#if lastLog.ceilingGain}
+                <div class="note"><b>Teto conquistado: +{lastLog.ceilingGain}</b><span>Muito treino e nenhuma lesão: o que passou do teto ficou. Total +{career.ceilingBonus ?? 0} de {CEILING_BONUS_CAP}.</span></div>
+              {:else if lastLog.ceilingBlocked}
+                <div class="note warn"><b>A lesão segurou o teto.</b><span>O overall do treino ficou, mas o teto só sobe numa temporada sem lesão.</span></div>
+              {/if}
               {#if lastLog.ageDecline}
-                <div class="note"><b>A idade pesou: −{lastLog.ageDecline} de overall</b><span>Aos {lastLog.age ?? career.age} anos o corpo já não responde igual. Treino segura, mas não reverte.</span></div>
+                <div class="note"><b>A idade pesou: −{lastLog.ageDecline} de overall</b><span>Aos {lastLog.age ?? career.age} anos o corpo já não responde igual. Temporada boa segura; o treino devolve até o teto.</span></div>
               {/if}
               {#if lastLog.retireHint}
                 <div class="note warn"><b>O corpo pede para parar.</b><span>Você pode seguir até os 40 ou pendurar o mouse agora.</span><button class="danger-btn note-btn" on:click={askRetire}>Pendurar o mouse</button></div>
@@ -1936,10 +1947,11 @@
 
         {:else}
           {#if !career.calendar && lastLog}
+            {@const summarySwing = seasonSwing(lastLog)}
             <section class="season-summary" aria-label="Como foi a temporada">
               <div class="ss-delta">
                 <span class="label">Temporada {lastLog.seasonNumber} · {lastLog.year}</span>
-                <b class:down={lastLog.overallAfter < lastLog.overallBefore} class:up={lastLog.overallAfter > lastLog.overallBefore}>{lastLog.overallBefore} → {lastLog.overallAfter}</b>
+                <b class:down={summarySwing.end < summarySwing.start} class:up={summarySwing.end > summarySwing.start}>{summarySwing.start} → {summarySwing.end}</b>
                 <span>rating {lastLog.seasonRating.toFixed(2)}{lastLog.titles ? ` · ${lastLog.titles} título${lastLog.titles > 1 ? 's' : ''}` : ''}</span>
               </div>
               <div class="ss-notes">
@@ -1954,11 +1966,13 @@
                 {#if lastLog.orgChange}
                   <p class:up-note={lastLog.orgChange.to < lastLog.orgChange.from} class:warn={lastLog.orgChange.to > lastLog.orgChange.from}><b>{lastLog.orgName} {lastLog.orgChange.to < lastLog.orgChange.from ? 'subiu' : 'caiu'} para o {teamTierLabel(lastLog.orgChange.to)}.</b> {lastLog.orgChange.to < lastLog.orgChange.from ? 'Você carregou o time: o circuito agora é outro.' : 'Nenhuma semifinal na temporada.'}</p>
                 {/if}
+                {#if lastLog.trainingGain}<p class="up-note"><b>Treino:</b> +{lastLog.trainingGain} de overall em {lastLog.trainingSessions ?? lastLog.trainingGain} semanas.{lastLog.ceilingGain ? ` Teto conquistado +${lastLog.ceilingGain}.` : ''}</p>{/if}
+                {#if lastLog.ceilingBlocked}<p class="warn"><b>Teto:</b> a lesão segurou. Ele só sobe numa temporada sem lesão.</p>{/if}
                 {#if lastLog.ageDecline}<p><b>Idade:</b> −{lastLog.ageDecline} de overall aos {lastLog.age ?? career.age} anos.</p>{/if}
                 {#if lastLog.injury}<p class="warn"><b>Lesão:</b> {lastLog.injury}.</p>{/if}
                 {#if lastLog.moves?.length}<p><b>Trocas:</b> {lastLog.moves.join(' · ')}</p>{/if}
                 {#if lastLog.retireHint}<p class="warn"><b>O corpo pede para parar.</b> Dá para seguir até os 40.</p>{/if}
-                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange && !lastLog.hltvRank && !lastLog.rookieEligible}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
+                {#if !lastLog.ageDecline && !lastLog.injury && !lastLog.moves?.length && !lastLog.retireHint && !lastLog.orgChange && !lastLog.hltvRank && !lastLog.rookieEligible && !lastLog.trainingGain && !lastLog.ceilingBlocked}<p>{lastLog.agingNote ?? 'Temporada fechada.'}</p>{/if}
               </div>
               {#if sceneProspects.length}
                 <div class="ss-market ss-prospects">
@@ -2066,8 +2080,8 @@
             {#if career.calendar && currentEntry && myPlayer}
               <section class="week" aria-label="Semana até o próximo campeonato">
                 <div class="section-head">
-                  <p class="label">Semana até o próximo campeonato · 3 treinos = +1 overall</p>
-                  <div class="week-meter" title="Cada ação ocupa blocos da semana. Repetir o mesmo tipo nas últimas 4 semanas rende menos (100%, 65%, 35%). Semana cheia cansa mais." aria-live="polite">
+                  <p class="label">Semana até o próximo campeonato · {outlook?.need ?? 3} treinos = +1 overall</p>
+                  <div class="week-meter" title="Cada ação ocupa blocos da semana. Repetir o mesmo tipo nas últimas 4 semanas rende menos: treino 100%, 85%, 70%; o resto 100%, 65%, 35%. Semana cheia cansa mais." aria-live="polite">
                     <span class="wm-pips" aria-hidden="true">{#each Array(weekTotal) as _, blockIndex}{@const usedBlock = blockIndex >= weekLeft}{@const previewBlock = !usedBlock && hoverCost > 0 && blockIndex >= weekLeft - hoverCost && hoverCost <= weekLeft}<i class:used={usedBlock} class:preview={previewBlock} class:over={hoverCost > weekLeft && !usedBlock}></i>{/each}</span>
                     <span class="wm-text">{#if hoverCost > 0}{hoverCost > weekLeft ? `Não cabe: precisa de ${hoverCost}` : `Usa ${hoverCost} · sobra ${weekLeft - hoverCost}`}{:else}<b>{weekLeft}</b> de {weekTotal} blocos livres{/if}</span>
                   </div>
@@ -2381,9 +2395,8 @@
 
   {#if evoOpen && career}
     {@const phase = agePhase(career.age)}
-    {@const stages = [{ label: 'Em formação', ages: 'até 21' }, { label: 'Auge', ages: '22 a 26' }, { label: 'Experiente', ages: '27 e 28' }, { label: 'Veterano', ages: '29 a 33' }, { label: 'Fim de carreira', ages: '34+' }]}
-    {@const capped = career.overall >= trainingCeiling(career)}
-    {@const sessions = (career.trainCount ?? 0) % 3}
+    {@const stages = [{ label: 'Em formação', ages: 'até 21' }, { label: 'Auge', ages: '22 a 26' }, { label: 'Experiente', ages: '27 a 30' }, { label: 'Veterano', ages: '31 a 33' }, { label: 'Fim de carreira', ages: '34+' }]}
+    {@const look = trainingOutlook(career)}
     <div class="modal-backdrop" role="presentation" on:click|self={() => (evoOpen = false)}>
       <div class="modal evo-modal" role="dialog" aria-modal="true" aria-labelledby="evo-title" use:focusInside>
         <header class="modal-head">
@@ -2398,12 +2411,19 @@
           {/each}
         </ol>
         <p class="evo-phase"><b>{phase.label}.</b> {phase.detail}</p>
-        <div class="evo-growth" class:stopped={capped}>
-          {#if capped}
-            <b>O treino não sobe mais o seu overall.</b> Você chegou no máximo que o treino alcança{career.age >= 27 ? ` (o seu teto mais ${4})` : ''}; agora o treino mexe nas habilidades (até +{TRAIN_CAP} em cada) e segura o que a idade tira.
+        <div class="evo-growth" class:stopped={look.stage === 'maximo' || look.stage === 'segura'}>
+          {#if look.stage === 'sobe'}
+            <b>Ainda cresce com treino.</b> A cada {look.need} semanas de treino, +1 de overall: falta{look.left > 1 ? 'm' : ''} {look.left} {look.left === 1 ? 'treino' : 'treinos'}.
+          {:else if look.stage === 'fura'}
+            <b>Você chegou no teto. O treino fura.</b> A cada {look.need} semanas, +1 acima dele: falta{look.left > 1 ? 'm' : ''} {look.left}. Sem lesão até o fim da temporada, vira teto novo.
+          {:else if look.stage === 'espera'}
+            <b>O treino já furou o teto nesta temporada.</b> Sem lesão, isso vira teto novo no fim dela. Depois dá para furar de novo.
+          {:else if look.stage === 'maximo'}
+            <b>Teto conquistado no máximo (+{CEILING_BONUS_CAP}).</b> O treino agora mexe nas habilidades (até +{TRAIN_CAP} em cada) e devolve o que a temporada tirar.
           {:else}
-            <b>Ainda cresce com treino.</b> A cada 3 semanas de treino, +1 de overall: faltam {3 - sessions} {3 - sessions === 1 ? 'treino' : 'treinos'} para o próximo.{#if career.age >= 27 && career.overall >= career.truePotential} Você já passou do seu teto natural: dos 27 em diante o treino leva até 4 acima dele.{/if}
+            <b>Depois dos 34 o treino não passa do teto.</b> Ele devolve o que a idade tira, a cada {look.need} semanas.
           {/if}
+          {#if look.bonus && look.stage !== 'maximo'} Teto conquistado: +{look.bonus} de {CEILING_BONUS_CAP}.{/if}
         </div>
         <p class="label">Treino nas habilidades (teto +{TRAIN_CAP})</p>
         {#if evolving.length}
