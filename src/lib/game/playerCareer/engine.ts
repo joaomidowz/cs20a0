@@ -14,7 +14,7 @@ import { ageDecline, careerGrowth, ceilingBonusOf, GROWTH_LAST_AGE, seasonTrainO
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
 import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
 import { myFluency, type Language } from './language';
-import type { RecentOffer } from './offers';
+import { pickOffers, rememberOffers, type OfferGroup, type RecentOffer } from './offers';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
 import type { CareerLife } from './life';
@@ -788,6 +788,7 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     calendar: null,
     pendingOffers: offers.length ? offers : released ? [] : null,
     blockedOffers,
+    recentOffers: rememberOffers(state, offers),
     pendingMove: null,
     seasonMoves: [],
     released
@@ -811,7 +812,7 @@ export const decentRatingFor = (role: PlayerRole, level: number) => (({ 0: 0.98,
 /** Régua de estrela para subir ao nível: degrau por degrau, a porta do tier 1 é a mais dura. */
 export const starRatingFor = (role: PlayerRole, targetLevel: number) => (({ 4: 1.0, 3: 1.06, 2: 1.12, 1: 1.18, 0: 1.25 })[targetLevel] ?? 1.12) + ROLE_META[role].ratingBias;
 
-/** Inglês mínimo para assinar com time de call em inglês: Tier S 55, Tier 1 50, Tier 2 40 (abaixo, ninguém exige). */
+/** Fluência mínima na língua da call para assinar (offers.ts languageGate): nível 0 55, nível 1 50, Tier A 40 (abaixo, ninguém exige). */
 export const ENGLISH_REQUIRED: Record<number, number> = { 0: 55, 1: 50, 2: 40 };
 
 /** Quanto de inglês o time exige de você (null: não exige ou você já tem). */
@@ -823,44 +824,27 @@ export function englishGate(state: PlayerCareerState, candidate: SceneOrg): numb
 
 function buildOffers(state: PlayerCareerState, seasonRating: number, titles: number, rng: () => number, blocked: Array<{ orgName: string; need: number }> = []): CareerOffer[] {
   const org = orgOf(state.orgId, state);
-  const isLanHouse = org.id === LAN_HOUSE.id;
   const decentFor = (level: number) => decentRatingFor(state.role, level);
   const decent = seasonRating >= decentFor(org.level) || titles >= 1;
   // A subida é DEGRAU por degrau e a régua cresce E acompanha a função (1.15 de entry ≠ 1.15 de AWPer).
-  // A porta do tier 1 (2→1) é a mais dura: só pico alto sustenta a régua — lógica de VRS/ambiência.
   const starBarFor = (targetLevel: number) => starRatingFor(state.role, targetLevel);
-  const offers: CareerOffer[] = [];
-  const takeFrom = (all: SceneOrg[], bump = 0, tries = 4) => {
-    // Time nacional de outro país não contrata você (MongolZ joga com mongóis). O mundo preserva o país nas trocas.
-    const pool = all.filter((candidate) => nationFits(candidate.roster, state.country));
-    for (let i = 0; i < tries && offers.length < 3; i += 1) {
-      const candidate = pool[Math.floor(rng() * pool.length)];
-      if (!candidate || candidate.id === org.id || offers.some((offer) => offer.orgId === candidate.id)) continue;
-      // Time de call em inglês exige o idioma: abaixo do mínimo, a proposta não sai (e você fica sabendo).
-      const need = englishGate(state, candidate);
-      if (need) {
-        if (!blocked.some((entry) => entry.orgName === candidate.name)) blocked.push({ orgName: candidate.name, need });
-        continue;
-      }
-      offers.push(offerFrom(candidate, state, bump));
-    }
-  };
-
-  if (isLanHouse) {
-    // Caminho pra fora do circuito amador: brilhou na lan house → CCT/GC assina.
-    if (titles >= 1 || seasonRating >= starBarFor(4)) takeFrom(sceneOrgs.filter((candidate) => levelIn(state, candidate) === 4), 0.04, 6);
-    return offers;
+  // As propostas valem para a próxima temporada: a vaga e a identidade são as do elenco de lá.
+  const options = { season: state.seasonNumber + 1, blocked };
+  if (org.id === LAN_HOUSE.id) {
+    // Caminho pra fora do circuito amador: brilhou na lan house, o Tier C assina.
+    return titles >= 1 || seasonRating >= starBarFor(4) ? pickOffers(state, rng, [{ levels: [4], count: 3, bump: 0.04 }], options) : [];
   }
   const target = org.level - 1;
-  const upgrades = target >= 0 ? sceneOrgs.filter((candidate) => levelIn(state, candidate) === target) : [];
-  const laterals = sceneOrgs.filter((candidate) => levelIn(state, candidate) === org.level && candidate.id !== org.id);
-  const downgrades = sceneOrgs.filter((candidate) => levelIn(state, candidate) > org.level && levelIn(state, candidate) <= 4);
-  // Título abre a porta de saída do C/B (campeão de CCT chama atenção); acima disso, só a régua de rating.
+  // Título abre a porta de saída do B/C (campeão chama atenção); acima disso, só a régua de rating.
   const starred = seasonRating >= starBarFor(target) || (org.level >= 3 && titles >= 3);
-  if (starred) takeFrom(upgrades, 0.04, 6);
-  if (decent || starred) takeFrom(laterals, 0, 3);
-  if (seasonRating < decentFor(org.level) - 0.08) takeFrom(downgrades, 0, 2); // ano ruim: porta de saída pra não travar.
-  return offers;}
+  // Janela (D11): toda org da faixa pode chamar. Subida no degrau de cima; o mesmo nível e o de baixo para quem jogou
+  // bem; ano ruim abre a porta um ou dois degraus abaixo, nunca o circuito inteiro.
+  const groups: OfferGroup[] = [];
+  if (starred && target >= 0) groups.push({ levels: [target], count: 2, bump: 0.04 });
+  if (decent || starred) groups.push({ levels: [org.level, org.level + 1], count: 3, bump: 0 });
+  if (seasonRating < decentFor(org.level) - 0.08) groups.push({ levels: [org.level + 1, org.level + 2], count: 2, bump: 0 });
+  return pickOffers(state, rng, groups, options);
+}
 
 /** Assinar leva o nível de hoje do time (o da proposta, que vem do ranking): é o circuito que você joga com ele. */
 function joinedLevels(state: PlayerCareerState, offer: CareerOffer): PlayerCareerState['orgLevels'] {

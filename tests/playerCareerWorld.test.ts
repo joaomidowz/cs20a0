@@ -95,16 +95,15 @@ describe('o mundo envelhece e respeita a nacionalidade', () => {
     expect(roster('nation-1', 7, mongolz.id).filter((member) => member.country === 'Mongolia').length).toBeGreaterThanOrEqual(3);
   });
 
-  it('brasileiro não recebe oferta de time nacional de outro país', async () => {
+  it('oferta de time nacional de outro país só quando o núcleo do país fica com você na vaga (D3)', async () => {
     const { chooseStartingOrg, createPlayerCareer, finishSeason, recordEventResult, startSeason } = await import('../src/lib/game/playerCareer/engine');
-    const { nationFits } = await import('../src/lib/game/playerCareer/data');
-    const { rosterIn: roster } = await import('../src/lib/game/playerCareer/world');
+    const { seatKeepsIdentity } = await import('../src/lib/game/playerCareer/offers');
     for (let index = 0; index < 8; index += 1) {
       let career = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: `offer-nation-${index}` });
       career = startSeason(chooseStartingOrg(career, career.pendingDraw!.find((option) => option.kind === 'real')!.orgId));
       for (const entry of career.calendar!) career = recordEventResult(career, entry.index, { name: entry.name, placement: 'Campeão', rating: 1.3, seriesWins: 3, seriesLosses: 0 });
       const done = finishSeason(career);
-      for (const offer of done.pendingOffers ?? []) expect(nationFits(roster(done.seed, done.seasonNumber, offer.orgId), 'Brazil')).toBe(true);
+      for (const offer of done.pendingOffers ?? []) expect(seatKeepsIdentity(done, orgIn(done.seed, done.seasonNumber, offer.orgId)!), offer.orgName).toBe(true);
     }
   });
 });
