@@ -2,9 +2,9 @@
 // Tela Mundo em dados puros (worldView.ts): o relógio da temporada, os resultados do mundo sem spoiler, os
 // campeonatos, o ranking de times, as trocas e o top de jogadores parcial.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, startSeason, type CalendarEntry, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
-import { sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { careerClock, careerResults, eventKey, orgIdOfName, seenWorldResults, type WorldSource } from '../src/lib/game/playerCareer/worldView';
+import { createPlayerCareer, orgOf, startSeason, type CalendarEntry, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
+import { careerClock, careerResults, eventKey, fieldLabel, orgIdOfName, seenWorldResults, worldEventsView, type WorldSource } from '../src/lib/game/playerCareer/worldView';
 import type { WorldEvent, WorldEventResult } from '../src/lib/game/playerCareer/circuit';
 
 const SEED = 'mundo-1';
@@ -110,5 +110,74 @@ describe('apoio da tela', () => {
     // O calendário guarda o nome com o ano; o circuito do mundo, sem: a chave é a mesma.
     expect(eventKey(1, 'IEM Cologne Major 2026')).toBe(eventKey(1, 'IEM Cologne Major'));
     expect(eventKey(2, 'IEM Cologne Major 2026')).not.toBe(eventKey(2, 'IEM Cologne Major'));
+  });
+});
+
+describe('campeonatos do mundo', () => {
+  it('já jogados com pódio, calculando sem travar e próximos sem resultado; só Major, Tier S e Tier A', () => {
+    const state: PlayerCareerState = { ...seasonAt(TIER_C), calendar: [entryAt(0, 4, 'PLAYED'), entryAt(1, 9, 'UPCOMING')] };
+    const mouz = sceneOrgById.get('mouz-2026')!;
+    const spirit = sceneOrgById.get('spirit-2026')!;
+    const tierS = event(1, 0, 2, 'S');
+    const tierA = event(1, 1, 6, 'A');
+    const major = event(1, 2, 10, 'Major');
+    const tierB = event(1, 3, 3, 'B');
+    const source = sourceOf([
+      [tierS, result(tierS, mouz.id, spirit.id, 'jL')],
+      [tierA, null],
+      [major, result(major, spirit.id, mouz.id, 'donk')],
+      [tierB, result(tierB, spirit.id, mouz.id)]
+    ]);
+    const view = worldEventsView(state, source);
+    expect(view).toMatchObject({ season: 1, year: 2026, month: 8, computing: 1 });
+    expect(view.done.map((row) => [row.key, row.status])).toEqual([['1:1', 'computing'], ['1:0', 'done']]);
+    expect(view.done[1]).toMatchObject({
+      tierLabel: 'Tier S',
+      monthLabel: 'Fev',
+      mine: null,
+      champion: { orgId: mouz.id, name: mouz.name, mine: false },
+      runnerUp: { orgId: spirit.id, name: spirit.name },
+      mvp: { nick: 'jL', team: mouz.name, rating: 1.31, you: false }
+    });
+    expect(view.upcoming).toHaveLength(1);
+    expect(view.upcoming[0]).toMatchObject({ key: '1:2', tierLabel: 'Major', status: 'upcoming', champion: null, runnerUp: null, mvp: null, field: '8 times: 6 convidados pelo ranking e 2 da qualificatória' });
+    expect(source.read).not.toContain('1:2');
+    expect(source.read).not.toContain('1:3');
+  });
+
+  it('os seus campeonatos aparecem marcados; o que você ainda vai jogar fica em Próximos', () => {
+    const base = seasonAt(TIER_C);
+    const myName = orgOf(TIER_C).name;
+    const mouz = sceneOrgById.get('mouz-2026')!.name;
+    const played: TournamentResult = {
+      name: 'Mundo Teste 1-0', placement: 'Vice', rating: 1.05, seriesWins: 3, seriesLosses: 1, tier: 'S', champion: mouz,
+      mvp: { nick: 'jL', team: mouz, rating: 1.28 },
+      bracket: [{ phase: 'final', a: mouz, b: myName, scoreA: 2, scoreB: 1, aWon: true, you: 'b' }]
+    };
+    const state: PlayerCareerState = {
+      ...base,
+      calendar: [
+        entryAt(0, 2, 'PLAYED', { name: 'Mundo Teste 1-0', tier: 'S', result: played }),
+        entryAt(1, 2, 'UPCOMING', { name: 'Mundo Teste 1-1', tier: 'A' }),
+        entryAt(2, 5, 'UPCOMING', { name: 'Qualificatória teste', kind: 'qualifier', qualifiesFor: '1:2' })
+      ]
+    };
+    const source = sourceOf([[event(1, 0, 2, 'S'), null], [event(1, 1, 2, 'A'), null], [event(1, 2, 7, 'S'), null]]);
+    const view = worldEventsView(state, source);
+    expect(view.month).toBe(1); // relógio do circuito: o mês anterior ao seu próximo campeonato; o seu jogado aparece mesmo assim
+    expect(view.done).toHaveLength(1);
+    expect(view.done[0]).toMatchObject({
+      key: '1:0', status: 'done', mine: 'event', myPlacement: 'Vice',
+      champion: { orgId: 'mouz-2026', mine: false },
+      runnerUp: { orgId: TIER_C, name: myName, mine: true },
+      mvp: { nick: 'jL', you: false }
+    });
+    expect(view.upcoming.map((row) => [row.key, row.mine])).toEqual([['1:1', 'event'], ['1:2', 'qualifier']]);
+    expect(source.read).toEqual(['1:0']);
+  });
+
+  it('a frase da chave diz convidados e vagas de qualificatória', () => {
+    expect(fieldLabel({ invites: 6, qualifierSlots: 2 })).toBe('8 times: 6 convidados pelo ranking e 2 da qualificatória');
+    expect(fieldLabel({ invites: 8, qualifierSlots: 0 })).toBe('8 times convidados pelo ranking');
   });
 });

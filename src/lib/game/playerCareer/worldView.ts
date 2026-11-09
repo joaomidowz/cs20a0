@@ -2,9 +2,10 @@
 // A tela Mundo em dados puros: até onde a sua temporada já andou (o relógio), os resultados do circuito do mundo sem
 // spoiler, os campeonatos de Major, Tier S e Tier A, o ranking de times, as trocas da temporada e o top de jogadores
 // parcial. O componente CareerWorld.svelte só desenha o que sai daqui. Nada aqui simula: só lê o cache do circuito.
+import { MONTH_LABEL, TIER_LABEL, type EventTier } from './calendar';
 import { circuitClock, worldEventsOf, worldResult, type CircuitClock, type WorldEvent, type WorldEventResult } from './circuit';
-import { sceneOrgs } from './data';
-import type { PlayerCareerState, TournamentResult } from './engine';
+import { sceneOrgById, sceneOrgs } from './data';
+import { orgOf, type PlayerCareerState, type TournamentResult } from './engine';
 import { yearOfSeason } from './world';
 
 export type CareerClock = CircuitClock;
@@ -93,4 +94,121 @@ export function seenWorldResults(state: PlayerCareerState, source: WorldSource =
     }
   }
   return seen;
+}
+
+/** A tela mostra os campeonatos grandes do mundo: Major, Tier S e Tier A. */
+export const WORLD_VIEW_TIERS: readonly EventTier[] = ['Major', 'S', 'A'];
+
+export interface WorldTeamRef { orgId: string | null; name: string; mine: boolean }
+export type WorldEventStatus = 'done' | 'computing' | 'upcoming';
+
+export interface WorldEventRow {
+  key: string;
+  name: string;
+  tier: EventTier;
+  tierLabel: string;
+  month: number;
+  monthLabel: string;
+  status: WorldEventStatus;
+  /** Quem entra: convidados pelo ranking e vagas de qualificatória, numa frase. */
+  field: string;
+  /** Está no seu calendário: o campeonato em si ou a qualificatória dele. */
+  mine: 'event' | 'qualifier' | null;
+  myPlacement: string | null;
+  champion: WorldTeamRef | null;
+  runnerUp: WorldTeamRef | null;
+  mvp: { nick: string; team: string; rating: number; you: boolean } | null;
+}
+
+export interface WorldEventsView {
+  season: number;
+  year: number;
+  month: number;
+  /** Já aconteceram (o mais recente primeiro), inclusive os que o circuito ainda calcula em segundo plano. */
+  done: WorldEventRow[];
+  upcoming: WorldEventRow[];
+  computing: number;
+}
+
+function teamRef(state: PlayerCareerState, orgId: string): WorldTeamRef {
+  const mine = orgId === state.orgId;
+  return { orgId: sceneOrgById.has(orgId) ? orgId : null, name: mine ? orgOf(state.orgId).name : sceneOrgById.get(orgId)?.name ?? orgId, mine };
+}
+
+function teamByName(state: PlayerCareerState, name: string): WorldTeamRef {
+  const mine = name === orgOf(state.orgId).name;
+  const orgId = mine ? state.orgId : orgIdOfName(name);
+  return { orgId: orgId && sceneOrgById.has(orgId) ? orgId : null, name, mine };
+}
+
+/** "8 times: 6 convidados pelo ranking e 2 da qualificatória". */
+export function fieldLabel(event: Pick<WorldEvent, 'invites' | 'qualifierSlots'>): string {
+  const total = event.invites + event.qualifierSlots;
+  return event.qualifierSlots > 0
+    ? `${total} times: ${event.invites} convidados pelo ranking e ${event.qualifierSlots} da qualificatória`
+    : `${total} times convidados pelo ranking`;
+}
+
+type Podium = Pick<WorldEventRow, 'champion' | 'runnerUp' | 'mvp'>;
+const NO_PODIUM: Podium = { champion: null, runnerUp: null, mvp: null };
+
+function podiumFromWorld(state: PlayerCareerState, result: WorldEventResult): Podium {
+  return {
+    champion: teamRef(state, result.champion),
+    runnerUp: result.runnerUp ? teamRef(state, result.runnerUp) : null,
+    mvp: result.mvp
+      ? { nick: result.mvp.nick, team: teamRef(state, result.mvp.orgId).name, rating: result.mvp.rating, you: result.userPlayed && result.mvp.nick.toLowerCase() === state.nick.toLowerCase() }
+      : null
+  };
+}
+
+/** O seu campeonato sem resultado do mundo no cache: o pódio sai do que você jogou (campeão, final e MVP). */
+function podiumFromYou(state: PlayerCareerState, result: TournamentResult): Podium {
+  const final = result.bracket?.find((line) => line.phase === 'final');
+  return {
+    champion: result.champion ? teamByName(state, result.champion) : null,
+    runnerUp: final ? teamByName(state, final.aWon ? final.b : final.a) : null,
+    mvp: result.mvp ? { nick: result.mvp.you ? state.nick : result.mvp.nick, team: result.mvp.team, rating: result.mvp.rating, you: Boolean(result.mvp.you) } : null
+  };
+}
+
+/**
+ * Os campeonatos grandes do mundo na temporada: os que já aconteceram com campeão, vice e MVP (ou carregando, se o
+ * circuito ainda calcula) e os próximos com mês e chave. Sem spoiler: o que não chegou no seu calendário, ou é seu e
+ * você ainda não jogou, fica em Próximos e o cache nem é lido.
+ */
+export function worldEventsView(state: PlayerCareerState, source: WorldSource = circuitSource(state)): WorldEventsView {
+  const clock = careerClock(state);
+  const calendar = state.calendar ?? [];
+  const done: WorldEventRow[] = [];
+  const upcoming: WorldEventRow[] = [];
+  for (const event of source.events(clock.season)) {
+    if (!WORLD_VIEW_TIERS.includes(event.tier)) continue;
+    const key = eventKey(event.season, event.name);
+    const entry = calendar.find((item) => item.kind !== 'qualifier' && eventKey(clock.season, item.name) === key) ?? null;
+    const qualifier = calendar.find((item) => item.kind === 'qualifier' && item.qualifiesFor === event.key) ?? null;
+    const row = {
+      key: event.key,
+      name: event.name,
+      tier: event.tier,
+      tierLabel: TIER_LABEL[event.tier],
+      month: event.month,
+      monthLabel: MONTH_LABEL[event.month - 1] ?? `Mês ${event.month}`,
+      field: fieldLabel(event),
+      mine: entry ? ('event' as const) : qualifier ? ('qualifier' as const) : null,
+      myPlacement: entry?.result ? entry.result.placement : null
+    };
+    // O seu campeonato jogado já aconteceu (vem do save); o resto só depois do relógio do circuito.
+    if (entry ? entry.status !== 'PLAYED' : event.month > clock.month) {
+      upcoming.push({ ...row, status: 'upcoming', ...NO_PODIUM });
+      continue;
+    }
+    const result = source.result(event);
+    if (result) done.push({ ...row, status: 'done', ...podiumFromWorld(state, result) });
+    else if (entry?.result?.champion) done.push({ ...row, status: 'done', ...podiumFromYou(state, entry.result) });
+    else done.push({ ...row, status: 'computing', ...NO_PODIUM });
+  }
+  done.sort((a, b) => b.month - a.month || a.name.localeCompare(b.name));
+  upcoming.sort((a, b) => a.month - b.month || a.name.localeCompare(b.name));
+  return { season: clock.season, year: yearOfSeason(clock.season), month: clock.month, done, upcoming, computing: done.filter((row) => row.status === 'computing').length };
 }
