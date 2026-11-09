@@ -28,7 +28,8 @@
 {/if}
 
 <style>
-  .honors { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 2px 5px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--surface) 78%, transparent); color: var(--muted); font: 800 11px/1 Archivo, Inter, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Na carta estreita do celular, troféu e estrela quebram em duas linhas em vez de passar da borda. */
+  .honors { display: inline-flex; flex: none; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 3px 6px; box-sizing: border-box; max-width: 100%; padding: 2px 5px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--surface) 78%, transparent); color: var(--muted); font: 800 11px/1 Archivo, Inter, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .item { display: inline-flex; align-items: center; gap: 2px; }
   .item svg { flex: none; width: 12px; height: 12px; }
   .item b { color: var(--text); font: inherit; }

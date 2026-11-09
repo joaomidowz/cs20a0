@@ -199,7 +199,8 @@
     mask-composite: intersect;
   }
   .size-sheet .photo { top: 40px; width: 58%; height: 70%; }
-  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  /* min-width: 0: a linha não alarga a carta de 128px do celular; quem não cabe quebra dentro do próprio canto. */
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; min-width: 0; }
   .ovr-block { display: grid; gap: 3px; }
   .ovr { font: 900 38px/.82 var(--display); color: var(--r-ink); font-variant-numeric: tabular-nums; }
   .r-common .ovr { color: var(--text); }

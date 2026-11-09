@@ -98,3 +98,10 @@ describe('nick longo, modais e grades em 320px', () => {
     expect(report).toContain('    .er-mini { grid-template-columns: minmax(0, 1fr); gap: 2px; }');
   });
 });
+
+describe('símbolos de títulos e MVPs na carta de 128px do celular', () => {
+  it('a linha de cima da carta cabe na carta e os símbolos quebram em duas linhas quando não cabem', () => {
+    expect(source('src/lib/components/CareerCard.svelte')).toContain('.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; min-width: 0; }');
+    expect(source('src/lib/components/CareerHonors.svelte')).toContain('.honors { display: inline-flex; flex: none; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 3px 6px; box-sizing: border-box; max-width: 100%;');
+  });
+});
