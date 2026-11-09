@@ -14,6 +14,7 @@ import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
 import { MAP_NAMES } from '../maps';
 import type { MapId } from '../types';
 import { mindBump } from './life';
+import { entryKind } from './qualifiers';
 import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
@@ -523,7 +524,9 @@ export const fatiguePenalty = (fatigue: number | undefined): number => ((fatigue
 
 /** Janela atual de treino: uma por intervalo entre campeonatos (nenhuma se a temporada acabou). */
 export function trainingWindowOf(state: PlayerCareerState): string | null {
-  const next = state.calendar?.find((entry) => entry.status === 'UPCOMING');
+  const upcoming = (state.calendar ?? []).filter((entry) => entry.status === 'UPCOMING');
+  // A qualificatória é na mesma semana do campeonato seguinte: a janela de treino é a dele.
+  const next = upcoming.find((entry) => entryKind(entry) === 'event') ?? upcoming[0];
   return next ? `${state.seasonNumber}:${next.index}` : null;
 }
 

@@ -11,6 +11,7 @@ import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLa
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
+import { needsQualifierFor, withQualifiers } from './qualifiers';
 import { myFluency, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
@@ -599,7 +600,8 @@ export function startSeason(state: PlayerCareerState): PlayerCareerState {
   if (state.status !== 'ACTIVE' || state.pendingDraw || state.calendar) return state;
   const seed = `${state.seed}:season:${state.seasonNumber}:${state.orgId}`;
   const count = eventCount(orgOf(state.orgId, state).level, seed);
-  return { ...state, calendar: calendarFor(state, state.orgId, seed, count) };
+  // Os campeonatos do mundo acima do seu nível viram qualificatória (qualifiers.ts), e o seu nível ganha as a mais.
+  return { ...state, calendar: withQualifiers(state, calendarFor(state, state.orgId, seed, count)) };
 }
 
 /** Registra o resultado de um campeonato jogado no motor (rating vem do kill feed real). */
@@ -935,9 +937,10 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
   // Só os meses que faltam; se a troca é no fim do ano, a temporada acaba com o que já foi jogado (antes, um
   // "campeonato extra" de elite trazia os 2 Majors de novo: a temporada com 4 Majors).
   const playedMajors = played.filter((entry) => entry.format === 'major').length;
-  const next = calendarFor(state, orgId, seed, eventCount(orgOf(orgId, state).level, seed), played.length, lastMonth)
-    .filter((entry, index, list) => entry.format !== 'major' || playedMajors + list.slice(0, index + 1).filter((other) => other.format === 'major').length <= 2)
-    .map((entry, offset) => ({ ...entry, index: played.length + offset }));
+  const drawn = calendarFor(state, orgId, seed, eventCount(orgOf(orgId, state).level, seed), played.length, lastMonth)
+    .filter((entry, index, list) => entry.format !== 'major' || playedMajors + list.slice(0, index + 1).filter((other) => other.format === 'major').length <= 2);
+  // As qualificatórias do time novo, só nos meses que faltam.
+  const next = withQualifiers({ ...state, orgId }, drawn, played.length, lastMonth);
   const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? { ...seatToTake(target, state.role), season: state.seasonNumber } : null;
   return {
@@ -1037,7 +1040,7 @@ export function addExtraEvent(state: PlayerCareerState): { state: PlayerCareerSt
   const calendar = state.calendar ?? [];
   if (!calendar.length) return { state, name: null };
   const extra = calendarFor(state, state.orgId, `${state.seed}:extra:${state.seasonNumber}:${calendar.length}`, 12, calendar.length)
-    .find((entry) => entry.format !== 'major' && entry.tier !== 'Major' && !calendar.some((other) => other.name === entry.name));
+    .find((entry) => entry.format !== 'major' && entry.tier !== 'Major' && !calendar.some((other) => other.name === entry.name) && !needsQualifierFor(state, entry));
   if (!extra) return { state, name: null };
   const lastMonth = Math.max(0, ...calendar.map((entry) => entry.month ?? 0));
   const entry: CalendarEntry = { ...extra, index: calendar.length, month: Math.min(12, Math.max(lastMonth, extra.month ?? lastMonth)) };

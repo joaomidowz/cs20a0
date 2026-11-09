@@ -6,6 +6,7 @@ import { createPlayerCareer, finishSeason, recordEventResult, startSeason, troph
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { seasonScore } from '../src/lib/game/playerCareer/awards';
 import { simulateSceneEvent } from '../src/lib/game/playerCareer/live';
+import { entryKind } from '../src/lib/game/playerCareer/qualifiers';
 
 function seasonAt(level: number, seed: string): PlayerCareerState {
   const base = createPlayerCareer({ nick: 'tester', country: 'Brazil', role: 'awper', seed });
@@ -62,7 +63,8 @@ describe('jogadas guardadas', () => {
     let found = null;
     for (let index = 0; index < 6 && !found; index += 1) {
       const state = seasonAt(1, `plays-${index}`);
-      const { result } = simulateSceneEvent(state, state.calendar!.findIndex((entry) => entry.format === 'bracket8'));
+      // Qualificatória (plano 04) não guarda jogadas: o primeiro mata-mata de 8 que é campeonato.
+      const { result } = simulateSceneEvent(state, state.calendar!.findIndex((entry) => entry.format === 'bracket8' && entryKind(entry) === 'event'));
       if (result.highlights?.length) found = result.highlights;
     }
     expect(found).not.toBeNull();

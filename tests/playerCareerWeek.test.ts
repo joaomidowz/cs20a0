@@ -8,6 +8,7 @@ import { ALL_ACTIONS, AGENDA_BY_ID, WEEK_ACTIONS, WEEK_UNSUPPORTED, agendaAvaila
 import { DEFAULT_LIFE } from '../src/lib/game/playerCareer/life';
 import { careerCtx } from '../src/lib/game/playerCareer/conditions';
 import { orgIn } from '../src/lib/game/playerCareer/world';
+import { entryKind } from '../src/lib/game/playerCareer/qualifiers';
 
 const at = (orgName: string, seed: string, country = 'Brazil'): PlayerCareerState => {
   const base = createPlayerCareer({ nick: 't', country, role: 'awper', seed });
@@ -49,7 +50,8 @@ describe('semana nova', () => {
     const card = drawAgenda(state).find((action) => (action.cooldownWeeks ?? 0) >= 9 && costOf(action) <= 3);
     if (!card) return;
     state = applyAgenda(state, card.id).state;
-    state = nextWindow(state, 0);
+    // A semana é a do próximo campeonato (a qualificatória do plano 04 divide a semana com ele): fecha esse.
+    state = nextWindow(state, state.calendar!.findIndex((entry) => entryKind(entry) === 'event'));
     expect(drawAgenda(state).map((action) => action.id)).not.toContain(card.id);
   });
 

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, finishSeason, orgLevelChange, orgOf, recordEventResult, startSeason, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { EVENT_RANGE } from '../src/lib/game/playerCareer/calendar';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { majorEntryStage } from '../src/lib/game/playerCareer/live';
+import { worldEventByKey } from '../src/lib/game/playerCareer/circuit';
+import { EXTRA_QUALIFIERS, entryKind } from '../src/lib/game/playerCareer/qualifiers';
 
 const result = (placement: string, tier: TournamentResult['tier'] = 'C'): TournamentResult => ({ name: 'x', placement, rating: 1.1, seriesWins: 2, seriesLosses: 1, tier });
 const many = (placements: string[], tier?: TournamentResult['tier']) => placements.map((placement) => result(placement, tier));
@@ -49,9 +50,10 @@ describe('o time promovido joga o circuito novo', () => {
     const next = startSeason({ ...done, pendingOffers: null });
     const [min, max] = EVENT_RANGE[2];
     expect(next.calendar!.length).toBeGreaterThanOrEqual(min);
-    expect(next.calendar!.length).toBeLessThanOrEqual(max);
-    // Tier 2 joga o topo regional do guia (CBCS Masters e cia são tier B) e o Major pelo ranking.
-    expect(next.calendar!.every((entry) => entry.tier === 'B' || entry.tier === 'Major')).toBe(true);
-    expect(majorEntryStage(next)).not.toBeNull();
+    expect(next.calendar!.length).toBeLessThanOrEqual(max + EXTRA_QUALIFIERS[2]);
+    // O nível 2 (Tier A) joga o topo regional do guia (CBCS Masters e cia são campeonato Tier B); o Major e os campeonatos
+    // do mundo vêm pela qualificatória da região (plano 04).
+    expect(next.calendar!.filter((entry) => entryKind(entry) === 'event').every((entry) => entry.tier === 'B')).toBe(true);
+    expect(next.calendar!.some((entry) => entryKind(entry) === 'qualifier' && worldEventByKey(next, entry.qualifiesFor!)?.tier === 'Major')).toBe(true);
   });
 });

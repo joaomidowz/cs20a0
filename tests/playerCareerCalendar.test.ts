@@ -1,7 +1,9 @@
 // tests/playerCareerCalendar.test.ts
 // Calendário real por nível (quantidade, mês, tier, formato) e o Major com stages pela entrada no ranking.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, finishSeason, recordEventResult, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, finishSeason, recordEventResult, startSeason, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { worldEventByKey } from '../src/lib/game/playerCareer/circuit';
+import { EXTRA_QUALIFIERS, applyQualifierResult, entryKind, qualifierField, userQualifierRegion } from '../src/lib/game/playerCareer/qualifiers';
 import { EVENT_RANGE, majorsOf, seasonEvents } from '../src/lib/game/playerCareer/calendar';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { PLACEMENT_ORDER, majorEntryStage, notQualified, simulateSceneEvent } from '../src/lib/game/playerCareer/live';
@@ -13,6 +15,19 @@ function seasonAtOrg(orgId: string, seed: string, overall = 80): PlayerCareerSta
 
 const orgAt = (level: number) => sceneOrgs.find((org) => org.level === level)!;
 
+/** Abaixo do Tier S Elite, o Major entra no calendário pela qualificatória (plano 04): você passa em 1º e ele vem logo depois. */
+function withMajor(career: PlayerCareerState): PlayerCareerState {
+  const entry = career.calendar!.find((candidate) => entryKind(candidate) === 'qualifier' && worldEventByKey(career, candidate.qualifiesFor!)?.tier === 'Major');
+  if (!entry) return career;
+  const event = worldEventByKey(career, entry.qualifiesFor!)!;
+  const rivals = qualifierField(career, event, userQualifierRegion(career), true).filter((orgId) => orgId !== career.orgId);
+  const result: TournamentResult = {
+    name: entry.name, placement: 'Classificado', rating: 1.1, seriesWins: 3, seriesLosses: 0, skipped: true, orgId: career.orgId,
+    placements: [{ orgId: career.orgId, place: 1 }, ...rivals.map((orgId, index) => ({ orgId, place: [2, 3, 3, 5, 5, 5, 5][index] }))]
+  };
+  return applyQualifierResult(recordEventResult(career, entry.index, result), entry.index);
+}
+
 describe('calendário real por nível', () => {
   it('cada nível joga a quantidade da sua faixa, em ordem de mês', () => {
     for (const level of [0, 1, 2, 3, 4]) {
@@ -20,7 +35,8 @@ describe('calendário real por nível', () => {
       for (const seed of ['a', 'b', 'c']) {
         const calendar = seasonAtOrg(orgAt(level).id, `cal-${level}-${seed}`).calendar!;
         expect(calendar.length).toBeGreaterThanOrEqual(min);
-        expect(calendar.length).toBeLessThanOrEqual(max);
+        // As qualificatórias a mais do nível (plano 04) não contam na faixa.
+        expect(calendar.length).toBeLessThanOrEqual(max + EXTRA_QUALIFIERS[level]);
         const months = calendar.map((entry) => entry.month!);
         expect(months).toEqual([...months].sort((a, b) => a - b));
         expect(calendar.map((entry) => entry.index)).toEqual(calendar.map((_, index) => index));
@@ -101,7 +117,7 @@ describe('Major pelo ranking', () => {
 
   it('stages pelo ranking: o top 8 está todo no Stage 3 e nenhum dele no Stage 1 ou 2', async () => {
     const { majorInvites, sceneEventField } = await import('../src/lib/game/playerCareer/live');
-    const career = seasonAtOrg(orgAt(2).id, 'major-field', 78);
+    const career = withMajor(seasonAtOrg(orgAt(2).id, 'major-field', 78));
     const index = career.calendar!.findIndex((entry) => entry.format === 'major');
     const top = majorInvites(career).map((org) => org.id);
     expect(top).toHaveLength(8);
@@ -112,7 +128,7 @@ describe('Major pelo ranking', () => {
   });
 
   it('Major de verdade: os 3 stages num campeonato só (16 times cada), com campeão e MVP', async () => {
-    const career = seasonAtOrg(orgAt(1).id, 'major-3stages', 82);
+    const career = withMajor(seasonAtOrg(orgAt(1).id, 'major-3stages', 82));
     const index = career.calendar!.findIndex((entry) => entry.format === 'major');
     const outcome = simulateSceneEvent(career, index, undefined, 'stage2');
     const tournament = outcome.campaign!.run.tournament!;
@@ -125,7 +141,7 @@ describe('Major pelo ranking', () => {
 
   it('a tela do Major lista 8 + 8 + 16 times por stage, com você no seu stage', async () => {
     const { eventTeams, majorEntryStage: entryOf } = await import('../src/lib/game/playerCareer/live');
-    const career = seasonAtOrg(orgAt(1).id, 'major-teams', 82);
+    const career = withMajor(seasonAtOrg(orgAt(1).id, 'major-teams', 82));
     const index = career.calendar!.findIndex((entry) => entry.format === 'major');
     const groups = eventTeams(career, index);
     expect(groups.map((group) => group.teams.length)).toEqual([8, 8, 16]);
