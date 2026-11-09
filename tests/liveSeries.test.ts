@@ -2,6 +2,7 @@ import { COURT_SPREAD, COURT_TOP } from '../src/lib/game/courtPower';
 import { describe, expect, it } from 'vitest';
 import { MAP_POOL } from '../src/lib/game/maps';
 import type { MapStrategy } from '../src/lib/game/map-veto';
+import { CLUTCH_CARRY_SERIES_SHARE } from '../src/lib/game/rounds';
 import {
   LiveSeriesError,
   applySeriesDecision,
@@ -177,6 +178,20 @@ describe('live series', () => {
     expect(result.veto).toBeUndefined();
     expect(result.maps.every((map) => map.mapId === undefined)).toBe(true);
     expect(result.maps.length).toBeLessThanOrEqual(3);
+  });
+
+  it('o embalo das calls da carreira atravessa o intervalo pela metade e entra no mapa seguinte', () => {
+    const state = createLiveSeries(config({ strategies: null, controllers: { a: 'bot', b: 'bot' } }));
+    stepSeries(state); // abre o mapa 1
+    state.current!.state.clutchCarry = { a: 0.08, b: 0 };
+    while (state.phase === 'live' || state.phase === 'side-pick') {
+      if (pendingSeriesDecision(state)) autoDecide(state);
+      else stepSeries(state);
+    }
+    expect(state.maps).toHaveLength(1);
+    expect(state.clutchCarry).toEqual({ a: 0.08 * CLUTCH_CARRY_SERIES_SHARE, b: 0 });
+    stepSeries(state); // abre o mapa 2
+    expect(state.current!.state.clutchCarry).toEqual({ a: 0.08 * CLUTCH_CARRY_SERIES_SHARE, b: 0 });
   });
 
   it('retunes a team before the first veto action with the same matchday seed', () => {

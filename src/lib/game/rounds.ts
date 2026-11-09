@@ -52,6 +52,8 @@ export interface MapStateOptions {
   mode?: OnlineGameMode;
   /** Variance scale of the series this map belongs to (1 = always; <1 flattens the map swing). */
   varianceScale?: number;
+  /** Embalo das calls (carreira) herdado do mapa anterior da série. */
+  clutchCarry?: Record<TeamSide, number>;
 }
 
 interface TeamRuntime {
@@ -97,10 +99,13 @@ export interface MapState {
   /** Probability edge the armed timeout gives its caller in the next round, and how well timed it was. */
   pendingTimeoutBonus: number;
   pendingTimeoutTiming: TimeoutTiming | null;
-  /** One-round probability edge from a clutch call (player career): shifts the next round, then clears. */
-  pendingClutchCall: { side: TeamSide; edge: number } | null;
+  /** One-round probability edge from a clutch call (player career): shifts the next round, then clears. `followUp` marca o
+   *  empurrão do round seguinte à call (live.ts), que não é call e não gera embalo. */
+  pendingClutchCall: { side: TeamSide; edge: number; followUp?: boolean } | null;
   /** Clutch calls this map already consumed (the career caps them; OT loosens the cap). */
   clutchCallsUsed: number;
+  /** Embalo da call (carreira): quem ganha o round da call joga o resto do mapa inclinado a seu favor. */
+  clutchCarry?: Record<TeamSide, number>;
   finished: boolean;
   winner: TeamSide | null;
   comeback: TeamSide | null;
@@ -392,6 +397,7 @@ export function createMapState(teamA: CombatTeam, teamB: CombatTeam, options: Ma
     pendingTimeoutTiming: null,
     pendingClutchCall: null,
     clutchCallsUsed: 0,
+    clutchCarry: { a: options.clutchCarry?.a ?? 0, b: options.clutchCarry?.b ?? 0 },
     finished: false,
     winner: null,
     comeback: null,
@@ -481,6 +487,30 @@ export function requestTimeout(state: MapState, teamId: string, auto = false): b
 /** Hard cap of a clutch call's one-round edge: it swings the round, never owns it. */
 export const MAX_CLUTCH_EDGE = 0.15;
 
+// ---------------------------------------------------------------------------------------------------------------------
+// EMBALO DAS CALLS (Carreira): tabela de ajuste. Todos os números do embalo ficam aqui; os do arco da carreira (fase do
+// time e estudo dos rivais) ficam em ARC_TUNING, em src/lib/game/playerCareer/form.ts.
+//   CLUTCH_CARRY_STEP           0.02  embalo de quem ganha o round da call sendo favorito ou no confronto parelho
+//   CLUTCH_CARRY_UNDERDOG_STEP  0.1   embalo do azarão cheio (rival bem mais forte); entre os dois, proporcional
+//   CLUTCH_CARRY_RIVAL_SHARE    0.7   fração do passo que o rival leva quando a sua call falha
+//   MAX_CLUTCH_CARRY            0.15  teto do embalo acumulado num mapa
+//   CLUTCH_CARRY_SERIES_SHARE   0.5   fração do embalo do mapa que passa para o mapa seguinte da série
+// Valores do protótipo do plano 07 (passou em C1 a C8 lá); a calibração com o jogo final ainda não rodou: ajuste depois
+// de jogar. Para medir: tests/playerCareerArcCalibration.test.ts com CAREER_UNDERDOG=1.
+// ---------------------------------------------------------------------------------------------------------------------
+/** Embalo de quem ganha o round da call sendo favorito ou no confronto parelho: um empurrão discreto. */
+export const CLUTCH_CARRY_STEP = 0.02;
+/** Embalo do azarão: quanto mais forte o adversário, mais o round da call compra a virada (até este passo). */
+export const CLUTCH_CARRY_UNDERDOG_STEP = 0.1;
+/** Quanto do passo o rival leva quando a sua call falha: ele leu você, mas o round não era dele. */
+export const CLUTCH_CARRY_RIVAL_SHARE = 0.7;
+/** Teto do embalo acumulado num mapa. */
+export const MAX_CLUTCH_CARRY = 0.15;
+/** Quanto do embalo atravessa o intervalo: quem leu certo chega aquecido no mapa seguinte da série. */
+export const CLUTCH_CARRY_SERIES_SHARE = 0.5;
+
+const clutchCarryOf = (state: MapState, side: TeamSide) => state.clutchCarry?.[side] ?? 0;
+
 /** Arms the player-career clutch edge: the caller's next round shifts by ±edge, then the call is spent. */
 export function armClutchCall(state: MapState, side: TeamSide, edge: number): void {
   if (state.finished) throw new MapDecisionError('MAP_FINISHED', 'The map is over');
@@ -545,6 +575,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   probability += deciderEdge(a.team, b.team) - deciderEdge(b.team, a.team);
   if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
   if (state.pendingClutchCall) probability += state.pendingClutchCall.side === 'a' ? state.pendingClutchCall.edge : -state.pendingClutchCall.edge;
+  probability += clutchCarryOf(state, 'a') - clutchCarryOf(state, 'b');
   if (overtime) {
     // Nerves: mental and clutch decide overtime, and the resilient lineup leans on its clutch a little harder.
     const overtimeHead = (team: CombatTeam) => team.style === 'resiliente'
@@ -846,6 +877,21 @@ export function playNextRound(state: MapState): RoundDetail {
   state.pendingTimeout = null;
   state.pendingTimeoutBonus = 0;
   state.pendingTimeoutTiming = null;
+  // O empurrão do round seguinte (followUp) não é call: não embala ninguém.
+  const call = state.pendingClutchCall && !state.pendingClutchCall.followUp ? state.pendingClutchCall : null;
+  // Quem ganha o round da call leva o embalo: a call boa que deu certo embala quem chamou; a que falhou embala o rival,
+  // que leu você. Call ruim que deu sorte não embala ninguém.
+  const carrier: TeamSide | null = !call ? null : call.side !== winner ? winner : call.edge > 0 ? winner : null;
+  if (call && carrier) {
+    // Quanto mais azarão no confronto base, maior o embalo: parelho ou favorito leva o passo mínimo; com ~33% de chance por
+    // round (time bem mais forte do outro lado) o embalo chega ao passo cheio do azarão.
+    const carrierBase = carrier === 'a' ? getWinProbability(a.team, b.team) : 1 - getWinProbability(a.team, b.team);
+    const underdog = clamp((0.5 - carrierBase) * 6, 0, 1);
+    const carry = state.clutchCarry ?? { a: 0, b: 0 };
+    const share = carrier === call.side ? 1 : CLUTCH_CARRY_RIVAL_SHARE;
+    carry[carrier] = Math.min(MAX_CLUTCH_CARRY, carry[carrier] + share * (CLUTCH_CARRY_STEP + (CLUTCH_CARRY_UNDERDOG_STEP - CLUTCH_CARRY_STEP) * underdog));
+    state.clutchCarry = carry;
+  }
   state.pendingClutchCall = null;
 
   if (!state.finished) {

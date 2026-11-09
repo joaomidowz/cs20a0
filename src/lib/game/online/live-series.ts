@@ -1,5 +1,6 @@
 import { buildVetoPlan, chooseMap, getStrategyMapBonus, getVetoAvailableMaps, type MapStrategy, type VetoPlanStep } from '../map-veto';
 import {
+  CLUTCH_CARRY_SERIES_SHARE,
   MapDecisionError,
   applyDecision,
   autoDecide as autoDecideMap,
@@ -94,6 +95,8 @@ export interface LiveSeriesState {
   vetoDecisions: SeriesDecision[];
   /** Carry da nevasca (2026-09-24): bônus do mapa anterior conquistado com 6+ rounds seguidos por um Agressivo. */
   streakCarry: { a: number; b: number };
+  /** Embalo das calls boas (carreira) que sobra do mapa anterior para o próximo. */
+  clutchCarry?: { a: number; b: number };
 }
 
 export type LiveSeriesErrorCode = 'NOT_YOUR_TURN' | 'DECISION_NOT_PENDING' | 'INVALID_MAP' | 'TIMEOUT_UNAVAILABLE' | 'SERIES_FINISHED';
@@ -306,6 +309,7 @@ function startMap(state: LiveSeriesState): void {
     rosterB: state.config.rosters?.b,
     controllers: state.config.controllers,
     varianceScale: state.config.varianceScale,
+    clutchCarry: state.clutchCarry,
     powerBonusA: (strategies && mapId ? getStrategyMapBonus(strategies.a, mapId, state.config.mode) : 0) + state.streakCarry.a,
     powerBonusB: (strategies && mapId ? getStrategyMapBonus(strategies.b, mapId, state.config.mode) : 0) + state.streakCarry.b
   });
@@ -333,6 +337,8 @@ export function stepSeries(state: LiveSeriesState): SeriesStepOutcome {
     return 'round';
   }
   const result = toMapResult(state.current.state);
+  const mapCarry = state.current.state.clutchCarry ?? { a: 0, b: 0 };
+  state.clutchCarry = { a: mapCarry.a * CLUTCH_CARRY_SERIES_SHARE, b: mapCarry.b * CLUTCH_CARRY_SERIES_SHARE };
   state.maps.push(result);
   state.current = null;
   if (result.winnerId === state.config.teamA.id) state.scoreA += 1;

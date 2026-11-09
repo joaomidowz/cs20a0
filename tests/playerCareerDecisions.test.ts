@@ -2,7 +2,18 @@
 // Contrato da matriz de decisões do CS2 (45 situações por função + 60 gerais, 3 alternativas cada): textos verbatim, perfis de
 // consequência, sorteio determinístico sem repetição, edge com RNG seeded e o efeito real do edge no round do motor.
 import { describe, expect, it } from 'vitest';
-import { armClutchCall, MAX_CLUTCH_EDGE, createMapState, isMapFinished, playNextRound } from '../src/lib/game/rounds';
+import {
+  armClutchCall,
+  CLUTCH_CARRY_RIVAL_SHARE,
+  CLUTCH_CARRY_SERIES_SHARE,
+  CLUTCH_CARRY_STEP,
+  CLUTCH_CARRY_UNDERDOG_STEP,
+  MAX_CLUTCH_CARRY,
+  MAX_CLUTCH_EDGE,
+  createMapState,
+  isMapFinished,
+  playNextRound
+} from '../src/lib/game/rounds';
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { CombatTeam, TeamSide } from '../src/lib/game/types';
 import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, readOf, resolveClutchEdge, situationsFor, type ClutchProfile, type RoundContext } from '../src/lib/game/playerCareer/decisions';
@@ -160,6 +171,67 @@ describe('o edge decide no motor (RNG do round)', () => {
     const sum = (edge: number) => seeds.reduce((total, mapSeed) => total + margin(edge, mapSeed), 0);
     expect(sum(MAX_CLUTCH_EDGE)).toBeGreaterThan(sum(0)); // um mapa pode pirar em OT; dez não
     expect(sum(-MAX_CLUTCH_EDGE)).toBeLessThan(sum(0));
+  });
+
+  it('quem ganha o round da call leva o embalo pro resto do mapa: o azarão leva mais, e call que falha embala o rival', () => {
+    const callRound = (powerA: number, powerB: number, edge: number, mapSeed: string) => {
+      const state = createMapState(team('a', powerA), team('b', powerB), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
+      armClutchCall(state, 'a', edge);
+      const detail = playNextRound(state);
+      return { won: detail.winner === 'a', carry: state.clutchCarry!.a, rival: state.clutchCarry!.b };
+    };
+    const seeds = Array.from({ length: 40 }, (_, index) => `carry-${index}`);
+    const underdog = seeds.map((mapSeed) => callRound(70, 84, 0.05, mapSeed));
+    const favorite = seeds.map((mapSeed) => callRound(84, 70, 0.05, mapSeed));
+    for (const rounds of [underdog, favorite]) {
+      expect(rounds.some((round) => round.won)).toBe(true);
+      expect(rounds.some((round) => !round.won)).toBe(true);
+    }
+    for (const round of [...underdog, ...favorite]) {
+      if (round.won) expect(round.rival).toBe(0); // call boa que deu certo: só quem chamou embala
+      else expect(round.carry).toBe(0); // falhou: o embalo é de quem ganhou o round
+    }
+    const wonBy = (rounds: typeof underdog) => rounds.find((round) => round.won)!;
+    const lostBy = (rounds: typeof underdog) => rounds.find((round) => !round.won)!;
+    expect(wonBy(underdog).carry).toBeCloseTo(CLUTCH_CARRY_UNDERDOG_STEP, 5); // 70 x 84: azarão cheio
+    expect(wonBy(favorite).carry).toBeCloseTo(CLUTCH_CARRY_STEP, 5); // favorito: só o passo mínimo
+    expect(lostBy(underdog).rival).toBeCloseTo(CLUTCH_CARRY_STEP * CLUTCH_CARRY_RIVAL_SHARE, 5); // o favorito que segurou leva pouco
+    expect(lostBy(favorite).rival).toBeCloseTo(CLUTCH_CARRY_UNDERDOG_STEP * CLUTCH_CARRY_RIVAL_SHARE, 5); // a zebra que leu o favorito acorda
+    const badCall = seeds.map((mapSeed) => callRound(70, 84, -0.05, mapSeed));
+    expect(badCall.filter((round) => round.won).every((round) => round.carry === 0 && round.rival === 0)).toBe(true); // ruim com sorte: ninguém
+    expect(badCall.filter((round) => !round.won).every((round) => round.rival > 0)).toBe(true); // ruim e perdida: embala o rival
+
+    // O embalo acumula com várias calls, mas para no teto.
+    const stacked = createMapState(team('a', 70), team('b', 84), { rng: createSeededRng('carry-stack'), mode: 'dynasty' });
+    for (let round = 0; round < 12 && !isMapFinished(stacked); round += 1) {
+      armClutchCall(stacked, 'a', MAX_CLUTCH_EDGE);
+      playNextRound(stacked);
+    }
+    expect(stacked.clutchCarry!.a).toBeLessThanOrEqual(MAX_CLUTCH_CARRY);
+    expect(stacked.clutchCarry!.a).toBeGreaterThan(CLUTCH_CARRY_UNDERDOG_STEP);
+  });
+
+  it('o embalo herdado do mapa anterior entra no mapa novo e pesa nos rounds dele', () => {
+    const fresh = createMapState(team('a', 76), team('b', 82), { rng: createSeededRng('carry-next'), mode: 'dynasty', clutchCarry: { a: 0.05, b: 0 } });
+    expect(fresh.clutchCarry).toEqual({ a: 0.05, b: 0 });
+    const margin = (carry: number, mapSeed: string) => {
+      const state = createMapState(team('a', 76), team('b', 82), { rng: createSeededRng(mapSeed), mode: 'dynasty', clutchCarry: { a: carry, b: 0 } });
+      while (!isMapFinished(state)) playNextRound(state);
+      return state.scoreA - state.scoreB;
+    };
+    const seeds = Array.from({ length: 10 }, (_, index) => `carry-map-${index}`);
+    const sum = (carry: number) => seeds.reduce((total, mapSeed) => total + margin(carry, mapSeed), 0);
+    expect(sum(CLUTCH_CARRY_UNDERDOG_STEP * CLUTCH_CARRY_SERIES_SHARE)).toBeGreaterThan(sum(0));
+  });
+
+  it('o empurrão da leitura certa no round seguinte não é call: não gera embalo para ninguém', () => {
+    for (const mapSeed of Array.from({ length: 20 }, (_, index) => `follow-${index}`)) {
+      const state = createMapState(team('a', 70), team('b', 84), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
+      state.pendingClutchCall = { side: 'a', edge: 0.05, followUp: true };
+      playNextRound(state);
+      expect(state.clutchCarry).toEqual({ a: 0, b: 0 });
+      expect(state.pendingClutchCall).toBeNull();
+    }
   });
 });
 
