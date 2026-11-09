@@ -325,3 +325,129 @@ function buildField(state: PlayerCareerState, event: WorldEvent, withUser: boole
   const position = new Map(invites.order.map((orgId, index) => [orgId, index]));
   return slots.sort((a, b) => (position.get(a.orgId) ?? invites.order.length) - (position.get(b.orgId) ?? invites.order.length));
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// O campeonato no motor completo, sem o seu time.
+
+export interface WorldRun { event: WorldEvent; field: WorldEventSlot[]; engine: TournamentEngineState }
+
+/** Monta o campeonato do mundo no motor: elencos da temporada, forma do campeonato, supertime contido e perfil de
+ *  mapas, a mesma régua dos seus campeonatos (live.ts startSceneEvent). */
+export function startWorldRun(state: PlayerCareerState, event: WorldEvent): WorldRun {
+  const field = buildField(state, event, false);
+  const seed = `${state.seed}:world:${event.season}:${event.index}`;
+  const year = yearOfSeason(event.season);
+  const pool = careerMapPool(year);
+  const orgs = field.map((slot) => worldOrgIn(state.seed, event.season, slot.orgId) ?? sceneOrgById.get(slot.orgId)!);
+  const rosters = new Map<string, Player[]>(orgs.map((org) => [org.id, sceneOrgEnginePlayers(org, seed)]));
+  const allPlayers = orgs.flatMap((org) => rosters.get(org.id) ?? []);
+  // A faixa do motor pelo nível do mês do campeonato (tiers.ts levelFromRank), nunca pelo currentLevelOf de hoje.
+  const order = rankOrderAt(state, fieldClock(state, event));
+  const rankOf = new Map(order.map((orgId, index) => [orgId, index + 1]));
+  const teams: HistoricalTeam[] = orgs.map((org) => sceneOrgToEngineTeam(org, rosters.get(org.id) ?? [], levelFromRank(rankOf.get(org.id) ?? null, homeLevelOf(state, org.id))));
+  const formOf = (orgId: string) => (createSeededRng(`${seed}:form:${orgId}`)() - 0.5) * 2 * EVENT_FORM_SWING;
+  const organizations: TournamentOrganization[] = teams.map((team, index) => {
+    const combat = calculateHistoricalTeamPower(team, allPlayers);
+    return { id: team.id, name: combat.name, seed: index + 1, team: { ...combat, power: combat.power + formOf(team.id) }, human: false, sourceTeamId: team.id };
+  });
+  // Supertime não ganha tudo: o que o mais forte abre acima do segundo conta só em parte.
+  const ranked = [...organizations].sort((a, b) => b.team.power - a.team.power);
+  const ceiling = (ranked[1]?.team.power ?? 0) + SUPERTEAM_EDGE;
+  if (ranked[0] && ranked[1] && ranked[0].team.power > ceiling) ranked[0].team = { ...ranked[0].team, power: ceiling + (ranked[0].team.power - ceiling) * SUPERTEAM_DAMPING };
+  const strategies: MapSimulationContext['strategies'] = new Map();
+  for (const org of organizations) {
+    const strategy = createNeutralMapStrategy(org.id, pool, true);
+    const profile = mapProfile(org.id, year, pool);
+    strategy.selectedMaps = [profile[0].mapId, profile[1].mapId, profile[2].mapId];
+    for (const rating of profile) strategy.affinities[rating.mapId] = rating.affinity;
+    strategies.set(org.id, strategy);
+  }
+  const mapContext: MapSimulationContext = { mode: 'premier', seed: `${seed}:offline-maps`, strategies, rosters: new Map(organizations.map((org) => [org.id, { players: rosters.get(org.id) ?? [] }])) };
+  const common = { seed: `${seed}:engine`, mapContext, swissBestOf: 3 as const, swissBestOfFor: dynastySwissBestOf };
+  // Major: os 3 stages pelo ranking (1º ao 8º no Stage 3, 9º ao 16º no Stage 2, o resto abre no Stage 1).
+  const engine = event.format === 'major'
+    ? createTournamentEngine({ ...common, organizations: [], botPool: [], entryStage: 'stage1', stageFields: { stage3: organizations.slice(0, 8), stage2: organizations.slice(8, 16), stage1: organizations.slice(16, 32) } })
+    : createTournamentEngine({
+        ...common, organizations: organizations.slice(0, 1), botPool: organizations.slice(1), entryStage: event.format === 'bracket8' ? 'playoffs' : 'stage3',
+        ...(event.format === 'bracket8' ? { playoffBestOf: { ...SCENE_EVENT_FORMAT, final: templateOf(event).finalBestOf } } : {})
+      });
+  return { event, field, engine };
+}
+
+/**
+ * Anda o campeonato série a série, na mesma ordem do runTournamentToEnd, até o fim ou até estourar o tempo (para rodar
+ * em pedaços sem travar a tela). O relógio só decide onde pausar, nunca o resultado. Devolve o resultado no fim.
+ */
+export function stepWorldRun(run: WorldRun, budgetMs = Number.POSITIVE_INFINITY, now: () => number = () => performance.now()): WorldEventResult | null {
+  const { engine } = run;
+  const deadline = budgetMs === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : now() + budgetMs;
+  while (!engine.finished) {
+    const round = currentRound(engine) ?? startNextRound(engine);
+    const open = round.series.find((series) => series.phase !== 'finished');
+    if (!open) completeRound(engine);
+    else if (pendingSeriesDecision(open)) autoDecide(open);
+    else stepSeries(open);
+    if (deadline !== Number.POSITIVE_INFINITY && !engine.finished && now() >= deadline) return null;
+  }
+  return finishWorldRun(run);
+}
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+function finishWorldRun(run: WorldRun): WorldEventResult {
+  const { event, field, engine } = run;
+  const result = toResult(engine);
+  const champion = result.championId ?? '';
+  const final = result.rounds.flatMap((round) => round.series).find((series) => series.phase === 'final');
+  const runnerUp = final ? (final.winnerId === final.teamA.id ? final.teamB.id : final.teamA.id) : '';
+  const awards = computeMajorAwards(result.rounds, result.championId);
+  const ranked = awards?.topPlayers ?? [];
+  const pick = pickEventMvp(ranked, champion, runnerUp) ?? awards?.mvp ?? null;
+  return {
+    key: event.key, season: event.season, name: event.name, tier: event.tier, month: event.month, field,
+    placements: result.campaigns.map((entry) => ({ orgId: entry.organizationId, place: ENGINE_PLACE[entry.placement] ?? 25 })).sort((a, b) => a.place - b.place || a.orgId.localeCompare(b.orgId)),
+    champion, runnerUp,
+    mvp: pick ? { nick: pick.name, orgId: pick.teamId, rating: round2(pick.rating) } : null,
+    topPlayers: ranked.map((award) => ({ nick: award.name, orgId: award.teamId, rating: round2(award.rating) })),
+    userPlayed: false
+  };
+}
+
+/** O campeonato do mundo inteiro no motor completo (sem o seu time), determinístico pela seed. */
+export function computeWorldResult(state: PlayerCareerState, event: WorldEvent): WorldEventResult {
+  return stepWorldRun(startWorldRun(state, event)) as WorldEventResult;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// O que falta jogar.
+
+/**
+ * Os campeonatos do mundo que já aconteceram (mês até o relógio, e a temporada anterior inteira) e ainda não têm
+ * resultado, do mais antigo para o mais novo. O ranking de um campeonato precisa da temporada anterior: se ela também
+ * falta (cache apagado), volta até onde precisar, no máximo até o começo do circuito.
+ */
+export function pendingWorldEvents(state: PlayerCareerState): WorldEvent[] {
+  const from = circuitFromOf(state);
+  const clock = circuitClock(state);
+  const missing = (season: number) => worldEventsOf(state, season)
+    .filter((event) => (season < clock.season || event.month <= clock.month) && !userEntryOf(state, event) && !worldResult(state, event));
+  let start = Math.max(from, clock.season - 1);
+  while (start > from && missing(start).length && missing(start - 1).length) start -= 1;
+  const list: WorldEvent[] = [];
+  for (let season = Math.max(1, start); season <= clock.season; season += 1) list.push(...missing(season));
+  return list;
+}
+
+/** O circuito já tem tudo que o relógio pede? (a página só abre o próximo campeonato com ele pronto) */
+export const circuitReady = (state: PlayerCareerState): boolean => pendingWorldEvents(state).length === 0;
+
+/** Joga já, na mesma thread, o que falta do circuito (testes e simulações sem tela). */
+export function ensureWorldResults(state: PlayerCareerState): WorldEventResult[] {
+  const computed: WorldEventResult[] = [];
+  for (const event of pendingWorldEvents(state)) {
+    const result = computeWorldResult(state, event);
+    storeWorldResult(state.seed, result);
+    computed.push(result);
+  }
+  return computed;
+}
