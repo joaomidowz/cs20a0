@@ -7,6 +7,7 @@
 // (calendário, histórico e o corte do playbook): o mesmo save dá sempre o mesmo arco.
 import { createSeededRng } from '../simulation';
 import type { PlayerCareerState, TournamentResult } from './engine';
+import { currentLevelOf } from './tiers';
 
 export type FormPhase = 'alta' | 'normal' | 'baixa';
 export const FORM_PHASES: FormPhase[] = ['alta', 'normal', 'baixa'];
@@ -156,4 +157,70 @@ export function formPhaseWith(state: PlayerCareerState, eventIndex: number, tuni
 /** A fase do seu time no bloco do campeonato: a cadeia do primeiro bloco da temporada até o bloco pedido. */
 export function formPhaseOf(state: PlayerCareerState, eventIndex: number): FormPhase {
   return formPhaseWith(state, eventIndex, ARC_TUNING);
+}
+
+/** Estudo dos rivais: só contra times de Tier S (nível 0, Elite, e nível 1). */
+export const STUDY_MAX_LEVEL = 1;
+/** Quantos campeonatos para trás o ano dominante é lembrado. */
+export const STUDY_WINDOW = 12;
+
+const round1 = (value: number) => Math.round(value * 10) / 10;
+
+/** O estudo antes do corte do playbook, com números escolhidos: o bloco anterior (no 1º bloco, o fim da temporada
+ *  passada) e os últimos STUDY_WINDOW campeonatos, cada um acima do seu piso. */
+export function rawRivalStudyWith(state: PlayerCareerState, eventIndex: number, tuning: ArcTuning): number {
+  if (currentLevelOf(state, state.orgId) > STUDY_MAX_LEVEL) return 0;
+  const block = formBlockOf(state, eventIndex);
+  const [start] = blockRange(state, block);
+  const previous = block > 0 ? playedIn(state, blockRange(state, block - 1)) : lastSeasonResults(state).slice(-SEASON_TAIL);
+  const recent = [...lastSeasonResults(state), ...playedIn(state, [0, start])].slice(-STUDY_WINDOW);
+  const value = tuning.studyBlock * Math.max(0, dominanceOf(previous) - tuning.blockFloor) + tuning.studySeason * Math.max(0, dominanceOf(recent) - tuning.seasonFloor);
+  return round1(Math.min(tuning.studyMax, value));
+}
+
+/** O estudo com o corte do playbook do bloco, com números escolhidos. */
+export function rivalStudyWith(state: PlayerCareerState, eventIndex: number, tuning: ArcTuning): number {
+  const raw = rawRivalStudyWith(state, eventIndex, tuning);
+  const cut = state.studyCut?.key === blockKeyOf(state, eventIndex) ? state.studyCut.factor : 1;
+  return round1(raw * cut);
+}
+
+/** Bônus de força dos rivais nas séries contra o seu time no campeonato (já com o corte do playbook do bloco). */
+export function rivalStudyOf(state: PlayerCareerState, eventIndex: number): number {
+  return rivalStudyWith(state, eventIndex, ARC_TUNING);
+}
+
+/** O arco de um campeonato, congelado do começo ao fim (vai no save do evento em andamento): a fase, a força que ela
+ *  vale e o estudo dos rivais. */
+export interface EventArc { phase: FormPhase; phasePower: number; study: number }
+
+export function eventArcOf(state: PlayerCareerState, eventIndex: number, tuning: ArcTuning = ARC_TUNING): EventArc {
+  const phase = formPhaseWith(state, eventIndex, tuning);
+  return { phase, phasePower: phase === 'alta' ? tuning.phasePower : phase === 'baixa' ? -tuning.phasePower : 0, study: rivalStudyWith(state, eventIndex, tuning) };
+}
+
+/** O que o arco faz com a força do seu time no campeonato: a fase soma, o estudo dos rivais tira. */
+export const arcPowerOf = (arc: EventArc): number => arc.phasePower - arc.study;
+
+/** O corte do estudo no bloco do próximo campeonato: o fator que sobra e as cartas já usadas no bloco. */
+export interface StudyCut { key: string; factor: number; cards: string[] }
+
+const nextEventIndex = (state: PlayerCareerState): number | null => state.calendar?.find((entry) => entry.status === 'UPCOMING')?.index ?? null;
+
+/** A carta de contra-jogo entra na semana: os rivais estudam vocês para o próximo campeonato e ela não foi usada no bloco. */
+export function studyCardOpen(state: PlayerCareerState, cardId: string): boolean {
+  const next = nextEventIndex(state);
+  if (next === null || rawRivalStudyWith(state, next, ARC_TUNING) <= 0) return false;
+  const cut = state.studyCut?.key === blockKeyOf(state, next) ? state.studyCut : null;
+  return !cut?.cards.includes(cardId);
+}
+
+/** Corta uma fração (0 a 1) do estudo no bloco do próximo campeonato. Dois cortes no mesmo bloco se multiplicam. */
+export function cutRivalStudy(state: PlayerCareerState, cardId: string, fraction: number): PlayerCareerState {
+  const next = nextEventIndex(state);
+  if (next === null) return state;
+  const key = blockKeyOf(state, next);
+  const current = state.studyCut?.key === key ? state.studyCut : { key, factor: 1, cards: [] };
+  const factor = Math.round(current.factor * (1 - Math.max(0, Math.min(1, fraction))) * 100) / 100;
+  return { ...state, studyCut: { key, factor, cards: [...current.cards, cardId] } };
 }

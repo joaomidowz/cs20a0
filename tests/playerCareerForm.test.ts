@@ -3,9 +3,12 @@
 // rivais depois de uma fase dominante, as cartas da semana contra o estudo, o arco congelado no campeonato em andamento
 // e o save de ida e volta.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, recordEventResult, startSeason, type CalendarEntry, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, ensureCircuitFrom, ensureDraw, recordEventResult, startSeason, type CalendarEntry, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { ARC_TUNING, FORM_PHASES, blockRange, blockSizes, formBlockOf, formPhaseOf, formTransition, type FormPhase } from '../src/lib/game/playerCareer/form';
+import {
+  ARC_TUNING, FORM_PHASES, blockKeyOf, blockRange, blockSizes, eventArcOf, formBlockOf, formPhaseOf, formTransition, rivalStudyOf, type FormPhase
+} from '../src/lib/game/playerCareer/form';
+import { ensureSquad } from '../src/lib/game/playerCareer/squad';
 
 const orgNamed = (name: string) => sceneOrgs.find((candidate) => candidate.name === name)!;
 const result = (placement: string): TournamentResult => ({ name: 'Etapa', placement, rating: 1.1, seriesWins: 2, seriesLosses: 1, tier: 'S' });
@@ -116,5 +119,65 @@ describe('fase do time', () => {
     }
     expect(altaGood).toBeGreaterThan(altaPlain);
     expect(baixaBad).toBeGreaterThan(baixaPlain);
+  });
+});
+
+describe('estudo dos rivais', () => {
+  it('sobe depois de um bloco dominante, cai quando o time para de ganhar e não existe abaixo do Tier S', () => {
+    const base = withCalendar(careerAt(VITALITY, 'study'), 12);
+    expect(rivalStudyOf(base, 0)).toBe(0);
+    const [, end0] = blockRange(base, 0);
+    const [, end1] = blockRange(base, 1);
+    const dominant = play(base, Array.from({ length: end0 }, () => 'Campeão'));
+    const studied = rivalStudyOf(dominant, end0);
+    expect(studied).toBeGreaterThan(0);
+    expect(studied).toBeLessThanOrEqual(ARC_TUNING.studyMax);
+    const cooled = play(dominant, Array.from({ length: end1 - end0 }, () => 'Quartas'), end0);
+    expect(rivalStudyOf(cooled, end1)).toBeLessThan(studied);
+    const quiet = withCalendar(withLastSeason(cooled, Array.from({ length: 10 }, () => 'Quartas')), 12);
+    expect(rivalStudyOf(quiet, 0)).toBe(0);
+    const dynasty = withCalendar(withLastSeason(base, ['Campeão', 'Campeão', 'Vice', 'Campeão', 'Semis', 'Campeão', 'Campeão', 'Vice', 'Campeão', 'Campeão']), 12);
+    expect(rivalStudyOf(dynasty, 0)).toBeGreaterThan(0);
+    const cct = sceneOrgs.find((candidate) => candidate.level === 4)!;
+    const small = withCalendar(careerAt(cct.id, 'study-cct'), 12);
+    expect(rivalStudyOf(play(small, Array.from({ length: end0 }, () => 'Campeão')), end0)).toBe(0);
+  });
+
+  it('o corte do playbook vale só no bloco dele, e o arco do evento soma a fase e tira o estudo', () => {
+    const base = withCalendar(careerAt(VITALITY, 'study-cut'), 12);
+    const [, end0] = blockRange(base, 0);
+    const studied = play(base, Array.from({ length: end0 }, () => 'Campeão'));
+    const raw = rivalStudyOf(studied, end0);
+    const cut: PlayerCareerState = { ...studied, studyCut: { key: blockKeyOf(studied, end0), factor: 0.4, cards: ['mudar-playbook'] } };
+    expect(rivalStudyOf(cut, end0)).toBe(Math.round(raw * 0.4 * 10) / 10);
+    const stale: PlayerCareerState = { ...studied, studyCut: { key: `${studied.seasonNumber - 1}:0`, factor: 0.4, cards: ['mudar-playbook'] } };
+    expect(rivalStudyOf(stale, end0)).toBe(raw);
+    const arc = eventArcOf(cut, end0);
+    expect(arc.study).toBe(rivalStudyOf(cut, end0));
+    expect(arc.phase).toBe(formPhaseOf(cut, end0));
+    expect(arc.phasePower).toBe(arc.phase === 'alta' ? ARC_TUNING.phasePower : arc.phase === 'baixa' ? -ARC_TUNING.phasePower : 0);
+  });
+});
+
+describe('save', () => {
+  it('ida e volta pelo JSON mantém fase, estudo, corte e o arco do evento; save antigo sem os campos carrega', () => {
+    const base = withCalendar(withLastSeason(careerAt(VITALITY, 'save'), NEUTRAL_YEAR), 12);
+    const [, end0] = blockRange(base, 0);
+    const played = play(base, Array.from({ length: end0 }, () => 'Campeão'));
+    const studied: PlayerCareerState = { ...played, studyCut: { key: blockKeyOf(played, end0), factor: 0.4, cards: ['mudar-playbook'] } };
+    const arc = eventArcOf(studied, end0);
+    const state: PlayerCareerState = { ...studied, liveEvent: { eventIndex: end0, played: {}, arc } };
+    // O mesmo caminho do onMount da página ao carregar o save.
+    const restored = ensureCircuitFrom(ensureSquad(ensureDraw(JSON.parse(JSON.stringify(state)) as PlayerCareerState)));
+    expect(restored.studyCut).toEqual(state.studyCut);
+    expect(restored.liveEvent?.arc).toEqual(arc);
+    for (const entry of state.calendar!) {
+      expect(formPhaseOf(restored, entry.index)).toBe(formPhaseOf(state, entry.index));
+      expect(rivalStudyOf(restored, entry.index)).toBe(rivalStudyOf(state, entry.index));
+    }
+    const { studyCut: _cut, ...withoutCut } = restored;
+    const old: PlayerCareerState = { ...withoutCut, liveEvent: { eventIndex: end0, played: {} } };
+    expect(rivalStudyOf(old, end0)).toBeGreaterThan(rivalStudyOf(restored, end0));
+    expect(eventArcOf(old, end0).phase).toBe(arc.phase);
   });
 });

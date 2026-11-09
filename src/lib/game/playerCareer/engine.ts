@@ -20,6 +20,7 @@ import type { DecisionLog } from './decisions';
 import type { CareerLife } from './life';
 import type { Talk, TalkMemory } from './talks';
 import type { MapId } from '../types';
+import type { EventArc, StudyCut } from './form';
 
 export type PlayerRole = 'awper' | 'rifler' | 'entry' | 'igl' | 'lurker' | 'support';
 
@@ -174,6 +175,8 @@ export interface LiveEventSave {
   carry?: { wins: number; losses: number };
   /** O ranking (ids em ordem) congelado no começo do campeonato: a chave não muda até o resultado ser gravado. */
   ranking?: string[];
+  /** Fase do time e estudo dos rivais congelados quando o campeonato começou (form.ts). Save antigo: calcula do estado. */
+  arc?: EventArc;
 }
 
 /** Atributos que o treino entre campeonatos pode acumular de bônus (efeitos da Dinastia, dynasty/training.ts). */
@@ -425,6 +428,8 @@ export interface PlayerCareerState {
   seasonTrain?: { season: number; sessions: number; gained: number } | null;
   status: 'ACTIVE' | 'RETIRED';
   verdict: CareerVerdict | null;
+  /** Corte do estudo dos rivais no bloco do próximo campeonato (cartas Mudar o playbook e Estudar as demos deles). */
+  studyCut?: StudyCut | null;
 }
 
 const LAN_HOUSE = { id: 'lan-house', name: 'Lan House do Bairro', level: 5 };
