@@ -93,6 +93,14 @@ export interface TournamentResult {
   stages?: Array<{ stage: string; standings: Array<{ name: string; wins: number; losses: number; status: string; you?: boolean }> }>;
   /** Suas jogadas do evento com mapa, round e adversário (as melhores, até 8). */
   highlights?: PlayHighlight[];
+  /** Colocação de cada time do campeonato (1 = campeão, 2 = vice, 3 = semis, 5 = quartas, 9/17/25 = caiu na suíça ou
+   *  num stage do Major); o seu time com o id da sua org. Alimenta o ranking. Saves antigos: sem. */
+  placements?: Array<{ orgId: string; place: number }>;
+  /** O time pelo qual você jogou (troca no meio da temporada) e o mês do campeonato. Saves antigos: sem. */
+  orgId?: string;
+  month?: number;
+  /** Os melhores do campeonato pelo kill feed (até 8), como no circuito do mundo. */
+  topPlayers?: Array<{ nick: string; orgId: string; rating: number }>;
 }
 
 export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kills: number; against?: number; map: string; round: number; opponent: string }
@@ -157,6 +165,8 @@ export interface LiveEventSave {
   /** Major: o stage em andamento e as séries dos stages já passados. */
   stage?: 'stage1' | 'stage2' | 'stage3' | null;
   carry?: { wins: number; losses: number };
+  /** O ranking (ids em ordem) congelado no começo do campeonato: a chave não muda até o resultado ser gravado. */
+  ranking?: string[];
 }
 
 /** Atributos que o treino entre campeonatos pode acumular de bônus (efeitos da Dinastia, dynasty/training.ts). */
@@ -311,6 +321,9 @@ export interface PlayerCareerState {
   released?: boolean;
   /** Nível que os times ganharam ou perderam NESTA carreira (você carregou o time para cima, ou ele caiu). */
   orgLevels?: Record<string, number>;
+  /** Temporada em que o circuito do mundo começou nesta carreira (1 numa carreira nova; saves antigos: a temporada em
+   *  que abriram nesta versão). Antes dela não há campeonato do mundo simulado. */
+  circuitFrom?: number;
   /** Treino de mapa do seu time (0-30 por mapa, soma no perfil de mapas da org) e a semana do último treino. */
   mapTraining?: Partial<Record<MapId, number>>;
   mapTrainedWindow?: string | null;
@@ -498,9 +511,16 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     fame: 0,
     fatigue: 0,
     pendingOffers: null,
+    circuitFrom: 1,
     status: 'ACTIVE',
     verdict: null
   };
+}
+
+/** Saves de antes do circuito do mundo: o circuito começa na temporada em que a carreira abriu nesta versão (as
+ *  temporadas antigas não têm campeonato do mundo simulado; o ranking parte da força dos elencos). */
+export function ensureCircuitFrom(state: PlayerCareerState): PlayerCareerState {
+  return state.circuitFrom !== undefined ? state : { ...state, circuitFrom: state.seasonNumber };
 }
 
 /** Assina com uma das opções do sorteio (ou fica na lan house) e toma a vaga da sua função. */

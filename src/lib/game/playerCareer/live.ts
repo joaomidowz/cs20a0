@@ -639,7 +639,7 @@ export function awardsSoFar(campaign: CampaignMajorState) {
   return computeMajorAwards(result.rounds, result.championId);
 }
 
-export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[]; highlights?: PlayHighlight[]; opponents?: TournamentResult['opponents']; stages?: TournamentResult['stages'] }
+export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[]; highlights?: PlayHighlight[]; opponents?: TournamentResult['opponents']; stages?: TournamentResult['stages']; placements?: TournamentResult['placements']; topPlayers?: TournamentResult['topPlayers'] }
 
 /**
  * Prêmios do evento pelo kill feed de TODAS as séries (o motor joga o campo inteiro): campeão, MVP (o mesmo
@@ -680,15 +680,18 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
       aWon: item.winnerId === item.teamA.id,
       ...(isUserTeam(campaign, item.teamA.id) ? { you: 'a' as const } : isUserTeam(campaign, item.teamB.id) ? { you: 'b' as const } : {})
     }));
-  // MVP de evento sai do campeão; o vice só leva se jogou muito mais (0.15 de rating acima do melhor campeão).
   const ranked = awards?.topPlayers ?? [];
   const runnerUpId = final ? (final.winnerId === final.teamA.id ? final.teamB.id : final.teamA.id) : null;
-  const bestChampion = ranked.find((award) => award.teamId === championId);
-  const bestRunnerUp = ranked.find((award) => award.teamId === runnerUpId);
-  const pick = bestChampion && bestRunnerUp && bestRunnerUp.rating >= bestChampion.rating + 0.15 ? bestRunnerUp : bestChampion ?? bestRunnerUp ?? awards?.mvp ?? null;
+  const pick = pickEventMvp(ranked, championId, runnerUpId) ?? awards?.mvp ?? null;
   const mvp = final && pick
     ? { nick: pick.playerId === me ? state.nick : pick.name, team: isUserTeam(campaign, pick.teamId) ? myTeam : pick.teamName, rating: pick.rating, ...(pick.playerId === me ? { you: true } : {}) }
     : undefined;
+  // A colocação de cada time (o seu com o id da sua org): o ranking usa a chave inteira dos seus campeonatos.
+  const orgOfTeam = (teamId: string) => (isUserTeam(campaign, teamId) ? state.orgId : teamId);
+  const placements = final
+    ? result.campaigns.map((entry) => ({ orgId: orgOfTeam(entry.organizationId), place: ENGINE_PLACE[entry.placement] ?? 25 })).sort((a, b) => a.place - b.place || a.orgId.localeCompare(b.orgId))
+    : [];
+  const topPlayers = final ? ranked.map((award) => ({ nick: award.playerId === me ? state.nick : award.name, orgId: orgOfTeam(award.teamId), rating: Math.round(award.rating * 100) / 100 })) : [];
   return {
     ...(final ? { champion: nameOf(final.winnerId === final.teamA.id ? final.teamA : final.teamB) } : {}),
     ...(mvp ? { mvp } : {}),
@@ -696,8 +699,20 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ...(bracket.length ? { bracket } : {}),
     ...(highlights.length ? { highlights } : {}),
     ...(opponents.length ? { opponents } : {}),
-    ...(stages?.length ? { stages } : {})
+    ...(stages?.length ? { stages } : {}),
+    ...(placements.length ? { placements } : {}),
+    ...(topPlayers.length ? { topPlayers } : {})
   };
+}
+
+/** Colocação do motor → posição (1, 2, 3-4, 5-8, 9-16, 17-24, 25-32). */
+export const ENGINE_PLACE: Record<string, number> = { placementChampion: 1, placementRunnerUp: 2, placement3to4: 3, placement5to8: 5, placementStage3: 9, placementStage2: 17, placementStage1: 25 };
+
+/** MVP de evento sai do campeão; o vice só leva se jogou muito mais (0.15 de rating acima do melhor campeão). */
+export function pickEventMvp<T extends { teamId: string; rating: number }>(ranked: T[], championId: string | null, runnerUpId: string | null): T | null {
+  const bestChampion = ranked.find((award) => award.teamId === championId);
+  const bestRunnerUp = ranked.find((award) => award.teamId === runnerUpId);
+  return bestChampion && bestRunnerUp && bestRunnerUp.rating >= bestChampion.rating + 0.15 ? bestRunnerUp : bestChampion ?? bestRunnerUp ?? null;
 }
 
 const HIGHLIGHT_WEIGHT = (highlight: PlayHighlight) =>
@@ -755,6 +770,8 @@ export function sceneEventResult(state: PlayerCareerState, eventIndex: number, c
       seriesWins: wins + carry.wins,
       seriesLosses: decided.length - wins + carry.losses,
       ...(state.calendar?.[eventIndex]?.tier ? { tier: state.calendar[eventIndex].tier } : {}),
+      orgId: state.orgId,
+      ...(state.calendar?.[eventIndex]?.month ? { month: state.calendar[eventIndex].month } : {}),
       ...eventAwards(state, campaign),
       // No banco: o time jogou sem você; não conta no seu rating, no HLTV nem no prêmio.
       ...((state.benchedEvents ?? 0) > 0 ? { benched: true, skipped: true } : {})
@@ -824,7 +841,7 @@ export function simulateSceneEvent(state: PlayerCareerState, eventIndex: number,
 /** Major sem vaga: o time não chegou no ranking; fica no calendário como "Não classificado". */
 export function notQualified(state: PlayerCareerState, eventIndex: number): SceneEventOutcome {
   return {
-    result: { name: state.calendar?.[eventIndex]?.name ?? 'Major', placement: 'Não classificado', rating: 0, seriesWins: 0, seriesLosses: 0, skipped: true, tier: 'Major' },
+    result: { name: state.calendar?.[eventIndex]?.name ?? 'Major', placement: 'Não classificado', rating: 0, seriesWins: 0, seriesLosses: 0, skipped: true, tier: 'Major', orgId: state.orgId, ...(state.calendar?.[eventIndex]?.month ? { month: state.calendar[eventIndex].month } : {}) },
     stats: [],
     players: []
   };
