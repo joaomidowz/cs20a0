@@ -1,4 +1,5 @@
 import licensedJson from '$lib/data/licensed-images.json';
+import { crestKey } from './crest';
 
 /**
  * Licensed image slot. The generated crests and avatars are the default everywhere; a real logo or photo is only
@@ -47,3 +48,11 @@ export function licensedImageFor(kind: LicensedImageKind, key: string | null | u
 
 /** Same-origin URL of a licensed file (kept local so the share export never needs CORS). */
 export const licensedImageSrc = (entry: LicensedImageEntry) => `/${entry.file.replace(/^\/+/, '')}`;
+
+/** A logo de um time no escudo: pela chave do escudo (orgId ou nome); com orgId da cena ("furia-2026"), também pela
+ *  chave do nome ("furia"), onde as logos das orgs são registradas; por fim, a do time-ano. */
+export function orgLogoFor(input: { orgId?: string | null; name?: string | null; id?: string | null }): LicensedImageEntry | null {
+  return licensedImageFor('org', crestKey(input))
+    ?? (input.orgId ? licensedImageFor('org', crestKey({ name: input.name, id: input.id })) : null)
+    ?? licensedImageFor('team', input.id);
+}

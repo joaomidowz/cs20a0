@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { crestFor, crestParts } from '$lib/game/visuals/crest';
-  import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
+  import { licensedImageSrc, orgLogoFor } from '$lib/game/visuals/licensed';
 
   export let id = '';
   export let name = '';
@@ -18,7 +18,7 @@
   // Generated crest by default; a licensed image only when `licensed-images.json` registers one for the org or the team-year.
   $: crest = crestFor({ orgId, name, id });
   $: parts = crestParts(crest);
-  $: licensed = licensedImageFor('org', crest.key) ?? licensedImageFor('team', id);
+  $: licensed = orgLogoFor({ orgId, name, id });
 </script>
 
 <span class="team-badge {size}" class:highlight aria-hidden="true">
