@@ -576,6 +576,21 @@ export function orgIn(seed: string, season: number, orgId: string): SceneOrg | u
   return { ...org, roster: rosterIn(seed, season, org.id), season, ...(power !== undefined ? { power } : {}) };
 }
 
+/**
+ * O time na temporada N como o circuito do mundo e o ranking o veem: o elenco da seed (com o desgaste de veterano), sem
+ * as trocas das suas vagas. Assim o campeão de um campeonato do mundo depende só da seed e dos seus resultados, nunca
+ * da ordem em que as vagas foram registradas na página.
+ */
+export function worldOrgIn(seed: string, season: number, orgId: string): SceneOrg | undefined {
+  const org = sceneOrgById.get(orgId);
+  if (!org) return undefined;
+  const roster = withVeteranGap(season, sceneWorld(seed, season).rosters).get(org.id) ?? org.roster;
+  const start = topFive(org.roster, org);
+  const now = topFive(roster, org);
+  const power = org.power === undefined || season <= 1 || start === null || now === null ? org.power : Math.round((org.power + (now - start)) * 10) / 10;
+  return { ...org, roster, season, ...(power !== undefined ? { power } : {}) };
+}
+
 /** As trocas mais chamativas da temporada: times de tier mais alto primeiro. `levelOf` é o nível que a tela mostra
  *  (a página passa o nível de hoje, de tiers.ts); sem ele, o nível base do catálogo. */
 export function headlineTransfers(seed: string, season: number, limit = 6, levelOf: (orgId: string) => number = (id) => sceneOrgById.get(id)?.level ?? 9): SceneTransfer[] {

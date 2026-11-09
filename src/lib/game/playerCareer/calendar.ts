@@ -195,6 +195,21 @@ export function revivalsOf(year: number, level: number, region: Region): EventTe
   });
 }
 
+const circuitByYear = new Map<number, EventTemplate[]>();
+/**
+ * O circuito mundial do ano: os 2 Majors, a elite (Tier S e Tier A internacional) e os retornos de elite. É o mesmo
+ * para todas as carreiras (os retornos de elite são do "Mundo", não de uma região), em ordem de mês e de nome. O
+ * circuito do mundo (circuit.ts) joga cada um deles, com ou sem você.
+ */
+export function worldCircuitOf(year: number): EventTemplate[] {
+  const cached = circuitByYear.get(year);
+  if (cached) return cached;
+  const events = [...majorsOf(year), ...elitePool(year), ...revivalsOf(year, 0, 'eu')]
+    .sort((a, b) => a.month - b.month || a.name.localeCompare(b.name));
+  circuitByYear.set(year, events);
+  return events;
+}
+
 /** No máximo 6 Tier S (fora os Majors) e 2 campeonatos no mesmo mês. */
 export const S_TIER_CAP = 6;
 const MONTH_CAP = 2;
