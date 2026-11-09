@@ -32,3 +32,25 @@ describe('símbolos de títulos e MVPs', () => {
     expect(top).toContain('{#if player.points !== undefined}');
   });
 });
+
+describe('tela Mundo', () => {
+  it('quatro abas em grade de duas colunas no celular e quatro no desktop, sem rolagem lateral', () => {
+    const world = source('src/lib/components/CareerWorld.svelte');
+    expect(world).toContain('role="tablist"');
+    for (const label of ['Ranking', 'Top jogadores', 'Trocas', 'Campeonatos']) expect(world).toContain(`label: '${label}'`);
+    expect(world).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(world).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
+    expect(world).not.toContain('overflow-x');
+    expect(world).not.toMatch(DASH);
+  });
+
+  it('carregamento na linha do campeonato e releitura do cache, sem simular nada', () => {
+    const world = source('src/lib/components/CareerWorld.svelte');
+    expect(world).toContain('Calculando o resultado');
+    expect(world).toContain('setInterval');
+    expect(world).toContain('clearInterval');
+    expect(world).not.toContain('computeWorldResult');
+    expect(world).toContain('top={top.rows}');
+    expect(world).toContain('live={true}');
+  });
+});
