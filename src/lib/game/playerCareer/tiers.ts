@@ -68,3 +68,8 @@ export function seasonLevelOf(log: Pick<SeasonLog, 'orgId' | 'orgLevel' | 'tourn
   const legacy = log.orgLevel === 1 && log.tournaments.length > 0 && log.tournaments.every((result) => !result.tier);
   return legacy && baseLevelOf(log.orgId) === 0 ? 0 : log.orgLevel;
 }
+
+/** A planilha de conteúdo (acontecimentos e dilemas) ainda fala a régua antiga, em que "Tier 1" era o nível 1 e
+ *  "Tier 2" o nível 2: na leitura vira Tier S e Tier A. Os JSON não mudam; chaves de regra (como a condição
+ *  "tier 2") não passam por aqui. */
+export const retier = (text: string): string => text.replace(/\b[Tt]ier ([12])\b/g, (_match, digit: string) => (digit === '1' ? 'Tier S' : 'Tier A'));

@@ -10,6 +10,7 @@ import { lifeOf, withFlags } from './life';
 import { createSeededRng } from '../simulation';
 import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
 import { addReserve, bestOtherRole, matesOf, myPlayerOf, planOf, promoteReserve, synergyBump, takeRole, type ReserveKind } from './squad';
+import { retier } from './tiers';
 
 const ROLE_LABEL_PT: Record<PlayerRole, string> = { igl: 'IGL', awper: 'AWPer', entry: 'Entry', lurker: 'Lurker', support: 'Suporte', rifler: 'Rifler' };
 
@@ -54,14 +55,14 @@ interface V3Event { id: string; phase: string; tierMin: number; situation: strin
 const V3 = rawEventsV3 as unknown as { legacy: Record<string, LegacyMeta>; events: V3Event[] };
 
 /** Os 150 originais, com gravidade, limite por ano e cooldown em meses da planilha nova. */
-export const HAPPENINGS: Happening[] = (rawEvents as unknown as { events: Happening[] }).events.map((event) => ({ ...event, ...(V3.legacy[event.id] ?? {}) }));
+export const HAPPENINGS: Happening[] = (rawEvents as unknown as { events: Happening[] }).events.map((event) => ({ ...event, ...(V3.legacy[event.id] ?? {}), phase: retier(event.phase), situation: retier(event.situation) }));
 
 /** Efeito da planilha nova → efeito do jogo (forma, Mental, reputação, química, cansaço, fãs, caixa). */
 const V3_EFFECT: Record<string, HappeningEffect> = { form: 'performance', mind: 'mind', reputation: 'reputation', chemistry: 'chemistry', fatigue: 'fatigue', fame: 'fame', money: 'money' };
 
 /** Os 200 novos. Quem depende de fato de round que o motor não guarda fica de fora (e aparece no relatório). */
 export const HAPPENINGS_V3: Happening[] = V3.events.filter((event) => !isUnsupported(event.conditions)).map((event) => ({
-  id: event.id, phase: event.phase, tierMin: event.tierMin, situation: event.situation, weight: event.weight, cooldown: 8,
+  id: event.id, phase: retier(event.phase), tierMin: event.tierMin, situation: retier(event.situation), weight: event.weight, cooldown: 8,
   // O momento da planilha (em série/antes da partida, pós-partida); sem momento, vale depois do jogo ou na semana.
   trigger: event.conditions.some((clause) => clause === 'em_serie' || clause === 'antes_da_partida') ? 'pre' as const : event.conditions.includes('pos_partida') ? 'post' as const : 'between' as const,
   severity: event.severity, cooldownMonths: event.cooldownMonths, yearLimit: event.yearLimit, unique: event.unique, arc: event.arc, conditions: event.conditions,

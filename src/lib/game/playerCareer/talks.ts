@@ -126,7 +126,7 @@ function seasonGoal(state: PlayerCareerState): string {
   const last = state.history[state.history.length - 1];
   const titles = last ? last.tournaments.filter((entry) => entry.placement === 'Campeão').length : 0;
   if (level <= 1) return titles >= 3 ? 'Ano passado foi grande. A meta é repetir: brigar por todo título.' : 'A meta é chegar nos playoffs dos grandes e brigar pelo Major.';
-  if (level === 2) return 'A meta é ganhar campeonato de Tier A e chamar a atenção de quem está em cima.';
+  if (level === 2) return 'A meta é ganhar campeonato de Tier B e chamar a atenção de quem está em cima.';
   if (level === 3) return 'A meta é subir: ganhar os regionais e entrar nas classificatórias grandes.';
   return 'A meta é simples: jogar todo campeonato que der e ser visto.';
 }

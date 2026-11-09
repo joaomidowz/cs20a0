@@ -11,6 +11,7 @@ import { applyEffects, type AgendaChip, type AgendaEffects } from './agenda';
 import { careerCtx, conditionsHold, isUnsupported } from './conditions';
 import { lifeOf, withFlags, type CareerLife } from './life';
 import type { HappeningRecord } from './happenings';
+import { retier } from './tiers';
 
 export interface DilemmaOption { key: 'A' | 'B' | 'C'; text: string; effects: AgendaEffects }
 export interface Dilemma { id: string; title: string; condition: string[]; cooldownWeeks: number; options: DilemmaOption[] }
@@ -24,7 +25,7 @@ const TITLE_FIX: Record<string, string> = { 'dilema-008': 'Eliminação dura' };
 
 export const DILEMMAS: Dilemma[] = RAW.map((dilemma) => ({
   ...dilemma,
-  title: TITLE_FIX[dilemma.id] ?? dilemma.title,
+  title: retier(TITLE_FIX[dilemma.id] ?? dilemma.title),
   condition: [...dilemma.condition, ...(EXTRA_CONDITIONS[dilemma.id] ?? [])]
 })).filter((dilemma) => !isUnsupported(dilemma.condition));
 export const UNSUPPORTED_DILEMMAS = RAW.filter((dilemma) => isUnsupported([...dilemma.condition, ...(EXTRA_CONDITIONS[dilemma.id] ?? [])])).map((dilemma) => dilemma.id);

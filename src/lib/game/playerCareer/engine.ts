@@ -46,12 +46,12 @@ export const ARCHETYPES: Record<PlayerArchetype, ArchetypeMeta> = {
   },
   solido: {
     label: 'Player sólido',
-    blurb: 'Carreira estável no circuito. Chegar ao tier 1 é raro.',
+    blurb: 'Carreira estável no circuito. Chegar ao Tier S é raro.',
     entryAge: [17, 18], startOverall: [64, 69], potential: [70, 82], devRate: [0.9, 1.05]
   },
   tardio: {
     label: 'Estreia tardia',
-    blurb: 'Chega mais velho e pronto. Janela curta: sobe logo ou fica no challenger.',
+    blurb: 'Chega mais velho e pronto. Janela curta: sobe logo ou fica no Tier B.',
     entryAge: [19, 20], startOverall: [68, 73], potential: [76, 90], devRate: [1.0, 1.15]
   }
 };
@@ -1038,7 +1038,7 @@ export function retire(state: PlayerCareerState, options: { coach?: boolean } = 
   const bestOverall = Math.max(state.overall, ...state.history.map((log) => log.overallAfter));
   const career = topLog && topLog.orgLevel <= 1
     ? 'Do lan house ao Major: carreira de filme.'
-    : topLog && topLog.orgLevel <= 2 ? 'Chegou ao tier 2 e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no circuito challenger.' : 'Guerreiro do circuito. O bairro se lembra.';
+    : topLog && topLog.orgLevel <= 2 ? 'Chegou ao Tier A e deixou nome.' : topLog && topLog.orgLevel <= 3 ? 'Carreira sólida no Tier B.' : 'Guerreiro do circuito. O bairro se lembra.';
   const line = options.coach ? `Aos ${state.age}, pendurou o mouse e virou coach. ${career}` : career;
   return {
     ...state,
