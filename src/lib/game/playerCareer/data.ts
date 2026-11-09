@@ -379,10 +379,72 @@ export function orgNation(roster: SceneRosterMember[]): string | null {
   return country && count >= 3 ? country : null;
 }
 
-/** Faz sentido o jogador desse país ir para esse time? Time nacional só leva do próprio país; misto aceita todos. */
+/** Faz sentido o jogador desse país ir para esse time? Time nacional só leva do próprio país (sem país conhecido não
+ *  passa); misto aceita todos. */
 export function nationFits(roster: SceneRosterMember[], country: string | null | undefined): boolean {
   const nation = orgNation(roster);
-  return !nation || !country || nation === country;
+  return !nation || nation === country;
+}
+
+/** Quantos do país (ou da América do Sul) um time com identidade mantém no elenco. */
+export const IDENTITY_CORE = 3;
+
+/** A cara do time, tirada do elenco de partida (temporada 1). */
+export interface OrgIdentity {
+  /** País de 3+ jogadores do elenco de partida (FURIA e paiN brasileiras, MongolZ mongol). */
+  nation: string | null;
+  /** Time da região SA: mantém sul-americanos, brasileiros ou não. */
+  southAmerican: boolean;
+}
+
+const isSouthAmerican = (country: string | null | undefined): boolean => Boolean(country) && regionOf(country) === 'sa';
+
+const identities = new Map<string, OrgIdentity>();
+/** A identidade do time pelo elenco de partida (o de sceneOrgs, com os países do arquivo de identidades). */
+export function orgIdentity(orgId: string): OrgIdentity {
+  const org = sceneOrgById.get(orgId);
+  if (!org) return { nation: null, southAmerican: false };
+  const cached = identities.get(org.id);
+  if (cached) return cached;
+  const identity: OrgIdentity = { nation: orgNation(org.roster), southAmerican: org.region === 'sa' };
+  identities.set(org.id, identity);
+  return identity;
+}
+
+/** Quantos do elenco contam para a identidade. Jogador sem país conhecido não conta para nada. */
+export function identityCounts(identity: OrgIdentity, roster: SceneRosterMember[]): { nation: number; southAmerican: number } {
+  let nation = 0;
+  let southAmerican = 0;
+  for (const member of roster) {
+    if (identity.nation && member.country === identity.nation) nation += 1;
+    if (isSouthAmerican(member.country)) southAmerican += 1;
+  }
+  return { nation, southAmerican };
+}
+
+/**
+ * O time continua com a cara dele depois da mudança? Conta o elenco DEPOIS da troca (nunca "o elenco menos quem
+ * sai"): pelo menos 3 do país do núcleo e, na região SA, pelo menos 3 sul-americanos. Time que já estava abaixo de
+ * 3 (elenco de partida sem país conhecido) não pode cair mais.
+ */
+export function keepsIdentity(orgId: string, before: SceneRosterMember[], after: SceneRosterMember[]): boolean {
+  const identity = orgIdentity(orgId);
+  if (!identity.nation && !identity.southAmerican) return true;
+  const was = identityCounts(identity, before);
+  const now = identityCounts(identity, after);
+  const holds = (key: 'nation' | 'southAmerican') => now[key] >= Math.min(IDENTITY_CORE, was[key]);
+  return (!identity.nation || holds('nation')) && (!identity.southAmerican || holds('southAmerican'));
+}
+
+/** O país de quem sobe da base para o time: o do núcleo nacional; num time sul-americano sem núcleo, um
+ *  sul-americano (o mais comum do elenco, ou Brasil); no resto, o país sugerido. */
+export function coreCountryOf(orgId: string, roster: SceneRosterMember[], fallback: string | null): string | null {
+  const identity = orgIdentity(orgId);
+  if (identity.nation) return identity.nation;
+  if (!identity.southAmerican || isSouthAmerican(fallback)) return fallback;
+  const counts = new Map<string, number>();
+  for (const member of roster) if (member.country && isSouthAmerican(member.country)) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? 'Brazil';
 }
 
 export function memberCatalogOverall(member: SceneRosterMember): number | null {
