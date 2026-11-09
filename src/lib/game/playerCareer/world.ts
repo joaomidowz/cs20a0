@@ -8,7 +8,7 @@ import rawProspects from '$lib/data/cs/career-prospects.game.json';
 import { applyAging } from '../career/aging';
 import { createSeededRng } from '../simulation';
 import { regionOf } from './calendar';
-import { announcedRetirementYear, calibration, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgNation, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
+import { announcedRetirementYear, calibration, coreCountryOf, keepsIdentity, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
 
 export interface SceneTransfer {
   season: number;
@@ -113,10 +113,18 @@ export const npcRetireChance = (age: number): number => (age >= 38 ? 1 : age >= 
 
 const SYLLABLES = ['ka', 'zo', 'ri', 'vex', 'lu', 'dra', 'ny', 'xo', 'ten', 'mi', 'zer', 'ko', 'sa', 'fy', 'ru', 'ghost', 'nik', 'lo', 'bru', 'tz'];
 
-/** Jovem da base que sobe para fechar o elenco (nick gerado; jogador fictício do mundo da carreira). */
-function prospect(rng: () => number, country: string | null, role: string | null, year: number, level: number, dev: Map<string, MemberDev>): SceneRosterMember {
+const rollNick = (rng: () => number) => {
   const parts = 2 + Math.floor(rng() * 2);
-  const nick = Array.from({ length: parts }, () => SYLLABLES[Math.floor(rng() * SYLLABLES.length)]).join('') + (rng() < 0.3 ? String(Math.floor(rng() * 9) + 1) : '');
+  return Array.from({ length: parts }, () => SYLLABLES[Math.floor(rng() * SYLLABLES.length)]).join('') + (rng() < 0.3 ? String(Math.floor(rng() * 9) + 1) : '');
+};
+
+/** Jovem da base que sobe para fechar o elenco (nick gerado; jogador fictício do mundo da carreira). O nick nunca
+ *  repete o de alguém em `taken` (todos os elencos da virada): a busca e as vagas acham o jogador pelo nick. */
+function prospect(rng: () => number, country: string | null, role: string | null, year: number, level: number, dev: Map<string, MemberDev>, taken: Set<string>): SceneRosterMember {
+  let nick = rollNick(rng);
+  for (let tries = 0; tries < 8 && taken.has(nick.toLowerCase()); tries += 1) nick = rollNick(rng);
+  while (taken.has(nick.toLowerCase())) nick += String(Math.floor(rng() * 9) + 1);
+  taken.add(nick.toLowerCase());
   const member: SceneRosterMember = { nick, country, birthDate: `${year - 18}-06-01`, roles: role ? [role] : [], catalogBaseId: null, prospect: true };
   // Começa abaixo da faixa do time que o subiu; o teto é sorteado (pode estourar ou travar).
   const overall = Math.max(45, (ORG_BASE_POWER[Math.min(4, level)] ?? 66) - 4 - Math.round(rng() * 6));
@@ -136,6 +144,12 @@ function remember(key: string, world: WorldSeason) {
 }
 
 const strength = (member: SceneRosterMember, org: SceneOrg) => member.overall ?? memberCatalogOverall(member) ?? org.power ?? 70;
+
+/** O elenco com `incoming` no lugar de `out` (a mesma posição): é este elenco que a regra de identidade conta. */
+const swapIn = (roster: SceneRosterMember[], out: SceneRosterMember, incoming: SceneRosterMember) => roster.map((member) => (member === out ? incoming : member));
+
+/** Os nicks de todos os elencos (minúsculos), para o jovem gerado não repetir ninguém. */
+const nicksOf = (rosters: Map<string, SceneRosterMember[]>) => new Set([...rosters.values()].flatMap((roster) => roster.map((member) => member.nick.toLowerCase())));
 
 /** O mundo da temporada 1: a cena coletada, com o teto oculto de cada um sorteado pela seed da carreira. */
 function baseWorld(seed: string): WorldSeason {
@@ -211,11 +225,11 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   // 0) Todo mundo fica um ano mais velho (cresce ou cai) antes do mercado.
   const dev = ageWorld(seed, season, rosters, previous.dev);
   for (const [id, roster] of withOverall(rosters, dev)) rosters.set(id, roster);
-  // 1) Aposentadorias: veterano sai; entra o melhor da mesma função de um time de baixo (mesmo país, se o time
-  //    for nacional), e esse time sobe um jovem da base.
+  const taken = nicksOf(rosters);
+  // 1) Aposentadorias: veterano sai; entra o melhor da mesma função de um time de baixo (só se o time mantém a
+  //    identidade com ele dentro), e esse time sobe um jovem da base do país do núcleo dele.
   for (const org of sceneOrgs) {
-    const roster = rosters.get(org.id) ?? [];
-    for (const member of [...roster]) {
+    for (const member of [...(rosters.get(org.id) ?? [])]) {
       const born = memberBirthYear(member);
       if (born === null) continue;
       const age = year - born;
@@ -223,6 +237,8 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
       const announced = announcedRetirementYear(member);
       const chance = announced !== null && year >= announced ? Math.max(ANNOUNCED_RETIRE_CHANCE, npcRetireChance(age)) : npcRetireChance(age);
       if (rng() >= chance) continue;
+      // O elenco de agora (pode já ter quem entrou no lugar de outro veterano nesta virada).
+      const roster = rosters.get(org.id) ?? [];
       const role = memberRoles(member)[0] ?? null;
       const donors = sceneOrgs.filter((candidate) => candidate.level === org.level + 1 || candidate.level === org.level + 2);
       let replacement: SceneRosterMember | null = null;
@@ -230,13 +246,13 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
         const donor = donors[Math.floor(rng() * donors.length)];
         if (!donor) break;
         const donorRoster = rosters.get(donor.id) ?? [];
-        const candidate = donorRoster.find((other) => (role ? memberRoles(other)[0] === role : true) && nationFits(roster.filter((m) => m !== member), other.country) && !roster.includes(other));
+        const candidate = donorRoster.find((other) => (role ? memberRoles(other)[0] === role : true) && !roster.includes(other) && keepsIdentity(org.id, roster, swapIn(roster, member, other)));
         if (!candidate) continue;
         replacement = candidate;
-        rosters.set(donor.id, donorRoster.map((other) => (other === candidate ? prospect(rng, orgNation(donorRoster) ?? candidate.country, role, year, donor.level, dev) : other)));
+        rosters.set(donor.id, swapIn(donorRoster, candidate, prospect(rng, coreCountryOf(donor.id, donorRoster, candidate.country), role, year, donor.level, dev, taken)));
       }
-      replacement ??= prospect(rng, orgNation(roster) ?? member.country, role, year, org.level, dev);
-      rosters.set(org.id, (rosters.get(org.id) ?? roster).map((other) => (other === member ? replacement! : other)));
+      replacement ??= prospect(rng, coreCountryOf(org.id, roster, member.country), role, year, org.level, dev, taken);
+      rosters.set(org.id, swapIn(roster, member, replacement));
       retirements.push({ season, nick: memberNick(member), orgName: org.name, age, replacement: memberNick(replacement) });
     }
   }
@@ -257,15 +273,17 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
     const toRoster = rosters.get(to.id) ?? [];
     const partner = toRoster.find((member) => !moved.has(member.nick) && (role ? memberRoles(member)[0] === role : !memberRoles(member).length));
     if (!partner) continue;
-    // Time nacional só contrata do próprio país (MongolZ com mongóis, TYLOO com chineses); misto aceita todos.
-    if (!nationFits(toRoster.filter((member) => member !== partner), player.country) || !nationFits(fromRoster.filter((member) => member !== player), partner.country)) continue;
+    // Os dois times mantêm a identidade contando o elenco DEPOIS da troca (3+ do país do núcleo, 3+ sul-americanos).
+    const toAfter = swapIn(toRoster, partner, player);
+    const fromAfter = swapIn(fromRoster, player, partner);
+    if (!keepsIdentity(to.id, toRoster, toAfter) || !keepsIdentity(from.id, fromRoster, fromAfter)) continue;
     // A coleta já lista alguns jogadores em dois elencos (trocas de 2026): nunca cria duplicata nova.
     if (toRoster.some((member) => member.nick === player.nick) || fromRoster.some((member) => member.nick === partner.nick)) continue;
     // Subir de nível exige ser o melhor dos dois; senão a troca não sai.
     if (to.level < from.level && strength(player, from) < strength(partner, to)) continue;
     if (from.level < to.level && strength(partner, to) < strength(player, from)) continue;
-    rosters.set(from.id, fromRoster.map((member) => (member === player ? partner : member)));
-    rosters.set(to.id, toRoster.map((member) => (member === partner ? player : member)));
+    rosters.set(from.id, fromAfter);
+    rosters.set(to.id, toAfter);
     moved.add(player.nick);
     moved.add(partner.nick);
     transfers.push({ season, nick: memberNick(player), fromId: from.id, fromName: from.name, toId: to.id, toName: to.name, swappedNick: memberNick(partner) });
@@ -293,23 +311,35 @@ function placeProspects(seed: string, season: number, rosters: Map<string, Scene
       }));
       continue;
     }
-    const reference = kid.referenceTeam ? sceneOrgs.find((org) => org.name.toLowerCase() === kid.referenceTeam!.toLowerCase() && org.level >= 3) : undefined;
-    const regions = PROSPECT_REGION[kid.region] ?? ['eu'];
-    const pool = sceneOrgs.filter((org) => org.level >= 3 && org.level <= 4 && regions.includes(regionOf(org.country)) && nationFits(rosters.get(org.id) ?? [], kid.country));
-    const org = reference ?? pool[Math.floor(rng() * pool.length)];
-    if (!org) continue;
-    const roster = rosters.get(org.id) ?? [];
-    const sameRole = roster.filter((member) => memberRoles(member)[0] === kid.role);
-    const options = (sameRole.length ? sameRole : roster).filter((member) => !member.hltv);
-    const out = [...options].sort((a, b) => (a.overall ?? memberCatalogOverall(a) ?? 0) - (b.overall ?? memberCatalogOverall(b) ?? 0))[0];
-    if (!out) continue;
     const age = kid.age + (year - 2026);
     const member: SceneRosterMember = { nick: kid.nick, country: kid.country, birthDate: `${year - age}-03-01`, roles: [kid.role], catalogBaseId: null, prospect: true, hltv: kid.hltv };
+    // Sai o mais fraco da função cujo lugar a promessa pode ocupar sem o time perder a identidade.
+    const outIn = (org: SceneOrg): SceneRosterMember | undefined => {
+      const roster = rosters.get(org.id) ?? [];
+      const sameRole = roster.filter((other) => memberRoles(other)[0] === kid.role);
+      const options = (sameRole.length ? sameRole : roster).filter((other) => !other.hltv);
+      return [...options]
+        .sort((a, b) => (a.overall ?? memberCatalogOverall(a) ?? 0) - (b.overall ?? memberCatalogOverall(b) ?? 0))
+        .find((other) => keepsIdentity(org.id, roster, swapIn(roster, other, member)));
+    };
+    const reference = kid.referenceTeam ? sceneOrgs.find((org) => org.name.toLowerCase() === kid.referenceTeam!.toLowerCase() && org.level >= 3) : undefined;
+    const regions = PROSPECT_REGION[kid.region] ?? ['eu'];
+    const pool = sceneOrgs.filter((org) => org.level >= 3 && org.level <= 4 && regions.includes(regionOf(org.country)));
+    // O time de referência real primeiro; senão um sorteado da região e, se ele não pode, o próximo da lista.
+    let org = reference && outIn(reference) ? reference : undefined;
+    if (!org && pool.length) {
+      const start = Math.floor(rng() * pool.length);
+      org = pool.map((_, index) => pool[(start + index) % pool.length]).find((candidate) => outIn(candidate) !== undefined);
+    }
+    if (!org) continue;
+    const roster = rosters.get(org.id) ?? [];
+    const out = outIn(org);
+    if (!out) continue;
     // O teto sai da faixa do olheiro: nesta carreira ele pode virar estrela, ou parar no meio do caminho.
     const [low, high] = kid.potentialRange;
     const potential = low + Math.round(rng() * (high - low));
     dev.set(memberKey(member), { overall: kid.overall, potential, rate: kid.developmentRate });
-    rosters.set(org.id, roster.map((other) => (other === out ? { ...member, overall: kid.overall } : other)));
+    rosters.set(org.id, swapIn(roster, out, { ...member, overall: kid.overall }));
     debuts.push({ season, nick: kid.nick, orgId: org.id, orgName: org.name, age, overall: kid.overall });
   }
 }
@@ -341,10 +371,12 @@ function promoteRisers(rng: () => number, rosters: Map<string, SceneRosterMember
       const toRoster = rosters.get(to.id) ?? [];
       const weakest = toRoster.filter((other) => memberRoles(other)[0] === role).sort((a, b) => strength(a, to) - strength(b, to))[0];
       if (!weakest || strength(member, org) < strength(weakest, to) + 2) continue;
-      if (!nationFits(toRoster.filter((other) => other !== weakest), member.country) || !nationFits(fromRoster.filter((other) => other !== member), weakest.country)) continue;
+      const toAfter = swapIn(toRoster, weakest, member);
+      const fromAfter = swapIn(fromRoster, member, weakest);
+      if (!keepsIdentity(to.id, toRoster, toAfter) || !keepsIdentity(org.id, fromRoster, fromAfter)) continue;
       if (toRoster.some((other) => other.nick === member.nick) || fromRoster.some((other) => other.nick === weakest.nick)) continue;
-      rosters.set(org.id, fromRoster.map((other) => (other === member ? weakest : other)));
-      rosters.set(to.id, toRoster.map((other) => (other === weakest ? member : other)));
+      rosters.set(org.id, fromAfter);
+      rosters.set(to.id, toAfter);
       transfers.push({ season, nick: memberNick(member), fromId: org.id, fromName: org.name, toId: to.id, toName: to.name, swappedNick: memberNick(weakest) });
       promoted += 1;
       break;

@@ -89,10 +89,10 @@ describe('o mundo envelhece e respeita a nacionalidade', () => {
     expect(headlineRetirements('aging-1', 3).length).toBeGreaterThan(0);
   });
 
-  it('time nacional continua do mesmo país: MongolZ depois de 6 temporadas', async () => {
+  it('time nacional mantém pelo menos 3 do país: MongolZ depois de 6 temporadas', async () => {
     const { rosterIn: roster } = await import('../src/lib/game/playerCareer/world');
     const mongolz = sceneOrgs.find((org) => org.name === 'The MongolZ')!;
-    for (const member of roster('nation-1', 7, mongolz.id)) expect([null, 'Mongolia']).toContain(member.country);
+    expect(roster('nation-1', 7, mongolz.id).filter((member) => member.country === 'Mongolia').length).toBeGreaterThanOrEqual(3);
   });
 
   it('brasileiro não recebe oferta de time nacional de outro país', async () => {

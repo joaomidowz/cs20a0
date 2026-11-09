@@ -3,6 +3,8 @@
 // todos os caminhos de entrada no mundo da carreira.
 import { describe, expect, it } from 'vitest';
 import { coreCountryOf, keepsIdentity, memberCountryIn, nationFits, orgIdentity, orgNation, sceneOrgById, sceneOrgs, type SceneRosterMember } from '../src/lib/game/playerCareer/data';
+import { regionOf } from '../src/lib/game/playerCareer/calendar';
+import { sceneWorld } from '../src/lib/game/playerCareer/world';
 
 const member = (nick: string, country: string | null): SceneRosterMember => ({ nick, country, birthDate: null, roles: [], catalogBaseId: null, prospect: null });
 const swap = (roster: SceneRosterMember[], out: string, incoming: SceneRosterMember) => roster.map((other) => (other.nick === out ? incoming : other));
@@ -65,5 +67,39 @@ describe('regra de identidade', () => {
     expect(coreCountryOf('9z-2026', sceneOrgById.get('9z-2026')!.roster, 'Denmark')).toBe('Argentina');
     expect(coreCountryOf('9z-2026', sceneOrgById.get('9z-2026')!.roster, 'Chile')).toBe('Chile');
     expect(coreCountryOf('vitality-2026', [], 'Denmark')).toBe('Denmark');
+  });
+});
+
+describe('o mundo mantém a identidade dos times', () => {
+  const southAmericans = (roster: SceneRosterMember[]) => roster.filter((other) => other.country && regionOf(other.country) === 'sa').length;
+
+  it('8 carreiras × 10 temporadas: núcleo nacional com 3+ do país e times da região SA com 3+ sul-americanos', () => {
+    const failures: string[] = [];
+    for (let index = 0; index < 8; index += 1) {
+      for (let season = 2; season <= 10; season += 1) {
+        const rosters = sceneWorld(`identity-${index}`, season).rosters;
+        for (const org of sceneOrgs) {
+          const identity = orgIdentity(org.id);
+          const roster = rosters.get(org.id) ?? [];
+          if (identity.nation && roster.filter((other) => other.country === identity.nation).length < 3) failures.push(`${org.name} ${index}/${season}: menos de 3 de ${identity.nation}`);
+          if (identity.southAmerican && southAmericans(roster) < Math.min(3, southAmericans(org.roster))) failures.push(`${org.name} ${index}/${season}: perdeu sul-americanos`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  }, 60000);
+
+  it('pc-sim1: a paiN e a FURIA chegam à temporada 12 com 3+ brasileiros', () => {
+    for (let season = 1; season <= 12; season += 1) {
+      const rosters = sceneWorld('pc-sim1', season).rosters;
+      for (const id of ['pain-2026', 'furia-2026']) expect(rosters.get(id)!.filter((other) => other.country === 'Brazil').length, `${id} ${season}`).toBeGreaterThanOrEqual(3);
+    }
+  }, 60000);
+
+  it('jovem gerado na base nunca repete o nick de alguém do mundo na mesma temporada', () => {
+    for (let season = 2; season <= 10; season += 1) {
+      const nicks = [...sceneWorld('identity-0', season).rosters.values()].flat().filter((other) => other.prospect && !other.catalogBaseId && !other.hltv).map((other) => other.nick.toLowerCase());
+      expect(new Set(nicks).size, `temporada ${season}`).toBe(nicks.length);
+    }
   });
 });
