@@ -238,7 +238,16 @@ export interface SquadPlan {
   swapWindow?: string | null;
 }
 
-export interface SeatTaken { orgId: string; orgName: string; nick: string; viaRole: boolean; /** Temporada em que você tomou a vaga (saves antigos: sem). */ season?: number }
+export interface SeatTaken {
+  orgId: string;
+  orgName: string;
+  nick: string;
+  viaRole: boolean;
+  /** Temporada em que você tomou a vaga (saves antigos: sem). */
+  season?: number;
+  /** Função com que você tomou a vaga (saves antigos: sem). Vaga com função nunca é recalculada ao carregar. */
+  role?: PlayerRole;
+}
 
 export interface StartingOption {
   orgId: string; // 'lan-house' ou id real da cena
@@ -405,7 +414,7 @@ export function seatToTake(org: SceneOrg, role: PlayerRole): SeatTaken {
   const byRole = org.roster.find((member) => memberRoles(member)[0] === role) ?? org.roster.find((member) => memberRoles(member).includes(role));
   const generic = org.roster.find((member) => !memberRoles(member).length);
   const chosen = byRole ?? generic ?? org.roster[0];
-  return { orgId: org.id, orgName: org.name, nick: chosen ? memberNick(chosen) : 'a definir', viaRole: Boolean(byRole) };
+  return { orgId: org.id, orgName: org.name, nick: chosen ? memberNick(chosen) : 'a definir', viaRole: Boolean(byRole), role };
 }
 
 /** Sorteio inicial: 3 orgs reais do nível CCT/GC (preferindo o país do jogador) + a opção Lan House. */

@@ -17,7 +17,7 @@ import { mindBump } from './life';
 import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
-import { orgOf, seatToTake, type BenchPlayer, type PlayerCareerState, type PlayerRole, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, seatToTake, type BenchPlayer, type PlayerCareerState, type PlayerRole, type SeatTaken, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -26,20 +26,24 @@ export const TRAIN_CAP = 6;
 /** A cada 3 treinos o overall senta +1 — se ainda estiver abaixo do teto da carreira. */
 const OVERALL_EVERY = 3;
 
-/** Saves de antes da função vir do catálogo: a vaga do time atual é recalculada (ex.: AWPer na Vitality toma a
- *  vaga do ZywOo, não a do apEX). As vagas de times antigos ficam como estavam. */
-function fixCurrentSeat(state: PlayerCareerState) {
+/** Saves de antes da função vir do catálogo: a vaga do time atual é recalculada UMA vez (ex.: AWPer na Vitality toma
+ *  a vaga do ZywOo, não a do apEX) e ganha a função, a mesma temporada e o carimbo. Vaga com função (saves de agora
+ *  e as já corrigidas) nunca é refeita: trocar de função não muda quem cedeu a vaga para você. */
+function fixCurrentSeat(state: PlayerCareerState): SeatTaken[] {
   const seats = state.seatsTaken ?? [];
   const org = sceneOrgById.get(state.orgId);
-  let index = -1;
-  seats.forEach((seat, position) => { if (seat.orgId === state.orgId) index = position; });
-  if (!org || index < 0) return seats;
-  // Só corrige vaga claramente errada: o jogador guardado tem função conhecida e não é a sua (apEX ≠ AWPer).
-  const stored = org.roster.find((member) => member.nick.toLowerCase() === seats[index].nick.toLowerCase());
+  const index = seats.map((seat) => seat.orgId).lastIndexOf(state.orgId);
+  if (!org || index < 0 || seats[index].role) return seats;
+  const seat = seats[index];
+  const stored = org.roster.find((member) => member.nick.toLowerCase() === seat.nick.toLowerCase());
   const roles = stored ? memberRoles(stored) : [];
-  if (!stored || !roles.length || roles.includes(state.role)) return seats;
-  const fixed = seatToTake(org, state.role);
-  return fixed.nick === seats[index].nick ? seats : seats.map((seat, position) => (position === index ? fixed : seat));
+  // Só corrige vaga claramente errada: o jogador guardado tem função conhecida que não é a sua (apEX ≠ AWPer) e você
+  // nunca trocou de função. Senão só carimba a função de quem cedeu a vaga (ou a sua).
+  const wrong = Boolean(stored) && roles.length > 0 && !roles.includes(state.role) && !state.roleChange;
+  const fixed: SeatTaken = wrong
+    ? { ...seatToTake(org, state.role), ...(seat.season !== undefined ? { season: seat.season } : {}) }
+    : { ...seat, role: roles.includes(state.role) || !roles.length ? state.role : roles[0] };
+  return seats.map((other, position) => (position === index ? fixed : other));
 }
 
 /** Saves antigos ganham os campos do elenco com default; nunca recria o que já existe. */
