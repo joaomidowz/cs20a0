@@ -105,3 +105,11 @@ describe('símbolos de títulos e MVPs na carta de 128px do celular', () => {
     expect(source('src/lib/components/CareerHonors.svelte')).toContain('.honors { display: inline-flex; flex: none; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 3px 6px; box-sizing: border-box; max-width: 100%;');
   });
 });
+
+describe('ranking de jogadores da tela Mundo no celular', () => {
+  it('o nick não some atrás dos símbolos: a linha respira menos e os símbolos descem quando não cabem', () => {
+    const top = source('src/lib/components/CareerHltvTop.svelte');
+    expect(top).toContain('.who-top { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }');
+    expect(top).toContain('    .hltv-list li { grid-template-columns: 24px auto minmax(0, 1fr) 60px; gap: 6px; padding: 6px 4px; }');
+  });
+});

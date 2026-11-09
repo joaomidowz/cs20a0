@@ -97,7 +97,7 @@
   .podium .rank { color: var(--text); }
   .first .rank { color: var(--gold, #d9a441); font-size: 22px; }
   .who { display: grid; gap: 2px; min-width: 0; }
-  .who-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .who-top { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
   .who-top b { min-width: 0; }
   .who b { overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .you .who b { color: var(--accent); }
@@ -117,5 +117,10 @@
   .compact .hltv-head h3 { font-size: 22px; }
   @media (max-width: 760px) {
     .hltv-list { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-template-rows: none; }
+  }
+  /* Celular: menos respiro na linha para sobrar espaço ao nick (a 320px a coluna do nome tinha ~50px). */
+  @media (max-width: 520px) {
+    .hltv { padding: 12px; }
+    .hltv-list li { grid-template-columns: 24px auto minmax(0, 1fr) 60px; gap: 6px; padding: 6px 4px; }
   }
 </style>
