@@ -2972,7 +2972,7 @@
   label { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
   input, select { min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 0; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 500 15px/1.2 var(--body); }
   .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 0 0; }
-  .nick-row { display: flex; align-items: center; gap: 12px; }
+  .nick-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .nick-row input { flex: 1; min-width: 0; }
   .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; }
   .choice { position: relative; display: grid; gap: 4px; min-width: 0; text-align: left; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .16s ease; }

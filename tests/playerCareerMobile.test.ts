@@ -113,3 +113,9 @@ describe('ranking de jogadores da tela Mundo no celular', () => {
     expect(top).toContain('    .hltv-list li { grid-template-columns: 24px auto minmax(0, 1fr) 60px; gap: 6px; padding: 6px 4px; }');
   });
 });
+
+describe('tela inicial em 320px', () => {
+  it('a linha do nick (campo e "Sortear") não alarga o rótulo além da coluna', () => {
+    expect(source(PAGE)).toContain('.nick-row { display: flex; align-items: center; gap: 12px; min-width: 0; }');
+  });
+});
