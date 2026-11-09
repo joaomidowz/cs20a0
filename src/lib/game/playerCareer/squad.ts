@@ -46,9 +46,9 @@ function fixCurrentSeat(state: PlayerCareerState): SeatTaken[] {
   return seats.map((other, position) => (position === index ? fixed : other));
 }
 
-/** Saves antigos ganham os campos do elenco com default; nunca recria o que já existe. */
+/** Saves antigos ganham os campos do elenco com default e os membros da carreira; nunca recria o que já existe. */
 export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
-  return {
+  return migrateMembers({
     ...state,
     seatsTaken: fixCurrentSeat(state),
     relationships: state.relationships ?? {},
@@ -60,6 +60,81 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     form: state.form ?? 0,
     fame: state.fame ?? 0,
     fatigue: state.fatigue ?? 0
+  });
+}
+
+/**
+ * Saves de antes dos membros da carreira: quem entrou no lugar de alguém (squadPlan.lineup) e o substituto de quem
+ * saiu a seu pedido (kickedMates) viram membros do time, na posição de quem eles substituíram (procurada da temporada
+ * atual para trás, então quem já tinha sumido porque o jogador do mundo trocou de time volta). Roda uma vez.
+ */
+function migrateMembers(state: PlayerCareerState): PlayerCareerState {
+  if (state.careerMembers) return state;
+  const season = state.seasonNumber;
+  const members: CareerMember[] = [];
+  const relationships = { ...state.relationships };
+  const put = (member: CareerMember) => {
+    const at = members.findIndex((other) => other.orgId === member.orgId && other.slot === member.slot);
+    if (at >= 0) members.splice(at, 1);
+    members.push(member);
+  };
+  // 1) Substitutos de quem saiu a seu pedido: o overall que a carta mostrava (nível do time, com a variação).
+  for (const [orgId, entries] of Object.entries(state.kickedMates ?? {})) {
+    const org = orgIn(state.seed, season, orgId);
+    if (!org) continue;
+    const players = sceneOrgEnginePlayers(org, `${state.seed}:season:${season}`);
+    for (const entry of entries) {
+      const slot = slotOfNick(state.seed, season, org.id, entry.nick);
+      if (slot < 0) continue;
+      const leaving = players.find((player) => (player.nickname ?? '').toLowerCase() === entry.nick.toLowerCase());
+      const overall = leaving ? replacementOverall(Number(leaving.overall ?? 70), teamFloor(players, leaving), entry.delta) : ORG_BASE_POWER[org.level] ?? 66;
+      const oldId = `${orgId}:sub:${entry.replacement}`;
+      if (typeof relationships[oldId] === 'number') relationships[memberIdOf(orgId, entry.replacement)] = relationships[oldId];
+      put({ nick: entry.replacement, role: (leaving?.role ?? 'support') as PlayerRole, overall, potential: overall, born: fallbackBorn(state.seed, entry.replacement), country: usualCountryOf(org.roster, state.country), orgId, slot, since: season });
+    }
+  }
+  // 2) Quem entrou no lugar de quem no plano do time.
+  const plan = state.squadPlan;
+  if (plan && Object.keys(plan.lineup ?? {}).length) {
+    const inWorld = (nick: string) => slotOfNick(state.seed, season, plan.orgId, nick) >= 0 || worldOrgOfNick(state.seed, season, nick) !== null;
+    const bySlot = new Map<number, BenchPlayer>();
+    for (const [key, player] of Object.entries(plan.lineup)) {
+      const slot = slotOfNick(state.seed, season, plan.orgId, key);
+      if (slot >= 0) bySlot.set(slot, player);
+    }
+    // Titular do mundo que voltou do banco para a vaga de outro: ele volta para a posição dele, e o gerado que cobria
+    // essa posição fica com a vaga em que ele estava.
+    for (const [slot, player] of [...bySlot]) {
+      if (!inWorld(player.nick)) continue;
+      bySlot.delete(slot);
+      const home = slotOfNick(state.seed, season, plan.orgId, player.nick);
+      const cover = bySlot.get(home);
+      if (home !== slot && cover && !inWorld(cover.nick)) {
+        bySlot.delete(home);
+        bySlot.set(slot, cover);
+      }
+    }
+    for (const [slot, player] of bySlot) put({ ...benchOf(player), orgId: plan.orgId, slot, since: season });
+  }
+  // 3) Ninguém fica na posição da sua vaga (save com a vaga refeita por um bug antigo): vai para uma posição livre,
+  //    de preferência a da função que você jogava antes de trocar.
+  const seat = [...state.seatsTaken].reverse().find((taken) => taken.orgId === state.orgId);
+  const seatSlot = seat ? slotOfNick(state.seed, season, state.orgId, seat.nick) : -1;
+  const clash = members.find((member) => member.orgId === state.orgId && member.slot === seatSlot);
+  if (clash) {
+    const roster = worldRosterIn(state.seed, season, state.orgId);
+    const used = new Set(members.filter((member) => member.orgId === state.orgId).map((member) => member.slot));
+    const free = roster.map((_, index) => index).filter((index) => index !== seatSlot && !used.has(index));
+    const target = free.find((index) => memberRoles(roster[index])[0] === state.roleChange?.from) ?? free[0];
+    if (target === undefined) members.splice(members.indexOf(clash), 1);
+    else clash.slot = target;
+  }
+  return {
+    ...state,
+    careerMembers: members,
+    relationships,
+    kickedMates: undefined,
+    ...(plan ? { squadPlan: { ...plan, lineup: {} } } : {})
   };
 }
 

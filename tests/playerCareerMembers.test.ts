@@ -3,7 +3,7 @@
 // ficam ao recarregar a página, ao trocar de função, na virada da temporada e no time quando você sai. A sessão e o
 // recarregamento mostram o mesmo elenco.
 import { describe, expect, it } from 'vitest';
-import { acceptOffer, createPlayerCareer, ensureDraw, finishSeason, recordEventResult, seatToTake, startSeason, type CareerMember, type CareerOffer, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { acceptOffer, createPlayerCareer, ensureDraw, finishSeason, recordEventResult, seatToTake, startSeason, type BenchPlayer, type CareerMember, type CareerOffer, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 import { memberRoles, sceneOrgById } from '../src/lib/game/playerCareer/data';
 import { addReserve, changeRole, ensureSquad, kickMate, matesOf, promoteReserve, registerCareerWorld, seatsWithSeason } from '../src/lib/game/playerCareer/squad';
 import { orgPowerIn, registerSeats, rosterIn, sceneWorld, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn, worldRosters } from '../src/lib/game/playerCareer/world';
@@ -163,5 +163,43 @@ describe('membros da carreira', () => {
     expect(squad(live)).toContain(young.nick);
     expect(squad(reload(live))).toEqual(squad(live));
     expect(live.careerMembers!.find((member) => member.nick === young.nick)!.overall).toBeGreaterThan(young.overall);
+  });
+});
+
+describe('saves antigos', () => {
+  const generated = (nick: string): BenchPlayer => ({ nick, role: 'entry', overall: 70, potential: 85, born: 2008, country: 'Brazil' });
+
+  it('reserva promovido (squadPlan.lineup) e substituto (kickedMates) viram membros sem mudar o elenco', () => {
+    const start = atPain('members-old-1');
+    const [first, second] = matesOf(start).map((mate) => mate.player.nickname!);
+    const old: PlayerCareerState = {
+      ...start,
+      relationships: { [`${PAIN}:sub:velho_sub`]: 77 },
+      squadPlan: { orgId: PAIN, lineup: { [first.toLowerCase()]: generated('velho_jovem') }, reserve: null, roles: {} },
+      kickedMates: { [PAIN]: [{ nick: second, replacement: 'velho_sub', delta: 1 }] }
+    };
+    const expected = squad(start).map((nick) => (nick === first ? 'velho_jovem' : nick === second ? 'velho_sub' : nick));
+    const migrated = reload(old);
+    expect(migrated.careerMembers!.map((member) => member.nick).sort()).toEqual(['velho_jovem', 'velho_sub']);
+    expect(migrated.squadPlan!.lineup).toEqual({});
+    expect(squad(migrated)).toEqual(expected);
+    expect(matesOf(migrated).find((mate) => mate.player.nickname === 'velho_sub')!.relationship).toBe(77);
+    expect(reload(migrated).careerMembers).toEqual(migrated.careerMembers);
+  });
+
+  it('save que perdeu o reserva por causa da vaga refeita (bug antigo) volta a mostrar os dois', () => {
+    const pain = sceneOrgById.get(PAIN)!;
+    const igl = seatToTake(pain, 'igl').nick;
+    const entry = seatToTake(pain, 'entry').nick;
+    const damaged: PlayerCareerState = {
+      ...atPain('members-damaged-1'),
+      role: 'igl',
+      roleChange: { from: 'awper', season: 1, outcome: 'good' },
+      seatsTaken: [{ orgId: PAIN, orgName: pain.name, nick: igl, viaRole: true }],
+      squadPlan: { orgId: PAIN, lineup: { [igl.toLowerCase()]: generated('gen_um'), [entry.toLowerCase()]: generated('gen_dois') }, reserve: null, roles: {} }
+    };
+    const fixed = squad(reload(damaged));
+    expect(fixed).toHaveLength(4);
+    expect(fixed).toEqual(expect.arrayContaining(['gen_um', 'gen_dois']));
   });
 });
