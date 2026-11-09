@@ -17,7 +17,8 @@ import {
 import { createSeededRng } from '../src/lib/game/simulation';
 import type { CombatTeam, TeamSide } from '../src/lib/game/types';
 import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, readOf, resolveClutchEdge, situationsFor, type ClutchProfile, type RoundContext } from '../src/lib/game/playerCareer/decisions';
-import { clutchGate, playClutchRound, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
+import { CALL_CARRY_GOOD, clutchGate, playClutchRound, roundContextOf, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
+import { currentCampaignSeries } from '../src/lib/game/campaign-major';
 import { chooseStartingOrg, createPlayerCareer, startSeason } from '../src/lib/game/playerCareer/engine';
 
 const ROLES = ['awper', 'rifler', 'entry', 'support', 'lurker', 'igl'] as const;
@@ -262,5 +263,27 @@ describe('a pausa no evento (série do usuário)', () => {
     }
     expect(campaign.finished).toBe(true);
     expect(clutches).toBeGreaterThanOrEqual(1); // com 7+ mapas BO3 na chave, o close existe
+  });
+
+  it('a leitura certa empurra só o round seguinte, e esse empurrão não é uma call nova', () => {
+    const career = careerAtRealOrg('clutch-follow');
+    let campaign = startSceneEvent(career, 0).campaign;
+    const ctx = ctxOf('awper');
+    let checked = 0;
+    for (let guard = 0; guard < 2000 && !campaign.finished && checked < 3; guard += 1) {
+      const step = stepSceneEvent(campaign, ctx);
+      campaign = step.campaign;
+      if (!step.clutch) continue;
+      ctx.usedSituationIds.push(step.clutch.situation.id);
+      const play = { playerOverall: 78, matesOverall: 72, opponentOverall: 70 };
+      const best = readOf({ ...play, situation: step.clutch.situation, seed: step.clutch.drawSeed, round: roundContextOf(campaign, step.clutch.series) }).best;
+      const outcome = playClutchRound(campaign, step.clutch, { ...play, choice: best });
+      campaign = outcome.campaign;
+      const map = currentCampaignSeries(campaign)?.current;
+      if (outcome.quality !== 'good' || !map || map.index !== step.clutch.mapIndex || map.state.finished) continue;
+      expect(map.state.pendingClutchCall).toMatchObject({ edge: CALL_CARRY_GOOD, followUp: true });
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });

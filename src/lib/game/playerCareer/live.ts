@@ -610,9 +610,10 @@ export function playClutchRound(campaign: CampaignMajorState, moment: SceneClutc
   armClutchCall(live.current.state, userSide, resolve.edge);
   const stepped = stepCampaignSeries(campaign);
   const after = currentCampaignSeries(stepped) ?? live;
-  // A leitura certa embala o time no round seguinte; a errada abala (sem gastar call: só o round que vem).
+  // A leitura certa embala o time no round seguinte; a errada abala (sem gastar call: só o round que vem). Vai marcado
+  // como followUp: não é call, então não dá o embalo do resto do mapa (rounds.ts) uma segunda vez.
   const carry = resolve.quality === 'good' ? CALL_CARRY_GOOD : resolve.quality === 'bad' ? -CALL_CARRY_BAD : 0;
-  if (carry && after.current && after.current.index === moment.mapIndex && !after.current.state.finished && !after.current.state.pendingClutchCall) after.current.state.pendingClutchCall = { side: userSide, edge: carry };
+  if (carry && after.current && after.current.index === moment.mapIndex && !after.current.state.finished && !after.current.state.pendingClutchCall) after.current.state.pendingClutchCall = { side: userSide, edge: carry, followUp: true };
   const detail = after.current ? after.current.state.details.at(-1) : after.maps.at(-1)?.details?.at(-1) ?? null;
   const kills = detail ? detail.kills.filter((kill) => kill.killerSide === userSide && (!play.playerId || kill.killerId === play.playerId)).length : 0;
   return { campaign: stepped, won: detail ? detail.winner === userSide : false, profile: resolve.profile, edge: resolve.edge, coin: resolve.coin, kills, quality: resolve.quality, best: resolve.best, reason: resolve.reason };
