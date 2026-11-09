@@ -533,7 +533,9 @@
     else launchEntry(queued.index, queued.mode);
   }
 
-  function openTrophies() {
+  /** Abre a sala de troféus numa aba escolhida: o Títulos do trilho abre em Títulos, o "Ver Top 20" em Prêmios. */
+  function openTrophies(tab: RoomTab = 'titulos') {
+    roomTab = tab;
     trophiesOpen = true;
     document.body.classList.add('modal-open');
   }
@@ -571,7 +573,8 @@
   ];
   const TROPHY_TIERS: EventTier[] = ['Major', 'S', 'A', 'B', 'C'];
   const ROOM_TABS = [{ key: 'titulos', label: 'Títulos' }, { key: 'premios', label: 'Prêmios e HLTV' }, { key: 'jogadas', label: 'Jogadas' }, { key: 'historia', label: 'Histórico' }] as const;
-  let roomTab: (typeof ROOM_TABS)[number]['key'] = 'titulos';
+  type RoomTab = (typeof ROOM_TABS)[number]['key'];
+  let roomTab: RoomTab = 'titulos';
   const PLAY_LABEL = (play: PlayHighlight) =>
     play.kind === 'ace' ? 'Ace' : play.kind === 'quad' ? '4K' : play.kind === 'clutch' ? `Clutch 1v${play.against ?? 1}` : `${play.kills}K`;
 
@@ -1596,9 +1599,9 @@
               <div class="money" title="Sua parte das premiações e o que os acontecimentos deram ou custaram.">
                 <dt>Caixa</dt><dd>US$ {moneyLabel(career.money ?? 0)}</dd>
               </div>
-              <div class="trophy-fact">
+              <div class="trophy-fact" class:gold={trophies.total > 0}>
                 <dt>Títulos</dt>
-                <dd><button class="trophy-btn" class:gold={trophies.total > 0} on:click={openTrophies} title="Sala de troféus: títulos por tier, MVPs e aces">{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
+                <dd><button class="trophy-btn" on:click={() => openTrophies()} aria-label={`Títulos: ${trophies.total}${trophies.mvps ? `, ${trophies.mvps} MVP` : ''}, abrir sala de troféus`} title="Sala de troféus: títulos por tier, MVPs e aces"><svg class="trophy-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8M10 17h4v3h-4z" /></svg>{trophies.total}{#if trophies.mvps}<small> · {trophies.mvps} MVP</small>{/if}</button></dd>
               </div>
             </dl>
           </div>
@@ -1745,7 +1748,7 @@
                 <div class="note" class:award={lastLog.hltvRank !== null && lastLog.hltvRank !== undefined && lastLog.hltvRank <= 20 || lastLog.rookie?.you}>
                   {#if lastLog.hltvRank}<b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'melhor jogador do mundo' : `#${lastLog.hltvRank} do mundo`}{lastLog.hltvRank > 1 && lastLog.hltvRank <= 20 ? ' · Top 20' : ''}</b>{/if}
                   {#if lastLog.rookie?.you}<span>Rookie of the Year: você, o melhor estreante de Major.</span>{:else if lastLog.rookieEligible && lastLog.rookie}<span>Rookie of the Year ficou com {lastLog.rookie.nick} ({lastLog.rookie.team}).</span>{/if}
-                  <button class="link-btn" on:click={() => { roomTab = 'premios'; openTrophies(); }}>Ver Top 20</button>
+                  <button class="link-btn" on:click={() => openTrophies('premios')}>Ver Top 20</button>
                 </div>
               {/if}
               {#if career.blockedOffers?.length}
@@ -1956,7 +1959,7 @@
               </div>
               <div class="ss-notes">
                 {#if lastLog.hltvRank}
-                  <p class:up-note={lastLog.hltvRank <= 20}><b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'você é o melhor do mundo!' : `#${lastLog.hltvRank} do mundo`}</b>{lastLog.hltvRank <= 20 ? ' Top 20 da temporada.' : ''} <button class="link-btn" on:click={() => { roomTab = 'premios'; openTrophies(); }}>Ver Top 20</button></p>
+                  <p class:up-note={lastLog.hltvRank <= 20}><b>HLTV {lastLog.year}: {lastLog.hltvRank === 1 ? 'você é o melhor do mundo!' : `#${lastLog.hltvRank} do mundo`}</b>{lastLog.hltvRank <= 20 ? ' Top 20 da temporada.' : ''} <button class="link-btn" on:click={() => openTrophies('premios')}>Ver Top 20</button></p>
                 {/if}
                 {#if lastLog.rookie?.you}
                   <p class="up-note"><b>Rookie of the Year {lastLog.year}.</b> O melhor estreante de Major da temporada.</p>
@@ -3121,10 +3124,17 @@
   .report-mvp { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
   .report-mvp.you { color: var(--gold); font-weight: 800; }
   .report-links { display: flex; gap: 10px; margin-left: auto; }
-  .trophy-btn { all: unset; cursor: pointer; font: inherit; color: inherit; border-bottom: 1px dashed var(--line); }
-  .trophy-btn.gold { color: var(--gold); }
+  /* Títulos no trilho: a célula inteira é o botão (área de toque de 44px), com troféu e acento dourado. */
+  .facts .trophy-fact { position: relative; min-height: 44px; border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); background: color-mix(in srgb, var(--gold) 7%, var(--surface-2)); transition: border-color .14s ease, background-color .14s ease; }
+  .facts .trophy-fact:hover, .facts .trophy-fact:focus-within { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--surface-2)); }
+  .fact-rows .facts .trophy-fact dt { color: var(--gold); font-size: 10px; }
+  .trophy-btn { all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; min-width: 0; cursor: pointer; font: inherit; color: inherit; }
+  .trophy-btn::after { content: ''; position: absolute; inset: 0; }
+  .facts .trophy-btn:focus-visible { outline: none; }
+  .facts .trophy-btn:focus-visible::after { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .trophy-ico { flex: none; color: var(--gold); }
+  .trophy-fact.gold dd { color: var(--gold); }
   .trophy-btn small { color: var(--muted); font: 700 12px/1 var(--body); }
-  .trophy-btn:hover { border-bottom-color: currentColor; }
 
   /* Mata-mata do evento jogado: três colunas, a sua série marcada. */
   .bracket { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
