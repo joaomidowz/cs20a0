@@ -8,7 +8,7 @@ import rawProspects from '$lib/data/cs/career-prospects.game.json';
 import { applyAging } from '../career/aging';
 import { createSeededRng } from '../simulation';
 import { regionOf } from './calendar';
-import { announcedRetirementYear, calibration, coreCountryOf, keepsIdentity, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
+import { announcedRetirementYear, calibration, coreCountryOf, keepsIdentity, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
 
 export interface SceneTransfer {
   season: number;
@@ -401,6 +401,7 @@ function seatMove(seed: string, seat: { orgId: string; nick: string; season?: nu
   if (!from || !leaving) return null;
   const role = memberRoles(leaving)[0] ?? null;
   const power = strength(leaving, from);
+  const fromRoster = world.rosters.get(from.id) ?? [];
   const rng = createSeededRng(`${seed}:seat-move:${from.id}:${seat.nick.toLowerCase()}:${season}`);
   for (const level of [from.level, from.level + 1, from.level - 1]) {
     const options = sceneOrgs.flatMap((org) => {
@@ -408,7 +409,9 @@ function seatMove(seed: string, seat: { orgId: string; nick: string; season?: nu
       const roster = world.rosters.get(org.id) ?? [];
       const weakest = roster.filter((member) => (role ? memberRoles(member)[0] === role : true)).sort((a, b) => strength(a, org) - strength(b, org))[0];
       if (!weakest || strength(weakest, org) >= power || roster.some((member) => sameNick(member, seat.nick))) return [];
-      return nationFits(roster.filter((member) => member !== weakest), leaving.country) ? [{ org, weakest }] : [];
+      // Quem vem para o seu time no lugar dele também passa pela regra de identidade (dos dois lados).
+      const fits = keepsIdentity(org.id, roster, swapIn(roster, weakest, leaving)) && keepsIdentity(from.id, fromRoster, swapIn(fromRoster, leaving, weakest));
+      return fits ? [{ org, weakest }] : [];
     });
     if (!options.length) continue;
     const { org, weakest } = options[Math.floor(rng() * options.length)];
@@ -456,8 +459,12 @@ function seatRostersOf(seed: string, season: number): Map<string, SceneRosterMem
     const [toId, toRoster] = coming;
     const player = fromRoster.find((member) => sameNick(member, move.nick))!;
     const standIn = toRoster.find((member) => sameNick(member, move.standIn))!;
-    rosters.set(fromId, fromRoster.map((member) => (member === player ? standIn : member)));
-    rosters.set(toId, toRoster.map((member) => (member === standIn ? player : member)));
+    const fromAfter = swapIn(fromRoster, player, standIn);
+    const toAfter = swapIn(toRoster, standIn, player);
+    // O mundo andou desde a troca: se nesta temporada ela tira a identidade de um dos times, ela não vale.
+    if (!keepsIdentity(fromId, fromRoster, fromAfter) || !keepsIdentity(toId, toRoster, toAfter)) continue;
+    rosters.set(fromId, fromAfter);
+    rosters.set(toId, toAfter);
   }
   bySeason.set(season, rosters);
   return rosters;

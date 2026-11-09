@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { coreCountryOf, keepsIdentity, memberCountryIn, nationFits, orgIdentity, orgNation, sceneOrgById, sceneOrgs, type SceneRosterMember } from '../src/lib/game/playerCareer/data';
 import { regionOf } from '../src/lib/game/playerCareer/calendar';
-import { sceneWorld } from '../src/lib/game/playerCareer/world';
+import { registerSeats, rosterIn, sceneWorld, seatMovesOf } from '../src/lib/game/playerCareer/world';
+import { seatToTake } from '../src/lib/game/playerCareer/engine';
 
 const member = (nick: string, country: string | null): SceneRosterMember => ({ nick, country, birthDate: null, roles: [], catalogBaseId: null, prospect: null });
 const swap = (roster: SceneRosterMember[], out: string, incoming: SceneRosterMember) => roster.map((other) => (other.nick === out ? incoming : other));
@@ -102,4 +103,32 @@ describe('o mundo mantém a identidade dos times', () => {
       expect(new Set(nicks).size, `temporada ${season}`).toBe(nicks.length);
     }
   });
+});
+
+describe('a vaga que você toma respeita a identidade', () => {
+  const count = (roster: SceneRosterMember[], test: (other: SceneRosterMember) => boolean) => roster.filter(test).length;
+  /** O time mantém 3+ (ou, se começou abaixo, o que tinha) do país do núcleo e de sul-americanos. */
+  const identityHolds = (seed: string, season: number, orgId: string) => {
+    const identity = orgIdentity(orgId);
+    const start = sceneOrgById.get(orgId)!.roster;
+    const roster = rosterIn(seed, season, orgId);
+    const national = (other: SceneRosterMember) => other.country === identity.nation;
+    const southAmerican = (other: SceneRosterMember) => Boolean(other.country) && regionOf(other.country) === 'sa';
+    return (!identity.nation || count(roster, national) >= Math.min(3, count(start, national)))
+      && (!identity.southAmerican || count(roster, southAmerican) >= Math.min(3, count(start, southAmerican)));
+  };
+
+  it('quem cede a vaga na FURIA e quem vem no lugar dele não tiram a identidade de nenhum dos dois times', () => {
+    const furia = sceneOrgById.get('furia-2026')!;
+    const failures: string[] = [];
+    for (const role of ['awper', 'igl', 'entry', 'lurker', 'support', 'rifler'] as const) {
+      for (let index = 0; index < 3; index += 1) {
+        const seed = `identity-seat-${role}-${index}`;
+        registerSeats(seed, [{ ...seatToTake(furia, role), season: 1 }]);
+        const touched = new Set([furia.id, ...seatMovesOf(seed).map((move) => move.toId)]);
+        for (const season of [1, 5]) for (const orgId of touched) if (!identityHolds(seed, season, orgId)) failures.push(`${seed} ${season} ${orgId}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  }, 60000);
 });
