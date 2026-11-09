@@ -29,3 +29,20 @@ describe('botão de Títulos (D10)', () => {
     expect(page).not.toContain('border-bottom: 1px dashed var(--line); }');
   });
 });
+
+describe('hub sem corte no celular', () => {
+  it('a linha do último campeonato quebra e o texto encolhe', () => {
+    const page = source(PAGE);
+    expect(page).toContain('.report { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; padding-left: 18px; border-left: 1px solid var(--line); }');
+    expect(page).toContain('.report-copy { display: grid; gap: 4px; min-width: 0; }');
+    expect(lastPhoneBlock(page)).toContain('.report-copy { flex: 1 1 160px; }');
+    expect(lastPhoneBlock(page)).toContain('.report-copy .label { max-width: 100%; }');
+  });
+
+  it('os botões do elenco quebram linha e a faixa do elenco sangra só até a borda do palco', () => {
+    const page = source(PAGE);
+    expect(lastPhoneBlock(page)).toContain('.squad-actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }');
+    expect(lastPhoneBlock(page)).toContain('.squad-actions .bench-btn { flex: 1 1 100%; white-space: normal; }');
+    expect(page).toContain('.squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 128px; gap: 6px; margin-inline: -10px; padding: 0 10px 8px; scroll-padding-inline: 10px; }');
+  });
+});

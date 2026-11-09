@@ -3115,9 +3115,9 @@
   .next h2 { font-size: clamp(26px, 2.3vw, 36px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .next .cta { margin-top: 0; min-height: 48px; font-size: 20px; }
   .next-actions .link-btn { min-height: 28px; }
-  .report { display: flex; align-items: center; gap: 12px; padding-left: 18px; border-left: 1px solid var(--line); }
+  .report { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; padding-left: 18px; border-left: 1px solid var(--line); }
   .report .place-badge { font-size: 18px; }
-  .report-copy { display: grid; gap: 4px; }
+  .report-copy { display: grid; gap: 4px; min-width: 0; }
   .report-copy .label { margin: 0; max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .report-line { font-size: 14px; font-variant-numeric: tabular-nums; }
   .report-line b { color: var(--accent); }
@@ -4012,7 +4012,7 @@
     .next h2 { font-size: 21px; }
     .next .cta { min-height: 40px; font-size: 16px; }
     .calendar { zoom: .86; }
-    .squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 128px; gap: 6px; }
+    .squad-strip { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 128px; gap: 6px; margin-inline: -10px; padding: 0 10px 8px; scroll-padding-inline: 10px; }
     .squad-strip > :global(*) { zoom: .78; }
     .squad-actions .squad-btn { min-height: 30px; padding: 0 8px; font-size: 11px; }
     .week-meter { padding: 2px 6px 2px 4px; }
@@ -4088,5 +4088,11 @@
     .free-train .skills-pick { grid-column: 1 / -1; grid-row: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .evolving { white-space: normal; }
     .wcard b { font-size: 13px; }
+    /* Hub no celular: o último campeonato quebra linha; os botões do elenco descem para a linha de baixo e o do banco
+       ocupa a linha inteira (os dois de ação seguem lado a lado). */
+    .report-copy { flex: 1 1 160px; }
+    .report-copy .label { max-width: 100%; }
+    .squad-actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+    .squad-actions .bench-btn { flex: 1 1 100%; white-space: normal; }
   }
 </style>
