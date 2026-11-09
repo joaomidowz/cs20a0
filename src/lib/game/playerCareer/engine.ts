@@ -213,6 +213,13 @@ export interface SeasonLog {
   ageDecline?: number;
   /** O corpo pediu para parar (risco real de aposentadoria pela idade): só um aviso, a decisão é sua. */
   retireHint?: boolean;
+  /** Overall que o treino somou durante a temporada (já está em overallBefore) e as sessões que contaram. */
+  trainingGain?: number;
+  trainingSessions?: number;
+  /** Teto conquistado no fechamento: o treino passou do teto e a temporada foi sem lesão. */
+  ceilingGain?: number;
+  /** O treino passou do teto, mas a lesão segurou: não virou teto novo nesta temporada. */
+  ceilingBlocked?: boolean;
   /** Trocas de time durante a temporada (cortes, propostas aceitas). */
   moves?: string[];
   /** O seu time subiu ou caiu de tier no fim da temporada. */
@@ -404,8 +411,14 @@ export interface PlayerCareerState {
   trained: TrainedBonus;
   /** Janela (temporada:evento) do último treino — um treino por janela. */
   trainedWindow: string | null;
-  /** Treinos feitos na carreira: a cada 3, overall +1 (se abaixo do teto). */
+  /** Sessões de treino que contaram na carreira (o +1 de overall vem de trainProgress, growth.ts). */
   trainCount: number;
+  /** Teto conquistado: quanto o treino sem lesão já furou o teto do arquétipo (0 a 4, nunca volta). Saves antigos: sem. */
+  ceilingBonus?: number;
+  /** Sessões de treino desde o último +1 de overall (quantas precisa depende da idade, growth.ts). */
+  trainProgress?: number;
+  /** O treino da temporada em curso: sessões que contaram e o overall que elas somaram (vai para o SeasonLog). */
+  seasonTrain?: { season: number; sessions: number; gained: number } | null;
   status: 'ACTIVE' | 'RETIRED';
   verdict: CareerVerdict | null;
 }
