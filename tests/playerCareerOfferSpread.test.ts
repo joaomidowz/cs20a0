@@ -52,6 +52,12 @@ function spreadOf(country: string, en: number, level: number, check?: (state: Pl
   };
 }
 
+/** Quantos times do Tier S (níveis 0 e 1) aceitam o jogador pela régua de idioma da call. */
+function tierSReachable(country: string, en: number): number {
+  const state: PlayerCareerState = { ...createPlayerCareer({ nick: 'spread', country, role: 'rifler', seed: 'spread-gate' }), languages: { en } };
+  return sceneOrgs.filter((org) => org.level <= 1 && languageGate(state, org) === null).length;
+}
+
 /** Mínimo de orgs distintas por nível (o experimento do plano deu 22, 44, 79, 122 e 125 no pior caso). */
 const MIN_ORGS: Record<number, number> = { 0: 15, 1: 32, 2: 60, 3: 90, 4: 100 };
 
@@ -60,7 +66,10 @@ describe('propostas de todas as orgs (D11)', () => {
     it(`${country} com inglês ${en}: muitas orgs por nível e nenhuma passa de 20%`, () => {
       for (const level of [0, 1, 2, 3, 4]) {
         const spread = spreadOf(country, en, level);
-        expect(spread.orgs, `nível ${level}`).toBeGreaterThanOrEqual(MIN_ORGS[level]);
+        // No Tier S, o teto é quem passa na régua de idioma: com o ranking de novembro de 2026 o top 16 tem 5 times de call
+        // em russo e a MongolZ, então um brasileiro com inglês 70 alcança 11 orgs e um dinamarquês 10 (o experimento acha todas).
+        const minimum = level === 0 ? Math.min(MIN_ORGS[0], tierSReachable(country, en)) : MIN_ORGS[level];
+        expect(spread.orgs, `nível ${level}`).toBeGreaterThanOrEqual(minimum);
         expect(spread.top1, `nível ${level}`).toBeLessThanOrEqual(0.2);
         expect(spread.perWindow, `nível ${level}`).toBeGreaterThanOrEqual(2.5);
         if (level === 1 || level === 2) expect(spread.top10, `nível ${level}`).toBeLessThanOrEqual(0.65);

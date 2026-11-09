@@ -8,13 +8,20 @@ const byName = (name: string) => sceneOrgs.find((org) => org.name === name)!;
 const tierAPower = (rank: number) => Math.round(Math.max(78, 84 - (rank - 16) * 0.4) * 10) / 10;
 
 describe('nível base pelo ranking real', () => {
-  it('Fnatic, Imperial e Virtus.pro (17º a 30º do ranking real) estão no Tier A com a força do ranking', () => {
-    for (const name of ['Fnatic', 'Imperial Esports', 'Virtus.pro']) {
+  // Ranking HLTV de novembro de 2026 (D12): Fnatic é a 27ª; Imperial (50ª) e Virtus.pro (52ª) caíram para a faixa do
+  // Tier B, que ainda é acima do Tier C de onde a coleta os trouxe.
+  it('Fnatic (17º a 30º do ranking real) está no Tier A com a força do ranking; Imperial e Virtus.pro (31º a 60º) no Tier B', () => {
+    const fnatic = byName('Fnatic');
+    expect(fnatic.worldRank).toBeGreaterThan(16);
+    expect(fnatic.worldRank).toBeLessThanOrEqual(30);
+    expect(fnatic.level).toBe(2);
+    expect(fnatic.power).toBe(tierAPower(fnatic.worldRank!));
+    for (const name of ['Imperial Esports', 'Virtus.pro']) {
       const org = byName(name);
-      expect(org.worldRank, name).toBeGreaterThan(16);
-      expect(org.worldRank, name).toBeLessThanOrEqual(30);
-      expect(org.level, name).toBe(2);
-      expect(org.power, name).toBe(tierAPower(org.worldRank!));
+      expect(org.worldRank, name).toBeGreaterThan(30);
+      expect(org.worldRank, name).toBeLessThanOrEqual(60);
+      expect(org.level, name).toBe(3);
+      expect(org.power, name).toBe(ORG_BASE_POWER[3]);
     }
   });
 
@@ -42,10 +49,11 @@ describe('nível base pelo ranking real', () => {
     expect(liftByRealRank(org(4, 45))).toMatchObject({ level: 3, power: ORG_BASE_POWER[3] });
   });
 
-  it('na cena, só os três subestimados mudaram (do Tier C para o Tier A)', () => {
+  it('a pirâmide da cena depois do ranking HLTV de novembro de 2026 (402 orgs, 137 delas novas)', () => {
     const counts: Record<number, number> = {};
     for (const org of sceneOrgs) counts[org.level] = (counts[org.level] ?? 0) + 1;
-    // Antes da regra: 7, 8, 49, 83 e 118 times nos níveis 0 a 4.
-    expect(counts).toEqual({ 0: 7, 1: 8, 2: 52, 3: 83, 4: 115 });
+    // Antes do ranking de novembro: 7, 8, 52, 83 e 115 times nos níveis 0 a 4 (265 orgs). O top 8 real agora está
+    // inteiro na cena (FUT entrou), e os times novos do 31º ao 60º entram no Tier B e o resto no Tier C.
+    expect(counts).toEqual({ 0: 8, 1: 8, 2: 51, 3: 93, 4: 242 });
   });
 });

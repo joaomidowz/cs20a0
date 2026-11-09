@@ -48,11 +48,11 @@ function vitalityLosesEverything(state: PlayerCareerState) {
 afterEach(() => clearWorldCache());
 
 describe('ranking no começo da carreira', () => {
-  it('é o ranking real: Vitality em 1º, top 16 Tier S (top 8 com o selo Elite), o resto pelo nível de casa', () => {
+  it('é o ranking real: FURIA em 1º (HLTV de novembro de 2026), top 16 Tier S (top 8 com o selo Elite), o resto pelo nível de casa', () => {
     const state = career('ranking-start');
     const ranking = teamRanking(state);
     expect(ranking).toHaveLength(sceneOrgs.length);
-    expect(ranking[0].name).toBe('Vitality');
+    expect(ranking[0].name).toBe('FURIA');
     expect(ranking.map((team) => team.rank)).toEqual(ranking.map((_, index) => index + 1));
     expect(ranking.slice(0, 16).every((team) => team.tier === 'S')).toBe(true);
     expect(ranking.slice(16).every((team) => ['A', 'B', 'C'].includes(team.tier))).toBe(true);
@@ -67,11 +67,12 @@ describe('ranking no começo da carreira', () => {
 });
 
 describe('o ranking anda com os resultados', () => {
-  it('a Vitality que perde tudo sai do 1º na mesma temporada e do top 8 (selo Elite) no fim do ano', () => {
+  // Ranking HLTV de novembro de 2026: a Vitality começa em 2º (atrás da FURIA).
+  it('a Vitality que perde tudo sai do 2º na mesma temporada e do top 8 (selo Elite) no fim do ano', () => {
     const base = career('ranking-vitality');
     vitalityLosesEverything(base);
-    expect(teamRankOf(atMonth(base, 0), idOf('Vitality'))).toBe(1);
-    expect(teamRankOf(atMonth(base, 6), idOf('Vitality'))).toBeGreaterThan(1);
+    expect(teamRankOf(atMonth(base, 0), idOf('Vitality'))).toBe(2);
+    expect(teamRankOf(atMonth(base, 6), idOf('Vitality'))).toBeGreaterThan(2);
     const end = atMonth(base, 12);
     expect(teamRankOf(end, idOf('Vitality'))).toBeGreaterThan(8);
     expect(isEliteLevel(levelFromRank(teamRankOf(end, idOf('Vitality')), 0))).toBe(false);

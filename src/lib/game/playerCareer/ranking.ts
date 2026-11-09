@@ -1,7 +1,7 @@
 // src/lib/game/playerCareer/ranking.ts
 // O ranking de times (D7): os resultados dos últimos 12 meses (temporada atual e a anterior, com peso caindo mês a mês),
 // ponderados pelo tier do campeonato e pela colocação, mais uma base pequena pela força do elenco. Na primeira temporada
-// do circuito, uma base de partida pela força da coleta (que já carrega o ranking real) some ao longo do ano. O tier de
+// do circuito, uma base de partida pelos pontos do ranking real da HLTV (novembro de 2026) some ao longo do ano. O tier de
 // cada time sai daqui (tiers.ts levelFromRank): 1 a 16 Tier S (1 a 8 com o selo Elite), abaixo o nível de casa. Tudo é leitura:
 // nada daqui volta para a evolução do mundo (sceneWorld), e nada daqui pergunta currentLevelOf, orgOf ou levelIn
 // (eles leem este ranking: seria recursão).
@@ -28,6 +28,10 @@ export function placeShare(place: number): number {
 export const resultWeight = (age: number): number => (age < 0 || age >= 12 ? 0 : (12 - age) / 12);
 /** Base de partida (o ranking real antes da carreira): forte no topo, nada abaixo do Tier B. */
 export const priorPoints = (power: number): number => Math.round(Math.max(0, power - 76) ** 2 * 9);
+/** Base de partida do ranking real (HLTV de novembro de 2026, D12) na escala de `priorPoints`: os 944 pontos da FURIA
+ *  valem o mesmo que um time de força 92. Quem não está entre os 250 da HLTV não tem base real. */
+export const REAL_PRIOR_SCALE = 2.5;
+export const realPriorPoints = (points: number | null | undefined): number => Math.round((points ?? 0) * REAL_PRIOR_SCALE);
 /** Base pequena pela força do elenco: ordena quem não tem resultado. */
 export const basePoints = (power: number): number => Math.max(0, Math.round((power - 60) * 4));
 
@@ -111,10 +115,12 @@ function computed(state: PlayerCareerState, at: CircuitClock): Computed {
   const from = circuitFromOf(state);
   const priorWeight = at.season < from ? 1 : at.season === from ? (12 - at.month) / 12 : 0;
   const now = powerOf(state.seed, Math.max(1, at.season));
-  const start = priorWeight ? powerOf(state.seed, Math.max(1, from)) : null;
+  const start = priorWeight && from > 1 ? powerOf(state.seed, from) : null;
   for (const org of sceneOrgs) {
     add(org.id, basePoints(now.get(org.id) ?? 60));
-    if (start) add(org.id, priorPoints(start.get(org.id) ?? 60) * priorWeight);
+    if (!priorWeight) continue;
+    // Circuito desde a 1ª temporada: a base é o ranking real. Começou depois (save antigo): a força do mundo naquela temporada.
+    add(org.id, (from <= 1 ? realPriorPoints(org.worldPoints) : priorPoints(start!.get(org.id) ?? 60)) * priorWeight);
   }
   const order = sceneOrgs.map((org) => org.id).sort((a, b) =>
     (points.get(b) ?? 0) - (points.get(a) ?? 0) || (now.get(b) ?? 0) - (now.get(a) ?? 0) || (sceneOrgById.get(a)?.name ?? a).localeCompare(sceneOrgById.get(b)?.name ?? b));

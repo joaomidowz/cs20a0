@@ -10,14 +10,18 @@ import { scoutPlayers } from '../src/lib/game/playerCareer/scout';
 import { npcRetireChance, yearOfSeason } from '../src/lib/game/playerCareer/world';
 
 describe('coaches da carreira', () => {
-  it('todo time de Tier S e Tier 1 começa com o coach real do catálogo, com idade', () => {
+  // Ranking HLTV de novembro de 2026: a 1win entrou no top 16 e o catálogo não tem o coach dela (nunca inventamos).
+  const WITHOUT_CATALOG_COACH = ['1WIN'];
+  it('todo time de Tier S e Tier 1 começa com o coach real do catálogo, com idade (menos quem o catálogo não tem)', () => {
+    const missing: string[] = [];
     for (const org of sceneOrgs.filter((candidate) => candidate.level <= 1)) {
       const coach = coachOfOrg('coach-1', 1, org.id)!;
-      expect(coach.real, org.name).toBe(true);
+      if (!coach.real) { missing.push(org.name); continue; }
       const age = yearOfSeason(1) - coach.born;
       expect(age).toBeGreaterThanOrEqual(31);
       expect(age).toBeLessThan(50);
     }
+    expect(missing).toEqual(WITHOUT_CATALOG_COACH);
   });
 
   it('coach para bem mais tarde que jogador: nada antes dos 50, certo aos 66', () => {

@@ -19,7 +19,8 @@ describe('tiers da cena', () => {
     for (const org of elite) expect(org.worldRank).toBeLessThanOrEqual(16);
     for (const org of sceneOrgs.filter((candidate) => candidate.level === 0)) expect(org.worldRank).toBeLessThanOrEqual(8);
     expect(sceneOrgById.get('vitality-2026')?.level).toBe(0);
-    expect(sceneOrgById.get('legacy-2026')?.level).toBe(2);
+    // Ranking HLTV de novembro de 2026: a Legacy é a 12ª (Tier S, nível 1).
+    expect(sceneOrgById.get('legacy-2026')?.level).toBe(1);
     expect(sceneOrgById.get('red-canids-academy-2026')?.level).toBe(4);
   });
 

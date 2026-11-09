@@ -5,7 +5,6 @@
 import rawScene from '$lib/data/cs/career-scene.game.json';
 import rawCalibration from '$lib/data/cs/career-calibration.game.json';
 import rawPlayers from '$lib/data/cs/players.game.json';
-import rawTeams from '$lib/data/cs/teams.game.json';
 import type { AgingCalibration } from '../career/aging';
 import type { PlayerRole } from './engine';
 import { regionOf, type Region } from './calendar';
@@ -14,6 +13,7 @@ import rawFills from '$lib/data/cs/career-slot-fills.game.json';
 import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
 import rawIdentities from '$lib/data/cs/identities.game.json';
 import rawBirthYears from '$lib/data/cs/career-birth-years.game.json';
+import rawRealRanking from '$lib/data/cs/career-hltv-ranking.game.json';
 import { countryOfFlag, teamLanguage, type Language } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
@@ -43,8 +43,10 @@ export interface SceneOrg {
   tournaments: SceneTournamentRef[];
   roster: SceneRosterMember[];
   sources: Array<{ tournament?: string; url?: string }>;
-  /** Posição no ranking real (HLTV 2025/2026 do catálogo), quando o time aparece nele. */
+  /** Posição no ranking real (HLTV de novembro de 2026), quando o time aparece nele. */
   worldRank?: number | null;
+  /** Pontos do time no ranking real (HLTV de novembro de 2026): a base do ranking no começo da carreira. */
+  worldPoints?: number | null;
   /** Força base do time no motor (média do quinteto antes dos jogadores reais do catálogo). */
   power?: number;
   /** Região do circuito (pelo país; sem país, pelo circuito que o time jogou). */
@@ -159,16 +161,33 @@ function applyStayRules(org: SceneOrg): SceneOrg | { duplicateOf: string; id: st
   return { ...org, roster: generatedRoster(org.name, orgNationOf(kept), [], kept, gone.map((member) => member.roles[0] ?? 'rifler')) };
 }
 
-/** Ranking real do catálogo do jogo: o melhor entre HLTV 2025 e 2026 (sourceRank). */
-const WORLD_RANK: Map<string, number> = (() => {
-  const ranks = new Map<string, number>();
-  for (const team of rawTeams as Array<{ name?: string; year?: number; sourceRank?: number | null }>) {
-    if (!team.name || !team.sourceRank || (team.year !== 2025 && team.year !== 2026)) continue;
-    const key = teamKey(team.name);
-    ranks.set(key, Math.min(ranks.get(key) ?? 999, team.sourceRank));
-  }
-  return ranks;
-})();
+/** Um time do ranking mundial real (HLTV de novembro de 2026), já casado com a cena por scripts/apply-hltv-ranking.ts. */
+export interface RealRankingTeam {
+  rank: number;
+  /** Nome na HLTV. */
+  name: string;
+  points: number;
+  change: string;
+  /** Org da cena que é este time (id estável para os saves) ou o id do time novo. */
+  orgId: string;
+  /** Nome novo da org (rebrand: 3DMAX virou Envy); ausente = a org mantém o nome do jogo. */
+  rename?: string;
+  /** Time que o jogo não tinha: nível pelo ranking (D11/D12), país do núcleo e região. */
+  newOrg?: { level: number; country: string | null; region: Region };
+  /** O elenco da HLTV com a identidade conhecida de cada um (país, nascimento, funções, catálogo); `formerNick` é
+   *  a grafia antiga na cena (dev1ce virou device). Menos de 5: o gerador completa. */
+  roster: Array<SceneRosterMember & { formerNick?: string }>;
+}
+export interface RealRankingFile {
+  source: string;
+  teams: RealRankingTeam[];
+  /** Ids de orgs fundidas (duplicadas) para a org que ficou: saves antigos continuam achando o time. */
+  aliases: Record<string, string>;
+}
+export const realRanking = rawRealRanking as unknown as RealRankingFile;
+
+/** Nicks de todo jogador do ranking real: o gerador nunca cria um sósia deles. */
+const REAL_RANKING_NICKS = realRanking.teams.flatMap((team) => team.roster.flatMap((member) => [member.nick, ...(member.formerNick ? [member.formerNick] : [])]));
 
 /** Tier S: os 8 melhores do ranking real; tier 1: do 9º ao 16º (finalistas e semifinalistas de Major, top da HLTV). */
 export const TIER_S_RANK = 8;
@@ -251,6 +270,55 @@ const withKnownCountry = (member: SceneRosterMember): SceneRosterMember => {
   return country ? { ...member, country } : member;
 };
 
+/** Posição e pontos do ranking real por org (o id que a cena usa). */
+const REAL_RANK = new Map(realRanking.teams.map((team) => [team.orgId, team]));
+
+const LINEUP_SLOTS = ['igl', 'awp', 'entry', 'support', 'lurker'];
+
+/** Completa até 5 o elenco que a HLTV listou com 3 ou 4: as vagas que faltam ganham as funções que ninguém cobre. */
+function filledRoster(name: string, members: SceneRosterMember[]): SceneRosterMember[] {
+  if (members.length >= 5) return members;
+  const covered = new Set(members.map((member) => roleId(member.roles[0])));
+  const missing = LINEUP_SLOTS.filter((role) => !covered.has(roleId(role)));
+  return generatedRoster(name, orgNationOf(members), [], members, missing);
+}
+
+/**
+ * Aplica o ranking real (D12) sobre a cena: cada time do ranking fica com o elenco da HLTV (e o nome novo, no
+ * rebrand), os times novos entram com o nível do ranking, e quem saiu de um time fora do ranking para um time do
+ * ranking abre vaga com a mesma função (nome gerado). Quem estava num time do ranking e não aparece em nenhum sai do
+ * mundo. Nenhuma org some: os ids continuam os mesmos para os saves.
+ */
+export function applyRealRanking(orgs: SceneOrg[], file: RealRankingFile): SceneOrg[] {
+  const byOrg = new Map(file.teams.map((team) => [team.orgId, team]));
+  const claimed = new Set(file.teams.flatMap((team) => team.roster.flatMap((member) => [member.nick, member.formerNick ?? member.nick].map((nick) => nick.toLowerCase()))));
+  const rosterOf = (team: RealRankingTeam, name: string) => filledRoster(name, team.roster.map(({ formerNick: _former, ...member }) => member));
+  const known = new Set(orgs.map((org) => org.id));
+  const updated = orgs.map((org): SceneOrg => {
+    const team = byOrg.get(org.id);
+    if (team) {
+      const name = team.rename ?? org.name;
+      return { ...org, name, roster: rosterOf(team, name) };
+    }
+    const kept = org.roster.filter((member) => !claimed.has(member.nick.toLowerCase()));
+    if (kept.length === org.roster.length) return org;
+    const gone = org.roster.filter((member) => !kept.includes(member)).map((member) => member.roles[0] ?? 'rifler');
+    return { ...org, roster: generatedRoster(org.name, orgNationOf(kept), [], kept, gone) };
+  });
+  const added = file.teams.filter((team) => team.newOrg && !known.has(team.orgId)).map((team): SceneOrg => ({
+    id: team.orgId,
+    name: team.name,
+    level: team.newOrg!.level,
+    country: team.newOrg!.country,
+    calendarDensity: team.newOrg!.level === 2 ? 9 : 10,
+    tournaments: [],
+    roster: rosterOf(team, team.name),
+    sources: [{ tournament: 'Ranking mundial da HLTV (novembro de 2026)', url: 'https://www.hltv.org/ranking/teams' }],
+    region: team.newOrg!.region
+  }));
+  return [...updated, ...added];
+}
+
 const normalized = (() => {
   const byKey = new Map<string, SceneOrg>();
   const alias = new Map<string, string>();
@@ -260,7 +328,8 @@ const normalized = (() => {
   reserveLookalikes([
     ...scene.orgs.flatMap((org) => org.roster.map((member) => member.nick)),
     ...(rawPlayers as Array<{ nickname?: string }>).flatMap((player) => (player.nickname ? [player.nickname] : [])),
-    ...FILLS.map((fill) => fill.nick)
+    ...FILLS.map((fill) => fill.nick),
+    ...REAL_RANKING_NICKS
   ]);
   setStayRule(staysIn);
   const collected = scene.orgs.map((org): SceneOrg => {
@@ -294,18 +363,25 @@ const normalized = (() => {
     if (!member.generated && (!known.has(key) || (!known.get(key)!.catalogBaseId && member.catalogBaseId))) known.set(key, member);
   }
   applyOverrides(byKey, known);
-  const orgs = [...byKey.values()].map((org): SceneOrg => {
-    const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
+  const before = [...byKey.values()];
+  // O ranking real de novembro de 2026 (D12) vence tudo o que veio antes: elencos, nomes e times novos.
+  for (const [from, to] of Object.entries(realRanking.aliases)) alias.set(from, to);
+  const orgs = applyRealRanking(before, realRanking).map((org): SceneOrg => {
+    const real = REAL_RANK.get(org.id);
+    const rank = real?.rank ?? null;
     const elite = rank !== null && rank <= ELITE_RANK;
     const level = elite ? (rank! <= TIER_S_RANK ? 0 : 1) : org.level === 1 ? 2 : org.level;
     const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? tierAPower(rank) : ORG_BASE_POWER[level];
-    return { ...org, roster: org.roster.map(withKnownCountry), level, worldRank: rank, power: Math.round(power * 10) / 10, region: regionOfOrg(org) };
+    return { ...org, roster: org.roster.map(withKnownCountry), level, worldRank: rank, worldPoints: real?.points ?? null, power: Math.round(power * 10) / 10, region: org.region ?? regionOfOrg(org) };
   });
   // O piso do ranking real vem depois da pirâmide por região: ela continua subindo os mesmos times de antes.
-  return { orgs: rebalanceTiers(orgs).map(liftByRealRank), alias };
+  return { orgs: rebalanceTiers(orgs).map(liftByRealRank), alias, before };
 })();
 
 export const sceneOrgs = normalized.orgs;
+/** A cena antes do ranking real (coleta, planilhas, resoluções e elencos informados): só para o script que casa o
+ *  ranking da HLTV com a cena (scripts/apply-hltv-ranking.ts). O jogo lê `sceneOrgs`. */
+export const sceneBeforeRealRanking: readonly SceneOrg[] = normalized.before;
 
 /** País do jogador para a call e para a carta: o da coleta; sem ele, o do catálogo do jogo (ZywOo, apEX e ropz
  *  vieram sem país) e, por fim, o do time (BORRACHEIROS sem nenhum país é brasileiro). O mundo (trocas e times

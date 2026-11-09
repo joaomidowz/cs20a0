@@ -55,8 +55,24 @@ interface WorldSeason {
   previousOverall: Map<string, number>;
 }
 
-interface CuratedProspect { nick: string; hltv: string; age: number; role: string; overall: number; potentialRange: [number, number]; developmentRate: number; region: string; country: string | null; referenceTeam: string | null }
+interface CuratedProspect {
+  nick: string;
+  hltv: string;
+  /** Idade em 2026. */
+  age: number;
+  /** Nascimento real, quando a promessa tem; sem ele, 1º de março do ano que a idade dá. */
+  birthDate?: string;
+  role: string;
+  overall: number;
+  potentialRange: [number, number];
+  developmentRate: number;
+  region: string;
+  country: string | null;
+  referenceTeam: string | null;
+}
 const PROSPECTS = (rawProspects as unknown as { prospects: CuratedProspect[] }).prospects;
+/** Nascimento da promessa: o real quando o arquivo tem; senão, pela idade de 2026. */
+const curatedBirthDate = (kid: CuratedProspect, year: number): string => kid.birthDate ?? `${year - (kid.age + (year - 2026))}-03-01`;
 const PROSPECT_REGION: Record<string, ReturnType<typeof regionOf>[]> = { Europe: ['eu'], 'North America': ['na'], 'South America': ['sa'], Asia: ['asia'], Oceania: ['oce'] };
 
 export const memberKey = (member: SceneRosterMember) => `${member.nick.toLowerCase()}:${member.catalogBaseId ?? ''}:${member.birthDate ?? ''}`;
@@ -310,13 +326,22 @@ function placeProspects(seed: string, season: number, rosters: Map<string, Scene
       rosters.set(orgId, roster.map((member) => {
         if (member.nick.toLowerCase() !== kid.nick.toLowerCase()) return member;
         const current = dev.get(memberKey(member));
-        dev.set(memberKey(member), { overall: current?.overall ?? kid.overall, potential: Math.max(current?.overall ?? kid.overall, low + Math.round(rng() * (high - low))), rate: kid.developmentRate });
-        return { ...member, prospect: true, hltv: kid.hltv };
+        // A cena sem nascimento nem função (k0gaSs na Spirit Academy, do ranking da HLTV): vale a da promessa curada,
+        // senão o garoto não tem idade para crescer.
+        const curated: SceneRosterMember = {
+          ...member,
+          birthDate: member.birthDate ?? curatedBirthDate(kid, year),
+          roles: member.roles.length ? member.roles : [kid.role],
+          prospect: true,
+          hltv: kid.hltv
+        };
+        dev.set(memberKey(curated), { overall: current?.overall ?? kid.overall, potential: Math.max(current?.overall ?? kid.overall, low + Math.round(rng() * (high - low))), rate: kid.developmentRate });
+        return curated;
       }));
       continue;
     }
     const age = kid.age + (year - 2026);
-    const member: SceneRosterMember = { nick: kid.nick, country: kid.country, birthDate: `${year - age}-03-01`, roles: [kid.role], catalogBaseId: null, prospect: true, hltv: kid.hltv };
+    const member: SceneRosterMember = { nick: kid.nick, country: kid.country, birthDate: curatedBirthDate(kid, year), roles: [kid.role], catalogBaseId: null, prospect: true, hltv: kid.hltv };
     // Sai o mais fraco da função cujo lugar a promessa pode ocupar sem o time perder a identidade.
     const outIn = (org: SceneOrg): SceneRosterMember | undefined => {
       const roster = rosters.get(org.id) ?? [];
