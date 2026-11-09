@@ -49,6 +49,7 @@
   import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { circuitReady } from '$lib/game/playerCareer/circuit';
+  import { applyQualifierResult, entryKind, qualifierTargetName, resolveInvitedQualifier } from '$lib/game/playerCareer/qualifiers';
   import { freezeRanking, teamRankOf, teamRanking } from '$lib/game/playerCareer/ranking';
   import { circuitProgress, scheduleCircuit, stopCircuit } from '$lib/game/playerCareer/circuitRunner';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
@@ -88,9 +89,9 @@
   ];
   const PACE_CTA = { live: 'Jogar campeonato', sim: 'Simular campeonato', final: 'Simular até a final' } as const;
   /** Colocação curta pro quadradinho do calendário. */
-  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora', Folga: 'Folga' };
+  const PLACE_SHORT: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semi', Vice: 'Vice', 'Campeão': 'Título', 'Fase suíça': 'Suíça', 'Stage 1': 'Stage 1', 'Stage 2': 'Stage 2', 'Não classificado': 'Fora', Folga: 'Folga', Classificado: 'Classif.', Eliminado: 'Fora', Convidado: 'Convite' };
   /** Colocação → chave de CSS sem espaço nem acento. */
-  const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora', Folga: 'Fora' };
+  const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora', Folga: 'Fora', Classificado: 'Semis', Eliminado: 'Fora', Convidado: 'Semis' };
   const REGION_LABEL: Record<string, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
   const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
@@ -441,6 +442,17 @@
     retry();
   }
 
+  /** A próxima é uma qualificatória e o ranking do mês anterior já te convidou: ela se resolve sozinha. */
+  function autoInvite(state: PlayerCareerState) {
+    const resolved = resolveInvitedQualifier(state);
+    if (resolved === state) return;
+    const next = state.calendar?.find((entry) => entry.status === 'UPCOMING');
+    if (next) stageBanner = `Convidado pelo ranking: vaga direta no ${qualifierTargetName(state, next)}.`;
+    career = resolved;
+  }
+  $: if (career && !live && $circuitProgress.tick >= 0 && circuitReady(career)) autoInvite(career);
+  $: qualifierCount = career?.calendar?.filter((entry) => entryKind(entry) === 'qualifier').length ?? 0;
+
   /** Fecha a temporada quando o circuito do mundo terminou o ano: o ranking final entra no acesso do seu time. */
   let seasonClosing = false;
   function closeSeason(state: PlayerCareerState) {
@@ -457,7 +469,8 @@
     // No banco: o time joga sem você; o campeonato roda direto (sem call, sem provocação).
     if ((career.benchedEvents ?? 0) > 0) { simulateEvent(index); return; }
     const key = `${career.seasonNumber}:${index}`;
-    if (career.preRolled !== key) {
+    // A qualificatória é na semana do campeonato: o acontecimento de antes do jogo fica para ele.
+    if (career.preRolled !== key && entryKind(career.calendar?.[index] ?? {}) !== 'qualifier') {
       career = rollHappening({ ...career, preRolled: key }, 'pre', { eventIndex: index });
       if (career.pendingHappening) { queuedStart = { index, mode }; return; }
       // Sem acontecimento, pode vir a provocação de um rival da chave.
@@ -961,11 +974,15 @@
       stats: outcome.stats,
       players: outcome.players
     };
-    const recordedOnly = recordEventResult(career, index, result);
+    // Passou na qualificatória: o campeonato grande entra logo depois dela no calendário.
+    const recordedOnly = applyQualifierResult(recordEventResult(career, index, result), index);
+    const entry = career.calendar?.[index];
+    const qualifier = Boolean(entry && entryKind(entry) === 'qualifier');
+    if (entry && qualifier) stageBanner = result.placement === 'Classificado' ? `Classificado: o ${qualifierTargetName(career, entry)} entrou no seu calendário.` : `Ficou na qualificatória do ${qualifierTargetName(career, entry)}.`;
     // No banco: nada de moral de título, fãs ou cansaço do jogo para você; só a frustração e o descanso.
     const celebrated = result.benched
       ? { ...recordedOnly, morale: Math.max(0, (recordedOnly.morale ?? 60) - 3), fatigue: Math.max(0, (recordedOnly.fatigue ?? 0) - 10) }
-      : celebrateResult(recordedOnly, result.placement, orgOf(career.orgId, career).level, {
+      : celebrateResult(recordedOnly, qualifier ? (result.placement === 'Classificado' ? 'Semis' : 'Quartas') : result.placement, orgOf(career.orgId, career).level, {
           mvp: Boolean(result.mvp?.you), aces: result.plays?.aces, quads: result.plays?.quads, clutches: result.plays?.clutches
         });
     // O rival do campeonato: enfrentou? ganhou ou perdeu dele?
@@ -1936,7 +1953,7 @@
             <section class="next" aria-label={currentEntry ? 'Próximo campeonato' : 'Próxima temporada'}>
               <div class="next-copy">
                 {#if currentEntry}
-                  <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {eventTierLabel(currentEntry.tier, currentLevel)}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
+                  <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {entryKind(currentEntry) === 'qualifier' ? 'Qualificatória' : eventTierLabel(currentEntry.tier, currentLevel)}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
                   <h2 class="display">{eventName(currentEntry.name)}</h2>
                 {:else if !career.calendar}
                   <p class="eyebrow">Entre temporadas · {career.year}</p>
@@ -2072,7 +2089,7 @@
             {#if career.calendar}
               <section class="calendar" aria-label="Calendário da temporada">
                 <div class="section-head">
-                  <p class="label">Temporada {career.seasonNumber} · {career.calendar.length} campeonatos</p>
+                  <p class="label">Temporada {career.seasonNumber} · {career.calendar.length - qualifierCount} campeonatos{qualifierCount ? ` · ${qualifierCount} ${qualifierCount === 1 ? 'qualificatória' : 'qualificatórias'}` : ''}</p>
                   <div class="pace">
                     <span>Como jogar</span>
                     <div class="pace-pick" role="group" aria-label="Como jogar a temporada">
