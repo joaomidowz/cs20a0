@@ -19,13 +19,12 @@ import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, type
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type BenchPlayer, type CareerMember, type PlayerCareerState, type PlayerRole, type SeatTaken, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
+import { countTrainingSession, growthDefaults } from './growth';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /** Teto do bônus de treino por atributo: treino afina, quem sobe de verdade é a temporada (aging). */
 export const TRAIN_CAP = 6;
-/** A cada 3 treinos o overall senta +1 — se ainda estiver abaixo do teto da carreira. */
-const OVERALL_EVERY = 3;
 
 /** Saves de antes da função vir do catálogo: a vaga do time atual é recalculada UMA vez (ex.: AWPer na Vitality toma
  *  a vaga do ZywOo, não a do apEX) e ganha a função, a mesma temporada e o carimbo. Vaga com função (saves de agora
@@ -57,6 +56,8 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     trained: state.trained ?? {},
     trainedWindow: state.trainedWindow ?? null,
     trainCount: state.trainCount ?? 0,
+    // Teto conquistado e progresso do treino (growth.ts): quem já passou do teto do arquétipo fica onde está.
+    ...growthDefaults(state),
     morale: state.morale ?? 60,
     form: state.form ?? 0,
     fame: state.fame ?? 0,
@@ -613,17 +614,12 @@ export function trainMe(state: PlayerCareerState, meBase: Player, focus: Trainin
       nextTrained[attr] = already + apply;
     }
   }
-  const trainCount = state.trainCount + 1;
-  const overallUp = trainCount % OVERALL_EVERY === 0 && state.overall < state.truePotential;
+  // Mesma regra de overall da semana (growth.ts): de 2 a 6 sessões por +1, pela idade, até o limite do treino.
+  const session = countTrainingSession({ ...state, trained: nextTrained, trainedWindow: window });
+  const overallUp = session.overallUp;
   const anyGain = Object.keys(gained).length > 0 || overallUp;
   return {
-    state: {
-      ...state,
-      trained: nextTrained,
-      trainedWindow: window,
-      trainCount,
-      ...(overallUp ? { overall: state.overall + 1 } : {})
-    },
+    state: session.state,
     focus,
     gained,
     overallUp,

@@ -7,7 +7,8 @@
 import rawWeek from '$lib/data/cs/career-week.game.json';
 import { createSeededRng } from '../simulation';
 import type { Player, TrainingFocus } from '../types';
-import { orgOf, playedCount, trainingCeiling, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
+import { orgOf, playedCount, type PlayerCareerState, type PlayerRole, type TrainedAttribute, type TrainedBonus } from './engine';
+import { countTrainingSession } from './growth';
 import { coachOf, matesOf, myLanguageFit, myPlayerOf, relationshipOf, TRAIN_CAP, trainingWindowOf } from './squad';
 import { LANGUAGE_LABEL, learn, myFluency, NON_NATIVE_MAX } from './language';
 import { careerCtx, conditionsHold, isUnsupported } from './conditions';
@@ -27,7 +28,7 @@ export interface AgendaEffects {
   fame?: number;
   /** Relação com os 4 parceiros. */
   team?: number;
-  /** Conta como sessão de treino (a cada 3, +1 de overall até o teto da carreira). */
+  /** Conta como sessão de treino (de 2 a 6 semanas por +1 de overall, pela idade; growth.ts). */
   trainStep?: boolean;
   /** Cansaço (positivo cansa, negativo recupera). Sem valor, vale o padrão da categoria. */
   fatigue?: number;
@@ -226,16 +227,18 @@ export function costOf(action: AgendaAction): number {
 }
 
 /** Retorno decrescente: repetir o mesmo tipo nas últimas 4 semanas rende 100%, 65%, 35%. Treino, PUG, posição e
- *  scrim contam como o mesmo tipo (para não dar para só treinar). */
+ *  scrim contam como o mesmo tipo e caem menos (100%, 85%, 70%): repetir rende menos, mas treinar toda semana vale. */
 const GROUP: Partial<Record<AgendaCategory, string>> = { treino: 'treino', pug: 'treino', posicao: 'treino', scrim: 'treino' };
 export const groupOf = (category: AgendaCategory) => GROUP[category] ?? category;
 const DIMINISH = [1, 0.65, 0.35];
+export const TRAIN_DIMINISH = [1, 0.85, 0.7];
 
 export function diminishOf(state: PlayerCareerState, category: AgendaCategory): number {
   const now = playedCount(state);
   const group = groupOf(category);
   const repeats = (state.weekLog ?? []).filter((entry) => entry.group === group && now - entry.at <= 3).length;
-  return DIMINISH[Math.min(repeats, DIMINISH.length - 1)];
+  const table = group === 'treino' ? TRAIN_DIMINISH : DIMINISH;
+  return table[Math.min(repeats, table.length - 1)];
 }
 
 /** Você já fez esta carta nesta semana? */
@@ -411,7 +414,6 @@ export interface AgendaResult {
   overallUp: boolean;
 }
 
-const OVERALL_EVERY = 3;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function applyEffects(state: PlayerCareerState, effects: AgendaEffects, chips: AgendaChip[]): PlayerCareerState {
@@ -502,7 +504,8 @@ function spend(state: PlayerCareerState, window: string, id: string, category: A
 
 /**
  * Faz uma ação da semana. A semana tem 3 blocos (2 antes de Major): dá para fazer de 1 a 3 coisas. Repetir o mesmo
- * tipo nas últimas 4 semanas rende menos (100%, 65%, 35%), e semana cheia cansa mais e arrisca mais.
+ * tipo nas últimas 4 semanas rende menos (treino 100%, 85%, 70%; o resto 100%, 65%, 35%), e semana cheia cansa mais
+ * e arrisca mais.
  */
 export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaResult {
   const action = AGENDA_BY_ID.get(actionId) ?? null;
@@ -528,16 +531,12 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
   const rng = createSeededRng(`${state.seed}:agenda:${window}:${action.id}`);
   const riskHit = Boolean(action.risk && rng() < action.risk.chance + busy * 0.05);
   if (riskHit && action.risk) next = applyEffects(next, action.risk.effects, chips);
-  let overallUp = false;
-  let trainCount = next.trainCount ?? 0;
-  // A sessão de treino (a cada 3, +1 de overall) conta uma vez por semana.
+  // A sessão de treino (de 2 a 6 semanas por +1 de overall, pela idade) conta uma vez por semana.
   const stepped = state.week?.window === window && state.week.trainStepped;
   const trainStep = Boolean(action.effects.trainStep && !tired && !stepped);
-  if (trainStep) {
-    trainCount += 1;
-    overallUp = trainCount % OVERALL_EVERY === 0 && next.overall < trainingCeiling(next);
-  }
-  next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, action.id, action.category, cost, trainStep, drawAgenda(state).map((card) => card.id));
+  const session = trainStep ? countTrainingSession(next) : null;
+  const overallUp = Boolean(session?.overallUp);
+  next = spend(session?.state ?? next, window, action.id, action.category, cost, trainStep, drawAgenda(state).map((card) => card.id));
   const merged = mergeChips(chips);
   const contact = contactOf(state, action);
   const line = [
@@ -546,7 +545,7 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
     action.line,
     factor < 1 ? `Repetiu o mesmo tipo de semana: rendeu ${Math.round(factor * 100)}%.` : null,
     riskHit && action.risk ? action.risk.line : null,
-    overallUp ? 'Treino em dia: overall +1.' : null
+    overallUp ? (session?.aboveCeiling ? 'Furou o teto: overall +1.' : 'Treino em dia: overall +1.') : null
   ].filter(Boolean).join(' ');
   return { state: next, action, line, chips: merged, riskHit, overallUp };
 }
@@ -589,14 +588,15 @@ export function applyCustomTraining(state: PlayerCareerState, attributes: Traine
   let next = applyEffects(state, { attrs, fatigue: 12 + Object.keys(split).length * 2 + busy * 2 }, chips);
   const stepped = state.week?.window === window && state.week.trainStepped;
   const trainStep = !tired && !stepped;
-  const trainCount = (next.trainCount ?? 0) + (trainStep ? 1 : 0);
-  const overallUp = trainStep && trainCount % OVERALL_EVERY === 0 && next.overall < trainingCeiling(next);
-  next = spend({ ...next, trainCount, ...(overallUp ? { overall: next.overall + 1 } : {}) }, window, 'treino-livre', 'treino', FREE_TRAINING_COST, trainStep, drawAgenda(state).map((card) => card.id));
+  const session = trainStep ? countTrainingSession(next) : null;
+  const overallUp = Boolean(session?.overallUp);
+  next = spend(session?.state ?? next, window, 'treino-livre', 'treino', FREE_TRAINING_COST, trainStep, drawAgenda(state).map((card) => card.id));
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names.at(-1)}` : names[0];
   const capped = !chips.some((chip) => chip.kind === 'attr') ? ' Essas habilidades já estão no teto do treino.' : '';
   const tiredLine = tired ? ' Cansado: rendeu metade e não contou para o overall.' : '';
   const repeatLine = factor < 1 ? ` Muito treino seguido: rendeu ${Math.round(factor * 100)}%.` : '';
-  return { state: next, action: null, line: `Treino: ${list}.${tiredLine}${repeatLine}${capped}${overallUp ? ' Treino em dia: overall +1.' : ''}`, chips: mergeChips(chips), riskHit: false, overallUp };
+  const overallLine = overallUp ? (session?.aboveCeiling ? ' Furou o teto: overall +1.' : ' Treino em dia: overall +1.') : '';
+  return { state: next, action: null, line: `Treino: ${list}.${tiredLine}${repeatLine}${capped}${overallLine}`, chips: mergeChips(chips), riskHit: false, overallUp };
 }
 
 /** O que importa em cada função: o coach olha estas habilidades para achar o seu ponto fraco. */

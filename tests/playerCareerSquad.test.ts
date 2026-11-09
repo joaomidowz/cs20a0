@@ -42,6 +42,12 @@ describe('elenco e sinergia', () => {
     const healed = ensureSquad(legacy);
     expect(healed.relationships).toEqual({});
     expect(healed.trainCount).toBe(0);
+    expect(healed.trainProgress).toBe(0);
+    // Save de veterano que treinou acima do teto: o que passou vira teto conquistado, e o overall fica.
+    const veteran = { ...careerAtRealOrg('squad3b'), age: 30, overall: 88, truePotential: 84, trainCount: 5 } as PlayerCareerState;
+    delete veteran.ceilingBonus;
+    delete veteran.trainProgress;
+    expect(ensureSquad(veteran)).toMatchObject({ overall: 88, ceilingBonus: 4, trainProgress: 2 });
     expect(relationshipOf(healed, 'x')).toBe(relationshipOf(healed, 'x')); // determinístico
   });
 
@@ -90,7 +96,7 @@ describe('conversar entre campeonatos', () => {
 });
 
 describe('treino entre campeonatos', () => {
-  it('um treino por janela, com os efeitos da Dinastia; a cada 3 o overall senta +1 até o teto', () => {
+  it('um treino por janela, com os efeitos da Dinastia; aos 16 o overall senta +1 a cada 2 sessões', () => {
     let career = careerAtRealOrg('train1');
     const me = myPlayerOf(career);
     const window = trainingWindowOf(career)!;
@@ -105,14 +111,16 @@ describe('treino entre campeonatos', () => {
     // janela nova abre depois do campeonato
     career = recordEventResult(career, 0, { name: 'E', placement: 'Quartas', rating: 1, seriesWins: 0, seriesLosses: 1 });
     expect(trainingWindowOf(career)).toBe('1:1');
-    // overall só sobe na 3ª sessão — cada uma na sua janela (e nunca acima do teto)
+    // Aos 16 (até os 21) o overall sobe na 2ª sessão, cada uma na sua janela; a 3ª recomeça a contagem.
     const overallBefore = career.overall;
     const second = trainMe(career, myPlayerOf(career), 'clutch');
-    expect(second.overallUp).toBe(false);
+    expect(second.overallUp).toBe(true);
+    expect(second.state.overall).toBe(overallBefore + 1);
+    expect(second.state.trainProgress).toBe(0);
     career = recordEventResult(second.state, 1, { name: 'E2', placement: 'Quartas', rating: 1, seriesWins: 0, seriesLosses: 1 });
     const third = trainMe(career, myPlayerOf(career), 'opening');
-    expect(third.overallUp).toBe(true);
-    expect(third.state.overall).toBe(overallBefore + 1);
+    expect(third.overallUp).toBe(false);
+    expect(third.state.trainCount).toBe(3);
   });
 
   it('treino acumula no bônus com teto por atributo e aparece na carta de quadra', () => {

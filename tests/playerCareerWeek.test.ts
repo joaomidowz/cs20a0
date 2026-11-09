@@ -31,18 +31,26 @@ describe('semana nova', () => {
     expect(blocksLeft(major)).toBe(2);
   });
 
-  it('repetir o mesmo tipo rende menos (100%, 65%, 35%) e volta ao normal depois', () => {
+  it('treinar toda semana cai só até 70% (100%, 85%, 70%) e volta ao normal depois', () => {
     let state = at('MIBR', 'week-diminish');
     expect(diminishOf(state, 'treino')).toBe(1);
     state = applyCustomTraining(state, ['firepower']).state;
     state = nextWindow(state, 0);
-    expect(diminishOf(state, 'pug')).toBe(0.65);
+    expect(diminishOf(state, 'pug')).toBe(0.85);
     state = applyCustomTraining(state, ['clutch']).state;
     state = nextWindow(state, 1);
-    expect(diminishOf(state, 'treino')).toBe(0.35);
+    expect(diminishOf(state, 'treino')).toBe(0.7);
     expect(diminishOf(state, 'lazer')).toBe(1);
+    // A 70%, o treino livre de 4 habilidades ainda dá +1 em cada (a 35% dava zero).
+    expect(applyCustomTraining(state, ['awp', 'entry', 'igl', 'support']).state.trained).toMatchObject({ awp: 1, entry: 1, igl: 1, support: 1 });
     for (let index = 2; index < 7; index += 1) state = nextWindow(state, index);
     expect(diminishOf(state, 'treino')).toBe(1);
+  });
+
+  it('o resto da semana segue caindo para 65% e 35% quando repete o mesmo tipo', () => {
+    const state = at('MIBR', 'week-diminish-other');
+    expect(diminishOf({ ...state, weekLog: [{ at: 0, group: 'stream' }] }, 'stream')).toBe(0.65);
+    expect(diminishOf({ ...state, weekLog: [{ at: 0, group: 'stream' }, { at: 0, group: 'stream' }] }, 'stream')).toBe(0.35);
   });
 
   it('cooldown: a carta usada não volta na semana seguinte (nem no ano novo zera)', () => {
