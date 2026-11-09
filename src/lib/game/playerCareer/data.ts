@@ -31,6 +31,8 @@ export interface SceneRosterMember {
   hltv?: string;
   /** Vaga sem jogador real conhecido: nick gerado (placeholder). */
   generated?: boolean;
+  /** Criado na sua carreira (reserva promovido, substituto): membro do time no lugar de quem estava na posição. */
+  careerMade?: boolean;
 }
 export interface SceneOrg {
   id: string;

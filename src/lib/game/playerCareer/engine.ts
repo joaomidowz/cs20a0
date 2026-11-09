@@ -226,9 +226,15 @@ export interface CareerVerdict {
 /** Um jogador do banco (ou que entrou no lugar de um titular): jovem evolui a cada temporada até o teto. */
 export interface BenchPlayer { nick: string; role: PlayerRole; overall: number; potential: number; born: number; country: string | null }
 
+/** Jogador criado na sua carreira (reserva que virou titular, substituto de quem saiu a seu pedido): é membro do time
+ *  `orgId` na posição `slot` (índice do elenco do mundo, que as trocas do mundo mantêm) desde a temporada `since`, e
+ *  fica lá quando você troca de time. */
+export interface CareerMember extends BenchPlayer { orgId: string; slot: number; since: number }
+
 export interface SquadPlan {
   orgId: string;
-  /** Quem joga no lugar de quem: nick do titular original (minúsculo) → quem entrou. */
+  /** Saves antigos: quem jogava no lugar de quem (nick do titular original → quem entrou). Vira careerMembers ao
+   *  carregar (ensureSquad) e fica vazio. */
   lineup: Record<string, BenchPlayer>;
   /** O reserva no banco (um por time). */
   reserve: BenchPlayer | null;
@@ -327,8 +333,10 @@ export interface PlayerCareerState {
   happeningHistory?: import('./happenings').HappeningRecord[];
   /** Troca de função: a de antes (o parceiro dela assume a sua antiga), a temporada e como foi a adaptação. */
   roleChange?: { from: PlayerRole; season: number; outcome: 'adapting' | 'good' | 'bad' } | null;
-  /** Parceiros que saíram a seu pedido (por org): nick que saiu e o substituto que entrou. */
+  /** Saves antigos: parceiros que saíram a seu pedido (por org) e o substituto. Vira careerMembers ao carregar. */
   kickedMates?: Record<string, Array<{ nick: string; replacement: string; delta: number }>>;
+  /** Jogadores criados na sua carreira que são membros de um time (o seu ou um em que você jogou). */
+  careerMembers?: CareerMember[];
   /** Temporada em que você já pediu a saída de alguém (uma vez por temporada). */
   kickRequestedSeason?: number;
   /** As suas calls no round decisivo: leituras certas, razoáveis e erradas, rounds ganhos, por estilo. */

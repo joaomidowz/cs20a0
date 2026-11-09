@@ -3,10 +3,10 @@
 // ficam ao recarregar a página, ao trocar de função, na virada da temporada e no time quando você sai. A sessão e o
 // recarregamento mostram o mesmo elenco.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, ensureDraw, seatToTake, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
-import { sceneOrgById } from '../src/lib/game/playerCareer/data';
+import { createPlayerCareer, ensureDraw, seatToTake, startSeason, type CareerMember, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
+import { memberRoles, sceneOrgById } from '../src/lib/game/playerCareer/data';
 import { addReserve, changeRole, ensureSquad, matesOf, promoteReserve, seatsWithSeason } from '../src/lib/game/playerCareer/squad';
-import { registerSeats, rosterIn, seatMovesOf, worldRosters } from '../src/lib/game/playerCareer/world';
+import { orgPowerIn, registerSeats, rosterIn, sceneWorld, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn, worldRosters } from '../src/lib/game/playerCareer/world';
 
 const PAIN = 'pain-2026';
 /** Recarregar a página: o save vira texto e volta pelo mesmo caminho do onMount. */
@@ -67,5 +67,37 @@ describe('recarregar a página', () => {
     expect(fixed.seatsTaken[0].nick.toLowerCase()).toBe('zywoo');
     expect(fixed.seatsTaken[0]).toMatchObject({ season: 2, role: 'awper' });
     expect(ensureSquad({ ...fixed, role: 'igl' }).seatsTaken).toEqual(fixed.seatsTaken);
+  });
+});
+
+describe('membros da carreira no mundo', () => {
+  const seed = 'members-world-1';
+  const made = (slot: number, since = 1): CareerMember => ({ nick: 'cria_da_base', role: 'entry', overall: 71, potential: 84, born: 2008, country: 'Brazil', orgId: PAIN, slot, since });
+
+  it('o membro ocupa a posição dele a partir da temporada em que entrou e joga a posição de quem estava nela', () => {
+    const world = sceneWorld(seed, 1).rosters.get(PAIN)!;
+    registerSeats(seed, [], [made(2)]);
+    expect(rosterIn(seed, 1, PAIN)[2]).toMatchObject({ nick: 'cria_da_base', country: 'Brazil', overall: 71, careerMade: true, roles: memberRoles(world[2]) });
+    expect(rosterIn(seed, 1, PAIN).filter((_, index) => index !== 2).map((member) => member.nick)).toEqual(world.filter((_, index) => index !== 2).map((member) => member.nick));
+    expect(worldRosterIn(seed, 1, PAIN)[2].nick).toBe(world[2].nick);
+    registerSeats(seed, [], [made(2, 3)]);
+    expect(rosterIn(seed, 2, PAIN)[2].nick).toBe(sceneWorld(seed, 2).rosters.get(PAIN)![2].nick);
+    expect(rosterIn(seed, 3, PAIN)[2].nick).toBe('cria_da_base');
+  });
+
+  it('acha a posição e o time do mundo de cada jogador (o membro da carreira não é do mundo)', () => {
+    const world = sceneWorld(seed, 1).rosters.get(PAIN)!;
+    registerSeats(seed, [], [made(2)]);
+    expect(slotOfNick(seed, 1, PAIN, world[2].nick)).toBe(2);
+    expect(worldOrgOfNick(seed, 1, world[2].nick)).toBe(PAIN);
+    expect(worldOrgOfNick(seed, 1, 'cria_da_base')).toBeNull();
+    expect(slotOfNick(seed, 1, PAIN, 'cria_da_base')).toBe(-1);
+  });
+
+  it('a força do time no ranking não muda com os membros da carreira', () => {
+    registerSeats(seed, [], []);
+    const before = orgPowerIn(seed, 3, PAIN);
+    registerSeats(seed, [], [made(2)]);
+    expect(orgPowerIn(seed, 3, PAIN)).toBe(before);
   });
 });

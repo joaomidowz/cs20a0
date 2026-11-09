@@ -9,6 +9,7 @@ import { applyAging } from '../career/aging';
 import { createSeededRng } from '../simulation';
 import { regionOf } from './calendar';
 import { announcedRetirementYear, calibration, coreCountryOf, keepsIdentity, memberBirthYear, memberCatalogOverall, memberNick, memberRoles, ORG_BASE_POWER, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from './data';
+import type { CareerMember } from './engine';
 
 export interface SceneTransfer {
   season: number;
@@ -389,8 +390,10 @@ function promoteRisers(rng: () => number, rosters: Map<string, SceneRosterMember
  *  sai). A página registra as vagas da carreira; sem registro (simulação, testes) o mundo é só o da seed. */
 export interface SeatMove { season: number; nick: string; fromId: string; fromName: string; toId: string; toName: string; standIn: string }
 
-const seatRegistry = new Map<string, { signature: string; moves: SeatMove[] }>();
+const seatRegistry = new Map<string, { seats: string; members: string; moves: SeatMove[]; careerMembers: CareerMember[] }>();
 const overlaid = new Map<string, Map<number, Map<string, SceneRosterMember[]>>>();
+/** Elencos com os membros da carreira por cima, por seed e temporada (refeitos a cada registro novo). */
+const placed = new Map<string, Map<number, Map<string, SceneRosterMember[]>>>();
 const sameNick = (member: SceneRosterMember, nick: string) => memberNick(member).toLowerCase() === nick.toLowerCase();
 
 function seatMove(seed: string, seat: { orgId: string; nick: string; season?: number }): SeatMove | null {
@@ -420,24 +423,84 @@ function seatMove(seed: string, seat: { orgId: string; nick: string; season?: nu
   return null;
 }
 
-/** Registra as vagas que a carreira tomou (a página chama a cada mudança; repetir é de graça). */
-export function registerSeats(seed: string, seats: ReadonlyArray<{ orgId: string; nick: string; season?: number }>) {
-  const signature = seats.map((seat) => `${seat.orgId}:${seat.nick}:${seat.season ?? 1}`).join('|');
-  if (seatRegistry.get(seed)?.signature === signature) return;
+/** Registra as vagas que a carreira tomou e os membros criados nela (a página chama a cada mudança; repetir é de
+ *  graça). Sem registro (simulação, testes) o mundo é só o da seed. */
+export function registerSeats(seed: string, seats: ReadonlyArray<{ orgId: string; nick: string; season?: number }>, careerMembers: ReadonlyArray<CareerMember> = []) {
+  const seatSignature = seats.map((seat) => `${seat.orgId}:${seat.nick}:${seat.season ?? 1}`).join('|');
+  const memberSignature = careerMembers.map((member) => `${member.orgId}:${member.slot}:${member.since}:${member.nick}:${member.role}:${member.overall}`).join('|');
+  const current = seatRegistry.get(seed);
+  if (current?.seats === seatSignature && current.members === memberSignature) return;
+  placed.delete(seed);
+  if (current?.seats === seatSignature) {
+    seatRegistry.set(seed, { ...current, members: memberSignature, careerMembers: [...careerMembers] });
+    return;
+  }
   const moves: SeatMove[] = [];
   for (const seat of seats) {
     const move = seatMove(seed, seat);
     if (move && !moves.some((other) => other.nick.toLowerCase() === move.nick.toLowerCase())) moves.push(move);
   }
-  seatRegistry.set(seed, { signature, moves });
+  seatRegistry.set(seed, { seats: seatSignature, members: memberSignature, moves, careerMembers: [...careerMembers] });
   overlaid.delete(seed);
 }
 
 export const seatMovesOf = (seed: string): SeatMove[] => seatRegistry.get(seed)?.moves ?? [];
 
-/** Os elencos da temporada com as trocas das suas vagas por cima (quem saiu está no time novo). */
+/** Os elencos da temporada com as trocas das suas vagas por cima (quem saiu está no time novo), sem os membros da
+ *  carreira: a base do seu time (que lê os membros do save) e da força dos times. */
+const agedSeatRostersOf = (seed: string, season: number) => withVeteranGap(season, seatRostersOf(seed, season));
+
+/** Os elencos que o mundo mostra: as trocas das suas vagas e os membros criados na sua carreira nas posições deles. */
 function rostersOf(seed: string, season: number): Map<string, SceneRosterMember[]> {
-  return withVeteranGap(season, seatRostersOf(seed, season));
+  const aged = agedSeatRostersOf(seed, season);
+  const members = seatRegistry.get(seed)?.careerMembers ?? [];
+  if (!members.length) return aged;
+  const bySeason = placed.get(seed) ?? new Map<number, Map<string, SceneRosterMember[]>>();
+  placed.set(seed, bySeason);
+  const cached = bySeason.get(season);
+  if (cached) return cached;
+  const rosters = placeCareerMembers(aged, members, season);
+  bySeason.set(season, rosters);
+  return rosters;
+}
+
+/** Os membros da carreira nas posições deles, a partir da temporada em que entraram. Quem cobre uma posição herda
+ *  as funções de quem estava nela: joga a mesma posição no motor (a função natural dele fica no save). */
+export function placeCareerMembers(rosters: Map<string, SceneRosterMember[]>, members: ReadonlyArray<CareerMember>, season: number): Map<string, SceneRosterMember[]> {
+  const active = members.filter((member) => member.since <= season);
+  if (!active.length) return rosters;
+  const next = new Map(rosters);
+  for (const member of active) {
+    const id = sceneOrgById.get(member.orgId)?.id ?? member.orgId;
+    const roster = next.get(id);
+    const covered = roster?.[member.slot];
+    if (!roster || !covered) continue;
+    const roles = memberRoles(covered);
+    const made: SceneRosterMember = { nick: member.nick, country: member.country, birthDate: `${member.born}-07-01`, roles: roles.length ? roles : [member.role], catalogBaseId: null, prospect: null, overall: member.overall, careerMade: true };
+    next.set(id, roster.map((other, index) => (index === member.slot ? made : other)));
+  }
+  return next;
+}
+
+/** O elenco do mundo do time na temporada (com as trocas das vagas, sem os membros da carreira). */
+export function worldRosterIn(seed: string, season: number, orgId: string): SceneRosterMember[] {
+  return agedSeatRostersOf(seed, season).get(sceneOrgById.get(orgId)?.id ?? orgId) ?? sceneOrgById.get(orgId)?.roster ?? [];
+}
+
+/** A posição (índice no elenco) de um jogador do mundo no time, procurando da temporada `season` para trás: as trocas
+ *  do mundo põem quem chega no mesmo índice de quem sai. -1 se ele nunca esteve no time. */
+export function slotOfNick(seed: string, season: number, orgId: string, nick: string): number {
+  for (let at = season; at >= 1; at -= 1) {
+    const index = worldRosterIn(seed, at, orgId).findIndex((member) => sameNick(member, nick));
+    if (index >= 0) return index;
+  }
+  return -1;
+}
+
+/** O time do mundo em que o jogador está na temporada (sem os membros da carreira); null se em nenhum. */
+export function worldOrgOfNick(seed: string, season: number, nick: string): string | null {
+  for (const [orgId, roster] of agedSeatRostersOf(seed, season)) if (roster.some((member) => sameNick(member, nick))) return orgId;
+  return null;
 }
 
 /** Os elencos da temporada com as trocas das suas vagas (sem o desgaste de leitura). */
@@ -497,7 +560,7 @@ export function orgPowerIn(seed: string, season: number, orgId: string): number 
   const org = sceneOrgById.get(orgId);
   if (!org || org.power === undefined || season <= 1) return org?.power;
   const start = topFive(org.roster, org);
-  const now = topFive(rosterIn(seed, season, org.id), org);
+  const now = topFive(worldRosterIn(seed, season, org.id), org);
   if (start === null || now === null) return org.power;
   return Math.round((org.power + (now - start)) * 10) / 10;
 }
