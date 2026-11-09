@@ -48,9 +48,23 @@ export function baseLevelOf(orgId: string): number {
   return orgId === LAN_HOUSE_ID ? 5 : sceneOrgById.get(orgId)?.level ?? 5;
 }
 
+/** O nível que esta carreira deu ao time (o acesso e o rebaixamento do seu time, ou o nível com que você assinou) ou o
+ *  do catálogo. Não olha o ranking: é o nível de temporada do seu time e o piso dos times da cena fora do top 16. */
+export function homeLevelOf(state: Pick<PlayerCareerState, 'orgLevels'> | null | undefined, orgId: string): number {
+  return state?.orgLevels?.[orgId] ?? baseLevelOf(orgId);
+}
+
+/** Nível pelo ranking (D5 e D7): 1 a 8 é o Tier S com o selo Elite (nível 0), 9 a 16 o resto do Tier S (nível 1);
+ *  abaixo, o nível de casa, nunca acima do Tier A (nível 2). */
+export function levelFromRank(rank: number | null, homeLevel: number): number {
+  if (rank !== null && rank <= 8) return 0;
+  if (rank !== null && rank <= 16) return 1;
+  return Math.max(2, homeLevel);
+}
+
 /** Nível atual de um time: a fonte única para tela, chave, convites e ofertas (nunca para sceneWorld). */
 export function currentLevelOf(state: PlayerCareerState, orgId: string): number {
-  return state.orgLevels?.[orgId] ?? baseLevelOf(orgId);
+  return homeLevelOf(state, orgId);
 }
 
 /** O tier de campeonato que o nível jogava antes de o calendário guardar `tier` (saves anteriores a 10202f2). */
