@@ -4,7 +4,8 @@
 // motor de rounds (rounds.ts) e o arco (form.ts) leem daqui e reexportam com os mesmos nomes.
 //
 // Estado: valores de partida do protótipo do plano 07 (passaram nos critérios C1 a C8 lá, sobre 67fa6bf). A calibração
-// com o jogo final (Task 10 do plano) ainda não rodou. Para medir uma troca sem mexer no jogo:
+// com o jogo final (Task 10 do plano) ainda não rodou. Primeira troca medida: studySeason de 6 para 8 (a temporada
+// depois do auge dava 38% a 40% de títulos, o alvo é 25% a 35%). Para medir uma troca sem mexer no jogo:
 //   CAREER_ARC=1 npx vitest run tests/playerCareerArcCalibration.test.ts -t "temporadas seguidas"
 //   CAREER_UNDERDOG=1 npx vitest run tests/playerCareerArcCalibration.test.ts -t "rival 3 a 6"
 // (o arco aceita números de teste por CAREER_ARC_TUNING='{"seasonFloor":0.4}'; o embalo só trocando o valor aqui).
@@ -26,7 +27,7 @@
 // │ studyMax                     │ 3      │ teto do estudo dos rivais, em pontos de força contra o seu time          │
 // │ studyBlock                   │ 4      │ peso do domínio do bloco anterior (acima de blockFloor) no estudo        │
 // │ blockFloor                   │ 0.5    │ domínio do bloco a partir do qual o estudo começa a contar               │
-// │ studySeason                  │ 6      │ peso do domínio dos últimos 12 campeonatos (acima de seasonFloor)        │
+// │ studySeason                  │ 8      │ peso do domínio dos últimos 12 campeonatos (acima de seasonFloor)        │
 // │ seasonFloor                  │ 0.4    │ domínio do ano a partir do qual o estudo começa a contar                 │
 // └──────────────────────────────┴────────┴──────────────────────────────────────────────────────────────────────────┘
 // Domínio = (títulos + 0,4 × finais perdidas) / campeonatos jogados. As cartas da semana cortam o estudo do bloco:
@@ -65,7 +66,7 @@ export interface ArcTuning {
   seasonFloor: number;
 }
 
-/** Valores de partida do protótipo do plano 07 (C1 a C8 passaram lá); ainda sem a calibração com o jogo final. */
+/** Valores de partida do protótipo do plano 07 (C1 a C8 passaram lá), com studySeason 8; ainda sem a calibração completa. */
 export const ARC_TUNING: ArcTuning = {
   phasePower: 1.5,
   stay: 0.5,
@@ -73,6 +74,6 @@ export const ARC_TUNING: ArcTuning = {
   studyMax: 3,
   studyBlock: 4,
   blockFloor: 0.5,
-  studySeason: 6,
+  studySeason: 8,
   seasonFloor: 0.4
 };
