@@ -4,9 +4,9 @@
 // o caminho dele temporada a temporada (trocas, a vaga que cedeu para você, estreia, aposentadoria).
 import { countryName } from '../visuals/flags';
 import type { Player } from '../types';
-import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
+import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, orgLanguage, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
 import type { PlayerCareerState } from './engine';
-import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, teamLanguage, type Language } from './language';
+import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, type Language } from './language';
 import { myLanguageFit, seatedNicks } from './squad';
 import { createSeededRng } from '../simulation';
 import { orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason } from './world';
@@ -54,7 +54,7 @@ export function cardInfoFor(state: PlayerCareerState, orgId: string): (player: P
   const org = orgId === 'lan-house' ? undefined : orgIn(state.seed, state.seasonNumber, orgId);
   const roster = org ? resolvedRoster(org) : [];
   const byNick = new Map(roster.map((member) => [memberNick(member).toLowerCase(), member]));
-  const call: Language = orgId === state.orgId ? myLanguageFit(state).language : org ? teamLanguage(roster) : nativeLanguage(state.country);
+  const call: Language = orgId === state.orgId ? myLanguageFit(state).language : org ? orgLanguage(org) : nativeLanguage(state.country);
   // Sem ficha (lan house, quem entrou no lugar de quem você tirou): o país mais comum do elenco, ou o seu.
   const counts = new Map<string, number>();
   for (const member of roster) if (member.country) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);

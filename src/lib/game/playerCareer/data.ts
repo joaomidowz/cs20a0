@@ -14,7 +14,7 @@ import rawFills from '$lib/data/cs/career-slot-fills.game.json';
 import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
 import rawIdentities from '$lib/data/cs/identities.game.json';
 import rawBirthYears from '$lib/data/cs/career-birth-years.game.json';
-import { countryOfFlag } from './language';
+import { countryOfFlag, teamLanguage, type Language } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
 export interface SceneTournamentRef { name: string; tier: string; placement: string | null }
@@ -445,6 +445,19 @@ export function coreCountryOf(orgId: string, roster: SceneRosterMember[], fallba
   const counts = new Map<string, number>();
   for (const member of roster) if (member.country && isSouthAmerican(member.country)) counts.set(member.country, (counts.get(member.country) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? 'Brazil';
+}
+
+const startingLanguage = new Map<string, Language>();
+/** O idioma da call de um time da cena: o do elenco de partida, até o elenco inteiro passar a falar outra língua. */
+export function orgLanguage(org: { id: string; roster: SceneRosterMember[]; country: string | null }): Language {
+  const start = sceneOrgById.get(org.id);
+  if (!start) return teamLanguage(resolvedRoster(org));
+  let starting = startingLanguage.get(start.id);
+  if (starting === undefined) {
+    starting = teamLanguage(resolvedRoster(start));
+    startingLanguage.set(start.id, starting);
+  }
+  return teamLanguage(resolvedRoster(org), starting);
 }
 
 export function memberCatalogOverall(member: SceneRosterMember): number | null {

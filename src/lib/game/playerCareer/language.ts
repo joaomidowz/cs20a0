@@ -1,8 +1,8 @@
 // src/lib/game/playerCareer/language.ts
-// Idioma da call. Cada time fala o idioma de pelo menos 4 dos 5 (FURIA com quatro brasileiros fala português);
-// time misto fala inglês. Você fala o idioma do seu país e o inglês começa no nível típico do país; num time de
-// outro idioma a comunicação custa sinergia até você aprender (imersão a cada campeonato e aulas na semana).
-// Os times da cena também sentem: elenco misto com inglês fraco perde um pouco de força.
+// Idioma da call. Cada time fala o idioma do elenco de partida (o de pelo menos 4 dos 5; time misto fala inglês) e
+// só muda quando os 5 de hoje falam a mesma língua. Você fala o idioma do seu país e o inglês começa no nível típico
+// do país; num time de outro idioma a comunicação custa sinergia até você aprender (imersão a cada campeonato e aulas
+// na semana). Os times da cena também sentem: elenco misto com inglês fraco perde um pouco de força.
 import type { SceneRosterMember } from './data';
 
 export type Language = 'pt' | 'es' | 'en' | 'ru' | 'zh' | 'mn' | 'fr' | 'de' | 'pl' | 'tr' | 'da' | 'sv' | 'no' | 'fi' | 'pt-pt' | 'other';
@@ -37,8 +37,8 @@ export function englishBase(country: string | null | undefined): number {
   return 45;
 }
 
-/** O idioma da call: o de pelo menos 4 do elenco; time misto fala inglês. */
-export function teamLanguage(roster: Array<Pick<SceneRosterMember, 'country'>>): Language {
+/** O idioma de pelo menos 4 do elenco; time misto fala inglês. */
+function languageOfFour(roster: Array<Pick<SceneRosterMember, 'country'>>): Language {
   const counts = new Map<Language, number>();
   for (const member of roster) {
     if (!member.country) continue;
@@ -49,6 +49,18 @@ export function teamLanguage(roster: Array<Pick<SceneRosterMember, 'country'>>):
   return count >= 4 && language !== 'other' ? language : 'en';
 }
 
+/**
+ * O idioma da call. Sem `starting`: o de pelo menos 4 do elenco (misto fala inglês). Com `starting` (o idioma do
+ * elenco de partida): ele mesmo, até o elenco de hoje inteiro (5+) falar uma língua só (time que falava inglês e
+ * ficou com 5 brasileiros passa a falar português).
+ */
+export function teamLanguage(roster: Array<Pick<SceneRosterMember, 'country'>>, starting?: Language): Language {
+  if (!starting) return languageOfFour(roster);
+  const shared = roster[0]?.country ? nativeLanguage(roster[0].country) : null;
+  const unanimous = roster.length >= 5 && shared !== null && shared !== 'other' && roster.every((member) => Boolean(member.country) && nativeLanguage(member.country) === shared);
+  return unanimous ? shared : starting;
+}
+
 /** Fluência de um jogador da cena no idioma do time: nativo 100; inglês pelo país (pro de time misto treina, +15);
  *  outro idioma: quem já está no time aprendeu o básico (60). */
 export function npcFluency(member: Pick<SceneRosterMember, 'country'>, language: Language): number {
@@ -57,11 +69,11 @@ export function npcFluency(member: Pick<SceneRosterMember, 'country'>, language:
   return language === 'en' ? Math.min(NON_NATIVE_MAX, englishBase(member.country) + 15) : 60;
 }
 
-/** Coesão da call de um time da cena: −1 de força quando um terço ou mais não se comunica bem (fluência < 60). */
-export function npcLanguagePenalty(roster: Array<Pick<SceneRosterMember, 'country'>>): number {
+/** Coesão da call de um time da cena: −1 de força quando um terço ou mais não se comunica bem (fluência < 60).
+ *  `language` é o idioma da call do time (orgLanguage); sem ele, o de pelo menos 4 do elenco. */
+export function npcLanguagePenalty(roster: Array<Pick<SceneRosterMember, 'country'>>, language: Language = teamLanguage(roster)): number {
   const known = roster.filter((member) => member.country);
   if (known.length < 3) return 0;
-  const language = teamLanguage(roster);
   const weak = known.filter((member) => npcFluency(member, language) < 60).length;
   return weak / known.length >= 1 / 3 ? 1 : 0;
 }

@@ -40,7 +40,7 @@
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, worldRankOf, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
   import { TRAIN_CAP, seatsWithSeason, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
-  import { resolvedRoster, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
+  import { orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { mapProfile } from '$lib/game/playerCareer/careerMaps';
@@ -1105,7 +1105,7 @@
     : [];
   $: oppRank = career && opponentOrg ? worldRankOf(career, opponentOrg.id) : null;
   $: oppAverage = opponentRoster.length ? Math.round(opponentRoster.reduce((sum, player) => sum + (player.overall ?? 60), 0) / opponentRoster.length) : null;
-  $: oppLanguage = career && opponentOrg ? teamLanguage(resolvedRoster(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg)) : 'en';
+  $: oppLanguage = career && opponentOrg ? orgLanguage(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg) : 'en';
   $: myPlayer = career ? myPlayerOf(career) : null;
   $: squadMates = career ? matesOf(career) : [];
   $: coach = career ? coachOf(career) : null;
@@ -1171,7 +1171,7 @@
     if (!career || orgId === career.orgId) return null;
     const org = orgIn(career.seed, career.seasonNumber, orgId);
     if (!org) return null;
-    return { language: teamLanguage(resolvedRoster(org)), map: mapProfile(orgId, career.year, careerMapPool(career.year))[0]?.name ?? null };
+    return { language: orgLanguage(org), map: mapProfile(orgId, career.year, careerMapPool(career.year))[0]?.name ?? null };
   }
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
@@ -1659,7 +1659,7 @@
                   <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
                   <b class="display">{offer.orgName}</b>
                   <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
-                  {#if target}{@const offerLanguage = teamLanguage(resolvedRoster(target))}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
+                  {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
                 </button>
@@ -2723,7 +2723,7 @@
               <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
               <b class="display">{offer.orgName}</b>
               <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
-                  {#if target}{@const offerLanguage = teamLanguage(resolvedRoster(target))}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
+                  {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
               <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
             </button>
           {/each}

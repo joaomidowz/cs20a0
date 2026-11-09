@@ -6,7 +6,7 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { memberBirthYear, memberRoles, ORG_BASE_POWER, resolvedRoster, sceneOrgById } from './data';
+import { memberBirthYear, memberRoles, ORG_BASE_POWER, orgLanguage, sceneOrgById } from './data';
 import { orgIn, seatMovesOf } from './world';
 import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
@@ -14,7 +14,7 @@ import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
 import { MAP_NAMES } from '../maps';
 import type { MapId } from '../types';
 import { mindBump } from './life';
-import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, teamLanguage, type Language } from './language';
+import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
 import { orgOf, seatToTake, type BenchPlayer, type PlayerCareerState, type PlayerRole, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
@@ -132,7 +132,7 @@ function withoutSeat(players: Player[], state: PlayerCareerState): Player[] {
 /** O idioma da call do seu time e o quanto você fala (lan house: a galera fala o seu idioma). */
 export function myLanguageFit(state: PlayerCareerState): { language: Language; fluency: number; penalty: number } {
   const org = orgIn(state.seed, state.seasonNumber, state.orgId);
-  const language = org ? teamLanguage(resolvedRoster(org)) : nativeLanguage(state.country);
+  const language = org ? orgLanguage(org) : nativeLanguage(state.country);
   const fluency = myFluency(state, language);
   return { language, fluency, penalty: languagePenalty(fluency) };
 }

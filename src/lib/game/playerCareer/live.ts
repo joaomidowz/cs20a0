@@ -31,7 +31,7 @@ import { regionOf, type Region } from './calendar';
 import { npcLanguagePenalty } from './language';
 import { randomNick } from './extraTeams';
 import { applyCareerMapProfiles } from './careerMaps';
-import { memberCatalogOverall, memberNick, ORG_BASE_POWER, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { memberCatalogOverall, memberNick, ORG_BASE_POWER, orgLanguage, rosterBySlot, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import type { BracketLine, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf, playedCount } from './engine';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
@@ -80,7 +80,7 @@ export function sceneOrgEnginePlayers(org: SceneOrg, seasonKey: string): Player[
   // Cada nick na posição da função real dele (ZywOo no AWP, apEX no IGL), não na ordem do elenco.
   const bySlot = rosterBySlot(org, SLOTS);
   // Elenco misto com inglês fraco se comunica pior: −1 de força para todos.
-  const commsPenalty = npcLanguagePenalty(org.roster);
+  const commsPenalty = npcLanguagePenalty(org.roster, orgLanguage(org));
   return SLOTS.map((role, index) => {
     const member = bySlot[index];
     const nick = member ? memberNick(member) : `${org.name} ${index + 1}`;

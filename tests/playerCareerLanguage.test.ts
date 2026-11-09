@@ -3,7 +3,7 @@
 // (imersão a cada campeonato e aulas na semana); time da cena misto com inglês fraco perde um pouco de força.
 import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, recordEventResult, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
-import { sceneOrgs } from '../src/lib/game/playerCareer/data';
+import { orgLanguage, sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { englishBase, languagePenalty, myFluency, nativeLanguage, npcLanguagePenalty, teamLanguage } from '../src/lib/game/playerCareer/language';
 import { AGENDA, agendaAvailable, applyAgenda, drawAgenda } from '../src/lib/game/playerCareer/agenda';
 import { celebrateResult, matesOf, myLanguageFit, talkTo } from '../src/lib/game/playerCareer/squad';
@@ -21,6 +21,29 @@ describe('idioma dos times', () => {
     expect(teamLanguage(sceneOrgs.find((org) => org.name === 'Vitality')!.roster)).toBe('en');
     expect(nativeLanguage('Brazil')).toBe('pt');
     expect(englishBase('Sweden')).toBeGreaterThan(englishBase('Brazil'));
+  });
+});
+
+describe('idioma do elenco de partida', () => {
+  const people = (...countries: string[]) => countries.map((country) => ({ country }));
+
+  it('a língua é a do elenco de partida e só muda quando os 5 de hoje falam a mesma', () => {
+    expect(teamLanguage(people('Brazil', 'Brazil', 'Brazil', 'Kazakhstan', 'Latvia'))).toBe('en');
+    expect(teamLanguage(people('Brazil', 'Brazil', 'Brazil', 'Brazil', 'Denmark'), 'en')).toBe('en');
+    expect(teamLanguage(people('Brazil', 'Brazil', 'Brazil', 'Brazil', 'Brazil'), 'en')).toBe('pt');
+    expect(teamLanguage(people('Brazil', 'Brazil', 'Brazil', 'Denmark', 'Sweden'), 'pt')).toBe('pt');
+  });
+
+  it('FURIA fala inglês (3 brasileiros, um cazaque e um letão) e a paiN fala português', () => {
+    expect(orgLanguage(sceneOrgById.get('furia-2026')!)).toBe('en');
+    expect(orgLanguage(sceneOrgById.get('pain-2026')!)).toBe('pt');
+  });
+
+  it('paiN com 2 estrangeiros segue em português; FURIA com 5 brasileiros passa a falar português', () => {
+    const pain = sceneOrgById.get('pain-2026')!;
+    expect(orgLanguage({ ...pain, roster: pain.roster.map((member, index) => (index < 2 ? { ...member, country: 'Denmark' } : member)) })).toBe('pt');
+    const furia = sceneOrgById.get('furia-2026')!;
+    expect(orgLanguage({ ...furia, roster: furia.roster.map((member) => ({ ...member, country: 'Brazil' })) })).toBe('pt');
   });
 });
 

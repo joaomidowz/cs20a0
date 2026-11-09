@@ -7,10 +7,10 @@ import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier, type Region } from './calendar';
-import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, resolvedRoster, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
-import { myFluency, teamLanguage, type Language } from './language';
+import { myFluency, type Language } from './language';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
 import type { CareerLife } from './life';
@@ -737,7 +737,7 @@ export const ENGLISH_REQUIRED: Record<number, number> = { 0: 55, 1: 50, 2: 40 };
 /** Quanto de inglês o time exige de você (null: não exige ou você já tem). */
 export function englishGate(state: PlayerCareerState, candidate: SceneOrg): number | null {
   const need = ENGLISH_REQUIRED[levelIn(state, candidate)];
-  if (!need || teamLanguage(resolvedRoster(candidate)) !== 'en') return null;
+  if (!need || orgLanguage(candidate) !== 'en') return null;
   return myFluency(state, 'en') >= need ? null : need;
 }
 
