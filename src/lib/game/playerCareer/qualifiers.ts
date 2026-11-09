@@ -26,7 +26,7 @@ export const EXTRA_QUALIFIERS: Record<number, number> = { 0: 0, 1: 0, 2: 3, 3: 2
 
 /** Nível que entra direto pelo calendário: Major e campeonato Tier S pedem o nível 0 (Tier S com o selo Elite);
  *  campeonato Tier A pede o nível 1 (o resto do Tier S). */
-const REQUIRED_LEVEL: Record<EventTier, number> = { Major: 0, S: 0, A: 1, B: 2, C: 3 };
+const REQUIRED_LEVEL: Record<EventTier, number> = { Major: 1, S: 1, A: 2, B: 3, C: 4 };
 /** O tier da entrada da qualificatória (prêmio e rótulo): a de Major e de Tier S vale como Tier B; a de Tier A, Tier C. */
 const QUALIFIER_TIER: Record<EventTier, EventTier> = { Major: 'B', S: 'B', A: 'C', B: 'C', C: 'C' };
 
@@ -100,7 +100,8 @@ export function qualifierWinners(state: PlayerCareerState, event: WorldEvent, in
   return winners;
 }
 
-/** Este campeonato pede qualificatória do seu time? Abaixo do nível dele (REQUIRED_LEVEL) e com vaga para a sua região. */
+/** Este campeonato pede qualificatória do seu time? Abaixo do nível dele (REQUIRED_LEVEL) e com vaga para a sua região.
+ *  Régua da D5 revisada: Tier S (níveis 0 e 1) entra direto nos Tier S e no Major; Tier A (2) nos A; e assim por diante. */
 function needsQualifier(state: PlayerCareerState, event: WorldEvent, region: QualifierRegion): boolean {
   return homeLevelOf(state, state.orgId) > REQUIRED_LEVEL[event.tier] && (qualifierRegions(event)[region] ?? 0) > 0;
 }

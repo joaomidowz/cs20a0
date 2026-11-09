@@ -60,14 +60,13 @@ describe('qualificatórias no calendário', () => {
     expect(state.calendar!.some((entry) => entryKind(entry) === 'event' && entry.format === 'major')).toBe(false);
   });
 
-  it('Nível 1 (Tier S sem o selo Elite): Tier S e Major do calendário com vaga para a região viram qualificatória, sem mudar a quantidade', () => {
+  it('Nível 1 (Tier S sem o selo Elite) joga os campeonatos de Tier S e o Major direto, sem qualificatória (D5 revisada)', () => {
     const state = seasonAt('qual-tier-a', (org) => org.level === 1 && org.region === 'eu');
     const [min, max] = EVENT_RANGE[1];
     expect(state.calendar!.length).toBeGreaterThanOrEqual(min);
     expect(state.calendar!.length).toBeLessThanOrEqual(max);
-    expect(qualifiersOf(state).length).toBeGreaterThan(0);
-    expect(qualifiersOf(state).every((entry) => ['S', 'Major'].includes(mainOf(state, entry).tier))).toBe(true);
-    expect(state.calendar!.filter((entry) => entryKind(entry) === 'event').some((entry) => needsQualifierFor(state, entry))).toBe(false);
+    expect(qualifiersOf(state)).toHaveLength(0);
+    expect(state.calendar!.some((entry) => needsQualifierFor(state, entry))).toBe(false);
   });
 
   it('Tier S Elite (nível 0) não ganha qualificatória; as a mais respeitam o teto do nível', () => {
@@ -115,10 +114,19 @@ describe('passar ou não passar', () => {
   });
 
   it('convidado pelo ranking do mês anterior: a qualificatória se resolve sozinha', () => {
-    const base = seasonAt('qual-invited', (org) => org.name === 'Aurora');
-    const entry = qualifiersOf(base).find((candidate) => mainOf(base, candidate).format === 'swiss16')!;
-    const state = nextIs(base, entry.index);
-    expect(worldInvites(state, mainOf(state, entry), true).invited).toContain(state.orgId);
+    // Um Tier A (nível 2) bem ranqueado: a qualificatória dele vira convite quando o ranking já o chama.
+    let found: { state: PlayerCareerState; entry: CalendarEntry } | null = null;
+    const candidates = sceneOrgs.filter((org) => org.level === 2).sort((a, b) => (b.power ?? 0) - (a.power ?? 0));
+    for (const org of candidates) {
+      const base = seasonAt('qual-invited', (candidate) => candidate.id === org.id);
+      for (const entry of qualifiersOf(base)) {
+        const state = nextIs(base, entry.index);
+        if (worldInvites(state, mainOf(state, entry), true).invited.includes(state.orgId)) { found = { state, entry }; break; }
+      }
+      if (found) break;
+    }
+    expect(found).not.toBeNull();
+    const { state, entry } = found!;
     const resolved = resolveInvitedQualifier(state);
     expect(resolved.calendar![entry.index]).toMatchObject({ status: 'PLAYED', result: { placement: 'Convidado', skipped: true } });
     expect(resolved.calendar![entry.index + 1].name).toBe(`${mainOf(state, entry).name} 2026`);
