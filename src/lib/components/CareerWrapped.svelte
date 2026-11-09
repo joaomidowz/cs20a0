@@ -5,9 +5,9 @@
   import { onDestroy, onMount } from 'svelte';
   import TeamBadge from './TeamBadge.svelte';
   import type { Retrospective } from '$lib/game/playerCareer/retrospective';
+  import { teamTierLabel } from '$lib/game/playerCareer/tiers';
 
   export let retro: Retrospective;
-  export let levelLabel: Record<number, string> = {};
   export let onClose: () => void = () => {};
   export let onNewCareer: (() => void) | null = null;
 
@@ -143,7 +143,7 @@
         {:else if slide.kind === 'start' && retro.first}
           <p class="wr-eyebrow s1">Onde tudo começou</p>
           <p class="giant year s2">{retro.from}</p>
-          <div class="team-line s3"><TeamBadge id={retro.first.orgId} name={retro.first.orgName} size="lg" /><span>Aos <b>{retro.startAge} anos</b>, na <b>{retro.first.orgName}</b>{levelLabel[retro.first.level] ? `, ${levelLabel[retro.first.level]}` : ''}.</span></div>
+          <div class="team-line s3"><TeamBadge id={retro.first.orgId} name={retro.first.orgName} size="lg" /><span>Aos <b>{retro.startAge} anos</b>, na <b>{retro.first.orgName}</b>, {teamTierLabel(retro.first.level)}.</span></div>
         {:else if slide.kind === 'climb'}
           <p class="wr-eyebrow s1">A subida</p>
           <h2 class="title s2">{retro.eras.length} times, {retro.seasons} temporadas</h2>
@@ -152,7 +152,7 @@
               <li class:top={era.level <= 1} style={`--i:${i}`}>
                 <TeamBadge id={era.orgId} name={era.orgName} size="sm" />
                 <b>{era.orgName}</b>
-                <span class="chip">{levelLabel[era.level] ?? `Nível ${era.level}`}</span>
+                <span class="chip">{teamTierLabel(era.level)}</span>
                 <span class="years">{era.from === era.to ? era.from : `${era.from}–${era.to}`}</span>
                 {#if era.titles}<span class="count">{era.titles} título{era.titles > 1 ? 's' : ''}</span>{/if}
               </li>

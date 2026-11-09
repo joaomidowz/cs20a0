@@ -50,11 +50,10 @@
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
-  import { currentLevelOf, teamTierLabel } from '$lib/game/playerCareer/tiers';
+  import { currentLevelOf, eventTierLabel, seasonLevelOf, TEAM_TIER_ABOUT, TEAM_TIER_LABEL, teamTierAbout, teamTierLabel, teamTierTitle, type TeamTier } from '$lib/game/playerCareer/tiers';
 
   const STORAGE_KEY = 'cs13a0-player-career-v1';
   const PLACEMENT: Record<string, string> = { quarter: 'Quartas', semi: 'Semis', runnerUp: 'Vice', champion: 'Campeão' };
-  const LEVEL_LABEL: Record<number, string> = { 0: 'Tier S', 1: 'Tier 1', 2: 'Tier 2', 3: 'Challenger', 4: 'CCT/GC', 5: 'Lan House' };
   /** O mesmo controle de velocidade do resto do jogo (sandbox): mesmos rótulos, mesmos delays. Padrão ULTRA. */
   const SPEED_DELAYS = { normal: 1500, fast: 650, ultra: 180, insta: 0 } as const;
   const SPEED_OPTIONS = [
@@ -63,15 +62,12 @@
     { value: 'ultra', label: 'Ultra' },
     { value: 'insta', label: 'Insta' }
   ];
-  /** A pirâmide da cena, de cima pra baixo: onde a carreira pode chegar e onde você está. */
-  const PYRAMID = [
-    { level: 0, label: 'Tier S', short: 'S' },
-    { level: 1, label: 'Tier 1', short: 'T1' },
-    { level: 2, label: 'Tier 2', short: 'Tier 2' },
-    { level: 3, label: 'Challenger', short: 'Chall.' },
-    { level: 4, label: 'CCT / GC', short: 'CCT' },
-    { level: 5, label: 'Lan House', short: 'Lan' }
-  ];
+  /** A pirâmide da cena, de cima pra baixo: onde a carreira pode chegar e onde você está (rótulos de tiers.ts). O
+   *  nível 0 é o top 8, a Elite dentro do Tier S. */
+  const PYRAMID_SHORT: Record<number, string> = { 0: 'Elite', 1: 'S', 2: 'A', 3: 'B', 4: 'C', 5: 'Lan' };
+  const PYRAMID = [0, 1, 2, 3, 4, 5].map((level) => ({ level, label: teamTierTitle(level), short: PYRAMID_SHORT[level], about: teamTierAbout(level) }));
+  /** Os tiers de time, um por linha, com a descrição (o "O que é cada tier" embaixo da pirâmide). */
+  const TIER_GUIDE = (Object.keys(TEAM_TIER_LABEL) as TeamTier[]).map((tier) => ({ tier, label: TEAM_TIER_LABEL[tier], about: TEAM_TIER_ABOUT[tier] }));
   /** Quando cada estilo é a leitura certa (decisions.ts, readOf): a certa vale muito, a errada custa o round. */
   const RISK: Record<ClutchProfile, { label: string; hint: string }> = {
     solid: { label: 'Seguro', hint: 'Certo com vantagem no placar, no round ou contra eco.' },
@@ -1106,6 +1102,7 @@
     ? viewingOwn ? userEnginePlayers(career) : sceneOrgEnginePlayers(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg, `${career.seed}:season:${career.seasonNumber}`)
     : [];
   $: oppRank = career && opponentOrg ? worldRankOf(career, opponentOrg.id) : null;
+  $: oppLevel = career && opponentOrg ? currentLevelOf(career, opponentOrg.id) : 5;
   $: oppAverage = opponentRoster.length ? Math.round(opponentRoster.reduce((sum, player) => sum + (player.overall ?? 60), 0) / opponentRoster.length) : null;
   $: oppLanguage = career && opponentOrg ? orgLanguage(orgIn(career.seed, career.seasonNumber, opponentOrg.id) ?? opponentOrg) : 'en';
   $: myPlayer = career ? myPlayerOf(career) : null;
@@ -1179,8 +1176,8 @@
   }
   $: sheetMyRank = sheetField.findIndex((team) => team.isUser) + 1;
   $: sheetTop = sheetField[0]?.overall ?? 1;
-  $: currentLevel = career ? orgOf(career.orgId, career).level : 5;
-  $: visitedLevels = new Set([...(career?.history.map((log) => log.orgLevel) ?? []), currentLevel]);
+  $: currentLevel = career ? currentLevelOf(career, career.orgId) : 5;
+  $: visitedLevels = new Set([...(career?.history.map((log) => seasonLevelOf(log)) ?? []), currentLevel]);
   $: board = clutch && liveUserSeries && live && career ? boardOf(liveUserSeries, live.userTeamId) : null;
   $: retro = career?.status === 'RETIRED' ? buildRetrospective(career) : null;
   // Na primeira vez que a tela de aposentadoria abre, a retrospectiva começa sozinha.
@@ -1220,7 +1217,12 @@
   $: myCardInfo = career ? cardInfoFor(career, career.orgId) : null;
   $: oppCardInfo = career && opponentOrg ? cardInfoFor(career, viewingOwn ? career.orgId : opponentOrg.id) : null;
   $: scoutHits = career && scoutOpen ? scoutPlayers(career, scoutQuery) : [];
-  $: scoutTeams = career && scoutOpen && scoutQuery.trim().length >= 2 ? sceneOrgs.filter((org) => org.name.toLowerCase().includes(scoutQuery.trim().toLowerCase())).sort((a, b) => a.level - b.level || a.name.length - b.name.length).slice(0, 6) : [];
+  /** Times da busca pelo nome, do tier mais alto (hoje) para o mais baixo. */
+  const teamsMatching = (state: PlayerCareerState, query: string) => sceneOrgs
+    .filter((org) => org.name.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => currentLevelOf(state, a.id) - currentLevelOf(state, b.id) || a.name.length - b.name.length)
+    .slice(0, 6);
+  $: scoutTeams = career && scoutOpen && scoutQuery.trim().length >= 2 ? teamsMatching(career, scoutQuery) : [];
   $: seatMove = career && currentSeat ? seatMovesOf(career.seed).find((move) => move.fromId === currentSeat?.orgId && move.nick.toLowerCase() === currentSeat?.nick.toLowerCase()) ?? null : null;
   $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
@@ -1300,7 +1302,7 @@
       <div class="cards">
         {#each career.pendingDraw as option, index}
           <button class="card deal" class:lan={option.kind === 'lan-house'} style={`--deal:${index * 90}ms`} on:click={() => sign(option.orgId)}>
-            <span class="card-level">{LEVEL_LABEL[option.level] ?? `Nível ${option.level}`}{option.country ? ` · ${option.country}` : ''}</span>
+            <span class="card-level">{teamTierLabel(option.level)}{option.country ? ` · ${option.country}` : ''}</span>
             <b>{option.name}</b>
             {#if option.seat}
               <span class="seat">Vaga de <b>{option.seat.nick}</b>{option.seat.viaRole ? ' · sua função' : ''}</span>
@@ -1315,7 +1317,7 @@
       </div>
     </section>
   {:else if career.status === 'RETIRED' && career.verdict}
-    {#if retroOpen && retro}<CareerWrapped {retro} levelLabel={LEVEL_LABEL} onClose={closeRetro} onNewCareer={() => { closeRetro(); askReset(); }} />{/if}
+    {#if retroOpen && retro}<CareerWrapped {retro} onClose={closeRetro} onNewCareer={() => { closeRetro(); askReset(); }} />{/if}
     <section class="retired">
       <div class="retired-hero">
         <div class="retired-head">
@@ -1357,7 +1359,7 @@
             {#each retro?.eras ?? [] as era (era.orgId + era.from)}
               <li class:top={era.level <= 1}>
                 <span class="tr-badge"><TeamBadge id={era.orgId} name={era.orgName} size="sm" /></span>
-                <span class="tr-name"><b>{era.orgName}</b><small>{LEVEL_LABEL[era.level] ?? `Nível ${era.level}`}{era.majors.length ? ` · ${era.majors.length} Major${era.majors.length > 1 ? 's' : ''}` : ''}</small></span>
+                <span class="tr-name"><b>{era.orgName}</b><small>{teamTierLabel(era.level)}{era.majors.length ? ` · ${era.majors.length} Major${era.majors.length > 1 ? 's' : ''}` : ''}</small></span>
                 <span class="tr-titles" class:has={era.titles > 0}>{era.titles ? `${era.titles} título${era.titles > 1 ? 's' : ''}` : 'sem título'}</span>
                 <span class="num">{era.from === era.to ? era.from : `${era.from}–${era.to}`}</span>
               </li>
@@ -1450,7 +1452,7 @@
       <aside class="rail" aria-label="Seu jogador">
         <div class="rail-head">
           <div class="who">
-            <p class="eyebrow">Carreira · T{career.seasonNumber} · {career.year}</p>
+            <p class="eyebrow">Carreira · Temporada {career.seasonNumber} · {career.year}</p>
             <h1 class="display nick" class:long={career.nick.length > 7} class:xlong={career.nick.length > 10}>{career.nick}</h1>
             <p class="sub" title={`${agePhase(career.age).label}: ${agePhase(career.age).detail}`}>{ARCHETYPES[career.archetype].label} · {ROLE_META[career.role].label} · {career.country} · {career.age} anos</p>
             <p class="age-phase" class:old={career.age >= 29}><b>{agePhase(career.age).label}</b> {agePhase(career.age).detail}</p>
@@ -1562,7 +1564,7 @@
 
         <ol class="pyramid" aria-label="A pirâmide da cena">
           {#each PYRAMID as rung}
-            <li class:here={rung.level === currentLevel} class:been={rung.level !== currentLevel && visitedLevels.has(rung.level)} aria-current={rung.level === currentLevel ? 'step' : undefined}>
+            <li class:here={rung.level === currentLevel} class:been={rung.level !== currentLevel && visitedLevels.has(rung.level)} aria-current={rung.level === currentLevel ? 'step' : undefined} title={rung.about}>
               <span class="rung-label">{rung.label}</span><span class="rung-short" aria-hidden="true">{rung.short}</span>
               {#if rung.level === currentLevel}
                 <b class="rung-org">{orgOf(career.orgId).name}</b>
@@ -1573,6 +1575,14 @@
           {/each}
         </ol>
         <p class="rung-here"><span>{PYRAMID.find((rung) => rung.level === currentLevel)?.label ?? ''}</span> {orgOf(career.orgId).name}</p>
+        <details class="tier-guide">
+          <summary>O que é cada tier</summary>
+          <dl>
+            {#each TIER_GUIDE as guide (guide.tier)}
+              <div class:here={teamTierLabel(currentLevel) === guide.label}><dt>{guide.label}</dt><dd>{guide.about}</dd></div>
+            {/each}
+          </dl>
+        </details>
 
         {#if currentSeat}
           <p class="seat-line">Você tomou a vaga de <button class="seat-link" on:click={() => currentSeat && openScout(currentSeat.nick)} title="Ver onde ele está">{currentSeat.nick}</button>{#if seatMove}, que foi para a <b>{seatMove.toName}</b>{/if}.</p>
@@ -1653,14 +1663,14 @@
           <section aria-label="Janela de mercado">
             <div class="section-head">
               <h2 class="display h2">Janela de mercado</h2>
-              <span>Hoje: {orgOf(career.orgId).name} · {LEVEL_LABEL[currentLevel]}</span>
+              <span>Hoje: {orgOf(career.orgId).name} · {teamTierTitle(currentLevel)}</span>
             </div>
             <div class="offers">
               {#each career.pendingOffers as offer}
                 {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
                 {@const seat = target ? seatToTake(target, career.role) : null}
                 <button class="offer" on:click={() => choose(offer.orgId)}>
-                  <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
+                  <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
                   <b class="display">{offer.orgName}</b>
                   <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
                   {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
@@ -1694,7 +1704,7 @@
             <strong>{career.calendar?.[liveIndex]?.name}{liveStageNow ? ` · ${STAGE_NAME[liveStageNow]}` : ''}</strong>
             {#if career.rival && career.rival.eventIndex === liveIndex}<span class="rival-chip" title={career.rival.line}>Rival: {career.rival.nick} ({career.rival.orgName})</span>{/if}
             {#if live.run.tournament}<button class="link-btn live-overview-btn" on:click={() => (overviewOpen = true)}>{liveStage ? 'Visão do Major' : 'Tabela e chave'}</button>{/if}
-            <span class="live-tag-tier">{career.calendar?.[liveIndex]?.tier ? TIER_LABEL[career.calendar[liveIndex].tier ?? 'C'] : LEVEL_LABEL[currentLevel]}</span>
+            <span class="live-tag-tier">{eventTierLabel(career.calendar?.[liveIndex]?.tier, currentLevel)}</span>
           </div>
           {#if liveOver}
             <div class="finish">
@@ -1848,7 +1858,7 @@
                   <p><b>Rookie of the Year:</b> {lastLog.rookie.nick} ({lastLog.rookie.team}) levou. Era o seu ano de estreia em Major.</p>
                 {/if}
                 {#if lastLog.orgChange}
-                  <p class:up-note={lastLog.orgChange.to < lastLog.orgChange.from} class:warn={lastLog.orgChange.to > lastLog.orgChange.from}><b>{lastLog.orgName} {lastLog.orgChange.to < lastLog.orgChange.from ? 'subiu' : 'caiu'} para o {LEVEL_LABEL[lastLog.orgChange.to]}.</b> {lastLog.orgChange.to < lastLog.orgChange.from ? 'Você carregou o time: o circuito agora é outro.' : 'Nenhuma semifinal na temporada.'}</p>
+                  <p class:up-note={lastLog.orgChange.to < lastLog.orgChange.from} class:warn={lastLog.orgChange.to > lastLog.orgChange.from}><b>{lastLog.orgName} {lastLog.orgChange.to < lastLog.orgChange.from ? 'subiu' : 'caiu'} para o {teamTierLabel(lastLog.orgChange.to)}.</b> {lastLog.orgChange.to < lastLog.orgChange.from ? 'Você carregou o time: o circuito agora é outro.' : 'Nenhuma semifinal na temporada.'}</p>
                 {/if}
                 {#if lastLog.ageDecline}<p><b>Idade:</b> −{lastLog.ageDecline} de overall aos {lastLog.age ?? career.age} anos.</p>{/if}
                 {#if lastLog.injury}<p class="warn"><b>Lesão:</b> {lastLog.injury}.</p>{/if}
@@ -1885,7 +1895,7 @@
             <section class="next" aria-label={currentEntry ? 'Próximo campeonato' : 'Próxima temporada'}>
               <div class="next-copy">
                 {#if currentEntry}
-                  <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {currentEntry.tier ? TIER_LABEL[currentEntry.tier] : LEVEL_LABEL[currentLevel]}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
+                  <p class="eyebrow">Próximo · {currentEntry.month ? MONTH_FULL[currentEntry.month - 1] : `etapa ${currentEntry.index + 1}`} · {eventTierLabel(currentEntry.tier, currentLevel)}{currentEntry.format === 'major' ? ` · ${nextMajorStage ? `entra no ${STAGE_NAME[nextMajorStage]}` : 'sem vaga pelo ranking'}` : currentEntry.format === 'swiss16' ? ' · suíça de 16' : ''}{currentEntry.location ? ` · ${currentEntry.location}` : ''}</p>
                   <h2 class="display">{eventName(currentEntry.name)}</h2>
                 {:else if !career.calendar}
                   <p class="eyebrow">Entre temporadas · {career.year}</p>
@@ -2034,7 +2044,7 @@
                     <li>
                       <button class="ev place-{placeKey(entry.result?.placement)}" class:now={currentEntry?.index === index} class:played={Boolean(entry.result)} on:click={() => openEvent(index)} aria-label={`${entry.name}: ver detalhes`}>
                         <span class="ev-top">
-                          <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}{#if !entry.result || entry.tier === 'Major'}<small class:major={entry.tier === 'Major'}>{entry.tier ? TIER_LABEL[entry.tier] : PYRAMID.find((rung) => rung.level === currentLevel)?.short ?? ""}</small>{/if}</span>
+                          <span class="ev-n">{entry.month ? MONTH_LABEL[entry.month - 1] : index + 1}{#if !entry.result || entry.tier === 'Major'}<small class:major={entry.tier === 'Major'}>{eventTierLabel(entry.tier, currentLevel)}</small>{/if}</span>
                           {#if entry.result}
                             <span class="ev-place">{entry.result.benched ? 'Banco' : PLACE_SHORT[entry.result.placement] ?? entry.result.placement}</span>
                           {/if}
@@ -2117,7 +2127,7 @@
     <div class="modal-backdrop" role="presentation" on:click|self={closeEventSheet}>
       <div class="modal wide event-sheet" role="dialog" aria-modal="true" aria-labelledby="event-title" use:focusInside>
         <header class="modal-head">
-          <span class="eyebrow">Campeonato {eventSheet + 1} de {career.calendar?.length ?? 0} · {sheetEntry.tier ? TIER_LABEL[sheetEntry.tier] : LEVEL_LABEL[currentLevel]}</span>
+          <span class="eyebrow">Campeonato {eventSheet + 1} de {career.calendar?.length ?? 0} · {eventTierLabel(sheetEntry.tier, currentLevel)}</span>
           <button class="icon-btn" aria-label="Fechar" data-autofocus on:click={closeEventSheet}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
@@ -2210,7 +2220,7 @@
                     <TeamBadge id={team.orgId} name={team.name} size="md" highlight={team.isUser} />
                     <span class="tt-main">
                       <b class="tt-name">{team.name}</b>
-                      <span class="tt-meta">{LEVEL_LABEL[team.level] ?? `Nível ${team.level}`}{#if info} · {LANGUAGE_LABEL[info.language]}{info.map ? ` · ${info.map}` : ''}{/if}</span>
+                      <span class="tt-meta">{teamTierLabel(team.level)}{#if info} · {LANGUAGE_LABEL[info.language]}{info.map ? ` · ${info.map}` : ''}{/if}</span>
                       <span class="tt-tags">
                         {#if team.isUser}<span class="tag me">Você</span>{/if}
                         {#if rank === 0 && !team.isUser}<span class="tag" class:fav={groupIndex === 0} class:dog={groupIndex > 0}>{groupIndex === 0 ? 'Favorito' : 'Underdog'}</span>{/if}
@@ -2246,13 +2256,14 @@
           <TeamBadge id={opponentOrg.id} name={opponentOrg.name} size="lg" highlight={viewingOwn} />
           <dl class="opp-facts">
             {#if oppRank}<div><dt>Ranking</dt><dd>#{oppRank}</dd></div>{/if}
-            <div><dt>Tier</dt><dd>{LEVEL_LABEL[orgOf(opponentOrg.id, career).level] ?? '—'}</dd></div>
+            <div title={teamTierAbout(oppLevel)}><dt>Tier</dt><dd>{teamTierTitle(oppLevel)}</dd></div>
             {#if oppAverage}<div><dt>Média</dt><dd>{oppAverage}</dd></div>{/if}
             <div><dt>Região</dt><dd>{REGION_LABEL[opponentOrg.region ?? 'eu'] ?? '—'}</dd></div>
             <div><dt>Call</dt><dd>{LANGUAGE_LABEL[oppLanguage]}</dd></div>
             {#if oppCoach}<div title={oppCoach.real ? 'Coach real; idade estimada pelo primeiro ano como coach.' : oppCoach.formerPlayer ? 'Ex-jogador que virou coach.' : 'Coach do mundo da carreira.'}><dt>Coach</dt><dd>{oppCoach.name} · {career.year - oppCoach.born}</dd></div>{/if}
           </dl>
         </div>
+        <p class="opp-tier-about"><b>{teamTierTitle(oppLevel)}</b> {teamTierAbout(oppLevel)}</p>
         <div class="opp-maps" aria-label="Os 3 mapas mais fortes do time">
           {#each oppMaps.slice(0, 3) as map, mapIndex (map.mapId)}
             <span class="opp-map" class:best={mapIndex === 0} style={`--map: url(/maps/${map.mapId}.webp); --glow: ${Math.max(0, 1 - mapIndex * 0.4)}; opacity: ${1 - mapIndex * 0.12}`}>
@@ -2352,7 +2363,7 @@
         {#if scoutTeams.length}
           <ul class="scout-teams" aria-label="Times">
             {#each scoutTeams as org (org.id)}
-              <li><button on:click={() => scoutTeam(org.id)}><TeamBadge id={org.id} name={org.name} size="sm" highlight={org.id === career.orgId} /><b>{org.name}</b><span>{LEVEL_LABEL[org.level] ?? ''}</span></button></li>
+              <li><button on:click={() => scoutTeam(org.id)}><TeamBadge id={org.id} name={org.name} size="sm" highlight={org.id === career.orgId} /><b>{org.name}</b><span>{teamTierLabel(currentLevelOf(career, org.id))}</span></button></li>
             {/each}
           </ul>
         {/if}
@@ -2724,7 +2735,7 @@
             {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
             {@const seat = target ? seatToTake(target, career.role) : null}
             <button class="offer" data-autofocus on:click={() => takeMove(offer.orgId)}>
-              <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${LEVEL_LABEL[offer.orgLevel]}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${LEVEL_LABEL[offer.orgLevel]}`}</span>
+              <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
               <b class="display">{offer.orgName}</b>
               <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
                   {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
@@ -2877,6 +2888,14 @@
   .rung-org { width: 100%; color: var(--text); font: 800 22px/1 var(--display); letter-spacing: .01em; overflow-wrap: break-word; }
   .rung-mark { font-size: 11px; color: var(--muted); }
   .rung-short { display: none; }
+  .tier-guide { margin: 0; color: var(--muted); font: 500 12px/1.4 var(--body); }
+  .tier-guide summary { display: flex; align-items: center; min-height: 32px; cursor: pointer; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+  .tier-guide dl { display: grid; gap: 6px; margin: 4px 0 0; }
+  .tier-guide dl div { display: grid; gap: 2px; padding: 6px 10px; border: 1px solid var(--line); }
+  .tier-guide dl div.here { border-color: var(--accent); }
+  .tier-guide dt { color: var(--text); font: 700 11px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; }
+  .tier-guide dl div.here dt { color: var(--accent); }
+  .tier-guide dd { margin: 0; overflow-wrap: break-word; }
   .seat-line { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
   .seat-line b { color: var(--text); }
   .auto-off { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
@@ -3330,6 +3349,8 @@
   .opp-facts div { display: grid; gap: 3px; min-width: 76px; padding: 6px 10px; border: 1px solid var(--line); background: var(--surface-2); }
   .opp-facts dt { color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; }
   .opp-facts dd { margin: 0; font: 800 17px/1 var(--display); }
+  .opp-tier-about { margin: 0; color: var(--muted); font: 500 13px/1.4 var(--body); overflow-wrap: break-word; }
+  .opp-tier-about b { color: var(--text); font-weight: 700; }
   .opp-maps-note b { color: var(--text); }
 
   /* Fogo em volta do jogo: jogo duro esquenta, título pega fogo. */
@@ -3647,7 +3668,7 @@
     .pyramid li { justify-content: center; text-align: center; min-height: 40px; padding: 4px; font-size: 11px; letter-spacing: .04em; }
     .pyramid li.here { min-height: 40px; flex-wrap: nowrap; }
     .rung-org, .rung-mark { display: none; }
-    .seat-line { grid-column: 1 / -1; }
+    .seat-line, .tier-guide { grid-column: 1 / -1; }
   }
 
   /* Celular: o elenco vira faixa com snap; nada estoura a largura */
