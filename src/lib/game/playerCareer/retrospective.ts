@@ -132,7 +132,8 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
   eras.forEach((era, index) => { era.level = eraLevel(eraLevels[index]); });
   // A melhor temporada: mais títulos, depois Major, depois o rating.
   const bestSeason = [...seasonsList].sort((a, b) => b.titles - a.titles || b.majors - a.majors || b.rating - a.rating)[0] ?? null;
-  const curve = logs.length ? [{ year: logs[0].year, overall: logs[0].overallBefore }, ...logs.map((log) => ({ year: log.year + 1, overall: log.overallAfter }))] : [];
+  // A curva começa no overall de antes do treino da 1ª temporada (overallBefore já tem o treino dela).
+  const curve = logs.length ? [{ year: logs[0].year, overall: logs[0].overallBefore - (logs[0].trainingGain ?? 0) }, ...logs.map((log) => ({ year: log.year + 1, overall: log.overallAfter }))] : [];
   return {
     nick: state.nick,
     from: logs[0]?.year ?? state.year,

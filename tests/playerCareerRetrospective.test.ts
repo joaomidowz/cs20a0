@@ -67,4 +67,19 @@ describe('nível da era', () => {
     expect(buildRetrospective(retiredWith([log(2026, 'g2-2026', 'G2', 1, [result('Etapa 1', 'Vice', undefined)])])).eras[0].level).toBe(1);
     expect(buildRetrospective(retiredWith([log(2027, 'vitality-2026', 'Vitality', 1, [result('IEM 2027', 'Vice', 'A')])])).eras[0].level).toBe(1);
   });
+
+  it('a curva começa antes do treino da 1ª temporada (o overallBefore já traz o treino)', () => {
+    const base = createPlayerCareer({ nick: 'tester', country: 'Brazil', role: 'awper', seed: 'retro-2' });
+    const state: PlayerCareerState = {
+      ...base,
+      status: 'RETIRED',
+      history: [
+        log(2026, 'oddik', 'ODDIK', 4, [result('Liga A 2026', 'Quartas', 'C')], { overallBefore: 70, overallAfter: 74, trainingGain: 3 }),
+        log(2027, 'oddik', 'ODDIK', 4, [result('Liga A 2027', 'Quartas', 'C')], { overallBefore: 76, overallAfter: 78, trainingGain: 2 })
+      ]
+    };
+    expect(buildRetrospective(state).curve.map((point) => point.overall)).toEqual([67, 74, 78]);
+    const legacy = { ...state, history: state.history.map(({ trainingGain: _gain, ...rest }) => rest) };
+    expect(buildRetrospective(legacy).curve[0].overall).toBe(70);
+  });
 });
