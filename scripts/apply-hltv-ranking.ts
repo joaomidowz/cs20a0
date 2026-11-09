@@ -200,7 +200,7 @@ const usedIds = new Set<string>([
 ]);
 const newId = (name: string) => {
   const plain = `${slug(name)}-2026`;
-  const id = usedIds.has(plain) ? `${slug(name)}-hltv-2026` : plain;
+  const id = usedIds.has(plain) ? `${slug(name)}-2026-11` : plain;
   if (usedIds.has(id)) throw new Error(`id repetido para ${name}: ${id}`);
   usedIds.add(id);
   return id;
