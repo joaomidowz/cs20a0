@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSeededRng } from '../src/lib/game/simulation';
 import { createPlayerCareer, ENGLISH_REQUIRED, levelIn, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
-import { sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from '../src/lib/game/playerCareer/data';
+import { orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg, type SceneRosterMember } from '../src/lib/game/playerCareer/data';
 import { RECENT_OFFER_WEIGHT, languageGate, offerWeight, pickOffers, rememberOffers, seatKeepsIdentity } from '../src/lib/game/playerCareer/offers';
 
 const byName = (name: string) => sceneOrgs.find((org) => org.name === name)!;
@@ -44,10 +44,11 @@ describe('régua de idioma da call', () => {
   });
 
   it('abaixo do Tier A ninguém exige idioma', () => {
-    const fnatic = byName('Fnatic');
+    // A Fnatic era o exemplo daqui, mas subiu para o Tier A pelo ranking real: vale para todo time do Tier B e do C.
     const state = career('Brazil', 'idioma-3');
-    expect(levelIn(state, fnatic)).toBeGreaterThanOrEqual(3);
-    expect(languageGate(state, fnatic)).toBeNull();
+    const lower = sceneOrgs.filter((org) => levelIn(state, org) >= 3 && orgLanguage(org) !== 'pt');
+    expect(lower.length).toBeGreaterThan(50);
+    for (const org of lower) expect(languageGate(state, org), org.name).toBeNull();
   });
 });
 

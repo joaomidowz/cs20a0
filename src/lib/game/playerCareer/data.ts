@@ -174,6 +174,26 @@ const WORLD_RANK: Map<string, number> = (() => {
 export const TIER_S_RANK = 8;
 export const ELITE_RANK = 16;
 
+/** Força de um time do Tier A que está no ranking real: cai 0,4 por posição depois do 16º, nunca abaixo de 78. */
+const tierAPower = (rank: number) => Math.max(78, 84 - (rank - ELITE_RANK) * 0.4);
+
+/** Nível base mínimo pelo ranking real fora do top 16 (D11): do 17º ao 30º, Tier A (nível 2); do 31º ao 60º,
+ *  Tier B (nível 3). null: o top 16 segue a regra de cima e quem está abaixo do 60º não tem piso. */
+export function rankFloorLevel(rank: number | null): number | null {
+  if (rank === null || rank <= ELITE_RANK || rank > 60) return null;
+  return rank <= 30 ? 2 : 3;
+}
+
+/** Time subestimado na coleta (Fnatic, Imperial e Virtus.pro vieram no Tier C) sobe para o nível que o ranking real
+ *  pede, com a força desse nível. Só sobe: quem já está no nível ou acima não muda. */
+export function liftByRealRank(org: SceneOrg): SceneOrg {
+  const rank = org.worldRank ?? null;
+  const floor = rankFloorLevel(rank);
+  if (floor === null || org.level <= floor) return org;
+  const power = floor === 2 ? tierAPower(rank!) : ORG_BASE_POWER[floor];
+  return { ...org, level: floor, power: Math.round(power * 10) / 10 };
+}
+
 /**
  * A cena coletada marca como nível 1 todo mundo que jogou o Major (36 times, de Vitality a Rare Atom) e tem
  * times duplicados ("Team Vitality" no 2, "Vitality" no 1). Aqui: um time por nome (fica o de nível mais alto),
@@ -278,10 +298,11 @@ const normalized = (() => {
     const rank = WORLD_RANK.get(teamKey(org.name)) ?? null;
     const elite = rank !== null && rank <= ELITE_RANK;
     const level = elite ? (rank! <= TIER_S_RANK ? 0 : 1) : org.level === 1 ? 2 : org.level;
-    const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? Math.max(78, 84 - (rank - ELITE_RANK) * 0.4) : ORG_BASE_POWER[level];
+    const power = elite ? 92.5 - rank! * 0.5 : level === 2 && rank !== null ? tierAPower(rank) : ORG_BASE_POWER[level];
     return { ...org, roster: org.roster.map(withKnownCountry), level, worldRank: rank, power: Math.round(power * 10) / 10, region: regionOfOrg(org) };
   });
-  return { orgs: rebalanceTiers(orgs), alias };
+  // O piso do ranking real vem depois da pirâmide por região: ela continua subindo os mesmos times de antes.
+  return { orgs: rebalanceTiers(orgs).map(liftByRealRank), alias };
 })();
 
 export const sceneOrgs = normalized.orgs;
