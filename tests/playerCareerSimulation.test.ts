@@ -48,6 +48,8 @@ interface CareerOutcome {
   flop: boolean; // nunca saiu do Tier C/B (não alcançou nem o tier 2)
   tier1: boolean;
   goat: boolean; // pico na zona GOAT (≥94) alcançando tier 1
+  /** Overall ao fechar a temporada que leva o jogador a cada idade (a idade nova). */
+  byAge: Record<number, number>;
 }
 
 function simulateCareer(archetype: PlayerArchetype, index: number, routine: Routine): CareerOutcome {
@@ -57,6 +59,7 @@ function simulateCareer(archetype: PlayerArchetype, index: number, routine: Rout
   let peak = career.overall;
   let topLevel = orgOf(career.orgId).level;
   let fatigue = 0;
+  const byAge: Record<number, number> = {};
   while (career.status === 'ACTIVE' && career.age < 32) {
     career = startSeason(career);
     for (const entry of career.calendar ?? []) {
@@ -72,6 +75,7 @@ function simulateCareer(archetype: PlayerArchetype, index: number, routine: Rout
     career = finishSeason({ ...career, fatigue });
     fatigue = career.fatigue ?? 0;
     peak = Math.max(peak, career.overall);
+    byAge[career.age] = career.overall;
     topLevel = Math.min(topLevel, orgOf(career.orgId).level);
     if (career.pendingOffers?.length) {
       const best = [...career.pendingOffers].sort((a, b) => a.orgLevel - b.orgLevel)[0];
@@ -79,7 +83,7 @@ function simulateCareer(archetype: PlayerArchetype, index: number, routine: Rout
     }
     if (career.age >= 32 || (career.age >= 29 && career.overall < 58)) career = retire(career);
   }
-  return { peakOverall: peak, topLevel, flop: topLevel >= 3, tier1: topLevel <= 1, goat: peak >= 94 && topLevel <= 1 };
+  return { peakOverall: peak, topLevel, flop: topLevel >= 3, tier1: topLevel <= 1, goat: peak >= 94 && topLevel <= 1, byAge };
 }
 
 const pct = (part: number, total: number) => `${Math.round((part / total) * 100)}%`;
@@ -90,6 +94,11 @@ const tier1Rate = (list: CareerOutcome[]) => list.filter((o) => o.tier1).length 
 const goatRate = (list: CareerOutcome[]) => list.filter((o) => o.goat).length / list.length;
 const maxedRate = (list: CareerOutcome[]) => list.filter((o) => o.peakOverall >= 99).length / list.length;
 const peaks = (list: CareerOutcome[]) => list.map((o) => o.peakOverall);
+/** Overall mediano aos `age` anos de quem ainda jogava nessa idade. */
+const atAge = (list: CareerOutcome[], age: number) => {
+  const values = list.flatMap((o) => (o.byAge[age] === undefined ? [] : [o.byAge[age]]));
+  return values.length ? median(values) : '-';
+};
 
 describe('distribuição de desfechos por arquétipo (simulação N=' + N + ')', () => {
   const results: Record<Routine, Map<PlayerArchetype, CareerOutcome[]>> = { none: new Map(), weekly: new Map() };
@@ -103,7 +112,8 @@ describe('distribuição de desfechos por arquétipo (simulação N=' + N + ')',
         `${archetype.padEnd(14)} · pico mediano ${median(peaks(outcomes))} · p90 ${p90(peaks(outcomes))} · 99 ${pct(outcomes.filter((o) => o.peakOverall >= 99).length, N)}` +
         ` · flop C/B ${pct(outcomes.filter((o) => o.flop).length, N)}` +
         ` · tier1 ${pct(outcomes.filter((o) => o.tier1).length, N)}` +
-        ` · GOAT ${pct(outcomes.filter((o) => o.goat).length, N)}`
+        ` · GOAT ${pct(outcomes.filter((o) => o.goat).length, N)}` +
+        ` · aos 19/21/25 ${[19, 21, 25].map((age) => atAge(outcomes, age)).join('/')}`
       );
     }
     console.log(`\n=== Desfechos por arquétipo, treino ${routine === 'none' ? 'nenhum' : 'toda semana'} (progressão + mercado reais; resultados amostrados) ===\n` + lines.join('\n'));
@@ -117,7 +127,8 @@ describe('distribuição de desfechos por arquétipo (simulação N=' + N + ')',
       const prodigio = results[routine].get('prodigio')!;
       const bruto = results[routine].get('talento-bruto')!;
       const solido = results[routine].get('solido')!;
-      // Sólido é o arquétipo que mais trava no C/B (sem treino); Prodígio é o que menos trava.
+      // Sem treino, Sólido trava no C/B mais que Prodígio (o Talento bruto, cru e sem crescimento automático, trava mais
+      // ainda: 62% medido; com treino toda semana ninguém dele trava).
       if (routine === 'none') expect(flopRate(solido)).toBeGreaterThan(flopRate(prodigio));
       // Prodígio alcança tier 1 mais que Sólido; o GOAT praticamente só existe para teto alto.
       expect(tier1Rate(prodigio)).toBeGreaterThan(tier1Rate(solido));
@@ -150,9 +161,15 @@ describe('distribuição de desfechos por arquétipo (simulação N=' + N + ')',
     }
   });
 
-  it('o crescimento agora é visível: um prodígio média sobe pelo menos 10 de overall até os 24', () => {
-    const outcomes = results.none.get('prodigio')!;
-    // Pico mediano do prodígio tem que ficar muito acima do começo (65-70): a curva para de "não subir".
-    expect(median(peaks(outcomes))).toBeGreaterThanOrEqual(ARCHETYPES.prodigio.startOverall[0] + 10);
+  it('sem crescimento automático: sem treino o prodígio sobe só pelo rating, devagar; o treino é o que acelera', () => {
+    const none = results.none.get('prodigio')!;
+    const weekly = results.weekly.get('prodigio')!;
+    // Medido (regra só treino + rating): sem treino 73 aos 19, 79 aos 21; com treino toda semana 90 aos 19, 94 aos 21.
+    // Na regra antiga (crescimento pela distância até o teto) eram 86 e 92 aos 19.
+    expect(atAge(none, 19)).toBeLessThanOrEqual(ARCHETYPES.prodigio.startOverall[1] + 6);
+    expect(atAge(weekly, 19)).toBeGreaterThanOrEqual(Number(atAge(none, 19)) + 10);
+    expect(atAge(weekly, 19)).toBeLessThanOrEqual(91);
+    // A carreira inteira ainda leva o prodígio longe com rating bom: pico mediano bem acima do começo (65-70).
+    expect(median(peaks(none))).toBeGreaterThanOrEqual(ARCHETYPES.prodigio.startOverall[0] + 10);
   });
 });

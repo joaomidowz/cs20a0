@@ -32,6 +32,10 @@
 // └──────────────────────────────┴────────┴──────────────────────────────────────────────────────────────────────────┘
 // Domínio = (títulos + 0,4 × finais perdidas) / campeonatos jogados. As cartas da semana cortam o estudo do bloco:
 // Mudar o playbook 60% e Estudar as demos deles 35% (agenda.ts, efeito `study`).
+// Fora desta tabela: a progressão do overall do seu jogador tem os números no topo de growth.ts (faixas do rating no
+// fechamento RATING_MINUS_2_BELOW 0,75 · RATING_MINUS_1_BELOW 0,90 · RATING_PLUS_1/2/3_ABOVE 1,00/1,10/1,20; +1 de jovem
+// YOUTH_BONUS até YOUTH_BONUS_MAX_AGE 21 com rating acima de YOUTH_BONUS_RATING 1,10; VETERAN_HOLD_RATING 1,09 depois
+// dos 34; CEILING_BONUS_CAP 4; semanas de treino por +1 em sessionsPerOverall).
 
 // ── Embalo das calls ────────────────────────────────────────────────────────────────────────────────────────────────
 /** Embalo de quem ganha o round da call sendo favorito ou no confronto parelho: um empurrão discreto. */

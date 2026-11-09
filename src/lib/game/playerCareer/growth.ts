@@ -1,7 +1,9 @@
 // src/lib/game/playerCareer/growth.ts
-// Progressão do SEU jogador na Carreira (decisão D2 de docs/superpowers/specs/2026-11-09-carreira-mundo-vivo-design.md).
-// Sobe até os 34, mais rápido quando novo; o rating da temporada empurra para cima ou para baixo em qualquer idade;
-// depois dos 34, temporada boa segura e ruim tira. O teto do arquétipo (truePotential) continua sorteado na criação;
+// Progressão do SEU jogador na Carreira (decisão D2 de docs/superpowers/specs/2026-11-09-carreira-mundo-vivo-design.md,
+// com a regra nova do dono): a temporada só sobe pelo que você fez. O treino soma durante ela (+1 a cada N semanas pela
+// idade) e o fechamento soma o desempenho pelo rating da temporada (faixas de −2 a +3, mais +1 de jovem); não existe
+// crescimento automático rumo ao teto. O desempenho bom para no teto; antes dos 35 só o rating ruim derruba; depois dos
+// 34, temporada boa segura e o resto perde pela idade. O teto do arquétipo (truePotential) continua sorteado na criação;
 // o treino sem lesão fura esse teto em até +4 (ceilingBonus), um ponto por temporada, e nada do que o treino
 // conquistou é apagado no fim da temporada. Só vale para você: o mundo (world.ts) e os parceiros
 // (advanceRosterLight em engine.ts) seguem no applyAging de career/aging.ts, sem mudança.
@@ -17,13 +19,43 @@ export const CEILING_BONUS_CAP = 4;
 /** Quanto o treino passa do teto numa temporada (vira teto novo no fim dela, se não houve lesão). */
 export const CEILING_SEASON_ROOM = 1;
 
-/** Quanto da distância até o teto fecha por temporada, pela idade nova: rápido até os 21, devagar até os 34. */
-export const GROWTH_BY_AGE: Record<number, number> = {
-  16: 0.3, 17: 0.3, 18: 0.28, 19: 0.28, 20: 0.24, 21: 0.22, 22: 0.18, 23: 0.15, 24: 0.13, 25: 0.11, 26: 0.1,
-  27: 0.09, 28: 0.08, 29: 0.07, 30: 0.06, 31: 0.05, 32: 0.05, 33: 0.04, 34: 0.04
-};
+// ── Desempenho do fechamento (rating da temporada, 2 casas) ───────────────────────────────────────────────────────
+/** Rating abaixo disto: −2 no fechamento. */
+export const RATING_MINUS_2_BELOW = 0.75;
+/** Rating de 0,75 até abaixo disto: −1. De 0,90 a 1,00 o fechamento não mexe. */
+export const RATING_MINUS_1_BELOW = 0.9;
+/** Rating acima disto (até 1,10): +1. */
+export const RATING_PLUS_1_ABOVE = 1.0;
+/** Rating acima disto (até 1,20): +2. */
+export const RATING_PLUS_2_ABOVE = 1.1;
+/** Rating acima disto: +3. */
+export const RATING_PLUS_3_ABOVE = 1.2;
+/** Jovem: com até esta idade (a idade nova, depois da virada)... */
+export const YOUTH_BONUS_MAX_AGE = 21;
+/** ...e rating acima disto, ganha YOUTH_BONUS a mais no fechamento. */
+export const YOUTH_BONUS_RATING = 1.1;
+export const YOUTH_BONUS = 1;
+/** Depois dos 34, rating a partir disto segura o overall (a idade não tira). O desempenho bom não sobe mais. */
+export const VETERAN_HOLD_RATING = 1.09;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+/** Rating em centésimos inteiros: as faixas comparam sem erro de ponto flutuante (1,10 é 1,10). */
+const hundredths = (rating: number) => Math.round(rating * 100);
+const above = (rating: number, limit: number) => hundredths(rating) > hundredths(limit);
+const below = (rating: number, limit: number) => hundredths(rating) < hundredths(limit);
+
+/** O desempenho do fechamento pelo rating: abaixo de 0,75 −2; até 0,90 −1; até 1,00 zero; até 1,10 +1; até 1,20 +2; acima +3. */
+export const seasonPerformance = (rating: number): number =>
+  below(rating, RATING_MINUS_2_BELOW) ? -2
+  : below(rating, RATING_MINUS_1_BELOW) ? -1
+  : above(rating, RATING_PLUS_3_ABOVE) ? 3
+  : above(rating, RATING_PLUS_2_ABOVE) ? 2
+  : above(rating, RATING_PLUS_1_ABOVE) ? 1
+  : 0;
+
+/** O +1 de jovem: idade nova até 21 e rating acima de 1,10. */
+export const youthBonus = (age: number, rating: number): number =>
+  age <= YOUTH_BONUS_MAX_AGE && above(rating, YOUTH_BONUS_RATING) ? YOUTH_BONUS : 0;
 
 /** O que a idade tira por temporada depois dos 34 (pela idade nova), se a temporada não foi boa: 35-36 1, 37-38 2, 39+ 3. */
 export const ageDecline = (age: number): number => (age <= GROWTH_LAST_AGE ? 0 : age <= 36 ? 1 : age <= 38 ? 2 : 3);
@@ -98,7 +130,6 @@ export interface CareerGrowthInput {
   overall: number;
   truePotential: number;
   ceilingBonus: number;
-  developmentRate: number;
   /** Média de rating da temporada (base 1.00). */
   seasonRating: number;
   injured: boolean;
@@ -118,7 +149,7 @@ export interface CareerGrowthOutcome {
   retireHint: boolean;
 }
 
-/** Fecha a temporada do seu jogador: teto conquistado, crescimento até os 34, desempenho e idade. Determinístico pela seed. */
+/** Fecha a temporada do seu jogador: teto conquistado, desempenho pelo rating (freado no teto) e idade. Determinístico pela seed. */
 export function careerGrowth(input: CareerGrowthInput): CareerGrowthOutcome {
   const rng = createSeededRng(`${input.seed}:season:${input.seasonNumber}:growth`);
   const age = input.age + 1;
@@ -133,23 +164,20 @@ export function careerGrowth(input: CareerGrowthInput): CareerGrowthOutcome {
   const ceilingBonus = bonusBefore + ceilingGain;
   const ceiling = Math.min(99, input.truePotential + ceilingBonus);
 
-  // 2. Desempenho: o rating da temporada (a lesão pesa nele) contra 1.00, de −2 a +2.
+  // 2. Desempenho: o rating da temporada (a lesão pesa nele) pelas faixas, de −2 a +3. Não há crescimento automático.
   const rating = input.seasonRating - (input.injured ? 0.03 + 0.012 * Math.max(0, input.age - 27) : 0);
-  const performance = clamp(Math.round((rating - 1) * 6), -2, 2);
-  const jitter = Math.round((rng() - 0.5) * 2);
+  const performance = seasonPerformance(rating);
 
   let delta: number;
   let decline = 0;
   if (age <= GROWTH_LAST_AGE) {
-    // 3a. Até os 34: anda pela distância até o teto (mais rápido quando novo; quase nada com temporada fraca). O
-    // desempenho bom sobe até o teto; o ruim tira de qualquer jeito. Nada é cortado de quem já está acima do teto.
-    const gap = ceiling - input.overall;
-    const form = rating >= 1 ? 1 : 0.2;
-    const natural = gap > 0 ? Math.max(0, Math.round(gap * (GROWTH_BY_AGE[age] ?? 0) * clamp(input.developmentRate, 0.8, 1.25) * form) + jitter) : 0;
-    delta = Math.min(natural + Math.max(0, performance), Math.max(0, gap)) + Math.min(0, performance);
+    // 3a. Até os 34: o desempenho bom (com o +1 de jovem) sobe só até o teto de hoje; no teto ou acima dele, zero, e
+    // nada é cortado. O ruim tira de qualquer jeito. A idade não tira nada.
+    const gain = Math.max(0, performance) + youthBonus(age, rating);
+    delta = Math.min(gain, Math.max(0, ceiling - input.overall)) + Math.min(0, performance);
   } else {
-    // 3b. Depois dos 34: temporada boa (rating de 1,09 para cima) segura; senão a idade tira, e a ruim tira mais.
-    decline = performance >= 1 ? 0 : ageDecline(age);
+    // 3b. Depois dos 34: temporada boa (rating de 1,09 para cima) segura, sem subir; senão a idade tira, e a ruim tira mais.
+    decline = hundredths(rating) >= hundredths(VETERAN_HOLD_RATING) ? 0 : ageDecline(age);
     delta = -decline + Math.min(0, performance);
   }
   const injuryLoss = input.injured && input.age >= 30 ? 1 : 0;
@@ -175,7 +203,7 @@ export interface SeasonSwing {
   end: number;
   /** O que o treino somou durante a temporada. */
   training: number;
-  /** O que o fechamento mexeu (crescimento, desempenho, idade, lesão). */
+  /** O que o fechamento mexeu (desempenho pelo rating, idade, lesão). */
   close: number;
 }
 

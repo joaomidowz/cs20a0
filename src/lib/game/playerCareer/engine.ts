@@ -674,16 +674,16 @@ export function recordEventResult(state: PlayerCareerState, index: number, resul
 /** Idade limite de jogador: aos 40, pendura o mouse e vira coach. */
 export const MAX_CAREER_AGE = 40;
 
-// A progressão do seu jogador (crescimento até os 34, teto conquistado pelo treino, declínio depois dos 34) mora em
+// A progressão do seu jogador (treino e rating até os 34, teto conquistado pelo treino, declínio depois dos 34) mora em
 // growth.ts. Estes nomes continuam saindo daqui para a tela e os testes.
 export { ageDecline, trainingCeiling } from './growth';
 
 /** Quanto mais velho, mais lesão: 6% até os 24, +2,5 pontos por ano depois, até 45%. */
 export const injuryChance = (age: number): number => Math.min(0.45, 0.06 + Math.max(0, age - 24) * 0.025);
 
-/** Fase da carreira pela idade: sobe rápido até os 21 e devagar até os 34; dali em diante a temporada decide. */
+/** Fase da carreira pela idade: o treino rende mais até os 21 e sobe até os 34 (com rating); dali em diante a temporada decide. */
 export function agePhase(age: number): { label: string; detail: string } {
-  if (age <= 21) return { label: 'Em formação', detail: `Sobe rápido. Treino rende mais: ${sessionsPerOverall(age, false)} semanas = +1.` };
+  if (age <= 21) return { label: 'Em formação', detail: `Sobe com treino e rating. Treino rende mais: ${sessionsPerOverall(age, false)} semanas = +1. Rating acima de 1,10 dá +1 extra.` };
   if (age <= 26) return { label: 'Auge', detail: 'Ainda sobe com treino e temporada boa.' };
   if (age <= 30) return { label: 'Experiente', detail: 'Sobe devagar. Rating e treino seguram o nível.' };
   if (age < GROWTH_LAST_AGE) return { label: 'Veterano', detail: `Ainda sobe até os ${GROWTH_LAST_AGE}, devagar. Temporada ruim tira overall.` };
@@ -718,12 +718,12 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   const injuryPool = state.age >= 30 ? INJURIES_OLD : INJURIES_YOUNG;
   const injury = injured ? injuryPool[Math.floor(rng() * injuryPool.length)] : null;
 
-  // Progressão do seu jogador (growth.ts): teto conquistado pelo treino, crescimento até os 34, desempenho e idade.
+  // Progressão do seu jogador (growth.ts): teto conquistado pelo treino, desempenho pelo rating (freado no teto) e idade.
   // Nada do que o treino somou na temporada é cortado aqui; só o desempenho, a idade e a lesão tiram.
   const before = state.overall;
   const grown = careerGrowth({
     seed: state.seed, seasonNumber: state.seasonNumber, age: state.age, overall: state.overall, truePotential: state.truePotential,
-    ceilingBonus: ceilingBonusOf(state), developmentRate: state.developmentRate, seasonRating, injured
+    ceilingBonus: ceilingBonusOf(state), seasonRating, injured
   });
   // O risco de aposentadoria pela idade vira AVISO (o corpo pede para parar); quem decide é você.
   const retireHint = grown.retireHint;
