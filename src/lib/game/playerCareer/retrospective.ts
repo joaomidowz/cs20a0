@@ -3,10 +3,12 @@
 // os Majors, as melhores jogadas e a curva de overall. Puro: lê o histórico salvo e devolve o que a tela anima.
 import type { EventTier } from './calendar';
 import type { PlayerCareerState, PlayHighlight, TournamentResult } from './engine';
+import { seasonLevelOf } from './tiers';
 
 export interface RetroEra {
   orgId: string;
   orgName: string;
+  /** O nível em que a maioria das temporadas da era foi jogada (empate: o mais recente), na régua de hoje. */
   level: number;
   from: number;
   to: number;
@@ -50,9 +52,22 @@ export interface Retrospective {
 const isTitle = (result: TournamentResult) => result.placement === 'Campeão';
 const playWeight = (play: PlayHighlight) => (play.kind === 'ace' ? 100 : play.kind === 'clutch' ? 40 + (play.against ?? 1) * 12 : play.kind === 'quad' ? 50 : 30);
 
+/** Nível de uma era: o nível em que a maioria das temporadas dela foi jogada; empate fica com o mais recente. */
+export function eraLevel(levels: number[]): number {
+  const counts = new Map<number, number>();
+  for (const level of levels) counts.set(level, (counts.get(level) ?? 0) + 1);
+  let best = levels[levels.length - 1];
+  for (let index = levels.length - 1; index >= 0; index -= 1) {
+    if ((counts.get(levels[index]) ?? 0) > (counts.get(best) ?? 0)) best = levels[index];
+  }
+  return best;
+}
+
 export function buildRetrospective(state: PlayerCareerState): Retrospective {
   const logs = state.history;
   const eras: RetroEra[] = [];
+  /** Os níveis de cada temporada de cada era (mesma ordem de `eras`). */
+  const eraLevels: number[][] = [];
   const seasonsList: RetroSeason[] = [];
   const titlesByYear: Retrospective['titlesByYear'] = [];
   const majorTitles: Retrospective['majorTitles'] = [];
@@ -63,6 +78,7 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
     bestOverall: 0, peakYear: logs[0]?.year ?? state.year, bestRating: 0, bestRatingYear: logs[0]?.year ?? state.year
   };
   for (const log of logs) {
+    const level = seasonLevelOf(log);
     const played = log.tournaments.filter((result) => !result.skipped);
     const titles = played.filter(isTitle);
     const majors = titles.filter((result) => result.tier === 'Major');
@@ -92,7 +108,7 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
     for (const result of majors) majorTitles.push({ name: result.name, year: log.year, mvp: Boolean(result.mvp?.you) });
     if (titles.length) titlesByYear.push({ year: log.year, orgName: log.orgName, titles: titles.map((result) => ({ name: result.name, tier: result.tier ?? null, mvp: Boolean(result.mvp?.you) })) });
     seasonsList.push({
-      year: log.year, orgId: log.orgId, orgName: log.orgName, level: log.orgLevel, rating: log.seasonRating, titles: titles.length,
+      year: log.year, orgId: log.orgId, orgName: log.orgName, level, rating: log.seasonRating, titles: titles.length,
       majors: majors.length, mvps: mvps.length, hltvRank: log.hltvRank ?? null, overall: log.overallAfter, rookie: Boolean(log.rookie?.you)
     });
     const last = eras.at(-1);
@@ -103,15 +119,17 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
       last.majors.push(...majors.map((result) => result.name));
       last.mvps += mvps.length;
       last.bestRating = Math.max(last.bestRating, log.seasonRating);
-      last.level = Math.min(last.level, log.orgLevel);
+      eraLevels[eraLevels.length - 1].push(level);
       if (log.hltvRank) last.bestHltv = last.bestHltv === null ? log.hltvRank : Math.min(last.bestHltv, log.hltvRank);
     } else {
       eras.push({
-        orgId: log.orgId, orgName: log.orgName, level: log.orgLevel, from: log.year, to: log.year, seasons: 1, titles: titles.length,
+        orgId: log.orgId, orgName: log.orgName, level, from: log.year, to: log.year, seasons: 1, titles: titles.length,
         majors: majors.map((result) => result.name), mvps: mvps.length, bestRating: log.seasonRating, bestHltv: log.hltvRank ?? null
       });
+      eraLevels.push([level]);
     }
   }
+  eras.forEach((era, index) => { era.level = eraLevel(eraLevels[index]); });
   // A melhor temporada: mais títulos, depois Major, depois o rating.
   const bestSeason = [...seasonsList].sort((a, b) => b.titles - a.titles || b.majors - a.majors || b.rating - a.rating)[0] ?? null;
   const curve = logs.length ? [{ year: logs[0].year, overall: logs[0].overallBefore }, ...logs.map((log) => ({ year: log.year + 1, overall: log.overallAfter }))] : [];
@@ -124,7 +142,7 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
     endAge: state.age,
     line: state.verdict?.line ?? '',
     becameCoach: Boolean(state.verdict?.becameCoach),
-    first: logs[0] ? { orgId: logs[0].orgId, orgName: logs[0].orgName, level: logs[0].orgLevel } : null,
+    first: logs[0] ? { orgId: logs[0].orgId, orgName: logs[0].orgName, level: seasonLevelOf(logs[0]) } : null,
     totals,
     eras,
     seasonsList,
