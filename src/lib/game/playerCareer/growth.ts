@@ -16,6 +16,8 @@ import type { PlayerCareerState, SeasonLog } from './engine';
 export const GROWTH_LAST_AGE = 34;
 /** Quanto o treino pode furar o teto do arquétipo na carreira inteira. */
 export const CEILING_BONUS_CAP = 4;
+/** O treino rende no máximo isto de overall por temporada (o resto vem do rating no fechamento). */
+export const TRAINING_SEASON_CAP = 5;
 /** Quanto o treino passa do teto numa temporada (vira teto novo no fim dela, se não houve lesão). */
 export const CEILING_SEASON_ROOM = 1;
 
@@ -95,6 +97,8 @@ export interface TrainingSession {
   overallUp: boolean;
   /** O +1 passou do teto de hoje: vira teto novo no fim da temporada, se não houver lesão. */
   aboveCeiling: boolean;
+  /** O treino já deu o máximo da temporada (TRAINING_SEASON_CAP): a sessão conta, o overall não sobe mais. */
+  seasonCapped: boolean;
 }
 
 /**
@@ -107,8 +111,9 @@ export function countTrainingSession(state: PlayerCareerState): TrainingSession 
   const above = state.overall >= careerCeiling(fixed);
   const need = sessionsPerOverall(state.age, above);
   const progress = trainProgressOf(state) + 1;
-  const overallUp = progress >= need && state.overall < trainingCeiling(fixed);
   const season = seasonTrainOf(state);
+  const seasonCapped = season.gained >= TRAINING_SEASON_CAP;
+  const overallUp = progress >= need && state.overall < trainingCeiling(fixed) && !seasonCapped;
   return {
     state: {
       ...fixed,
@@ -118,7 +123,8 @@ export function countTrainingSession(state: PlayerCareerState): TrainingSession 
       ...(overallUp ? { overall: state.overall + 1 } : {})
     },
     overallUp,
-    aboveCeiling: overallUp && above
+    aboveCeiling: overallUp && above,
+    seasonCapped
   };
 }
 

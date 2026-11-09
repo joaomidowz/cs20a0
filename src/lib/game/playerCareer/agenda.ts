@@ -570,7 +570,8 @@ export function applyAgenda(state: PlayerCareerState, actionId: string): AgendaR
     action.line,
     factor < 1 ? `Repetiu o mesmo tipo de semana: rendeu ${Math.round(factor * 100)}%.` : null,
     riskHit && action.risk ? action.risk.line : null,
-    overallUp ? (session?.aboveCeiling ? 'Furou o teto: overall +1.' : 'Treino em dia: overall +1.') : null
+    overallUp ? (session?.aboveCeiling ? 'Furou o teto: overall +1.' : 'Treino em dia: overall +1.') : null,
+    session?.seasonCapped ? 'O treino já deu tudo o que podia nesta temporada: o resto vem do rating.' : null
   ].filter(Boolean).join(' ');
   return { state: next, action, line, chips: merged, riskHit, overallUp };
 }
@@ -620,7 +621,7 @@ export function applyCustomTraining(state: PlayerCareerState, attributes: Traine
   const capped = !chips.some((chip) => chip.kind === 'attr') ? ' Essas habilidades já estão no teto do treino.' : '';
   const tiredLine = tired ? ' Cansado: rendeu metade e não contou para o overall.' : '';
   const repeatLine = factor < 1 ? ` Muito treino seguido: rendeu ${Math.round(factor * 100)}%.` : '';
-  const overallLine = overallUp ? (session?.aboveCeiling ? ' Furou o teto: overall +1.' : ' Treino em dia: overall +1.') : '';
+  const overallLine = overallUp ? (session?.aboveCeiling ? ' Furou o teto: overall +1.' : ' Treino em dia: overall +1.') : session?.seasonCapped ? ' O treino já deu tudo o que podia nesta temporada: o resto vem do rating.' : '';
   return { state: next, action: null, line: `Treino: ${list}.${tiredLine}${repeatLine}${capped}${overallLine}`, chips: mergeChips(chips), riskHit: false, overallUp };
 }
 
