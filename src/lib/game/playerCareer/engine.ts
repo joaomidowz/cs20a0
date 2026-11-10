@@ -111,18 +111,40 @@ export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kil
 
 /** Tier de um resultado antigo (antes do calendário real): pelo nível do time na temporada. */
 
-export interface TrophyCase { byTier: Record<EventTier, number>; mvps: number; /** MVPs de Major (já contados em `mvps`). */ majorMvps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
+export interface TrophyCase { byTier: Record<EventTier, number>; /** Vices (final perdida) por tier. */ runnerUpByTier: Record<EventTier, number>; runnerUps: number; mvps: number; /** MVPs de Major (já contados em `mvps`). */ majorMvps: number; evps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
 
-/** Sala de troféus: títulos por tier (Major, S, A, B, C), MVPs de evento e aces da carreira (inclui a temporada em curso). */
+/** EVP: os 4 melhores do campeonato depois do MVP (pelo rating de quadra), no seu campeonato e no circuito do mundo. */
+export const EVPS_PER_EVENT = 4;
+
+/** Os EVPs de um campeonato, em minúsculas: os melhores pelo rating tirando o MVP (empate pelo nick). */
+export function evpNicksOf(topPlayers: ReadonlyArray<{ nick: string; rating: number }> | undefined, mvpNick: string | undefined): string[] {
+  const mvp = mvpNick?.toLowerCase();
+  return [...(topPlayers ?? [])]
+    .filter((player) => player.nick.toLowerCase() !== mvp)
+    .sort((a, b) => b.rating - a.rating || (a.nick < b.nick ? -1 : a.nick > b.nick ? 1 : 0))
+    .slice(0, EVPS_PER_EVENT)
+    .map((player) => player.nick.toLowerCase());
+}
+
+/** Você foi EVP do campeonato (o nick da carreira está entre os EVPs do topPlayers dele). */
+export const isYourEvp = (result: TournamentResult, nick: string): boolean =>
+  !result.skipped && !result.mvp?.you && evpNicksOf(result.topPlayers, result.mvp?.nick).includes(nick.toLowerCase());
+
+/** Sala de troféus: títulos e vices por tier (Major, S, A, B, C), MVPs e EVPs de evento e aces da carreira (inclui a
+ *  temporada em curso). */
 export function trophyCase(state: PlayerCareerState): TrophyCase {
   const byTier: Record<EventTier, number> = { Major: 0, S: 0, A: 0, B: 0, C: 0 };
+  const runnerUpByTier: Record<EventTier, number> = { Major: 0, S: 0, A: 0, B: 0, C: 0 };
   let mvps = 0;
   let majorMvps = 0;
+  let evps = 0;
   let aces = 0;
   const count = (result: TournamentResult, orgLevel: number) => {
     if (result.placement === 'Campeão') byTier[result.tier ?? legacyEventTier(orgLevel)] += 1;
+    if (result.placement === 'Vice' && !result.skipped) runnerUpByTier[result.tier ?? legacyEventTier(orgLevel)] += 1;
     if (result.mvp?.you) mvps += 1;
     if (result.mvp?.you && result.tier === 'Major') majorMvps += 1;
+    if (isYourEvp(result, state.nick)) evps += 1;
     aces += result.plays?.aces ?? 0;
   };
   let clutches = 0;
@@ -132,7 +154,8 @@ export function trophyCase(state: PlayerCareerState): TrophyCase {
   for (const entry of state.calendar ?? []) if (entry.result && entryKind(entry) === 'event') { count(entry.result, level); clutches += entry.result.plays?.clutches ?? 0; }
   const ranks = state.history.flatMap((log) => (log.hltvRank ? [log.hltvRank] : []));
   return {
-    byTier, mvps, majorMvps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
+    byTier, runnerUpByTier, runnerUps: Object.values(runnerUpByTier).reduce((sum, value) => sum + value, 0),
+    mvps, majorMvps, evps, aces, clutches, total: Object.values(byTier).reduce((sum, value) => sum + value, 0),
     hltvBest: ranks.length ? Math.min(...ranks) : null,
     hltvTop1: ranks.filter((rank) => rank === 1).length,
     hltvTop20: ranks.filter((rank) => rank <= 20).length,
@@ -704,7 +727,12 @@ function growBench(plan: SquadPlan | null | undefined, year: number, rng: () => 
   return { ...plan, reserve: plan.reserve ? growPlayer(plan.reserve, year, rng) : null, lineup: Object.fromEntries(Object.entries(plan.lineup).map(([key, player]) => [key, growPlayer(player, year, rng)])) };
 }
 
-export function finishSeason(state: PlayerCareerState, worldRank: number | null = null): PlayerCareerState {
+/**
+ * `playerTop`: o ranking de jogadores do fim do ano (playerRanking.ts, a mesma lista da tela Mundo com todos os blocos
+ * fechados). A página passa quando o circuito do mundo fechou a temporada; ele vira o Top 20 HLTV e a sua posição, para
+ * o prêmio bater com o que você acompanhou no ano. Sem ele (testes, saves sem circuito), vale a nota da temporada.
+ */
+export function finishSeason(state: PlayerCareerState, worldRank: number | null = null, playerTop: RankedPlayer[] | null = null): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
   const rng = createSeededRng(`${state.seed}:season:${state.seasonNumber}`);
   const org = orgOf(state.orgId, state);
@@ -758,8 +786,9 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   };
   // Prêmios da temporada: Top 20 HLTV e Rookie of the Year (estreia em Major).
   const awards = seasonAwards(state, org.level, org.name);
-  log.hltvTop = awards.hltvTop;
-  log.hltvRank = awards.hltvRank;
+  const myRow = playerTop ? playerTop.findIndex((player) => player.you) : -1;
+  log.hltvTop = playerTop ? playerTop.slice(0, 20) : awards.hltvTop;
+  log.hltvRank = playerTop ? (myRow >= 0 ? myRow + 1 : null) : awards.hltvRank;
   log.rookie = awards.rookie;
   log.rookieEligible = awards.rookieEligible;
   // Acesso e rebaixamento do seu time pela temporada (quem acabou de chegar por troca também conta).

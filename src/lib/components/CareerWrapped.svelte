@@ -174,7 +174,9 @@
             <div class="wr-counter big s2"><b use:countUp={retro.totals.titles}>0</b><span>títulos em {retro.totals.events} campeonatos ({titleRate}%)</span></div>
             <div class="wr-counter s3"><b class="gold" use:countUp={retro.totals.majors}>0</b><span>Majors</span></div>
             <div class="wr-counter s3"><b use:countUp={retro.totals.mvps}>0</b><span>MVPs{retro.totals.majorMvps ? ` · ${retro.totals.majorMvps} de Major` : ''}</span></div>
+            <div class="wr-counter s3"><b use:countUp={retro.totals.evps}>0</b><span>EVPs</span></div>
             <div class="wr-counter s4"><b use:countUp={retro.totals.finalsWon}>0</b><span>finais ganhas de {retro.totals.finals} ({finalsRate}%)</span></div>
+            <div class="wr-counter s4"><b use:countUp={retro.totals.runnerUps}>0</b><span>vice{retro.totals.runnerUps === 1 ? '' : 's'}{retro.totals.runnerUpByTier.Major ? ` · ${retro.totals.runnerUpByTier.Major} de Major` : ''}</span></div>
             <div class="wr-counter s4"><b use:countUp={retro.totals.hltvTop1}>0</b><span>vez{retro.totals.hltvTop1 === 1 ? '' : 'es'} melhor do mundo{retro.totals.bestHltv && !retro.totals.hltvTop1 ? ` · melhor: #${retro.totals.bestHltv}` : ''}</span></div>
           </div>
         {:else if slide.kind === 'best' && retro.bestSeason}

@@ -38,7 +38,7 @@
   import { CEILING_BONUS_CAP, seasonSwing, trainingOutlook } from '$lib/game/playerCareer/growth';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureCircuitFrom, ensureDraw, eventsFor, finishSeason,
-    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase,
+    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase, isYourEvp,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
@@ -55,6 +55,7 @@
   import { circuitReady } from '$lib/game/playerCareer/circuit';
   import { applyQualifierResult, entryKind, qualifierTargetName, resolveInvitedQualifier } from '$lib/game/playerCareer/qualifiers';
   import { freezeRanking, teamRankOf, teamRanking } from '$lib/game/playerCareer/ranking';
+  import { playerRanking } from '$lib/game/playerCareer/playerRanking';
   import { circuitProgress, scheduleCircuit, stopCircuit } from '$lib/game/playerCareer/circuitRunner';
   import { cardInfoFor, scoutPlayers, type ScoutHit } from '$lib/game/playerCareer/scout';
   import { MONTH_LABEL, TIER_LABEL, type EventTier } from '$lib/game/playerCareer/calendar';
@@ -471,7 +472,8 @@
   function closeSeason(state: PlayerCareerState) {
     career = state;
     seasonClosing = !circuitReady(state);
-    if (!seasonClosing) career = finishSeason(state, teamRankOf(state, state.orgId));
+    // O Top 20 HLTV do ano é o mesmo ranking de jogadores da tela Mundo, fechado: a posição não pula no prêmio.
+    if (!seasonClosing) career = finishSeason(state, teamRankOf(state, state.orgId), playerRanking(state));
   }
   $: if (seasonClosing && career && $circuitProgress.tick >= 0 && circuitReady(career)) closeSeason(career);
 
@@ -597,11 +599,16 @@
   }
 
   /** Momentos da carreira: títulos, MVPs e aces, do mais novo para o mais antigo. */
+  /** Os vices por tier, só os que têm: "1 Major · 2 Tier A". */
+  const runnerUpBreakdown = (byTier: Record<EventTier, number>) =>
+    TROPHY_TIERS.filter((tier) => byTier[tier] > 0).map((tier) => `${byTier[tier]} ${tier === 'Major' ? 'Major' : TIER_LABEL[tier]}`).join(' · ');
+
   function careerMoments(state: PlayerCareerState) {
-    const rows: Array<{ key: string; year: number; name: string; tier: EventTier | null; placement: string; mvp: boolean; aces: number; clutches: number }> = [];
+    const rows: Array<{ key: string; year: number; name: string; tier: EventTier | null; placement: string; mvp: boolean; evp: boolean; aces: number; clutches: number }> = [];
     const push = (result: TournamentResult, key: string, year: number) => {
-      if (result.placement !== 'Campeão' && !result.mvp?.you && !(result.plays?.aces)) return;
-      rows.push({ key, year, name: result.name, tier: result.tier ?? null, placement: result.placement, mvp: Boolean(result.mvp?.you), aces: result.plays?.aces ?? 0, clutches: result.plays?.clutches ?? 0 });
+      const evp = isYourEvp(result, state.nick);
+      if (result.skipped || (result.placement !== 'Campeão' && result.placement !== 'Vice' && !result.mvp?.you && !evp && !(result.plays?.aces))) return;
+      rows.push({ key, year, name: result.name, tier: result.tier ?? null, placement: result.placement, mvp: Boolean(result.mvp?.you), evp, aces: result.plays?.aces ?? 0, clutches: result.plays?.clutches ?? 0 });
     };
     state.history.forEach((log) => log.tournaments.forEach((result, index) => push(result, `${log.seasonNumber}:${index}`, log.year)));
     (state.calendar ?? []).forEach((entry) => entry.result && push(entry.result, `now:${entry.index}`, state.year));
@@ -1346,7 +1353,7 @@
   $: myMaps = career ? mapProfile(career.orgId, career.year, careerMapPool(career.year), career.mapTraining ?? {}) : [];
   $: if (!mapPick && myMaps.length) mapPick = myMaps[myMaps.length - 1].mapId;
   $: canTrainMap = Boolean(career && trainingWindow && career.mapTrainedWindow !== trainingWindow);
-  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, mvps: 0, majorMvps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
+  $: trophies = career ? trophyCase(career) : { byTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, runnerUpByTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 }, runnerUps: 0, mvps: 0, majorMvps: 0, evps: 0, aces: 0, total: 0, clutches: 0, hltvBest: null, hltvTop1: 0, hltvTop20: 0, rookie: false };
   // Índice das honras (títulos, MVPs e Majors) de todo mundo: remonta só quando o mundo visível muda.
   $: honorIndex = career?.status === 'ACTIVE' ? honorsIndex(career) : null;
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
@@ -1456,7 +1463,9 @@
           <div><dt>Temporadas</dt><dd>{retro.seasons}</dd></div>
           <div class="gold"><dt>Títulos</dt><dd>{retro.totals.titles}</dd><small>{retro.totals.events ? Math.round((retro.totals.titles / retro.totals.events) * 100) : 0}% dos campeonatos</small></div>
           <div class:gold={retro.totals.majors > 0}><dt>Majors</dt><dd>{retro.totals.majors}</dd></div>
+          <div><dt>Vices</dt><dd>{retro.totals.runnerUps}</dd>{#if retro.totals.runnerUps}<small>{runnerUpBreakdown(retro.totals.runnerUpByTier)}</small>{/if}</div>
           <div><dt>MVPs</dt><dd>{retro.totals.mvps}</dd>{#if retro.totals.majorMvps}<small>{retro.totals.majorMvps} de Major</small>{/if}</div>
+          <div><dt>EVPs</dt><dd>{retro.totals.evps}</dd></div>
           <div><dt>Finais</dt><dd>{retro.totals.finalsWon}<span>/{retro.totals.finals}</span></dd></div>
           <div class:gold={retro.totals.hltvTop1 > 0}><dt>Top 1 HLTV</dt><dd>{retro.totals.hltvTop1}</dd>{#if retro.totals.bestHltv && !retro.totals.hltvTop1}<small>melhor #{retro.totals.bestHltv}</small>{/if}</div>
           <div><dt>Melhor overall</dt><dd>{retro.totals.bestOverall}</dd><small>em {retro.totals.peakYear}</small></div>
@@ -2635,6 +2644,13 @@
             {/each}
             <div class:has={trophies.majorMvps > 0} class:major={trophies.majorMvps > 0}><dt>MVP de Major</dt><dd>{trophies.majorMvps}</dd></div>
             <div class:has={trophies.mvps - trophies.majorMvps > 0}><dt>MVP de evento</dt><dd>{trophies.mvps - trophies.majorMvps}</dd></div>
+            <div class:has={trophies.evps > 0}><dt>EVP de evento</dt><dd>{trophies.evps}</dd></div>
+          </dl>
+          <p class="label trophy-sub">Vices · {trophies.runnerUps}</p>
+          <dl class="trophy-tiers">
+            {#each TROPHY_TIERS as tier (tier)}
+              <div class:has={trophies.runnerUpByTier[tier] > 0}><dt>{tier === 'Major' ? 'Vice de Major' : `Vices ${TIER_LABEL[tier]}`}</dt><dd>{trophies.runnerUpByTier[tier]}</dd></div>
+            {/each}
           </dl>
           {#if moments.length}
             <ol class="moments">
@@ -2645,14 +2661,16 @@
                   <span class="moment-name">{moment.name}{#if moment.tier && !isMajor}<small>{TIER_LABEL[moment.tier]}</small>{/if}</span>
                   <span class="moment-tags">
                     {#if moment.placement === 'Campeão'}<span class="award" class:award-major={isMajor}>{isMajor ? 'Campeão do Major' : 'Campeão'}</span>{/if}
+                    {#if moment.placement === 'Vice'}<span class="award mvp">{isMajor ? 'Vice do Major' : 'Vice'}</span>{/if}
                     {#if moment.mvp}<span class="award mvp" class:award-major={isMajor}>{isMajor ? 'MVP do Major' : 'MVP'}</span>{/if}
+                    {#if moment.evp}<span class="award mvp">{isMajor ? 'EVP do Major' : 'EVP'}</span>{/if}
                     {#if moment.aces}<span class="tag">{moment.aces} ace{moment.aces > 1 ? 's' : ''}</span>{/if}
                   </span>
                 </li>
               {/each}
             </ol>
           {:else}
-            <p class="muted-line">Nenhum título ainda. Título, MVP de evento e ace entram aqui.</p>
+            <p class="muted-line">Nenhum título ainda. Título, vice, MVP e EVP de evento e ace entram aqui.</p>
           {/if}
 
         {:else if roomTab === 'premios'}
@@ -3195,6 +3213,7 @@
   .bracket-match b { font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums; }
 
   /* Sala de troféus: contagem por tier e os momentos da carreira. */
+  .trophy-sub { margin: 14px 0 8px; }
   .trophy-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; margin: 0; }
   .trophy-tiers div { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .trophy-tiers dt { color: var(--muted); font: 700 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }

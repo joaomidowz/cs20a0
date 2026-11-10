@@ -10,7 +10,7 @@ import { MIN_EVENTS_RANKED } from './awards';
 import type { EventTier } from './calendar';
 import type { WorldEventResult } from './circuit';
 import { memberBirthYear, memberCatalogOverall, memberNick, sceneOrgs } from './data';
-import { orgOf, type PlayerCareerState, type RankedPlayer, type RankingReasons, type TournamentResult } from './engine';
+import { evpNicksOf, orgOf, type PlayerCareerState, type RankedPlayer, type RankingReasons, type TournamentResult } from './engine';
 import { formBlockOf } from './form';
 import { fiveOf } from './honors';
 import { seatedNicks } from './squad';
@@ -58,8 +58,8 @@ export const PLACE_POINTS: Record<EventTier, readonly [number, number, number, n
 };
 /** MVP do campeonato, pelo tier. */
 export const MVP_POINTS: Record<EventTier, number> = { Major: 300, S: 200, A: 100, B: 40, C: 15 };
-/** EVP: os 4 melhores do campeonato depois do MVP (pelo rating de quadra), com 40% dos pontos do MVP. */
-export const EVPS_PER_EVENT = 4;
+/** EVP (os 4 melhores do campeonato depois do MVP, pelo rating de quadra) vale 40% dos pontos do MVP. */
+export { EVPS_PER_EVENT } from './engine';
 export const EVP_SHARE = 0.4;
 
 const SLOT_OF_PLACEMENT: Record<string, number> = { 'Campeão': 0, Vice: 1, Semis: 2, Quartas: 3 };
@@ -120,7 +120,8 @@ export function rankingSnapshot(state: PlayerCareerState, at?: RankingPoint): Ra
     blocksClosed += 1;
     lastIndex = Math.max(lastIndex, ...indexes);
   }
-  const month = calendar.find((entry) => entry.index === lastIndex)?.month ?? 0;
+  // Temporada toda fechada: o ano inteiro do mundo entra (o ranking final, que vira o Top 20 HLTV).
+  const month = blocks.size && blocksClosed === blocks.size ? 12 : calendar.find((entry) => entry.index === lastIndex)?.month ?? 0;
   return { season: state.seasonNumber, lastIndex, month, blocksClosed, blocksTotal: blocks.size, carry: blocks.size ? 1 - blocksClosed / blocks.size : 1 };
 }
 
@@ -235,6 +236,8 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
       } else other(loser, line.phase === 'semifinal' ? 2 : 3);
     }
     if (result.mvp) award(result.mvp.you ? state.nick : result.mvp.nick, tier, weight, false);
+    // Os EVPs saem do mesmo topPlayers do circuito do mundo (você com o nick da carreira).
+    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.you ? state.nick : result.mvp?.nick)) award(nick, tier, weight, true);
   }
 
   // 2) O circuito do mundo: a temporada passada inteira (com o peso dela) e a atual até o mês do bloco fechado. O que
@@ -247,12 +250,7 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
       if (slot !== null) place(result.season, placement.orgId, slot, result.tier, weight);
     }
     if (result.mvp) award(result.mvp.nick, result.tier, weight, false);
-    const mvp = result.mvp?.nick.toLowerCase();
-    [...result.topPlayers]
-      .filter((player) => player.nick.toLowerCase() !== mvp)
-      .sort((a, b) => b.rating - a.rating || byText(a.nick, b.nick))
-      .slice(0, EVPS_PER_EVENT)
-      .forEach((player) => award(player.nick, result.tier, weight, true));
+    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.nick)) award(nick, result.tier, weight, true);
   };
   // Nunca depois do relógio do circuito (sem spoiler): o mês do bloco fechado pode ser o mesmo do seu próximo
   // campeonato, e o mundo desse mês ainda não aconteceu.

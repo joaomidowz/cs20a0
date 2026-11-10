@@ -2,8 +2,8 @@
 // A retrospectiva da carreira (ao pendurar o mouse): as eras em cada time, os números de tudo, a melhor temporada,
 // os Majors, as melhores jogadas e a curva de overall. Puro: lê o histórico salvo e devolve o que a tela anima.
 import type { EventTier } from './calendar';
-import type { PlayerCareerState, PlayHighlight, TournamentResult } from './engine';
-import { seasonLevelOf } from './tiers';
+import { isYourEvp, type PlayerCareerState, type PlayHighlight, type TournamentResult } from './engine';
+import { legacyEventTier, seasonLevelOf } from './tiers';
 
 export interface RetroEra {
   orgId: string;
@@ -35,7 +35,9 @@ export interface Retrospective {
   becameCoach: boolean;
   first: { orgId: string; orgName: string; level: number } | null;
   totals: {
-    events: number; titles: number; majors: number; sTier: number; mvps: number; majorMvps: number;
+    events: number; titles: number; majors: number; sTier: number; mvps: number; majorMvps: number; evps: number;
+    /** Vices (final perdida), no total e por tier. */
+    runnerUps: number; runnerUpByTier: Record<EventTier, number>;
     finals: number; finalsWon: number; hltvTop1: number; hltvTop20: number; bestHltv: number | null; rookie: boolean;
     aces: number; quads: number; clutches: number; bestOverall: number; peakYear: number; bestRating: number; bestRatingYear: number;
   };
@@ -73,7 +75,8 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
   const majorTitles: Retrospective['majorTitles'] = [];
   const plays: Retrospective['topPlays'] = [];
   const totals = {
-    events: 0, titles: 0, majors: 0, sTier: 0, mvps: 0, majorMvps: 0, finals: 0, finalsWon: 0, hltvTop1: 0, hltvTop20: 0,
+    events: 0, titles: 0, majors: 0, sTier: 0, mvps: 0, majorMvps: 0, evps: 0,
+    runnerUps: 0, runnerUpByTier: { Major: 0, S: 0, A: 0, B: 0, C: 0 } as Record<EventTier, number>, finals: 0, finalsWon: 0, hltvTop1: 0, hltvTop20: 0,
     bestHltv: null as number | null, rookie: false, aces: 0, quads: 0, clutches: 0,
     bestOverall: 0, peakYear: logs[0]?.year ?? state.year, bestRating: 0, bestRatingYear: logs[0]?.year ?? state.year
   };
@@ -89,6 +92,11 @@ export function buildRetrospective(state: PlayerCareerState): Retrospective {
     totals.sTier += titles.filter((result) => result.tier === 'S').length;
     totals.mvps += mvps.length;
     totals.majorMvps += mvps.filter((result) => result.tier === 'Major').length;
+    totals.evps += played.filter((result) => isYourEvp(result, state.nick)).length;
+    for (const result of played.filter((entry) => entry.placement === 'Vice')) {
+      totals.runnerUps += 1;
+      totals.runnerUpByTier[result.tier ?? legacyEventTier(log.orgLevel)] += 1;
+    }
     totals.finals += played.filter((result) => result.placement === 'Campeão' || result.placement === 'Vice').length;
     totals.finalsWon += titles.length;
     for (const result of played) {

@@ -209,6 +209,33 @@ describe('pontos dos últimos 12 meses', () => {
     expect(playerRankingView(all, none).myRank).toBe(rows.indexOf(me) + 1);
   });
 
+  it('EVP do seu campeonato conta para você e para quem jogou nele, como no mundo', () => {
+    const start = seasonAt('vitality-2026');
+    const indexes = start.calendar!.map((entry) => entry.index);
+    const mate = matesOf(start)[0].player.nickname!;
+    const all = indexes.reduce((next, index) => recordEventResult(next, index, {
+      name: next.calendar![index].name, placement: 'Vice', rating: 1.2, seriesWins: 2, seriesLosses: 1, tier: next.calendar![index].tier,
+      mvp: { nick: 'rival', team: 'Rival', rating: 1.4 },
+      topPlayers: [{ nick: 'rival', orgId: 'x', rating: 1.4 }, { nick: 'tester', orgId: 'vitality-2026', rating: 1.3 }, { nick: mate, orgId: 'vitality-2026', rating: 1.25 }]
+    }), start);
+    const rows = playerRanking(all, undefined, sourceOf([]));
+    const me = rows.find((row) => row.you)!;
+    expect(me.reasons!.evps).toBe(indexes.length);
+    expect(me.reasons!.evpPoints).toBeGreaterThan(0);
+    expect(rows.find((row) => row.nick === mate)!.reasons!.evps).toBe(indexes.length);
+  });
+
+  it('o Top 20 HLTV do fim do ano é o mesmo ranking da tela Mundo, com o ano inteiro do mundo', () => {
+    const start = seasonAt('vitality-2026');
+    const done = play(start, start.calendar!.map((entry) => entry.index), 'Semis');
+    expect(rankingSnapshot(done).month).toBe(12);
+    const top = playerRanking(done, undefined, sourceOf([]));
+    const mine = top.findIndex((row) => row.you) + 1;
+    const log = finishSeason(done, null, top).history.at(-1)!;
+    expect(log.hltvTop).toEqual(top.slice(0, 20));
+    expect(log.hltvRank).toBe(mine > 0 ? mine : null);
+  });
+
   it('determinístico: os mesmos resultados dão o mesmo ranking', () => {
     const build = () => {
       const start = seasonAt(TIER_C);

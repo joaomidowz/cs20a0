@@ -1,7 +1,7 @@
 // tests/playerCareerRetrospective.test.ts
 // A retrospectiva ao pendurar o mouse: eras por time, totais, Majors, a melhor temporada, jogadas e a curva.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, trophyCase, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { buildRetrospective, eraLevel } from '../src/lib/game/playerCareer/retrospective';
 
 const result = (name: string, placement: string, tier: TournamentResult['tier'], extra: Partial<TournamentResult> = {}): TournamentResult =>
@@ -32,6 +32,33 @@ describe('retrospectiva', () => {
     expect(retro.topPlays[0]).toMatchObject({ kind: 'ace', year: 2027 });
     expect(retro.titlesByYear.map((year) => [year.year, year.titles.length])).toEqual([[2026, 1], [2027, 1], [2028, 2]]);
     expect(retro.curve).toHaveLength(4);
+  });
+});
+
+describe('vices e EVPs na retrospectiva', () => {
+  it('conta os vices por tier e os EVPs (você entre os melhores tirando o MVP)', () => {
+    const top = (you: number) => [{ nick: 'mvp', orgId: 'x', rating: 1.5 }, { nick: 'a', orgId: 'x', rating: 1.3 }, { nick: 'tester', orgId: 'furia', rating: you }, { nick: 'b', orgId: 'x', rating: 1.2 }, { nick: 'c', orgId: 'x', rating: 1.1 }, { nick: 'd', orgId: 'x', rating: 1.0 }];
+    const mvp = { nick: 'mvp', team: 'X', rating: 1.5 };
+    const state: PlayerCareerState = {
+      ...createPlayerCareer({ nick: 'tester', country: 'Brazil', role: 'awper', seed: 'retro-vice' }),
+      status: 'RETIRED',
+      history: [
+        log(2026, 'furia', 'FURIA', 1, [
+          result('Major 2026', 'Vice', 'Major', { mvp, topPlayers: top(1.25) }),
+          result('IEM 2026', 'Vice', 'S', { mvp, topPlayers: top(0.9) }),
+          result('Copa 2026', 'Vice', 'A'),
+          result('Liga 2026', 'Campeão', 'A', { mvp: { nick: 'tester', team: 'FURIA', rating: 1.6, you: true }, topPlayers: top(1.6) }),
+          result('Qualifier 2026', 'Vice', 'B', { skipped: true })
+        ])
+      ]
+    };
+    const retro = buildRetrospective(state);
+    expect(retro.totals.runnerUps).toBe(3);
+    expect(retro.totals.runnerUpByTier).toEqual({ Major: 1, S: 1, A: 1, B: 0, C: 0 });
+    // EVP só no Major (no IEM ficou fora do top 4 sem o MVP; na Liga foi o MVP, que não conta como EVP).
+    expect(retro.totals.evps).toBe(1);
+    const trophies = trophyCase(state);
+    expect(trophies).toMatchObject({ runnerUps: 3, runnerUpByTier: { Major: 1, S: 1, A: 1, B: 0, C: 0 }, evps: 1, mvps: 1 });
   });
 });
 
