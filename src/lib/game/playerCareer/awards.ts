@@ -38,7 +38,12 @@ export function seasonScore(results: TournamentResult[], level: number): number 
   return Number((mean + mvps * 0.015).toFixed(3));
 }
 
-export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName: string): SeasonAwards {
+/**
+ * `playerTop`: o ranking de jogadores do fim do ano (playerRanking.ts, o mesmo da tela Mundo). Com ele, o Top 20, a sua
+ * posição e o Rookie saem dessa lista: o Rookie é o estreante mais bem colocado nela. Sem ele (testes, saves sem o
+ * circuito), vale a nota da temporada abaixo, com a força estimada pelo overall para a cena.
+ */
+export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName: string, playerTop: RankedPlayer[] | null = null): SeasonAwards {
   const results = (state.calendar ?? []).flatMap((entry) => (entry.result ? [entry.result] : []));
   const year = yearOfSeason(state.seasonNumber);
   // MVPs e títulos dos jogadores da cena nos SEUS campeonatos contam para eles também.
@@ -88,6 +93,12 @@ export function seasonAwards(state: PlayerCareerState, orgLevel: number, orgName
   const playedMajorNow = results.some((result) => result.tier === 'Major' && !result.skipped);
   const playedMajorBefore = state.history.some((log) => log.tournaments.some((result) => result.tier === 'Major' && !result.skipped));
   const rookieEligible = playedMajorNow && !playedMajorBefore;
+  if (playerTop) {
+    const debutants = new Set(field.filter((player) => player.elite && player.debut).map((player) => player.nick.toLowerCase()));
+    const mineAt = playerTop.findIndex((player) => player.you);
+    const rookie = playerTop.find((player) => (player.you ? rookieEligible : debutants.has(player.nick.toLowerCase()))) ?? null;
+    return { hltvTop: playerTop.slice(0, 20), hltvRank: mineAt >= 0 ? mineAt + 1 : null, rookie, rookieEligible };
+  }
   const npcRookie = field.filter((player) => player.elite && player.debut).sort((a, b) => b.score - a.score)[0];
   const rookie: RankedPlayer | null = rookieEligible && mine !== null && (!npcRookie || mine >= npcRookie.score)
     ? { nick: state.nick, team: orgName, teamId: state.orgId, score: mine, rating: myRating, age: state.age, you: true }

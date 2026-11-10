@@ -749,8 +749,8 @@ function growBench(plan: SquadPlan | null | undefined, year: number, rng: () => 
 
 /**
  * `playerTop`: o ranking de jogadores do fim do ano (playerRanking.ts, a mesma lista da tela Mundo com todos os blocos
- * fechados). A página passa quando o circuito do mundo fechou a temporada; ele vira o Top 20 HLTV e a sua posição, para
- * o prêmio bater com o que você acompanhou no ano. Sem ele (testes, saves sem circuito), vale a nota da temporada.
+ * fechados). A página passa quando o circuito do mundo fechou a temporada; ele vira o Top 20 HLTV, a sua posição e o
+ * Rookie of the Year (o estreante mais bem colocado), para o prêmio bater com o que você acompanhou no ano. Sem ele (testes, saves sem circuito), vale a nota da temporada.
  */
 export function finishSeason(state: PlayerCareerState, worldRank: number | null = null, playerTop: RankedPlayer[] | null = null): PlayerCareerState {
   if (state.status !== 'ACTIVE' || !state.calendar || state.calendar.some((entry) => entry.status !== 'PLAYED')) return state;
@@ -805,10 +805,9 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     ...(state.seasonMoves?.length ? { moves: state.seasonMoves } : {})
   };
   // Prêmios da temporada: Top 20 HLTV e Rookie of the Year (estreia em Major).
-  const awards = seasonAwards(state, org.level, org.name);
-  const myRow = playerTop ? playerTop.findIndex((player) => player.you) : -1;
-  log.hltvTop = playerTop ? playerTop.slice(0, 20) : awards.hltvTop;
-  log.hltvRank = playerTop ? (myRow >= 0 ? myRow + 1 : null) : awards.hltvRank;
+  const awards = seasonAwards(state, org.level, org.name, playerTop);
+  log.hltvTop = awards.hltvTop;
+  log.hltvRank = awards.hltvRank;
   log.rookie = awards.rookie;
   log.rookieEligible = awards.rookieEligible;
   // Acesso e rebaixamento do seu time pela temporada (quem acabou de chegar por troca também conta).

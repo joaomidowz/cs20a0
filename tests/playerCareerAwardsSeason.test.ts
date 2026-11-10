@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, finishSeason, recordEventResult, startSeason, trophyCase, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { seasonScore } from '../src/lib/game/playerCareer/awards';
+import { seasonAwards, seasonScore } from '../src/lib/game/playerCareer/awards';
+import type { RankedPlayer } from '../src/lib/game/playerCareer/engine';
 import { simulateSceneEvent } from '../src/lib/game/playerCareer/live';
 import { entryKind } from '../src/lib/game/playerCareer/qualifiers';
 
@@ -51,6 +52,28 @@ describe('Rookie of the Year', () => {
     const second = playAll(startSeason({ ...first, pendingOffers: null }), 'Campeão', 1.3);
     expect(second.history.at(-1)!.rookieEligible).toBe(false);
     expect(second.history.at(-1)!.rookie?.you).not.toBe(true);
+  });
+
+  it('com o ranking do fim do ano, o Rookie é o estreante mais bem colocado nele (você só no ano da estreia)', () => {
+    const base = seasonAt(0, 'roty-rank');
+    let played = base;
+    for (const entry of played.calendar!) played = recordEventResult(played, entry.index, { name: entry.name, placement: 'Quartas', rating: 1.0, seriesWins: 1, seriesLosses: 1, tier: entry.tier });
+    const org = sceneOrgs.find((candidate) => candidate.id === played.orgId)!;
+    // Quem é estreante na regra de sempre: o Rookie da cena sem o ranking.
+    const npc = seasonAwards({ ...played, history: [{ seasonNumber: 0, year: 2025, orgId: 'x', orgName: 'x', orgLevel: 0, tournaments: [{ name: 'Major velho', placement: 'Quartas', rating: 1, seriesWins: 0, seriesLosses: 1, tier: 'Major' }], seasonRating: 1, overallBefore: 80, overallAfter: 80, titles: 0, injury: null, agingNote: '' } as never] }, org.level, org.name).rookie!;
+    expect(npc.you).not.toBe(true);
+    const row = (nick: string, extra: Partial<RankedPlayer> = {}): RankedPlayer => ({ nick, team: 'T', score: 0, ...extra });
+    const veteranTop = [row('ZywOo'), row('donk'), row('m0NESY')];
+    // O estreante em 4º leva, mesmo com você (elegível) em 5º.
+    const top = [...veteranTop, row(npc.nick), row(played.nick, { you: true })];
+    const awards = seasonAwards(played, org.level, org.name, top);
+    expect(awards.rookieEligible).toBe(true);
+    expect(awards.rookie?.nick).toBe(npc.nick);
+    expect(awards.hltvRank).toBe(5);
+    // Você na frente do estreante leva o Rookie.
+    expect(seasonAwards(played, org.level, org.name, [...veteranTop, row(played.nick, { you: true }), row(npc.nick)]).rookie?.you).toBe(true);
+    // Ninguém estreante no ranking: sem Rookie.
+    expect(seasonAwards(played, org.level, org.name, veteranTop).rookie).toBeNull();
   });
 
   it('quem não jogou Major (CCT) não é elegível', () => {
