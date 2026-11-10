@@ -6,6 +6,7 @@
   import { onMount } from 'svelte';
   import CareerHltvTop from './CareerHltvTop.svelte';
   import TeamBadge from './TeamBadge.svelte';
+  import CareerEventStars from './CareerEventStars.svelte';
   import { honorsIndex, type PlayerHonors } from '$lib/game/playerCareer/honors';
   import { playerRankingView, type PlayerRankingView } from '$lib/game/playerCareer/playerRanking';
   import { teamRanking } from '$lib/game/playerCareer/ranking';
@@ -153,10 +154,8 @@
                     {#if row.runnerUp}
                       <div><dt>Vice</dt><dd>{#if row.runnerUp.orgId}<TeamBadge id={row.runnerUp.orgId} name={row.runnerUp.name} size="sm" highlight={row.runnerUp.mine} />{/if}<b>{row.runnerUp.name}</b></dd></div>
                     {/if}
-                    {#if row.mvp}
-                      <div class="mvp"><dt>MVP</dt><dd><b>{row.mvp.you ? `${row.mvp.nick} · você` : row.mvp.nick}</b><small>{row.mvp.team} · {row.mvp.rating.toFixed(2)}</small></dd></div>
-                    {/if}
                   </dl>
+                  <CareerEventStars mvp={row.mvp} evps={row.evps} compact={true} />
                 {/if}
               </li>
             {/each}
@@ -248,8 +247,6 @@
   .ev-podium dd { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; }
   .ev-podium dd b { min-width: 0; overflow: hidden; font: 800 15px/1.1 var(--display); text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
   .ev-podium .champ dt { color: var(--gold, #d9a441); }
-  .ev-podium .mvp dd { display: grid; gap: 2px; }
-  .ev-podium dd small { color: var(--muted); font-size: 12px; }
   .ev-field { margin: 0; color: var(--muted); font-size: 13px; }
   .ev-loading { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--muted); font-size: 13px; }
   .ev-loading i { position: relative; flex: none; width: 64px; height: 6px; overflow: hidden; background: color-mix(in srgb, var(--line) 80%, transparent); }

@@ -9,7 +9,7 @@ import { matesOf } from '../src/lib/game/playerCareer/squad';
 import { orgIn, worldRosters } from '../src/lib/game/playerCareer/world';
 import { MIN_EVENTS_RANKED } from '../src/lib/game/playerCareer/awards';
 import { formBlockOf } from '../src/lib/game/playerCareer/form';
-import { BASE_STEP, REAL_PLAYER_RANKING, basePointsOf, playerRanking, playerRankingView, pointsOf, rankingSnapshot, reasonsLabel, strengthPointsOf } from '../src/lib/game/playerCareer/playerRanking';
+import { BASE_STEP, REAL_PLAYER_RANKING, basePointsOf, playerRanking, playerRankingView, pointsOf, rankingSnapshot, reasonsLabel, BEST_EVENTS, RATING_FLOOR, RATING_SCALE, TIER_RATING_EDGE } from '../src/lib/game/playerCareer/playerRanking';
 import { careerClock, type WorldSource } from '../src/lib/game/playerCareer/worldView';
 import type { WorldEvent, WorldEventResult } from '../src/lib/game/playerCareer/circuit';
 
@@ -43,23 +43,25 @@ describe('ranking real no começo da carreira', () => {
     expect(rows[0].nick).toBe('donk');
   });
 
-  it('cada linha diz o motivo: força pelo overall e a base real com o peso dela', () => {
+  it('cada linha diz o motivo: no começo, só a base real (ninguém jogou ainda)', () => {
     const rows = playerRanking(seasonAt(TIER_C));
     const first = rows[0];
-    expect(first.reasons).toMatchObject({ titles: 0, mvps: 0, evps: 0, placements: 0, mvpPoints: 0, evpPoints: 0, base: basePointsOf(1) });
+    expect(first.reasons).toMatchObject({ titles: 0, mvps: 0, evps: 0, placements: 0, mvpPoints: 0, evpPoints: 0, strength: 0, base: basePointsOf(1) });
     expect(first.points).toBe(pointsOf(first.reasons!));
-    expect(first.points).toBe(basePointsOf(1) + first.reasons!.strength);
+    expect(first.points).toBe(basePointsOf(1));
     expect(first.score).toBe(first.points);
-    expect(reasonsLabel(first.reasons!)).toBe(`força ${first.reasons!.strength} · ranking real 6.300`);
-    const outside = rows.find((row) => row.reasons!.base === 0)!;
-    expect(outside.points).toBe(outside.reasons!.strength);
-    expect(BASE_STEP).toBeGreaterThan(strengthPointsOf(99) - strengthPointsOf(70));
+    expect(reasonsLabel(first.reasons!)).toBe('ranking real 6.300');
+    // Sem campeonato jogado, só quem tem base real aparece.
+    expect(rows.every((row) => row.reasons!.base > 0)).toBe(true);
+    expect(BASE_STEP).toBe(300);
   });
 
   it('rótulo do motivo com títulos, MVPs e EVPs', () => {
-    expect(reasonsLabel({ titles: 2, mvps: 1, evps: 3, placements: 1840, mvpPoints: 200, evpPoints: 240, strength: 230, base: 4200 }))
-      .toBe('campeonatos 1.840 (2 títulos) · 1 MVP · 3 EVPs · força 230 · ranking real 4.200');
-    expect(reasonsLabel({ titles: 0, mvps: 0, evps: 1, placements: 140, mvpPoints: 0, evpPoints: 80, strength: 0, base: 0 })).toBe('campeonatos 140 · 1 EVP');
+    expect(reasonsLabel({ titles: 2, mvps: 1, evps: 3, placements: 840, mvpPoints: 200, evpPoints: 240, strength: 0, base: 4200, rating: 1.18, events: 12, ratingPoints: 3300 }))
+      .toBe('rating 1,18 em 12 campeonatos 3.300 · colocações 840 (2 títulos) · 1 MVP · 3 EVPs · ranking real 4.200');
+    expect(reasonsLabel({ titles: 0, mvps: 0, evps: 1, placements: 140, mvpPoints: 0, evpPoints: 80, strength: 0, base: 0 })).toBe('colocações 140 · 1 EVP');
+    // Ranking salvo antes do rating da temporada ainda mostra a força.
+    expect(reasonsLabel({ titles: 0, mvps: 0, evps: 0, placements: 0, mvpPoints: 0, evpPoints: 0, strength: 230, base: 0 })).toBe('força 230');
   });
 });
 
@@ -79,8 +81,10 @@ describe('determinismo e visão da tela', () => {
   it('a aba mostra o top 20 e a sua posição', () => {
     const view = playerRankingView(seasonAt(TIER_C));
     expect(view).toMatchObject({ year: 2026, myRank: null, baseWeight: 1 });
-    expect(view.rows).toHaveLength(20);
-    expect(view.total).toBeGreaterThan(1000);
+    // No começo só o ranking real (quem está na ativa dele): o top tem no máximo 20.
+    expect(view.rows.length).toBe(view.total);
+    expect(view.total).toBeGreaterThan(10);
+    expect(view.total).toBeLessThanOrEqual(20);
   });
 });
 
@@ -120,7 +124,8 @@ const blockOf = (state: PlayerCareerState, block: number) => state.calendar!.fil
 const play = (state: PlayerCareerState, indexes: number[], placement = 'Quartas') =>
   indexes.reduce((next, index) => recordEventResult(next, index, {
     name: next.calendar![index].name, placement, rating: 1.05, seriesWins: 1, seriesLosses: 1, tier: next.calendar![index].tier,
-    ...(placement === 'Campeão' ? { champion: orgOf(next.orgId).name } : {})
+    ...(placement === 'Campeão' ? { champion: orgOf(next.orgId).name } : {}),
+    lines: [next.nick, ...matesOf(next).map((mate) => mate.player.nickname!)].map((nick) => ({ nick, orgId: next.orgId, rating: 1.05, rounds: 60 }))
   }), state);
 
 describe('o ranking anda no fechamento do bloco', () => {
@@ -154,44 +159,87 @@ describe('o ranking anda no fechamento do bloco', () => {
 });
 
 describe('pontos dos últimos 12 meses', () => {
+  /** As linhas dos dois finalistas (todos com o mesmo rating): sem elas, só os melhores do campeonato contam. */
+  const withLines = (base: WorldEventResult, season: number, rating = 1.1): WorldEventResult => ({
+    ...base,
+    lines: [base.champion, base.runnerUp].flatMap((orgId) => lineup(season, orgId).map((nick) => ({ nick, orgId, rating, rounds: 60 })))
+  });
+
   it('título, MVP e EVP do mundo com o motivo, e a soma bate', () => {
     const start = seasonAt(TIER_C);
     const first = blockOf(start, 0);
     const closed = play(start, first);
     // O mundo que já aconteceu quando o bloco fechou: até o relógio do circuito (o mês anterior ao seu próximo).
-    const world = event(1, 0, careerClock(closed).month);
     const mouz = lineup(1, 'mouz-2026');
     const spirit = lineup(1, 'spirit-2026');
-    const scored: WorldEventResult = {
-      ...result(world, 'mouz-2026', 'spirit-2026', mouz[1]),
-      topPlayers: [{ nick: mouz[1], orgId: 'mouz-2026', rating: 1.4 }, { nick: spirit[0], orgId: 'spirit-2026', rating: 1.2 }, { nick: spirit[1], orgId: 'spirit-2026', rating: 1.1 }]
-    };
-    const rows = playerRanking(closed, undefined, sourceOf([[world, scored]]));
+    // Quatro campeonatos iguais: o mínimo para entrar no ranking.
+    const pairs = [0, 1, 2, 3].map((index): [WorldEvent, WorldEventResult] => {
+      const world = event(1, index, careerClock(closed).month);
+      return [world, {
+        ...result(world, 'mouz-2026', 'spirit-2026', mouz[1]),
+        topPlayers: [{ nick: mouz[1], orgId: 'mouz-2026', rating: 1.4 }, { nick: spirit[0], orgId: 'spirit-2026', rating: 1.2 }, { nick: spirit[1], orgId: 'spirit-2026', rating: 1.1 }]
+      }];
+    });
+    const rows = playerRanking(closed, undefined, sourceOf(pairs));
     const mvp = rows.find((row) => row.nick === mouz[1])!;
-    expect(mvp.reasons).toMatchObject({ titles: 1, mvps: 1, evps: 0, placements: 700, mvpPoints: 200, evpPoints: 0 });
+    // Sem as linhas de todos (resultado antigo), o rating vem dos melhores do campeonato.
+    expect(mvp.reasons).toMatchObject({ titles: 4, mvps: 4, evps: 0, placements: 4 * 280, mvpPoints: 4 * 200, evpPoints: 0, rating: 1.4, events: 4 });
+    const edged = 1.4 + TIER_RATING_EDGE.S;
+    expect(mvp.reasons!.ratingPoints).toBe(Math.round((edged - RATING_FLOOR) * RATING_SCALE * (4 / 6)));
     expect(mvp.points).toBe(pointsOf(mvp.reasons!));
-    expect(reasonsLabel(mvp.reasons!)).toContain('campeonatos 700 (1 título) · 1 MVP');
-    expect(rows.find((row) => row.nick === mouz[0])!.reasons).toMatchObject({ titles: 1, mvps: 0, placements: 700 });
-    expect(rows.find((row) => row.nick === spirit[0])!.reasons).toMatchObject({ titles: 0, evps: 1, placements: 420, evpPoints: 80 });
-    expect(rows.find((row) => row.nick === spirit[2])!.reasons).toMatchObject({ evps: 0, placements: 420 });
+    expect(mvp.rating).toBe(1.4);
+    expect(reasonsLabel(mvp.reasons!)).toContain('colocações 1.120 (4 títulos) · 4 MVPs');
+    expect(rows.find((row) => row.nick === spirit[0])!.reasons).toMatchObject({ titles: 0, evps: 4, placements: 4 * 170, evpPoints: 4 * 80 });
+    // Quem não está entre os melhores (sem linha) não tem campeonato no ranking: só aparece se ainda tem base real.
+    const outside = rows.find((row) => row.nick === spirit[2]);
+    expect(outside?.reasons?.events ?? 0).toBe(0);
+    expect(outside ? outside.reasons!.base > 0 : true).toBe(true);
+  });
+
+  it('colocação, MVP e EVP contam só nos melhores campeonatos de cada um', () => {
+    const start = seasonAt(TIER_C);
+    const closed = play(start, blockOf(start, 0));
+    const pairs = Array.from({ length: BEST_EVENTS + 3 }, (_, index): [WorldEvent, WorldEventResult] => {
+      const world = event(1, index, careerClock(closed).month);
+      return [world, withLines(result(world, 'mouz-2026', 'spirit-2026'), 1)];
+    });
+    const champion = playerRanking(closed, undefined, sourceOf(pairs)).find((row) => row.nick === lineup(1, 'mouz-2026')[0])!;
+    expect(champion.reasons).toMatchObject({ titles: BEST_EVENTS + 3, placements: BEST_EVENTS * 280, events: BEST_EVENTS + 3 });
   });
 
   it('a temporada passada pesa menos a cada bloco e o mundo que ainda calcula fica pendente', () => {
     const s2: PlayerCareerState = { ...seasonAt(TIER_C), seasonNumber: 2, year: 2027 };
-    const last = event(1, 0, 5);
-    const lastResult = result(last, 'mouz-2026', 'spirit-2026');
+    const lastPairs = [0, 1, 2, 3].map((index): [WorldEvent, WorldEventResult] => {
+      const last = event(1, index, 5);
+      return [last, withLines(result(last, 'mouz-2026', 'spirit-2026'), 1)];
+    });
     const star = lineup(1, 'mouz-2026').find((nick) => activeNicks(s2).has(nick.toLowerCase()))!;
-    const before = playerRanking(s2, undefined, sourceOf([[last, lastResult]]));
-    expect(before.find((row) => row.nick === star)!.reasons!.placements).toBe(700);
+    const before = playerRanking(s2, undefined, sourceOf(lastPairs));
+    expect(before.find((row) => row.nick === star)!.reasons!.placements).toBe(4 * 280);
     const first = blockOf(s2, 0);
     const closed = play(s2, first);
     const snapshot = rankingSnapshot(closed);
     const now = event(2, 0, careerClock(closed).month, 'A');
     // O mês do seu próximo campeonato ainda não chegou para o mundo: não conta nem fica pendente.
     const ahead = event(2, 1, careerClock(closed).month + 1, 'A');
-    const source = sourceOf([[last, lastResult], [now, null], [ahead, null]]);
-    expect(playerRanking(closed, undefined, source).find((row) => row.nick === star)!.reasons!.placements).toBe(Math.round(700 * snapshot.carry));
+    const source = sourceOf([...lastPairs, [now, null], [ahead, null]]);
+    expect(playerRanking(closed, undefined, source).find((row) => row.nick === star)!.reasons!.placements).toBe(Math.round(4 * 280 * snapshot.carry));
     expect(playerRankingView(closed, source)).toMatchObject({ pending: 1, blocksClosed: 1, blocksTotal: snapshot.blocksTotal, baseWeight: 0 });
+  });
+
+  it('o rating pesa mais que o título: rating alto em time sem título passa o campeão de rating baixo', () => {
+    const start = seasonAt(TIER_C);
+    const closed = play(start, blockOf(start, 0));
+    const mouz = lineup(1, 'mouz-2026');
+    const spirit = lineup(1, 'spirit-2026');
+    const pairs = Array.from({ length: 6 }, (_, index): [WorldEvent, WorldEventResult] => {
+      const world = event(1, index, careerClock(closed).month);
+      const base = result(world, 'mouz-2026', 'spirit-2026');
+      return [world, { ...base, lines: [...mouz.map((nick) => ({ nick, orgId: 'mouz-2026', rating: 1.0, rounds: 60 })), ...spirit.map((nick) => ({ nick, orgId: 'spirit-2026', rating: 1.3, rounds: 60 }))] }];
+    });
+    const rows = playerRanking(closed, undefined, sourceOf(pairs));
+    const at = (nick: string) => rows.findIndex((row) => row.nick === nick);
+    expect(at(spirit[0])).toBeLessThan(at(mouz[0]));
   });
 
   it('o seu título vale para você e para os parceiros, e você entra com 4 campeonatos contados', () => {
@@ -234,6 +282,16 @@ describe('pontos dos últimos 12 meses', () => {
     const log = finishSeason(done, null, top).history.at(-1)!;
     expect(log.hltvTop).toEqual(top.slice(0, 20));
     expect(log.hltvRank).toBe(mine > 0 ? mine : null);
+  });
+
+  it('as linhas de todos ficam só na última temporada do histórico (o save não cresce)', () => {
+    const one = finishSeason(play(seasonAt(TIER_C), seasonAt(TIER_C).calendar!.map((entry) => entry.index)));
+    expect(one.history.at(-1)!.tournaments.some((result) => result.lines?.length)).toBe(true);
+    const next = startSeason({ ...one, pendingOffers: null });
+    const two = finishSeason(play(next, next.calendar!.map((entry) => entry.index)));
+    expect(two.history).toHaveLength(2);
+    expect(two.history[0].tournaments.some((result) => result.lines)).toBe(false);
+    expect(two.history[1].tournaments.some((result) => result.lines?.length)).toBe(true);
   });
 
   it('determinístico: os mesmos resultados dão o mesmo ranking', () => {

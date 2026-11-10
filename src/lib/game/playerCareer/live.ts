@@ -23,7 +23,7 @@ import { drawClutchSituation, readOf, resolveClutchEdge, type ReadQuality, type 
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
 import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
-import { computeMajorAwards } from '../majorAwards';
+import { aggregatePlayerLines, computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
 import { orgIn } from './world';
@@ -682,7 +682,7 @@ export function awardsSoFar(campaign: CampaignMajorState) {
   return computeMajorAwards(result.rounds, result.championId);
 }
 
-export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[]; highlights?: PlayHighlight[]; opponents?: TournamentResult['opponents']; stages?: TournamentResult['stages']; placements?: TournamentResult['placements']; topPlayers?: TournamentResult['topPlayers'] }
+export interface EventAwards { champion?: string; mvp?: EventMvp; plays?: EventPlays; bracket?: BracketLine[]; highlights?: PlayHighlight[]; opponents?: TournamentResult['opponents']; stages?: TournamentResult['stages']; placements?: TournamentResult['placements']; topPlayers?: TournamentResult['topPlayers']; lines?: TournamentResult['lines'] }
 
 /**
  * Prêmios do evento pelo kill feed de TODAS as séries (o motor joga o campo inteiro): campeão, MVP (o mesmo
@@ -735,6 +735,8 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ? result.campaigns.map((entry) => ({ orgId: orgOfTeam(entry.organizationId), place: ENGINE_PLACE[entry.placement] ?? 25 })).sort((a, b) => a.place - b.place || a.orgId.localeCompare(b.orgId))
     : [];
   const topPlayers = final ? ranked.map((award) => ({ nick: award.playerId === me ? state.nick : award.name, orgId: orgOfTeam(award.teamId), rating: Math.round(award.rating * 100) / 100 })) : [];
+  // Todos que jogaram, na régua do MVP (o mesmo campo inteiro): o rating da temporada no ranking de jogadores.
+  const lines = final ? aggregatePlayerLines(series).map((line) => ({ nick: line.playerId === me ? state.nick : line.name, orgId: orgOfTeam(line.teamId), rating: Math.round(line.rating * 100) / 100, rounds: line.rounds })) : [];
   return {
     ...(final ? { champion: nameOf(final.winnerId === final.teamA.id ? final.teamA : final.teamB) } : {}),
     ...(mvp ? { mvp } : {}),
@@ -744,7 +746,8 @@ export function eventAwards(state: PlayerCareerState, campaign: CampaignMajorSta
     ...(opponents.length ? { opponents } : {}),
     ...(stages?.length ? { stages } : {}),
     ...(placements.length ? { placements } : {}),
-    ...(topPlayers.length ? { topPlayers } : {})
+    ...(topPlayers.length ? { topPlayers } : {}),
+    ...(lines.length ? { lines } : {})
   };
 }
 

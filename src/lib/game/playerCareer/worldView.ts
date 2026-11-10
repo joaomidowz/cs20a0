@@ -5,7 +5,7 @@
 import { MONTH_LABEL, TIER_LABEL, type EventTier, type Region } from './calendar';
 import { circuitClock, worldEventsOf, worldResult, type CircuitClock, type WorldEvent, type WorldEventResult } from './circuit';
 import { sceneOrgById, sceneOrgs } from './data';
-import { orgOf, type PlayerCareerState, type TournamentResult } from './engine';
+import { evpsOf, orgOf, type PlayerCareerState, type TournamentResult } from './engine';
 import { teamRanking, type RankedTeam } from './ranking';
 import { teamTierTitle, type TeamTier } from './tiers';
 import { seatMovesOf, worldHistory, yearOfSeason } from './world';
@@ -119,8 +119,13 @@ export interface WorldEventRow {
   myPlacement: string | null;
   champion: WorldTeamRef | null;
   runnerUp: WorldTeamRef | null;
-  mvp: { nick: string; team: string; rating: number; you: boolean } | null;
+  mvp: EventStarRef | null;
+  /** Os 4 melhores depois do MVP, pelo rating. */
+  evps: EventStarRef[];
 }
+
+/** MVP ou EVP de um campeonato, com o time para o escudo. */
+export interface EventStarRef { nick: string; team: string; orgId: string | null; rating: number; you: boolean }
 
 export interface WorldEventsView {
   season: number;
@@ -151,16 +156,31 @@ export function fieldLabel(event: Pick<WorldEvent, 'invites' | 'qualifierSlots'>
     : `${total} times convidados pelo ranking`;
 }
 
-type Podium = Pick<WorldEventRow, 'champion' | 'runnerUp' | 'mvp'>;
-const NO_PODIUM: Podium = { champion: null, runnerUp: null, mvp: null };
+type Podium = Pick<WorldEventRow, 'champion' | 'runnerUp' | 'mvp' | 'evps'>;
+const NO_PODIUM: Podium = { champion: null, runnerUp: null, mvp: null, evps: [] };
+
+/** Um jogador dos melhores do campeonato com o time (o seu nick é você). */
+function starOf(state: PlayerCareerState, player: { nick: string; orgId: string; rating: number }): EventStarRef {
+  const team = teamRef(state, player.orgId);
+  return { nick: player.nick, team: team.name, orgId: team.orgId, rating: player.rating, you: player.nick.toLowerCase() === state.nick.toLowerCase() };
+}
 
 function podiumFromWorld(state: PlayerCareerState, result: WorldEventResult): Podium {
   return {
     champion: teamRef(state, result.champion),
     runnerUp: result.runnerUp ? teamRef(state, result.runnerUp) : null,
     mvp: result.mvp
-      ? { nick: result.mvp.nick, team: teamRef(state, result.mvp.orgId).name, rating: result.mvp.rating, you: result.userPlayed && result.mvp.nick.toLowerCase() === state.nick.toLowerCase() }
-      : null
+      ? { ...starOf(state, result.mvp), you: result.userPlayed && result.mvp.nick.toLowerCase() === state.nick.toLowerCase() }
+      : null,
+    evps: evpsOf(result.topPlayers, result.mvp?.nick).map((player) => ({ ...starOf(state, player), you: result.userPlayed && player.nick.toLowerCase() === state.nick.toLowerCase() }))
+  };
+}
+
+/** O MVP e os EVPs do seu campeonato (você pelo nick da carreira). */
+export function eventStarsOf(state: PlayerCareerState, result: TournamentResult): Pick<Podium, 'mvp' | 'evps'> {
+  return {
+    mvp: result.mvp ? { nick: result.mvp.you ? state.nick : result.mvp.nick, team: result.mvp.team, orgId: teamByName(state, result.mvp.team).orgId, rating: result.mvp.rating, you: Boolean(result.mvp.you) } : null,
+    evps: evpsOf(result.topPlayers, result.mvp?.you ? state.nick : result.mvp?.nick).map((player) => starOf(state, player))
   };
 }
 
@@ -170,7 +190,7 @@ function podiumFromYou(state: PlayerCareerState, result: TournamentResult): Podi
   return {
     champion: result.champion ? teamByName(state, result.champion) : null,
     runnerUp: final ? teamByName(state, final.aWon ? final.b : final.a) : null,
-    mvp: result.mvp ? { nick: result.mvp.you ? state.nick : result.mvp.nick, team: result.mvp.team, rating: result.mvp.rating, you: Boolean(result.mvp.you) } : null
+    ...eventStarsOf(state, result)
   };
 }
 

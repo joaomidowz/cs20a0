@@ -52,6 +52,9 @@
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
   import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
+  import { eventStarsOf } from '$lib/game/playerCareer/worldView';
+  import { orgLogoFor } from '$lib/game/visuals/licensed';
+  import CareerEventStars from '$lib/components/CareerEventStars.svelte';
   import { circuitReady } from '$lib/game/playerCareer/circuit';
   import { applyQualifierResult, entryKind, qualifierTargetName, resolveInvitedQualifier } from '$lib/game/playerCareer/qualifiers';
   import { freezeRanking, teamRankOf, teamRanking } from '$lib/game/playerCareer/ranking';
@@ -1289,6 +1292,15 @@
   $: liveAwards = overviewOpen && live ? awardsSoFar(live) : null;
   $: liveOver = live ? eventDone(live, liveSetup) && !(liveSetup.swissOnly && advancedFromSwiss(live) && liveStage && NEXT_STAGE[liveStage]) : false;
   $: sheetEntry = career && eventSheet !== null ? career.calendar?.[eventSheet] ?? null : null;
+  $: sheetStars = career && sheetEntry?.result ? eventStarsOf(career, sheetEntry.result) : null;
+  /** Campeonato com muitos times e quase todos com logo: a chave e a tabela mostram as logos no lugar dos nomes. */
+  $: sheetLogos = (() => {
+    const result = sheetEntry?.result;
+    if (!result) return false;
+    const names = new Set([...(result.stages ?? []).flatMap((entry) => entry.standings.map((standing) => standing.name)), ...(result.bracket ?? []).flatMap((line) => [line.a, line.b])]);
+    const withLogo = [...names].filter((name) => orgLogoFor({ orgId: orgIdByName(name), name, id: orgIdByName(name) })).length;
+    return names.size >= 8 && withLogo / names.size >= 0.75;
+  })();
   $: sheetStage = career && sheetEntry?.format === 'major' && eventSheet !== null ? majorEntryStage(career, eventSheet) : null;
   $: sheetField = career && sheetEntry && eventSheet !== null ? sceneEventField(career, eventSheet, sheetEntry.format === 'major' ? sheetStage ?? 'stage1' : null) : [];
   $: sheetInvites = career && sheetEntry?.format === 'major' && sheetStage !== 'stage3' && eventSheet !== null ? majorInvites(career, eventSheet) : [];
@@ -2304,8 +2316,7 @@
             <div><dt>Séries</dt><dd>{sheetEntry.result.seriesWins}V · {sheetEntry.result.seriesLosses}D</dd></div>
             <div><dt>Seu rating</dt><dd class:hot={sheetEntry.result.rating >= 1.1}>{sheetEntry.result.rating.toFixed(2)}</dd></div>
             {#if sheetEntry.prizePool}<div><dt>Premiação</dt><dd>{prizeLabel(sheetEntry.prizePool)}</dd></div>{/if}
-            {#if sheetEntry.result.champion}<div><dt>Campeão</dt><dd>{sheetEntry.result.champion}</dd></div>{/if}
-            {#if sheetEntry.result.mvp}<div><dt>MVP</dt><dd class:mvp-you={sheetEntry.result.mvp.you}>{sheetEntry.result.mvp.you ? 'Você' : sheetEntry.result.mvp.nick} <small>{sheetEntry.result.mvp.rating.toFixed(2)}</small></dd></div>{/if}
+            {#if sheetEntry.result.champion}<div><dt>Campeão</dt><dd class="champ-dd"><TeamBadge id={orgIdByName(sheetEntry.result.champion)} orgId={orgIdByName(sheetEntry.result.champion)} name={sheetEntry.result.champion} size="sm" />{sheetEntry.result.champion}</dd></div>{/if}
             {#if sheetEntry.result.plays && (sheetEntry.result.plays.aces || sheetEntry.result.plays.quads || sheetEntry.result.plays.clutches)}<div><dt>Suas jogadas</dt><dd>{[sheetEntry.result.plays.aces ? `${sheetEntry.result.plays.aces} ace` : '', sheetEntry.result.plays.quads ? `${sheetEntry.result.plays.quads} quad` : '', sheetEntry.result.plays.clutches ? `${sheetEntry.result.plays.clutches} clutch` : ''].filter(Boolean).join(' · ')}</dd></div>{/if}
             <div><dt>Formato</dt><dd>{FORMAT_SHORT(sheetEntry)}</dd></div>
           {:else}
@@ -2337,12 +2348,12 @@
               <button role="tab" aria-selected={shown.stage === entry.stage} class:on={shown.stage === entry.stage} on:click={() => (sheetStageTab = entry.stage)}>{sheetEntry.format !== 'major' && entry.stage === 'stage3' ? 'Suíça' : PHASE_LABEL[entry.stage]}</button>
             {/each}
           </div>
-          <ol class="stage-table">
+          <ol class="stage-table" class:logos={sheetLogos}>
             {#each shown.standings as standing, standingIndex (standing.name + standingIndex)}
-              <li class:you={standing.you} class:out={standing.status === 'eliminated'}>
+              <li class:you={standing.you} class:out={standing.status === 'eliminated'} title={standing.name}>
                 <span class="st-rank">{standingIndex + 1}</span>
-                <TeamBadge id={orgIdByName(standing.name)} orgId={orgIdByName(standing.name)} name={standing.name} size="sm" highlight={standing.you} />
-                <b>{standing.name}{standing.you ? ' · você' : ''}</b>
+                <TeamBadge id={orgIdByName(standing.name)} orgId={orgIdByName(standing.name)} name={standing.name} size={sheetLogos ? 'md' : 'sm'} highlight={standing.you} />
+                <b class:name-hidden={sheetLogos}>{standing.name}{standing.you ? ' · você' : ''}</b>
                 <span class="st-record">{standing.wins}-{standing.losses}</span>
                 <span class="st-status">{standing.status === 'eliminated' ? 'Eliminado' : standing.status === 'champion' ? 'Campeão' : 'Classificado'}</span>
               </li>
@@ -2351,15 +2362,15 @@
         {/if}
         {#if sheetEntry.result?.bracket?.length}
           {@const bracket = sheetEntry.result.bracket}
-          <div class="bracket" aria-label="Mata-mata do campeonato">
+          <div class="bracket" class:logos={sheetLogos} aria-label="Mata-mata do campeonato">
             {#each BRACKET_PHASES as column (column.phase)}
               <div class="bracket-col">
                 <p class="label">{column.label}</p>
                 <div class="bracket-games">
                 {#each bracket.filter((line) => line.phase === column.phase) as line, lineIndex (`${column.phase}-${lineIndex}`)}
                   <div class="bracket-match" class:mine={Boolean(line.you)}>
-                    <span class:won={line.aWon} class:me={line.you === 'a'}><i class="bm-team"><TeamBadge id={orgIdByName(line.a)} orgId={orgIdByName(line.a)} name={line.a} size="sm" /><em>{line.a}</em></i><b>{line.scoreA}</b></span>
-                    <span class:won={!line.aWon} class:me={line.you === 'b'}><i class="bm-team"><TeamBadge id={orgIdByName(line.b)} orgId={orgIdByName(line.b)} name={line.b} size="sm" /><em>{line.b}</em></i><b>{line.scoreB}</b></span>
+                    <span class:won={line.aWon} class:me={line.you === 'a'} title={line.a}><i class="bm-team"><TeamBadge id={orgIdByName(line.a)} orgId={orgIdByName(line.a)} name={line.a} size={sheetLogos ? 'md' : 'sm'} highlight={line.you === 'a'} /><em class:name-hidden={sheetLogos}>{line.a}</em></i><b>{line.scoreA}</b></span>
+                    <span class:won={!line.aWon} class:me={line.you === 'b'} title={line.b}><i class="bm-team"><TeamBadge id={orgIdByName(line.b)} orgId={orgIdByName(line.b)} name={line.b} size={sheetLogos ? 'md' : 'sm'} highlight={line.you === 'b'} /><em class:name-hidden={sheetLogos}>{line.b}</em></i><b>{line.scoreB}</b></span>
                   </div>
                 {/each}
                 </div>
@@ -2394,6 +2405,10 @@
             </ul>
           {/each}
         </div>
+        {/if}
+        {#if sheetStars && (sheetStars.mvp || sheetStars.evps.length)}
+          <p class="label stars-label">Destaques do campeonato</p>
+          <CareerEventStars mvp={sheetStars.mvp} evps={sheetStars.evps} />
         {/if}
         {#if currentEntry?.index === eventSheet}
           <button class="cta" on:click={() => eventSheet !== null && playFromSheet(eventSheet)}>Jogar este campeonato</button>
@@ -3211,6 +3226,18 @@
   .bm-team { display: flex; align-items: center; gap: 8px; min-width: 0; font-style: normal; }
   .bracket-match em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
   .bracket-match b { font: 800 15px/1 var(--display); font-variant-numeric: tabular-nums; }
+  /* No computador: logo e nome. No celular, um ou outro: campeonato com logos mostra só a logo (o nome fica no title e
+   * para leitor de tela, fora do fluxo do grid); sem logos, só o nome. O seu time segue destacado pela cor. */
+  @media (max-width: 640px) {
+    .name-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .bracket.logos .bracket-match > span { padding: 5px 10px; }
+    .stage-table.logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stage-table.logos li { position: relative; grid-template-columns: 18px auto minmax(0, 1fr) auto; }
+    .bracket:not(.logos) :global(.team-badge), .stage-table:not(.logos) :global(.team-badge) { display: none; }
+    .stage-table:not(.logos) li { grid-template-columns: 22px minmax(0, 1fr) 40px 86px; }
+  }
+  .champ-dd { display: flex; align-items: center; gap: 6px; }
+  .stars-label { margin: 14px 0 8px; }
 
   /* Sala de troféus: contagem por tier e os momentos da carreira. */
   .trophy-sub { margin: 14px 0 8px; }
@@ -3741,11 +3768,9 @@
   .event-facts div { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
   .event-facts dt { color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; }
   .event-facts dd { margin: 0; overflow-wrap: anywhere; font: 800 19px/1.1 var(--display); text-transform: uppercase; }
-  .event-facts dd small { color: var(--muted); font: 700 12px/1 var(--body); }
   @media (max-width: 680px) { .event-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .event-facts dd.placed { color: var(--place); font: 900 24px/1 var(--display); text-transform: uppercase; }
   .event-facts dd.hot { color: var(--accent); }
-  .event-facts dd.mvp-you { color: var(--gold); font-weight: 800; }
   .field ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   /* Os times do campeonato: escudo, tier, idioma, melhor mapa e força; clica para ver o elenco. */
   .field .label { margin: 10px 0 6px; }

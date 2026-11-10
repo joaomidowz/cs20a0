@@ -25,6 +25,10 @@ describe('o resultado do seu campeonato guarda a chave inteira', () => {
     expect(result.month).toBe(state.calendar![index].month);
     expect(result.topPlayers!.length).toBeGreaterThan(0);
     expect(result.topPlayers!.length).toBeLessThanOrEqual(8);
+    // A linha de todos que jogaram, na régua do MVP: você com o nick da carreira e o seu rating.
+    expect(result.lines!.length).toBeGreaterThanOrEqual(40);
+    expect(result.lines!.find((line) => line.nick === 'tester')).toMatchObject({ orgId: state.orgId, rating: result.rating });
+    expect(result.lines!.every((line) => line.rounds > 0)).toBe(true);
   });
 
   it('carreira nova começa o circuito na temporada 1; save antigo começa na temporada em que abriu', () => {

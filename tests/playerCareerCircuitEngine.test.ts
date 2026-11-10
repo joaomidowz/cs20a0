@@ -42,6 +42,8 @@ describe('o campeonato do mundo no motor completo', () => {
     const first = computeWorldResult(state, event);
     clearWorldCache();
     const second = computeWorldResult(state, event);
+    // Todos que jogaram ficam guardados (o rating da temporada no ranking).
+    expect(first.lines!.length).toBeGreaterThanOrEqual(40);
     expect(second).toEqual(first);
     expect(first.placements).toHaveLength(first.field.length);
     expect(first.placements.find((entry) => entry.place === 1)?.orgId).toBe(first.champion);

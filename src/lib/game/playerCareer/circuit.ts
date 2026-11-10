@@ -8,13 +8,13 @@ import { completeRound, createTournamentEngine, currentRound, startNextRound, to
 import { autoDecide, pendingSeriesDecision, stepSeries } from '../online/live-series';
 import { calculateHistoricalTeamPower, createSeededRng } from '../simulation';
 import { createNeutralMapStrategy, type MapSimulationContext } from '../map-veto';
-import { computeMajorAwards } from '../majorAwards';
+import { aggregatePlayerLines, computeMajorAwards } from '../majorAwards';
 import { dynastySwissBestOf } from '../dynasty/format';
 import type { HistoricalTeam, Player } from '../types';
 import { worldCircuitOf, type EventFormat, type EventTemplate, type EventTier } from './calendar';
 import { mapProfile } from './careerMaps';
 import { sceneOrgById, sceneOrgs } from './data';
-import type { CalendarEntry, PlayerCareerState, TournamentResult } from './engine';
+import type { CalendarEntry, EventLine, PlayerCareerState, TournamentResult } from './engine';
 import { careerMapPool, ENGINE_PLACE, EVENT_FORM_SWING, pickEventMvp, SCENE_EVENT_FORMAT, sceneOrgEnginePlayers, sceneOrgToEngineTeam, SUPERTEAM_DAMPING, SUPERTEAM_EDGE } from './live';
 import { rankOrderAt } from './ranking';
 import { homeLevelOf, levelFromRank } from './tiers';
@@ -22,7 +22,7 @@ import { qualifierWinners } from './qualifiers';
 import { worldOrgIn, yearOfSeason } from './world';
 
 /** Sobe quando a simulação do circuito muda: o cache antigo deixa de valer e o circuito é jogado de novo. */
-export const WORLD_SIM_VERSION = 1;
+export const WORLD_SIM_VERSION = 2;
 
 export interface WorldEventSlot { orgId: string; via: 'invite' | 'qualifier' | 'user' }
 export interface WorldEvent {
@@ -48,6 +48,8 @@ export interface WorldEventResult {
   runnerUp: string;     // orgId
   mvp: { nick: string; orgId: string; rating: number } | null;
   topPlayers: Array<{ nick: string; orgId: string; rating: number }>;
+  /** Todos que jogaram (versão 2 do cache em diante). */
+  lines?: EventLine[];
   userPlayed: boolean;
 }
 
@@ -169,6 +171,7 @@ function userWorldResult(state: PlayerCareerState, event: WorldEvent, result: To
     placements, champion: at(1), runnerUp: at(2),
     mvp: result.mvp ? { nick: result.mvp.nick, orgId: result.mvp.you ? userOrg : orgIdByName.get(result.mvp.team) ?? '', rating: result.mvp.rating } : null,
     topPlayers: result.topPlayers ?? [],
+    ...(result.lines ? { lines: result.lines } : {}),
     userPlayed: true
   };
 }
@@ -398,6 +401,7 @@ function finishWorldRun(run: WorldRun): WorldEventResult {
     champion, runnerUp,
     mvp: pick ? { nick: pick.name, orgId: pick.teamId, rating: round2(pick.rating) } : null,
     topPlayers: ranked.map((award) => ({ nick: award.name, orgId: award.teamId, rating: round2(award.rating) })),
+    lines: aggregatePlayerLines(result.rounds.flatMap((round) => round.series)).map((line) => ({ nick: line.name, orgId: line.teamId, rating: round2(line.rating), rounds: line.rounds })),
     userPlayed: false
   };
 }

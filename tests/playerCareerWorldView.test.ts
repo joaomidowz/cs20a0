@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, orgOf, startSeason, type CalendarEntry, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { registerSeats, sceneWorld, seatMovesOf } from '../src/lib/game/playerCareer/world';
-import { careerClock, careerResults, eventKey, fieldLabel, orgIdOfName, rankingView, seenWorldResults, worldEventsView, worldMovesView, type WorldSource } from '../src/lib/game/playerCareer/worldView';
+import { careerClock, careerResults, eventKey, eventStarsOf, fieldLabel, orgIdOfName, rankingView, seenWorldResults, worldEventsView, worldMovesView, type WorldSource } from '../src/lib/game/playerCareer/worldView';
 import type { RankedTeam } from '../src/lib/game/playerCareer/ranking';
 import type { WorldEvent, WorldEventResult } from '../src/lib/game/playerCareer/circuit';
 
@@ -176,6 +176,22 @@ describe('campeonatos do mundo', () => {
     });
     expect(view.upcoming.map((row) => [row.key, row.mine])).toEqual([['1:1', 'event'], ['1:2', 'qualifier']]);
     expect(source.read).toEqual(['1:0']);
+  });
+
+  it('MVP e EVPs do seu campeonato com o time de cada um; você marcado pelo nick da carreira', () => {
+    const base = seasonAt(TIER_C);
+    const played: TournamentResult = {
+      name: 'Mundo Teste 1-0', placement: 'Vice', rating: 1.3, seriesWins: 3, seriesLosses: 1, tier: 'S', champion: 'MOUZ',
+      mvp: { nick: 'jL', team: sceneOrgById.get('mouz-2026')!.name, rating: 1.4 },
+      topPlayers: [
+        { nick: 'jL', orgId: 'mouz-2026', rating: 1.4 }, { nick: base.nick, orgId: TIER_C, rating: 1.3 }, { nick: 'torzsi', orgId: 'mouz-2026', rating: 1.2 },
+        { nick: 'a', orgId: 'x', rating: 1.1 }, { nick: 'b', orgId: 'x', rating: 1.05 }, { nick: 'c', orgId: 'x', rating: 1.0 }
+      ]
+    };
+    const stars = eventStarsOf(base, played);
+    expect(stars.mvp).toMatchObject({ nick: 'jL', orgId: 'mouz-2026', you: false });
+    expect(stars.evps.map((star) => [star.nick, star.you])).toEqual([[base.nick, true], ['torzsi', false], ['a', false], ['b', false]]);
+    expect(stars.evps[0]).toMatchObject({ orgId: TIER_C, team: orgOf(TIER_C).name });
   });
 
   it('a frase da chave diz convidados e vagas de qualificatória', () => {

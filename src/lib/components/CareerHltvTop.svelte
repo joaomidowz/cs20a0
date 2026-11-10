@@ -54,7 +54,16 @@
             {#if honorsOf}<CareerHonors honors={honorsOf(player.nick)} />{/if}
           </span>
           <small>{player.team}{player.age ? ` · ${player.age} anos` : ''}</small>
-          {#if player.reasons}<small class="why">{reasonsLabel(player.reasons)}</small>{/if}
+          {#if player.reasons?.events}
+            {@const why = player.reasons}
+            <span class="season-line" title={reasonsLabel(why)}>
+              <b class={ratingClass(why.rating)}>{(why.rating ?? 0).toFixed(2)}</b><span>rating</span>
+              <span class="sep" aria-hidden="true">·</span><span>{why.events} camp.</span>
+              {#if why.titles}<span class="sep" aria-hidden="true">·</span><span class="gold">{why.titles} {why.titles === 1 ? 'título' : 'títulos'}</span>{/if}
+              {#if why.mvps}<span class="sep" aria-hidden="true">·</span><span class="mvp">{why.mvps} MVP{why.mvps > 1 ? 's' : ''}</span>{/if}
+              {#if why.evps}<span class="sep" aria-hidden="true">·</span><span>{why.evps} EVP{why.evps > 1 ? 's' : ''}</span>{/if}
+            </span>
+          {:else if player.reasons}<small class="why">{reasonsLabel(player.reasons)}</small>{/if}
         </span>
         {#if player.points !== undefined}
           <span class="hl-rating hl-points" class:hot={index === 0}>
@@ -73,7 +82,7 @@
   </ol>
 
   {#if myRank && myRank > 20}
-    <p class="me-out">{live ? 'Você está em' : 'Você ficou em'} <b>#{myRank}</b>{myRating ? ` com rating ${myRating.toFixed(2)}` : ''}. {live ? 'Título, MVP e EVP em Major e Tier S valem mais pontos.' : 'Para entrar no Top 20, rating alto em Major e Tier S pesa mais.'}</p>
+    <p class="me-out">{live ? 'Você está em' : 'Você ficou em'} <b>#{myRank}</b>{myRating ? ` com rating ${myRating.toFixed(2)}` : ''}. {live ? 'O rating em Major e Tier S é o que mais pesa; título, MVP e EVP somam por cima.' : 'Para entrar no Top 20, rating alto em Major e Tier S pesa mais.'}</p>
   {:else if myRank === null}
     <p class="me-out">{live ? 'Você entra no ranking com 4 campeonatos contados nos últimos 12 meses.' : 'Você jogou menos de 4 campeonatos e ficou fora do ranking.'}</p>
   {/if}
@@ -104,6 +113,14 @@
   .who small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
   /* O motivo dos pontos quebra linha: nada cortado no celular. */
   .who small.why { overflow: visible; color: color-mix(in srgb, var(--muted) 80%, var(--text)); line-height: 1.3; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  /* A temporada de cada um: rating, campeonatos, títulos, MVPs e EVPs, na mesma régua para todos. */
+  .season-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 5px; color: var(--muted); font-size: 11px; line-height: 1.3; }
+  .season-line b { color: var(--text); font: 800 13px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .season-line b.hot { color: var(--gold, #d9a441); }
+  .season-line b.good { color: var(--accent); }
+  .season-line .sep { opacity: .5; }
+  .season-line .gold { color: var(--gold, #d9a441); }
+  .season-line .mvp { color: var(--text); font-weight: 700; }
   .hl-rating { display: grid; gap: 3px; justify-items: end; font: 800 16px/1 var(--display); font-variant-numeric: tabular-nums; }
   .hl-rating i { display: block; width: 100%; height: 3px; background: var(--muted); justify-self: stretch; }
   .hl-rating.hot { color: var(--gold, #d9a441); }

@@ -105,7 +105,13 @@ export interface TournamentResult {
   month?: number;
   /** Os melhores do campeonato pelo kill feed (até 8), como no circuito do mundo. */
   topPlayers?: Array<{ nick: string; orgId: string; rating: number }>;
+  /** A linha de todos que jogaram (rating e rounds): o rating da temporada no ranking. Saves antigos: sem; o histórico
+   *  guarda só o da última temporada (é o que o ranking ainda lê). */
+  lines?: EventLine[];
 }
+
+/** A linha de um jogador no campeonato, na mesma régua de rating do MVP (Rating 3.0 contra o campeonato inteiro). */
+export interface EventLine { nick: string; orgId: string; rating: number; rounds: number }
 
 export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kills: number; against?: number; map: string; round: number; opponent: string }
 
@@ -113,18 +119,27 @@ export interface PlayHighlight { kind: 'ace' | 'quad' | 'triple' | 'clutch'; kil
 
 export interface TrophyCase { byTier: Record<EventTier, number>; /** Vices (final perdida) por tier. */ runnerUpByTier: Record<EventTier, number>; runnerUps: number; mvps: number; /** MVPs de Major (já contados em `mvps`). */ majorMvps: number; evps: number; aces: number; total: number; clutches: number; hltvBest: number | null; hltvTop1: number; hltvTop20: number; rookie: boolean }
 
+/** A temporada sem as linhas de todos os jogadores dos campeonatos (o resto do resultado fica). */
+function withoutLines(log: SeasonLog): SeasonLog {
+  if (!log.tournaments.some((result) => result.lines)) return log;
+  return { ...log, tournaments: log.tournaments.map(({ lines: _lines, ...result }) => result) };
+}
+
 /** EVP: os 4 melhores do campeonato depois do MVP (pelo rating de quadra), no seu campeonato e no circuito do mundo. */
 export const EVPS_PER_EVENT = 4;
 
-/** Os EVPs de um campeonato, em minúsculas: os melhores pelo rating tirando o MVP (empate pelo nick). */
-export function evpNicksOf(topPlayers: ReadonlyArray<{ nick: string; rating: number }> | undefined, mvpNick: string | undefined): string[] {
+/** Os EVPs de um campeonato: os melhores pelo rating tirando o MVP (empate pelo nick), do maior para o menor. */
+export function evpsOf<T extends { nick: string; rating: number }>(topPlayers: ReadonlyArray<T> | undefined, mvpNick: string | undefined): T[] {
   const mvp = mvpNick?.toLowerCase();
   return [...(topPlayers ?? [])]
     .filter((player) => player.nick.toLowerCase() !== mvp)
     .sort((a, b) => b.rating - a.rating || (a.nick < b.nick ? -1 : a.nick > b.nick ? 1 : 0))
-    .slice(0, EVPS_PER_EVENT)
-    .map((player) => player.nick.toLowerCase());
+    .slice(0, EVPS_PER_EVENT);
 }
+
+/** Os EVPs de um campeonato, em minúsculas. */
+export const evpNicksOf = (topPlayers: ReadonlyArray<{ nick: string; rating: number }> | undefined, mvpNick: string | undefined): string[] =>
+  evpsOf(topPlayers, mvpNick).map((player) => player.nick.toLowerCase());
 
 /** Você foi EVP do campeonato (o nick da carreira está entre os EVPs do topPlayers dele). */
 export const isYourEvp = (result: TournamentResult, nick: string): boolean =>
@@ -269,10 +284,15 @@ export interface RankingReasons {
   placements: number;
   mvpPoints: number;
   evpPoints: number;
-  /** Força de quem joga (overall acima de 70). */
+  /** Força de quem joga (overall acima de 70). Só nos rankings salvos antes do rating da temporada; hoje é 0. */
   strength: number;
   /** O que ainda sobra do ranking real de partida (some no começo da segunda temporada). */
   base: number;
+  /** Rating da temporada (média dos campeonatos pelos rounds jogados) e quantos campeonatos entraram nele. */
+  rating?: number;
+  events?: number;
+  /** Pontos do rating: o rating ajustado pelo tier de cada campeonato, acima do piso. */
+  ratingPoints?: number;
 }
 
 export interface RankedPlayer { nick: string; team: string; score: number; you?: boolean; /** Rating da temporada (o seu é o real; o da cena, pela força). */ rating?: number; teamId?: string; age?: number | null; /** Ranking de jogadores (D7b): os pontos e o motivo deles. */ points?: number; reasons?: RankingReasons }
@@ -818,7 +838,8 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     seasonTrain: null,
     seasonNumber: state.seasonNumber + 1,
     year: state.year + 1,
-    history: [...state.history, log],
+    // As linhas de todos os jogadores ficam só na última temporada (o ranking lê no máximo 12 meses): o save não cresce.
+    history: [...state.history.map(withoutLines), log],
     calendar: null,
     pendingOffers: offers.length ? offers : released ? [] : null,
     blockedOffers,

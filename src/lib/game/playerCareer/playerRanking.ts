@@ -1,15 +1,15 @@
 // src/lib/game/playerCareer/playerRanking.ts
 // Ranking de jogadores da Carreira (D7b). No começo da carreira é o ranking real: o Top 20 HLTV mais recente do
 // catálogo, só de quem está na ativa num elenco do mundo. Ele anda no fechamento de cada bloco de campeonatos (D1,
-// form.ts) com os resultados dos últimos 12 meses: a colocação do time pelo tier do campeonato, MVP e EVP, e a força de
-// quem joga. A temporada passada e o ranking real perdem peso bloco a bloco; o real some no começo da segunda
+// form.ts) com os resultados dos últimos 12 meses, como o da HLTV: o peso maior é o rating de cada um (ajustado pelo
+// tier do campeonato), depois MVP e EVP, e a colocação do time entra menor. Fechado no fim do ano, vira o Top 20 HLTV. A temporada passada e o ranking real perdem peso bloco a bloco; o real some no começo da segunda
 // temporada. Cada linha guarda o motivo dos pontos. O mundo vem da fonte do circuito (só cache, sem spoiler): o que
 // ainda calcula fica pendente e entra quando chegar.
 import rawPlayers from '$lib/data/cs/players.game.json';
 import { MIN_EVENTS_RANKED } from './awards';
 import type { EventTier } from './calendar';
 import type { WorldEventResult } from './circuit';
-import { memberBirthYear, memberCatalogOverall, memberNick, sceneOrgs } from './data';
+import { memberBirthYear, memberNick, sceneOrgs } from './data';
 import { evpNicksOf, orgOf, type PlayerCareerState, type RankedPlayer, type RankingReasons, type TournamentResult } from './engine';
 import { formBlockOf } from './form';
 import { fiveOf } from './honors';
@@ -41,20 +41,33 @@ export const REAL_PLAYER_RANKING: RealRank[] = (() => {
 })();
 const REAL_BY_KEY = new Map(REAL_PLAYER_RANKING.map((entry) => [entry.key, entry] as const));
 
-/** Degrau da base real: o 1º vale 6.300 e cada posição abaixo 300 a menos (o 20º, 600). O degrau é maior que toda a
- *  faixa da força (0 a 290), então no começo da carreira a ordem é exatamente a do ranking real. */
+/** Degrau da base real: o 1º vale 6.300 e cada posição abaixo 300 a menos (o 20º, 600). No começo da carreira ninguém
+ *  jogou nada, então a ordem é exatamente a do ranking real; ela some bloco a bloco. */
 export const BASE_STEP = 300;
 export const basePointsOf = (rank: number): number => BASE_STEP * Math.max(0, 22 - rank);
-/** Força de quem joga: 10 pontos por ponto de overall acima de 70 (o 99 vale 290). */
-export const strengthPointsOf = (overall: number): number => Math.max(0, Math.round(overall) - 70) * 10;
 
-/** Pontos do time por colocação (campeão, vice, semifinal, quartas), pelo tier do campeonato. */
+/** Rating: cada campeonato pesa pelos rounds jogados e pelo tier; o rating ganha um ajuste do tier (fazer 1.20 num Major
+ *  vale mais que num Tier C). Os pontos são o que passa do piso, vezes a escala; com menos de FULL_EVENTS campeonatos
+ *  (contando o peso do tempo) o rating vale proporcionalmente menos. */
+export const TIER_RATING_WEIGHT: Record<EventTier, number> = { Major: 1.6, S: 1.3, A: 1, B: 0.6, C: 0.4 };
+export const TIER_RATING_EDGE: Record<EventTier, number> = { Major: 0.06, S: 0.04, A: 0, B: -0.08, C: -0.15 };
+export const RATING_FLOOR = 0.85;
+export const RATING_SCALE = 10_000;
+export const FULL_EVENTS = 6;
+/** Colocação, MVP e EVP contam só nos melhores BEST_EVENTS campeonatos de cada um (como no ranking do tênis): quem joga
+ *  o circuito inteiro não passa na frente só por jogar mais (o seu calendário tem 8 a 12). */
+export const BEST_EVENTS = 8;
+/** Linha sem rounds (campeonato salvo antes das linhas de todos): conta como um campeonato médio. */
+const NOMINAL_ROUNDS = 40;
+
+/** Pontos do time por colocação (campeão, vice, semifinal, quartas), pelo tier do campeonato. Menores que o rating: o
+ *  título conta, mas não decide sozinho quem é o melhor jogador. */
 export const PLACE_POINTS: Record<EventTier, readonly [number, number, number, number]> = {
-  Major: [1000, 600, 350, 200],
-  S: [700, 420, 250, 140],
-  A: [350, 210, 120, 70],
-  B: [120, 70, 40, 20],
-  C: [50, 30, 15, 8]
+  Major: [400, 240, 140, 80],
+  S: [280, 170, 100, 55],
+  A: [140, 85, 50, 28],
+  B: [50, 30, 16, 8],
+  C: [20, 12, 6, 3]
 };
 /** MVP do campeonato, pelo tier. */
 export const MVP_POINTS: Record<EventTier, number> = { Major: 300, S: 200, A: 100, B: 40, C: 15 };
@@ -69,10 +82,12 @@ const slotOfPlace = (place: number): number | null => (place === 1 ? 0 : place =
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 const thousands = (value: number) => value.toLocaleString('pt-BR');
 
-/** "campeonatos 1.840 (2 títulos) · 1 MVP · 3 EVPs · força 230 · ranking real 4.200": o motivo, só com o que vale. */
+/** "rating 1,18 em 12 campeonatos 3.300 · colocações 840 (2 títulos) · 1 MVP · 3 EVPs · ranking real 4.200": o motivo,
+ *  só com o que vale. */
 export function reasonsLabel(reasons: RankingReasons): string {
   return [
-    reasons.placements > 0 ? `campeonatos ${thousands(reasons.placements)}${reasons.titles > 0 ? ` (${plural(reasons.titles, 'título', 'títulos')})` : ''}` : '',
+    reasons.rating !== undefined && reasons.events ? `rating ${reasons.rating.toFixed(2).replace('.', ',')} em ${plural(reasons.events, 'campeonato', 'campeonatos')} ${thousands(reasons.ratingPoints ?? 0)}` : '',
+    reasons.placements > 0 ? `colocações ${thousands(reasons.placements)}${reasons.titles > 0 ? ` (${plural(reasons.titles, 'título', 'títulos')})` : ''}` : '',
     reasons.mvps > 0 ? plural(reasons.mvps, 'MVP', 'MVPs') : '',
     reasons.evps > 0 ? plural(reasons.evps, 'EVP', 'EVPs') : '',
     reasons.strength > 0 ? `força ${thousands(reasons.strength)}` : '',
@@ -82,7 +97,7 @@ export function reasonsLabel(reasons: RankingReasons): string {
 
 /** Os pontos são a soma das partes do motivo. */
 export const pointsOf = (reasons: RankingReasons): number =>
-  reasons.placements + reasons.mvpPoints + reasons.evpPoints + reasons.strength + reasons.base;
+  (reasons.ratingPoints ?? 0) + reasons.placements + reasons.mvpPoints + reasons.evpPoints + reasons.strength + reasons.base;
 
 /** Um ponto da temporada: depois do campeonato `eventIndex` da temporada `season`. */
 export interface RankingPoint { season: number; eventIndex: number }
@@ -125,14 +140,35 @@ export function rankingSnapshot(state: PlayerCareerState, at?: RankingPoint): Ra
   return { season: state.seasonNumber, lastIndex, month, blocksClosed, blocksTotal: blocks.size, carry: blocks.size ? 1 - blocksClosed / blocks.size : 1 };
 }
 
-interface Row { key: string; nick: string; team: string; teamId: string; age: number | null; you: boolean; events: number; reasons: RankingReasons }
+interface Row {
+  key: string; nick: string; team: string; teamId: string; age: number | null; you: boolean;
+  /** Campeonatos jogados na janela e a soma dos pesos do tempo deles. */
+  events: number; load: number;
+  /** Somas ponderadas (rounds × tier × tempo) do rating cru e do ajustado pelo tier. */
+  ratingSum: number; edgeSum: number; ratingWeight: number;
+  /** Pontos de colocação, MVP e EVP por campeonato (os melhores BEST_EVENTS entram no motivo). */
+  byEvent: Map<string, EventPoints>;
+  reasons: RankingReasons;
+}
+interface EventPoints { placements: number; mvpPoints: number; evpPoints: number }
+const eventTotal = (points: EventPoints) => points.placements + points.mvpPoints + points.evpPoints;
 
 const emptyReasons = (): RankingReasons => ({ titles: 0, mvps: 0, evps: 0, placements: 0, mvpPoints: 0, evpPoints: 0, strength: 0, base: 0 });
 /** Ordem de código (a mesma em qualquer aparelho), para o desempate ser determinístico. */
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
+const newRow = (base: Omit<Row, 'events' | 'load' | 'ratingSum' | 'edgeSum' | 'ratingWeight' | 'byEvent' | 'reasons'>, reasons = emptyReasons()): Row =>
+  ({ ...base, events: 0, load: 0, ratingSum: 0, edgeSum: 0, ratingWeight: 0, byEvent: new Map(), reasons });
+
+/** Colocação, MVP e EVP dos melhores BEST_EVENTS campeonatos (empate: a ordem de chave, determinística). */
+function bestEvents(row: Row): Row {
+  const best = [...row.byEvent].sort((a, b) => eventTotal(b[1]) - eventTotal(a[1]) || byText(a[0], b[0])).slice(0, BEST_EVENTS);
+  const sum = (part: keyof EventPoints) => best.reduce((total, [, points]) => total + points[part], 0);
+  return { ...row, reasons: { ...row.reasons, placements: sum('placements'), mvpPoints: sum('mvpPoints'), evpPoints: sum('evpPoints') } };
+}
+
 /** Quem está na ativa num elenco do mundo na temporada (sem os nicks gerados e sem quem ficou no banco por causa da
- *  sua vaga): a força pelo overall de hoje e a base real com o peso que ela ainda tem. */
+ *  sua vaga), com a base real no peso que ela ainda tem. */
 function activeRows(state: PlayerCareerState, baseWeight: number): Map<string, Row> {
   const season = state.seasonNumber;
   const year = yearOfSeason(season);
@@ -145,22 +181,37 @@ function activeRows(state: PlayerCareerState, baseWeight: number): Map<string, R
       const key = nick.toLowerCase();
       if (member.generated || rows.has(key) || (org.id === state.orgId && benched.has(key))) continue;
       const reasons = emptyReasons();
-      reasons.strength = strengthPointsOf(member.overall ?? memberCatalogOverall(member) ?? org.power ?? 70);
       const real = REAL_BY_KEY.get((member.catalogBaseId ?? nick).toLowerCase()) ?? REAL_BY_KEY.get(key);
       if (real) reasons.base = basePointsOf(real.rank) * baseWeight;
       const born = memberBirthYear(member);
-      rows.set(key, { key, nick, team: org.name, teamId: org.id, age: born === null ? null : year - born, you: false, events: 0, reasons });
+      rows.set(key, newRow({ key, nick, team: org.name, teamId: org.id, age: born === null ? null : year - born, you: false }, reasons));
     }
   }
   return rows;
 }
 
+/** O rating da temporada em pontos: o ajustado acima do piso, proporcional aos campeonatos até FULL_EVENTS. */
+function withRating(row: Row): Row {
+  if (!row.ratingWeight) return row;
+  const rating = row.ratingSum / row.ratingWeight;
+  const edged = row.edgeSum / row.ratingWeight;
+  const ratingPoints = Math.max(0, edged - RATING_FLOOR) * RATING_SCALE * Math.min(1, row.load / FULL_EVENTS);
+  return { ...row, reasons: { ...row.reasons, rating: Number(rating.toFixed(2)), events: row.events, ratingPoints } };
+}
+
+/** Entra na lista quem jogou o mínimo de campeonatos na janela; no começo da carreira, também quem ainda tem base real. */
+const eligible = (row: Row) => row.events >= MIN_EVENTS_RANKED || (!row.you && row.reasons.base >= 1);
+
 /** A lista em ordem: pontos (as partes do motivo arredondadas, então a soma bate), depois a base real, depois o nick. */
 function ranked(rows: Iterable<Row>): RankedPlayer[] {
   return [...rows]
+    .filter(eligible)
+    .map(bestEvents)
+    .map(withRating)
     .map((row) => {
       const reasons: RankingReasons = {
         ...row.reasons,
+        ratingPoints: Math.round(row.reasons.ratingPoints ?? 0),
         placements: Math.round(row.reasons.placements),
         mvpPoints: Math.round(row.reasons.mvpPoints),
         evpPoints: Math.round(row.reasons.evpPoints),
@@ -170,7 +221,11 @@ function ranked(rows: Iterable<Row>): RankedPlayer[] {
       return { row, reasons, points: pointsOf(reasons) };
     })
     .sort((a, b) => b.points - a.points || b.reasons.base - a.reasons.base || byText(a.row.nick, b.row.nick))
-    .map(({ row, reasons, points }) => ({ nick: row.nick, team: row.team, teamId: row.teamId, score: points, points, reasons, age: row.age, ...(row.you ? { you: true } : {}) }));
+    .map(({ row, reasons, points }) => ({
+      nick: row.nick, team: row.team, teamId: row.teamId, score: points, points, reasons, age: row.age,
+      ...(reasons.rating !== undefined ? { rating: reasons.rating } : {}),
+      ...(row.you ? { you: true } : {})
+    }));
 }
 
 interface Ranking { rows: RankedPlayer[]; pending: number; snapshot: RankingSnapshot }
@@ -179,33 +234,48 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
   const snapshot = rankingSnapshot(state, at);
   const season = state.seasonNumber;
   const rows = activeRows(state, season <= 1 ? snapshot.carry : 0);
-  const you: Row = {
-    key: state.nick.toLowerCase(), nick: state.nick, team: orgOf(state.orgId).name, teamId: state.orgId, age: state.age, you: true, events: 0,
-    reasons: { ...emptyReasons(), strength: strengthPointsOf(state.overall) }
-  };
+  const you = newRow({ key: state.nick.toLowerCase(), nick: state.nick, team: orgOf(state.orgId).name, teamId: state.orgId, age: state.age, you: true });
   const rowOf = (nick: string): Row | null => (nick.toLowerCase() === you.key ? you : rows.get(nick.toLowerCase()) ?? null);
   const fives = new Map<string, string[]>();
-  const place = (eventSeason: number, orgId: string, slot: number, tier: EventTier, weight: number) => {
+  const credit = (row: Row, event: string, part: keyof EventPoints, points: number) => {
+    const entry = row.byEvent.get(event) ?? { placements: 0, mvpPoints: 0, evpPoints: 0 };
+    entry[part] += points;
+    row.byEvent.set(event, entry);
+  };
+  const place = (event: string, eventSeason: number, orgId: string, slot: number, tier: EventTier, weight: number) => {
     const key = `${eventSeason}:${orgId}`;
     if (!fives.has(key)) fives.set(key, fiveOf(state, eventSeason, orgId));
     for (const nick of fives.get(key)!) {
       const row = rowOf(nick);
       if (!row) continue;
-      row.reasons.placements += PLACE_POINTS[tier][slot] * weight;
+      credit(row, event, 'placements', PLACE_POINTS[tier][slot] * weight);
       if (slot === 0) row.reasons.titles += 1;
     }
   };
-  const award = (nick: string, tier: EventTier, weight: number, evp: boolean) => {
+  /** Um campeonato no rating de quem jogou: pesa pelos rounds, pelo tier e pelo tempo. */
+  const sample = (row: Row | null, rating: number, rounds: number, tier: EventTier, weight: number) => {
+    if (!row || weight <= 0) return;
+    const share = Math.max(1, rounds) * TIER_RATING_WEIGHT[tier] * weight;
+    row.events += 1;
+    row.load += weight;
+    row.ratingSum += rating * share;
+    row.edgeSum += (rating + TIER_RATING_EDGE[tier]) * share;
+    row.ratingWeight += share;
+  };
+  /** Todos que jogaram o campeonato (sem as linhas, num resultado antigo: só os melhores dele). */
+  const sampleAll = (lines: TournamentResult['lines'], top: TournamentResult['topPlayers'], tier: EventTier, weight: number, skip?: string) => {
+    for (const line of lines ?? (top ?? []).map((player) => ({ ...player, rounds: NOMINAL_ROUNDS }))) {
+      if (skip && line.nick.toLowerCase() === skip) continue;
+      sample(rowOf(line.nick), line.rating, line.rounds, tier, weight);
+    }
+  };
+  const award = (event: string, nick: string, tier: EventTier, weight: number, evp: boolean) => {
     const row = rowOf(nick);
     if (!row) return;
     const points = MVP_POINTS[tier] * weight * (evp ? EVP_SHARE : 1);
-    if (evp) {
-      row.reasons.evps += 1;
-      row.reasons.evpPoints += points;
-    } else {
-      row.reasons.mvps += 1;
-      row.reasons.mvpPoints += points;
-    }
+    if (evp) row.reasons.evps += 1;
+    else row.reasons.mvps += 1;
+    credit(row, event, evp ? 'evpPoints' : 'mvpPoints', points);
   };
 
   // 1) Os seus campeonatos: a colocação do seu time, os outros times do chaveamento e o MVP. A temporada passada entra
@@ -218,15 +288,21 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
   for (const item of yours) {
     const { result, weight } = item;
     if (result.skipped) continue;
-    you.events += 1;
     const tier = result.tier ?? 'C';
+    // O seu rating é o do campeonato (o que a tela mostra); no banco, o time jogou sem você e ele não conta.
+    if (!result.benched) {
+      const mine = result.lines?.find((line) => line.nick.toLowerCase() === you.key);
+      sample(you, result.rating, mine?.rounds ?? NOMINAL_ROUNDS, tier, weight);
+    }
+    sampleAll(result.lines, result.topPlayers, tier, weight, you.key);
     const slot = SLOT_OF_PLACEMENT[result.placement];
-    if (slot !== undefined) place(item.season, item.orgId, slot, tier, weight);
+    const event = eventKey(item.season, result.name);
+    if (slot !== undefined) place(event, item.season, item.orgId, slot, tier, weight);
     for (const line of result.bracket ?? []) {
       const other = (side: 'a' | 'b', lineSlot: number) => {
         if (line.you === side) return;
         const orgId = orgIdOfName(side === 'a' ? line.a : line.b);
-        if (orgId) place(item.season, orgId, lineSlot, tier, weight);
+        if (orgId) place(event, item.season, orgId, lineSlot, tier, weight);
       };
       const winner = line.aWon ? 'a' : 'b';
       const loser = line.aWon ? 'b' : 'a';
@@ -235,9 +311,9 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
         other(loser, 1);
       } else other(loser, line.phase === 'semifinal' ? 2 : 3);
     }
-    if (result.mvp) award(result.mvp.you ? state.nick : result.mvp.nick, tier, weight, false);
+    if (result.mvp) award(event, result.mvp.you ? state.nick : result.mvp.nick, tier, weight, false);
     // Os EVPs saem do mesmo topPlayers do circuito do mundo (você com o nick da carreira).
-    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.you ? state.nick : result.mvp?.nick)) award(nick, tier, weight, true);
+    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.you ? state.nick : result.mvp?.nick)) award(event, nick, tier, weight, true);
   }
 
   // 2) O circuito do mundo: a temporada passada inteira (com o peso dela) e a atual até o mês do bloco fechado. O que
@@ -245,12 +321,13 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
   const covered = coveredEventKeys(state);
   let pending = 0;
   const scoreWorld = (result: WorldEventResult, weight: number) => {
+    sampleAll(result.lines, result.topPlayers, result.tier, weight, you.key);
     for (const placement of result.placements) {
       const slot = slotOfPlace(placement.place);
-      if (slot !== null) place(result.season, placement.orgId, slot, result.tier, weight);
+      if (slot !== null) place(result.key, result.season, placement.orgId, slot, result.tier, weight);
     }
-    if (result.mvp) award(result.mvp.nick, result.tier, weight, false);
-    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.nick)) award(nick, result.tier, weight, true);
+    if (result.mvp) award(result.key, result.mvp.nick, result.tier, weight, false);
+    for (const nick of evpNicksOf(result.topPlayers, result.mvp?.nick)) award(result.key, nick, result.tier, weight, true);
   };
   // Nunca depois do relógio do circuito (sem spoiler): o mês do bloco fechado pode ser o mesmo do seu próximo
   // campeonato, e o mundo desse mês ainda não aconteceu.
@@ -268,7 +345,7 @@ function rankingOf(state: PlayerCareerState, at: RankingPoint | undefined, sourc
     }
   }
 
-  return { rows: ranked([...rows.values(), ...(you.events >= MIN_EVENTS_RANKED ? [you] : [])]), pending, snapshot };
+  return { rows: ranked([...rows.values(), you]), pending, snapshot };
 }
 
 /** O ranking de jogadores no ponto pedido (sem ponto, agora), com o mundo da fonte (padrão: o cache do circuito). */
