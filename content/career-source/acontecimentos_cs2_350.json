@@ -1,6 +1,6 @@
 {
   "versao": "3.0",
-  "total": 350,
+  "total": 362,
   "avisos": [
     "110 novos eventos autorais; 150 preservados do CSV original e marcados como revisão pendente",
     "Efeitos novos são valores iniciais propostos, não resultados calculados por simulador",
@@ -18668,6 +18668,714 @@
             "evento_ext090_opcao_3"
           ],
           "peso_consequencia_futura": 55
+        }
+      ]
+    },
+    {
+      "id": "FUN001",
+      "fase": "Circuito comunitário",
+      "fase_minima": 2,
+      "situacao": "O AWPer do time largou o jogo e sobrou a AWP para você",
+      "condicoes": [
+        "combina_com awper"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar a AWP",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN002",
+      "fase": "Challenger internacional",
+      "fase_minima": 5,
+      "situacao": "O coach viu seus números de AWP nos treinos e quer você com ela",
+      "condicoes": [
+        "combina_com awper"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar a AWP",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN003",
+      "fase": "Tier 1 e majors",
+      "fase_minima": 8,
+      "situacao": "A comissão quer você como AWPer titular a partir de agora",
+      "condicoes": [
+        "combina_com awper"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar a AWP",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN004",
+      "fase": "Circuito comunitário",
+      "fase_minima": 2,
+      "situacao": "O time precisa de alguém abrindo os bombs e o capitão aponta para você",
+      "condicoes": [
+        "combina_com entry"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar entry",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN005",
+      "fase": "Challenger internacional",
+      "fase_minima": 5,
+      "situacao": "O coach quer você de entry para acelerar os ataques",
+      "condicoes": [
+        "combina_com entry"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar entry",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN006",
+      "fase": "Tier 1 e majors",
+      "fase_minima": 8,
+      "situacao": "A comissão quer você abrindo os rounds como entry do time",
+      "condicoes": [
+        "combina_com entry"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar entry",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN007",
+      "fase": "Circuito comunitário",
+      "fase_minima": 2,
+      "situacao": "O time quer alguém fechando os flancos sozinho e pensa em você",
+      "condicoes": [
+        "combina_com lurker"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar lurker",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN008",
+      "fase": "Challenger internacional",
+      "fase_minima": 5,
+      "situacao": "O coach quer você de lurker, jogando longe do grupo",
+      "condicoes": [
+        "combina_com lurker"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar lurker",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN009",
+      "fase": "Tier 1 e majors",
+      "fase_minima": 8,
+      "situacao": "A comissão quer você de lurker para ler as rotações do adversário",
+      "condicoes": [
+        "combina_com lurker"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar lurker",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN010",
+      "fase": "Circuito comunitário",
+      "fase_minima": 2,
+      "situacao": "O time quer mais mira na linha e te pede para jogar de rifler",
+      "condicoes": [
+        "combina_com rifler"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar rifler",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN011",
+      "fase": "Challenger internacional",
+      "fase_minima": 5,
+      "situacao": "O coach quer você de rifler, sem função fixa, só para matar",
+      "condicoes": [
+        "combina_com rifler"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar rifler",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
+        }
+      ]
+    },
+    {
+      "id": "FUN012",
+      "fase": "Tier 1 e majors",
+      "fase_minima": 8,
+      "situacao": "A comissão quer você de rifler para render mais na linha",
+      "condicoes": [
+        "combina_com rifler"
+      ],
+      "severidade": "moderado",
+      "tipo": "inedito",
+      "peso_base": 4,
+      "cooldown_meses": 12,
+      "limite_por_ano": 1,
+      "unico_por_carreira": false,
+      "arco": "mudanca_funcao",
+      "escolhas": [
+        {
+          "texto": "Aceitar e virar rifler",
+          "efeitos": {
+            "forma": -1,
+            "mental": 2,
+            "reputacao": 1,
+            "quimica": 2,
+            "fadiga": 2
+          },
+          "resultado_imediato": "Você assume a nova função. Os próximos campeonatos dizem se ela encaixa.",
+          "flags_adicionadas": [
+            "mudanca_funcao:construtivo"
+          ],
+          "peso_consequencia_futura": 35
+        },
+        {
+          "texto": "Testar em scrims antes de decidir",
+          "efeitos": {
+            "forma": 1,
+            "quimica": 1,
+            "fadiga": 1
+          },
+          "resultado_imediato": "Você testa nos treinos e fica na sua função por enquanto.",
+          "flags_adicionadas": [
+            "mudanca_funcao:alternativo"
+          ],
+          "peso_consequencia_futura": 45
+        },
+        {
+          "texto": "Recusar e seguir na sua função",
+          "efeitos": {
+            "mental": -1,
+            "reputacao": -1,
+            "quimica": -2
+          },
+          "resultado_imediato": "Você segue na sua função. Quem fez a proposta não esquece.",
+          "flags_adicionadas": [
+            "mudanca_funcao:risco"
+          ],
+          "peso_consequencia_futura": 40
         }
       ]
     }

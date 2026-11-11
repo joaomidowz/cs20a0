@@ -4,10 +4,10 @@
 // PREMISSA (o próprio acontecimento cria a situação: um convite, uma proposta, um rumor) e NÃO SUPORTADO (fato de
 // round que o motor não guarda: o item com ela nunca aparece). Nenhuma frase fica sem tipo (há teste para isso).
 import { regionOf } from './calendar';
-import { orgOf, playedCount, type CalendarEntry, type PlayerCareerState, type TournamentResult } from './engine';
+import { orgOf, playedCount, type CalendarEntry, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
 import { lifeOf, livesAbroad, type CareerLife } from './life';
 import { myFluency } from './language';
-import { matesOf, membersAt, myLanguageFit, planOf, type SquadMate } from './squad';
+import { matesOf, membersAt, myLanguageFit, planOf, roleSkillOf, type SquadMate } from './squad';
 import { majorEntryStage } from './live';
 import { teamRankOf } from './ranking';
 import { sceneOrgs } from './data';
@@ -83,6 +83,7 @@ const reserveHot = (ctx: CareerCtx) => {
 const fame = (ctx: CareerCtx) => ctx.state.fame ?? 0;
 const money = (ctx: CareerCtx) => ctx.state.money ?? 0;
 const fatigue = (ctx: CareerCtx) => ctx.state.fatigue ?? 0;
+const fitsRole = (ctx: CareerCtx, role: PlayerRole) => roleSkillOf(ctx.state, role) >= ctx.state.overall - 8;
 /** Fase do documento (1 online amador … 10 Tier S e legado) pelo nível do seu time. */
 const phaseOf = (level: number) => ({ 5: 2, 4: 4, 3: 5, 2: 7, 1: 9, 0: 10 } as Record<number, number>)[level] ?? 1;
 
@@ -131,6 +132,11 @@ const RULES: Array<[RegExp, Rule]> = [
   [/^função (awper|entry|igl|lurker|rifler|support)(?: ou (awper|entry|igl|lurker|rifler|support))?$/i, fact((ctx, m) => [m[1], m[2]].filter(Boolean).map((role) => role.toLowerCase()).includes(ctx.state.role))],
   [/^igl_sobrecarga$|^experiencia_igl_baixa$|^novo_capitao$/, fact((ctx) => ctx.state.role === 'igl')],
   [/^IGL ativo$/, fact((ctx) => ctx.mates.some((mate) => mate.player.role === 'igl') || ctx.state.role === 'igl')],
+  // Proposta de outra função: quando a sua carta não é ruim nela (o atributo dela até 8 pontos abaixo do seu overall;
+  // a sua função de origem fica sempre bem acima, então comparar com ela não deixaria proposta nenhuma aparecer).
+  [/^combina_com (awper|entry|lurker|rifler|support)$/, fact((ctx, m) => real(ctx) && ctx.state.role !== m[1] && fitsRole(ctx, m[1] as PlayerRole))],
+  [/^proposta_mudanca_funcao$/, fact((ctx) => real(ctx) && ctx.state.role !== 'support' && fitsRole(ctx, 'support'))],
+  [/^mudanca_funcao_exigida$/, fact((ctx) => ctx.state.role === 'lurker')],
   // Resultados recentes (reais).
   [/^título recente$|^campeao$|^foi campeão$/, fact((ctx) => ctx.last?.placement === 'Campeão')],
   [/^titulo_menor_recente$/, fact((ctx) => ctx.last?.placement === 'Campeão' && !big(ctx.last))],

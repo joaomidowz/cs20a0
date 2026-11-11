@@ -22,11 +22,11 @@ describe('importação do conteúdo', () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('acontecimentos: 150 legados batem com os do jogo; 200 novos sem colidir', () => {
+  it('acontecimentos: 150 legados batem com os do jogo; 212 novos (200 da planilha + 12 propostas de função) sem colidir', () => {
     expect(Object.keys(events.legacy)).toHaveLength(150);
     for (const id of Object.keys(events.legacy)) expect(HAPPENINGS.some((event) => event.id === id), id).toBe(true);
-    expect(events.events).toHaveLength(200);
-    expect(new Set(events.events.map((event) => event.id)).size).toBe(200);
+    expect(events.events).toHaveLength(212);
+    expect(new Set(events.events.map((event) => event.id)).size).toBe(212);
     for (const event of events.events) expect(event.choices.length).toBeGreaterThanOrEqual(2);
   });
 

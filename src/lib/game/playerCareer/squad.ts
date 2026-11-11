@@ -427,11 +427,15 @@ export function changeRole(state: PlayerCareerState, role: PlayerRole): { state:
   return takeRole(state, role, false);
 }
 
-/** A função que você joga melhor fora a atual (pelo atributo da função na sua carta). */
+/** Quanto a sua carta rende numa função: o atributo dela (lurker pelo clutch, rifler pela mira). */
+export function roleSkillOf(state: PlayerCareerState, role: PlayerRole, me: Player = myPlayerOf(state)): number {
+  return Number((role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower) ?? 60);
+}
+
+/** A função que você joga melhor fora a atual (pelo atributo da função na sua carta); rifler também conta. */
 export function bestOtherRole(state: PlayerCareerState): PlayerRole {
   const me = myPlayerOf(state);
-  const skillOf = (role: PlayerRole) => Number((role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower) ?? 60);
-  return SLOTS.filter((role) => role !== state.role).sort((a, b) => skillOf(b) - skillOf(a))[0];
+  return [...SLOTS, 'rifler' as const].filter((role) => role !== state.role).sort((a, b) => roleSkillOf(state, b, me) - roleSkillOf(state, a, me))[0];
 }
 
 /** Assume uma função (pedido seu, do coach ou do time): encaixa ou não pela sua carta na função nova. Vale mesmo
@@ -439,8 +443,8 @@ export function bestOtherRole(state: PlayerCareerState): PlayerRole {
 export function takeRole(state: PlayerCareerState, role: PlayerRole, byTeam = true): { state: PlayerCareerState; good: boolean; line: string } {
   if (role === state.role) return { state, good: true, line: '' };
   const me = myPlayerOf(state);
-  const skill = role === 'awper' ? me.awp : role === 'igl' ? me.igl : role === 'entry' ? me.entry : role === 'support' ? me.support : role === 'lurker' ? me.clutch : me.firepower;
-  const chance = clamp(0.45 + ((Number(skill ?? 60) - Number(me.overall ?? 70)) / 40) + ((state.morale ?? 60) - 60) / 200, 0.2, 0.85);
+  const skill = roleSkillOf(state, role, me);
+  const chance = clamp(0.45 + ((skill - Number(me.overall ?? 70)) / 40) + ((state.morale ?? 60) - 60) / 200, 0.2, 0.85);
   const good = createSeededRng(`${state.seed}:role:${state.seasonNumber}:${role}`)() < chance;
   const from = state.role;
   const next: PlayerCareerState = {

@@ -1,5 +1,5 @@
 // tests/playerCareerHappeningsV3.test.ts
-// Os 200 acontecimentos novos da planilha de 350: só aparecem com as condições conferidas no estado real, respeitam
+// Os 212 acontecimentos novos (200 da planilha de 350 e as 12 propostas de função): só aparecem com as condições conferidas no estado real, respeitam
 // único, limite por temporada, cooldown em meses e o teto de gravidade (10 por ano, 3 graves, 1 crítico); as marcas
 // das escolhas ficam na vida e fazem o arco voltar; "mind" mexe no Mental, não na moral.
 import { describe, expect, it } from 'vitest';
@@ -16,8 +16,8 @@ const at = (level: number, seed: string): PlayerCareerState => {
 };
 
 describe('planilha nova', () => {
-  it('200 novos, nenhum id repetido com os originais; os que dependem de round ficam de fora e listados', () => {
-    expect(HAPPENINGS_V3.length + UNSUPPORTED_V3.length).toBe(200);
+  it('212 novos, nenhum id repetido com os originais; os que dependem de round ficam de fora e listados', () => {
+    expect(HAPPENINGS_V3.length + UNSUPPORTED_V3.length).toBe(212);
     expect(new Set(ALL_HAPPENINGS.map((event) => event.id)).size).toBe(ALL_HAPPENINGS.length);
     expect(HAPPENINGS.every((event) => event.yearLimit === 1 && event.severity === 'comum')).toBe(true);
     for (const event of HAPPENINGS_V3) expect(event.choices).toHaveLength(3);

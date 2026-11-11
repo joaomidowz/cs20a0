@@ -142,6 +142,9 @@ const badRun = (state: PlayerCareerState) => {
 
 /** Depois do jogo: o resultado do campeonato que acabou. Antes/na semana: o último campeonato jogado. */
 const NEEDS: Record<string, Need> = {
+  // "Seu time não tem IGL definido" só quando é verdade; a proposta de virar IGL, só para quem ainda não é.
+  EV007: ({ state }) => state.role !== 'igl' && !matesOf(state).some((mate) => mate.player.role === 'igl'),
+  EV144: ({ state }) => state.role !== 'igl',
   EV008: ({ result }) => reachedFinal(result),
   EV010: ({ last }) => lostSeries(last),
   EV012: ({ result }) => wonPlayoff(result),
@@ -191,6 +194,7 @@ const NEEDS: Record<string, Need> = {
 
 /** As condições acima em português, para a planilha de conteúdo. */
 export const NEED_LABEL: Record<string, string> = {
+  EV007: 'o time não tem IGL (e você não é)', EV144: 'você ainda não é IGL',
   EV008: 'chegou à final', EV010: 'perdeu uma série no último campeonato', EV012: 'ganhou série de playoff',
   EV014: 'não foi campeão', EV015: 'primeira final da carreira', EV019: 'perdeu uma série no último campeonato',
   EV020: 'dois campeonatos seguidos sem semifinal', EV023: 'chegou à final', EV025: 'perdeu uma série no último campeonato',
@@ -322,9 +326,17 @@ export const calendarMoveOf = (eventId: string, choiceIndex: number): CalendarMo
 /** Escolhas que mudam a sua função de verdade: virar IGL e capitão, assumir as calls, trocar de função a pedido
  *  do coach ('melhor' = a função em que a sua carta rende mais, fora a atual). */
 const ROLE_CHOICES: Record<string, Record<number, PlayerRole | 'melhor'>> = {
-  EV144: { 0: 'igl', 1: 'igl' },
+  // "Avaliar com a comissão" não é aceitar: só "Aceitar" vira IGL.
+  EV144: { 1: 'igl' },
   EV007: { 0: 'igl' },
-  EV111: { 2: 'melhor' }
+  EV111: { 2: 'melhor' },
+  NOV024: { 1: 'support' },
+  EXT032: { 0: 'melhor', 1: 'melhor' },
+  // As propostas de outra função (uma por função em três fases da carreira): a primeira escolha aceita.
+  FUN001: { 0: 'awper' }, FUN002: { 0: 'awper' }, FUN003: { 0: 'awper' },
+  FUN004: { 0: 'entry' }, FUN005: { 0: 'entry' }, FUN006: { 0: 'entry' },
+  FUN007: { 0: 'lurker' }, FUN008: { 0: 'lurker' }, FUN009: { 0: 'lurker' },
+  FUN010: { 0: 'rifler' }, FUN011: { 0: 'rifler' }, FUN012: { 0: 'rifler' }
 };
 export const roleMoveOf = (eventId: string, choiceIndex: number): PlayerRole | 'melhor' | null => ROLE_CHOICES[eventId]?.[choiceIndex] ?? null;
 
