@@ -8,6 +8,7 @@ import { orgOf, playedCount, type CalendarEntry, type PlayerCareerState, type Pl
 import { lifeOf, livesAbroad, type CareerLife } from './life';
 import { myFluency } from './language';
 import { matesOf, membersAt, myLanguageFit, planOf, roleSkillOf, type SquadMate } from './squad';
+import { youWereWorst } from './roleOffers';
 import { majorEntryStage } from './live';
 import { teamRankOf } from './ranking';
 import { sceneOrgs } from './data';
@@ -132,10 +133,9 @@ const RULES: Array<[RegExp, Rule]> = [
   [/^função (awper|entry|igl|lurker|rifler|support)(?: ou (awper|entry|igl|lurker|rifler|support))?$/i, fact((ctx, m) => [m[1], m[2]].filter(Boolean).map((role) => role.toLowerCase()).includes(ctx.state.role))],
   [/^igl_sobrecarga$|^experiencia_igl_baixa$|^novo_capitao$/, fact((ctx) => ctx.state.role === 'igl')],
   [/^IGL ativo$/, fact((ctx) => ctx.mates.some((mate) => mate.player.role === 'igl') || ctx.state.role === 'igl')],
-  // Proposta de outra função: quando a sua carta não é ruim nela (o atributo dela até 8 pontos abaixo do seu overall;
-  // a sua função de origem fica sempre bem acima, então comparar com ela não deixaria proposta nenhuma aparecer).
-  [/^combina_com (awper|entry|lurker|rifler|support)$/, fact((ctx, m) => real(ctx) && ctx.state.role !== m[1] && fitsRole(ctx, m[1] as PlayerRole))],
-  [/^proposta_mudanca_funcao$/, fact((ctx) => real(ctx) && ctx.state.role !== 'support' && fitsRole(ctx, 'support'))],
+  // "O treinador oferece suporte para você continuar titular": só quando você foi o pior rating do time nos dois
+  // últimos campeonatos e a sua carta não é ruim de suporte (atributo até 8 abaixo do overall).
+  [/^proposta_mudanca_funcao$/, fact((ctx) => real(ctx) && ctx.state.role !== 'support' && fitsRole(ctx, 'support') && youWereWorst(ctx.state))],
   [/^mudanca_funcao_exigida$/, fact((ctx) => ctx.state.role === 'lurker')],
   // Resultados recentes (reais).
   [/^título recente$|^campeao$|^foi campeão$/, fact((ctx) => ctx.last?.placement === 'Campeão')],

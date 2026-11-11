@@ -50,9 +50,9 @@
   "recusados": []
  },
  "acontecimentos": {
-  "total": 362,
+  "total": 350,
   "legados_com_metadados": 150,
-  "novos_importados": 212,
+  "novos_importados": 200,
   "duplicados_recusados": [],
   "efeitos_desconhecidos": [],
   "avisos_do_arquivo": [

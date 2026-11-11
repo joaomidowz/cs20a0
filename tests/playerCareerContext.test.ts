@@ -2,7 +2,7 @@
 // O que a tela afirma tem que ser verdade: a situação do round bate com o placar, a sequência e o dinheiro, e o
 // acontecimento bate com o resultado real do campeonato (quem foi campeão não "perde a final após abrir 12 a 4").
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, startSeason, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, seatToTake, startSeason, type PlayerCareerState, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgs } from '../src/lib/game/playerCareer/data';
 import { drawClutchSituation, situationFits, situationsFor, type RoundContext } from '../src/lib/game/playerCareer/decisions';
 import { HAPPENING_BY_ID, resolveHappening, rollHappening } from '../src/lib/game/playerCareer/happenings';
@@ -118,15 +118,19 @@ describe('o seu time na mesma régua dos rivais', () => {
 });
 
 describe('escolha que muda a sua função', () => {
-  it('aceitar virar IGL e capitão te põe de IGL, e o elenco segue com as 5 funções sem repetir (mesmo com 2 trocas)', async () => {
+  it('aceitar a proposta de IGL te põe de IGL, e o elenco segue com as 5 funções sem repetir (mesmo com 2 trocas)', async () => {
     const { matesOf } = await import('../src/lib/game/playerCareer/squad');
     const base = createPlayerCareer({ nick: 't', country: 'Brazil', role: 'awper', seed: 'role-1' });
     const org = sceneOrgs.find((candidate) => candidate.name === 'FURIA')!;
-    const state = startSeason({ ...base, orgId: org.id, pendingDraw: null, drawDone: true, seatsTaken: [] });
+    // A vaga que você tomou fica registrada, como no jogo (é ela que diz quem saiu do time).
+    const state = startSeason({ ...base, orgId: org.id, pendingDraw: null, drawDone: true, seatsTaken: [{ ...seatToTake(org, 'awper'), season: 1 }] });
     const roles = (career: PlayerCareerState) => [career.role, ...matesOf(career).map((mate) => mate.player.role)].sort();
     const five = ['awper', 'entry', 'igl', 'lurker', 'support'];
     expect(roles(state)).toEqual(five);
-    const { state: captain, chips } = resolveHappening({ ...state, pendingHappening: { id: 'EV144', trigger: 'pre', eventIndex: 0 } }, 1);
+    // A proposta de virar IGL (roleOffers.ts): você nas calls e o IGL de antes vai para a sua função.
+    const igl = matesOf(state).find((mate) => mate.player.role === 'igl')!.player.nickname!;
+    const offer = { role: 'igl' as const, motive: 'veterano' as const, mateNick: igl, text: 'O coach quer você nas calls.' };
+    const { state: captain, chips } = resolveHappening({ ...state, pendingHappening: { id: 'FUNCAO', trigger: 'post', eventIndex: 0, offer } }, 0);
     expect(captain.role).toBe('igl');
     expect(chips.some((chip) => chip.label === 'Função')).toBe(true);
     expect(roles(captain)).toEqual(five);

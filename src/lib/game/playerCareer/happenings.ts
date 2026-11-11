@@ -9,6 +9,7 @@ import { careerCtx, conditionsHold, isUnsupported } from './conditions';
 import { lifeOf, withFlags } from './life';
 import { createSeededRng } from '../simulation';
 import { addExtraEvent, happeningOffers, orgOf, playedCount, skipEvent, trophyCase, type PlayerCareerState, type PlayerRole, type TournamentResult } from './engine';
+import { answerRoleOffer, roleOfferFor, ROLE_OFFER_CHOICES } from './roleOffers';
 import { addReserve, bestOtherRole, matesOf, myPlayerOf, planOf, promoteReserve, synergyBump, takeRole, type ReserveKind } from './squad';
 import { retier } from './tiers';
 
@@ -77,7 +78,26 @@ export const HAPPENINGS_V3: Happening[] = V3.events.filter((event) => !isUnsuppo
 export const UNSUPPORTED_V3 = V3.events.filter((event) => isUnsupported(event.conditions)).map((event) => event.id);
 
 export const ALL_HAPPENINGS: Happening[] = [...HAPPENINGS, ...HAPPENINGS_V3];
-export const HAPPENING_BY_ID = new Map(ALL_HAPPENINGS.map((event) => [event.id, event]));
+/** A proposta de função (roleOffers.ts): nasce do motivo do time, com o texto da proposta; fora do sorteio comum.
+ *  Fica no mapa só para o histórico da carreira achar o nome e as escolhas. */
+export const ROLE_OFFER_ID = 'FUNCAO';
+const ROLE_OFFER_EVENT: Happening = {
+  id: ROLE_OFFER_ID, phase: 'Elenco', tierMin: 0, situation: 'Proposta para trocar de função', trigger: 'post', weight: 0, cooldown: 0,
+  severity: 'moderado', choices: ROLE_OFFER_CHOICES.map((text) => ({ text, effects: {}, consequence: '' }))
+};
+export const HAPPENING_BY_ID = new Map([...ALL_HAPPENINGS, ROLE_OFFER_EVENT].map((event) => [event.id, event]));
+
+/** Chance de o coach fazer a proposta depois do campeonato, quando o motivo existe. */
+export const ROLE_OFFER_CHANCE = 0.6;
+
+/** O que a tela mostra do acontecimento pendente: o da planilha ou a proposta de função com o motivo. */
+export function pendingHappeningView(state: PlayerCareerState): { situation: string; phase: string; severity?: Severity; choices: string[]; odds: boolean } | null {
+  const pending = state.pendingHappening;
+  if (!pending) return null;
+  if (pending.offer) return { situation: pending.offer.text, phase: 'Proposta de função', choices: [...ROLE_OFFER_CHOICES], odds: false };
+  const event = HAPPENING_BY_ID.get(pending.id);
+  return event ? { situation: event.situation, phase: event.phase, severity: event.severity, choices: event.choices.map((choice) => choice.text), odds: true } : null;
+}
 
 /** Quanto cada marca de escolha aumenta a chance do arco voltar (da própria planilha). */
 const FUTURE_WEIGHT = new Map<string, number>(HAPPENINGS_V3.flatMap((event) => event.choices.flatMap((choice) => (choice.flags ?? []).map((flag) => [flag, choice.futureWeight ?? 0] as [string, number]))));
@@ -142,9 +162,9 @@ const badRun = (state: PlayerCareerState) => {
 
 /** Depois do jogo: o resultado do campeonato que acabou. Antes/na semana: o último campeonato jogado. */
 const NEEDS: Record<string, Need> = {
-  // "Seu time não tem IGL definido" só quando é verdade; a proposta de virar IGL, só para quem ainda não é.
-  EV007: ({ state }) => state.role !== 'igl' && !matesOf(state).some((mate) => mate.player.role === 'igl'),
-  EV144: ({ state }) => state.role !== 'igl',
+  // "Time sem IGL" e "proposta para virar IGL" viraram motivos da proposta de função (roleOffers.ts): saem do sorteio.
+  EV007: () => false,
+  EV144: () => false,
   EV008: ({ result }) => reachedFinal(result),
   EV010: ({ last }) => lostSeries(last),
   EV012: ({ result }) => wonPlayoff(result),
@@ -194,7 +214,7 @@ const NEEDS: Record<string, Need> = {
 
 /** As condições acima em português, para a planilha de conteúdo. */
 export const NEED_LABEL: Record<string, string> = {
-  EV007: 'o time não tem IGL (e você não é)', EV144: 'você ainda não é IGL',
+  EV007: 'desligado (virou o motivo "vaga" da proposta de função)', EV144: 'desligado (virou o motivo "veterano" da proposta de função)',
   EV008: 'chegou à final', EV010: 'perdeu uma série no último campeonato', EV012: 'ganhou série de playoff',
   EV014: 'não foi campeão', EV015: 'primeira final da carreira', EV019: 'perdeu uma série no último campeonato',
   EV020: 'dois campeonatos seguidos sem semifinal', EV023: 'chegou à final', EV025: 'perdeu uma série no último campeonato',
@@ -257,6 +277,17 @@ export function rollHappening(state: PlayerCareerState, trigger: HappeningTrigge
   if ((state.happeningHistory ?? []).filter((record) => record.season === state.seasonNumber).length >= SEASON_CAP.total) return state;
   const played = playedCount(state);
   const rng = createSeededRng(`${state.seed}:happening:${state.seasonNumber}:${played}:${trigger}:${context.eventIndex}`);
+  // A proposta de função: o coach fala depois do campeonato, quando o momento do time dá motivo.
+  const offer = trigger === 'post' ? roleOfferFor(state) : null;
+  if (offer && createSeededRng(`${state.seed}:role-offer:${state.seasonNumber}:${played}`)() < ROLE_OFFER_CHANCE) {
+    const now = monthOf(state, context.eventIndex);
+    const record: HappeningRecord = { id: ROLE_OFFER_ID, season: state.seasonNumber, year: Math.floor(now / 12), month: now % 12, severity: 'moderado' };
+    return {
+      ...state,
+      pendingHappening: { id: ROLE_OFFER_ID, trigger, eventIndex: context.eventIndex, offer },
+      happeningHistory: [...(state.happeningHistory ?? []), record].slice(-HISTORY_CAP)
+    };
+  }
   if (rng() >= happeningChance(state, trigger, context)) return state;
   const [low, high] = PHASES_BY_LEVEL[orgOf(state.orgId, state).level] ?? [1, 2];
   const log = state.happeningLog ?? {};
@@ -326,17 +357,9 @@ export const calendarMoveOf = (eventId: string, choiceIndex: number): CalendarMo
 /** Escolhas que mudam a sua função de verdade: virar IGL e capitão, assumir as calls, trocar de função a pedido
  *  do coach ('melhor' = a função em que a sua carta rende mais, fora a atual). */
 const ROLE_CHOICES: Record<string, Record<number, PlayerRole | 'melhor'>> = {
-  // "Avaliar com a comissão" não é aceitar: só "Aceitar" vira IGL.
-  EV144: { 1: 'igl' },
-  EV007: { 0: 'igl' },
   EV111: { 2: 'melhor' },
   NOV024: { 1: 'support' },
-  EXT032: { 0: 'melhor', 1: 'melhor' },
-  // As propostas de outra função (uma por função em três fases da carreira): a primeira escolha aceita.
-  FUN001: { 0: 'awper' }, FUN002: { 0: 'awper' }, FUN003: { 0: 'awper' },
-  FUN004: { 0: 'entry' }, FUN005: { 0: 'entry' }, FUN006: { 0: 'entry' },
-  FUN007: { 0: 'lurker' }, FUN008: { 0: 'lurker' }, FUN009: { 0: 'lurker' },
-  FUN010: { 0: 'rifler' }, FUN011: { 0: 'rifler' }, FUN012: { 0: 'rifler' }
+  EXT032: { 0: 'melhor', 1: 'melhor' }
 };
 export const roleMoveOf = (eventId: string, choiceIndex: number): PlayerRole | 'melhor' | null => ROLE_CHOICES[eventId]?.[choiceIndex] ?? null;
 
@@ -362,6 +385,14 @@ export function happeningSuccessChance(state: PlayerCareerState): number {
 /** Aplica a escolha: deu certo, o lado bom vale inteiro e o ruim pela metade; deu errado, o contrário. */
 export function resolveHappening(state: PlayerCareerState, choiceIndex: number): HappeningOutcome {
   const pending = state.pendingHappening;
+  if (pending?.offer) {
+    const answered = answerRoleOffer({ ...state, pendingHappening: null }, pending.offer, Math.max(0, Math.min(2, choiceIndex)) as 0 | 1 | 2);
+    const history = [...(answered.state.happeningHistory ?? [])];
+    const at = history.map((record) => record.id).lastIndexOf(ROLE_OFFER_ID);
+    if (at >= 0) history[at] = { ...history[at], choice: choiceIndex, success: answered.good, line: ROLE_OFFER_CHOICES[choiceIndex] ?? '' };
+    const chips: HappeningChip[] = choiceIndex === 0 ? [{ label: 'Função', value: answered.good ? 1 : -1, display: `Agora: ${ROLE_LABEL_PT[pending.offer.role]}` }] : [];
+    return { state: { ...answered.state, happeningHistory: history }, success: answered.good, line: answered.line, chips };
+  }
   const event = pending ? HAPPENING_BY_ID.get(pending.id) : undefined;
   const choice = event?.choices[choiceIndex];
   if (!pending || !event || !choice) return { state, success: false, line: '', chips: [] };

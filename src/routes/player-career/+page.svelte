@@ -50,7 +50,7 @@
   import { mapProfile } from '$lib/game/playerCareer/careerMaps';
   import type { MapId } from '$lib/game/types';
   import { RIVAL_CHOICES, answerRival, rollRival, settleRival } from '$lib/game/playerCareer/rivals';
-  import { HAPPENING_BY_ID, SEVERITY_LABEL, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
+  import { SEVERITY_LABEL, pendingHappeningView, TRIGGER_LABEL, happeningSuccessChance, resolveHappening, rollHappening, type HappeningChip } from '$lib/game/playerCareer/happenings';
   import { headlineRetirements, headlineTransfers, orgIn, risingProspects, seatMovesOf } from '$lib/game/playerCareer/world';
   import { eventStarsOf } from '$lib/game/playerCareer/worldView';
   import { orgLogoFor } from '$lib/game/visuals/licensed';
@@ -180,7 +180,7 @@
   let scoutOpen = false;
   let scoutQuery = '';
   /** Resultado do acontecimento escolhido (fica na tela até "Continuar") e o campeonato que esperava por ele. */
-  let happeningResult: { situation: string; trigger: string; line: string; chips: HappeningChip[]; success: boolean } | null = null;
+  let happeningResult: { situation: string; trigger: string; line: string; chips: HappeningChip[]; success: boolean; offer?: boolean } | null = null;
   let queuedStart: { index: number; mode: 'pace' | 'live' | 'sim' } | null = null;
   /** Campeonato aberto no detalhe do calendário (índice) — null fechado. */
   let eventSheet: number | null = null;
@@ -510,11 +510,12 @@
 
   function chooseHappening(choiceIndex: number) {
     if (!career?.pendingHappening) return;
-    const event = HAPPENING_BY_ID.get(career.pendingHappening.id);
+    const view = pendingHappeningView(career);
     const trigger = TRIGGER_LABEL[career.pendingHappening.trigger];
+    const offer = Boolean(career.pendingHappening.offer);
     const outcome = resolveHappening(career, choiceIndex);
     career = outcome.state;
-    happeningResult = { situation: event?.situation ?? '', trigger, line: outcome.line, chips: outcome.chips, success: outcome.success };
+    happeningResult = { situation: view?.situation ?? '', trigger, line: outcome.line, chips: outcome.chips, success: outcome.success, offer };
   }
 
   let rivalResult: { title: string; line: string } | null = null;
@@ -2902,11 +2903,11 @@
   {/if}
 
   {#if career && !live && (career.pendingHappening || happeningResult)}
-    {@const pendingEvent = career.pendingHappening ? HAPPENING_BY_ID.get(career.pendingHappening.id) : null}
+    {@const pendingEvent = pendingHappeningView(career)}
     <div class="modal-backdrop" role="presentation">
       <div class="modal wide happening" role="alertdialog" aria-modal="true" aria-labelledby="happening-title" use:focusInside>
         {#if happeningResult}
-          <span class="eyebrow">{happeningResult.trigger} · {happeningResult.success ? 'deu certo' : 'deu errado'}</span>
+          <span class="eyebrow">{happeningResult.trigger} · {happeningResult.offer ? 'proposta de função' : happeningResult.success ? 'deu certo' : 'deu errado'}</span>
           <h2 class="display" id="happening-title">{happeningResult.situation}</h2>
           <p class="happening-line" class:bad={!happeningResult.success}>{happeningResult.line}</p>
           {#if happeningResult.chips.length}
@@ -2922,10 +2923,10 @@
           <h2 class="display" id="happening-title">{pendingEvent.situation}</h2>
           <div class="happening-choices">
             {#each pendingEvent.choices as choice, choiceIndex (choiceIndex)}
-              <button class="happening-choice" data-autofocus={choiceIndex === 0 ? '' : undefined} on:click={() => chooseHappening(choiceIndex)}>{choice.text}</button>
+              <button class="happening-choice" data-autofocus={choiceIndex === 0 ? '' : undefined} on:click={() => chooseHappening(choiceIndex)}>{choice}</button>
             {/each}
           </div>
-          <p class="happening-odds">Chance de sair como você quer: <b>{Math.round(happeningSuccessChance(career) * 100)}%</b> (seu Mental e sua moral).</p>
+          {#if pendingEvent.odds}<p class="happening-odds">Chance de sair como você quer: <b>{Math.round(happeningSuccessChance(career) * 100)}%</b> (seu Mental e sua moral).</p>{/if}
         {/if}
       </div>
     </div>

@@ -429,7 +429,9 @@ export interface PlayerCareerState {
   /** Caixa em US$: a sua parte das premiações e o que os acontecimentos dão ou custam. */
   money?: number;
   /** Acontecimento esperando a sua escolha (antes do jogo, depois do jogo ou na semana). */
-  pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number } | null;
+  pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number; /** Proposta de função (roleOffers.ts): o motivo e a função. */ offer?: import('./roleOffers').RoleOffer } | null;
+  /** A última proposta de função e a sua resposta (uma por temporada; recusa não repete a mesma função na seguinte). */
+  lastRoleOffer?: import('./roleOffers').RoleOfferRecord | null;
   /** Quando cada acontecimento apareceu (contagem de campeonatos da carreira), para o cooldown. */
   happeningLog?: Record<string, number>;
   /** A semana em curso: blocos usados, o que você fez e se a sessão de treino já contou. */

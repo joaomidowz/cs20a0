@@ -41,7 +41,8 @@ describe('chance e sorteio', () => {
     for (const [level, [low, high]] of [[5, [1, 2]], [3, [4, 5]], [0, [8, 10]]] as const) {
       for (let index = 0; index < 40; index += 1) {
         const rolled = rollHappening(at(level, `phase-${level}-${index}`), 'post', { eventIndex: 0 });
-        if (!rolled.pendingHappening) continue;
+        // A proposta de função (roleOffers.ts) vem do momento do time, não da fase: fica fora desta conta.
+        if (!rolled.pendingHappening || rolled.pendingHappening.offer) continue;
         const event = HAPPENING_BY_ID.get(rolled.pendingHappening.id)!;
         expect(rolled.pendingHappening.trigger).toBe('post');
         // Os originais têm gatilho fixo; os novos sem momento marcado valem depois do jogo ou na semana.
