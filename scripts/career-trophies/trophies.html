@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- Troféus da Carreira em 3D (Major, Tier S, medalhas de MVP e EVP): modelos procedurais, inspirados nas taças da cena e
+     sem logo nenhum. render.mjs abre esta página num Chromium headless e grava as folhas de sprite em static/career/trophies. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>html,body{margin:0;background:#111}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const W = 320, H = 400;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.92;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.02).texture;
+scene.environmentIntensity = 0.9;
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3, 5, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfe7ff, 1.1); rim.position.set(-4, 3, -3); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+const silver = new THREE.MeshStandardMaterial({ color: 0xbfc5cd, metalness: 1, roughness: 0.2, envMapIntensity: 0.85 });
+const gold = new THREE.MeshStandardMaterial({ color: 0xe6b54e, metalness: 1, roughness: 0.22 });
+const darkGold = new THREE.MeshStandardMaterial({ color: 0xb98a2c, metalness: 1, roughness: 0.3 });
+const stone = new THREE.MeshStandardMaterial({ color: 0x15181c, metalness: 0.2, roughness: 0.32 });
+
+const lathe = (points, material, segments = 96) => {
+  const geometry = new THREE.LatheGeometry(points.map(([r, y]) => new THREE.Vector2(r, y)), segments);
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(geometry, material);
+};
+const ring = (radius, tube, y, material) => {
+  const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 24, 120), material);
+  mesh.rotation.x = Math.PI / 2; mesh.position.y = y; return mesh;
+};
+const plinth = (radius, height, steps = 2) => {
+  const group = new THREE.Group();
+  let y = 0;
+  for (let i = 0; i < steps; i++) {
+    const r = radius * (1 - i * 0.14);
+    const h = height / steps;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.97, r, h, 8, 1), stone);
+    mesh.rotation.y = Math.PI / 8; mesh.position.y = y + h / 2; group.add(mesh);
+    y += h;
+  }
+  // Placa dourada (sem gravação: nada de logo) e filete no topo.
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.62, height * 0.22, 0.02), darkGold);
+  plate.position.set(0, height * 0.26, radius * 0.93); group.add(plate);
+  group.add(ring(radius * (1 - (steps - 1) * 0.14) * 0.93, 0.012, y, gold));
+  group.userData.top = y;
+  return group;
+};
+
+// Major: taça alta de prata com faixas douradas, base pesada (linha das taças clássicas de Major).
+function major() {
+  const g = new THREE.Group();
+  const base = plinth(0.62, 0.42, 2); g.add(base);
+  const y0 = base.userData.top;
+  const body = lathe([
+    [0, y0], [0.42, y0], [0.42, y0 + 0.05], [0.3, y0 + 0.12], [0.16, y0 + 0.3], [0.11, y0 + 0.5], [0.17, y0 + 0.58], [0.17, y0 + 0.64],
+    [0.11, y0 + 0.72], [0.12, y0 + 0.86], [0.2, y0 + 0.98], [0.36, y0 + 1.12], [0.5, y0 + 1.32], [0.58, y0 + 1.56], [0.6, y0 + 1.78],
+    [0.64, y0 + 1.84], [0.64, y0 + 1.88], [0.57, y0 + 1.86], [0.55, y0 + 1.6], [0, y0 + 1.5]
+  ], silver);
+  g.add(body);
+  g.add(ring(0.172, 0.022, y0 + 0.61, gold));
+  g.add(ring(0.505, 0.03, y0 + 1.34, gold));
+  g.add(ring(0.585, 0.024, y0 + 1.6, gold));
+  g.add(ring(0.62, 0.02, y0 + 1.86, gold));
+  // Tampa dourada com pináculo: a taça grande, sem alças.
+  g.add(lathe([
+    [0, y0 + 1.87], [0.6, y0 + 1.87], [0.6, y0 + 1.92], [0.5, y0 + 1.98], [0.34, y0 + 2.08], [0.16, y0 + 2.16], [0.09, y0 + 2.2],
+    [0.09, y0 + 2.26], [0.14, y0 + 2.3], [0.15, y0 + 2.36], [0.1, y0 + 2.44], [0.05, y0 + 2.5], [0, y0 + 2.53]
+  ], gold));
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 32, 16), gold); finial.position.y = y0 + 2.58; g.add(finial);
+  return g;
+}
+
+// Tier S: tigela larga de prata com duas alças grandes ("orelhonas"), pé curto.
+function tierS() {
+  const g = new THREE.Group();
+  const base = plinth(0.56, 0.32, 1); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.36, y0], [0.36, y0 + 0.05], [0.22, y0 + 0.14], [0.11, y0 + 0.32], [0.1, y0 + 0.44], [0.16, y0 + 0.5], [0.34, y0 + 0.56],
+    [0.58, y0 + 0.64], [0.76, y0 + 0.78], [0.84, y0 + 0.92], [0.86, y0 + 0.98], [0.89, y0 + 1.0], [0.83, y0 + 1.0], [0.8, y0 + 0.92], [0, y0 + 0.8]
+  ], silver));
+  g.add(ring(0.1, 0.03, y0 + 0.45, gold));
+  g.add(ring(0.875, 0.02, y0 + 0.99, silver));
+  for (const side of [-1, 1]) {
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 0.8, y0 + 0.9, 0), new THREE.Vector3(side * 1.02, y0 + 1.18, 0), new THREE.Vector3(side * 1.2, y0 + 1.04, 0),
+      new THREE.Vector3(side * 1.1, y0 + 0.74, 0), new THREE.Vector3(side * 0.66, y0 + 0.7, 0)
+    ]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 80, 0.045, 18, false), silver));
+  }
+  return g;
+}
+
+const starShape = (outer, inner, points = 5) => {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 ? inner : outer;
+    const a = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    i ? shape.lineTo(x, y) : shape.moveTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+};
+
+// Medalhas: disco com borda, estrela em relevo nas duas faces e fita na cor do prêmio.
+function medal(metal, ribbonColor, points) {
+  const g = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.1, 96), metal);
+  disc.rotation.x = Math.PI / 2; g.add(disc);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 20, 96), metal); g.add(rim);
+  const inner = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.018, 16, 96), metal);
+  for (const z of [0.05, -0.05]) { const r = inner.clone(); r.position.z = z; g.add(r); }
+  const starGeo = new THREE.ExtrudeGeometry(starShape(0.42, points === 5 ? 0.18 : 0.13, points), { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 3 });
+  for (const z of [0.045, -0.045]) { const s = new THREE.Mesh(starGeo, metal); s.position.z = z; if (z < 0) s.rotation.y = Math.PI; g.add(s); }
+  const ribbonMat = new THREE.MeshStandardMaterial({ color: ribbonColor, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide });
+  for (const side of [-1, 1]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.0, 0.02), ribbonMat);
+    strip.position.set(side * 0.2, 1.12, -0.02); strip.rotation.z = side * -0.32; g.add(strip);
+  }
+  const loop = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 12, 40), metal); loop.position.y = 0.76; g.add(loop);
+  g.position.y = 0.95;
+  return g;
+}
+
+const MODELS = {
+  major: { build: major, cam: [0, 1.75, 4.9], look: 1.25 },
+  // Tier S é largo: quadro mais baixo (320x260) para a tigela não ficar pequena.
+  s: { build: tierS, cam: [0, 1.45, 4.4], look: 0.95, h: 260 },
+  mvp: { build: () => medal(gold, 0xc8ff32, 5), cam: [0, 1.25, 4.0], look: 1.15 },
+  evp: { build: () => medal(silver, 0x3aa0ff, 4), cam: [0, 1.25, 4.0], look: 1.15 }
+};
+
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 50);
+let current = null;
+window.renderSheet = async (name, frames = 24, quality = 0.85) => {
+  if (current) scene.remove(current);
+  const spec = MODELS[name];
+  const h = spec.h ?? H;
+  renderer.setSize(W, h); camera.aspect = W / h; camera.updateProjectionMatrix();
+  current = spec.build(); scene.add(current);
+  const box = new THREE.Box3().setFromObject(current);
+  const halfW = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z);
+  const halfH = (box.max.y - box.min.y) / 2;
+  const cy = (box.max.y + box.min.y) / 2;
+  const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const dist = Math.max(halfH / tan, halfW / (tan * camera.aspect)) * 1.1 + halfW;
+  const elev = THREE.MathUtils.degToRad(9);
+  camera.position.set(0, cy + Math.sin(elev) * dist, Math.cos(elev) * dist); camera.lookAt(0, cy, 0);
+  const sheet = document.createElement('canvas'); sheet.width = W * frames; sheet.height = h;
+  const ctx = sheet.getContext('2d');
+  for (let i = 0; i < frames; i++) {
+    current.rotation.y = (i / frames) * Math.PI * 2 + (name === 'mvp' || name === 'evp' ? 0 : -0.35);
+    renderer.render(scene, camera);
+    ctx.drawImage(renderer.domElement, i * W, 0);
+  }
+  return sheet.toDataURL('image/webp', quality);
+};
+window.ready = true;
+</script>
+</body>
+</html>

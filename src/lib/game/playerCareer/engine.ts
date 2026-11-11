@@ -178,6 +178,24 @@ export function trophyCase(state: PlayerCareerState): TrophyCase {
   };
 }
 
+/** Um troféu da estante: título de Major ou Tier S, e medalha de MVP ou EVP nos campeonatos grandes (Major e Tier S). */
+export interface ShelfTrophy { kind: 'major' | 's' | 'mvp' | 'evp'; name: string; year: number; tier: EventTier }
+
+/** A estante da carreira (inclui a temporada em curso), na ordem em que foram ganhos. */
+export function trophyShelf(state: PlayerCareerState): ShelfTrophy[] {
+  const items: ShelfTrophy[] = [];
+  const push = (result: TournamentResult, year: number) => {
+    const tier = result.tier;
+    if (result.skipped || (tier !== 'Major' && tier !== 'S')) return;
+    if (result.placement === 'Campeão') items.push({ kind: tier === 'Major' ? 'major' : 's', name: result.name, year, tier });
+    if (result.mvp?.you) items.push({ kind: 'mvp', name: result.name, year, tier });
+    else if (isYourEvp(result, state.nick)) items.push({ kind: 'evp', name: result.name, year, tier });
+  };
+  for (const log of state.history) for (const result of log.tournaments) push(result, log.year);
+  for (const entry of state.calendar ?? []) if (entry.result && entryKind(entry) === 'event') push(entry.result, state.year);
+  return items;
+}
+
 export interface EventMvp { nick: string; team: string; rating: number; you?: boolean }
 export interface EventPlays { aces: number; quads: number; clutches: number }
 export interface BracketLine { phase: 'quarterfinal' | 'semifinal' | 'final'; a: string; b: string; scoreA: number; scoreB: number; aWon: boolean; /** Lado do seu time na série, quando é sua. */ you?: 'a' | 'b' }

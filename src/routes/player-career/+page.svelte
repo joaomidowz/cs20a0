@@ -38,7 +38,7 @@
   import { CEILING_BONUS_CAP, seasonSwing, trainingOutlook } from '$lib/game/playerCareer/growth';
   import {
     ARCHETYPES, ROLE_META, acceptMove, agePhase, acceptOffer, declineMove, canRequestTransfer, requestTransfer, goToLanHouse, midSeasonCheck, chooseStartingOrg, createPlayerCareer, ensureCircuitFrom, ensureDraw, eventsFor, finishSeason,
-    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase, isYourEvp,
+    marketValueUsd, orgOf, recordEventResult, retire, seatToTake, startSeason, stayAtOrg, trophyCase, trophyShelf, isYourEvp,
     type BracketLine, type PlayHighlight, type PlayerArchetype, type PlayerCareerState, type PlayerRole, type TournamentResult, type TrainedAttribute
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
@@ -55,6 +55,7 @@
   import { eventStarsOf } from '$lib/game/playerCareer/worldView';
   import { orgLogoFor } from '$lib/game/visuals/licensed';
   import CareerEventStars from '$lib/components/CareerEventStars.svelte';
+  import CareerTrophyShelf from '$lib/components/CareerTrophyShelf.svelte';
   import { circuitReady } from '$lib/game/playerCareer/circuit';
   import { applyQualifierResult, entryKind, qualifierTargetName, resolveInvitedQualifier } from '$lib/game/playerCareer/qualifiers';
   import { freezeRanking, teamRankOf, teamRanking } from '$lib/game/playerCareer/ranking';
@@ -1369,6 +1370,7 @@
   // Índice das honras (títulos, MVPs e Majors) de todo mundo: remonta só quando o mundo visível muda.
   $: honorIndex = career?.status === 'ACTIVE' ? honorsIndex(career) : null;
   $: moments = career && trophiesOpen ? careerMoments(career) : [];
+  $: shelf = career && (trophiesOpen || career.status === 'RETIRED') ? trophyShelf(career) : [];
   $: lifeLog = career && trophiesOpen && roomTab === 'historia' ? careerLog(career) : null;
   $: playReel = career && trophiesOpen ? careerPlays(career) : [];
   $: lastLog = career?.history[career.history.length - 1] ?? null;
@@ -1484,6 +1486,7 @@
           <div><dt>Melhor rating</dt><dd>{retro.totals.bestRating.toFixed(2)}</dd><small>em {retro.totals.bestRatingYear}</small></div>
         </dl>
       {/if}
+      {#if shelf.length}<CareerTrophyShelf items={shelf} />{/if}
       <div class="retired-grid">
         {#if overallCurve}
           <figure class="curve">
@@ -2653,6 +2656,7 @@
         </div>
 
         {#if roomTab === 'titulos'}
+          {#if shelf.length}<CareerTrophyShelf items={shelf} />{/if}
           <dl class="trophy-tiers">
             {#each TROPHY_TIERS as tier (tier)}
               <div class:has={trophies.byTier[tier] > 0} class:major={tier === 'Major'}><dt>{tier === 'Major' ? 'Majors' : `Títulos ${TIER_LABEL[tier]}`}</dt><dd>{trophies.byTier[tier]}</dd></div>

@@ -1,7 +1,7 @@
 // tests/playerCareerRetrospective.test.ts
 // A retrospectiva ao pendurar o mouse: eras por time, totais, Majors, a melhor temporada, jogadas e a curva.
 import { describe, expect, it } from 'vitest';
-import { createPlayerCareer, trophyCase, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
+import { createPlayerCareer, trophyCase, trophyShelf, type PlayerCareerState, type SeasonLog, type TournamentResult } from '../src/lib/game/playerCareer/engine';
 import { buildRetrospective, eraLevel } from '../src/lib/game/playerCareer/retrospective';
 
 const result = (name: string, placement: string, tier: TournamentResult['tier'], extra: Partial<TournamentResult> = {}): TournamentResult =>
@@ -59,6 +59,14 @@ describe('vices e EVPs na retrospectiva', () => {
     expect(retro.totals.evps).toBe(1);
     const trophies = trophyCase(state);
     expect(trophies).toMatchObject({ runnerUps: 3, runnerUpByTier: { Major: 1, S: 1, A: 1, B: 0, C: 0 }, evps: 1, mvps: 1 });
+    // Estante: título de Tier S e Major; medalha de MVP e EVP só em Major e Tier S (a Liga Tier A não entra).
+    expect(trophyShelf(state).map((item) => [item.kind, item.name])).toEqual([['evp', 'Major 2026']]);
+    const big = { ...state, history: [log(2027, 'furia', 'FURIA', 0, [
+      result('Major 2027', 'Campeão', 'Major', { mvp: { nick: 'tester', team: 'FURIA', rating: 1.6, you: true } }),
+      result('IEM 2027', 'Campeão', 'S'),
+      result('Liga 2027', 'Campeão', 'A', { mvp: { nick: 'tester', team: 'FURIA', rating: 1.6, you: true } })
+    ])] };
+    expect(trophyShelf(big).map((item) => [item.kind, item.name, item.year])).toEqual([['major', 'Major 2027', 2027], ['mvp', 'Major 2027', 2027], ['s', 'IEM 2027', 2027]]);
   });
 });
 
