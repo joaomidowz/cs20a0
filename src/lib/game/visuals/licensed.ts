@@ -46,6 +46,11 @@ export function licensedImageFor(kind: LicensedImageKind, key: string | null | u
   return index.get(`${kind}:${key}`) ?? null;
 }
 
+/** A foto da SUA carta na Carreira (player:me:<nick>): o nick sem acento e em minúsculas, então "Bodão", "bodão" e
+ *  "bodao" acham a mesma foto. Só existe para nick registrado com consentimento do retratado. */
+export const ownPhotoFor = (nick: string | null | undefined): LicensedImageEntry | null =>
+  licensedImageFor('player', `me:${(nick ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()}`);
+
 /** Same-origin URL of a licensed file (kept local so the share export never needs CORS). */
 export const licensedImageSrc = (entry: LicensedImageEntry) => `/${entry.file.replace(/^\/+/, '')}`;
 

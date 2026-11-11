@@ -2,7 +2,7 @@
   // Os destaques de um campeonato da Carreira: o MVP grande, com foto (quando registrada) e escudo do time, e os 4 EVPs
   // em cartas menores embaixo. Serve ao resumo do seu campeonato e ao pódio dos campeonatos do mundo.
   import TeamBadge from './TeamBadge.svelte';
-  import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
+  import { licensedImageFor, licensedImageSrc, ownPhotoFor } from '$lib/game/visuals/licensed';
   import type { EventStarRef } from '$lib/game/playerCareer/worldView';
 
   export let mvp: EventStarRef | null = null;
@@ -11,7 +11,7 @@
 
   // A sua foto só existe quando o nick tem uma registrada com consentimento (player:me:<nick>), como na sua carta.
   const photoOf = (star: EventStarRef) => {
-    const found = star.you ? licensedImageFor('player', `me:${star.nick.toLowerCase()}`) : licensedImageFor('player', star.nick.toLowerCase());
+    const found = star.you ? ownPhotoFor(star.nick) : licensedImageFor('player', star.nick.toLowerCase());
     return found ? licensedImageSrc(found) : null;
   };
   let broken: Record<string, boolean> = {};

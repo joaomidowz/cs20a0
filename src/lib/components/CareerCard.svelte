@@ -4,7 +4,7 @@
   import { CAREER_RARITY_LABEL, careerRarity } from '$lib/game/playerCareer/cards';
   import type { Player } from '$lib/game/types';
   import type { CardInfo } from '$lib/game/playerCareer/scout';
-  import { licensedImageFor, licensedImageSrc } from '$lib/game/visuals/licensed';
+  import { licensedImageFor, licensedImageSrc, ownPhotoFor } from '$lib/game/visuals/licensed';
   import CareerHonors from './CareerHonors.svelte';
   import type { PlayerHonors } from '$lib/game/playerCareer/honors';
 
@@ -47,7 +47,7 @@
   $: profile?.flag, (flagMissing = false);
   // A sua carta só tem foto quando o nick tem uma registrada com consentimento (player:me:<nick>, ex.: midowz).
   $: photo = me
-    ? licensedImageFor('player', `me:${(player.nickname ?? '').toLowerCase()}`)
+    ? ownPhotoFor(player.nickname)
     : licensedImageFor('player', player.baseId ?? null) ?? licensedImageFor('player', (player.nickname ?? '').toLowerCase());
 </script>
 

@@ -19084,6 +19084,19 @@
         "evidence": "midowz-owner-photo.md"
       },
       "attribution": "Foto enviada pelo próprio dono do jogo para a carta de quem joga como midowz"
+    },
+    {
+      "kind": "player",
+      "key": "me:bodao",
+      "file": "licensed/players/me-bodao.webp",
+      "license": {
+        "holder": "Bodão, retratado na foto",
+        "type": "pedido do dono do jogo",
+        "scope": "Foto da sua carta na Carreira quando o nick escolhido é bodao ou bodão",
+        "grantedAt": "2026-11-11",
+        "evidence": "bodao-photo.md"
+      },
+      "attribution": "Foto enviada pelo dono do jogo para a carta de quem joga como Bodão"
     }
   ]
 }
