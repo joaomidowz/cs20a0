@@ -1,6 +1,7 @@
 <script lang="ts">
-  // A estante da Carreira: taças de Major e de Tier S e medalhas de MVP e EVP dos campeonatos grandes, em 3D
-  // pré-renderizado (scripts/career-trophies: 24 quadros por troféu numa folha de sprite). Gira ao passar o mouse ou
+  // A estante da Carreira: o troféu de cada organizador (Major ou Tier S) e as medalhas de MVP e EVP dos campeonatos
+  // grandes, em 3D pré-renderizado (scripts/career-trophies: 24 quadros de 320px por troféu numa folha de sprite; a
+  // altura do quadro muda com o formato do troféu, então a escala é por tipo e a largura fica igual na fileira). Gira ao passar o mouse ou
   // focar, e dá para girar arrastando; com movimento reduzido fica parado. Só carrega as imagens onde a estante aparece.
   import type { ShelfTrophy } from '$lib/game/playerCareer/engine';
 
@@ -55,7 +56,7 @@
                 class="sprite"
                 class:dragging={drag?.key === key}
                 class:turned={frames[key] !== undefined}
-                style={`--sheet: url('/career/trophies/${item.kind}.webp'); --frame: ${frames[key] ?? 0}`}
+                style={`--sheet: url('/career/trophies/${item.art}.webp'); --fh: ${item.height}; --frame: ${frames[key] ?? 0}`}
                 aria-label={`${AWARD[item.kind]} · ${item.name} · ${item.year}. Setas giram o troféu.`}
                 title={`${AWARD[item.kind]} · ${item.name} · ${item.year}`}
                 on:pointerdown={(event) => down(event, key)}
@@ -83,17 +84,16 @@
   .shelf-label b { color: var(--text); font: 900 16px/1 var(--display); letter-spacing: 0; }
   /* A prateleira: os troféus apoiados numa faixa com sombra. */
   .shelf-items { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 10px; margin: 0 0 12px; padding: 0 4px 10px; list-style: none; border-bottom: 3px solid color-mix(in srgb, var(--gold, #d9a441) 35%, var(--line)); box-shadow: 0 10px 14px -12px rgba(0, 0, 0, .7); }
-  .trophy { --h: 150px; --ratio: .8; display: grid; justify-items: center; gap: 4px; width: calc(var(--h) * var(--ratio)); }
-  /* O Tier S é largo: a folha dele tem quadros de 320x260. */
-  .kind-s { --h: 96px; --ratio: 1.2308; }
-  .kind-mvp, .kind-evp { --h: 96px; }
-  .compact .trophy { --h: 112px; }
-  .compact .kind-s { --h: 74px; }
-  .compact .kind-mvp, .compact .kind-evp { --h: 76px; }
-  .sprite { display: block; padding: 0; border: 0; background-color: transparent; width: calc(var(--h) * var(--ratio)); height: var(--h); background-image: var(--sheet); background-repeat: no-repeat; background-size: calc(var(--h) * var(--ratio) * 24) var(--h); background-position: calc(var(--h) * var(--ratio) * var(--frame) * -1) 0; cursor: grab; touch-action: pan-y; outline: none; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .45)); }
+  .trophy { --scale: .36; display: grid; justify-items: center; gap: 4px; width: calc(320px * var(--scale)); }
+  .kind-s { --scale: .3; }
+  .kind-mvp, .kind-evp { --scale: .24; }
+  .compact .trophy { --scale: .27; }
+  .compact .kind-s { --scale: .23; }
+  .compact .kind-mvp, .compact .kind-evp { --scale: .19; }
+  .sprite { --w: calc(320px * var(--scale)); display: block; padding: 0; border: 0; background-color: transparent; width: var(--w); height: calc(var(--fh) * 1px * var(--scale)); background-image: var(--sheet); background-repeat: no-repeat; background-size: calc(var(--w) * 24) 100%; background-position: calc(var(--w) * var(--frame) * -1) 0; cursor: grab; touch-action: pan-y; outline: none; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .45)); }
   .sprite.dragging { cursor: grabbing; }
   .sprite:focus-visible { box-shadow: 0 0 0 2px var(--accent); border-radius: 4px; }
-  @keyframes spin { to { background-position: calc(var(--h) * var(--ratio) * -24) 0; } }
+  @keyframes spin { to { background-position: calc(var(--w) * -24) 0; } }
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     .sprite:not(.turned):hover, .sprite:not(.turned):focus-visible { animation: spin 2.4s steps(24) infinite; }
   }
@@ -104,8 +104,8 @@
   .more { align-self: center; padding: 8px 10px; border: 1px dashed var(--line); color: var(--muted); font: 900 18px/1 var(--display); }
   @media (max-width: 520px) {
     .shelf { padding: 12px 10px 4px; }
-    .trophy { --h: 112px; }
-    .kind-s { --h: 72px; }
-    .kind-mvp, .kind-evp { --h: 72px; }
+    .trophy { --scale: .27; }
+    .kind-s { --scale: .23; }
+    .kind-mvp, .kind-evp { --scale: .18; }
   }
 </style>

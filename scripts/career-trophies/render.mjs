@@ -7,7 +7,13 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { extname, join } from 'node:path';
 const ROOT = new URL('.', import.meta.url).pathname;
 const OUT = process.argv[2] ?? join(ROOT, '../../static/career/trophies');
-const NAMES = (process.argv[3] ?? 'major,s,mvp,evp').split(',');
+const ORGS = ['iem', 'pgl', 'blast', 'esl', 'perfectworld', 'starladder', 'firesports', 'ewc', 'dreamhack', 'epicenter', 'eleague'];
+// Só as combinações que existem no circuito: organizador de Major e/ou de Tier S.
+const ORG_TIERS = { iem: ['major', 's'], pgl: ['major'], blast: ['major', 's'], esl: ['major', 's'], perfectworld: ['major', 's'], starladder: ['major', 's'], firesports: ['major'], ewc: ['s'], dreamhack: ['s'], epicenter: ['s'], eleague: ['s'] };
+const ALL = ['major', 's', 'mvp', 'evp', ...ORGS.flatMap((org) => ORG_TIERS[org].map((tier) => `${org}-${tier}`))];
+const NAMES = process.argv[3] ? process.argv[3].split(',') : ALL;
+// A altura de cada quadro vai para o jogo (a estante calcula a largura pela proporção).
+const MANIFEST = process.env.MANIFEST ?? join(ROOT, '../../src/lib/data/career-trophies.json');
 const FRAMES = Number(process.argv[4] ?? 24);
 mkdirSync(OUT, { recursive: true });
 const types = { '.html': 'text/html', '.js': 'text/javascript' };
@@ -26,11 +32,14 @@ await send('Runtime.enable');
 await send('Page.navigate', { url: 'http://localhost:5299/' });
 for (let i = 0; i < 150 && !(await evaluate('window.ready === true')); i++) await sleep(200);
 console.log('ready', await evaluate('window.ready'), logs.join('\n'));
+const sizes = {};
 for (const name of NAMES) {
-  const data = await evaluate(`renderSheet(${JSON.stringify(name)}, ${FRAMES})`);
-  if (typeof data !== 'string' || !data.startsWith('data:image/webp')) { console.log('fail', name, String(data).slice(0, 300)); continue; }
-  const buf = Buffer.from(data.split(',')[1], 'base64');
+  const out = await evaluate(`renderSheet(${JSON.stringify(name)}, ${FRAMES})`);
+  if (!out || typeof out.data !== 'string' || !out.data.startsWith('data:image/webp')) { console.log('fail', name, JSON.stringify(out).slice(0, 300)); continue; }
+  const buf = Buffer.from(out.data.split(',')[1], 'base64');
   writeFileSync(join(OUT, `${name}.webp`), buf);
-  console.log(name, `${(buf.length / 1024).toFixed(0)} KB`);
+  sizes[name] = out.h;
+  console.log(name, `${out.h}px`, `${(buf.length / 1024).toFixed(0)} KB`);
 }
+if (!process.argv[3]) writeFileSync(MANIFEST, `${JSON.stringify({ width: 320, frames: FRAMES, heights: sizes }, null, 2)}\n`);
 chrome.kill(); server.close(); process.exit(0);

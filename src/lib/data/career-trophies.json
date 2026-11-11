@@ -1,0 +1,26 @@
+{
+  "width": 320,
+  "frames": 24,
+  "heights": {
+    "major": 400,
+    "s": 260,
+    "mvp": 400,
+    "evp": 400,
+    "iem-major": 240,
+    "iem-s": 240,
+    "pgl-major": 440,
+    "blast-major": 440,
+    "blast-s": 440,
+    "esl-major": 440,
+    "esl-s": 440,
+    "perfectworld-major": 440,
+    "perfectworld-s": 440,
+    "starladder-major": 440,
+    "starladder-s": 420,
+    "firesports-major": 440,
+    "ewc-s": 440,
+    "dreamhack-s": 440,
+    "epicenter-s": 440,
+    "eleague-s": 440
+  }
+}

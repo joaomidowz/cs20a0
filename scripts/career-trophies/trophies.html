@@ -43,7 +43,9 @@ const ring = (radius, tube, y, material) => {
   const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 24, 120), material);
   mesh.rotation.x = Math.PI / 2; mesh.position.y = y; return mesh;
 };
-const plinth = (radius, height, steps = 2) => {
+const silverDark = new THREE.MeshStandardMaterial({ color: 0x7d838c, metalness: 1, roughness: 0.32 });
+const chrome = new THREE.MeshStandardMaterial({ color: 0xe9edf2, metalness: 1, roughness: 0.06 });
+const plinth = (radius, height, steps = 2, accent = gold, plateMat = darkGold) => {
   const group = new THREE.Group();
   let y = 0;
   for (let i = 0; i < steps; i++) {
@@ -54,9 +56,9 @@ const plinth = (radius, height, steps = 2) => {
     y += h;
   }
   // Placa dourada (sem gravação: nada de logo) e filete no topo.
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.62, height * 0.22, 0.02), darkGold);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.62, height * 0.22, 0.02), plateMat);
   plate.position.set(0, height * 0.26, radius * 0.93); group.add(plate);
-  group.add(ring(radius * (1 - (steps - 1) * 0.14) * 0.93, 0.012, y, gold));
+  group.add(ring(radius * (1 - (steps - 1) * 0.14) * 0.93, 0.012, y, accent));
   group.userData.top = y;
   return group;
 };
@@ -138,6 +140,209 @@ function medal(metal, ribbonColor, points) {
   return g;
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// Um troféu por organizador (inspirados no estilo de cada um, sem logo nem gravação). A versão de Major de cada um tem
+// base de dois degraus com filetes dourados; a de Tier S, base de um degrau em prata.
+const pedestal = (major, radius = 0.55) => (major ? plinth(radius * 1.12, 0.44, 2) : plinth(radius, 0.28, 1, silver, silverDark));
+const accentOf = (major) => (major ? gold : silver);
+const tube = (points, radius, material, segments = 80) =>
+  new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(([x, y, z = 0]) => new THREE.Vector3(x, y, z))), segments, radius, 18, false), material);
+
+// IEM: tigela larga com orelhonas (a linha da taça de Katowice).
+function iem(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.56); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.36, y0], [0.36, y0 + 0.05], [0.22, y0 + 0.14], [0.11, y0 + 0.32], [0.1, y0 + 0.44], [0.16, y0 + 0.5], [0.34, y0 + 0.56],
+    [0.58, y0 + 0.64], [0.76, y0 + 0.78], [0.84, y0 + 0.92], [0.86, y0 + 0.98], [0.89, y0 + 1.0], [0.83, y0 + 1.0], [0.8, y0 + 0.92], [0, y0 + 0.8]
+  ], silver));
+  g.add(ring(0.1, 0.03, y0 + 0.45, accentOf(major)));
+  g.add(ring(0.875, 0.022, y0 + 0.99, accentOf(major)));
+  for (const side of [-1, 1]) g.add(tube([[side * 0.8, y0 + 0.9], [side * 1.02, y0 + 1.18], [side * 1.2, y0 + 1.04], [side * 1.1, y0 + 0.74], [side * 0.66, y0 + 0.7]], 0.045, major ? gold : silver));
+  return g;
+}
+
+// PGL: alta, fina e limpa (Copenhagen), com faixa preta e asinhas douradas (Antwerp).
+function pgl(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.48); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.3, y0], [0.3, y0 + 0.05], [0.16, y0 + 0.16], [0.08, y0 + 0.4], [0.07, y0 + 0.8], [0.12, y0 + 1.0], [0.2, y0 + 1.3],
+    [0.25, y0 + 1.7], [0.26, y0 + 1.95], [0.22, y0 + 2.2], [0.14, y0 + 2.45], [0.05, y0 + 2.7], [0, y0 + 2.78]
+  ], silver));
+  g.add(lathe([[0.215, y0 + 1.42], [0.24, y0 + 1.44], [0.25, y0 + 1.62], [0.226, y0 + 1.64]], stone));
+  const wing = new THREE.Shape();
+  wing.moveTo(0, 0); wing.bezierCurveTo(0.18, 0.06, 0.34, 0.2, 0.42, 0.42); wing.bezierCurveTo(0.28, 0.3, 0.16, 0.22, 0, 0.2); wing.closePath();
+  const wingGeo = new THREE.ExtrudeGeometry(wing, { depth: 0.025, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2 });
+  for (const side of [-1, 1]) {
+    const mesh = new THREE.Mesh(wingGeo, major ? gold : silver);
+    mesh.position.set(side * 0.22, y0 + 1.46, -0.012); mesh.scale.x = side; g.add(mesh);
+  }
+  g.add(ring(0.07, 0.022, y0 + 0.8, accentOf(major)));
+  return g;
+}
+
+// BLAST: peça artística, um cristal roxo aceso sobre uma base cromada que escorre.
+function blast(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.5); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([[0, y0], [0.44, y0], [0.44, y0 + 0.04], [0.38, y0 + 0.14], [0.26, y0 + 0.3], [0.18, y0 + 0.42], [0.1, y0 + 0.5], [0, y0 + 0.53]], chrome));
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    const len = 0.1 + ((i * 37) % 5) * 0.035;
+    const drip = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, len, 8, 16), chrome);
+    drip.position.set(Math.cos(a) * 0.4, y0 + 0.08 - len / 2 + 0.06, Math.sin(a) * 0.4); g.add(drip);
+  }
+  const purple = new THREE.MeshStandardMaterial({ color: 0x8a3dff, emissive: 0x6a1fff, emissiveIntensity: 0.9, metalness: 0.1, roughness: 0.08, transparent: true, opacity: 0.92 });
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), purple);
+  gem.scale.set(0.8, 1.7, 0.8); gem.position.y = y0 + 1.2; g.add(gem);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(gem.geometry), new THREE.LineBasicMaterial({ color: 0xd9c2ff }));
+  edges.scale.copy(gem.scale); edges.position.copy(gem.position); g.add(edges);
+  const glow = new THREE.PointLight(0x8a3dff, 3, 3); glow.position.y = y0 + 0.9; g.add(glow);
+  g.add(ring(0.16, 0.025, y0 + 0.52, accentOf(major)));
+  return g;
+}
+
+// ESL: a taça clássica de faixas, alta e de base forte (ESL One Cologne/Katowice); tampa com pináculo.
+function esl(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.56); g.add(base);
+  const y0 = base.userData.top;
+  const band = accentOf(major);
+  g.add(lathe([
+    [0, y0], [0.42, y0], [0.42, y0 + 0.05], [0.3, y0 + 0.12], [0.16, y0 + 0.3], [0.11, y0 + 0.5], [0.17, y0 + 0.58], [0.17, y0 + 0.64],
+    [0.11, y0 + 0.72], [0.12, y0 + 0.86], [0.2, y0 + 0.98], [0.36, y0 + 1.12], [0.5, y0 + 1.32], [0.58, y0 + 1.56], [0.6, y0 + 1.78],
+    [0.64, y0 + 1.84], [0.64, y0 + 1.88], [0.57, y0 + 1.86], [0.55, y0 + 1.6], [0, y0 + 1.5]
+  ], silver));
+  g.add(ring(0.172, 0.022, y0 + 0.61, band));
+  g.add(ring(0.505, 0.03, y0 + 1.34, band));
+  g.add(ring(0.585, 0.024, y0 + 1.6, band));
+  g.add(lathe([
+    [0, y0 + 1.87], [0.6, y0 + 1.87], [0.6, y0 + 1.92], [0.5, y0 + 1.98], [0.34, y0 + 2.08], [0.16, y0 + 2.16], [0.09, y0 + 2.2],
+    [0.09, y0 + 2.26], [0.14, y0 + 2.3], [0.15, y0 + 2.36], [0.1, y0 + 2.44], [0.05, y0 + 2.5], [0, y0 + 2.53]
+  ], major ? gold : silver));
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 32, 16), major ? gold : silver); finial.position.y = y0 + 2.58; g.add(finial);
+  return g;
+}
+
+// Perfect World: quatro colunas cromadas sustentando uma peça central suspensa (Shanghai).
+function perfectworld(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.56); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([[0, y0], [0.46, y0], [0.46, y0 + 0.06], [0.4, y0 + 0.1], [0, y0 + 0.1]], chrome));
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    g.add(tube([[Math.cos(a) * 0.36, y0 + 0.08, Math.sin(a) * 0.36], [Math.cos(a) * 0.3, y0 + 0.8, Math.sin(a) * 0.3], [Math.cos(a) * 0.24, y0 + 1.5, Math.sin(a) * 0.24]], 0.035, chrome, 40));
+  }
+  g.add(ring(0.25, 0.03, y0 + 1.5, chrome));
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 64, 32), major ? gold : chrome); orb.position.y = y0 + 1.84; g.add(orb);
+  const orbit = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.018, 16, 120), accentOf(major));
+  orbit.position.y = y0 + 1.84; orbit.rotation.set(Math.PI / 2.6, 0, Math.PI / 7); g.add(orbit);
+  return g;
+}
+
+// StarLadder: taça sóbria com orelhas e uma estrela no topo.
+function starladder(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.5); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.32, y0], [0.32, y0 + 0.05], [0.2, y0 + 0.14], [0.1, y0 + 0.36], [0.09, y0 + 0.56], [0.15, y0 + 0.64], [0.3, y0 + 0.74],
+    [0.46, y0 + 0.94], [0.54, y0 + 1.2], [0.56, y0 + 1.42], [0.6, y0 + 1.46], [0.54, y0 + 1.46], [0.51, y0 + 1.3], [0, y0 + 1.2]
+  ], silver));
+  for (const side of [-1, 1]) g.add(tube([[side * 0.52, y0 + 1.3], [side * 0.82, y0 + 1.42], [side * 0.9, y0 + 1.12], [side * 0.7, y0 + 0.86], [side * 0.4, y0 + 0.86]], 0.04, silver));
+  g.add(ring(0.585, 0.02, y0 + 1.46, accentOf(major)));
+  g.add(tube([[0, y0 + 1.46], [0, y0 + 1.66]], 0.03, silver, 4));
+  const starGeo = new THREE.ExtrudeGeometry(starShape(0.26, 0.11, 5), { depth: 0.06, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 3 });
+  starGeo.center();
+  const star = new THREE.Mesh(starGeo, major ? gold : silver); star.position.y = y0 + 1.9; g.add(star);
+  return g;
+}
+
+// FiReSPORTS: uma tocha com chama dourada.
+function firesports(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.48); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([[0, y0], [0.26, y0], [0.2, y0 + 0.1], [0.11, y0 + 0.3], [0.13, y0 + 1.1], [0.17, y0 + 1.3], [0.3, y0 + 1.5], [0.32, y0 + 1.56], [0, y0 + 1.5]], silver));
+  g.add(lathe([[0.112, y0 + 0.5], [0.13, y0 + 0.52], [0.13, y0 + 0.82], [0.118, y0 + 0.84]], stone));
+  const flameMat = new THREE.MeshStandardMaterial({ color: 0xf2b34a, emissive: 0xff7a1a, emissiveIntensity: 0.55, metalness: 0.9, roughness: 0.2 });
+  for (const [x, z, s] of [[0, 0, 1], [0.1, 0.05, 0.7], [-0.09, -0.04, 0.75], [0.03, -0.1, 0.6]]) {
+    const flame = lathe([[0, 0], [0.2, 0.08], [0.22, 0.2], [0.16, 0.42], [0.06, 0.66], [0, 0.8]], flameMat, 48);
+    flame.scale.setScalar(s); flame.position.set(x, y0 + 1.52, z); g.add(flame);
+  }
+  g.add(ring(0.31, 0.02, y0 + 1.53, accentOf(major)));
+  return g;
+}
+
+// Esports World Cup: um globo sobre uma coluna torcida.
+function ewc(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.52); g.add(base);
+  const y0 = base.userData.top;
+  for (let k = 0; k < 3; k++) {
+    const points = [];
+    for (let i = 0; i <= 24; i++) { const t = i / 24; const a = t * Math.PI * 2.2 + (k * Math.PI * 2) / 3; const r = 0.16 - t * 0.06; points.push([Math.cos(a) * r, y0 + t * 1.3, Math.sin(a) * r]); }
+    g.add(tube(points, 0.03, gold, 120));
+  }
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.36, 64, 32), gold); globe.position.y = y0 + 1.68; g.add(globe);
+  for (const [rx, rz] of [[Math.PI / 2, 0], [0, 0], [Math.PI / 2, Math.PI / 3], [Math.PI / 2, -Math.PI / 3]]) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.37, 0.012, 12, 96), silver);
+    band.position.y = y0 + 1.68; band.rotation.set(rx, 0, rz); g.add(band);
+  }
+  return g;
+}
+
+// DreamHack: o cálice clássico com uma faixa azul.
+function dreamhack(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.5); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.36, y0], [0.36, y0 + 0.05], [0.2, y0 + 0.16], [0.07, y0 + 0.5], [0.06, y0 + 0.86], [0.14, y0 + 0.98], [0.34, y0 + 1.08],
+    [0.52, y0 + 1.3], [0.6, y0 + 1.6], [0.62, y0 + 1.76], [0.66, y0 + 1.8], [0.59, y0 + 1.8], [0.57, y0 + 1.66], [0, y0 + 1.5]
+  ], silver));
+  const blue = new THREE.MeshStandardMaterial({ color: 0x2a6bd8, metalness: 0.4, roughness: 0.22 });
+  g.add(lathe([[0.535, y0 + 1.36], [0.56, y0 + 1.37], [0.59, y0 + 1.52], [0.565, y0 + 1.53]], blue));
+  g.add(ring(0.065, 0.022, y0 + 0.68, accentOf(major)));
+  return g;
+}
+
+// EPICENTER: obelisco facetado com a ponta vermelha.
+function epicenter(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.5); g.add(base);
+  const y0 = base.userData.top;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.24, 1.8, 4, 1), silver);
+  shaft.rotation.y = Math.PI / 4; shaft.position.y = y0 + 0.9; g.add(shaft);
+  const red = new THREE.MeshStandardMaterial({ color: 0xd8343a, metalness: 0.7, roughness: 0.18 });
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.32, 4), red);
+  tip.rotation.y = Math.PI / 4; tip.position.y = y0 + 1.96; g.add(tip);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 4), red);
+  collar.rotation.y = Math.PI / 4; collar.position.y = y0 + 0.45; g.add(collar);
+  return g;
+}
+
+// ELEAGUE: vaso facetado de seis lados com faixa preta.
+function eleague(major) {
+  const g = new THREE.Group();
+  const base = pedestal(major, 0.52); g.add(base);
+  const y0 = base.userData.top;
+  g.add(lathe([
+    [0, y0], [0.34, y0], [0.3, y0 + 0.1], [0.16, y0 + 0.3], [0.13, y0 + 0.5], [0.3, y0 + 0.8], [0.44, y0 + 1.2], [0.46, y0 + 1.5],
+    [0.38, y0 + 1.8], [0.4, y0 + 1.92], [0.44, y0 + 1.96], [0.36, y0 + 1.96], [0, y0 + 1.8]
+  ], silver, 6));
+  g.add(lathe([[0.43, y0 + 1.16], [0.455, y0 + 1.18], [0.465, y0 + 1.34], [0.445, y0 + 1.36]], stone, 6));
+  return g;
+}
+
+const ORGANIZERS = { iem, pgl, blast, esl, perfectworld, starladder, firesports, ewc, dreamhack, epicenter, eleague };
+
 const MODELS = {
   major: { build: major, cam: [0, 1.75, 4.9], look: 1.25 },
   // Tier S é largo: quadro mais baixo (320x260) para a tigela não ficar pequena.
@@ -145,16 +350,19 @@ const MODELS = {
   mvp: { build: () => medal(gold, 0xc8ff32, 5), cam: [0, 1.25, 4.0], look: 1.15 },
   evp: { build: () => medal(silver, 0x3aa0ff, 4), cam: [0, 1.25, 4.0], look: 1.15 }
 };
+// "iem-major", "iem-s"…: o quadro sai da proporção do modelo (troféu largo, quadro mais baixo).
+for (const [org, build] of Object.entries(ORGANIZERS)) for (const tier of ['major', 's']) MODELS[`${org}-${tier}`] = { build: () => build(tier === 'major'), auto: true };
 
 const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 50);
 let current = null;
 window.renderSheet = async (name, frames = 24, quality = 0.85) => {
   if (current) scene.remove(current);
   const spec = MODELS[name];
-  const h = spec.h ?? H;
-  renderer.setSize(W, h); camera.aspect = W / h; camera.updateProjectionMatrix();
   current = spec.build(); scene.add(current);
   const box = new THREE.Box3().setFromObject(current);
+  const span = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z) * 2;
+  const h = spec.h ?? (spec.auto ? Math.min(440, Math.max(240, Math.round((W * (box.max.y - box.min.y) / span) / 20) * 20)) : H);
+  renderer.setSize(W, h); camera.aspect = W / h; camera.updateProjectionMatrix();
   const halfW = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z);
   const halfH = (box.max.y - box.min.y) / 2;
   const cy = (box.max.y + box.min.y) / 2;
@@ -169,7 +377,7 @@ window.renderSheet = async (name, frames = 24, quality = 0.85) => {
     renderer.render(scene, camera);
     ctx.drawImage(renderer.domElement, i * W, 0);
   }
-  return sheet.toDataURL('image/webp', quality);
+  return { data: sheet.toDataURL('image/webp', quality), h };
 };
 window.ready = true;
 </script>

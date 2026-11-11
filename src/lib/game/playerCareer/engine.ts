@@ -13,6 +13,7 @@ import { seasonAwards } from './awards';
 import { ageDecline, careerGrowth, ceilingBonusOf, GROWTH_LAST_AGE, seasonTrainOf, sessionsPerOverall } from './growth';
 import { currentLevelOf, homeLevelOf, legacyEventTier } from './tiers';
 import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
+import { trophyArt } from './trophyArt';
 import { myFluency, type Language } from './language';
 import { pickOffers, rememberOffers, type OfferGroup, type RecentOffer } from './offers';
 import type { Rival } from './rivals';
@@ -178,8 +179,9 @@ export function trophyCase(state: PlayerCareerState): TrophyCase {
   };
 }
 
-/** Um troféu da estante: título de Major ou Tier S, e medalha de MVP ou EVP nos campeonatos grandes (Major e Tier S). */
-export interface ShelfTrophy { kind: 'major' | 's' | 'mvp' | 'evp'; name: string; year: number; tier: EventTier }
+/** Um troféu da estante: título de Major ou Tier S, e medalha de MVP ou EVP nos campeonatos grandes (Major e Tier S).
+ *  `art` é a folha de sprite (o troféu do organizador, trophyArt.ts) e `height`, a altura do quadro dela. */
+export interface ShelfTrophy { kind: 'major' | 's' | 'mvp' | 'evp'; name: string; year: number; tier: EventTier; art: string; height: number }
 
 /** A estante da carreira (inclui a temporada em curso), na ordem em que foram ganhos. */
 export function trophyShelf(state: PlayerCareerState): ShelfTrophy[] {
@@ -187,9 +189,9 @@ export function trophyShelf(state: PlayerCareerState): ShelfTrophy[] {
   const push = (result: TournamentResult, year: number) => {
     const tier = result.tier;
     if (result.skipped || (tier !== 'Major' && tier !== 'S')) return;
-    if (result.placement === 'Campeão') items.push({ kind: tier === 'Major' ? 'major' : 's', name: result.name, year, tier });
-    if (result.mvp?.you) items.push({ kind: 'mvp', name: result.name, year, tier });
-    else if (isYourEvp(result, state.nick)) items.push({ kind: 'evp', name: result.name, year, tier });
+    if (result.placement === 'Campeão') items.push({ kind: tier === 'Major' ? 'major' : 's', name: result.name, year, tier, ...trophyArt('title', tier, result.name) });
+    if (result.mvp?.you) items.push({ kind: 'mvp', name: result.name, year, tier, ...trophyArt('mvp', tier, result.name) });
+    else if (isYourEvp(result, state.nick)) items.push({ kind: 'evp', name: result.name, year, tier, ...trophyArt('evp', tier, result.name) });
   };
   for (const log of state.history) for (const result of log.tournaments) push(result, log.year);
   for (const entry of state.calendar ?? []) if (entry.result && entryKind(entry) === 'event') push(entry.result, state.year);
