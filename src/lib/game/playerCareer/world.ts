@@ -57,8 +57,9 @@ export interface SceneBenchMove {
   season: number;
   nick: string;
   /** promoted: voltou a ser titular · benched: perdeu a vaga e foi para o banco · signed: outro time contratou do banco ·
-   *  released: dispensado, virou free agent · faSigned: free agent contratado · retired: pendurou fora dos titulares. */
-  kind: 'promoted' | 'benched' | 'signed' | 'released' | 'faSigned' | 'retired';
+   *  released: dispensado, virou free agent · faSigned: free agent contratado · retired: pendurou fora dos titulares ·
+   *  contractEnd: o contrato acabou, o time não renovou e ele virou free agent (swappedNick: quem entrou). */
+  kind: 'promoted' | 'benched' | 'signed' | 'released' | 'faSigned' | 'retired' | 'contractEnd';
   orgId: string | null;
   orgName: string | null;
   /** De onde saiu (contratado do banco de outro time). */
@@ -68,8 +69,16 @@ export interface SceneBenchMove {
   swappedNick?: string;
 }
 
+/** Contrato de um titular do mundo: com que time e até que temporada (estimado pela seed; o real não é público). */
+export interface NpcContract {
+  orgId: string;
+  until: number;
+}
+
 interface WorldSeason {
   rosters: Map<string, SceneRosterMember[]>;
+  /** Contrato de cada titular (chave: memberKey). Só metadado: os elencos não dependem dele quando o banco está desligado. */
+  contracts: Map<string, NpcContract>;
   /** Banco de cada time (fora dos 5 titulares). */
   benches: Map<string, BenchEntry[]>;
   /** Sem time: dispensados que esperam proposta. */
@@ -257,7 +266,8 @@ function baseWorld(seed: string): WorldSeason {
   };
   const benches = new Map([...startBenches].map(([orgId, members]) => [orgId, members.map((member) => ({ member: withDev(member), since: 1 }))]));
   const freeAgents = startFree.map(({ member, level }) => ({ member: withDev(member), since: 1, level }));
-  return { rosters: new Map(sceneOrgs.map((org) => [org.id, org.roster])), benches, freeAgents, benchMoves: [], transfers: [], retirements: [], debuts: [], dev, previousOverall: new Map() };
+  const rosters = new Map(sceneOrgs.map((org) => [org.id, org.roster]));
+  return { rosters, contracts: signContracts(seed, 1, rosters, new Map(), true), benches, freeAgents, benchMoves: [], transfers: [], retirements: [], debuts: [], dev, previousOverall: new Map() };
 }
 
 /** Um ano a mais para todo mundo: o motor de idade do jogador, com a forma da temporada sorteada (quem rende
@@ -332,6 +342,8 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   for (const [id, entries] of benches) benches.set(id, entries.map(refresh));
   freeAgents = freeAgents.map(refresh);
   const taken = nicksOf(rosters);
+  // Com o banco ligado, o jovem gerado também não pode repetir o nick de quem está no banco ou sem time.
+  if (active) for (const entry of [...[...benches.values()].flat(), ...freeAgents]) taken.add(entry.member.nick.toLowerCase());
   // 1) Aposentadorias: veterano sai; entra o melhor da mesma função de um time de baixo (só se o time mantém a
   //    identidade com ele dentro), e esse time sobe um jovem da base do país do núcleo dele.
   for (const org of sceneOrgs) {
@@ -396,11 +408,101 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
     transfers.push({ season, nick: memberNick(player), fromId: from.id, fromName: from.name, toId: to.id, toName: to.name, swappedNick: memberNick(partner) });
   }
   // 4) O banco e os sem time (só nas temporadas em que a regra está ligada para esta carreira).
-  if (active) freeAgents = benchMarket(seed, season, year, rosters, benches, freeAgents, benchMoves);
+  if (active) {
+    // 4a) Fim de contrato: quem terminou o contrato na temporada passada e o time não renovou vira free agent.
+    freeAgents = contractMarket(seed, season, year, rosters, previous.rosters, previous.contracts, benches, freeAgents, benchMoves, dev, taken);
+    freeAgents = benchMarket(seed, season, year, rosters, benches, freeAgents, benchMoves);
+  }
   const previousOverall = new Map([...previous.dev].map(([memberId, entry]) => [memberId, entry.overall]));
-  const world = { rosters, benches, freeAgents, benchMoves, transfers, retirements, debuts, dev, previousOverall };
+  // 5) Contratos: quem segue no mesmo time mantém o dele; quem chegou (ou renovou) assina um novo nesta temporada.
+  const contracts = signContracts(seed, season, rosters, previous.contracts, false);
+  const world = { rosters, contracts, benches, freeAgents, benchMoves, transfers, retirements, debuts, dev, previousOverall };
   remember(key, world);
   return world;
+}
+
+/** Chance de o time não renovar com quem terminou o contrato (base; o mais fraco do time e o veterano saem mais). */
+const NPC_LEAVE_CHANCE = 0.05;
+const NPC_LEAVE_WEAKEST = 0.07;
+const NPC_LEAVE_VETERAN = 0.05;
+
+/** Duração do contrato de um titular do mundo: jovem assina mais longo, veterano mais curto (rng por jogador). */
+function npcContractYears(seed: string, key: string, season: number, age: number | null): number {
+  const rng = createSeededRng(`${seed}:npc-contract:${key}:${season}`);
+  if (age === null) return 1 + Math.floor(rng() * 3);
+  if (age <= 21) return rng() < 0.7 ? 3 : 2;
+  if (age <= 27) return rng() < 0.5 ? 2 : rng() < 0.5 ? 3 : 1;
+  if (age <= 31) return rng() < 0.6 ? 1 : 2;
+  return 1;
+}
+
+/**
+ * Os contratos da temporada: quem segue no mesmo time com contrato em dia mantém o dele; quem chegou, renovou ou não
+ * tinha assina um novo a partir de `season`. Na temporada 1 (a cena de 2026) cada um já está no meio de um contrato:
+ * o que falta é sorteado (1 a 3 temporadas). Só metadado: não muda elenco nem consome o rng do mundo.
+ */
+function signContracts(seed: string, season: number, rosters: Map<string, SceneRosterMember[]>, previous: Map<string, NpcContract>, start: boolean): Map<string, NpcContract> {
+  const year = yearOfSeason(season);
+  const contracts = new Map<string, NpcContract>();
+  for (const [orgId, roster] of rosters) {
+    for (const member of roster) {
+      const key = memberKey(member);
+      const before = previous.get(key);
+      if (before && before.orgId === orgId && before.until >= season) {
+        contracts.set(key, before);
+        continue;
+      }
+      const born = memberBirthYear(member);
+      const years = npcContractYears(seed, key, season, born === null ? null : year - born);
+      // Na cena de 2026 o contrato já está correndo: falta de 1 até a duração toda.
+      const left = start ? 1 + Math.floor(createSeededRng(`${seed}:npc-contract-left:${key}`)() * years) : years;
+      contracts.set(key, { orgId, until: season + left - 1 });
+    }
+  }
+  return contracts;
+}
+
+/**
+ * Fim de contrato no mundo (só com o banco ligado, rng próprio): quem terminou o contrato na temporada passada renova na
+ * maioria das vezes; senão sai como free agent e o time põe no lugar o melhor sem time da função, alguém do banco ou um
+ * jovem da base. Se ninguém mantém a identidade do time, ele renova.
+ */
+function contractMarket(seed: string, season: number, year: number, rosters: Map<string, SceneRosterMember[]>, before: Map<string, SceneRosterMember[]>, contracts: Map<string, NpcContract>, benches: Map<string, BenchEntry[]>, freeAgents: BenchEntry[], moves: SceneBenchMove[], dev: Map<string, MemberDev>, taken: Set<string>): BenchEntry[] {
+  const rng = createSeededRng(`${seed}:contract-market:${season}`);
+  let free = [...freeAgents];
+  for (const org of sceneOrgs) {
+    const roster = rosters.get(org.id) ?? [];
+    // Só quem já estava no time na temporada passada: quem chegou nesta virada assina contrato novo.
+    const stayed = new Set((before.get(org.id) ?? []).map((member) => memberKey(member)));
+    const weakest = [...roster].sort((left, right) => strength(left, org) - strength(right, org))[0];
+    for (const member of [...roster]) {
+      const contract = contracts.get(memberKey(member));
+      if (!contract || contract.orgId !== org.id || contract.until !== season - 1 || member.careerMade || !stayed.has(memberKey(member))) continue;
+      const born = memberBirthYear(member);
+      const age = born === null ? null : year - born;
+      const chance = NPC_LEAVE_CHANCE + (member === weakest ? NPC_LEAVE_WEAKEST : 0) + (age !== null && age >= 30 ? NPC_LEAVE_VETERAN : 0);
+      if (rng() >= chance) continue;
+      const current = rosters.get(org.id) ?? [];
+      const role = memberRoles(member)[0] ?? null;
+      const fits = (candidate: SceneRosterMember) => (role ? memberRoles(candidate)[0] === role : true) && keepsIdentity(org.id, current, swapIn(current, member, candidate));
+      // O melhor sem time da função (do nível vizinho), depois o banco do próprio time, depois um jovem da base.
+      // Quem acabou de ficar sem time nesta virada espera a próxima janela (nada de o mesmo time recontratar quem saiu).
+      const freeOne = free.filter((entry) => entry.since !== season && Math.abs((entry.level ?? org.level) - org.level) <= 1 && fits(entry.member)).sort((left, right) => strength(right.member, org) - strength(left.member, org))[0];
+      const benchOne = (benches.get(org.id) ?? []).find((entry) => fits(entry.member));
+      let incoming: SceneRosterMember | null = freeOne?.member ?? benchOne?.member ?? null;
+      if (freeOne) free = free.filter((entry) => entry !== freeOne);
+      else if (benchOne) benches.set(org.id, (benches.get(org.id) ?? []).filter((entry) => entry !== benchOne));
+      else {
+        const kid = prospect(rng, coreCountryOf(org.id, current, member.country), role, year, org.level, dev, taken);
+        incoming = fits(kid) ? kid : null;
+      }
+      if (!incoming) continue; // ninguém mantém a identidade: renova
+      rosters.set(org.id, swapIn(current, member, incoming));
+      free.push({ member, since: season, level: org.level });
+      moves.push({ season, nick: memberNick(member), kind: 'contractEnd', orgId: org.id, orgName: org.name, swappedNick: memberNick(incoming) });
+    }
+  }
+  return free;
 }
 
 /** Quanto a mais o reserva precisa render para tomar a vaga do titular da função. */
@@ -805,6 +907,9 @@ export const worldHistory = (seed: string, season: number) => {
 
 /** O banco do time na temporada (fora dos 5 titulares), com o overall da temporada. */
 export const benchIn = (seed: string, season: number, orgId: string): BenchEntry[] => sceneWorld(seed, season).benches.get(sceneOrgById.get(orgId)?.id ?? orgId) ?? [];
+
+/** O contrato do jogador do mundo na temporada (até quando e com que time), ou null se ele não é titular. */
+export const npcContractIn = (seed: string, season: number, member: SceneRosterMember): NpcContract | null => sceneWorld(seed, season).contracts.get(memberKey(member)) ?? null;
 
 /** Quem está sem time na temporada (dispensados à espera de proposta). */
 export const freeAgentsIn = (seed: string, season: number): BenchEntry[] => sceneWorld(seed, season).freeAgents;

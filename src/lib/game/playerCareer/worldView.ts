@@ -330,7 +330,8 @@ export function worldMovesView(state: PlayerCareerState): WorldMoveGroup[] {
         signed: `Banco da ${move.fromName} → ${move.orgName}`,
         released: `${move.fromName} → sem time`,
         faSigned: `Sem time → ${move.orgName}`,
-        retired: move.orgName ? `Banco da ${move.orgName}` : 'Sem time'
+        retired: move.orgName ? `Banco da ${move.orgName}` : 'Sem time',
+        contractEnd: `${move.orgName} → sem time`
       };
       const note: Record<typeof move.kind, string> = {
         promoted: `Voltou ao time${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`,
@@ -338,7 +339,8 @@ export function worldMovesView(state: PlayerCareerState): WorldMoveGroup[] {
         signed: `Contratado do banco${move.swappedNick ? `; ${move.swappedNick} vai para o banco` : ''}.`,
         released: 'Dispensado: virou free agent.',
         faSigned: `Free agent contratado${move.swappedNick ? `; ${move.swappedNick} vai para o banco` : ''}.`,
-        retired: 'Pendurou o mouse fora dos titulares.'
+        retired: 'Pendurou o mouse fora dos titulares.',
+        contractEnd: `O contrato acabou e não renovaram${move.swappedNick ? `; entra ${move.swappedNick}` : ''}.`
       };
       return {
         key: `banco:${move.kind}:${move.nick}:${move.orgId ?? move.fromId ?? ''}`, nick: move.nick, orgId: move.orgId ?? move.fromId ?? null, orgName: move.orgName ?? move.fromName ?? 'Sem time',

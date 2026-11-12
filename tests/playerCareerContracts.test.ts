@@ -9,10 +9,12 @@ import {
 } from '../src/lib/game/playerCareer/engine';
 import { buyoutFor, CONTRACT_MAX_YEARS, contractYears, monthlySalary, RENEW_MARGIN } from '../src/lib/game/playerCareer/contracts';
 import { ensureSquad } from '../src/lib/game/playerCareer/squad';
+import { academyParentOf } from '../src/lib/game/playerCareer/data';
 
 function signedAt(seed: string): PlayerCareerState {
   const career = createPlayerCareer({ nick: 'tester', country: 'Brazil', role: 'rifler', seed });
-  return chooseStartingOrg(career, career.pendingDraw!.find((option) => option.kind === 'real')!.orgId);
+  // Time que não é base de ninguém (a base tem promoção e empréstimo, testados em playerCareerAcademy).
+  return chooseStartingOrg(career, career.pendingDraw!.find((option) => option.kind === 'real' && !academyParentOf(option.orgId))!.orgId);
 }
 
 /** A temporada inteira jogada com o mesmo rating (e, se pedir, títulos nos primeiros). */

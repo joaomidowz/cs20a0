@@ -44,7 +44,7 @@
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
   import { TRAIN_CAP, teamBench, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
-  import { orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
+  import { academyParentOf, orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
   import { mapProfile } from '$lib/game/playerCareer/careerMaps';
@@ -1453,8 +1453,9 @@
       <div class="cards">
         {#each career.pendingDraw as option, index}
           <button class="card deal" class:lan={option.kind === 'lan-house'} style={`--deal:${index * 90}ms`} on:click={() => sign(option.orgId)}>
-            <span class="card-level">{teamTierLabel(option.level)}{option.country ? ` · ${option.country}` : ''}</span>
+            <span class="card-level">{option.academyOf ? `Base do ${option.academyOf}` : `${teamTierLabel(option.level)}${option.country ? ` · ${option.country}` : ''}`}</span>
             <b>{option.name}</b>
+            {#if option.academyOf}<span class="seat">Contrato de base: sobe para o {option.academyOf} quando estiver pronto</span>{/if}
             {#if option.seat}
               <span class="seat">Vaga de <b>{option.seat.nick}</b>{option.seat.viaRole ? ' · sua função' : ''}</span>
             {:else}
@@ -1735,9 +1736,13 @@
           {/each}
         </ol>
         <p class="rung-here"><span>{PYRAMID.find((rung) => rung.level === currentLevel)?.label ?? ''}</span> {orgOf(career.orgId).name}</p>
-        {#if career.contract}
+        {#if career.loan}
+          <p class="contract-line" title="Emprestado pela base: no fim da temporada você volta (ou sobe, se brilhar).">
+            <b>Emprestado pela {orgOf(career.loan.fromOrgId).name}</b> até {yearOfSeason(career, career.loan.until)}{#if career.contract} · contrato com a base até {yearOfSeason(career, career.contract.until)}{/if}
+          </p>
+        {:else if career.contract}
           <p class="contract-line" title="Sob contrato, o fim da temporada só abre para quem paga a multa. No último ano, o time renova ou você fica livre.">
-            <b>Contrato até {yearOfSeason(career, career.contract.until)}</b> · US$ {career.contract.salaryUsd.toLocaleString('pt-BR')}/mês · multa US$ {moneyLabel(career.contract.buyoutUsd)}
+            {#if academyParentOf(career.orgId)}<b>Base do {orgOf(academyParentOf(career.orgId) ?? '').name}</b>{' · '}{/if}<b>Contrato até {yearOfSeason(career, career.contract.until)}</b> · US$ {career.contract.salaryUsd.toLocaleString('pt-BR')}/mês · multa US$ {moneyLabel(career.contract.buyoutUsd)}
           </p>
         {:else if career.orgId !== 'lan-house'}
           <p class="contract-line">Sem contrato</p>
@@ -1840,18 +1845,19 @@
 
           <section aria-label="Janela de mercado">
             <div class="section-head">
-              <h2 class="display h2">{career.sold ? 'Você foi vendido' : career.pendingOffers.some((offer) => offer.kind === 'buyout') ? 'Querem pagar a sua multa' : 'Janela de mercado'}</h2>
+              <h2 class="display h2">{career.sold ? 'Você foi vendido' : career.pendingOffers.some((offer) => offer.kind === 'promotion') ? 'O time principal te chama' : career.pendingOffers.some((offer) => offer.kind === 'loan') ? 'A base quer te emprestar' : career.pendingOffers.some((offer) => offer.kind === 'return') ? 'Fim do empréstimo' : career.pendingOffers.some((offer) => offer.kind === 'buyout') ? 'Querem pagar a sua multa' : 'Janela de mercado'}</h2>
               <span>Hoje: {orgOf(career.orgId).name} · {teamTierTitle(currentLevel)}{#if career.contract && career.contract.until >= career.seasonNumber && !career.released && !career.sold} · contrato até {yearOfSeason(career, career.contract.until)}{:else if career.contract && !career.released && !career.sold} · contrato acabou{/if}</span>
             </div>
             <div class="offers">
               {#each career.pendingOffers as offer}
                 {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
                 {@const seat = target ? seatToTake(target, career.role) : null}
-                <button class="offer" class:renewal={offer.kind === 'renewal'} on:click={() => choose(offer.orgId)}>
-                  <span class="label" class:up={offer.orgLevel < currentLevel || offer.kind === 'renewal'}>{offer.kind === 'renewal' ? 'Renovar' : offer.kind === 'sale' ? 'Vendido' : offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
-                  <b class="display">{offer.kind === 'renewal' ? `Ficar no ${offer.orgName}` : offer.orgName}</b>
+                <button class="offer" class:renewal={offer.kind === 'renewal' || offer.kind === 'promotion' || offer.kind === 'return'} on:click={() => choose(offer.orgId)}>
+                  <span class="label" class:up={offer.orgLevel < currentLevel || offer.kind === 'renewal' || offer.kind === 'promotion'}>{offer.kind === 'renewal' ? 'Renovar' : offer.kind === 'sale' ? 'Vendido' : offer.kind === 'promotion' ? 'Promoção da base' : offer.kind === 'loan' ? 'Empréstimo · 1 temporada' : offer.kind === 'return' ? 'Fim do empréstimo' : offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
+                  <b class="display">{offer.kind === 'renewal' ? `Ficar no ${offer.orgName}` : offer.kind === 'promotion' ? `Subir para o ${offer.orgName}` : offer.kind === 'return' ? `Voltar para a ${offer.orgName}` : offer.orgName}</b>
                   {#if offer.kind !== 'renewal'}<span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>{/if}
-                  {#if offer.years}<span class="ln">Contrato <b>{seasonsLabel(offer.years)}</b> · até {yearOfSeason(career, career.seasonNumber + offer.years - 1)}</span>{/if}
+                  {#if offer.kind === 'loan'}<span class="ln">Contrato segue com a <b>{orgOf(career.orgId).name}</b>: você volta no fim da temporada</span>
+                  {:else if offer.years}<span class="ln">Contrato <b>{seasonsLabel(offer.years)}</b> · até {yearOfSeason(career, career.seasonNumber + offer.years - 1)}</span>{/if}
                   {#if offer.buyoutUsd}<span class="ln">{offer.kind === 'sale' ? 'Pagou a multa' : 'Paga a sua multa'} de <b>US$ {moneyLabel(offer.buyoutUsd)}</b></span>{/if}
                   {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
@@ -1871,7 +1877,7 @@
                   <b class="display">Voltar para a Lan House</b>
                   <span class="ln">Grind por fora até um time chamar de novo</span>
                 </button>
-              {:else if !career.pendingOffers.some((offer) => offer.kind === 'renewal')}
+              {:else if !career.pendingOffers.some((offer) => offer.kind === 'renewal' || offer.kind === 'return')}
                 <button class="offer stay" on:click={stay}>
                   <span class="label">{career.contract ? 'Contrato' : 'Renovar'}</span>
                   <b class="display">Ficar no {orgOf(career.orgId).name}</b>

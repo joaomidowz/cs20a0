@@ -8,7 +8,7 @@ import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberC
 import type { PlayerCareerState } from './engine';
 import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, type Language } from './language';
 import { fallbackBorn, myLanguageFit, seatedNicks, teamOrgOf } from './squad';
-import { benchIn, freeAgentsIn, orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason, type SceneBenchMove } from './world';
+import { benchIn, freeAgentsIn, npcContractIn, orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason, type SceneBenchMove } from './world';
 import { coachWorld } from './coaches';
 import { currentLevelOf } from './tiers';
 
@@ -113,6 +113,7 @@ function historyOf(state: PlayerCareerState, nick: string): ScoutHit['history'] 
     for (const debut of debuts) if (debut.nick.toLowerCase() === key) lines.push({ year, text: `Estreou na ${debut.orgName} aos ${debut.age} anos.` });
     for (const move of worldHistory(state.seed, season).benchMoves) {
       if (move.nick.toLowerCase() === key) lines.push({ year, text: benchMoveLine(move) });
+      else if (move.swappedNick?.toLowerCase() === key && move.kind === 'contractEnd') lines.push({ year, text: `Entrou na ${move.orgName} no lugar do ${move.nick}, que terminou o contrato.` });
       else if (move.swappedNick?.toLowerCase() === key && move.kind !== 'benched') lines.push({ year, text: `Perdeu a vaga na ${move.orgName} para o ${move.nick} e foi para o banco.` });
     }
   }
@@ -126,6 +127,7 @@ export function benchMoveLine(move: SceneBenchMove): string {
   if (move.kind === 'signed') return `Saiu do banco da ${move.fromName} e assinou com a ${move.orgName}${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`;
   if (move.kind === 'released') return `Foi dispensado pela ${move.fromName} e ficou sem time (free agent).`;
   if (move.kind === 'faSigned') return `Estava sem time e assinou com a ${move.orgName}${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`;
+  if (move.kind === 'contractEnd') return `O contrato com a ${move.orgName} acabou, não renovaram e ele ficou sem time (free agent).`;
   return `Pendurou o mouse${move.orgName ? ` no banco da ${move.orgName}` : ' sem time'}.`;
 }
 
@@ -150,6 +152,12 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
       flag: flagOf(state.country), spoken: spokenLabel(state.country), status: 'voce', note: `Você, no ${org?.name ?? 'time da lan house'}.`, history: []
     });
   }
+  // O contrato do titular no mundo (estimado pela seed): até que ano ele está preso ao time.
+  const contractNote = (member: SceneRosterMember, orgId: string) => {
+    const contract = npcContractIn(state.seed, state.seasonNumber, member);
+    if (!contract || contract.orgId !== (sceneOrgById.get(orgId)?.id ?? orgId)) return '';
+    return contract.until <= state.seasonNumber ? ' Último ano de contrato.' : ` Contrato até ${yearOfSeason(contract.until)}.`;
+  };
   const make = (member: SceneRosterMember, orgId: string): ScoutHit => {
     const org = sceneOrgById.get(orgId);
     const nick = memberNick(member);
@@ -160,7 +168,7 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
       age: born === null ? null : year - born, overall: member.overall ?? memberCatalogOverall(member) ?? null,
       flag: flagOf(memberCountryIn(member, org)), spoken: spokenLabel(memberCountryIn(member, org)),
       status: onBench ? 'reserva' : 'titular',
-      note: `${onBench ? `Reserva da ${org?.name}: está no banco desde que você chegou.` : `Titular da ${org?.name}.`}${(announcedRetirementYear(member) ?? 9999) <= year ? ' Anunciou que ia parar, mas segue jogando.' : ''}`,
+      note: `${onBench ? `Reserva da ${org?.name}: está no banco desde que você chegou.` : `Titular da ${org?.name}.${contractNote(member, orgId)}`}${(announcedRetirementYear(member) ?? 9999) <= year ? ' Anunciou que ia parar, mas segue jogando.' : ''}`,
       history: historyOf(state, nick)
     };
   };

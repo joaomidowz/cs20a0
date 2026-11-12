@@ -15,6 +15,7 @@ import rawIdentities from '$lib/data/cs/identities.game.json';
 import rawBirthYears from '$lib/data/cs/career-birth-years.game.json';
 import rawRealRanking from '$lib/data/cs/career-hltv-ranking.game.json';
 import rawBench from '$lib/data/cs/career-bench.game.json';
+import rawAcademies from '$lib/data/cs/career-academies.game.json';
 import { countryOfFlag, teamLanguage, type Language } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
@@ -669,3 +670,15 @@ export function rosterBySlot(org: SceneOrg, slots: readonly PlayerRole[]): Array
   place(() => true); // o resto, na ordem do elenco
   return placed;
 }
+
+const academyLinks = (rawAcademies as { academies: Array<{ academyId: string; parentId: string }> }).academies;
+const parentByAcademy = new Map(academyLinks.map((link) => [link.academyId, link.parentId]));
+
+/** O time principal da academia (MOUZ NXT → MOUZ); null se o time não é academia de ninguém. */
+export const academyParentOf = (orgId: string): string | null => parentByAcademy.get(sceneOrgById.get(orgId)?.id ?? orgId) ?? null;
+
+/** As academias de um time principal (o Spirit tem duas). */
+export const academiesOf = (parentId: string): string[] => academyLinks.filter((link) => link.parentId === (sceneOrgById.get(parentId)?.id ?? parentId)).map((link) => link.academyId);
+
+/** Todas as academias ligadas a um time principal. */
+export const academyIds = (): string[] => academyLinks.map((link) => link.academyId);

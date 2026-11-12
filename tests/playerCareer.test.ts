@@ -56,7 +56,10 @@ describe('sorteio inicial', () => {
 
   it('saves antigos sem sorteio voltam a ele antes da primeira temporada', () => {
     const legacy = { ...createPlayerCareer({ nick: 'old', country: 'Brazil', role: 'entry', seed: 'old1' }), pendingDraw: null } as PlayerCareerState;
-    expect(ensureDraw(legacy).pendingDraw?.length).toBe(4);
+    // 3 times + lan house; com até 18 anos, a base de um time principal da região entra também.
+    const draw = ensureDraw(legacy).pendingDraw!;
+    expect(draw.length).toBe(legacy.age <= 18 ? 5 : 4);
+    if (legacy.age <= 18) expect(draw.some((option) => option.academyOf)).toBe(true);
   });
 
   it('reload no meio da primeira temporada NÃO reabre o sorteio (assinado, na lan house ou com evento aberto)', () => {

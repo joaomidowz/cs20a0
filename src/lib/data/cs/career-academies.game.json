@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "note": "Academias da Carreira de Jogador ligadas ao time principal (base, promoção e empréstimo). Só entram as academias cujo time principal existe no jogo.",
+  "academies": [
+    {
+      "academyId": "bestia-academy-2026",
+      "parentId": "bestia-2026"
+    },
+    {
+      "academyId": "pain-gaming-academy-2026",
+      "parentId": "pain-2026"
+    },
+    {
+      "academyId": "red-canids-academy-2026",
+      "parentId": "red-canids-2026"
+    },
+    {
+      "academyId": "mibr-academy-2026",
+      "parentId": "mibr-2026"
+    },
+    {
+      "academyId": "9z-academy-2026",
+      "parentId": "9z-2026"
+    },
+    {
+      "academyId": "navi-junior-2026",
+      "parentId": "natus-vincere-2026"
+    },
+    {
+      "academyId": "astralis-talent-2026",
+      "parentId": "astralis-2026"
+    },
+    {
+      "academyId": "young-ninjas-2026",
+      "parentId": "ninjas-in-pyjamas-2026"
+    },
+    {
+      "academyId": "spirit-academy-2026",
+      "parentId": "spirit-2026"
+    },
+    {
+      "academyId": "spirit-academy-green-2026",
+      "parentId": "spirit-2026"
+    },
+    {
+      "academyId": "inner-circle-academy-2026",
+      "parentId": "inner-circle-2026"
+    },
+    {
+      "academyId": "wbt-academy-2026",
+      "parentId": "wbt-2026"
+    },
+    {
+      "academyId": "g2-ares-2026",
+      "parentId": "g2-2026"
+    },
+    {
+      "academyId": "saw-youngsters-2026",
+      "parentId": "saw-2026"
+    },
+    {
+      "academyId": "falcons-force-2026",
+      "parentId": "falcons-2026"
+    },
+    {
+      "academyId": "phantom-academy-2026",
+      "parentId": "phantom-2026"
+    },
+    {
+      "academyId": "mouz-nxt-2026-11",
+      "parentId": "mouz-2026"
+    },
+    {
+      "academyId": "faze-up-next-2026",
+      "parentId": "faze-clan-2026"
+    },
+    {
+      "academyId": "big-academy-2026",
+      "parentId": "big-2026"
+    },
+    {
+      "academyId": "b8-academy-2026",
+      "parentId": "b8-2026"
+    },
+    {
+      "academyId": "aurora-young-blud-2026",
+      "parentId": "aurora-2026"
+    },
+    {
+      "academyId": "infinite-talent-2026",
+      "parentId": "infinite-2026"
+    }
+  ]
+}

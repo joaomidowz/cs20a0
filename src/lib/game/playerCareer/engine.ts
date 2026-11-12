@@ -7,7 +7,7 @@ import { createSeededRng } from '../simulation';
 import { applyAging, type AgingEntity } from '../career/aging';
 import { orgIn, rosterIn } from './world';
 import { EVENT_RANGE, eventCount, regionOf, seasonEvents, type EventFormat, type EventTier, type Region } from './calendar';
-import { calibration, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
+import { academiesOf, academyParentOf, calibration, memberCatalogOverall, memberNick, memberRoles, nationFits, ORG_BASE_POWER, orgLanguage, sceneOrgById, sceneOrgs, type SceneOrg } from './data';
 import { randomNick } from './extraTeams';
 import { seasonAwards } from './awards';
 import { ageDecline, careerGrowth, ceilingBonusOf, GROWTH_LAST_AGE, seasonTrainOf, sessionsPerOverall } from './growth';
@@ -249,8 +249,9 @@ export interface CareerOffer {
   salaryUsd: number;
   /** Duração do contrato proposto, em temporadas (1 a 3). */
   years?: number;
-  /** renewal: o seu time renovando · buyout: time que paga a sua multa · sale: o seu time te vendeu (não dá para ficar). */
-  kind?: 'renewal' | 'buyout' | 'sale';
+  /** renewal: o seu time renovando · buyout: time que paga a sua multa · sale: o seu time te vendeu (não dá para ficar) ·
+   *  promotion: o time principal sobe você da base · loan: empréstimo de uma temporada · return: voltar para a base. */
+  kind?: 'renewal' | 'buyout' | 'sale' | 'promotion' | 'loan' | 'return';
   /** A multa que o time de lá paga para te tirar (buyout e sale). */
   buyoutUsd?: number;
 }
@@ -381,6 +382,8 @@ export interface StartingOption {
   rosterPreview: string[];
   seat: SeatTaken | null; // vaga que você toma ao assinar (só nos times reais)
   kind: 'real' | 'lan-house';
+  /** Base de um time principal (MOUZ NXT → MOUZ): o nome do time de cima. */
+  academyOf?: string;
 }
 
 export interface PlayerCareerState {
@@ -443,6 +446,8 @@ export interface PlayerCareerState {
   contract?: CareerContract | null;
   /** O seu time aceitou a multa de outro e te vendeu: na janela não dá para ficar nem voltar para a lan house. */
   sold?: boolean;
+  /** Emprestado pela base (`fromOrgId`) até o fim da temporada `until`; o contrato segue sendo com a base. */
+  loan?: { fromOrgId: string; until: number } | null;
   /** Acontecimento esperando a sua escolha (antes do jogo, depois do jogo ou na semana). */
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number; /** Proposta de função (roleOffers.ts): o motivo e a função. */ offer?: import('./roleOffers').RoleOffer } | null;
   /** A última proposta de função e a sua resposta (uma por temporada; recusa não repete a mesma função na seguinte). */
@@ -565,7 +570,10 @@ export function seatToTake(org: SceneOrg, role: PlayerRole): SeatTaken {
 }
 
 /** Sorteio inicial: 3 orgs reais do nível CCT/GC (preferindo o país do jogador) + a opção Lan House. */
-export function drawStartingOptions(seed: string, country: string, role: PlayerRole): StartingOption[] {
+/** Até essa idade o sorteio oferece também a base de um time principal. */
+export const ACADEMY_MAX_START_AGE = 18;
+
+export function drawStartingOptions(seed: string, country: string, role: PlayerRole, age: number | null = null): StartingOption[] {
   const rng = createSeededRng(`${seed}:draw`);
   const level4 = sceneOrgs.filter((org) => org.level === 4);
   const sameCountry = level4.filter((org) => org.country?.toLowerCase() === country.toLowerCase());
@@ -586,6 +594,19 @@ export function drawStartingOptions(seed: string, country: string, role: PlayerR
     seat: seatToTake(org, role),
     kind: 'real'
   }));
+  // Jovem: a base de um time principal da sua região entra como opção (sorteio à parte: as outras não mudam).
+  if (age !== null && age <= ACADEMY_MAX_START_AGE) {
+    const region = regionOf(country);
+    const academies = sceneOrgs.filter((org) => academyParentOf(org.id) && !picked.includes(org) && (org.region ?? null) === region);
+    const academy = academies[Math.floor(createSeededRng(`${seed}:draw-academy`)() * academies.length)];
+    const parent = academy ? sceneOrgById.get(academyParentOf(academy.id)!) : undefined;
+    if (academy && parent) {
+      options.push({
+        orgId: academy.id, name: academy.name, level: academy.level, country: academy.country, density: eventsFor(academy.id),
+        rosterPreview: academy.roster.slice(0, 5).map((member) => memberNick(member)), seat: seatToTake(academy, role), kind: 'real', academyOf: parent.name
+      });
+    }
+  }
   options.push({
     orgId: LAN_HOUSE.id,
     name: LAN_HOUSE.name,
@@ -606,6 +627,8 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
   const meta = ARCHETYPES[archetype];
   const roll = ([min, max]: [number, number]) => min + Math.floor(rng() * (max - min + 1));
   const rollFraction = ([min, max]: [number, number]) => min + rng() * (max - min);
+  // A idade sai primeiro (a mesma ordem de sorteio de antes): o sorteio do começo precisa dela para a base.
+  const age = roll(meta.entryAge);
   return {
     version: 1,
     seed,
@@ -613,7 +636,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     country: input.country,
     role: input.role,
     archetype,
-    age: roll(meta.entryAge),
+    age,
     overall: roll(meta.startOverall), // ninguém nasce pronto; o arquétipo define o começo
     truePotential: roll(meta.potential), // o teto é oculto e a carreira revela
     developmentRate: Number(rollFraction(meta.devRate).toFixed(2)),
@@ -625,7 +648,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     history: [],
     calendar: null,
     liveEvent: null,
-    pendingDraw: drawStartingOptions(seed, input.country, input.role),
+    pendingDraw: drawStartingOptions(seed, input.country, input.role, age),
     seatsTaken: [],
     relationships: {},
     talks: {},
@@ -676,7 +699,7 @@ export function ensureDraw(state: PlayerCareerState): PlayerCareerState {
   }
   if (state.pendingDraw || state.history.length || state.status !== 'ACTIVE') return state;
   if (state.drawDone || state.calendar || state.liveEvent || state.seatsTaken.length) return state;
-  return { ...state, pendingDraw: drawStartingOptions(state.seed, state.country, state.role) };
+  return { ...state, pendingDraw: drawStartingOptions(state.seed, state.country, state.role, state.age) };
 }
 
 const baseOrgOf = (orgId: string) => (orgId === LAN_HOUSE.id ? LAN_HOUSE : sceneOrgById.get(orgId) ?? { id: orgId, name: orgId, level: 5 });
@@ -923,21 +946,31 @@ interface ContractWindow {
 function contractWindow(state: PlayerCareerState, org: { id: string; name: string; level: number }, offers: CareerOffer[], seasonRating: number, titles: number, rescinded: boolean): ContractWindow {
   const contract = state.contract ?? null;
   const mine = contract && contract.orgId === org.id ? contract : null;
-  const salaryPaid = mine ? mine.salaryUsd * 12 : 0;
+  // Emprestado: quem paga é a base (o contrato é com ela).
+  const loan = state.loan ?? null;
+  const salaryPaid = mine ? mine.salaryUsd * 12 : loan && contract && contract.orgId === loan.fromOrgId ? contract.salaryUsd * 12 : 0;
   const yearOf = (season: number) => state.year + (season - state.seasonNumber);
   if (org.id === LAN_HOUSE.id) return { pendingOffers: offers.length ? offers : null, released: false, sold: false, underContract: false, salaryPaid, contract: null, note: null };
+  if (loan && loan.until <= state.seasonNumber) return loanEndWindow(state, org, loan, contract, seasonRating, titles, salaryPaid);
   if (rescinded) {
     const note = mine && coversNext(mine, org.id, state.seasonNumber) ? `O ${org.name} rescindiu o seu contrato.` : `O ${org.name} não renovou o seu contrato.`;
     return { pendingOffers: offers, released: true, sold: false, underContract: false, salaryPaid, contract: null, note };
   }
   const current = orgIn(state.seed, state.seasonNumber, org.id);
   const level = levelIn(state, org);
+  // Na base: o time principal sobe você quando você está pronto; senão, às vezes um empréstimo de uma temporada.
+  const promotion = academyPromotion(state, org.id, seasonRating, titles);
   if (mine && coversNext(mine, org.id, state.seasonNumber)) {
     const left = yearsLeft(mine, state.seasonNumber + 1);
     const buyout = buyoutFor(marketValueUsd(state.overall), left);
     // Brilhou: time de cima paga a multa. Só eles; o mesmo nível e os de baixo esperam o contrato acabar.
-    const buyers = offers.filter((offer) => offer.orgLevel < level).map((offer) => ({ ...offer, kind: 'buyout' as const, buyoutUsd: buyout }));
-    if (buyers.length) return { pendingOffers: buyers, released: false, sold: false, underContract: true, salaryPaid, contract: mine, note: `Sob contrato com o ${org.name} até ${yearOf(mine.until)}: só quem paga a multa (US$ ${buyout.toLocaleString('pt-BR')}) te tira.` };
+    const buyers = offers.filter((offer) => offer.orgLevel < level && offer.orgId !== promotion?.orgId).map((offer) => ({ ...offer, kind: 'buyout' as const, buyoutUsd: buyout }));
+    const loanOffer = promotion ? null : academyLoan(state, org.id);
+    const youth = [...(promotion ? [promotion] : []), ...(loanOffer ? [loanOffer] : [])];
+    if (youth.length || buyers.length) {
+      const note = promotion ? `O ${promotion.orgName} quer subir você da base para o time principal.` : loanOffer ? `A base quer te emprestar ao ${loanOffer.orgName} por uma temporada para ganhar minutos.` : `Sob contrato com o ${org.name} até ${yearOf(mine.until)}: só quem paga a multa (US$ ${buyout.toLocaleString('pt-BR')}) te tira.`;
+      return { pendingOffers: [...youth, ...buyers], released: false, sold: false, underContract: true, salaryPaid, contract: mine, note };
+    }
     // Temporada fraca sob contrato: às vezes o time aceita a multa de alguém do mesmo nível ou de baixo e te vende.
     const weak = titles === 0 && seasonRating < decentRatingFor(state.role, org.level);
     const saleRng = createSeededRng(`${state.seed}:sale:${state.seasonNumber}`);
@@ -947,19 +980,79 @@ function contractWindow(state: PlayerCareerState, org: { id: string; name: strin
     }
     return { pendingOffers: null, released: false, sold: false, underContract: true, salaryPaid, contract: mine, note: `Sob contrato com o ${org.name} até ${yearOf(mine.until)}.` };
   }
-  // Último ano (ou sem contrato): o seu time renova se você foi bem; senão, livre.
-  const renews = titles >= 1 || seasonRating >= decentRatingFor(state.role, org.level) - RENEW_MARGIN;
+  // Último ano (ou sem contrato): o seu time renova se você foi bem; senão, livre. A base só renova com quem ainda é jovem.
+  const youthOk = !academyParentOf(org.id) || state.age <= ACADEMY_MAX_AGE;
+  const renews = youthOk && (titles >= 1 || seasonRating >= decentRatingFor(state.role, org.level) - RENEW_MARGIN);
   const renewal = renews && current ? { ...offerFrom(current, state, titles >= 1 ? 0.05 : 0), kind: 'renewal' as const } : null;
-  const others = offers.filter((offer) => offer.orgId !== org.id);
+  const others = offers.filter((offer) => offer.orgId !== org.id && offer.orgId !== promotion?.orgId);
   return {
-    pendingOffers: renewal ? [renewal, ...others] : others,
-    released: !renewal,
+    pendingOffers: [...(promotion ? [promotion] : []), ...(renewal ? [renewal] : []), ...others],
+    released: !renewal && !promotion,
     sold: false,
     underContract: false,
     salaryPaid,
     contract: mine,
     note: renewal ? `O contrato com o ${org.name} acabou e eles querem renovar por ${renewal.years} ${renewal.years === 1 ? 'temporada' : 'temporadas'}.` : `O contrato com o ${org.name} acabou e eles não renovaram: você está livre (free agent).`
   };
+}
+
+/** A base renova (e empresta) até essa idade; depois disso, ou sobe, ou procura time. */
+export const ACADEMY_MAX_AGE = 21;
+/** Até essa idade a base empresta para dar minutos. */
+export const LOAN_MAX_AGE = 20;
+/** Chance por temporada de a base te emprestar (quando você não sobe). */
+export const LOAN_CHANCE = 0.5;
+
+/** O titular da sua função no time principal: é ele que você precisa igualar para subir. */
+function seatOverallIn(state: PlayerCareerState, orgId: string): number | null {
+  const org = orgIn(state.seed, state.seasonNumber, orgId);
+  if (!org) return null;
+  const seat = seatToTake(org, state.role);
+  const member = org.roster.find((candidate) => memberNick(candidate).toLowerCase() === seat.nick.toLowerCase());
+  return member ? member.overall ?? memberCatalogOverall(member) : null;
+}
+
+/**
+ * Promoção da base: o time principal sobe você quando você está pronto, rendendo como estrela no nível de cima (ou 2+
+ * títulos) ou já tão bom quanto o titular da sua função lá (até 2 abaixo). Null se você não está numa base ou não está pronto.
+ */
+function academyPromotion(state: PlayerCareerState, orgId: string, seasonRating: number, titles: number): CareerOffer | null {
+  const parentId = academyParentOf(orgId);
+  const parent = parentId ? orgIn(state.seed, state.seasonNumber, parentId) : null;
+  if (!parent) return null;
+  const level = orgOf(orgId, state).level;
+  const seatOverall = seatOverallIn(state, parent.id);
+  const ready = seasonRating >= starRatingFor(state.role, Math.max(0, level - 1)) || titles >= 2 || (seatOverall !== null && state.overall >= seatOverall - 2);
+  return ready ? { ...offerFrom(parent, state, 0.05), kind: 'promotion' } : null;
+}
+
+/** Empréstimo da base: uma temporada num time Tier B (que não seja base de ninguém) para ganhar minutos. */
+function academyLoan(state: PlayerCareerState, orgId: string): CareerOffer | null {
+  if (!academyParentOf(orgId) || state.age > LOAN_MAX_AGE) return null;
+  const rng = createSeededRng(`${state.seed}:loan:${state.seasonNumber}`);
+  if (rng() >= LOAN_CHANCE) return null;
+  const [loan] = pickOffers(state, rng, [{ levels: [3], count: 1, bump: 0 }], { season: state.seasonNumber + 1, exclude: (org) => Boolean(academyParentOf(org.id)) });
+  return loan ? { ...loan, kind: 'loan', years: 1, salaryUsd: state.contract?.salaryUsd ?? loan.salaryUsd } : null;
+}
+
+/**
+ * Fim do empréstimo: volta para a base (seguindo o contrato com ela), sobe para o time principal se você brilhou, ou o time
+ * do empréstimo te compra de vez (paga a multa da base) se você foi bem lá.
+ */
+function loanEndWindow(state: PlayerCareerState, org: { id: string; name: string; level: number }, loan: { fromOrgId: string; until: number }, contract: CareerContract | null, seasonRating: number, titles: number, salaryPaid: number): ContractWindow {
+  const academy = orgIn(state.seed, state.seasonNumber, loan.fromOrgId);
+  const promotion = academyPromotion(state, loan.fromOrgId, seasonRating, titles);
+  const covered = contract && contract.orgId === loan.fromOrgId && contract.until > state.seasonNumber;
+  const back = academy && (covered || state.age <= ACADEMY_MAX_AGE)
+    ? { ...offerFrom(academy, state), kind: 'return' as const, ...(covered ? { salaryUsd: contract!.salaryUsd, years: yearsLeft(contract!, state.seasonNumber + 1) } : {}) }
+    : null;
+  const here = orgIn(state.seed, state.seasonNumber, org.id);
+  const good = titles >= 1 || seasonRating >= decentRatingFor(state.role, org.level);
+  const buyout = covered ? buyoutFor(marketValueUsd(state.overall), yearsLeft(contract!, state.seasonNumber + 1)) : undefined;
+  const keep = good && here ? { ...offerFrom(here, state), kind: 'buyout' as const, ...(buyout ? { buyoutUsd: buyout } : {}) } : null;
+  const pendingOffers = [...(promotion ? [promotion] : []), ...(back ? [back] : []), ...(keep ? [keep] : [])];
+  const note = `O empréstimo ao ${org.name} acabou${promotion ? `: o ${promotion.orgName} quer subir você` : back ? ': a base te chama de volta' : ''}${keep ? `, e o ${org.name} quer te contratar de vez` : ''}.`;
+  return { pendingOffers, released: !pendingOffers.length, sold: false, underContract: false, salaryPaid, contract: covered ? contract : null, note };
 }
 
 export function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
@@ -1035,16 +1128,25 @@ export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCare
   const org = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = org ? { ...seatToTake(org, state.role), season: state.seasonNumber } : null;
   const orgLevels = joinedLevels(state, offer);
+  const moved = { ...state, orgId, pendingOffers: null, released: false, sold: false, ...(orgLevels ? { orgLevels } : {}), ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
+  // Empréstimo: joga a temporada lá, o contrato segue sendo com a base, e volta no fim.
+  if (offer.kind === 'loan') return { ...moved, loan: { fromOrgId: state.orgId, until: state.seasonNumber } };
+  // Volta para a base: segue o contrato com ela (ou um novo, se ele acabou).
+  if (offer.kind === 'return') {
+    const covered = state.contract && state.contract.orgId === orgId && state.contract.until >= state.seasonNumber;
+    return { ...moved, loan: null, contract: covered ? state.contract : signed(state, offer, state.seasonNumber) };
+  }
   // A renovação é ficar com contrato novo; as outras são assinatura com o time de lá (multa paga por ele, se houver).
   const contract = signed(state, offer, state.seasonNumber);
-  if (offer.kind === 'renewal') return { ...state, pendingOffers: null, released: false, sold: false, contract };
-  return { ...state, orgId, pendingOffers: null, released: false, sold: false, contract, ...(orgLevels ? { orgLevels } : {}), ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
+  if (offer.kind === 'renewal') return { ...state, pendingOffers: null, released: false, sold: false, loan: null, contract };
+  return { ...moved, loan: null, contract };
 }
 
 /** Ficar: com renovação na mesa, assina o contrato novo; sob contrato, segue nele. Livre ou vendido, não dá para ficar. */
 export function stayAtOrg(state: PlayerCareerState): PlayerCareerState {
   if (state.released || state.sold) return state;
-  const renewal = state.pendingOffers?.find((offer) => offer.kind === 'renewal');
+  // Ficar: renovar; no fim do empréstimo, voltar para a base.
+  const renewal = state.pendingOffers?.find((offer) => offer.kind === 'renewal' || offer.kind === 'return');
   if (renewal) return acceptOffer(state, renewal.orgId);
   return { ...state, pendingOffers: null };
 }
@@ -1053,7 +1155,7 @@ export function stayAtOrg(state: PlayerCareerState): PlayerCareerState {
 export function goToLanHouse(state: PlayerCareerState): PlayerCareerState {
   if (state.sold) return state;
   const from = orgOf(state.orgId).name;
-  return { ...state, orgId: LAN_HOUSE.id, pendingOffers: null, released: false, contract: null, seasonMoves: [...(state.seasonMoves ?? []), `${from} → Lan House`] };
+  return { ...state, orgId: LAN_HOUSE.id, pendingOffers: null, released: false, contract: null, loan: null, seasonMoves: [...(state.seasonMoves ?? []), `${from} → Lan House`] };
 }
 
 /** Média dos últimos campeonatos jogados na temporada (os mais recentes pesam a decisão do time). */
@@ -1144,6 +1246,7 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
     ...state,
     orgId,
     contract,
+    loan: null,
     calendar: [...played, ...next],
     liveEvent: null,
     pendingMove: null,
