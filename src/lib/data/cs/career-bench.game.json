@@ -1,0 +1,585 @@
+{
+  "schemaVersion": 2,
+  "note": "Banco dos times e jogadores sem time (free agents) no começo da Carreira de Jogador (2026). Status pesquisado no HLTV e em notícias em 2026-11-12 (planilha status_jogadores_cs2). 'Sem time confirmado' e 'Em competição' (stand-in ou mix sem vínculo) entram como sem time. A identidade (país, nascimento, função) vem da coleta da cena (career-scene); aqui só o vínculo e a fonte.",
+  "bench": [
+    {
+      "orgId": "aurora-2026",
+      "nick": "maj3r",
+      "since": 2026,
+      "source": "https://www.hltv.org/news/45050/maj3r-steps-down-from-aurora",
+      "note": "Pausa competitiva anunciada em julho."
+    },
+    {
+      "orgId": "fut-2026",
+      "nick": "launx",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/20761/launx"
+    },
+    {
+      "orgId": "g2-ares-2026",
+      "nick": "kl1m",
+      "since": 2026,
+      "source": "https://www.hltv.org/news/45012/kl1ms-loan-to-mibr-comes-to-an-end",
+      "note": "Empréstimo ao MIBR terminou em junho."
+    },
+    {
+      "orgId": "astralis-2026",
+      "nick": "HooXi",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/10096/hooxi"
+    },
+    {
+      "orgId": "astralis-2026",
+      "nick": "jabbi",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/17956/jabbi"
+    },
+    {
+      "orgId": "faze-clan-2026",
+      "nick": "broky",
+      "since": 2026,
+      "source": "https://draft5.gg/noticia/diretor-da-faze-atualiza-situacao-de-broky-ele-nao-tem-vontade-de-jogar-no-momento",
+      "note": "Diretor da FaZe relatou que broky está sem vontade de competir no momento."
+    },
+    {
+      "orgId": "eternal-fire-2026",
+      "nick": "imoRR",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/15835/imorr"
+    },
+    {
+      "orgId": "gamerlegion-2026",
+      "nick": "Snax",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/2553/snax"
+    },
+    {
+      "orgId": "magic-2026",
+      "nick": "mo0N",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/23858/mo0n"
+    },
+    {
+      "orgId": "nrg-2026",
+      "nick": "oSee",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/13249/osee"
+    },
+    {
+      "orgId": "pain-2026",
+      "nick": "piriajr",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/18714/piriajr"
+    },
+    {
+      "orgId": "pain-2026",
+      "nick": "vsm",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/16816/vsm"
+    },
+    {
+      "orgId": "wildcard-2026",
+      "nick": "mhL",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/16847/mhl"
+    },
+    {
+      "orgId": "tricked-esport-2026",
+      "nick": "Boye",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/21574/boye"
+    },
+    {
+      "orgId": "bc-game-esports-2026",
+      "nick": "electroNic",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/8918/electronic"
+    },
+    {
+      "orgId": "nexus-gaming-2026",
+      "nick": "BTN",
+      "since": 2026,
+      "source": "https://www.hltv.org/team/7187/nexus",
+      "note": "Anunciou pausa como jogador em janeiro. Também tem registro como técnico da seleção romena."
+    },
+    {
+      "orgId": "galorys-2026",
+      "nick": "nython",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/18743/nython"
+    },
+    {
+      "orgId": "johnny-speeds-2026",
+      "nick": "Lekr0",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/9261/lekr0"
+    },
+    {
+      "orgId": "johnny-speeds-2026",
+      "nick": "nawwk",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/13670/nawwk"
+    },
+    {
+      "orgId": "og-2026",
+      "nick": "cadiaN",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/7964/cadian"
+    },
+    {
+      "orgId": "og-2026",
+      "nick": "pr1metapz",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/21139/pr1metapz"
+    },
+    {
+      "orgId": "acend-2026",
+      "nick": "KalubeR",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/15385/kaluber"
+    },
+    {
+      "orgId": "team-abyssal-2026",
+      "nick": "gump",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/19730/gump"
+    },
+    {
+      "orgId": "bestia-academy-2026",
+      "nick": "k1not1",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/24715/k1not1"
+    },
+    {
+      "orgId": "parivision-2026",
+      "nick": "slaxejezzz",
+      "since": 2026,
+      "source": "https://www.hltv.org/player/24807/slaxejezzz",
+      "note": "Banco da PARIVISION, clube diferente do informado na lista."
+    }
+  ],
+  "freeAgents": [
+    {
+      "nick": "jL",
+      "lastOrgId": "mouz-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://www.hltv.org/news/45038/jl-departs-natus-vincere",
+      "note": "Fim de contrato com a NAVI em julho. MOUZ foi empréstimo."
+    },
+    {
+      "nick": "riskyb0b",
+      "lastOrgId": "nemiga-gaming-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://www.hltv.org/news/45019/short-news-week-26",
+      "note": "Contrato com a Nemiga expirou."
+    },
+    {
+      "nick": "brnz4n",
+      "lastOrgId": "mibr-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://www.dust2.com.br/noticias/78860/brnz4n-se-despede-do-mibr-e-fica-livre-no-mercado",
+      "note": "Rescindiu com o MIBR em 13/10."
+    },
+    {
+      "nick": "Buster",
+      "lastOrgId": "1win-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://www.hltv.org/team/12536/depo",
+      "note": "Última organização: DEPO."
+    },
+    {
+      "nick": "Calyx",
+      "lastOrgId": "eternal-fire-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://draft5.gg/jogador/689-Calyx",
+      "note": "Deixou a Eternal Fire em maio. Sem mapas registrados no HLTV nos últimos três meses."
+    },
+    {
+      "nick": "paz",
+      "lastOrgId": "eternal-fire-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/9353/paz",
+      "note": "Último clube registrado: Fire Flux, até janeiro de 2026. Sem mapas no HLTV nos últimos três meses."
+    },
+    {
+      "nick": "kRaSnaL",
+      "lastOrgId": "b8-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://news.white.market/latest/krasnal-becomes-free-agent-after-leaving-ence/",
+      "note": "Rescindiu com a ENCE em outubro."
+    },
+    {
+      "nick": "Bymas",
+      "lastOrgId": "monte-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://draft5.gg/noticia/bymas-fica-livre-no-mercado",
+      "note": "Anunciou em outubro que está livre e aberto a propostas."
+    },
+    {
+      "nick": "Perfecto",
+      "lastOrgId": "virtus-pro-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://virtus.pro/news/perfecto-leaves-virtus-pro",
+      "note": "Deixou a Virtus.pro em agosto. Disputou partidas por um mix entre setembro e outubro."
+    },
+    {
+      "nick": "eskyy",
+      "lastOrgId": "betclic-apogee-esports-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/betting/analytics/2400247/forze-reload-vs-walczaki-cct-2026-europe-series-14",
+      "note": "Jogou como stand-in. Vínculo permanente sem confirmação."
+    },
+    {
+      "nick": "mynio",
+      "lastOrgId": "betclic-apogee-esports-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://blast.tv/cs/player/7bcd0cdd/mynio",
+      "note": "Saiu da Phantom. A BLAST o lista como agente livre."
+    },
+    {
+      "nick": "peqexino",
+      "lastOrgId": "shinden-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/15221/peqexino",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "Alv",
+      "lastOrgId": "ursa-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/23764/alv",
+      "note": "Perfil registra fim do vínculo com a Ursa em outubro."
+    },
+    {
+      "nick": "Noktse",
+      "lastOrgId": "bestia-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://bo3.gg/es/players/nokste",
+      "note": "Última organização registrada: BESTIA. Jogou também com Peladona."
+    },
+    {
+      "nick": "Lucaozy",
+      "lastOrgId": "fluxo-w7m-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://clutch-market.com/transfers",
+      "note": "Saída do Fluxo registrada em 11/11. Já disputava o CCT com a tao toma. Perfil do HLTV ainda exibia banco do Fluxo."
+    },
+    {
+      "nick": "mlhzin",
+      "lastOrgId": "fluxo-w7m-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/21286/mlhzin"
+    },
+    {
+      "nick": "Leomonster",
+      "lastOrgId": "largadosypelados-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/17132/leomonster"
+    },
+    {
+      "nick": "HEAP",
+      "lastOrgId": "johnny-speeds-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/16029/heap",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "AGL",
+      "lastOrgId": "procyon-team-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/team/10997/procyon",
+      "note": "Saiu da Procyon. Partidas com a Tactical Chaos em outubro, vínculo permanente sem confirmação."
+    },
+    {
+      "nick": "aVN",
+      "lastOrgId": "ex-zero-tenacity-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/team/11523/zero-tenacity",
+      "note": "Deixou a ex-Zero Tenacity em julho."
+    },
+    {
+      "nick": "yab0ku-",
+      "lastOrgId": "lazer-cats-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/22706/yab0ku"
+    },
+    {
+      "nick": "KIRO",
+      "lastOrgId": "33-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/20534/kiro"
+    },
+    {
+      "nick": "WolfY",
+      "lastOrgId": "marsborne-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/12937/wolfy"
+    },
+    {
+      "nick": "xonn1k",
+      "lastOrgId": "mana-esports-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/24195/xonn1k",
+      "note": "Perfil recente do HLTV registra fim da passagem pela Illyrians em outubro."
+    },
+    {
+      "nick": "Goofy",
+      "lastOrgId": "ex-ence-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/15428/goofy"
+    },
+    {
+      "nick": "h4rn",
+      "lastOrgId": "acend-2026",
+      "since": 2026,
+      "status": "FA",
+      "source": "https://csroster.com/player/h4rn",
+      "note": "Saída da Acend para o mercado registrada."
+    },
+    {
+      "nick": "foggers",
+      "lastOrgId": "team-abyssal-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/stats/players/matches/20351/foggers?country=United+States&csVersion=CS2",
+      "note": "Atuou pela Rooster em outubro. Perfil individual sem organização atual."
+    },
+    {
+      "nick": "Kiyo",
+      "lastOrgId": "team-abyssal-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/20582/kiyo"
+    },
+    {
+      "nick": "Something",
+      "lastOrgId": "2007-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/22327/something"
+    },
+    {
+      "nick": "spirit",
+      "lastOrgId": "2007-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/21367/spirit"
+    },
+    {
+      "nick": "Maison",
+      "lastOrgId": "omega-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/valve-ranking/teams/2026/november/12?teamId=13520",
+      "note": "Consta no quinteto do ranking da Valve de 12/11. Perfil individual sem organização atual."
+    },
+    {
+      "nick": "modeSavage",
+      "lastOrgId": "omega-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/valve-ranking/teams/2026/november/12?teamId=13520",
+      "note": "Consta no quinteto do ranking da Valve de 12/11. Perfil individual sem organização atual."
+    },
+    {
+      "nick": "tiger",
+      "lastOrgId": "rare-atom-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/20808/tiger",
+      "note": "Último clube no HLTV: Rare Atom, até maio de 2026."
+    },
+    {
+      "nick": "KvNs",
+      "lastOrgId": "hacha-esports-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://draft5.gg/partida/47632-cpc-curralzinho-vs-hacha-esports-liga-gamers-club-relegation-serie-a-novembro26",
+      "note": "Disputou a Liga Gamers Club pelo time em novembro. Vínculo permanente sem confirmação."
+    },
+    {
+      "nick": "Muk0s",
+      "lastOrgId": "bushido-wildcats-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/23687/muk0s",
+      "note": "Saiu da Bushido Wildcats em outubro."
+    },
+    {
+      "nick": "Hatz",
+      "lastOrgId": "rooster-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/11162/hatz"
+    },
+    {
+      "nick": "sterling",
+      "lastOrgId": "rooster-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/12591/sterling",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "pz",
+      "lastOrgId": "ground-zero-gaming-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/18736/pz",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "mogv",
+      "lastOrgId": "megoshort-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/24727/mogv",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "titulus",
+      "lastOrgId": "megoshort-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/24462/titulus",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "BK1",
+      "lastOrgId": "isurus-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/19872/bk1"
+    },
+    {
+      "nick": "Hezz",
+      "lastOrgId": "isurus-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/20689/hezz"
+    },
+    {
+      "nick": "rox",
+      "lastOrgId": "isurus-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/16067/rox",
+      "note": "Perfil de Martín Molina. Sem mapas no HLTV nos últimos três meses."
+    },
+    {
+      "nick": "Jester",
+      "lastOrgId": "team-mouse-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/25186/jester",
+      "note": "Perfil norte-americano, distinto do homônimo australiano."
+    },
+    {
+      "nick": "Jolts",
+      "lastOrgId": "team-mouse-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/25875/jolts"
+    },
+    {
+      "nick": "dvrk",
+      "lastOrgId": "regain-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/23137/dvrk"
+    },
+    {
+      "nick": "lipshawty",
+      "lastOrgId": "quintessencia-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/matches/2400102/quintessncia-vs-underworld-cct-2026-south-america-series-8",
+      "note": "Disputou o CCT em novembro. Vínculo contratual sem confirmação."
+    },
+    {
+      "nick": "zuzu",
+      "lastOrgId": "bestia-academy-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/25727/zuzu"
+    },
+    {
+      "nick": "lov1kus",
+      "lastOrgId": "bebop-2026",
+      "since": 2026,
+      "status": "Em competição",
+      "source": "https://www.hltv.org/valve-ranking/teams/2026/november/3?teamId=11446",
+      "note": "Aparece com a PsychoFace em novembro. Perfil individual sem organização atual."
+    },
+    {
+      "nick": "Jynx",
+      "lastOrgId": "arcade-esports-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/23597/jynx"
+    },
+    {
+      "nick": "cJ-dA-K1nG",
+      "lastOrgId": "farmville-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/9571/cj-da-k1ng",
+      "note": "Perfil do HLTV sem equipe e sem mapas registrados nos últimos três meses."
+    },
+    {
+      "nick": "sava9e",
+      "lastOrgId": "farmville-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/21093/sava9e"
+    },
+    {
+      "nick": "abiraju",
+      "lastOrgId": "psychoface-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/player/21445/abiraju"
+    },
+    {
+      "nick": "boke",
+      "lastOrgId": "damajuana-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/team/13697/damajuana",
+      "note": "Saiu da DAMAJUANA em agosto."
+    },
+    {
+      "nick": "maik",
+      "lastOrgId": "damajuana-2026",
+      "since": 2026,
+      "status": "Sem time confirmado",
+      "source": "https://www.hltv.org/team/13697/damajuana",
+      "note": "Saiu da DAMAJUANA. Disputou partidas pelo elenco em outubro."
+    }
+  ]
+}

@@ -470,6 +470,9 @@ export interface PlayerCareerState {
   recentOffers?: RecentOffer[];
   /** Campeonatos que você passa no banco (aceitou perder a vaga num acontecimento): o substituto joga. */
   benchedEvents?: number;
+  /** Temporada a partir da qual o banco dos times se mexe no mundo desta carreira (world.ts, registerBenchStart): carreira
+   *  nova liga na 2; save de antes do banco liga na seguinte à em que abriu esta versão (nada do que já viu muda). */
+  benchFrom?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
   pendingRival?: Rival | null;
   rival?: Rival | null;
@@ -602,6 +605,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     orgId: LAN_HOUSE.id,
     drawDone: false,
     seasonNumber: 1,
+    benchFrom: 2,
     year: 2026,
     history: [],
     calendar: null,

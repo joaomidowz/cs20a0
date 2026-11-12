@@ -14,6 +14,7 @@ import rawOverrides from '$lib/data/cs/career-roster-overrides.game.json';
 import rawIdentities from '$lib/data/cs/identities.game.json';
 import rawBirthYears from '$lib/data/cs/career-birth-years.game.json';
 import rawRealRanking from '$lib/data/cs/career-hltv-ranking.game.json';
+import rawBench from '$lib/data/cs/career-bench.game.json';
 import { countryOfFlag, teamLanguage, type Language } from './language';
 import { countryFromTournaments, extraSceneOrgs, generatedRoster, isProspectNick, orgNationOf, reserveLookalikes, reserveNicks, setStayRule, sheetRosterFor } from './extraTeams';
 
@@ -384,6 +385,57 @@ export const sceneOrgs = normalized.orgs;
 /** A cena antes do ranking real (coleta, planilhas, resoluções e elencos informados): só para o script que casa o
  *  ranking da HLTV com a cena (scripts/apply-hltv-ranking.ts). O jogo lê `sceneOrgs`. */
 export const sceneBeforeRealRanking: readonly SceneOrg[] = normalized.before;
+
+interface BenchFileEntry { orgId: string; nick: string }
+interface FreeAgentFileEntry { nick: string; lastOrgId: string }
+const benchFile = rawBench as { bench: BenchFileEntry[]; freeAgents?: FreeAgentFileEntry[] };
+
+/** A identidade do jogador na coleta da cena (país, nascimento, função): primeiro no time indicado, depois em qualquer um
+ *  (quem foi para o banco de outro time). Quem já é titular em algum time não entra no banco nem fica sem time. */
+function collectedMember(nick: string, orgId: string, starters: Set<string>): SceneRosterMember | null {
+  const key = nick.toLowerCase();
+  if (starters.has(key)) return null;
+  const inOrg = sceneBeforeRealRanking.find((candidate) => candidate.id === orgId)?.roster.find((member) => member.nick.toLowerCase() === key && !member.generated);
+  const found = inOrg ?? sceneBeforeRealRanking.flatMap((org) => org.roster).find((member) => member.nick.toLowerCase() === key && !member.generated);
+  if (!found) return null;
+  const overall = memberCatalogOverall(found);
+  return { ...found, ...(overall !== null ? { overall } : {}) };
+}
+
+const startersOfScene = () => new Set(sceneOrgs.flatMap((org) => org.roster.map((member) => member.nick.toLowerCase())));
+
+/** Quem está no banco de cada time no começo da carreira (career-bench.game.json): o ranking da HLTV só traz os 5
+ *  titulares, então quem foi para o banco sumia do mundo. */
+export function initialBenches(): Map<string, SceneRosterMember[]> {
+  const benches = new Map<string, SceneRosterMember[]>();
+  const starters = startersOfScene();
+  const seen = new Set<string>();
+  for (const entry of benchFile.bench) {
+    const org = sceneOrgById.get(entry.orgId);
+    const member = org ? collectedMember(entry.nick, org.id, starters) : null;
+    if (!org || !member || seen.has(member.nick.toLowerCase())) continue;
+    seen.add(member.nick.toLowerCase());
+    benches.set(org.id, [...(benches.get(org.id) ?? []), member]);
+  }
+  return benches;
+}
+
+/** Quem começa a carreira sem time (free agent), com o nível do último time (onde ele procura vaga). */
+export function initialFreeAgents(): Array<{ member: SceneRosterMember; level: number }> {
+  const starters = startersOfScene();
+  const benched = new Set(benchFile.bench.map((entry) => entry.nick.toLowerCase()));
+  const seen = new Set<string>();
+  const free: Array<{ member: SceneRosterMember; level: number }> = [];
+  for (const entry of benchFile.freeAgents ?? []) {
+    const key = entry.nick.toLowerCase();
+    if (benched.has(key) || seen.has(key)) continue;
+    const member = collectedMember(entry.nick, entry.lastOrgId, starters);
+    if (!member) continue;
+    seen.add(key);
+    free.push({ member, level: sceneOrgById.get(entry.lastOrgId)?.level ?? 3 });
+  }
+  return free;
+}
 
 /** País do jogador para a call e para a carta: o da coleta; sem ele, o do catálogo do jogo (ZywOo, apEX e ropz
  *  vieram sem país) e, por fim, o do time (BORRACHEIROS sem nenhum país é brasileiro). O mundo (trocas e times

@@ -6,8 +6,8 @@
 import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
-import { memberBirthYear, memberNick, memberRoles, ORG_BASE_POWER, orgLanguage, sceneOrgById, type SceneOrg, type SceneRosterMember } from './data';
-import { orgIn, placeCareerMembers, registerSeats, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
+import { memberBirthYear, memberCatalogOverall, memberNick, memberRoles, ORG_BASE_POWER, orgLanguage, sceneOrgById, type SceneOrg, type SceneRosterMember } from './data';
+import { benchIn, orgIn, placeCareerMembers, registerBenchStart, registerSeats, yearOfSeason, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
 import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
@@ -61,7 +61,9 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     morale: state.morale ?? 60,
     form: state.form ?? 0,
     fame: state.fame ?? 0,
-    fatigue: state.fatigue ?? 0
+    fatigue: state.fatigue ?? 0,
+    // Save de antes do banco dos times: o banco só se mexe a partir da próxima temporada (os elencos já vistos ficam).
+    benchFrom: state.benchFrom ?? state.seasonNumber + 1
   });
 }
 
@@ -170,7 +172,11 @@ export function teamOrgOf(state: PlayerCareerState): SceneOrg | undefined {
 }
 
 /** Registra no mundo as vagas e os membros da carreira (a página chama a cada mudança do save). */
-export const registerCareerWorld = (state: PlayerCareerState) => registerSeats(state.seed, seatsWithSeason(state), state.careerMembers ?? []);
+export const registerCareerWorld = (state: PlayerCareerState) => {
+  // O banco primeiro: ele decide o mundo de onde as vagas e os membros são lidos.
+  registerBenchStart(state.seed, state.benchFrom);
+  registerSeats(state.seed, seatsWithSeason(state), state.careerMembers ?? []);
+};
 
 /** A posição (índice no elenco do time atual) de quem está jogando: a do membro da carreira ou a do jogador do mundo. */
 function slotOfMate(state: PlayerCareerState, nick: string): number {
@@ -636,6 +642,44 @@ export function trainMe(state: PlayerCareerState, meBase: Player, focus: Trainin
 // vai para o banco e não gosta) e, sendo IGL, trocar a função de dois parceiros (cada um aceita ou não).
 
 /** O plano do time atual (vazio se você mudou de time). */
+/** Uma linha do banco na ficha do time. */
+export interface BenchLine {
+  nick: string;
+  role: string | null;
+  overall: number | null;
+  age: number | null;
+  /** Por que está ali, numa frase curta. */
+  note: string;
+  me?: boolean;
+}
+
+/**
+ * O banco do time na temporada: o do mundo (quem está fora dos 5 titulares) e, no seu time, também o seu reserva e
+ * você mesmo quando foi para o banco (o substituto joga no seu lugar).
+ */
+export function teamBench(state: PlayerCareerState, orgId: string): BenchLine[] {
+  const lines: BenchLine[] = [];
+  const own = orgId === state.orgId && state.orgId !== 'lan-house';
+  if (own && (state.benchedEvents ?? 0) > 0) {
+    const left = state.benchedEvents ?? 0;
+    lines.push({ nick: state.nick, role: state.role, overall: state.overall, age: state.age, me: true, note: `Você: no banco ${left === 1 ? 'no próximo campeonato' : `nos próximos ${left} campeonatos`}.` });
+  }
+  const reserve = own ? planOf(state).reserve : null;
+  if (reserve) lines.push({ nick: reserve.nick, role: reserve.role, overall: reserve.overall, age: state.year - reserve.born, note: 'Reserva do time: entra quando você abre a vaga.' });
+  const year = yearOfSeason(state.seasonNumber);
+  for (const entry of benchIn(state.seed, state.seasonNumber, orgId)) {
+    const born = memberBirthYear(entry.member);
+    lines.push({
+      nick: memberNick(entry.member),
+      role: memberRoles(entry.member)[0] ?? null,
+      overall: entry.member.overall ?? memberCatalogOverall(entry.member),
+      age: born === null ? null : year - born,
+      note: `No banco desde ${yearOfSeason(entry.since)}.`
+    });
+  }
+  return lines;
+}
+
 export function planOf(state: PlayerCareerState): SquadPlan {
   return state.squadPlan && state.squadPlan.orgId === state.orgId ? state.squadPlan : { orgId: state.orgId, lineup: {}, reserve: null, roles: {} };
 }

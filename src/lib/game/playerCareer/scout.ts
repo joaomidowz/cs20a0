@@ -8,7 +8,7 @@ import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberC
 import type { PlayerCareerState } from './engine';
 import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, type Language } from './language';
 import { fallbackBorn, myLanguageFit, seatedNicks, teamOrgOf } from './squad';
-import { orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason } from './world';
+import { benchIn, freeAgentsIn, orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason, type SceneBenchMove } from './world';
 import { coachWorld } from './coaches';
 import { currentLevelOf } from './tiers';
 
@@ -70,7 +70,7 @@ export function cardInfoFor(state: PlayerCareerState, orgId: string): (player: P
   };
 }
 
-export type ScoutStatus = 'titular' | 'reserva' | 'aposentado' | 'voce' | 'coach';
+export type ScoutStatus = 'titular' | 'reserva' | 'livre' | 'aposentado' | 'voce' | 'coach';
 
 export interface ScoutHit {
   nick: string;
@@ -111,11 +111,25 @@ function historyOf(state: PlayerCareerState, nick: string): ScoutHit['history'] 
       if (retirement.replacement.toLowerCase() === key) lines.push({ year, text: `Entrou na ${retirement.orgName} no lugar do ${retirement.nick}, que se aposentou.` });
     }
     for (const debut of debuts) if (debut.nick.toLowerCase() === key) lines.push({ year, text: `Estreou na ${debut.orgName} aos ${debut.age} anos.` });
+    for (const move of worldHistory(state.seed, season).benchMoves) {
+      if (move.nick.toLowerCase() === key) lines.push({ year, text: benchMoveLine(move) });
+      else if (move.swappedNick?.toLowerCase() === key && move.kind !== 'benched') lines.push({ year, text: `Perdeu a vaga na ${move.orgName} para o ${move.nick} e foi para o banco.` });
+    }
   }
   return lines.sort((a, b) => b.year - a.year);
 }
 
-/** Busca no mundo da temporada atual (nick com 2+ letras): titulares, reservas do seu time e aposentados. */
+/** A movimentação do banco numa frase, para o caminho do jogador. */
+export function benchMoveLine(move: SceneBenchMove): string {
+  if (move.kind === 'promoted') return `Saiu do banco e voltou a ser titular da ${move.orgName}${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`;
+  if (move.kind === 'benched') return `Perdeu a vaga e foi para o banco da ${move.orgName}.`;
+  if (move.kind === 'signed') return `Saiu do banco da ${move.fromName} e assinou com a ${move.orgName}${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`;
+  if (move.kind === 'released') return `Foi dispensado pela ${move.fromName} e ficou sem time (free agent).`;
+  if (move.kind === 'faSigned') return `Estava sem time e assinou com a ${move.orgName}${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`;
+  return `Pendurou o mouse${move.orgName ? ` no banco da ${move.orgName}` : ' sem time'}.`;
+}
+
+/** Busca no mundo da temporada atual (nick com 2+ letras): titulares, banco dos times, sem time e aposentados. */
 export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8): ScoutHit[] {
   const q = norm(query.trim());
   if (q.length < 2) return [];
@@ -152,6 +166,19 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
   };
   for (const [orgId, roster] of worldRosters(state.seed, state.seasonNumber)) {
     for (const member of roster) if (norm(memberNick(member)).includes(q)) push(make(member, orgId));
+  }
+  // O banco dos times e quem está sem time (free agent).
+  for (const [orgId] of worldRosters(state.seed, state.seasonNumber)) {
+    for (const entry of benchIn(state.seed, state.seasonNumber, orgId)) {
+      if (!norm(memberNick(entry.member)).includes(q)) continue;
+      const hit = make(entry.member, orgId);
+      push({ ...hit, status: 'reserva', note: `No banco da ${hit.orgName} desde ${yearOfSeason(entry.since)}: fora dos 5 titulares.` });
+    }
+  }
+  for (const entry of freeAgentsIn(state.seed, state.seasonNumber)) {
+    if (!norm(memberNick(entry.member)).includes(q)) continue;
+    const hit = make(entry.member, '');
+    push({ ...hit, orgId: null, orgName: null, level: null, status: 'livre', note: `Sem time desde ${yearOfSeason(entry.since)}: free agent, esperando proposta.` });
   }
   // Coaches: o de cada time agora, com o caminho (assumiu, parou).
   const coachLines = (name: string) => {

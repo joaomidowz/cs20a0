@@ -43,7 +43,7 @@
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
-  import { TRAIN_CAP, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { TRAIN_CAP, teamBench, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -677,7 +677,7 @@
     });
   }
 
-  const SCOUT_STATUS: Record<ScoutHit['status'], string> = { titular: 'Titular', reserva: 'Reserva', aposentado: 'Aposentado', voce: 'Você', coach: 'Coach' };
+  const SCOUT_STATUS: Record<ScoutHit['status'], string> = { titular: 'Titular', reserva: 'Banco', livre: 'Sem time (FA)', aposentado: 'Aposentado', voce: 'Você', coach: 'Coach' };
   function openScout(query = '') {
     menuOpen = false;
     scoutQuery = query;
@@ -1239,6 +1239,11 @@
   $: coach = career ? coachOf(career) : null;
   $: myCoach = career ? careerCoachOf(career) : null;
   $: benchReserve = career && career.orgId !== 'lan-house' ? planOf(career).reserve : null;
+  /** O banco do time aberto na ficha: o do mundo e, no seu time, o reserva e você quando foi bancado. */
+  $: oppBench = career && opponentOrg ? teamBench(career, opponentOrg.id) : [];
+  /** A função do banco: a do mundo vem como na coleta (awp, rifle); a sua e a do reserva, como na carreira. */
+  const SCENE_ROLE_LABEL: Record<string, string> = { awp: 'AWPer', rifle: 'Rifler', entry: 'Entry', igl: 'IGL', lurk: 'Lurker', lurker: 'Lurker', support: 'Suporte' };
+  const benchRoleLabel = (role: string | null) => (role ? ROLE_SHORT[role as PlayerRole] ?? SCENE_ROLE_LABEL[role.toLowerCase()] ?? role : '—');
   $: oppCoach = career && opponentOrg ? coachOfOrg(career.seed, career.seasonNumber, opponentOrg.id) : null;
   $: nextMajorStage = career && currentEntry?.format === 'major' ? majorEntryStage(career, currentEntry.index) : null;
   /** As trocas da virada, as de times de tier mais alto hoje (currentLevelOf) primeiro. */
@@ -2456,6 +2461,23 @@
             <CareerCard {player} me={player.id === `${career.seed}:me`} roleLabel={ROLE_SHORT[player.role as PlayerRole] ?? ''} profile={oppCardInfo?.(player) ?? null} honors={honorsFor(honorIndex, player.nickname)} caption={oppCardInfo ? '' : player.id === `${career.seed}:me` ? `Você · ${opponentOrg.name}` : opponentOrg.name} />
           {/each}
         </div>
+        <section class="opp-bench" aria-labelledby="opp-bench-title">
+          <h3 class="opp-bench-title" id="opp-bench-title">Banco</h3>
+          {#if oppBench.length}
+            <ul>
+              {#each oppBench as line (line.nick)}
+                <li class:me={line.me}>
+                  <b>{line.nick}</b>
+                  <span>{[benchRoleLabel(line.role), line.age !== null ? `${line.age} anos` : null].filter(Boolean).join(' · ')}</span>
+                  {#if line.overall}<span class="opp-bench-ovr" title="Overall nesta temporada">{line.overall}</span>{/if}
+                  <small>{line.note}</small>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="opp-bench-empty">Ninguém no banco: o time joga com os 5 do elenco.</p>
+          {/if}
+        </section>
       </div>
     </div>
   {/if}
@@ -3130,6 +3152,17 @@
   .scout-hit { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-left-width: 3px; background: var(--surface-2); }
   .scout-hit.status-titular { border-left-color: var(--accent); }
   .scout-hit.status-reserva { border-left-color: var(--accent-2); }
+  .scout-hit.status-livre { border-left-color: var(--muted); }
+  .opp-bench { display: grid; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .opp-bench-title { margin: 0; color: var(--muted); font-size: .66rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+  .opp-bench ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .opp-bench li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 2px 10px; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--accent-2); background: var(--surface-2); }
+  .opp-bench li.me { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+  .opp-bench li b { font-weight: 800; }
+  .opp-bench li span { overflow: hidden; color: var(--muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  .opp-bench .opp-bench-ovr { color: var(--text); font: 900 1rem 'Arial Narrow', Impact, sans-serif; }
+  .opp-bench li small { grid-column: 1 / -1; color: var(--muted); font-size: .72rem; }
+  .opp-bench-empty { margin: 0; color: var(--muted); font-size: .78rem; }
   .scout-hit.status-coach { border-left-color: var(--gold); }
   .status-coach .scout-status { border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
   .scout-hit.status-voce { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }

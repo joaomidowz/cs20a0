@@ -291,7 +291,7 @@ export function rankingView(ranked: RankedTeam[], userOrgId: string, limit = 30)
   return { rows, total: sorted.length, mineRank: mine?.rank ?? null };
 }
 
-export type WorldMoveKind = 'vaga' | 'troca' | 'aposentadoria' | 'estreia';
+export type WorldMoveKind = 'vaga' | 'troca' | 'banco' | 'aposentadoria' | 'estreia';
 export interface WorldMoveLine {
   key: string;
   nick: string;
@@ -305,7 +305,7 @@ export interface WorldMoveLine {
 }
 export interface WorldMoveGroup { kind: WorldMoveKind; label: string; lines: WorldMoveLine[] }
 
-const MOVE_LABEL: Record<WorldMoveKind, string> = { vaga: 'Sua vaga', troca: 'Trocas', aposentadoria: 'Aposentadorias', estreia: 'Estreias da base' };
+const MOVE_LABEL: Record<WorldMoveKind, string> = { vaga: 'Sua vaga', troca: 'Trocas', banco: 'Banco e sem time', aposentadoria: 'Aposentadorias', estreia: 'Estreias da base' };
 const UNRANKED = 999;
 
 /** O mercado da temporada: quem abriu a vaga para você, as trocas, as aposentadorias e as estreias da base. */
@@ -323,6 +323,28 @@ export function worldMovesView(state: PlayerCareerState): WorldMoveGroup[] {
       key: `troca:${move.nick}:${move.fromId}`, nick: move.nick, orgId: move.toId, orgName: move.toName,
       detail: `${move.fromName} → ${move.toName}`, note: `Troca com ${move.swappedNick}.`, rank: best(move.fromId, move.toId)
     }))],
+    ['banco', history.benchMoves.map((move) => {
+      const detail: Record<typeof move.kind, string> = {
+        promoted: `Banco → titular da ${move.orgName}`,
+        benched: `Titular → banco da ${move.orgName}`,
+        signed: `Banco da ${move.fromName} → ${move.orgName}`,
+        released: `${move.fromName} → sem time`,
+        faSigned: `Sem time → ${move.orgName}`,
+        retired: move.orgName ? `Banco da ${move.orgName}` : 'Sem time'
+      };
+      const note: Record<typeof move.kind, string> = {
+        promoted: `Voltou ao time${move.swappedNick ? ` no lugar do ${move.swappedNick}` : ''}.`,
+        benched: 'Perdeu a vaga e foi para o banco.',
+        signed: `Contratado do banco${move.swappedNick ? `; ${move.swappedNick} vai para o banco` : ''}.`,
+        released: 'Dispensado: virou free agent.',
+        faSigned: `Free agent contratado${move.swappedNick ? `; ${move.swappedNick} vai para o banco` : ''}.`,
+        retired: 'Pendurou o mouse fora dos titulares.'
+      };
+      return {
+        key: `banco:${move.kind}:${move.nick}:${move.orgId ?? move.fromId ?? ''}`, nick: move.nick, orgId: move.orgId ?? move.fromId ?? null, orgName: move.orgName ?? move.fromName ?? 'Sem time',
+        detail: detail[move.kind], note: note[move.kind], rank: best(move.orgId, move.fromId ?? null)
+      };
+    })],
     ['aposentadoria', history.retirements.map((move) => {
       const orgId = orgIdOfName(move.orgName);
       return {
