@@ -956,7 +956,7 @@
     if (said) career = markLineUsed(career, said.key);
     const alternative = clutch.situation.alternatives[choice].text;
     const read = { quality: outcome.quality, reason: outcome.reason, bestText: clutch.situation.alternatives[outcome.best].text, quote: said ? { who: said.who, text: said.text } : undefined };
-    const story = clutchStory(outcome.profile, alternative, outcome.won, outcome.kills);
+    const story = clutchStory(outcome.profile, alternative, outcome.won, outcome.kills, outcome);
     usedIds = [...usedIds, clutch.situation.id];
     persistUsedIds();
     clutch = null;

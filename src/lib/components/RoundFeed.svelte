@@ -51,15 +51,19 @@
   $: flagLabels = KILL_FLAG_LABELS[language];
   $: isMine = (side: 'a' | 'b') => userIsA !== null && (side === 'a') === userIsA;
   // Como o round acabou, em linguagem de kill feed: C4 plantada/explodiu/desarmada ou o relógio.
-  $: bombLine = currentDetail && resolved && currentDetail.ending !== 'elimination' ? bombEventLine(currentDetail) : null;
+  $: bombLine = currentDetail && resolved && (currentDetail.ending !== 'elimination' || currentDetail.bomb?.plantedByName) ? bombEventLine(currentDetail) : null;
 
   function bombEventLine(detail: RoundDetail): { text: string; side: 'a' | 'b' } {
     const tSide: 'a' | 'b' = detail.sideA === 't' ? 'a' : 'b';
     const ctSide: 'a' | 'b' = tSide === 'a' ? 'b' : 'a';
     const tAlive = Math.max(0, 5 - detail.kills.filter((kill) => kill.killerSide === ctSide).length);
     const words = BOMB_WORDS[language] ?? BOMB_WORDS['pt-BR'];
-    if (detail.ending === 'bomb') return { text: `${words.planted} · ${words.exploded}`, side: tSide };
-    if (detail.ending === 'defuse') return { text: `${words.planted} · ${words.defused} (${teamNames[ctSide]})`, side: ctSide };
+    // Round da call da carreira: o motor registra quem plantou e quem desarmou (com o segundo).
+    const who = (name: string | undefined, second: number | undefined) => (name ? ` (${name}${second !== undefined ? ` ${second}s` : ''})` : '');
+    const planted = `${words.planted}${who(detail.bomb?.plantedByName, detail.bomb?.plantSecond)}`;
+    if (detail.ending === 'bomb') return { text: `${planted} · ${words.exploded}`, side: tSide };
+    if (detail.ending === 'defuse') return { text: `${planted} · ${words.defused}${who(detail.bomb?.defusedByName, detail.bomb?.defuseSecond) || ` (${teamNames[ctSide]})`}`, side: ctSide };
+    if (detail.ending === 'elimination') return { text: planted, side: tSide };
     return { text: words.time(tAlive), side: ctSide };
   }
 

@@ -5,7 +5,12 @@
 //
 // Estado: valores de partida do protótipo do plano 07 (passaram nos critérios C1 a C8 lá, sobre 67fa6bf). A calibração
 // com o jogo final (Task 10 do plano) ainda não rodou. Primeira troca medida: studySeason de 6 para 8 (a temporada
-// depois do auge dava 38% a 40% de títulos, o alvo é 25% a 35%). Para medir uma troca sem mexer no jogo:
+// depois do auge dava 38% a 40% de títulos, o alvo é 25% a 35%).
+// Recalibrado em 2026-11-12 (medidor novo: leitura certa que perde não dá mais virada ao rival; erro tira o dobro), com
+// 24 seeds × 5 temporadas no arco e 20 × 2 no azarão. Antes → depois: auge 91 best 53 → 57 (C1 ✓), auge 95 best 61 → 66
+// (C2 ✓), pós-auge 34 → 36 (C3, 1 ponto acima: ruído aceito pelo plano), seca 19 → 16 (C4 ✓), voltas 0 → 7 (C5: passou a
+// valer), auge seguido máx 2/3 → 3/3 (C6 ✓), random 34 → 39 contra best 57 (C7 ✓), azarão best 47 → 49 e com 2+ calls
+// ganhas 58 → 57 (C8 ✓). Para medir uma troca sem mexer no jogo:
 //   CAREER_ARC=1 npx vitest run tests/playerCareerArcCalibration.test.ts -t "temporadas seguidas"
 //   CAREER_UNDERDOG=1 npx vitest run tests/playerCareerArcCalibration.test.ts -t "rival 3 a 6"
 // (o arco aceita números de teste por CAREER_ARC_TUNING='{"seasonFloor":0.4}'; o embalo só trocando o valor aqui).
@@ -13,21 +18,32 @@
 // ┌──────────────────────────────┬────────┬──────────────────────────────────────────────────────────────────────────┐
 // │ Número                       │ Valor  │ O que faz                                                                │
 // ├──────────────────────────────┼────────┼──────────────────────────────────────────────────────────────────────────┤
-// │ EMBALO DAS CALLS (rounds.ts, vale só para a call da Carreira)                                                     │
-// │ CLUTCH_CARRY_STEP            │ 0.02   │ embalo de quem ganha o round da call sendo favorito ou no jogo parelho   │
-// │ CLUTCH_CARRY_UNDERDOG_STEP   │ 0.1    │ embalo do azarão cheio (rival bem mais forte); no meio, proporcional     │
-// │ CLUTCH_CARRY_RIVAL_SHARE     │ 0.7    │ fração do passo que o rival leva quando a sua call falha                 │
-// │ MAX_CLUTCH_CARRY             │ 0.15   │ teto do embalo acumulado num mapa (chance de round)                      │
-// │ CLUTCH_CARRY_SERIES_SHARE    │ 0.5    │ fração do embalo do mapa que passa para o mapa seguinte da série         │
+// │ EMBALO DAS CALLS (rounds.ts, vale só para a call da Carreira): um medidor só, do ponto de vista de quem chama      │
+// │ CLUTCH_CARRY_STEP            │ 0.015  │ acerto (leitura certa que ganhou o round) do favorito ou no jogo parelho │
+// │ CLUTCH_CARRY_UNDERDOG_STEP   │ 0.08   │ acerto do azarão cheio (rival bem mais forte); no meio, proporcional     │
+// │ CLUTCH_CARRY_MISS_STEP       │ 0.03   │ erro (leitura errada que perdeu o round): tira o dobro do acerto         │
+// │ MAX_CLUTCH_CARRY             │ 0.03   │ teto do medidor do favorito ou no jogo parelho (chance de round)         │
+// │ MIN_CLUTCH_CARRY             │ -0.08  │ piso do medidor: errar tudo custa até 8% por round                       │
+// │ UNDERDOG_CARRY_CAP_BONUS     │ 0.1    │ azarão cheio: o teto sobe até 13% (é ele que vira a série, C8)           │
+// │ STAR_CARRY_STEP_BONUS        │ 0      │ craque (fator 1): desligado; ligado, o 95 da elite dominava (C2, C6)     │
+// │ STAR_CARRY_CAP_BONUS         │ 0      │ craque (fator 1): desligado; o embalo do azarão já carrega o time menor  │
+// │ CLUTCH_CARRY_SERIES_SHARE    │ 0.5    │ fração do medidor do mapa que passa para o mapa seguinte da série        │
+// │ Leitura certa que perdeu no detalhe e leitura errada que deu sorte não mexem no medidor: o rival não ganha virada  │
+// │ de graça quando você decidiu certo.                                                                              │
+// ├──────────────────────────────┼────────┼──────────────────────────────────────────────────────────────────────────┤
+// │ FÔLEGO DE QUEM ESTÁ ATRÁS (live.ts, só o seu time e só ao vivo)                                                   │
+// │ COMEBACK_LIFT_MAP            │ .015/.025 │ 3+ rounds atrás no mapa empurra 1,5%; 6+ atrás, 2,5%                  │
+// │ COMEBACK_LIFT_SERIES         │ 0.01   │ atrás no placar de mapas soma 1%                                         │
+// │ MAX_COMEBACK_LIFT            │ 0.03   │ teto do fôlego: dá pra buscar, a virada não vem de presente              │
 // ├──────────────────────────────┼────────┼──────────────────────────────────────────────────────────────────────────┤
 // │ ARCO DA CARREIRA (ARC_TUNING, form.ts: fase do time por bloco e estudo dos rivais)                                │
 // │ phasePower                   │ 1.5    │ força que a fase alta soma (e a baixa tira) do seu time no campeonato    │
 // │ stay                         │ 0.5    │ chance de a fase alta (ou baixa) continuar no bloco seguinte             │
 // │ tilt                         │ 0.1    │ quanto um bloco dominante puxa para a alta (sem final, para a baixa)     │
-// │ studyMax                     │ 3      │ teto do estudo dos rivais, em pontos de força contra o seu time          │
+// │ studyMax                     │ 4      │ teto do estudo dos rivais, em pontos de força contra o seu time          │
 // │ studyBlock                   │ 4      │ peso do domínio do bloco anterior (acima de blockFloor) no estudo        │
 // │ blockFloor                   │ 0.5    │ domínio do bloco a partir do qual o estudo começa a contar               │
-// │ studySeason                  │ 8      │ peso do domínio dos últimos 12 campeonatos (acima de seasonFloor)        │
+// │ studySeason                  │ 10     │ peso do domínio dos últimos 12 campeonatos (acima de seasonFloor)        │
 // │ seasonFloor                  │ 0.4    │ domínio do ano a partir do qual o estudo começa a contar                 │
 // └──────────────────────────────┴────────┴──────────────────────────────────────────────────────────────────────────┘
 // Domínio = (títulos + 0,4 × finais perdidas) / campeonatos jogados. As cartas da semana cortam o estudo do bloco:
@@ -38,16 +54,36 @@
 // dos 34; CEILING_BONUS_CAP 4; semanas de treino por +1 em sessionsPerOverall).
 
 // ── Embalo das calls ────────────────────────────────────────────────────────────────────────────────────────────────
-/** Embalo de quem ganha o round da call sendo favorito ou no confronto parelho: um empurrão discreto. */
-export const CLUTCH_CARRY_STEP = 0.02;
-/** Embalo do azarão: quanto mais forte o adversário, mais o round da call compra a virada (até este passo). */
-export const CLUTCH_CARRY_UNDERDOG_STEP = 0.1;
-/** Quanto do passo o rival leva quando a sua call falha: ele leu você, mas o round não era dele. */
-export const CLUTCH_CARRY_RIVAL_SHARE = 0.7;
-/** Teto do embalo acumulado num mapa. */
-export const MAX_CLUTCH_CARRY = 0.15;
-/** Quanto do embalo atravessa o intervalo: quem leu certo chega aquecido no mapa seguinte da série. */
+/** Acerto na call (favorito ou confronto parelho): o medidor sobe este passo. */
+export const CLUTCH_CARRY_STEP = 0.015;
+/** Acerto do azarão: quanto mais forte o adversário, mais a call certa vale (até este passo). É o que deixa o azarão
+ *  que lê bem virar a série (C8 do plano 07) sem dar ao rival a virada de graça. */
+export const CLUTCH_CARRY_UNDERDOG_STEP = 0.08;
+/** Erro na call (leitura errada que perdeu o round): o medidor desce o dobro do acerto. Confiança cai mais rápido do que sobe. */
+export const CLUTCH_CARRY_MISS_STEP = 0.03;
+/** Teto do medidor das calls do favorito (ou no jogo parelho): acertar tudo vale no máximo +3% por round. Com 5% o 95 da
+ *  elite passava de 68% de títulos no auge (C2) sem a virada de graça do rival que antes o segurava. */
+export const MAX_CLUTCH_CARRY = 0.03;
+/** Piso do medidor das calls: errar tudo custa até −8% por round. */
+export const MIN_CLUTCH_CARRY = -0.08;
+/** Azarão cheio acertando: o teto do medidor sobe este tanto (proporcional ao quanto ele é azarão). */
+export const UNDERDOG_CARRY_CAP_BONUS = 0.1;
+/** Craque acertando (fator craque 1): cada acerto soma este tanto a mais, proporcional. Desligado (0): medido, o 95 da elite
+ *  passava de 68% de títulos no auge e dominava 5 anos seguidos (C2 e C6); o craque de time menor já é azarão e leva o
+ *  embalo do azarão. Fica na tabela para ligar de novo se a medição pedir. */
+export const STAR_CARRY_STEP_BONUS = 0;
+/** Craque acertando (fator craque 1): quanto o teto do medidor sobe. Desligado (0), pelo mesmo motivo. */
+export const STAR_CARRY_CAP_BONUS = 0;
+/** Quanto do medidor atravessa o intervalo: quem leu certo chega aquecido no mapa seguinte da série. */
 export const CLUTCH_CARRY_SERIES_SHARE = 0.5;
+
+// ── Fôlego de quem está atrás ───────────────────────────────────────────────────────────────────────────────────────
+/** Fôlego no mapa: 3+ rounds atrás empurra o round em 1,5%; 6+ atrás, 2,5%. */
+export const COMEBACK_LIFT_MAP = { 3: 0.015, 6: 0.025 } as const;
+/** Fôlego na série: atrás no placar de mapas soma 1%. */
+export const COMEBACK_LIFT_SERIES = 0.01;
+/** Teto do fôlego: o bastante para sentir que dá pra buscar, nunca a virada de presente. */
+export const MAX_COMEBACK_LIFT = 0.03;
 
 // ── Arco da carreira ────────────────────────────────────────────────────────────────────────────────────────────────
 /** Os números do arco, num lugar só: a calibração (calibration.ts) mede variações deles sem mexer no jogo. */
@@ -70,14 +106,15 @@ export interface ArcTuning {
   seasonFloor: number;
 }
 
-/** Valores de partida do protótipo do plano 07 (C1 a C8 passaram lá), com studySeason 8; ainda sem a calibração completa. */
+/** Valores do plano 07 recalibrados em 2026-11-12 com o medidor novo das calls (sem a virada de graça do rival, o favorito
+ *  dominava mais): studyMax 3 → 4 e studySeason 8 → 10. Medição C1 a C8 no fim do plano. */
 export const ARC_TUNING: ArcTuning = {
   phasePower: 1.5,
   stay: 0.5,
   tilt: 0.1,
-  studyMax: 3,
+  studyMax: 4,
   studyBlock: 4,
   blockFloor: 0.5,
-  studySeason: 8,
+  studySeason: 10,
   seasonFloor: 0.4
 };

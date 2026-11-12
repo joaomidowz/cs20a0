@@ -169,6 +169,19 @@ export interface RoundKill {
 }
 
 /** Everything that happened in one round: produced by the engine while the round is simulated, never derived afterwards. */
+/** Carreira: o que a call do jogador manda ele fazer no round, e o motor obriga a acontecer. */
+export type ClutchIntent = 'kill' | 'save' | 'plant' | 'defuse' | 'support' | 'hold';
+
+/** A bomba do round, quando a história dele passa por ela (por enquanto, o round da call da carreira). */
+export interface RoundBomb {
+  plantedById?: string;
+  plantedByName?: string;
+  plantSecond?: number;
+  defusedById?: string;
+  defusedByName?: string;
+  defuseSecond?: number;
+}
+
 export interface RoundDetail {
   number: number;
   winner: TeamSide;
@@ -187,6 +200,10 @@ export interface RoundDetail {
   tags: RoundTag[];
   /** Ace, multi-kill or clutch worth flashing on screen, when the round had one. */
   highlight?: RoundHighlight;
+  /** Carreira: a call deste round (quem chamou, o que mandou fazer e se foi acerto, erro ou neutra no medidor). */
+  call?: { side: TeamSide; playerId?: string; intent: ClutchIntent; verdict: -1 | 0 | 1; star?: number };
+  /** Quem plantou e quem desarmou, quando o round registra a bomba. */
+  bomb?: RoundBomb;
 }
 
 export interface Roster {

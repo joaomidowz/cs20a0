@@ -27,7 +27,21 @@ describe('textos sem travessão', () => {
   it('histórias da call', () => {
     for (const situation of [...Object.values(DECISION_MATRIX).flat(), ...SHARED_SITUATIONS]) {
       for (const alternative of situation.alternatives) {
-        for (const won of [true, false]) expect(clutchStory(alternative.profile, alternative.text, won, 2)).not.toMatch(DASH);
+        for (const won of [true, false]) {
+          expect(clutchStory(alternative.profile, alternative.text, won, 2)).not.toMatch(DASH);
+          // Com o roteiro: a história conta o que você fez (plantou, desarmou, salvou) sem travessão nem infinitivo solto.
+          const facts = { intent: alternative.intent, survived: !won, planted: alternative.intent === 'plant', defused: alternative.intent === 'defuse' && won, assisted: alternative.intent === 'support' };
+          const story = clutchStory(alternative.profile, alternative.text, won, 1, facts);
+          expect(story).not.toMatch(DASH);
+          expect(story).not.toMatch(/[Vv]ocê [a-zà-ú]+(ar|er|ir)\b/);
+          if (facts.planted) expect(story).toMatch(/plantou a bomba/);
+          if (facts.defused) expect(story).toMatch(/desarmou a bomba/);
+          if (alternative.intent === 'save' && !won) expect(story).toMatch(/arma/);
+          if (!won && alternative.intent !== 'save') expect(story).not.toMatch(/te bangaram|te pegou/); // você saiu vivo
+          // Matou e caiu: a jogada nasceu, a história não pode dizer o contrário.
+          const fought = clutchStory(alternative.profile, alternative.text, false, 2, { ...facts, survived: false });
+          if (alternative.intent !== 'save') expect(fought).not.toMatch(/antes da jogada nascer|te bangaram/);
+        }
       }
     }
   });

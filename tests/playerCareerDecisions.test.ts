@@ -4,20 +4,30 @@
 import { describe, expect, it } from 'vitest';
 import {
   armClutchCall,
-  CLUTCH_CARRY_RIVAL_SHARE,
+  CLUTCH_CARRY_MISS_STEP,
   CLUTCH_CARRY_SERIES_SHARE,
   CLUTCH_CARRY_STEP,
   CLUTCH_CARRY_UNDERDOG_STEP,
+  MAX_CAREER_LIFT,
   MAX_CLUTCH_CARRY,
   MAX_CLUTCH_EDGE,
+  MIN_CLUTCH_CARRY,
+  SAVED_WEAPON_MONEY,
+  STAR_CARRY_CAP_BONUS,
+  STAR_CARRY_STEP_BONUS,
+  UNDERDOG_CARRY_CAP_BONUS,
   createMapState,
   isMapFinished,
-  playNextRound
+  playNextRound,
+  setCareerLift
 } from '../src/lib/game/rounds';
 import { createSeededRng } from '../src/lib/game/simulation';
-import type { CombatTeam, TeamSide } from '../src/lib/game/types';
-import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, readOf, resolveClutchEdge, situationsFor, type ClutchProfile, type RoundContext } from '../src/lib/game/playerCareer/decisions';
-import { CALL_CARRY_GOOD, clutchGate, playClutchRound, roundContextOf, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
+import type { ClutchIntent, CombatTeam, RoundDetail, TeamSide } from '../src/lib/game/types';
+import { getTeamPlayers, teams } from '../src/lib/game/data';
+import { DECISION_MATRIX, SHARED_SITUATIONS, drawClutchSituation, readOf, resolveClutchEdge, situationSide, situationsFor, starFactor, type ClutchProfile, type RoundContext } from '../src/lib/game/playerCareer/decisions';
+import { intentTableIds } from '../src/lib/game/playerCareer/intents';
+import { COMEBACK_LIFT_MAP, COMEBACK_LIFT_SERIES, MAX_COMEBACK_LIFT } from '../src/lib/game/playerCareer/tuning';
+import { CALL_CARRY_GOOD, clutchGate, comebackLiftFor, playClutchRound, roundContextOf, roundCriticality, startSceneEvent, stepSceneEvent, type SceneClutchContext } from '../src/lib/game/playerCareer/live';
 import { currentCampaignSeries } from '../src/lib/game/campaign-major';
 import { chooseStartingOrg, createPlayerCareer, startSeason } from '../src/lib/game/playerCareer/engine';
 
@@ -174,42 +184,59 @@ describe('o edge decide no motor (RNG do round)', () => {
     expect(sum(-MAX_CLUTCH_EDGE)).toBeLessThan(sum(0));
   });
 
-  it('quem ganha o round da call leva o embalo pro resto do mapa: o azarão leva mais, e call que falha embala o rival', () => {
-    const callRound = (powerA: number, powerB: number, edge: number, mapSeed: string) => {
+  it('o medidor das calls: leitura certa que ganhou soma (o azarão soma mais), errada que perdeu tira o dobro, o resto não mexe', () => {
+    const callRound = (powerA: number, powerB: number, edge: number, quality: 'good' | 'ok' | 'bad', mapSeed: string) => {
       const state = createMapState(team('a', powerA), team('b', powerB), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
-      armClutchCall(state, 'a', edge);
+      armClutchCall(state, 'a', edge, { quality });
       const detail = playNextRound(state);
-      return { won: detail.winner === 'a', carry: state.clutchCarry!.a, rival: state.clutchCarry!.b };
+      return { won: detail.winner === 'a', carry: state.clutchCarry!.a, rival: state.clutchCarry!.b, verdict: detail.call?.verdict };
     };
     const seeds = Array.from({ length: 40 }, (_, index) => `carry-${index}`);
-    const underdog = seeds.map((mapSeed) => callRound(70, 84, 0.05, mapSeed));
-    const favorite = seeds.map((mapSeed) => callRound(84, 70, 0.05, mapSeed));
+    const underdog = seeds.map((mapSeed) => callRound(70, 84, 0.1, 'good', mapSeed));
+    const favorite = seeds.map((mapSeed) => callRound(84, 70, 0.1, 'good', mapSeed));
     for (const rounds of [underdog, favorite]) {
       expect(rounds.some((round) => round.won)).toBe(true);
       expect(rounds.some((round) => !round.won)).toBe(true);
-    }
-    for (const round of [...underdog, ...favorite]) {
-      if (round.won) expect(round.rival).toBe(0); // call boa que deu certo: só quem chamou embala
-      else expect(round.carry).toBe(0); // falhou: o embalo é de quem ganhou o round
     }
     const wonBy = (rounds: typeof underdog) => rounds.find((round) => round.won)!;
     const lostBy = (rounds: typeof underdog) => rounds.find((round) => !round.won)!;
     expect(wonBy(underdog).carry).toBeCloseTo(CLUTCH_CARRY_UNDERDOG_STEP, 5); // 70 x 84: azarão cheio
     expect(wonBy(favorite).carry).toBeCloseTo(CLUTCH_CARRY_STEP, 5); // favorito: só o passo mínimo
-    expect(lostBy(underdog).rival).toBeCloseTo(CLUTCH_CARRY_STEP * CLUTCH_CARRY_RIVAL_SHARE, 5); // o favorito que segurou leva pouco
-    expect(lostBy(favorite).rival).toBeCloseTo(CLUTCH_CARRY_UNDERDOG_STEP * CLUTCH_CARRY_RIVAL_SHARE, 5); // a zebra que leu o favorito acorda
-    const badCall = seeds.map((mapSeed) => callRound(70, 84, -0.05, mapSeed));
-    expect(badCall.filter((round) => round.won).every((round) => round.carry === 0 && round.rival === 0)).toBe(true); // ruim com sorte: ninguém
-    expect(badCall.filter((round) => !round.won).every((round) => round.rival > 0)).toBe(true); // ruim e perdida: embala o rival
+    // Leitura certa que perdeu no detalhe: ninguém embala (antes, o rival levava a virada de graça).
+    for (const round of [...underdog, ...favorite].filter((entry) => !entry.won)) expect(round).toMatchObject({ carry: 0, rival: 0, verdict: 0 });
+    // Leitura errada: com sorte, nada; perdida, tira o mesmo passo de qualquer um (vira embalo do rival).
+    const badCall = seeds.map((mapSeed) => callRound(70, 84, -0.07, 'bad', mapSeed));
+    expect(badCall.filter((round) => round.won).every((round) => round.carry === 0 && round.rival === 0)).toBe(true);
+    expect(lostBy(badCall).rival).toBeCloseTo(CLUTCH_CARRY_MISS_STEP, 5);
+    expect(lostBy(seeds.map((mapSeed) => callRound(84, 70, -0.07, 'bad', mapSeed))).rival).toBeCloseTo(CLUTCH_CARRY_MISS_STEP, 5);
+    expect(CLUTCH_CARRY_MISS_STEP).toBe(CLUTCH_CARRY_STEP * 2); // errar dói o dobro de acertar
+    // Leitura razoável não é acerto nem erro.
+    expect(seeds.map((mapSeed) => callRound(80, 80, 0.015, 'ok', mapSeed)).every((round) => round.carry === 0 && round.rival === 0)).toBe(true);
 
-    // O embalo acumula com várias calls, mas para no teto.
-    const stacked = createMapState(team('a', 70), team('b', 84), { rng: createSeededRng('carry-stack'), mode: 'dynasty' });
-    for (let round = 0; round < 12 && !isMapFinished(stacked); round += 1) {
-      armClutchCall(stacked, 'a', MAX_CLUTCH_EDGE);
-      playNextRound(stacked);
-    }
-    expect(stacked.clutchCarry!.a).toBeLessThanOrEqual(MAX_CLUTCH_CARRY);
-    expect(stacked.clutchCarry!.a).toBeGreaterThan(CLUTCH_CARRY_UNDERDOG_STEP);
+    // Acertos e erros andam no mesmo medidor: para em +5% em cima e −8% embaixo, nos dois sentidos.
+    const meter = (edge: number, quality: 'good' | 'bad', mapSeed: string, star = 0, powers: [number, number] = [70, 84]) => {
+      const state = createMapState(team('a', powers[0]), team('b', powers[1]), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
+      const readings: number[] = [];
+      for (let round = 0; round < 24 && !isMapFinished(state); round += 1) {
+        armClutchCall(state, 'a', edge, { quality, star });
+        playNextRound(state);
+        expect(Math.min(state.clutchCarry!.a, state.clutchCarry!.b)).toBe(0); // um lado só: é um medidor, não dois
+        readings.push(state.clutchCarry!.a - state.clutchCarry!.b);
+      }
+      return readings;
+    };
+    // O azarão cheio (70 x 84) que acerta chega mais alto que o favorito: é o embalo dele que vira a série.
+    expect(Math.max(...meter(MAX_CLUTCH_EDGE, 'good', 'carry-stack'))).toBeCloseTo(MAX_CLUTCH_CARRY + UNDERDOG_CARRY_CAP_BONUS, 5);
+    expect(Math.max(...meter(MAX_CLUTCH_EDGE, 'good', 'carry-stack-fav', 0, [84, 70]))).toBeCloseTo(MAX_CLUTCH_CARRY, 5);
+    expect(Math.min(...meter(-MAX_CLUTCH_EDGE, 'bad', 'carry-stack-wrong'))).toBeCloseTo(MIN_CLUTCH_CARRY, 5);
+    // O craque (fator 1) que acerta soma o bônus de craque por cima (desligado na tabela: 0).
+    expect(Math.max(...meter(MAX_CLUTCH_EDGE, 'good', 'carry-stack', 1))).toBeCloseTo(MAX_CLUTCH_CARRY + UNDERDOG_CARRY_CAP_BONUS + STAR_CARRY_CAP_BONUS, 5);
+    expect(wonBy(seeds.map((mapSeed) => {
+      const state = createMapState(team('a', 84), team('b', 70), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
+      armClutchCall(state, 'a', 0.1, { quality: 'good', star: 1 });
+      const detail = playNextRound(state);
+      return { won: detail.winner === 'a', carry: state.clutchCarry!.a, rival: state.clutchCarry!.b, verdict: detail.call?.verdict };
+    })).carry).toBeCloseTo(CLUTCH_CARRY_STEP * (1 + STAR_CARRY_STEP_BONUS), 5);
   });
 
   it('o embalo herdado do mapa anterior entra no mapa novo e pesa nos rounds dele', () => {
@@ -220,9 +247,9 @@ describe('o edge decide no motor (RNG do round)', () => {
       while (!isMapFinished(state)) playNextRound(state);
       return state.scoreA - state.scoreB;
     };
-    const seeds = Array.from({ length: 10 }, (_, index) => `carry-map-${index}`);
+    const seeds = Array.from({ length: 40 }, (_, index) => `carry-map-${index}`);
     const sum = (carry: number) => seeds.reduce((total, mapSeed) => total + margin(carry, mapSeed), 0);
-    expect(sum(CLUTCH_CARRY_UNDERDOG_STEP * CLUTCH_CARRY_SERIES_SHARE)).toBeGreaterThan(sum(0));
+    expect(sum(MAX_CLUTCH_CARRY * CLUTCH_CARRY_SERIES_SHARE)).toBeGreaterThan(sum(0));
   });
 
   it('o empurrão da leitura certa no round seguinte não é call: não gera embalo para ninguém', () => {
@@ -233,6 +260,189 @@ describe('o edge decide no motor (RNG do round)', () => {
       expect(state.clutchCarry).toEqual({ a: 0, b: 0 });
       expect(state.pendingClutchCall).toBeNull();
     }
+  });
+});
+
+describe('o fôlego de quem está atrás (carreira)', () => {
+  const team = (id: string, power: number): CombatTeam => ({ id, name: id.toUpperCase(), power, mental: 80, clutch: 80, experience: 80, consistency: 80 });
+
+  it('só existe atrás no placar, cresce com o buraco e respeita o teto', () => {
+    const lift = (mapA: number, mapB: number, seriesA = 0, seriesB = 0) =>
+      comebackLiftFor({ current: { index: 0, state: { scoreA: mapA, scoreB: mapB } }, scoreA: seriesA, scoreB: seriesB } as never, 'a');
+    expect(lift(5, 5)).toBe(0);
+    expect(lift(8, 3)).toBe(0); // na frente: nada
+    expect(lift(3, 5)).toBe(0); // 2 atrás ainda é jogo normal
+    expect(lift(2, 5)).toBe(COMEBACK_LIFT_MAP[3]);
+    expect(lift(2, 8)).toBe(COMEBACK_LIFT_MAP[6]);
+    expect(lift(5, 5, 0, 1)).toBe(COMEBACK_LIFT_SERIES);
+    expect(lift(2, 8, 0, 1)).toBe(MAX_COMEBACK_LIFT); // 2,5% + 1% para no teto de 3%
+  });
+
+  it('inclina o round de quem está atrás e o motor corta no teto', () => {
+    const margin = (edge: number, mapSeed: string) => {
+      const state = createMapState(team('a', 80), team('b', 80), { rng: createSeededRng(mapSeed), mode: 'dynasty' });
+      while (!isMapFinished(state)) {
+        setCareerLift(state, 'a', edge);
+        playNextRound(state);
+      }
+      return state.scoreA - state.scoreB;
+    };
+    const seeds = Array.from({ length: 20 }, (_, index) => `lift-${index}`);
+    const sum = (edge: number) => seeds.reduce((total, mapSeed) => total + margin(edge, mapSeed), 0);
+    expect(sum(MAX_COMEBACK_LIFT)).toBeGreaterThan(sum(0));
+    const capped = createMapState(team('a', 80), team('b', 80), { rng: createSeededRng('lift-cap'), mode: 'dynasty' });
+    setCareerLift(capped, 'a', 0.5);
+    expect(capped.careerLift).toEqual({ side: 'a', edge: MAX_CAREER_LIFT });
+    setCareerLift(capped, 'a', 0);
+    expect(capped.careerLift).toBeNull();
+  });
+});
+
+describe('o round obedece a call (matar, salvar, plantar, defusar, apoiar)', () => {
+  const [homeTeam, awayTeam] = teams;
+  const home = getTeamPlayers(homeTeam);
+  const away = getTeamPlayers(awayTeam);
+  const me = home[0].id;
+  const team = (id: string): CombatTeam => ({ id, name: id, power: 80, mental: 80, clutch: 80, experience: 80, consistency: 80 });
+
+  /** O primeiro round de um mapa com elencos de verdade, com a sua call armada; `ct` decide o seu lado. */
+  const scripted = (intent: ClutchIntent, seed: string, options: { ct?: boolean; kills?: number; edge?: number } = {}) => {
+    const state = createMapState(team('home'), team('away'), { rng: createSeededRng(seed), mode: 'dynasty', rosterA: { players: home }, rosterB: { players: away } });
+    state.aStartsCt = options.ct ?? true;
+    armClutchCall(state, 'a', options.edge ?? 0.05, { script: { playerId: me, intent, ...(options.kills ? { kills: options.kills } : {}) } });
+    const detail = playNextRound(state);
+    return { detail, state, won: detail.winner === 'a', died: detail.kills.some((kill) => kill.victimId === me) };
+  };
+  const seeds = Array.from({ length: 40 }, (_, index) => `roteiro-${index}`);
+  const myKills = (detail: RoundDetail) => detail.kills.filter((kill) => kill.killerId === me);
+
+  it('matar: as kills que a call pede saem das suas mãos, antes de você morrer', () => {
+    for (const kills of [1, 2]) {
+      for (const seed of seeds) {
+        const { detail } = scripted('kill', seed, { kills });
+        const mine = myKills(detail);
+        expect(mine.length).toBeGreaterThanOrEqual(kills);
+        const death = detail.kills.find((kill) => kill.victimId === me);
+        if (death) expect(mine[kills - 1].second).toBeLessThanOrEqual(death.second);
+        expect(detail.call).toMatchObject({ side: 'a', intent: 'kill', playerId: me });
+      }
+    }
+  });
+
+  it('salvar: você sobrevive, o time não é eliminado e a arma guardada vira dinheiro', () => {
+    let lost = 0;
+    for (const seed of seeds) {
+      const { detail, died, won } = scripted('save', seed);
+      expect(died).toBe(false);
+      if (!won) {
+        lost += 1;
+        expect(detail.ending).toBe('bomb'); // você é CT e não foi eliminado: sem retake, a bomba explode
+      }
+    }
+    expect(lost).toBeGreaterThan(0);
+    const seed = seeds.find((candidate) => !scripted('save', candidate).won)!;
+    const saved = scripted('save', seed);
+    const plain = scripted('hold', seed);
+    if (!plain.won) expect(saved.state.teams.a.money).toBeGreaterThanOrEqual(plain.state.teams.a.money + SAVED_WEAPON_MONEY - 400);
+  });
+
+  it('plantar (TR): a bomba é sua; se o time perde, um CT vivo desarma', () => {
+    for (const seed of seeds) {
+      const { detail, won } = scripted('plant', seed, { ct: false });
+      expect(detail.bomb?.plantedById).toBe(me);
+      if (won) expect(['bomb', 'elimination']).toContain(detail.ending);
+      else {
+        expect(detail.ending).toBe('defuse');
+        expect(away.some((player) => player.id === detail.bomb?.defusedById)).toBe(true);
+      }
+      const death = detail.kills.find((kill) => kill.victimId === me);
+      if (death) expect(detail.bomb!.plantSecond!).toBeLessThan(death.second); // ninguém planta morto
+    }
+    // Plantar no CT não existe: vira segurar, sem bomba inventada.
+    const wrongSide = scripted('plant', 'roteiro-ct', { ct: true });
+    expect(wrongSide.detail.bomb).toBeUndefined();
+    expect(wrongSide.detail.call?.intent).toBe('hold');
+  });
+
+  it('defusar (CT): ganhou, foi você que desarmou e está vivo; perdeu, a bomba explodiu ou o CT caiu', () => {
+    let defused = 0;
+    for (const seed of seeds) {
+      const { detail, won, died } = scripted('defuse', seed, { ct: true });
+      expect(away.some((player) => player.id === detail.bomb?.plantedById)).toBe(true);
+      if (won) {
+        defused += 1;
+        expect(detail.ending).toBe('defuse');
+        expect(detail.bomb?.defusedById).toBe(me);
+        expect(died).toBe(false);
+        expect(detail.bomb!.defuseSecond!).toBeGreaterThan(detail.bomb!.plantSecond!);
+      } else {
+        expect(['bomb', 'elimination']).toContain(detail.ending);
+        expect(detail.bomb?.defusedById).toBeUndefined();
+      }
+    }
+    expect(defused).toBeGreaterThan(0);
+  });
+
+  it('apoiar: o seu utilitário aparece na kill do parceiro enquanto você está vivo', () => {
+    let assisted = 0;
+    for (const seed of seeds) {
+      const { detail } = scripted('support', seed);
+      const death = detail.kills.find((kill) => kill.victimId === me)?.second ?? Infinity;
+      const mateKill = detail.kills.find((kill) => kill.killerSide === 'a' && kill.killerId !== me && kill.second <= death);
+      if (mateKill) {
+        expect(mateKill.flashAssistId).toBe(me);
+        assisted += 1;
+      }
+    }
+    expect(assisted).toBeGreaterThan(0);
+  });
+
+  it('o empurrão do round seguinte não carrega roteiro: só a call obriga', () => {
+    const state = createMapState(team('home'), team('away'), { rng: createSeededRng('follow-script'), mode: 'dynasty', rosterA: { players: home }, rosterB: { players: away } });
+    state.aStartsCt = false;
+    state.pendingClutchCall = { side: 'a', edge: 0.05, followUp: true, script: { playerId: me, intent: 'plant' } };
+    const detail = playNextRound(state);
+    expect(detail.bomb).toBeUndefined();
+    expect(detail.call).toBeUndefined();
+  });
+});
+
+describe('situações com lado, intenção e o craque', () => {
+  it('a tabela de intenções cobre a matriz inteira e cada alternativa tem o que fazer', () => {
+    const all = [...Object.values(DECISION_MATRIX).flat(), ...SHARED_SITUATIONS];
+    expect(new Set(intentTableIds())).toEqual(new Set(all.map((situation) => situation.id)));
+    for (const situation of all) {
+      expect(['t', 'ct', 'any']).toContain(situation.side);
+      for (const alternative of situation.alternatives) {
+        expect(['kill', 'save', 'plant', 'defuse', 'support', 'hold']).toContain(alternative.intent);
+        if (alternative.intent === 'plant') expect(situation.side).toBe('t');
+        if (alternative.intent === 'defuse') expect(situation.side).toBe('ct');
+      }
+    }
+  });
+
+  it('o sorteio respeita o seu lado no round pelas duas fontes (texto e tabela)', () => {
+    for (const role of ROLES) {
+      for (let index = 0; index < 60; index += 1) {
+        const ct = drawClutchSituation(role, `lado-${role}-${index}`, [], 'ct');
+        expect(ct.side).not.toBe('t');
+        expect(situationSide(ct)).not.toBe('t');
+        const t = drawClutchSituation(role, `lado-${role}-${index}`, [], 't');
+        expect(t.side).not.toBe('ct');
+        expect(situationSide(t)).not.toBe('ct');
+      }
+    }
+  });
+
+  it('fator craque: 0 no nível dos parceiros, 1 com 12+ acima, e a call devolve a intenção da alternativa', () => {
+    expect(starFactor(80, 80)).toBe(0);
+    expect(starFactor(84, 80)).toBe(0);
+    expect(starFactor(88, 80)).toBeCloseTo(0.5, 5);
+    expect(starFactor(95, 78)).toBe(1);
+    const situation = DECISION_MATRIX.rifler[0];
+    const resolved = resolveClutchEdge({ situation, choice: 0, playerOverall: 92, matesOverall: 78, opponentOverall: 88, seed: 'star' });
+    expect(resolved.star).toBe(1);
+    expect(resolved.intent).toBe(situation.alternatives[0].intent);
   });
 });
 
@@ -257,9 +467,14 @@ describe('a pausa no evento (série do usuário)', () => {
       clutches += 1;
       expect(step.clutch.situation.role).toBe('awper');
       expect(step.clutch.situation.alternatives).toHaveLength(3);
-      const outcome = playClutchRound(campaign, step.clutch, { choice: 0, playerOverall: 78, matesOverall: 72, opponentOverall: 70 });
+      const outcome = playClutchRound(campaign, step.clutch, { choice: 0, playerOverall: 78, matesOverall: 72, opponentOverall: 70, playerId: `${career.seed}:me` });
       campaign = outcome.campaign;
       ctx.usedSituationIds.push(step.clutch.situation.id);
+      // O que a call mandou fazer aconteceu com o SEU jogador no round.
+      if (outcome.intent === 'kill') expect(outcome.kills).toBeGreaterThanOrEqual(1);
+      if (outcome.intent === 'save') expect(outcome.survived).toBe(true);
+      if (outcome.intent === 'plant') expect(outcome.planted).toBe(true);
+      if (outcome.intent === 'defuse' && outcome.won) expect(outcome.defused).toBe(true);
     }
     expect(campaign.finished).toBe(true);
     expect(clutches).toBeGreaterThanOrEqual(1); // com 7+ mapas BO3 na chave, o close existe

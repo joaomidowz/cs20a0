@@ -4,7 +4,9 @@
 // Cada alternativa tem um PERFIL de consequência que vira edge de probabilidade no round decisivo — o RNG
 // do motor decide o round; a leitura certa inclina a moeda. Os textos são da matriz, verbatim.
 import { createSeededRng } from '../simulation';
+import type { ClutchIntent } from '../types';
 import type { PlayerRole } from './engine';
+import { situationIntents, type SituationSide } from './intents';
 import { EXTRA_ROWS, SHARED_ROWS, type SituationRow } from './situations';
 
 /** Como cada decisão inclina o round: disciplinada, leitura de jogo, aposta ou jogo de time. */
@@ -13,27 +15,38 @@ export type ClutchProfile = 'solid' | 'read' | 'gamble' | 'team';
 export interface ClutchAlternative {
   text: string;
   profile: ClutchProfile;
+  /** O que a escolha manda você fazer no round, e o motor obriga a acontecer (intents.ts). */
+  intent: ClutchIntent;
+  /** Só para 'kill': quantas kills a escolha garante. */
+  kills?: number;
 }
 
 export interface ClutchSituation {
   id: string;
   /** Função dona da situação ('any' nas gerais; o sorteio devolve com a função de quem joga). */
   role: PlayerRole | 'any';
+  /** Lado que a tabela de intenções exige (intents.ts): só cai quando você está nele no round ('any' cai sempre). */
+  side: SituationSide;
   text: string;
   alternatives: [ClutchAlternative, ClutchAlternative, ClutchAlternative];
 }
 
 const build = (role: PlayerRole | 'any', rows: SituationRow[], offset = 0): ClutchSituation[] =>
-  rows.map(([text, a, b, c], index) => ({
-    id: `${role === 'any' ? 'all' : role}-${offset + index + 1}`,
-    role,
-    text,
-    alternatives: [
-      { text: a[0], profile: a[1] },
-      { text: b[0], profile: b[1] },
-      { text: c[0], profile: c[1] }
-    ]
-  }));
+  rows.map(([text, a, b, c], index) => {
+    const id = `${role === 'any' ? 'all' : role}-${offset + index + 1}`;
+    const { side, alternatives: [ia, ib, ic] } = situationIntents(id);
+    return {
+      id,
+      role,
+      side,
+      text,
+      alternatives: [
+        { text: a[0], profile: a[1], ...ia },
+        { text: b[0], profile: b[1], ...ib },
+        { text: c[0], profile: c[1], ...ic }
+      ]
+    };
+  });
 
 const BASE_MATRIX: Record<PlayerRole, ClutchSituation[]> = {
   awper: build('awper', [
@@ -202,7 +215,9 @@ export function situationFits(situation: Pick<ClutchSituation, 'text'>, ctx: Rou
 
 export function drawClutchSituation(role: PlayerRole, seed: string, usedIds: readonly string[] = [], side: 't' | 'ct' | null = null, round: RoundContext | null = null): ClutchSituation {
   // Só situações do seu lado no round (CT não planta, TR não desarma) e que batem com o placar e o dinheiro.
-  const all = situationsFor(role).filter((situation) => (!side || !situationSide(situation) || situationSide(situation) === side) && situationFits(situation, round));
+  // O lado vem de duas fontes: o texto (situationSide) e a tabela de intenções (a alternativa de plantar só existe no TR).
+  const sideFits = (situation: ClutchSituation) => !side || ((situation.side === 'any' || situation.side === side) && (!situationSide(situation) || situationSide(situation) === side));
+  const all = situationsFor(role).filter((situation) => sideFits(situation) && situationFits(situation, round));
   const fresh = all.filter((situation) => !usedIds.includes(situation.id));
   const pool = fresh.length ? fresh : all;
   const rng = createSeededRng(`${seed}:situation`);
@@ -239,7 +254,21 @@ export interface ClutchResolve {
   /** A alternativa que era a leitura certa e o porquê, em uma frase. */
   best: 0 | 1 | 2;
   reason: string;
+  /** Fator craque (0-1): o quanto você está acima dos seus parceiros. O motor usa no medidor das calls. */
+  star: number;
+  /** O que a escolha manda você fazer no round (o motor obriga). */
+  intent: ClutchIntent;
+  kills?: number;
 }
+
+/** Quantos pontos acima da média dos parceiros você começa a carregar o time (fator craque > 0). */
+export const STAR_GAP_START = 4;
+/** Quantos pontos acima da média dos parceiros você é o craque por inteiro (fator craque 1). */
+export const STAR_GAP_FULL = 12;
+
+/** Fator craque: 0 até 4 pontos acima dos parceiros, 1 a partir de 12 acima. */
+export const starFactor = (playerOverall: number, matesOverall: number): number =>
+  clamp((playerOverall - matesOverall - STAR_GAP_START) / (STAR_GAP_FULL - STAR_GAP_START), 0, 1);
 
 /** Força de time no motor fica uns 6 pontos acima da média dos jogadores: compara na mesma régua. */
 const TEAM_SCALE = 6;
@@ -339,7 +368,17 @@ export function resolveClutchEdge(input: ClutchResolveInput): ClutchResolve {
     coin = createSeededRng(`${input.seed}:${input.situation.id}:${input.choice}`)() < 0.5 + 0.2 * skill ? 'heads' : 'tails';
     edge += coin === 'heads' ? 0.03 : -0.05;
   }
-  return { profile: alternative.profile, edge: clamp(edge, -0.15, 0.15), coin, quality: rank === 0 ? 'good' : rank === 1 ? 'ok' : 'bad', best: read.best, reason: read.reason };
+  return {
+    profile: alternative.profile,
+    edge: clamp(edge, -0.15, 0.15),
+    coin,
+    quality: rank === 0 ? 'good' : rank === 1 ? 'ok' : 'bad',
+    best: read.best,
+    reason: read.reason,
+    star: starFactor(input.playerOverall, input.matesOverall),
+    intent: alternative.intent,
+    ...(alternative.kills ? { kills: alternative.kills } : {})
+  };
 }
 
 /** O histórico das suas calls: quantas, quantas leituras certas e quantos rounds ganhos, por estilo. */
@@ -415,12 +454,54 @@ export const STORIES: Record<ClutchProfile, { won: string[]; lost: string[] }> =
   }
 };
 
-export function clutchStory(profile: ClutchProfile, alternative: string, won: boolean, kills: number): string {
+/** O que de fato aconteceu com você no round da call (o motor obriga a intenção): a história conta isso. */
+export interface ClutchStoryFacts {
+  intent: ClutchIntent;
+  survived: boolean;
+  planted: boolean;
+  defused: boolean;
+  assisted: boolean;
+}
+
+/** Salvar não é ganhar ou perder a leitura: é trocar o round pela arma. */
+const SAVE_STORIES = {
+  won: ['A call foi {alt} e o time segurou o round mesmo assim. Arma guardada e round no bolso.'],
+  lost: [
+    'A call foi {alt}: o round foi deles, mas a arma ficou com você e o próximo round começa armado.',
+    'Round entregue de propósito: a call foi {alt}, você saiu vivo com a arma e o time economiza na próxima compra.'
+  ]
+};
+
+/** Perdeu o round depois de levar gente junto: a história não pode dizer que a jogada nem nasceu. */
+const LOST_FOUGHT = [
+  'A call foi {alt} e você levou gente junto, mas caiu no fim e o round foi deles.',
+  'Você escolheu {alt} e fez estrago, só que o adversário trocou as kills e fechou o round.'
+];
+
+/** Perdeu o round mas está de pé: a história não pode te matar no ângulo. */
+const LOST_ALIVE = [
+  'A call foi {alt} e você fez a sua parte, mas o resto do time caiu e o round foi deles.',
+  'Você escolheu {alt} e saiu vivo, só que o adversário fechou o round do outro lado.'
+];
+
+export function clutchStory(profile: ClutchProfile, alternative: string, won: boolean, kills: number, facts?: ClutchStoryFacts): string {
   const rng = createSeededRng(`story:${profile}:${alternative}:${won}`);
-  const pool = STORIES[profile][won ? 'won' : 'lost'];
+  const pool = facts?.intent === 'save'
+    ? SAVE_STORIES[won ? 'won' : 'lost']
+    : !won && facts?.survived ? LOST_ALIVE
+    : !won && facts && kills >= 1 ? LOST_FOUGHT
+    : STORIES[profile][won ? 'won' : 'lost'];
   const alt = alternative.charAt(0).toLowerCase() + alternative.slice(1);
   const base = pool[Math.floor(rng() * pool.length)].replace('{alt}', alt);
-  if (won && kills >= 3) return `${base} E ainda sobrou fôlego: ${kills} eliminações suas no round.`;
-  if (won && kills >= 1) return `${base} (${kills} eliminaç${kills > 1 ? 'ões' : 'ão'} sua${kills > 1 ? 's' : ''} no round)`;
-  return base;
+  // O que as suas mãos fizeram no round, na ordem em que aconteceu.
+  const deeds: string[] = [];
+  if (facts?.planted) deeds.push(won ? 'Você plantou a bomba e ela fez o resto.' : 'Você plantou a bomba, mas o CT chegou a tempo do defuse.');
+  if (facts?.assisted) deeds.push('Sua utilidade abriu a kill do parceiro.');
+  if (facts?.defused) deeds.push('E foi você quem desarmou a bomba.');
+  else if (facts?.intent === 'defuse' && !won) deeds.push('O defuse não saiu a tempo.');
+  const tail = deeds.length ? ` ${deeds.join(' ')}` : '';
+  if (kills >= 3) return `${base}${tail} E ainda sobrou fôlego: ${kills} eliminações suas no round.`;
+  // Com o roteiro, a kill que a call pediu sai das suas mãos até no round perdido: a história conta.
+  if (kills >= 1 && (won || facts)) return `${base}${tail} (${kills} eliminaç${kills > 1 ? 'ões' : 'ão'} sua${kills > 1 ? 's' : ''} no round)`;
+  return `${base}${tail}`;
 }

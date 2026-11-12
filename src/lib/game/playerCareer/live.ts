@@ -17,11 +17,11 @@ import {
   type CampaignMajorState
 } from '../campaign-major';
 import type { LiveSeriesState } from '../online/live-series';
-import { armClutchCall, getCurrentSideA } from '../rounds';
+import { armClutchCall, getCurrentSideA, setCareerLift } from '../rounds';
 import type { ClutchProfile, ClutchSituation } from './decisions';
 import { drawClutchSituation, readOf, resolveClutchEdge, type ReadQuality, type RoundContext } from './decisions';
 import { ACTIVE_DUTY_POOLS_BY_YEAR, getActiveDutyMapsForYear, MAP_NAMES } from '../maps';
-import type { HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
+import type { ClutchIntent, HistoricalTeam, OrgStyle, Player, PlayerRunStats, SelectedPlayer, SeriesResult, TeamSide } from '../types';
 import { createRunStats } from '../runStats';
 import { aggregatePlayerLines, computeMajorAwards } from '../majorAwards';
 import { toResult } from '../online/tournament-engine';
@@ -38,6 +38,7 @@ import { memberCatalogOverall, memberNick, ORG_BASE_POWER, orgLanguage, rosterBy
 import type { BracketLine, CalendarEntry, EventMvp, EventPlays, PlayerCareerState, PlayerRole, PlayHighlight, TournamentResult } from './engine';
 import { levelIn, orgOf } from './engine';
 import { arcPowerOf, eventArcOf, type EventArc } from './form';
+import { COMEBACK_LIFT_MAP, COMEBACK_LIFT_SERIES, MAX_COMEBACK_LIFT } from './tuning';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros (com sinergia).
 import { matesOf, myPlayerOf } from './squad';
 
@@ -489,6 +490,27 @@ export function clutchGate(criticality: RoundCriticality, used: number, overtime
 const isUserSeries = (campaign: CampaignMajorState, live: LiveSeriesState) =>
   live.config.teamA.id === campaign.userTeamId || live.config.teamB.id === campaign.userTeamId;
 
+/**
+ * O fôlego de quem está atrás, só para o seu time e só ao vivo (os números em tuning.ts): o bastante para você sentir que
+ * dá pra buscar, nunca para a virada vir de presente. Na frente ou empatado, zero: o adversário não ganha nada parecido.
+ */
+export function comebackLiftFor(live: LiveSeriesState, userSide: TeamSide): number {
+  const map = live.current?.state;
+  if (!map) return 0;
+  const mapDeficit = userSide === 'a' ? map.scoreB - map.scoreA : map.scoreA - map.scoreB;
+  const seriesDeficit = userSide === 'a' ? live.scoreB - live.scoreA : live.scoreA - live.scoreB;
+  const mapLift = mapDeficit >= 6 ? COMEBACK_LIFT_MAP[6] : mapDeficit >= 3 ? COMEBACK_LIFT_MAP[3] : 0;
+  return Math.min(MAX_COMEBACK_LIFT, mapLift + (seriesDeficit > 0 ? COMEBACK_LIFT_SERIES : 0));
+}
+
+/** Arma o fôlego do round que vai rolar na sua série (recalculado a cada round pelo placar). */
+function armComebackLift(campaign: CampaignMajorState): void {
+  const live = currentCampaignSeries(campaign);
+  if (!live?.current || !isUserSeries(campaign, live)) return;
+  const userSide: TeamSide = live.config.teamA.id === campaign.userTeamId ? 'a' : 'b';
+  setCareerLift(live.current.state, userSide, comebackLiftFor(live, userSide));
+}
+
 /** O que a temporada sabe sobre você no momento do clutch: função, seed da carreira e situações já usadas. */
 export interface SceneClutchContext {
   role: PlayerRole;
@@ -572,6 +594,7 @@ export function stepSceneEvent(campaign: CampaignMajorState, ctx?: SceneClutchCo
         }
       };
     }
+    if (ctx) armComebackLift(next);
     next = stepCampaignSeries(next);
     return { campaign: next, clutch: null };
   }
@@ -602,6 +625,13 @@ export interface SceneClutchOutcome {
   quality: ReadQuality;
   best: 0 | 1 | 2;
   reason: string;
+  /** O que a escolha mandou você fazer, e o que de fato aconteceu com você no round. */
+  intent: ClutchIntent;
+  survived: boolean;
+  planted: boolean;
+  defused: boolean;
+  /** Seu utilitário abriu a kill de um parceiro. */
+  assisted: boolean;
 }
 
 /** O embalo da call no round seguinte: leitura certa ajuda, errada atrapalha. */
@@ -611,10 +641,13 @@ export const CALL_CARRY_BAD = 0.03;
 /** Sua call no round decisivo: arma o edge na probabilidade do round e ele roda no motor — RNG decide. */
 export function playClutchRound(campaign: CampaignMajorState, moment: SceneClutchMoment, play: SceneClutchPlay): SceneClutchOutcome {
   const live = currentCampaignSeries(campaign);
-  if (!live?.current) return { campaign, won: false, profile: 'solid', edge: 0, coin: null, kills: 0, quality: 'ok', best: 0, reason: '' };
+  if (!live?.current) return { campaign, won: false, profile: 'solid', edge: 0, coin: null, kills: 0, quality: 'ok', best: 0, reason: '', intent: 'hold', survived: true, planted: false, defused: false, assisted: false };
   const userSide: TeamSide = live.config.teamA.id === campaign.userTeamId ? 'a' : 'b';
   const resolve = resolveClutchEdge({ ...play, situation: moment.situation, seed: moment.drawSeed, round: roundContextOf(campaign, live) });
-  armClutchCall(live.current.state, userSide, resolve.edge);
+  // Sem o id do seu jogador o motor não sabe quem obrigar: a call ainda inclina o round, só não vira roteiro.
+  const script = play.playerId ? { playerId: play.playerId, intent: resolve.intent, ...(resolve.kills ? { kills: resolve.kills } : {}) } : undefined;
+  armComebackLift(campaign);
+  armClutchCall(live.current.state, userSide, resolve.edge, { star: resolve.star, quality: resolve.quality, ...(script ? { script } : {}) });
   const stepped = stepCampaignSeries(campaign);
   const after = currentCampaignSeries(stepped) ?? live;
   // A leitura certa embala o time no round seguinte; a errada abala (sem gastar call: só o round que vem). Vai marcado
@@ -623,7 +656,23 @@ export function playClutchRound(campaign: CampaignMajorState, moment: SceneClutc
   if (carry && after.current && after.current.index === moment.mapIndex && !after.current.state.finished && !after.current.state.pendingClutchCall) after.current.state.pendingClutchCall = { side: userSide, edge: carry, followUp: true };
   const detail = after.current ? after.current.state.details.at(-1) : after.maps.at(-1)?.details?.at(-1) ?? null;
   const kills = detail ? detail.kills.filter((kill) => kill.killerSide === userSide && (!play.playerId || kill.killerId === play.playerId)).length : 0;
-  return { campaign: stepped, won: detail ? detail.winner === userSide : false, profile: resolve.profile, edge: resolve.edge, coin: resolve.coin, kills, quality: resolve.quality, best: resolve.best, reason: resolve.reason };
+  const mine = (id: string | undefined) => Boolean(play.playerId && id === play.playerId);
+  return {
+    campaign: stepped,
+    won: detail ? detail.winner === userSide : false,
+    profile: resolve.profile,
+    edge: resolve.edge,
+    coin: resolve.coin,
+    kills,
+    quality: resolve.quality,
+    best: resolve.best,
+    reason: resolve.reason,
+    intent: detail?.call?.intent ?? resolve.intent,
+    survived: !detail || !detail.kills.some((kill) => mine(kill.victimId)),
+    planted: mine(detail?.bomb?.plantedById),
+    defused: mine(detail?.bomb?.defusedById),
+    assisted: Boolean(detail?.kills.some((kill) => mine(kill.flashAssistId)))
+  };
 }
 
 export interface SceneRunResult extends SceneStepResult {

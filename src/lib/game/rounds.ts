@@ -2,9 +2,20 @@ import { botEcoCall, botShouldTimeout, botSidePick, styleSidePreference } from '
 import { MAP_SIDE_BIAS } from './maps';
 import { getEligibleSlotRoles } from './roleRules';
 import { RAW_WIN_DIVISOR, getWinProbability, type SeededRng } from './simulation';
-import { CLUTCH_CARRY_RIVAL_SHARE, CLUTCH_CARRY_SERIES_SHARE, CLUTCH_CARRY_STEP, CLUTCH_CARRY_UNDERDOG_STEP, MAX_CLUTCH_CARRY } from './playerCareer/tuning';
+import {
+  CLUTCH_CARRY_MISS_STEP,
+  CLUTCH_CARRY_SERIES_SHARE,
+  CLUTCH_CARRY_STEP,
+  CLUTCH_CARRY_UNDERDOG_STEP,
+  MAX_CLUTCH_CARRY,
+  MIN_CLUTCH_CARRY,
+  STAR_CARRY_CAP_BONUS,
+  STAR_CARRY_STEP_BONUS,
+  UNDERDOG_CARRY_CAP_BONUS
+} from './playerCareer/tuning';
 import type {
   BuyType,
+  ClutchIntent,
   CombatTeam,
   LineupSlotRole,
   MapId,
@@ -14,6 +25,7 @@ import type {
   OrgStyle,
   Player,
   Roster,
+  RoundBomb,
   RoundDetail,
   RoundEnding,
   RoundHighlight,
@@ -102,11 +114,23 @@ export interface MapState {
   pendingTimeoutTiming: TimeoutTiming | null;
   /** One-round probability edge from a clutch call (player career): shifts the next round, then clears. `followUp` marca o
    *  empurrão do round seguinte à call (live.ts), que não é call e não gera embalo. */
-  pendingClutchCall: { side: TeamSide; edge: number; followUp?: boolean } | null;
+  pendingClutchCall: {
+    side: TeamSide;
+    edge: number;
+    followUp?: boolean;
+    /** Fator craque (0-1) de quem chama: amplia o acerto e o teto do medidor das calls. */
+    star?: number;
+    /** A leitura da call (decisions.ts): acerto e erro do medidor saem dela. Sem ela, vale o sinal do edge. */
+    quality?: 'good' | 'ok' | 'bad';
+    /** O que a call manda o jogador fazer no round (matar, salvar, plantar…), que o motor obriga a acontecer. */
+    script?: ClutchScript;
+  } | null;
   /** Clutch calls this map already consumed (the career caps them; OT loosens the cap). */
   clutchCallsUsed: number;
-  /** Embalo da call (carreira): quem ganha o round da call joga o resto do mapa inclinado a seu favor. */
+  /** Medidor das calls (carreira, MIN_CLUTCH_CARRY a MAX_CLUTCH_CARRY): acerto inclina o resto do mapa pra quem chamou, erro pro rival. */
   clutchCarry?: Record<TeamSide, number>;
+  /** Inclinação da carreira para o round (fôlego de quem está atrás), por `setCareerLift`. */
+  careerLift?: { side: TeamSide; edge: number } | null;
   finished: boolean;
   winner: TeamSide | null;
   comeback: TeamSide | null;
@@ -490,15 +514,61 @@ export const MAX_CLUTCH_EDGE = 0.15;
 
 // Embalo das calls (Carreira): os números moram na tabela de ajuste em playerCareer/tuning.ts e saem daqui com os mesmos
 // nomes (o motor usa; os testes e live-series importam de rounds).
-export { CLUTCH_CARRY_RIVAL_SHARE, CLUTCH_CARRY_SERIES_SHARE, CLUTCH_CARRY_STEP, CLUTCH_CARRY_UNDERDOG_STEP, MAX_CLUTCH_CARRY };
+export {
+  CLUTCH_CARRY_MISS_STEP,
+  CLUTCH_CARRY_SERIES_SHARE,
+  CLUTCH_CARRY_STEP,
+  CLUTCH_CARRY_UNDERDOG_STEP,
+  MAX_CLUTCH_CARRY,
+  MIN_CLUTCH_CARRY,
+  STAR_CARRY_CAP_BONUS,
+  STAR_CARRY_STEP_BONUS,
+  UNDERDOG_CARRY_CAP_BONUS
+};
 
 const clutchCarryOf = (state: MapState, side: TeamSide) => state.clutchCarry?.[side] ?? 0;
 
-/** Arms the player-career clutch edge: the caller's next round shifts by ±edge, then the call is spent. */
-export function armClutchCall(state: MapState, side: TeamSide, edge: number): void {
+/** Teto da inclinação da carreira por round (o fôlego de quem está atrás). */
+export const MAX_CAREER_LIFT = 0.05;
+
+/** Inclinação da carreira para o round que vai rolar: empurra `side` em `edge` até ser trocada (0 desliga). */
+export function setCareerLift(state: MapState, side: TeamSide, edge: number): void {
+  const clamped = clamp(edge, 0, MAX_CAREER_LIFT);
+  state.careerLift = clamped > 0 ? { side, edge: clamped } : null;
+}
+
+/** O que a call manda o jogador fazer no round. `kills` só vale para 'kill' (1 ou 2). */
+export interface ClutchScript {
+  playerId: string;
+  intent: ClutchIntent;
+  kills?: number;
+}
+
+/** Salvar a arma vale dinheiro no round seguinte: um rifle guardado, rateado pelos 5 (média por jogador). */
+export const SAVED_WEAPON_MONEY = 600;
+
+/** O roteiro que vale neste round: plantar só existe no TR e defusar só no CT (fora do lado, vira segurar). */
+function roundScriptOf(call: MapState['pendingClutchCall'], sides: Record<TeamSide, MapSide>): RoundScript | null {
+  if (!call?.script || call.followUp) return null;
+  const { intent: wanted, playerId, kills } = call.script;
+  const side = sides[call.side];
+  const intent: ClutchIntent = (wanted === 'plant' && side !== 't') || (wanted === 'defuse' && side !== 'ct') ? 'hold' : wanted;
+  return { side: call.side, playerId, intent, kills: intent === 'kill' ? clamp(Math.round(kills ?? 1), 1, 2) : 0 };
+}
+
+/** Arms the player-career clutch edge: the caller's next round shifts by ±edge, then the call is spent.
+ *  Carreira: `options.star` é o fator craque (amplia acerto e teto do medidor, nunca o erro), `options.quality` a leitura
+ *  (acerto e erro saem dela) e `options.script` faz o round obedecer a escolha (matar, salvar, plantar, defusar, apoiar). */
+export function armClutchCall(state: MapState, side: TeamSide, edge: number, options: { star?: number; quality?: 'good' | 'ok' | 'bad'; script?: ClutchScript } = {}): void {
   if (state.finished) throw new MapDecisionError('MAP_FINISHED', 'The map is over');
   const clamped = Math.max(-MAX_CLUTCH_EDGE, Math.min(MAX_CLUTCH_EDGE, edge));
-  state.pendingClutchCall = { side, edge: clamped };
+  state.pendingClutchCall = {
+    side,
+    edge: clamped,
+    ...(options.star ? { star: clamp(options.star, 0, 1) } : {}),
+    ...(options.quality ? { quality: options.quality } : {}),
+    ...(options.script ? { script: options.script } : {})
+  };
   state.clutchCallsUsed += 1;
 }
 
@@ -559,6 +629,7 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   if (state.pendingTimeout) probability += state.pendingTimeout === 'a' ? state.pendingTimeoutBonus : -state.pendingTimeoutBonus;
   if (state.pendingClutchCall) probability += state.pendingClutchCall.side === 'a' ? state.pendingClutchCall.edge : -state.pendingClutchCall.edge;
   probability += clutchCarryOf(state, 'a') - clutchCarryOf(state, 'b');
+  if (state.careerLift) probability += state.careerLift.side === 'a' ? state.careerLift.edge : -state.careerLift.edge;
   if (overtime) {
     // Nerves: mental and clutch decide overtime, and the resilient lineup leans on its clutch a little harder.
     const overtimeHead = (team: CombatTeam) => team.style === 'resiliente'
@@ -570,7 +641,18 @@ function roundProbabilityA(state: MapState, roundIndex: number, economy: { a: Te
   return clamp(probability + noise, 0.03, 0.97);
 }
 
-function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, economy: { a: TeamEconomy; b: TeamEconomy }, sides: Record<TeamSide, MapSide>) {
+/** Antes disso ninguém chegou no bombsite: quem vai plantar não morre na abertura do round. */
+const PLANT_EARLIEST_SECOND = 30;
+
+/** O roteiro da call já resolvido para o round: lado de quem chamou e a intenção que de fato vale aqui. */
+interface RoundScript {
+  side: TeamSide;
+  playerId: string;
+  intent: ClutchIntent;
+  kills: number;
+}
+
+function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, economy: { a: TeamEconomy; b: TeamEconomy }, sides: Record<TeamSide, MapSide>, script: RoundScript | null = null) {
   const rng = state.rng;
   const loser = other(winner);
   const gap = BUY_RANK[economy[winner].buy] - BUY_RANK[economy[loser].buy];
@@ -589,14 +671,29 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
   };
   const star: Record<TeamSide, string | null> = { a: starOf('a'), b: starOf('b') };
   const weighted = (weights: number[], offset: number) => pick(rng, weights.map((weight, index) => [index + offset, weight] as [number, number]));
-  const winnerKills = ending === 'elimination' ? 5 : weighted(WINNER_KILL_WEIGHTS[ending], 1);
-  const loserKills = weighted(LOSER_KILL_WEIGHTS[clamp(gap, -2, 2) + 2], 0);
+  // O roteiro da call: quem precisa matar garante as kills do seu lado (sem virar eliminação que o final não tem).
+  const scriptedKills = script?.intent === 'kill' ? script.kills : 0;
+  let winnerKills = ending === 'elimination' ? 5 : weighted(WINNER_KILL_WEIGHTS[ending], 1);
+  let loserKills = weighted(LOSER_KILL_WEIGHTS[clamp(gap, -2, 2) + 2], 0);
+  if (script && scriptedKills) {
+    if (script.side === winner && ending !== 'elimination') winnerKills = clamp(Math.max(winnerKills, scriptedKills), 1, 4);
+    if (script.side === loser) loserKills = clamp(Math.max(loserKills, scriptedKills), 0, 4);
+  }
+  // Quem salvou a arma está vivo no fim: o vencedor não pode ter derrubado os 5 do seu lado.
+  if (script?.intent === 'save' && script.side === loser) winnerKills = Math.min(winnerKills, 4);
   // Every loser kill happens before the final winner kill so an eliminated team never frags after dying out.
   const shuffled = (): TeamSide[] => {
     const draft: TeamSide[] = [...Array<TeamSide>(winnerKills - 1).fill(winner), ...Array<TeamSide>(loserKills).fill(loser)];
     for (let cursor = draft.length - 1; cursor > 0; cursor -= 1) {
       const target = Math.floor(rng() * (cursor + 1));
       [draft[cursor], draft[target]] = [draft[target], draft[cursor]];
+    }
+    // A call de matar abre o round: as kills garantidas do seu lado vêm primeiro (você não morre antes delas).
+    if (script && scriptedKills) {
+      const mine: TeamSide[] = [];
+      const rest: TeamSide[] = [];
+      for (const side of draft) (side === script.side && mine.length < scriptedKills ? mine : rest).push(side);
+      draft.splice(0, draft.length, ...mine, ...rest);
     }
     draft.push(winner);
     return draft;
@@ -622,16 +719,26 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
     order = shuffled();
   }
   const kills: RoundKill[] = [];
-  if (!rosters.a || !rosters.b) return { kills, clutch: false, winnerDeaths: loserKills, highlight: null, multiKill: null };
+  if (!rosters.a || !rosters.b) return { kills, clutch: false, winnerDeaths: loserKills, highlight: null, multiKill: null, bomb: null };
   const alive: Record<TeamSide, Player[]> = { a: [...rosters.a.players], b: [...rosters.b.players] };
   const killsBy = new Map<string, number>();
+  const scripted = script && rosters[script.side]?.players.some((player) => player.id === script.playerId) ? script : null;
+  // Quem salva sobrevive; quem defusa e ganha também; quem precisa matar não morre antes das kills dele; quem vai
+  // plantar chega vivo no bombsite (não cai na abertura do round).
+  const mustSurvive = Boolean(scripted && (scripted.intent === 'save' || (scripted.intent === 'defuse' && scripted.side === winner)));
+  const protectedNow = () => Boolean(scripted && (mustSurvive || (killsBy.get(scripted.playerId) ?? 0) < scriptedKills || (scripted.intent === 'plant' && second < PLANT_EARLIEST_SECOND)));
   let second = 8 + rng() * 20;
   let clutch: { player: Player; against: number; kills: number } | null = null;
   for (const side of order) {
     const enemy = other(side);
     if (!alive[side].length || !alive[enemy].length) break;
-    const killer = pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id, roleOf(player, rosters[side])) * hotHand(player, killsBy.get(player.id) ?? 0)] as [Player, number]));
-    const victim = pick(rng, alive[enemy].map((player) => [player, victimWeight(player)] as [Player, number]));
+    const scriptedKiller = scripted && side === scripted.side && (killsBy.get(scripted.playerId) ?? 0) < scriptedKills
+      ? alive[side].find((player) => player.id === scripted.playerId) ?? null
+      : null;
+    const killer = scriptedKiller ?? pick(rng, alive[side].map((player) => [player, killerWeight(player, awpHolder[side] === player.id, roleOf(player, rosters[side])) * hotHand(player, killsBy.get(player.id) ?? 0)] as [Player, number]));
+    const shielded = scripted && enemy === scripted.side && protectedNow() ? scripted.playerId : null;
+    const targets = alive[enemy].filter((player) => player.id !== shielded);
+    const victim = pick(rng, (targets.length ? targets : alive[enemy]).map((player) => [player, victimWeight(player)] as [Player, number]));
     alive[enemy] = alive[enemy].filter((player) => player.id !== victim.id);
     const weapon = chooseWeapon(economy[side], sides[side], awpHolder[side] === killer.id, rng, star[side] === killer.id);
     kills.push({
@@ -655,7 +762,58 @@ function buildKills(state: MapState, winner: TeamSide, ending: RoundEnding, econ
     const holder = awpHolder[side];
     state.teams[side].awpHolderId = holder && alive[side].some((player) => player.id === holder) ? holder : null;
   }
-  return { kills, clutch: clutch !== null, winnerDeaths: loserKills, ...pickHighlight(kills, winner, clutch) };
+  if (scripted?.intent === 'support') supportAssist(kills, scripted);
+  const bomb = scripted ? scriptedBomb(scripted, winner, ending, sides, rosters, alive, kills, rng) : null;
+  return { kills, clutch: clutch !== null, winnerDeaths: loserKills, ...pickHighlight(kills, winner, clutch), bomb };
+}
+
+/** Apoiar o time: o seu utilitário abre a primeira kill de um parceiro enquanto você está vivo (assistência de flash). */
+function supportAssist(kills: RoundKill[], script: RoundScript): void {
+  const death = kills.find((kill) => kill.victimId === script.playerId)?.second ?? Infinity;
+  const kill = kills.find((entry) => entry.killerSide === script.side && entry.killerId !== script.playerId && entry.second <= death);
+  if (!kill) return;
+  const me = kills.find((entry) => entry.killerId === script.playerId)?.killerName ?? kills.find((entry) => entry.victimId === script.playerId)?.victimName;
+  kill.flashAssistId = script.playerId;
+  if (me) kill.flashAssistName = me;
+  if (kill.assistId === script.playerId) {
+    delete kill.assistId;
+    delete kill.assistName;
+  }
+}
+
+/**
+ * A bomba do round da call. Plantar: você planta antes de morrer; se o seu time perde, um CT vivo desarma. Defusar:
+ * um TR planta antes de morrer; se o seu time ganha, quem desarma é você. O resto do round não registra bomba.
+ */
+function scriptedBomb(script: RoundScript, winner: TeamSide, ending: RoundEnding, sides: Record<TeamSide, MapSide>, rosters: { a: Roster | null; b: Roster | null }, alive: Record<TeamSide, Player[]>, kills: RoundKill[], rng: SeededRng): RoundBomb | null {
+  if (script.intent !== 'plant' && script.intent !== 'defuse') return null;
+  const tSide: TeamSide = sides.a === 't' ? 'a' : 'b';
+  const ctSide = other(tSide);
+  const deathOf = (id: string) => kills.find((kill) => kill.victimId === id)?.second;
+  const lastKill = kills.at(-1)?.second ?? 60;
+  const named = (side: TeamSide, id: string) => rosters[side]?.players.find((player) => player.id === id);
+  const planterId = script.intent === 'plant'
+    ? script.playerId
+    : // O TR que planta é quem viveu mais (ou um sobrevivente): ninguém planta depois de morrer.
+      [...(rosters[tSide]?.players ?? [])].sort((left, right) => (deathOf(right.id) ?? Infinity) - (deathOf(left.id) ?? Infinity))[0]?.id;
+  if (!planterId) return null;
+  const planter = named(tSide, planterId);
+  const planterDeath = deathOf(planterId);
+  // Ninguém planta morto: com a morte cedo demais, a plantada fica colada nela (antes, nunca depois).
+  const plantSecond = planterDeath !== undefined
+    ? Math.round(clamp(planterDeath - (2 + rng() * 6), Math.min(PLANT_EARLIEST_SECOND - 8, planterDeath - 1), 80))
+    : Math.round(35 + rng() * 35);
+  const bomb: RoundBomb = { plantedById: planterId, plantSecond, ...(planter ? { plantedByName: playerName(planter) } : {}) };
+  if (ending === 'defuse' && winner === ctSide) {
+    const defuserId = script.intent === 'defuse' ? script.playerId : alive[ctSide][Math.floor(rng() * alive[ctSide].length)]?.id;
+    const defuser = defuserId ? named(ctSide, defuserId) : undefined;
+    if (defuserId) {
+      bomb.defusedById = defuserId;
+      if (defuser) bomb.defusedByName = playerName(defuser);
+      bomb.defuseSecond = Math.round(clamp(Math.max(lastKill + 3, plantSecond + 8), plantSecond + 5, plantSecond + 39));
+    }
+  }
+  return bomb;
 }
 
 /** Rates of the CS2 feed events, per kill. Blind and wallbang kills need a gun; no-scopes need the AWP. */
@@ -778,7 +936,13 @@ export function playNextRound(state: MapState): RoundDetail {
   if (rng() < eliminationChance) ending = 'elimination';
   else if (sides[winner] === 't') ending = 'bomb';
   else ending = rng() < 0.7 ? 'defuse' : 'time';
-  const { kills, clutch, winnerDeaths, highlight, multiKill } = buildKills(state, winner, ending, economy, sides);
+  // O roteiro da call decide COMO o round acaba (o vencedor já saiu da probabilidade): plantar e defusar passam pela
+  // bomba, e quem salvou está vivo, então o seu time não pode ter sido eliminado.
+  const script = roundScriptOf(state.pendingClutchCall, sides);
+  if (script?.intent === 'plant') ending = winner === script.side ? (rng() < 0.65 ? 'bomb' : 'elimination') : 'defuse';
+  else if (script?.intent === 'defuse') ending = winner === script.side ? 'defuse' : rng() < 0.65 ? 'bomb' : 'elimination';
+  else if (script?.intent === 'save' && winner !== script.side) ending = sides[script.side] === 't' ? 'time' : 'bomb';
+  const { kills, clutch, winnerDeaths, highlight, multiKill, bomb } = buildKills(state, winner, ending, economy, sides, script);
 
   if (winner === 'a') state.scoreA += 1;
   else state.scoreB += 1;
@@ -799,6 +963,8 @@ export function playNextRound(state: MapState): RoundDetail {
   const bonus = LOSS_BONUS[bonusStep] * timeOutShare;
   const plantBonus = ending === 'defuse' && sides[loser] === 't' ? 800 : 0;
   loserRuntime.money = Math.min(MAX_MONEY, Math.max(0, loserRuntime.money - spend(loser)) + bonus + plantBonus + killIncome(loser));
+  // Quem salvou a arma não precisa comprar outra: o time chega mais rico no round seguinte.
+  if (script?.intent === 'save' && loser === script.side) loserRuntime.money = Math.min(MAX_MONEY, loserRuntime.money + SAVED_WEAPON_MONEY);
   loserRuntime.lossStreak += 1;
   winnerRuntime.lossStreak = Math.max(0, winnerRuntime.lossStreak - 1);
   loserRuntime.consecutiveLosses += 1;
@@ -854,27 +1020,38 @@ export function playNextRound(state: MapState): RoundDetail {
     ...(timeout ? { timeout } : {}),
     ...(timeout && timeoutTimingUsed ? { timeoutTiming: timeoutTimingUsed } : {}),
     tags,
-    ...(highlight ? { highlight } : {})
+    ...(highlight ? { highlight } : {}),
+    ...(bomb ? { bomb } : {})
   };
   state.details.push(detail);
   state.pendingTimeout = null;
   state.pendingTimeoutBonus = 0;
   state.pendingTimeoutTiming = null;
-  // O empurrão do round seguinte (followUp) não é call: não embala ninguém.
+  // O empurrão do round seguinte (followUp) não é call: não mexe no medidor.
   const call = state.pendingClutchCall && !state.pendingClutchCall.followUp ? state.pendingClutchCall : null;
-  // Quem ganha o round da call leva o embalo: a call boa que deu certo embala quem chamou; a que falhou embala o rival,
-  // que leu você. Call ruim que deu sorte não embala ninguém.
-  const carrier: TeamSide | null = !call ? null : call.side !== winner ? winner : call.edge > 0 ? winner : null;
-  if (call && carrier) {
-    // Quanto mais azarão no confronto base, maior o embalo: parelho ou favorito leva o passo mínimo; com ~33% de chance por
-    // round (time bem mais forte do outro lado) o embalo chega ao passo cheio do azarão.
-    const carrierBase = carrier === 'a' ? getWinProbability(a.team, b.team) : 1 - getWinProbability(a.team, b.team);
-    const underdog = clamp((0.5 - carrierBase) * 6, 0, 1);
+  // O medidor das calls: leitura certa que ganhou o round é acerto e soma; leitura errada que perdeu é erro e tira. Leitura
+  // certa que perdeu no detalhe e errada que deu sorte não mexem: o rival não ganha virada de graça quando você decidiu
+  // certo. Sem a leitura (outros chamadores), vale o sinal do edge.
+  const good = call ? (call.quality ? call.quality === 'good' : call.edge > 0) : false;
+  const bad = call ? (call.quality ? call.quality === 'bad' : call.edge < 0) : false;
+  const verdict: -1 | 0 | 1 = !call ? 0 : call.side === winner ? (good ? 1 : 0) : bad ? -1 : 0;
+  if (call && verdict !== 0) {
+    // O acerto do azarão vale mais: parelho ou favorito soma o passo mínimo; com ~33% de chance por round (adversário bem
+    // mais forte) chega ao passo cheio. O craque que acerta soma mais e tem teto maior; o erro custa igual para todos.
+    const callerBase = call.side === 'a' ? getWinProbability(a.team, b.team) : 1 - getWinProbability(a.team, b.team);
+    const underdog = clamp((0.5 - callerBase) * 6, 0, 1);
+    const star = call.star ?? 0;
+    const hit = (CLUTCH_CARRY_STEP + (CLUTCH_CARRY_UNDERDOG_STEP - CLUTCH_CARRY_STEP) * underdog) * (1 + STAR_CARRY_STEP_BONUS * star);
+    const cap = MAX_CLUTCH_CARRY + STAR_CARRY_CAP_BONUS * star + UNDERDOG_CARRY_CAP_BONUS * underdog;
+    // Um medidor só, do ponto de vista de quem chama: positivo fica no lado dele, negativo vira embalo do rival.
     const carry = state.clutchCarry ?? { a: 0, b: 0 };
-    const share = carrier === call.side ? 1 : CLUTCH_CARRY_RIVAL_SHARE;
-    carry[carrier] = Math.min(MAX_CLUTCH_CARRY, carry[carrier] + share * (CLUTCH_CARRY_STEP + (CLUTCH_CARRY_UNDERDOG_STEP - CLUTCH_CARRY_STEP) * underdog));
+    const rival = other(call.side);
+    const net = clamp(carry[call.side] - carry[rival] + (verdict > 0 ? hit : -CLUTCH_CARRY_MISS_STEP), MIN_CLUTCH_CARRY, cap);
+    carry[call.side] = Math.max(0, net);
+    carry[rival] = Math.max(0, -net);
     state.clutchCarry = carry;
   }
+  if (call) detail.call = { side: call.side, intent: script?.intent ?? 'hold', verdict, star: call.star ?? 0, ...(call.script ? { playerId: call.script.playerId } : {}) };
   state.pendingClutchCall = null;
 
   if (!state.finished) {
@@ -949,7 +1126,8 @@ export function flipRoundDetail(detail: RoundDetail): RoundDetail {
     kills: detail.kills.map((kill) => ({ ...kill, killerSide: other(kill.killerSide) })),
     ...(detail.momentum ? { momentum: { a: detail.momentum.b, b: detail.momentum.a } } : {}),
     ...(detail.timeout ? { timeout: other(detail.timeout) } : {}),
-    ...(detail.highlight ? { highlight: { ...detail.highlight, side: other(detail.highlight.side) } } : {})
+    ...(detail.highlight ? { highlight: { ...detail.highlight, side: other(detail.highlight.side) } } : {}),
+    ...(detail.call ? { call: { ...detail.call, side: other(detail.call.side) } } : {})
   };
 }
 
