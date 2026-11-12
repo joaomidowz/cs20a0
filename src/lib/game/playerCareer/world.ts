@@ -206,17 +206,39 @@ const cache = new Map<string, WorldSeason>();
 const benchStart = new Map<string, number>();
 const benchActive = (seed: string, season: number) => season >= (benchStart.get(seed) ?? Infinity);
 
+/**
+ * Desde que temporada o fim de contrato dos jogadores do mundo tira gente dos times (trava própria, pela mesma razão do
+ * banco): um save que já jogava com o banco ligado não pode ver as temporadas dele mudarem quando os contratos chegaram.
+ * Vale só onde o banco também vale.
+ */
+const contractStart = new Map<string, number>();
+const contractsActive = (seed: string, season: number) => benchActive(seed, season) && season >= (contractStart.get(seed) ?? Infinity);
+
+/** Trocar a trava descarta os mundos e elencos guardados dessa seed. */
+function forgetWorld(seed: string) {
+  for (const key of [...cache.keys()]) if (key.startsWith(`${seed}:`)) cache.delete(key);
+  // As vagas e os membros foram calculados sobre o mundo antigo: o próximo registro refaz.
+  seatRegistry.delete(seed);
+  overlaid.delete(seed);
+  placed.delete(seed);
+}
+
+/** A página registra a temporada do save em que os contratos do mundo passam a valer. */
+export function registerContractStart(seed: string, from: number | undefined) {
+  const current = contractStart.get(seed);
+  if (from === undefined ? current === undefined : current === from) return;
+  if (from === undefined) contractStart.delete(seed);
+  else contractStart.set(seed, from);
+  forgetWorld(seed);
+}
+
 /** A página registra a temporada do save; trocar o valor descarta os mundos e elencos guardados dessa seed. */
 export function registerBenchStart(seed: string, from: number | undefined) {
   const current = benchStart.get(seed);
   if (from === undefined ? current === undefined : current === from) return;
   if (from === undefined) benchStart.delete(seed);
   else benchStart.set(seed, from);
-  for (const key of [...cache.keys()]) if (key.startsWith(`${seed}:`)) cache.delete(key);
-  // As vagas e os membros foram calculados sobre o mundo antigo: o próximo registro refaz.
-  seatRegistry.delete(seed);
-  overlaid.delete(seed);
-  placed.delete(seed);
+  forgetWorld(seed);
 }
 /** Mundos guardados (cada um tem o desenvolvimento de ~1300 jogadores): uma carreira usa poucos; a simulação, milhares. */
 const CACHE_LIMIT = 256;
@@ -312,7 +334,7 @@ const withOverall = (rosters: Map<string, SceneRosterMember[]>, dev: Map<string,
  *  vizinhos, olheiros e a vaga de quem cede o lugar a você dependem só da seed, então uma temporada não depende do
  *  resultado da outra (D6). Quem mostra o mundo na tela é que passa o nível de hoje (headlineTransfers). */
 export function sceneWorld(seed: string, season: number): WorldSeason {
-  const key = `${seed}:${season}:${benchStart.get(seed) ?? '-'}`;
+  const key = `${seed}:${season}:${benchStart.get(seed) ?? '-'}:${contractStart.get(seed) ?? '-'}`;
   const cached = cache.get(key);
   if (cached) return cached;
   if (season <= 1) {
@@ -331,6 +353,7 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   let freeAgents = [...previous.freeAgents];
   const benchMoves: SceneBenchMove[] = [];
   const active = benchActive(seed, season);
+  const contractsOn = contractsActive(seed, season);
   // 0) Todo mundo fica um ano mais velho (cresce ou cai) antes do mercado.
   const outside = [...[...benches.values()].flat(), ...freeAgents].map((entry) => entry.member);
   const dev = ageWorld(seed, season, rosters, previous.dev, outside);
@@ -343,7 +366,7 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   freeAgents = freeAgents.map(refresh);
   const taken = nicksOf(rosters);
   // Com o banco ligado, o jovem gerado também não pode repetir o nick de quem está no banco ou sem time.
-  if (active) for (const entry of [...[...benches.values()].flat(), ...freeAgents]) taken.add(entry.member.nick.toLowerCase());
+  if (contractsOn) for (const entry of [...[...benches.values()].flat(), ...freeAgents]) taken.add(entry.member.nick.toLowerCase());
   // 1) Aposentadorias: veterano sai; entra o melhor da mesma função de um time de baixo (só se o time mantém a
   //    identidade com ele dentro), e esse time sobe um jovem da base do país do núcleo dele.
   for (const org of sceneOrgs) {
@@ -410,7 +433,7 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   // 4) O banco e os sem time (só nas temporadas em que a regra está ligada para esta carreira).
   if (active) {
     // 4a) Fim de contrato: quem terminou o contrato na temporada passada e o time não renovou vira free agent.
-    freeAgents = contractMarket(seed, season, year, rosters, previous.rosters, previous.contracts, benches, freeAgents, benchMoves, dev, taken);
+    if (contractsOn) freeAgents = contractMarket(seed, season, year, rosters, previous.rosters, previous.contracts, benches, freeAgents, benchMoves, dev, taken);
     freeAgents = benchMarket(seed, season, year, rosters, benches, freeAgents, benchMoves);
   }
   const previousOverall = new Map([...previous.dev].map(([memberId, entry]) => [memberId, entry.overall]));

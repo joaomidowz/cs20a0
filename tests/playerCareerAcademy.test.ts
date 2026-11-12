@@ -8,7 +8,7 @@ import {
   starRatingFor, stayAtOrg, type PlayerCareerState
 } from '../src/lib/game/playerCareer/engine';
 import { academiesOf, academyIds, academyParentOf, sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { benchIn, npcContractIn, registerBenchStart, worldHistory, worldRosters, freeAgentsIn } from '../src/lib/game/playerCareer/world';
+import { benchIn, npcContractIn, registerBenchStart, registerContractStart, worldHistory, worldRosters, freeAgentsIn } from '../src/lib/game/playerCareer/world';
 
 const MIBR_ACADEMY = 'mibr-academy-2026';
 
@@ -117,6 +117,7 @@ describe('contratos dos jogadores do mundo (fase 3)', () => {
     for (let index = 0; index < 6; index += 1) {
       const seed = `mundo-fim-contrato-${index}`;
       registerBenchStart(seed, 2);
+      registerContractStart(seed, 2);
       try {
         for (let season = 2; season <= 4; season += 1) {
           for (const move of worldHistory(seed, season).benchMoves.filter((entry) => entry.kind === 'contractEnd')) {
@@ -137,6 +138,7 @@ describe('contratos dos jogadores do mundo (fase 3)', () => {
         }
       } finally {
         registerBenchStart(seed, undefined);
+        registerContractStart(seed, undefined);
       }
     }
     expect(ended).toBeGreaterThan(5);

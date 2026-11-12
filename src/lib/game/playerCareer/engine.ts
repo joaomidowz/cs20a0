@@ -493,6 +493,9 @@ export interface PlayerCareerState {
   /** Temporada a partir da qual o banco dos times se mexe no mundo desta carreira (world.ts, registerBenchStart): carreira
    *  nova liga na 2; save de antes do banco liga na seguinte à em que abriu esta versão (nada do que já viu muda). */
   benchFrom?: number;
+  /** Temporada a partir da qual o fim de contrato dos jogadores do mundo tira gente dos times (world.ts,
+   *  registerContractStart): carreira nova liga na 2; save de antes liga na seguinte à em que abriu esta versão. */
+  contractsFrom?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
   pendingRival?: Rival | null;
   rival?: Rival | null;
@@ -644,6 +647,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     drawDone: false,
     seasonNumber: 1,
     benchFrom: 2,
+    contractsFrom: 2,
     year: 2026,
     history: [],
     calendar: null,

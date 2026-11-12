@@ -7,7 +7,7 @@ import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
 import { memberBirthYear, memberCatalogOverall, memberNick, memberRoles, ORG_BASE_POWER, orgLanguage, sceneOrgById, type SceneOrg, type SceneRosterMember } from './data';
-import { benchIn, orgIn, placeCareerMembers, registerBenchStart, registerSeats, yearOfSeason, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
+import { benchIn, orgIn, placeCareerMembers, registerBenchStart, registerContractStart, registerSeats, yearOfSeason, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
 import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
@@ -64,7 +64,9 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     fame: state.fame ?? 0,
     fatigue: state.fatigue ?? 0,
     // Save de antes do banco dos times: o banco só se mexe a partir da próxima temporada (os elencos já vistos ficam).
-    benchFrom: state.benchFrom ?? state.seasonNumber + 1
+    benchFrom: state.benchFrom ?? state.seasonNumber + 1,
+    // Save de antes dos contratos do mundo: eles só tiram gente dos times a partir da próxima temporada.
+    contractsFrom: state.contractsFrom ?? state.seasonNumber + 1
   }));
 }
 
@@ -176,6 +178,7 @@ export function teamOrgOf(state: PlayerCareerState): SceneOrg | undefined {
 export const registerCareerWorld = (state: PlayerCareerState) => {
   // O banco primeiro: ele decide o mundo de onde as vagas e os membros são lidos.
   registerBenchStart(state.seed, state.benchFrom);
+  registerContractStart(state.seed, state.contractsFrom);
   registerSeats(state.seed, seatsWithSeason(state), state.careerMembers ?? []);
 };
 
