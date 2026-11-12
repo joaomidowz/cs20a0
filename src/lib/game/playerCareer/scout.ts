@@ -7,8 +7,8 @@ import type { Player } from '../types';
 import { announcedRetirementYear, memberBirthYear, memberCatalogOverall, memberCountryIn, memberNick, memberRoles, orgLanguage, resolvedRoster, sceneOrgById, type SceneRosterMember } from './data';
 import type { PlayerCareerState } from './engine';
 import { englishBase, flagOf, fluencyLabel, LANGUAGE_LABEL, myFluency, nativeLanguage, npcFluency, spokenLabel, type Language } from './language';
-import { fallbackBorn, myLanguageFit, seatedNicks, teamOrgOf } from './squad';
-import { benchIn, freeAgentsIn, npcContractIn, orgIn, seatMovesOf, worldHistory, worldRosters, yearOfSeason, type SceneBenchMove } from './world';
+import { fallbackBorn, myLanguageFit, planOf, seatedNicks, teamOrgOf } from './squad';
+import { benchIn, freeAgentsIn, npcContractIn, orgIn, seatMovesOf, worldHistory, worldRosterIn, worldRosters, yearOfSeason, type SceneBenchMove } from './world';
 import { coachWorld } from './coaches';
 import { currentLevelOf } from './tiers';
 
@@ -182,6 +182,20 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
       const hit = make(entry.member, orgId);
       push({ ...hit, status: 'reserva', note: `No banco da ${hit.orgName} desde ${yearOfSeason(entry.since)}: fora dos 5 titulares.` });
     }
+  }
+  // Quem a sua carreira tirou do time (você pediu a saída e a diretoria contratou outro, ou o reserva tomou a vaga): no
+  // mundo ele segue na vaga, coberto pelo membro da carreira. Na busca ele aparece onde está de verdade: no seu banco
+  // (se é o reserva de agora) ou sem time.
+  const reserveNick = state.orgId !== 'lan-house' ? planOf(state).reserve?.nick.toLowerCase() ?? null : null;
+  for (const member of (state.careerMembers ?? []).filter((entry) => entry.since <= state.seasonNumber)) {
+    const covered = worldRosterIn(state.seed, state.seasonNumber, member.orgId)[member.slot];
+    if (!covered || !norm(memberNick(covered)).includes(q)) continue;
+    const org = sceneOrgById.get(member.orgId);
+    const hit = make(covered, member.orgId);
+    const onMyBench = member.orgId === state.orgId && reserveNick === memberNick(covered).toLowerCase();
+    push(onMyBench
+      ? { ...hit, status: 'reserva', note: `No banco da ${org?.name}: ${member.nick} entrou no lugar dele.` }
+      : { ...hit, orgId: null, orgName: null, level: null, status: 'livre', note: `Saiu da ${org?.name} em ${yearOfSeason(member.since)} (${member.nick} entrou no lugar dele) e está sem time.` });
   }
   for (const entry of freeAgentsIn(state.seed, state.seasonNumber)) {
     if (!norm(memberNick(entry.member)).includes(q)) continue;

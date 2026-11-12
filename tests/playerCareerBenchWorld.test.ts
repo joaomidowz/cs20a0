@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPlayerCareer, startSeason, type PlayerCareerState } from '../src/lib/game/playerCareer/engine';
 import { sceneOrgById, sceneOrgs } from '../src/lib/game/playerCareer/data';
-import { ensureSquad, registerCareerWorld, teamBench } from '../src/lib/game/playerCareer/squad';
+import { ensureSquad, kickMate, matesOf, planOf, promoteReserve, addReserve, registerCareerWorld, teamBench } from '../src/lib/game/playerCareer/squad';
 import { scoutPlayers } from '../src/lib/game/playerCareer/scout';
 import { benchIn, freeAgentsIn, registerBenchStart, worldHistory, worldRosters } from '../src/lib/game/playerCareer/world';
 import { worldMovesView } from '../src/lib/game/playerCareer/worldView';
@@ -120,6 +120,33 @@ describe('banco dos times', () => {
     expect(lines[0].note).toMatch(/próximos 2 campeonatos/);
     const other = sceneOrgs.find((org) => org.id !== FAZE && !benchIn(state.seed, 1, org.id).length)!;
     expect(teamBench(benched, other.id)).toEqual([]); // o seu banco não aparece na ficha dos outros
+  });
+
+  it('quem saiu do seu time a seu pedido não some: aparece sem time na busca (e o que foi para o seu banco, no banco)', () => {
+    let checked = 0;
+    for (let index = 0; index < 30 && !checked; index += 1) {
+      const state = { ...atFaze(`banco-pedido-${index}`), overall: 95, reputation: 90, fame: 60000 };
+      registerCareerWorld(state);
+      const mate = matesOf(state)[0];
+      const nick = mate.player.nickname!;
+      const result = kickMate(state, mate.player.id);
+      if (!result.accepted) continue;
+      checked += 1;
+      registerCareerWorld(result.state);
+      const [hit] = scoutPlayers(result.state, nick).filter((entry) => entry.nick.toLowerCase() === nick.toLowerCase());
+      expect(hit).toMatchObject({ status: 'livre', orgId: null });
+      expect(hit.note).toMatch(/Saiu da FaZe/);
+    }
+    expect(checked).toBe(1);
+    // O reserva que toma a vaga manda o titular para o seu banco: ele aparece no banco, não sem time.
+    const base = atFaze('banco-reserva-busca');
+    const { state: withReserve } = addReserve(base, 'jovem');
+    const target = matesOf(withReserve)[0];
+    const { state: promoted } = promoteReserve(withReserve, target.player.id);
+    registerCareerWorld(promoted);
+    const benchedNick = planOf(promoted).reserve!.nick;
+    const [benched] = scoutPlayers(promoted, benchedNick).filter((entry) => entry.nick.toLowerCase() === benchedNick.toLowerCase());
+    expect(benched?.status).toBe('reserva');
   });
 
   it('a busca acha quem está no banco e quem está sem time; as trocas do banco entram no mercado do mundo', () => {
