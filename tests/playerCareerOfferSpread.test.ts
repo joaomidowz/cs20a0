@@ -36,7 +36,8 @@ function spreadOf(country: string, en: number, level: number, check?: (state: Pl
   for (const mood of ['star', 'decent'] as const) {
     for (let index = 0; index < SEEDS; index += 1) {
       const done = finishSeason(seasonAt(country, en, level, mood, index));
-      for (const offer of done.pendingOffers ?? []) {
+      // A renovação é do seu próprio time (você já está lá): o espalhamento e as réguas são do mercado.
+      for (const offer of (done.pendingOffers ?? []).filter((candidate) => candidate.kind !== 'renewal')) {
         counts.set(offer.orgId, (counts.get(offer.orgId) ?? 0) + 1);
         total += 1;
         check?.(done, offer);

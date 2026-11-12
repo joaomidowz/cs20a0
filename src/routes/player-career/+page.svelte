@@ -104,6 +104,9 @@
   const PLACE_KEY: Record<string, string> = { Quartas: 'Quartas', Semis: 'Semis', Vice: 'Vice', 'Campeão': 'Campeão', 'Fase suíça': 'Suica', 'Stage 1': 'Stage', 'Stage 2': 'Stage', 'Não classificado': 'Fora', Folga: 'Fora', Classificado: 'Semis', Eliminado: 'Fora', Convidado: 'Semis' };
   const REGION_LABEL: Record<string, string> = { sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', asia: 'Ásia', oce: 'Oceania' };
   const moneyLabel = (value: number) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `${value}`);
+  /** O ano em que a temporada `season` da carreira acontece. */
+  const yearOfSeason = (state: PlayerCareerState, season: number) => state.year + (season - state.seasonNumber);
+  const seasonsLabel = (years: number) => `${years} ${years === 1 ? 'temporada' : 'temporadas'}`;
   const placeKey = (placement: string | undefined) => (placement ? PLACE_KEY[placement] ?? 'Quartas' : 'none');
   /** "DreamHack Open South America Revival 2028" → "DreamHack Open South America 2028" (o selo "Retorno" diz o resto). */
   const eventName = (name: string) => name.replace(/\s+Revival(?=\s+\d{4}$|$)/i, '');
@@ -1732,6 +1735,13 @@
           {/each}
         </ol>
         <p class="rung-here"><span>{PYRAMID.find((rung) => rung.level === currentLevel)?.label ?? ''}</span> {orgOf(career.orgId).name}</p>
+        {#if career.contract}
+          <p class="contract-line" title="Sob contrato, o fim da temporada só abre para quem paga a multa. No último ano, o time renova ou você fica livre.">
+            <b>Contrato até {yearOfSeason(career, career.contract.until)}</b> · US$ {career.contract.salaryUsd.toLocaleString('pt-BR')}/mês · multa US$ {moneyLabel(career.contract.buyoutUsd)}
+          </p>
+        {:else if career.orgId !== 'lan-house'}
+          <p class="contract-line">Sem contrato</p>
+        {/if}
         <details class="tier-guide">
           <summary>O que é cada tier</summary>
           <dl>
@@ -1797,8 +1807,12 @@
               {#if lastLog.retireHint}
                 <div class="note warn"><b>O corpo pede para parar.</b><span>Você pode seguir até os 40 ou pendurar o mouse agora.</span><button class="danger-btn note-btn" on:click={askRetire}>Pendurar o mouse</button></div>
               {/if}
-              {#if career.released}
-                <div class="note warn"><b>O {orgOf(career.orgId).name} não renovou.</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada, sem título. Escolha uma oferta ou volte para a Lan House.</span></div>
+              {#if career.sold}
+                <div class="note warn"><b>{lastLog.contractNote ?? 'Você foi vendido.'}</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada. O time de lá pagou a multa: assine com ele para a próxima temporada.</span></div>
+              {:else if career.released}
+                <div class="note warn"><b>{lastLog.contractNote ?? `O ${orgOf(career.orgId).name} não renovou.`}</b><span>Rating {lastLog.seasonRating.toFixed(2)} na temporada{lastLog.titles ? '' : ', sem título'}. Escolha uma oferta ou volte para a Lan House.</span></div>
+              {:else if lastLog.contractNote}
+                <div class="note"><b>{lastLog.contractNote}</b>{#if lastLog.salaryPaid}<span>Salário do ano no caixa: US$ {lastLog.salaryPaid.toLocaleString('pt-BR')}.</span>{/if}</div>
               {/if}
               {#if lastLog.hltvRank || lastLog.rookieEligible}
                 <div class="note" class:award={lastLog.hltvRank !== null && lastLog.hltvRank !== undefined && lastLog.hltvRank <= 20 || lastLog.rookie?.you}>
@@ -1826,17 +1840,19 @@
 
           <section aria-label="Janela de mercado">
             <div class="section-head">
-              <h2 class="display h2">Janela de mercado</h2>
-              <span>Hoje: {orgOf(career.orgId).name} · {teamTierTitle(currentLevel)}</span>
+              <h2 class="display h2">{career.sold ? 'Você foi vendido' : career.pendingOffers.some((offer) => offer.kind === 'buyout') ? 'Querem pagar a sua multa' : 'Janela de mercado'}</h2>
+              <span>Hoje: {orgOf(career.orgId).name} · {teamTierTitle(currentLevel)}{#if career.contract && career.contract.until >= career.seasonNumber && !career.released && !career.sold} · contrato até {yearOfSeason(career, career.contract.until)}{:else if career.contract && !career.released && !career.sold} · contrato acabou{/if}</span>
             </div>
             <div class="offers">
               {#each career.pendingOffers as offer}
                 {@const target = orgIn(career.seed, career.seasonNumber, offer.orgId)}
                 {@const seat = target ? seatToTake(target, career.role) : null}
-                <button class="offer" on:click={() => choose(offer.orgId)}>
-                  <span class="label" class:up={offer.orgLevel < currentLevel}>{offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
-                  <b class="display">{offer.orgName}</b>
-                  <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
+                <button class="offer" class:renewal={offer.kind === 'renewal'} on:click={() => choose(offer.orgId)}>
+                  <span class="label" class:up={offer.orgLevel < currentLevel || offer.kind === 'renewal'}>{offer.kind === 'renewal' ? 'Renovar' : offer.kind === 'sale' ? 'Vendido' : offer.orgLevel < currentLevel ? `Sobe para ${teamTierTitle(offer.orgLevel)}` : offer.orgLevel === currentLevel ? 'Mesmo nível' : `Desce para ${teamTierTitle(offer.orgLevel)}`}</span>
+                  <b class="display">{offer.kind === 'renewal' ? `Ficar no ${offer.orgName}` : offer.orgName}</b>
+                  {#if offer.kind !== 'renewal'}<span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>{/if}
+                  {#if offer.years}<span class="ln">Contrato <b>{seasonsLabel(offer.years)}</b> · até {yearOfSeason(career, career.seasonNumber + offer.years - 1)}</span>{/if}
+                  {#if offer.buyoutUsd}<span class="ln">{offer.kind === 'sale' ? 'Pagou a multa' : 'Paga a sua multa'} de <b>US$ {moneyLabel(offer.buyoutUsd)}</b></span>{/if}
                   {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
                   <span class="ln">Campeonatos <b>{eventsFor(offer.orgId, career)} / temporada</b></span>
                   <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
@@ -1847,17 +1863,19 @@
                 <b class="display">Pendurar o mouse</b>
                 <span class="ln">Fim da carreira de jogador aos {career.age}</span>
               </button>
-              {#if career.released}
+              {#if career.sold}
+                <!-- Vendido: o time já fechou com o de lá; não dá para ficar nem voltar para a lan house. -->
+              {:else if career.released}
                 <button class="offer stay" on:click={toLanHouse}>
                   <span class="label">Recomeçar</span>
                   <b class="display">Voltar para a Lan House</b>
                   <span class="ln">Grind por fora até um time chamar de novo</span>
                 </button>
-              {:else}
+              {:else if !career.pendingOffers.some((offer) => offer.kind === 'renewal')}
                 <button class="offer stay" on:click={stay}>
-                  <span class="label">Renovar</span>
+                  <span class="label">{career.contract ? 'Contrato' : 'Renovar'}</span>
                   <b class="display">Ficar no {orgOf(career.orgId).name}</b>
-                  <span class="ln">Mantém o elenco e a sinergia</span>
+                  <span class="ln">{career.contract ? `Segue no contrato até ${yearOfSeason(career, career.contract.until)}` : 'Mantém o elenco e a sinergia'}</span>
                 </button>
               {/if}
             </div>
@@ -2970,6 +2988,8 @@
               <b class="display">{offer.orgName}</b>
               <span class="ln">Vaga de <b>{seat?.nick ?? 'a definir'}</b></span>
                   {#if target}{@const offerLanguage = orgLanguage(target)}{@const offerFluency = myFluency(career, offerLanguage)}<span class="ln">Call em <b class:warn-text={languagePenalty(offerFluency) > 0}>{LANGUAGE_LABEL[offerLanguage]}</b> · você {fluencyLabel(offerFluency)}</span>{/if}
+              {#if offer.years}<span class="ln">Contrato <b>{seasonsLabel(offer.years)}</b> · até {yearOfSeason(career, career.seasonNumber + offer.years - 1)}</span>{/if}
+              {#if offer.buyoutUsd}<span class="ln">Paga a sua multa de <b>US$ {moneyLabel(offer.buyoutUsd)}</b></span>{/if}
               <span class="ln">Salário <b class="accent">US$ {offer.salaryUsd.toLocaleString('pt-BR')}/mês</b></span>
             </button>
           {/each}
@@ -3108,6 +3128,9 @@
   .ovr-num { font: 900 104px/.78 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
   .ovr-label { margin: 0 0 6px; }
   .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0; }
+  .contract-line { margin: 4px 0 0; color: var(--muted); font-size: .74rem; }
+  .contract-line b { color: var(--text); }
+  .offer.renewal { border-color: var(--accent); }
   .facts div { display: grid; gap: 4px; min-width: 0; padding: 6px 7px; border: 1px solid var(--line); background: var(--surface-2); }
   .facts dt { overflow: hidden; color: var(--muted); font: 700 10px/1.2 var(--body); letter-spacing: .02em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
   .facts dd { margin: 0; font: 800 22px/1 var(--display); font-variant-numeric: tabular-nums; }

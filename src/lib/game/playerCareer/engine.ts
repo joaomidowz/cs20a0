@@ -16,6 +16,7 @@ import { entryKind, needsQualifierFor, withQualifiers } from './qualifiers';
 import { trophyArt } from './trophyArt';
 import { myFluency, type Language } from './language';
 import { pickOffers, rememberOffers, type OfferGroup, type RecentOffer } from './offers';
+import { buyoutFor, contractFrom, contractYears, coversNext, monthlySalary, RENEW_MARGIN, SALE_CHANCE, yearsLeft, type CareerContract } from './contracts';
 import type { Rival } from './rivals';
 import type { DecisionLog } from './decisions';
 import type { CareerLife } from './life';
@@ -246,6 +247,12 @@ export interface CareerOffer {
   orgName: string;
   orgLevel: number;
   salaryUsd: number;
+  /** Duração do contrato proposto, em temporadas (1 a 3). */
+  years?: number;
+  /** renewal: o seu time renovando · buyout: time que paga a sua multa · sale: o seu time te vendeu (não dá para ficar). */
+  kind?: 'renewal' | 'buyout' | 'sale';
+  /** A multa que o time de lá paga para te tirar (buyout e sale). */
+  buyoutUsd?: number;
 }
 
 /** Corte ou proposta no meio da temporada, esperando a sua decisão. */
@@ -287,6 +294,10 @@ export interface SeasonLog {
   moves?: string[];
   /** O seu time subiu ou caiu de tier no fim da temporada. */
   orgChange?: { from: number; to: number };
+  /** Salário do ano que caiu no caixa (12 meses do contrato). */
+  salaryPaid?: number;
+  /** Como o contrato terminou a temporada: renovação oferecida, livre, rescindido ou vendido. */
+  contractNote?: string;
   /** Top 20 HLTV da temporada (você incluso, se entrou) e a sua posição (null: jogou pouco para ranquear). */
   hltvTop?: RankedPlayer[];
   hltvRank?: number | null;
@@ -426,8 +437,12 @@ export interface PlayerCareerState {
   languages?: Partial<Record<Language, number>>;
   /** Reputação 0-100 (imagem com times, imprensa e torcida; começa em 50). */
   reputation?: number;
-  /** Caixa em US$: a sua parte das premiações e o que os acontecimentos dão ou custam. */
+  /** Caixa em US$: a sua parte das premiações, o salário do contrato e o que os acontecimentos dão ou custam. */
   money?: number;
+  /** Contrato com o time atual (contracts.ts); null na lan house ou livre. */
+  contract?: CareerContract | null;
+  /** O seu time aceitou a multa de outro e te vendeu: na janela não dá para ficar nem voltar para a lan house. */
+  sold?: boolean;
   /** Acontecimento esperando a sua escolha (antes do jogo, depois do jogo ou na semana). */
   pendingHappening?: { id: string; trigger: 'pre' | 'post' | 'between'; eventIndex: number; /** Proposta de função (roleOffers.ts): o motivo e a função. */ offer?: import('./roleOffers').RoleOffer } | null;
   /** A última proposta de função e a sua resposta (uma por temporada; recusa não repete a mesma função na seguinte). */
@@ -640,12 +655,15 @@ export function ensureCircuitFrom(state: PlayerCareerState): PlayerCareerState {
 export function chooseStartingOrg(state: PlayerCareerState, orgId: string): PlayerCareerState {
   const option = state.pendingDraw?.find((candidate) => candidate.orgId === orgId);
   if (!option) return state;
+  // O primeiro contrato nasce aqui (a lan house não tem contrato).
+  const org = option.kind === 'real' ? orgIn(state.seed, state.seasonNumber, option.orgId) : null;
   return {
     ...state,
     orgId: option.orgId,
     pendingDraw: null,
     drawDone: true,
-    seatsTaken: option.seat ? [option.seat] : []
+    seatsTaken: option.seat ? [option.seat] : [],
+    contract: org ? signed(state, offerFrom(org, state), state.seasonNumber) : null
   };
 }
 
@@ -845,11 +863,15 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
   const orgLevels = newLevel !== org.level ? { ...(state.orgLevels ?? {}), [org.id]: newLevel } : state.orgLevels;
   const promotedState = orgLevels === state.orgLevels ? state : { ...state, orgLevels };
 
-  // O mercado olha a temporada no nível em que ela foi jogada (a promoção vale para a próxima).
+  // O mercado olha a temporada no nível em que ela foi jogada (a promoção vale para a próxima). Com contrato, a janela
+  // depende dele (contractWindow): sob contrato só quem paga a multa; no último ano, renovação ou livre.
   const blockedOffers: Array<{ orgName: string; need: number }> = [];
   const offers = buildOffers(state, seasonRating, titles, rng, blockedOffers);
-  // Temporada ruim sem título numa org real: não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
-  const released = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
+  // Temporada ruim sem título numa org real: rescindem (sob contrato) ou não renovam. Sem "Ficar"; sobram as ofertas ou a Lan House.
+  const rescinded = org.id !== LAN_HOUSE.id && titles === 0 && seasonRating < decentRatingFor(state.role, org.level) - 0.12;
+  const market = contractWindow(state, org, offers, seasonRating, titles, rescinded);
+  if (market.salaryPaid) log.salaryPaid = market.salaryPaid;
+  if (market.note) log.contractNote = market.note;
   const next: PlayerCareerState = {
     ...promotedState,
     // Férias na virada da temporada: sobra só um quinto do cansaço.
@@ -866,15 +888,78 @@ export function finishSeason(state: PlayerCareerState, worldRank: number | null 
     // As linhas de todos os jogadores ficam só na última temporada (o ranking lê no máximo 12 meses): o save não cresce.
     history: [...state.history.map(withoutLines), log],
     calendar: null,
-    pendingOffers: offers.length ? offers : released ? [] : null,
-    blockedOffers,
-    recentOffers: rememberOffers(state, offers),
+    pendingOffers: market.pendingOffers,
+    blockedOffers: market.underContract ? [] : blockedOffers,
+    recentOffers: rememberOffers(state, market.pendingOffers ?? []),
     pendingMove: null,
     seasonMoves: [],
-    released
+    released: market.released,
+    sold: market.sold,
+    // O salário do ano cai no caixa (12 meses do contrato que você jogou).
+    money: (promotedState.money ?? 0) + market.salaryPaid,
+    contract: market.contract
   };
   // Aos 40 a carreira de jogador acaba: pendura o mouse e vira coach.
   return next.age >= MAX_CAREER_AGE ? retire(next, { coach: true }) : next;
+}
+
+interface ContractWindow {
+  pendingOffers: CareerOffer[] | null;
+  released: boolean;
+  sold: boolean;
+  /** Ainda sob contrato na próxima temporada (sem mercado aberto). */
+  underContract: boolean;
+  salaryPaid: number;
+  contract: CareerContract | null;
+  note: string | null;
+}
+
+/**
+ * A janela do fim da temporada com contrato (contracts.ts). Lan house: o mercado de sempre. Rescisão (temporada muito
+ * ruim): livre, com as propostas que vierem. Sob contrato: só time de cima que paga a multa, e numa temporada fraca o
+ * seu time pode aceitar a multa de outro e te vender. Último ano: o seu time renova se você foi bem (com título,
+ * sempre); senão você fica livre e escolhe entre as propostas ou a lan house.
+ */
+function contractWindow(state: PlayerCareerState, org: { id: string; name: string; level: number }, offers: CareerOffer[], seasonRating: number, titles: number, rescinded: boolean): ContractWindow {
+  const contract = state.contract ?? null;
+  const mine = contract && contract.orgId === org.id ? contract : null;
+  const salaryPaid = mine ? mine.salaryUsd * 12 : 0;
+  const yearOf = (season: number) => state.year + (season - state.seasonNumber);
+  if (org.id === LAN_HOUSE.id) return { pendingOffers: offers.length ? offers : null, released: false, sold: false, underContract: false, salaryPaid, contract: null, note: null };
+  if (rescinded) {
+    const note = mine && coversNext(mine, org.id, state.seasonNumber) ? `O ${org.name} rescindiu o seu contrato.` : `O ${org.name} não renovou o seu contrato.`;
+    return { pendingOffers: offers, released: true, sold: false, underContract: false, salaryPaid, contract: null, note };
+  }
+  const current = orgIn(state.seed, state.seasonNumber, org.id);
+  const level = levelIn(state, org);
+  if (mine && coversNext(mine, org.id, state.seasonNumber)) {
+    const left = yearsLeft(mine, state.seasonNumber + 1);
+    const buyout = buyoutFor(marketValueUsd(state.overall), left);
+    // Brilhou: time de cima paga a multa. Só eles; o mesmo nível e os de baixo esperam o contrato acabar.
+    const buyers = offers.filter((offer) => offer.orgLevel < level).map((offer) => ({ ...offer, kind: 'buyout' as const, buyoutUsd: buyout }));
+    if (buyers.length) return { pendingOffers: buyers, released: false, sold: false, underContract: true, salaryPaid, contract: mine, note: `Sob contrato com o ${org.name} até ${yearOf(mine.until)}: só quem paga a multa (US$ ${buyout.toLocaleString('pt-BR')}) te tira.` };
+    // Temporada fraca sob contrato: às vezes o time aceita a multa de alguém do mesmo nível ou de baixo e te vende.
+    const weak = titles === 0 && seasonRating < decentRatingFor(state.role, org.level);
+    const saleRng = createSeededRng(`${state.seed}:sale:${state.seasonNumber}`);
+    if (weak && saleRng() < SALE_CHANCE) {
+      const [buyer] = pickOffers(state, saleRng, [{ levels: [org.level, org.level + 1], count: 1, bump: -0.03 }], { season: state.seasonNumber + 1 }).filter((offer) => offer.orgId !== org.id);
+      if (buyer) return { pendingOffers: [{ ...buyer, kind: 'sale', buyoutUsd: buyout }], released: false, sold: true, underContract: false, salaryPaid, contract: null, note: `O ${org.name} aceitou a multa do ${buyer.orgName} e te vendeu.` };
+    }
+    return { pendingOffers: null, released: false, sold: false, underContract: true, salaryPaid, contract: mine, note: `Sob contrato com o ${org.name} até ${yearOf(mine.until)}.` };
+  }
+  // Último ano (ou sem contrato): o seu time renova se você foi bem; senão, livre.
+  const renews = titles >= 1 || seasonRating >= decentRatingFor(state.role, org.level) - RENEW_MARGIN;
+  const renewal = renews && current ? { ...offerFrom(current, state, titles >= 1 ? 0.05 : 0), kind: 'renewal' as const } : null;
+  const others = offers.filter((offer) => offer.orgId !== org.id);
+  return {
+    pendingOffers: renewal ? [renewal, ...others] : others,
+    released: !renewal,
+    sold: false,
+    underContract: false,
+    salaryPaid,
+    contract: mine,
+    note: renewal ? `O contrato com o ${org.name} acabou e eles querem renovar por ${renewal.years} ${renewal.years === 1 ? 'temporada' : 'temporadas'}.` : `O contrato com o ${org.name} acabou e eles não renovaram: você está livre (free agent).`
+  };
 }
 
 export function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 0): CareerOffer {
@@ -883,8 +968,20 @@ export function offerFrom(candidate: SceneOrg, state: PlayerCareerState, bump = 
     orgId: candidate.id,
     orgName: candidate.name,
     orgLevel: level,
-    salaryUsd: Math.round(Math.max(400, marketValueUsd(state.overall) * (0.08 + level * 0.02) * (1 + bump)))
+    salaryUsd: monthlySalary(marketValueUsd(state.overall), level, bump),
+    years: contractYears(state.seed, candidate.id, state.seasonNumber, state.age, level)
   };
+}
+
+/** Contrato da assinatura: começa em `from` (a temporada em que você joga com o time novo). */
+const signed = (state: PlayerCareerState, offer: CareerOffer, from: number): CareerContract => contractFrom(offer, from, marketValueUsd(state.overall));
+
+/** Saves de antes dos contratos: o contrato acaba no fim da temporada atual (a primeira virada é como era: mercado aberto). */
+export function ensureContract(state: PlayerCareerState): PlayerCareerState {
+  if (state.contract !== undefined) return state;
+  const org = state.orgId === LAN_HOUSE.id ? null : orgIn(state.seed, state.seasonNumber, state.orgId);
+  if (!org) return { ...state, contract: null };
+  return { ...state, contract: { ...signed(state, { ...offerFrom(org, state), years: 1 }, state.seasonNumber) } };
 }
 
 /** Rating esperado no nível: sobe com o circuito e acompanha o viés da função (entry/IGL rendem menos). */
@@ -938,18 +1035,25 @@ export function acceptOffer(state: PlayerCareerState, orgId: string): PlayerCare
   const org = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = org ? { ...seatToTake(org, state.role), season: state.seasonNumber } : null;
   const orgLevels = joinedLevels(state, offer);
-  return { ...state, orgId, pendingOffers: null, ...(orgLevels ? { orgLevels } : {}), ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
+  // A renovação é ficar com contrato novo; as outras são assinatura com o time de lá (multa paga por ele, se houver).
+  const contract = signed(state, offer, state.seasonNumber);
+  if (offer.kind === 'renewal') return { ...state, pendingOffers: null, released: false, sold: false, contract };
+  return { ...state, orgId, pendingOffers: null, released: false, sold: false, contract, ...(orgLevels ? { orgLevels } : {}), ...(seat ? { seatsTaken: [...state.seatsTaken, seat] } : {}) };
 }
 
+/** Ficar: com renovação na mesa, assina o contrato novo; sob contrato, segue nele. Livre ou vendido, não dá para ficar. */
 export function stayAtOrg(state: PlayerCareerState): PlayerCareerState {
-  if (state.released) return state;
+  if (state.released || state.sold) return state;
+  const renewal = state.pendingOffers?.find((offer) => offer.kind === 'renewal');
+  if (renewal) return acceptOffer(state, renewal.orgId);
   return { ...state, pendingOffers: null };
 }
 
-/** Dispensado (ou por escolha): volta a grindar na lan house. */
+/** Dispensado, livre (ou por escolha): volta a grindar na lan house, sem contrato. Vendido não volta: o time já fechou. */
 export function goToLanHouse(state: PlayerCareerState): PlayerCareerState {
+  if (state.sold) return state;
   const from = orgOf(state.orgId).name;
-  return { ...state, orgId: LAN_HOUSE.id, pendingOffers: null, released: false, seasonMoves: [...(state.seasonMoves ?? []), `${from} → Lan House`] };
+  return { ...state, orgId: LAN_HOUSE.id, pendingOffers: null, released: false, contract: null, seasonMoves: [...(state.seasonMoves ?? []), `${from} → Lan House`] };
 }
 
 /** Média dos últimos campeonatos jogados na temporada (os mais recentes pesam a decisão do time). */
@@ -1001,12 +1105,20 @@ export function midSeasonCheck(state: PlayerCareerState, relationshipAverage = 5
           kind: 'poach',
           average: recent.average,
           reason: `Média ${recent.average.toFixed(2)} nos últimos ${Math.min(3, recent.played)} campeonatos chamou atenção.`,
-          offers
+          offers: withBuyout(state, offers)
         }
       };
     }
   }
   return state;
+}
+
+/** Sob contrato, quem te tira no meio do ano paga a multa (o que falta do contrato, contando esta temporada). */
+function withBuyout(state: PlayerCareerState, offers: CareerOffer[]): CareerOffer[] {
+  const contract = state.contract;
+  if (!contract || contract.orgId !== state.orgId) return offers;
+  const buyoutUsd = buyoutFor(marketValueUsd(state.overall), yearsLeft(contract, state.seasonNumber));
+  return offers.map((offer) => ({ ...offer, kind: 'buyout' as const, buyoutUsd }));
 }
 
 /** Troca de time no meio da temporada: os jogados ficam, os que faltam viram o calendário da org nova. */
@@ -1025,9 +1137,13 @@ function moveMidSeason(state: PlayerCareerState, orgId: string, note: string): P
   const next = withQualifiers({ ...state, orgId }, drawn, played.length, lastMonth);
   const target = orgIn(state.seed, state.seasonNumber, orgId);
   const seat = target ? { ...seatToTake(target, state.role), season: state.seasonNumber } : null;
+  // Contrato novo com o time de lá a partir desta temporada (a multa do antigo, se havia, foi paga por ele).
+  const offer = state.pendingMove?.offers.find((candidate) => candidate.orgId === orgId);
+  const contract = orgId === LAN_HOUSE.id ? null : target ? signed(state, offer ?? offerFrom(target, state), state.seasonNumber) : state.contract ?? null;
   return {
     ...state,
     orgId,
+    contract,
     calendar: [...played, ...next],
     liveEvent: null,
     pendingMove: null,
@@ -1093,7 +1209,7 @@ export function requestTransfer(state: PlayerCareerState, relationships: Record<
   const reason = offers.length
     ? `Você pediu para sair do ${org.name}. O agente achou ${offers.length} interessado${offers.length > 1 ? 's' : ''}.`
     : `Você pediu para sair do ${org.name}, mas ninguém fez proposta agora. O clima no time ficou pesado.`;
-  return { ...base, pendingMove: { kind: 'request', average: recent?.average ?? 0, reason, offers } };
+  return { ...base, pendingMove: { kind: 'request', average: recent?.average ?? 0, reason, offers: withBuyout(state, offers) } };
 }
 
 /** O time abre mão de um campeonato (folga, rodízio, recusa): fica no calendário como "Folga", sem prêmio e sem
@@ -1137,7 +1253,7 @@ export function happeningOffers(state: PlayerCareerState, kind: 'up' | 'region',
     ...(kind === 'region' ? { exclude: (candidate: SceneOrg) => candidate.region === region } : {})
   });
   if (!offers.length) return state;
-  return { ...state, recentOffers: rememberOffers(state, offers), pendingMove: { kind: 'poach', average: recentRating(state)?.average ?? 0, reason, offers } };
+  return { ...state, recentOffers: rememberOffers(state, offers), pendingMove: { kind: 'poach', average: recentRating(state)?.average ?? 0, reason, offers: withBuyout(state, offers) } };
 }
 
 export function retire(state: PlayerCareerState, options: { coach?: boolean } = {}): PlayerCareerState {

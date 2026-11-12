@@ -18,7 +18,7 @@ import { entryKind } from './qualifiers';
 import { languagePenalty, learn, myFluency, nativeLanguage, NON_NATIVE_MAX, type Language } from './language';
 // Ciclo deliberado (só em nível de função): o squad é a fonte única dos parceiros e o live consome.
 import { enginePlayer, SLOTS, sceneOrgEnginePlayers } from './live';
-import { orgOf, seatToTake, type BenchPlayer, type CareerMember, type PlayerCareerState, type PlayerRole, type SeatTaken, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
+import { ensureContract, orgOf, seatToTake, type BenchPlayer, type CareerMember, type PlayerCareerState, type PlayerRole, type SeatTaken, type SquadPlan, type TrainedAttribute, type TrainedBonus } from './engine';
 import { countTrainingSession, growthDefaults } from './growth';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -48,7 +48,8 @@ function fixCurrentSeat(state: PlayerCareerState): SeatTaken[] {
 
 /** Saves antigos ganham os campos do elenco com default e os membros da carreira; nunca recria o que já existe. */
 export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
-  return migrateMembers({
+  // Save de antes dos contratos: o contrato acaba no fim da temporada atual (a primeira virada é como era).
+  return ensureContract(migrateMembers({
     ...state,
     seatsTaken: fixCurrentSeat(state),
     relationships: state.relationships ?? {},
@@ -64,7 +65,7 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     fatigue: state.fatigue ?? 0,
     // Save de antes do banco dos times: o banco só se mexe a partir da próxima temporada (os elencos já vistos ficam).
     benchFrom: state.benchFrom ?? state.seasonNumber + 1
-  });
+  }));
 }
 
 /**
