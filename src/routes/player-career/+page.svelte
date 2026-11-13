@@ -43,7 +43,7 @@
   } from '$lib/game/playerCareer/engine';
   import { NEXT_STAGE, PLACEMENT_ORDER, STAGE_NAME, advanceToFinal, awardsSoFar, eventTeams, userEnginePlayers, placementLabel, userStage, careerMapPool, majorInvites, advancedFromSwiss, eventDone, eventSetup, finishSceneEvent, finishSceneStage, majorEntryStage, notQualified, swissRecord, type EventSetup, type MajorStageKey, type StageCarry, lineupOf, playClutchRound, roundContextOf, sceneEventField, sceneEventResult, simulateSceneEvent, userBracketPath, type SceneEventOutcome, sceneOrgEnginePlayers, serializeSceneEvent, startSceneEvent, stepSceneEvent, type SceneClutchContext, type SceneClutchMoment } from '$lib/game/playerCareer/live';
   import { coachOfOrg } from '$lib/game/playerCareer/coaches';
-  import { TRAIN_CAP, teamBench, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
+  import { TRAIN_CAP, canRecruit, isWorldFreeAgent, recruitFreeAgent, teamBench, registerCareerWorld, careerCoachOf, canSwapRoles, naturalRoleOf, planOf, promoteReserve, swapMateRoles, celebrateResult, coachOf, ensureSquad, matesOf, myLanguageFit, trainMap, canChangeRole, changeRole, canKickMate, kickMate, myPlayerOf, synergyBump, talkTo, trainingWindowOf, type SquadMate } from '$lib/game/playerCareer/squad';
   import { academyParentOf, orgLanguage, sceneCountries, sceneOrgById, sceneOrgs } from '$lib/game/playerCareer/data';
   import { randomNick } from '$lib/game/playerCareer/extraTeams';
   import { LANGUAGE_LABEL, fluencyLabel, myFluency, teamLanguage, languagePenalty } from '$lib/game/playerCareer/language';
@@ -228,6 +228,14 @@
   let promoteOpen = false;
   /** Janela da evolução: fase da carreira, treino e se o overall ainda sobe. */
   let evoOpen = false;
+  /** Chamar um jogador sem time para o seu time (uma vez por temporada): topando, ele vai para o banco. */
+  function recruit(nick: string) {
+    if (!career) return;
+    const result = recruitFreeAgent(career, nick);
+    if (!result.line) return;
+    career = result.state;
+    notify(`${career.seed}:me`, result.accepted ? 'Contratação:' : 'Não veio:', result.line, result.accepted ? 'good' : 'bad');
+  }
   function benchMate(mateId: string) {
     if (!career) return;
     const result = promoteReserve(career, mateId);
@@ -2626,6 +2634,13 @@
                 {#if hit.orgId && hit.status !== 'voce' && sceneOrgById.has(hit.orgId)}
                   <button class="link-btn scout-team" on:click={() => scoutTeam(hit.orgId)}>Ver o elenco da {hit.orgName}</button>
                 {/if}
+                {#if hit.status === 'livre' && career.orgId !== 'lan-house' && isWorldFreeAgent(career, hit.nick)}
+                  {#if canRecruit(career)}
+                    <button class="secondary-btn small scout-recruit" on:click={() => recruit(hit.nick)} title="A diretoria e ele decidem. Topando, ele vai para o seu banco e você escolhe quem ele substitui. Uma vez por temporada.">Chamar para o {orgOf(career.orgId).name}</button>
+                  {:else}
+                    <p class="scout-recruit-note">Você já chamou um jogador sem time nesta temporada.</p>
+                  {/if}
+                {/if}
               </li>
             {/each}
           </ul>
@@ -3182,6 +3197,8 @@
   .scout-hit.status-titular { border-left-color: var(--accent); }
   .scout-hit.status-reserva { border-left-color: var(--accent-2); }
   .scout-hit.status-livre { border-left-color: var(--muted); }
+  .scout-recruit { justify-self: start; }
+  .scout-recruit-note { margin: 0; color: var(--muted); font-size: .74rem; }
   .opp-bench { display: grid; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
   .opp-bench-title { margin: 0; color: var(--muted); font-size: .66rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
   .opp-bench ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }

@@ -199,6 +199,12 @@ export function scoutPlayers(state: PlayerCareerState, query: string, limit = 8)
   }
   for (const entry of freeAgentsIn(state.seed, state.seasonNumber)) {
     if (!norm(memberNick(entry.member)).includes(q)) continue;
+    // Você trouxe ele sem time: está no banco do seu time (o mundo só tira ele do mercado na próxima temporada).
+    if (reserveNick === memberNick(entry.member).toLowerCase()) {
+      const mine = make(entry.member, state.orgId);
+      push({ ...mine, status: 'reserva', note: `No banco do ${mine.orgName}: assinou com o seu time em ${yearOfSeason(state.seasonNumber)}.` });
+      continue;
+    }
     const hit = make(entry.member, '');
     push({ ...hit, orgId: null, orgName: null, level: null, status: 'livre', note: `Sem time desde ${yearOfSeason(entry.since)}: free agent, esperando proposta.` });
   }

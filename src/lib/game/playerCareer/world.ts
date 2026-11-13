@@ -214,6 +214,18 @@ const benchActive = (seed: string, season: number) => season >= (benchStart.get(
 const contractStart = new Map<string, number>();
 const contractsActive = (seed: string, season: number) => benchActive(seed, season) && season >= (contractStart.get(seed) ?? Infinity);
 
+/**
+ * Regras do mundo, versão 2 (2026-11-13): o fim de contrato nunca tira os 3 melhores do time (estrela não fica sem
+ * renovação) e o free agent forte é disputado pelos times de cima. Liga numa temporada guardada no save (carreira nova:
+ * 2; save de antes: a seguinte), para não reescrever temporada já jogada.
+ */
+const rulesStart = new Map<string, number>();
+const rulesV2 = (seed: string, season: number) => season >= (rulesStart.get(seed) ?? Infinity);
+
+/** Jogadores do mundo que a sua carreira contratou (sem time → seu reserva ou seu time): o mundo não os oferece mais a
+ *  ninguém a partir da temporada seguinte à contratação. */
+const careerTaken = new Map<string, string>();
+
 /** Trocar a trava descarta os mundos e elencos guardados dessa seed. */
 function forgetWorld(seed: string) {
   for (const key of [...cache.keys()]) if (key.startsWith(`${seed}:`)) cache.delete(key);
@@ -221,6 +233,31 @@ function forgetWorld(seed: string) {
   seatRegistry.delete(seed);
   overlaid.delete(seed);
   placed.delete(seed);
+}
+
+/** A página registra a temporada do save em que as regras v2 do mundo passam a valer. */
+export function registerWorldRules(seed: string, from: number | undefined) {
+  const current = rulesStart.get(seed);
+  if (from === undefined ? current === undefined : current === from) return;
+  if (from === undefined) rulesStart.delete(seed);
+  else rulesStart.set(seed, from);
+  forgetWorld(seed);
+}
+
+/** A página registra quem a carreira tirou do mercado do mundo (nick e temporada da contratação). */
+export function registerCareerTaken(seed: string, taken: ReadonlyArray<{ nick: string; since: number }>) {
+  const signature = [...taken].map((entry) => `${entry.nick.toLowerCase()}@${entry.since}`).sort().join('|');
+  if ((careerTaken.get(seed) ?? '') === signature) return;
+  if (signature) careerTaken.set(seed, signature);
+  else careerTaken.delete(seed);
+  forgetWorld(seed);
+}
+
+/** Os nicks que a carreira já tinha tirado do mercado antes desta temporada. */
+function takenBefore(seed: string, season: number): Set<string> {
+  const signature = careerTaken.get(seed);
+  if (!signature) return new Set();
+  return new Set(signature.split('|').map((entry) => entry.split('@')).filter(([, since]) => Number(since) < season).map(([nick]) => nick));
 }
 
 /** A página registra a temporada do save em que os contratos do mundo passam a valer. */
@@ -334,7 +371,7 @@ const withOverall = (rosters: Map<string, SceneRosterMember[]>, dev: Map<string,
  *  vizinhos, olheiros e a vaga de quem cede o lugar a você dependem só da seed, então uma temporada não depende do
  *  resultado da outra (D6). Quem mostra o mundo na tela é que passa o nível de hoje (headlineTransfers). */
 export function sceneWorld(seed: string, season: number): WorldSeason {
-  const key = `${seed}:${season}:${benchStart.get(seed) ?? '-'}:${contractStart.get(seed) ?? '-'}`;
+  const key = `${seed}:${season}:${benchStart.get(seed) ?? '-'}:${contractStart.get(seed) ?? '-'}:${rulesStart.get(seed) ?? '-'}:${careerTaken.get(seed) ?? '-'}`;
   const cached = cache.get(key);
   if (cached) return cached;
   if (season <= 1) {
@@ -350,7 +387,9 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   const debuts: SceneDebut[] = [];
   const year = yearOfSeason(season);
   const benches = new Map([...previous.benches].map(([id, entries]) => [id, [...entries]]));
-  let freeAgents = [...previous.freeAgents];
+  // Quem a sua carreira contratou numa temporada anterior saiu do mercado do mundo.
+  const gone = takenBefore(seed, season);
+  let freeAgents = previous.freeAgents.filter((entry) => !gone.has(entry.member.nick.toLowerCase()));
   const benchMoves: SceneBenchMove[] = [];
   const active = benchActive(seed, season);
   const contractsOn = contractsActive(seed, season);
@@ -433,8 +472,9 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   // 4) O banco e os sem time (só nas temporadas em que a regra está ligada para esta carreira).
   if (active) {
     // 4a) Fim de contrato: quem terminou o contrato na temporada passada e o time não renovou vira free agent.
-    if (contractsOn) freeAgents = contractMarket(seed, season, year, rosters, previous.rosters, previous.contracts, benches, freeAgents, benchMoves, dev, taken);
-    freeAgents = benchMarket(seed, season, year, rosters, benches, freeAgents, benchMoves);
+    const v2 = rulesV2(seed, season);
+    if (contractsOn) freeAgents = contractMarket(seed, season, year, rosters, previous.rosters, previous.contracts, benches, freeAgents, benchMoves, dev, taken, v2);
+    freeAgents = benchMarket(seed, season, year, rosters, benches, freeAgents, benchMoves, v2);
   }
   const previousOverall = new Map([...previous.dev].map(([memberId, entry]) => [memberId, entry.overall]));
   // 5) Contratos: quem segue no mesmo time mantém o dele; quem chegou (ou renovou) assina um novo nesta temporada.
@@ -444,6 +484,8 @@ export function sceneWorld(seed: string, season: number): WorldSeason {
   return world;
 }
 
+/** Regras v2: daqui para cima o time sempre renova. */
+const STAR_RENEWAL = 90;
 /** Chance de o time não renovar com quem terminou o contrato (base; o mais fraco do time e o veterano saem mais). */
 const NPC_LEAVE_CHANCE = 0.05;
 const NPC_LEAVE_WEAKEST = 0.07;
@@ -490,17 +532,20 @@ function signContracts(seed: string, season: number, rosters: Map<string, SceneR
  * maioria das vezes; senão sai como free agent e o time põe no lugar o melhor sem time da função, alguém do banco ou um
  * jovem da base. Se ninguém mantém a identidade do time, ele renova.
  */
-function contractMarket(seed: string, season: number, year: number, rosters: Map<string, SceneRosterMember[]>, before: Map<string, SceneRosterMember[]>, contracts: Map<string, NpcContract>, benches: Map<string, BenchEntry[]>, freeAgents: BenchEntry[], moves: SceneBenchMove[], dev: Map<string, MemberDev>, taken: Set<string>): BenchEntry[] {
+function contractMarket(seed: string, season: number, year: number, rosters: Map<string, SceneRosterMember[]>, before: Map<string, SceneRosterMember[]>, contracts: Map<string, NpcContract>, benches: Map<string, BenchEntry[]>, freeAgents: BenchEntry[], moves: SceneBenchMove[], dev: Map<string, MemberDev>, taken: Set<string>, v2 = false): BenchEntry[] {
   const rng = createSeededRng(`${seed}:contract-market:${season}`);
   let free = [...freeAgents];
   for (const org of sceneOrgs) {
     const roster = rosters.get(org.id) ?? [];
     // Só quem já estava no time na temporada passada: quem chegou nesta virada assina contrato novo.
     const stayed = new Set((before.get(org.id) ?? []).map((member) => memberKey(member)));
-    const weakest = [...roster].sort((left, right) => strength(left, org) - strength(right, org))[0];
+    const ranked = [...roster].sort((left, right) => strength(left, org) - strength(right, org));
+    const weakest = ranked[0];
+    // Regras v2: os 3 melhores do time e qualquer estrela (90+) sempre renovam (estrela não fica sem contrato).
+    const core = v2 ? new Set([...ranked.slice(-3), ...ranked.filter((member) => strength(member, org) >= STAR_RENEWAL)]) : new Set<SceneRosterMember>();
     for (const member of [...roster]) {
       const contract = contracts.get(memberKey(member));
-      if (!contract || contract.orgId !== org.id || contract.until !== season - 1 || member.careerMade || !stayed.has(memberKey(member))) continue;
+      if (!contract || contract.orgId !== org.id || contract.until !== season - 1 || member.careerMade || !stayed.has(memberKey(member)) || core.has(member)) continue;
       const born = memberBirthYear(member);
       const age = born === null ? null : year - born;
       const chance = NPC_LEAVE_CHANCE + (member === weakest ? NPC_LEAVE_WEAKEST : 0) + (age !== null && age >= 30 ? NPC_LEAVE_VETERAN : 0);
@@ -564,7 +609,11 @@ function fromOutside(org: SceneOrg, roster: SceneRosterMember[], leaving: SceneR
  * time se rende mais que o titular da função, é contratado por outro time do mesmo nível ou vizinho (o titular que perde
  * a vaga vai para o banco de lá) ou é dispensado e vira free agent. O free agent acha time do mesmo jeito ou pendura.
  */
-function benchMarket(seed: string, season: number, year: number, rosters: Map<string, SceneRosterMember[]>, benches: Map<string, BenchEntry[]>, freeAgents: BenchEntry[], moves: SceneBenchMove[]): BenchEntry[] {
+/** Regras v2: free agent desse nível é disputado (quase sempre acha time, e time de cima). */
+const STAR_FREE_AGENT = 85;
+const STAR_FA_SIGN_CHANCE = 0.9;
+
+function benchMarket(seed: string, season: number, year: number, rosters: Map<string, SceneRosterMember[]>, benches: Map<string, BenchEntry[]>, freeAgents: BenchEntry[], moves: SceneBenchMove[], v2 = false): BenchEntry[] {
   const rng = createSeededRng(`${seed}:bench:${season}`);
   const ageOf = (member: SceneRosterMember) => {
     const born = memberBirthYear(member);
@@ -640,11 +689,14 @@ function benchMarket(seed: string, season: number, year: number, rosters: Map<st
       moves.push({ season, nick: memberNick(entry.member), kind: 'retired', orgId: null, orgName: null });
       continue;
     }
-    if (rng() < FA_SIGN_CHANCE) {
+    const star = v2 && (entry.member.overall ?? memberCatalogOverall(entry.member) ?? 0) >= STAR_FREE_AGENT;
+    if (rng() < (star ? STAR_FA_SIGN_CHANCE : FA_SIGN_CHANCE)) {
       const level = entry.level ?? 3;
-      const targets = sceneOrgs.filter((org) => Math.abs(org.level - level) <= 1);
-      const pickTarget = targets[Math.floor(rng() * targets.length)];
-      const target = pickTarget ? weakestFor(pickTarget.id, entry.member) : null;
+      // Estrela sem time: os times de cima (do nível dele para cima) disputam; o primeiro em que ele é titular leva.
+      const targets = star ? sceneOrgs.filter((org) => org.level <= level + 1) : sceneOrgs.filter((org) => Math.abs(org.level - level) <= 1);
+      const order = star ? [...targets].map((org) => ({ org, roll: rng() })).sort((left, right) => left.org.level - right.org.level || left.roll - right.roll).map((item) => item.org) : [];
+      const pickTarget = star ? undefined : targets[Math.floor(rng() * targets.length)];
+      const target = star ? order.map((org) => weakestFor(org.id, entry.member)).find(Boolean) ?? null : pickTarget ? weakestFor(pickTarget.id, entry.member) : null;
       if (target) {
         signInto(target, entry.member);
         moves.push({ season, nick: memberNick(entry.member), kind: 'faSigned', orgId: target.org.id, orgName: target.org.name, swappedNick: memberNick(target.weakest) });

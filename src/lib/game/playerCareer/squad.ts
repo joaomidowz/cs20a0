@@ -7,7 +7,7 @@ import { createSeededRng } from '../simulation';
 import { applyTraining } from '../dynasty/training';
 import type { Coach, Player, TrainingFocus } from '../types';
 import { memberBirthYear, memberCatalogOverall, memberNick, memberRoles, ORG_BASE_POWER, orgLanguage, sceneOrgById, type SceneOrg, type SceneRosterMember } from './data';
-import { benchIn, orgIn, placeCareerMembers, registerBenchStart, registerContractStart, registerSeats, yearOfSeason, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
+import { benchIn, freeAgentsIn, orgIn, placeCareerMembers, registerBenchStart, registerCareerTaken, registerContractStart, registerSeats, registerWorldRules, yearOfSeason, seatMovesOf, slotOfNick, worldOrgOfNick, worldRosterIn } from './world';
 import { coachOfOrg, type CareerCoach } from './coaches';
 import { randomNick } from './extraTeams';
 import { MAP_TRAIN_CAP, MAP_TRAIN_STEP } from './careerMaps';
@@ -66,7 +66,9 @@ export function ensureSquad(state: PlayerCareerState): PlayerCareerState {
     // Save de antes do banco dos times: o banco só se mexe a partir da próxima temporada (os elencos já vistos ficam).
     benchFrom: state.benchFrom ?? state.seasonNumber + 1,
     // Save de antes dos contratos do mundo: eles só tiram gente dos times a partir da próxima temporada.
-    contractsFrom: state.contractsFrom ?? state.seasonNumber + 1
+    contractsFrom: state.contractsFrom ?? state.seasonNumber + 1,
+    // Save de antes das regras v2 do mundo: elas valem a partir da próxima temporada.
+    worldRulesFrom: state.worldRulesFrom ?? state.seasonNumber + 1
   }));
 }
 
@@ -159,7 +161,7 @@ export function usualCountryOf(roster: SceneRosterMember[], fallback: string): s
 export const memberIdOf = (orgId: string, nick: string) => `${orgId}:bench:${nick.toLowerCase()}`;
 
 /** Só os campos do banco (sem time e posição). */
-const benchOf = ({ nick, role, overall, potential, born, country }: BenchPlayer): BenchPlayer => ({ nick, role, overall, potential, born, country });
+const benchOf = ({ nick, role, overall, potential, born, country, fromWorld }: BenchPlayer): BenchPlayer => ({ nick, role, overall, potential, born, country, ...(fromWorld !== undefined ? { fromWorld } : {}) });
 
 /** Os membros da sua carreira no time (o atual, por padrão) que já estão nele nesta temporada. */
 export const membersAt = (state: PlayerCareerState, orgId = state.orgId): CareerMember[] =>
@@ -179,6 +181,13 @@ export const registerCareerWorld = (state: PlayerCareerState) => {
   // O banco primeiro: ele decide o mundo de onde as vagas e os membros são lidos.
   registerBenchStart(state.seed, state.benchFrom);
   registerContractStart(state.seed, state.contractsFrom);
+  registerWorldRules(state.seed, state.worldRulesFrom);
+  // Quem você trouxe sem time (no banco ou já no time) sai do mercado do mundo.
+  const reserve = state.squadPlan?.reserve;
+  registerCareerTaken(state.seed, [
+    ...(reserve?.fromWorld !== undefined ? [{ nick: reserve.nick, since: reserve.fromWorld }] : []),
+    ...(state.careerMembers ?? []).filter((member) => member.fromWorld !== undefined).map((member) => ({ nick: member.nick, since: member.fromWorld! }))
+  ]);
   registerSeats(state.seed, seatsWithSeason(state), state.careerMembers ?? []);
 };
 
@@ -713,6 +722,49 @@ export function addReserve(state: PlayerCareerState, kind: ReserveKind, role?: P
 /** O reserva entra no lugar do parceiro; o parceiro vai para o banco. Ele não gosta (relação −12); se o reserva é
  *  claramente melhor, o resto do elenco entende (+1). O reserva gerado vira membro do time na posição do parceiro;
  *  titular do mundo voltando do banco volta para a posição dele (quem a cobria fica com a vaga escolhida). */
+/** Pode chamar um jogador sem time agora? (time de verdade, uma vez por temporada) */
+export const canRecruit = (state: PlayerCareerState): boolean =>
+  state.status === 'ACTIVE' && state.orgId !== 'lan-house' && state.recruitRequestedSeason !== state.seasonNumber;
+
+/** Ele está sem time no mundo agora (dá para chamar)? Quem saiu do seu time a seu pedido não entra aqui. */
+export const isWorldFreeAgent = (state: PlayerCareerState, nick: string): boolean =>
+  freeAgentsIn(state.seed, state.seasonNumber).some((entry) => memberNick(entry.member).toLowerCase() === nick.toLowerCase());
+
+/**
+ * Você chama um jogador sem time (free agent do mundo) para o seu time. A diretoria e ele decidem: pesa o tier do seu
+ * time contra o do último time dele, o seu overall contra o dele (estrela quer jogar com estrela), a sua fama e a sua
+ * reputação. Topou: ele entra como o reserva do time (quem estava no banco sai) e você escolhe, pelo banco, quem ele
+ * substitui. Uma vez por temporada.
+ */
+export function recruitFreeAgent(state: PlayerCareerState, nick: string): { state: PlayerCareerState; accepted: boolean; line: string } {
+  if (!canRecruit(state)) return { state, accepted: false, line: '' };
+  const entry = freeAgentsIn(state.seed, state.seasonNumber).find((candidate) => memberNick(candidate.member).toLowerCase() === nick.toLowerCase());
+  if (!entry) return { state, accepted: false, line: '' };
+  const member = entry.member;
+  const name = memberNick(member);
+  const overall = member.overall ?? memberCatalogOverall(member) ?? 70;
+  const myLevel = orgOf(state.orgId, state).level;
+  const fame = state.fame ?? 0;
+  const chance = clamp(0.35 + ((entry.level ?? 3) - myLevel) * 0.15 + (state.overall - overall) / 40 + ((state.reputation ?? 50) - 50) / 250 + (fame >= 50000 ? 0.15 : fame >= 10000 ? 0.07 : 0), 0.05, 0.9);
+  const rng = createSeededRng(`${state.seed}:recruit:${state.seasonNumber}:${name.toLowerCase()}`);
+  const accepted = rng() < chance;
+  const base = { ...state, recruitRequestedSeason: state.seasonNumber };
+  const org = orgOf(state.orgId, state).name;
+  if (!accepted) return { state: base, accepted, line: `${name} agradeceu, mas não vem para o ${org} agora.` };
+  const born = memberBirthYear(member) ?? state.year - 25;
+  const reserve: BenchPlayer = {
+    nick: name, role: (memberRoles(member)[0] as PlayerRole | undefined) ?? 'rifler', overall, potential: Math.max(overall, overall + (state.year - born <= 22 ? 4 : 0)),
+    born, country: member.country ?? null, fromWorld: state.seasonNumber
+  };
+  const plan = planOf(state);
+  const out = plan.reserve ? ` ${plan.reserve.nick} sai do banco.` : '';
+  return {
+    state: { ...base, squadPlan: { ...plan, reserve } },
+    accepted,
+    line: `${name} topou! Assinou com o ${org} e está no banco: escolha quem ele substitui.${out}`
+  };
+}
+
 export function promoteReserve(state: PlayerCareerState, mateId: string): { state: PlayerCareerState; line: string } {
   const plan = planOf(state);
   const reserve = plan.reserve;

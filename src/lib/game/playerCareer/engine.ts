@@ -342,7 +342,11 @@ export interface CareerVerdict {
 }
 
 /** Um jogador do banco (ou que entrou no lugar de um titular): jovem evolui a cada temporada até o teto. */
-export interface BenchPlayer { nick: string; role: PlayerRole; overall: number; potential: number; born: number; country: string | null }
+export interface BenchPlayer {
+  nick: string; role: PlayerRole; overall: number; potential: number; born: number; country: string | null;
+  /** Jogador do mundo que você trouxe sem time (recruitFreeAgent): a temporada em que ele assinou. */
+  fromWorld?: number;
+}
 
 /** Jogador criado na sua carreira (reserva que virou titular, substituto de quem saiu a seu pedido): é membro do time
  *  `orgId` na posição `slot` (índice do elenco do mundo, que as trocas do mundo mantêm) desde a temporada `since`, e
@@ -496,6 +500,10 @@ export interface PlayerCareerState {
   /** Temporada a partir da qual o fim de contrato dos jogadores do mundo tira gente dos times (world.ts,
    *  registerContractStart): carreira nova liga na 2; save de antes liga na seguinte à em que abriu esta versão. */
   contractsFrom?: number;
+  /** Temporada a partir da qual valem as regras v2 do mundo (world.ts, registerWorldRules). */
+  worldRulesFrom?: number;
+  /** Temporada em que você já chamou um jogador sem time (uma vez por temporada). */
+  recruitRequestedSeason?: number;
   /** Provocação de rival esperando a sua resposta, e o rival do campeonato em curso (depois de responder). */
   pendingRival?: Rival | null;
   rival?: Rival | null;
@@ -648,6 +656,7 @@ export function createPlayerCareer(input: { nick: string; country: string; role:
     seasonNumber: 1,
     benchFrom: 2,
     contractsFrom: 2,
+    worldRulesFrom: 2,
     year: 2026,
     history: [],
     calendar: null,
